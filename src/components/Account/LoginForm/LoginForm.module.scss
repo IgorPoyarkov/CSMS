@@ -1,0 +1,96 @@
+@import "variables";
+
+@keyframes neon {
+  0% {
+    box-shadow:
+      0 0 12px var(--glow),
+      0 0 0px var(--accent);
+  }
+  50% {
+    box-shadow:
+      0 0 48px var(--glow),
+      0 0 12px var(--accent);
+  }
+  100% {
+    box-shadow:
+      0 0 12px var(--glow),
+      0 0 0px var(--accent);
+  }
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding: 10px 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background-color: var(--surface-panel);
+  box-shadow:
+    0 0 12px var(--glow),
+    0 0 0px var(--accent);
+
+  animation: neon $transition-300 infinite;
+  animation-duration: 3s;
+
+  &__form {
+    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__title {
+    margin: 0;
+    padding: 0;
+  }
+
+  &__close {
+    background-color: transparent;
+    border: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+
+    &::before,
+    &::after {
+      position: absolute;
+      content: "";
+      border: 1px solid var(--accent);
+      width: 50%;
+      transform: translate(-50%, 0) rotate(45deg);
+      transition: transform $transition-300;
+    }
+
+    &::after {
+      transform: translate(-50%, 0) rotate(-45deg);
+    }
+
+    &:hover {
+      background-color: transparent;
+
+      &::before,
+      &::after {
+        border-color: var(--accent-emphasis);
+      }
+
+      &::before {
+        transform: translate(-50%, 0) rotate(270deg);
+      }
+
+      &::after {
+        transform: translate(-50%, 0) rotate(180deg);
+      }
+    }
+  }
+
+  &__list {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+  }
+}

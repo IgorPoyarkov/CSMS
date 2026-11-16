@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+
+    <symbol id="logo-icon" viewBox="0 0 42 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M41 25.5H0.5" stroke-linecap="round" stroke="currentColor" />
+        <path d="M31 29.5H1" stroke-linecap="round" stroke="currentColor" />
+        <path
+            d="M23.5856 12.6222C25.4927 9.11166 26.936 5.27951 28.5 0L40 22H29H17H8.21582C13.6601 16.0893 15.9393 12.1547 18.6074 4L23.5856 12.6222ZM24.169 13.6327C25.9572 10.4482 27.3403 7.04926 28.7432 2.62109L38.3496 21H28.4226L24.169 13.6327ZM27.2676 21H19.1074C20.8859 18.7733 22.3384 16.7309 23.5909 14.6313L27.2676 21ZM17.8239 21C19.9466 18.3902 21.6099 16.0657 23.0166 13.6364L18.8438 6.4082C17.7501 9.51123 16.6609 12.018 15.3184 14.3418C13.9985 16.6264 12.4484 18.7089 10.4521 21H17.8239Z"
+            fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" />
+    </symbol>
+
+
+</svg>

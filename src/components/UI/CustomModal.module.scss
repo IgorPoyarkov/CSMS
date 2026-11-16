@@ -1,0 +1,22 @@
+@import "variables";
+
+.custom-modal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  z-index: 1000;
+  background-color: var(--overlay);
+  padding: 24px;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+
+  &__content {
+    margin: 0 auto;
+    position: relative;
+    pointer-events: auto;
+  }
+}

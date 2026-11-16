@@ -1,0 +1,43 @@
+@import "variables";
+
+// Строка «Правовое основание: ...» под разделом формы
+.legal-act-refs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  &__caption {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  &__link {
+    padding: 2px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: var(--surface-raised);
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      border-color $transition-300,
+      color $transition-300;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent);
+      color: var(--accent-emphasis);
+    }
+
+    // Акт вне срока действия: экран по такому основанию нужно править
+    &--expired {
+      border-color: var(--state-warning);
+      background: var(--state-warning-soft);
+      color: var(--text-primary);
+    }
+  }
+}

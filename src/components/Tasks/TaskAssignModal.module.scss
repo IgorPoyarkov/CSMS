@@ -1,0 +1,163 @@
+@import "variables";
+@import "modal-frame";
+
+.task-assign {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--overlay);
+  overflow-y: auto;
+
+  &__window {
+    width: 100%;
+    max-width: 460px;
+    margin: auto;
+    background: var(--surface-panel);
+    // Инвертированный контур формы и бегущая по периметру точка
+    @include modal-frame;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px var(--shadow);
+    padding: 20px 24px 24px;
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__close {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent);
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  &__input {
+    padding: 8px 12px;
+    border: 1px solid var(--field-border);
+    border-radius: 6px;
+    background: var(--surface-field);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color $transition-300;
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    // Поле исполнителя недоступно, пока не выбрана функция: подсказка должна
+    // выглядеть как часть формы, а не как сломанный контрол
+    &:disabled {
+      color: var(--placeholder);
+      cursor: not-allowed;
+    }
+
+    &--textarea {
+      resize: vertical;
+    }
+  }
+
+  &__error {
+    font-size: 12px;
+    color: var(--state-danger);
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  &__btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300,
+      color $transition-300;
+
+    // В светлой теме кнопка на мятной подложке: залитая тёмно-зелёным она
+    // выглядела тяжёлой на белой форме. На наведении кнопка, наоборот,
+    // становится акцентной и текст на ней светлый
+    &--primary {
+      border: 1px solid var(--accent-soft);
+      background: var(--surface-accent);
+      color: var(--accent-emphasis);
+
+      &:hover:not(:disabled) {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: var(--text-on-accent);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+    }
+
+    &--ghost {
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--text-secondary);
+
+      &:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+    }
+  }
+}

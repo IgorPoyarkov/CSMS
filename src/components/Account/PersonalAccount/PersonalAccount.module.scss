@@ -1,0 +1,622 @@
+@import "variables";
+
+.personal-account {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.loader {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--text-secondary);
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent-soft);
+}
+
+/* ===== Карточка профиля ===== */
+
+.profile-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+// Роль в контрактной службе — подраздел карточки, поэтому занимает всю ширину
+// строки под аватаром и данными
+.profile-card__details {
+  flex-basis: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.details__summary {
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.details__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* ===== Аватар: кружок с карандашом правки ===== */
+
+.avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+// Карандаш вместо широкой кнопки «Редактировать профиль»: правка профиля
+// привязана к аватару и занимает 22px в его углу
+.avatar__edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--surface-panel);
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  color: var(--accent);
+  cursor: pointer;
+  transition:
+    background-color $transition-300,
+    border-color $transition-300,
+    color $transition-300;
+
+  &:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    // На залитой акценте карандаш обязан быть светлым, иначе исчезает
+    color: var(--text-on-accent);
+  }
+}
+
+.avatar__edit-icon {
+  width: 12px;
+  height: 12px;
+  fill: currentcolor;
+}
+
+/* ===== Данные сотрудника: список строк «ФИО: ...» ===== */
+
+.profile-data {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-data__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.profile-data__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+
+  // Двоеточие дорисовывает стиль, а не разметка: подписи остаются подписями
+  &::after {
+    content: ":";
+  }
+}
+
+.profile-data__value {
+  margin: 0;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+/* ===== Форма редактирования ===== */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field__label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-field__input {
+  padding: 8px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+}
+
+.form-field__error {
+  font-size: 12px;
+  color: var(--state-danger);
+}
+
+.btn-primary {
+  padding: 10px 24px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.btn-outline {
+  padding: 8px 20px;
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent-soft);
+  }
+}
+
+.btn-small {
+  padding: 4px 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--text-on-accent);
+  }
+}
+
+/* ===== Роль в КС ===== */
+
+.role-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.role-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-emphasis);
+  margin-bottom: 8px;
+}
+
+.role-card__info {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* ===== Образование ===== */
+
+.education-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.education-item {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  font-size: 14px;
+}
+
+.education-item__type {
+  grid-column: 1;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.education-item__field,
+.education-item__institution,
+.education-item__date,
+.education-item__validity,
+.education-item__doc {
+  grid-column: 2;
+  color: var(--text-primary);
+}
+
+/* ===== Предупреждение ===== */
+
+.warning {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: var(--state-warning-soft);
+  border: 1px solid var(--state-warning);
+  border-radius: 6px;
+  color: var(--state-warning);
+  font-size: 14px;
+  font-weight: 500;
+
+  button {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 4px 10px;
+    border: 1px solid currentColor;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 12px;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--state-warning);
+      color: var(--text-on-accent);
+    }
+  }
+}
+
+.empty-state {
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: 16px 0;
+}
+
+/* ===== Действия ===== */
+
+.action-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ===== Эффективность ===== */
+
+.performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.performance-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.performance-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+}
+
+.performance-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.performance-card__value--positive {
+  color: var(--state-success);
+}
+
+.performance-card__value--negative {
+  color: var(--state-danger);
+}
+
+.performance-card__detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ===== Список оценок ===== */
+
+.evaluation-list {
+  margin-top: 16px;
+}
+
+.evaluation-list__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+
+.evaluation-item {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.evaluation-item__score {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.evaluation-score--excellent {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.evaluation-score--good {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.evaluation-score--satisfactory {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.evaluation-score--needs {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.evaluation-score--violation {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.evaluation-item__comment {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.evaluation-item__meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ===== Календарь отпусков ===== */
+
+.leave-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leave-item {
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+
+  &--active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-soft);
+  }
+}
+
+.leave-item__type {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.leave-item__period {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.leave-item__days {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.leave-item__status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.status-approved {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.status-ongoing {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status-scheduled {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.status-completed {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.status-cancelled {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.leave-item__order {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ===== Табель организации ===== */
+
+.leave-roster {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.leave-roster__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 12px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
+.leave-roster__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th,
+  td {
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--surface-raised);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    color: var(--text-primary);
+  }
+}

@@ -1,0 +1,46 @@
+import { z } from "zod";
+
+// Функция контрактной службы — элемент справочника. Хранится в БД как отдельная
+// сущность, чтобы заказчик мог добавлять свои функции.
+//
+// Функция «из приказа» (isFromOrder=true) — общая для всех заказчиков,
+// organizationId=null, isDeletable=false.
+// Функция заказчика (isFromOrder=false) — привязана к organizationId,
+// isDeletable=true, другие заказчики её не видят.
+export const ContractFunctionSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  code: z.string().min(1),
+  paragraph: z.string().default(""),
+  title: z.string().min(1),
+  category: z.string().min(1),
+  isFromOrder: z.boolean().default(false),
+  organizationId: z.union([z.string(), z.number()]).nullable().default(null),
+  isDeletable: z.boolean().default(false),
+});
+
+export type ContractFunction = z.infer<typeof ContractFunctionSchema>;
+
+// Пустая функция для добавления
+export const emptyContractFunction = (
+  organizationId: string | number,
+  category: string,
+): Omit<ContractFunction, "id"> => ({
+  code: `custom-${Date.now()}`,
+  paragraph: "",
+  title: "",
+  category,
+  isFromOrder: false,
+  organizationId,
+  isDeletable: true,
+});
+
+// Категории для выпадающего списка (берутся из config, т.к. они фиксированы)
+export const contractFunctionCategoryOptions = [
+  { value: "planning_and_basis", label: "Планирование и обоснование" },
+  { value: "procurement", label: "Закупочные процедуры" },
+  { value: "execution_and_reporting", label: "Исполнение и отчётность" },
+];
+
+export const contractFunctionCategoryLabel = (category: string): string =>
+  contractFunctionCategoryOptions.find((o) => o.value === category)?.label ??
+  category;

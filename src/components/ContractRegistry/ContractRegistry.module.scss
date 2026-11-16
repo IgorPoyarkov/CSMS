@@ -1,0 +1,698 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+.loader,
+.empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ===== Карточка контракта ===== */
+
+.card {
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cardOverdue {
+  border-color: var(--state-danger);
+  box-shadow: 0 0 0 1px var(--state-danger-soft);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--surface-raised);
+  }
+}
+
+.cardHeaderLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.contractNumber {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.contractName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.statusBadge {
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status_signed {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status_in_execution {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.status_completed {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.status_terminated {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.status_suspended {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.overdueBadge {
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--state-danger);
+  color: var(--text-on-accent);
+}
+
+.chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+/* ===== Сводка ===== */
+
+.cardSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 0 20px 16px;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.summaryLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.4px;
+}
+
+.summaryValue {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* ===== Тело карточки ===== */
+
+.cardBody {
+  border-top: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ===== Прогресс оплаты ===== */
+
+.summaryBar {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+}
+
+.summaryBarInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.progressTrack {
+  height: 8px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressValue {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* ===== Подсекции ===== */
+
+.subSection {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.subTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ===== Таблицы ===== */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    padding: 8px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  th {
+    background: var(--surface-panel);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.description {
+  max-width: 320px;
+  color: var(--text-primary);
+}
+
+.reference {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.notes {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--state-warning);
+  font-style: italic;
+}
+
+/* ===== Бейджи этапов ===== */
+
+.stageBadge,
+.payBadge,
+.deliveryBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stage_planned {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.stage_in_progress {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.stage_completed {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.stage_delayed {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+/* ===== Бейджи платежей ===== */
+
+.pay_scheduled {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.pay_sent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pay_paid {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.pay_rejected {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+/* ===== Бейджи приёмки ===== */
+
+.del_accepted {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.del_accepted_with_notes {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.del_rejected {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.cellSuccess {
+  color: var(--state-success);
+  font-weight: 600;
+}
+
+.cellDanger {
+  color: var(--state-danger);
+  font-weight: 600;
+}
+
+/* ===== Подвал карточки ===== */
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ===== Кнопки ===== */
+
+.btnDanger {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--state-danger);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--state-danger);
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--state-danger-soft);
+  }
+}
+
+/* ===== Привлечение СМП (Tasks 9, п. 7) ===== */
+
+.smp-section {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-panel);
+}
+
+.smp-section__note {
+  margin: 0;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.smp-section__volume {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smp-section__volume-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.smp-section__progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--stripe);
+  overflow: hidden;
+}
+
+.smp-section__progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.smp-section__volume-footer {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smp-section__btnPenalty {
+  align-self: flex-start;
+  padding: 6px 14px;
+  background: var(--state-danger);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.smp-section__deadlines {
+  padding: 0 16px 12px;
+}
+
+.smp-section__deadlinesTitle {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.smp-section__customerDeadlineTitle {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.smp-section__deadlinesTable {
+  overflow-x: auto;
+}
+
+.smp-section__records {
+  padding: 0 16px 12px;
+}
+
+.smp-section__recordsTitle {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.smp-section__statusSelect {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+}
+
+.smp-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.smp-section__hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.smp-section__btnPrimary {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.smp-section__btnSmall {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.smp-section__rowDanger {
+  background: var(--state-danger-soft);
+}
+
+/* Форма сведений о СМП */
+
+.smp-form {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+}
+
+.smp-form__window {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.smp-form__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.smp-form__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.smp-form__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0 4px;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.smp-form__form {
+  padding: 16px 20px;
+}
+
+.smp-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 16px;
+}
+
+.smp-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.smp-form__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smp-form__input,
+.smp-form__select {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.smp-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.smp-form__section {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  legend {
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.smp-form__error {
+  font-size: 11px;
+  color: var(--state-danger);
+}
+
+.smp-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.smp-form__actions {
+  display: flex;
+  gap: 8px;
+
+  button {
+    padding: 8px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  }
+
+  button[type="submit"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+
+    &:hover {
+      background: var(--accent-hover);
+    }
+  }
+}

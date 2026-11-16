@@ -1,0 +1,67 @@
+@import "variables";
+
+// Рамка модальной формы. Цвет контура инвертирован к фону самого окна
+// (--modal-border): белая панель светлой темы получает тёмный контур, тёмная
+// панель тёмной темы — светлый. По периметру формы бежит точка-маркер, которая
+// обходит рамку по часовой стрелке: она показывает, что окно активно.
+//
+// Точка едет по padding-боксу окна, поэтому угол её траектории совпадает с
+// углом рамки с точностью до толщины борта.
+@mixin modal-frame($dot-size: 8px, $duration: 6s) {
+  position: relative;
+  border: 1px solid var(--modal-border);
+
+  &::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: $dot-size;
+    height: $dot-size;
+    border-radius: 50%;
+    background: var(--modal-dot);
+    box-shadow:
+      0 0 0 3px var(--modal-dot-glow),
+      0 0 10px 2px var(--modal-dot-glow);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: modal-frame-travel $duration linear infinite;
+  }
+
+  @keyframes modal-frame-travel {
+    0% {
+      top: 0;
+      left: 0;
+    }
+
+    25% {
+      top: 0;
+      left: 100%;
+    }
+
+    50% {
+      top: 100%;
+      left: 100%;
+    }
+
+    75% {
+      top: 100%;
+      left: 0;
+    }
+
+    100% {
+      top: 0;
+      left: 0;
+    }
+  }
+
+  // Бегущая точка — чистая украшалка: при уменьшенном движении она замирает
+  // на середине левой стороны и не мельтешит
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      top: 50%;
+      animation: none;
+    }
+  }
+}

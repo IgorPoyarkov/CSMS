@@ -1,0 +1,50 @@
+@import "variables";
+
+.procurement-processing {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  font-family: "Times New Roman", Times, serif;
+  color: var(--text-primary);
+
+  &__header {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: 16px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  &__logout {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  &__status {
+    text-align: center;
+    font-size: 16px;
+    padding: 20px 0;
+
+    &--error {
+      color: var(--state-danger);
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}

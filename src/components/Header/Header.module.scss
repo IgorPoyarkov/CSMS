@@ -1,0 +1,253 @@
+@import "variables";
+
+.header {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface-panel);
+  border-bottom: 1px solid var(--border);
+  padding: 20px;
+
+  &-navigation {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    &__list {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      list-style-type: none;
+      align-items: center;
+      gap: 8px 18px;
+      padding: 0;
+      margin: 0;
+    }
+
+    &__icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    &__theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition:
+        background-color $transition-300,
+        border-color $transition-300;
+
+      &:hover {
+        background: var(--surface-accent);
+        border-color: var(--accent);
+      }
+    }
+
+    // Пункты шапки — такие же «чипы», как кнопка профиля: в светлой теме на
+    // белом фоне текстовые ссылки без обводки сливаются (просьба пользователя,
+    // Tasks 6 п. 1)
+    &__link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      white-space: nowrap;
+      transition:
+        background-color $transition-300,
+        border-color $transition-300,
+        color $transition-300;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--surface-accent);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+    }
+
+    // Текущий раздел помечаем не только цветом текста
+    &__link:global(.active) {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-emphasis);
+      font-weight: 600;
+    }
+
+    &__item {
+      display: flex;
+      align-items: center;
+
+      // Профиль прижимается к правому краю, поэтому переключатель темы
+      // оказывается самой правой кнопкой
+      &--end {
+        margin-left: auto;
+      }
+    }
+
+    &__profile-wrap {
+      position: relative;
+      display: flex;
+    }
+
+    &__profile {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px 4px 4px;
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      border-radius: 20px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      transition:
+        background-color $transition-300,
+        border-color $transition-300,
+        color $transition-300;
+
+      &:hover {
+        background: var(--surface-raised);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      // Открытое меню показываем и на самой кнопке: иначе непонятно, что
+      // список раскрыт состоянием, а не наведением
+      &--open {
+        background: var(--surface-accent);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+    }
+
+    &__profile-arrow {
+      font-size: 10px;
+      color: var(--text-secondary);
+      transition: transform $transition-300;
+    }
+
+    &__profile-wrap:hover &__profile-arrow,
+    &__profile-wrap--open &__profile-arrow {
+      transform: rotate(180deg);
+    }
+
+    // Меню профиля. Ширина — по ширине кнопки профиля (Tasks 6, п. 1): раньше
+    // меню было фиксированных 220px и выглядело жирнее самого блока. Открывается
+    // только состоянием `--open`: hover и focus тоже переводятся в состояние в
+    // JS, иначе клик по кнопке не скрывал список, пока курсор внутри него
+    &__profile-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 30;
+      width: 100%;
+      min-width: max-content;
+      margin: 0;
+      padding: 4px 0;
+      list-style-type: none;
+      background-color: var(--surface-panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      box-shadow: 0 6px 16px var(--shadow);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition:
+        opacity 0.15s ease,
+        transform 0.15s ease,
+        visibility 0.15s ease;
+
+      // Невидимый «мостик» над меню: без него курсор, идущий от кнопки к пункту,
+      // проходит шестипиксельный зазор, наведение теряется и меню закрывается
+      &::before {
+        content: "";
+        position: absolute;
+        top: -10px;
+        left: 0;
+        right: 0;
+        height: 10px;
+      }
+    }
+
+    &__profile-wrap--open > &__profile-menu {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+    }
+
+    // Пункты меню прижаты к правому краю: меню висит под кнопкой профиля и
+    // читается по правой границе шапки. Подсветка у обоих пунктов одинаковой
+    // плотности — выход тоже должен откликаться на курсор (Tasks 6, п. 1)
+    &__profile-menu-link {
+      display: block;
+      width: 100%;
+      padding: 9px 14px;
+      background: none;
+      border: none;
+      text-align: right;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition:
+        background-color $transition-300,
+        color $transition-300;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        outline: none;
+      }
+
+      &--logout {
+        color: var(--state-danger);
+        border-top: 1px solid var(--border);
+        border-radius: 0 0 5px 5px;
+
+        &:hover,
+        &:focus-visible {
+          background: var(--state-danger);
+          color: var(--text-on-accent);
+        }
+      }
+    }
+
+    // Аватар в шапке — как в личном кабинете: обводка по кругу, иначе на белом
+    // фоне кружок сливается с кнопкой
+    &__profile-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      overflow: hidden;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    &__profile-avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: 1px solid var(--border-strong);
+    }
+  }
+}

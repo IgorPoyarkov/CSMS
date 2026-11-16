@@ -1,0 +1,119 @@
+@import "variables";
+
+.procurement-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 310px;
+  gap: 8px;
+  align-items: stretch;
+  padding: 6px;
+  background-color: var(--surface-panel);
+  border: 2px solid var(--border-strong);
+  border-radius: 4px;
+
+  &__actions-left {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 6px;
+
+    :global(.custom-button) {
+      flex: 1;
+      display: flex;
+    }
+
+    :global(.custom-button__button) {
+      width: 100%;
+    }
+  }
+
+  &__info {
+    display: grid;
+    grid-template-columns: 2.5fr 1.1fr 0.9fr 0.9fr;
+    border: 1px solid var(--border);
+    background-color: var(--surface-raised);
+  }
+
+  &__cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--text-primary);
+    border-right: 1px solid var(--border);
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &--main {
+      gap: 4px;
+    }
+
+    &--type {
+      align-items: center;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    &--notice {
+      align-items: center;
+      text-align: center;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    &--price {
+      align-items: flex-end;
+      text-align: right;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--accent-emphasis);
+      white-space: nowrap;
+    }
+  }
+
+  &__ikz {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 2px 6px;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--text-secondary);
+    background-color: var(--stripe);
+    border-radius: 3px;
+  }
+
+  &__name {
+    margin: 0;
+  }
+
+  &__label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &__empty {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--placeholder);
+  }
+
+  &__actions-right {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 6px;
+  }
+
+  &__actions-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+
+    :global(.custom-button__button) {
+      width: 100%;
+    }
+  }
+}

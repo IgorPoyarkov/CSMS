@@ -1,0 +1,120 @@
+@import "variables";
+@import "no-scrollbar";
+
+.custom-select {
+  position: relative;
+  // min-width: 0 обязателен: без него grid-элемент с nowrap-значением
+  // раздвигает колонку, и селект «растёт» при длинном пункте
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    color: var(--text-primary);
+    background-color: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+
+    &:hover,
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+
+  &__value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &--placeholder {
+      color: var(--placeholder);
+    }
+  }
+
+  &__arrow {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+  }
+
+  &--open {
+    .custom-select__arrow {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 220px;
+    margin: 0;
+    padding: 4px 0;
+    list-style-type: none;
+    background-color: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: 0 6px 16px var(--shadow);
+    overflow-y: auto;
+    // Без полосы прокрутки (см. mixin): выдача уже, прокрутка сохраняется
+    @include no-scrollbar;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 34px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      color: var(--accent-emphasis);
+      background-color: var(--accent-soft);
+
+      // При наведении шрифт уменьшается и в ту же ширину строки влезает
+      // больше текста; высота строки зафиксирована — выдача не дрожит
+      .custom-select__label {
+        font-size: 12px;
+        letter-spacing: -0.01em;
+      }
+    }
+
+    &--active {
+      font-weight: 700;
+      color: var(--text-on-accent);
+      background-color: var(--accent);
+    }
+  }
+
+  &__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: font-size 0.15s ease;
+  }
+}

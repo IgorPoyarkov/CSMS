@@ -1,0 +1,4996 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "test1@test.test",
+      "password": "qwerty12",
+      "organizationId": 1
+    },
+    {
+      "email": "test2@test.test",
+      "password": "qwerty12",
+      "id": 2,
+      "organizationId": 2
+    },
+    {
+      "email": "test3@test.test",
+      "password": "qwerty12",
+      "id": 3,
+      "organizationId": 3
+    },
+    {
+      "email": "test4@test.test",
+      "password": "qwerty12",
+      "id": 4,
+      "organizationId": 4
+    }
+  ],
+  "employees": [
+    {
+      "employee": {
+        "name": "Наталья",
+        "surname": "Пояркова",
+        "patronymic": "Юрьевна",
+        "birthDate": "1996-09-03"
+      },
+      "email": "test2@test.test",
+      "employeeNumber": "0309",
+      "position": "Заместитель директора по воспитательной работе",
+      "phone": "+7",
+      "id": 2,
+      "structuralUnitId": 6,
+      "organizationId": 3
+    },
+    {
+      "employee": {
+        "name": "Игорь",
+        "surname": "Поярков",
+        "patronymic": "Николаевич",
+        "birthDate": "1989-12-12"
+      },
+      "email": "test3@test.test",
+      "employeeNumber": "1212",
+      "position": "Начальник отдела закупок и складского хозяйства",
+      "phone": "+12",
+      "id": 3,
+      "structuralUnitId": 9,
+      "organizationId": 5
+    },
+    {
+      "employee": {
+        "name": "София",
+        "surname": "Пояркова",
+        "patronymic": "Игоревна",
+        "birthDate": "2025-03-21"
+      },
+      "email": "test4@test.test",
+      "employeeNumber": "2103",
+      "position": "Начальник управления организации закупок",
+      "phone": "+7 (910) 311-96-53",
+      "id": 4,
+      "structuralUnitId": 4,
+      "organizationId": 2,
+      "userId": 2,
+      "avatar": ""
+    },
+    {
+      "employee": {
+        "name": "София",
+        "surname": "Пояркова",
+        "patronymic": "Игоревна",
+        "birthDate": "2025-03-21"
+      },
+      "email": "test5@test.test",
+      "employeeNumber": "2103_2025",
+      "position": "Председатель комитета по организации и контролю закупок",
+      "phone": "+22",
+      "id": 5,
+      "structuralUnitId": 7,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Анна",
+        "surname": "Иванова",
+        "patronymic": "Сергеевна",
+        "birthDate": "1985-04-18"
+      },
+      "email": "ivanova@gkb7.test",
+      "employeeNumber": "101",
+      "position": "Начальник отдела закупок",
+      "phone": "+74951000101",
+      "id": 6,
+      "structuralUnitId": 1,
+      "organizationId": 1,
+      "userId": 1
+    },
+    {
+      "employee": {
+        "name": "Сергей",
+        "surname": "Петров",
+        "patronymic": "Николаевич",
+        "birthDate": "1990-11-02"
+      },
+      "email": "petrov@gkb7.test",
+      "employeeNumber": "102",
+      "position": "Ведущий специалист по закупкам",
+      "phone": "+74951000102",
+      "id": 7,
+      "structuralUnitId": 1,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Мария",
+        "surname": "Сидорова",
+        "patronymic": "Ивановна",
+        "birthDate": "1988-06-30"
+      },
+      "email": "sidorova@gkb7.test",
+      "employeeNumber": "103",
+      "position": "Юрисконсульт",
+      "phone": "+74951000103",
+      "id": 8,
+      "structuralUnitId": 3,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Ольга",
+        "surname": "Кузнецова",
+        "patronymic": "Петровна",
+        "birthDate": "1979-02-14"
+      },
+      "email": "kuznetsova@gkb7.test",
+      "employeeNumber": "104",
+      "position": "Главный бухгалтер",
+      "phone": "+74951000104",
+      "id": 9,
+      "structuralUnitId": 2,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Дмитрий",
+        "surname": "Гаврилов",
+        "patronymic": "Александрович",
+        "birthDate": "1991-08-07"
+      },
+      "email": "gavrilov@dizo.test",
+      "employeeNumber": "2051",
+      "position": "Ведущий специалист-эксперт",
+      "phone": "+74722000501",
+      "id": 10,
+      "structuralUnitId": 5,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Елена",
+        "surname": "Тарасова",
+        "patronymic": "Викторовна",
+        "birthDate": "1983-12-05"
+      },
+      "email": "tarasova@school15.test",
+      "employeeNumber": "3101",
+      "position": "Заместитель директора по административно-хозяйственной работе",
+      "phone": "+74722000601",
+      "id": 11,
+      "structuralUnitId": 6,
+      "organizationId": 3,
+      "userId": 3
+    },
+    {
+      "employee": {
+        "name": "Андрей",
+        "surname": "Белов",
+        "patronymic": "Владимирович",
+        "birthDate": "1987-03-27"
+      },
+      "email": "belov@belgorod.test",
+      "employeeNumber": "4101",
+      "position": "Начальник юридического управления",
+      "phone": "+74722000701",
+      "id": 12,
+      "structuralUnitId": 8,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Ирина",
+        "surname": "Морозова",
+        "patronymic": "Павловна",
+        "birthDate": "1982-09-16"
+      },
+      "email": "morozova@gku-mto.test",
+      "employeeNumber": "5101",
+      "position": "Главный бухгалтер",
+      "phone": "+74722000801",
+      "id": 13,
+      "structuralUnitId": 10,
+      "organizationId": 5
+    },
+    {
+      "employee": {
+        "name": "Виталий",
+        "surname": "Эпинцев",
+        "patronymic": "Александрович",
+        "birthDate": "1974-05-21"
+      },
+      "email": "epintsev.100@gkb7.test",
+      "employeeNumber": "100",
+      "position": "Главный врач",
+      "phone": "+747228000981",
+      "id": 14,
+      "structuralUnitId": 14,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Анна",
+        "surname": "Смирнова",
+        "patronymic": "Викторовна",
+        "birthDate": "1986-01-30"
+      },
+      "email": "smirnova.111@gkb7.test",
+      "employeeNumber": "111",
+      "position": "Начальник отдела кадров",
+      "phone": "+747228001051",
+      "id": 15,
+      "structuralUnitId": 11,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Игорь",
+        "surname": "Фомин",
+        "patronymic": "Николаевич",
+        "birthDate": "1990-07-11"
+      },
+      "email": "fomin.112@gkb7.test",
+      "employeeNumber": "112",
+      "position": "Экономист по планированию закупок",
+      "phone": "+747228001121",
+      "id": 16,
+      "structuralUnitId": 12,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Мария",
+        "surname": "Егорова",
+        "patronymic": "Петровна",
+        "birthDate": "1983-03-08"
+      },
+      "email": "egorova.113@gkb7.test",
+      "employeeNumber": "113",
+      "position": "Заведующий хозяйством",
+      "phone": "+747228001191",
+      "id": 17,
+      "structuralUnitId": 13,
+      "organizationId": 1
+    },
+    {
+      "employee": {
+        "name": "Сергей",
+        "surname": "Калашников",
+        "patronymic": "Петрович",
+        "birthDate": "1971-11-03"
+      },
+      "email": "kalashnikov.2001@dizo.test",
+      "employeeNumber": "2001",
+      "position": "Директор Департамента",
+      "phone": "+747228001262",
+      "id": 18,
+      "structuralUnitId": 19,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Денис",
+        "surname": "Козлов",
+        "patronymic": "Александрович",
+        "birthDate": "1985-09-17"
+      },
+      "email": "kozlov.2052@dizo.test",
+      "employeeNumber": "2052",
+      "position": "Главный специалист-эксперт по земельным отношениям",
+      "phone": "+747228001332",
+      "id": 19,
+      "structuralUnitId": 15,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Ольга",
+        "surname": "Никитина",
+        "patronymic": "Ивановна",
+        "birthDate": "1979-06-25"
+      },
+      "email": "nikitina.2053@dizo.test",
+      "employeeNumber": "2053",
+      "position": "Начальник отдела кадров и государственной службы",
+      "phone": "+747228001402",
+      "id": 20,
+      "structuralUnitId": 16,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Роман",
+        "surname": "Соколов",
+        "patronymic": "Дмитриевич",
+        "birthDate": "1992-02-14"
+      },
+      "email": "sokolov.2054@dizo.test",
+      "employeeNumber": "2054",
+      "position": "Ведущий специалист-эксперт экономического отдела",
+      "phone": "+747228001472",
+      "id": 21,
+      "structuralUnitId": 17,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Вера",
+        "surname": "Романова",
+        "patronymic": "Сергеевна",
+        "birthDate": "1981-12-09"
+      },
+      "email": "romanova.2055@dizo.test",
+      "employeeNumber": "2055",
+      "position": "Начальник планово-финансового отдела",
+      "phone": "+747228001542",
+      "id": 22,
+      "structuralUnitId": 18,
+      "organizationId": 2
+    },
+    {
+      "employee": {
+        "name": "Ольга",
+        "surname": "Шкурат",
+        "patronymic": "Николаевна",
+        "birthDate": "1977-04-02"
+      },
+      "email": "shkurat.3001@school15.test",
+      "employeeNumber": "3001",
+      "position": "Директор",
+      "phone": "+747228001613",
+      "id": 23,
+      "structuralUnitId": 22,
+      "organizationId": 3
+    },
+    {
+      "employee": {
+        "name": "Татьяна",
+        "surname": "Мельникова",
+        "patronymic": "Сергеевна",
+        "birthDate": "1989-08-23"
+      },
+      "email": "melnikova.3102@school15.test",
+      "employeeNumber": "3102",
+      "position": "Инспектор по кадрам",
+      "phone": "+747228001683",
+      "id": 24,
+      "structuralUnitId": 20,
+      "organizationId": 3
+    },
+    {
+      "employee": {
+        "name": "Максим",
+        "surname": "Орлов",
+        "patronymic": "Олегович",
+        "birthDate": "1993-10-06"
+      },
+      "email": "orlov.3103@school15.test",
+      "employeeNumber": "3103",
+      "position": "Экономист по закупкам",
+      "phone": "+747228001753",
+      "id": 25,
+      "structuralUnitId": 21,
+      "organizationId": 3
+    },
+    {
+      "employee": {
+        "name": "Андрей",
+        "surname": "Мельников",
+        "patronymic": "Николаевич",
+        "birthDate": "1975-02-19"
+      },
+      "email": "melnikov.4001@belgorod.test",
+      "employeeNumber": "4001",
+      "position": "Первый заместитель главы администрации города Белгорода",
+      "phone": "+747228001824",
+      "id": 26,
+      "structuralUnitId": 28,
+      "organizationId": 4,
+      "userId": 4
+    },
+    {
+      "employee": {
+        "name": "Виктория",
+        "surname": "Зайцева",
+        "patronymic": "Львовна",
+        "birthDate": "1982-05-28"
+      },
+      "email": "zaytseva.4102@belgorod.test",
+      "employeeNumber": "4102",
+      "position": "Начальник управления кадровой политики и муниципальной службы",
+      "phone": "+747228001894",
+      "id": 27,
+      "structuralUnitId": 23,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Сергей",
+        "surname": "Панов",
+        "patronymic": "Витальевич",
+        "birthDate": "1978-09-12"
+      },
+      "email": "panov.4103@belgorod.test",
+      "employeeNumber": "4103",
+      "position": "Начальник финансово-казначейского управления",
+      "phone": "+747228001964",
+      "id": 28,
+      "structuralUnitId": 24,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Ирина",
+        "surname": "Щукина",
+        "patronymic": "Аркадьевна",
+        "birthDate": "1984-07-30"
+      },
+      "email": "shchukina.4104@belgorod.test",
+      "employeeNumber": "4104",
+      "position": "Председатель комитета по управлению земельно-имущественными отношениями",
+      "phone": "+747228002034",
+      "id": 29,
+      "structuralUnitId": 25,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Павел",
+        "surname": "Дьяков",
+        "patronymic": "Олегович",
+        "birthDate": "1987-11-16"
+      },
+      "email": "dyakov.4105@belgorod.test",
+      "employeeNumber": "4105",
+      "position": "Начальник управления перспективного планирования",
+      "phone": "+747228002104",
+      "id": 30,
+      "structuralUnitId": 26,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Нина",
+        "surname": "Крылова",
+        "patronymic": "Федоровна",
+        "birthDate": "1980-01-07"
+      },
+      "email": "krylova.4106@belgorod.test",
+      "employeeNumber": "4106",
+      "position": "Начальник хозяйственного управления",
+      "phone": "+747228002174",
+      "id": 31,
+      "structuralUnitId": 27,
+      "organizationId": 4
+    },
+    {
+      "employee": {
+        "name": "Виктор",
+        "surname": "Громов",
+        "patronymic": "Павлович",
+        "birthDate": "1973-08-15"
+      },
+      "email": "gromov.5001@gku-mto.test",
+      "employeeNumber": "5001",
+      "position": "Директор",
+      "phone": "+747228002245",
+      "id": 32,
+      "structuralUnitId": 32,
+      "organizationId": 5
+    },
+    {
+      "employee": {
+        "name": "Ксения",
+        "surname": "Лебедева",
+        "patronymic": "Юрьевна",
+        "birthDate": "1991-03-22"
+      },
+      "email": "lebedeva.5102@gku-mto.test",
+      "employeeNumber": "5102",
+      "position": "Юрисконсульт",
+      "phone": "+747228002315",
+      "id": 33,
+      "structuralUnitId": 29,
+      "organizationId": 5
+    },
+    {
+      "employee": {
+        "name": "Павел",
+        "surname": "Гусев",
+        "patronymic": "Андреевич",
+        "birthDate": "1986-10-09"
+      },
+      "email": "gusev.5103@gku-mto.test",
+      "employeeNumber": "5103",
+      "position": "Заведующий хозяйством",
+      "phone": "+747228002385",
+      "id": 34,
+      "structuralUnitId": 30,
+      "organizationId": 5
+    },
+    {
+      "employee": {
+        "name": "Ольга",
+        "surname": "Титова",
+        "patronymic": "Львовна",
+        "birthDate": "1994-06-18"
+      },
+      "email": "titova.5104@gku-mto.test",
+      "employeeNumber": "5104",
+      "position": "Специалист по кадрам",
+      "phone": "+747228002455",
+      "id": 35,
+      "structuralUnitId": 31,
+      "organizationId": 5
+    },
+    {
+      "id": 36,
+      "employee": {
+        "name": "Мария",
+        "surname": "Козлова",
+        "patronymic": "Дмитриевна",
+        "birthDate": "1990-07-14"
+      },
+      "email": "kozlova.105@gkb7.test",
+      "employeeNumber": "105",
+      "position": "Специалист по закупкам",
+      "phone": "+74951000105",
+      "structuralUnitId": 1,
+      "organizationId": 1
+    },
+    {
+      "id": 37,
+      "employee": {
+        "name": "Игорь",
+        "surname": "Никитин",
+        "patronymic": "Павлович",
+        "birthDate": "1988-02-03"
+      },
+      "email": "nikitin.115@gkb7.test",
+      "employeeNumber": "115",
+      "position": "Экономист по расчёту НМЦК",
+      "phone": "+74951000115",
+      "structuralUnitId": 12,
+      "organizationId": 1
+    },
+    {
+      "id": 38,
+      "employee": {
+        "name": "Елена",
+        "surname": "Соболева",
+        "patronymic": "Викторовна",
+        "birthDate": "1983-11-27"
+      },
+      "email": "soboleva.2056@dizo.test",
+      "employeeNumber": "2056",
+      "position": "Главный специалист-эксперт отдела планирования",
+      "phone": "+747228001285",
+      "structuralUnitId": 4,
+      "organizationId": 2
+    },
+    {
+      "id": 39,
+      "employee": {
+        "name": "Сергей",
+        "surname": "Драгунов",
+        "patronymic": "Олегович",
+        "birthDate": "1992-05-09"
+      },
+      "email": "dragunov.4107@belgorod.test",
+      "employeeNumber": "4107",
+      "position": "Ведущий специалист комитета по закупкам",
+      "phone": "+747228001875",
+      "structuralUnitId": 7,
+      "organizationId": 4
+    },
+    {
+      "id": 40,
+      "employee": {
+        "name": "Татьяна",
+        "surname": "Ермолина",
+        "patronymic": "Андреевна",
+        "birthDate": "1996-09-02"
+      },
+      "email": "ermolina.5105@gku-mto.test",
+      "employeeNumber": "5105",
+      "position": "Менеджер по закупкам канцелярии",
+      "phone": "+747228002470",
+      "structuralUnitId": 9,
+      "organizationId": 5
+    }
+  ],
+  "contracts": [],
+  "organizations": [
+    {
+      "id": 1,
+      "fullName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+      "shortName": "ГБУЗ «ГКБ № 7 им. М.М. Покровского»",
+      "inn": "7701234567",
+      "kpp": "770101001",
+      "ogrn": "1027701234567",
+      "okpo": "00123456",
+      "legalAddress": "127015, г. Москва, ул. Дурова, д. 19, стр. 1",
+      "postalAddress": "127015, г. Москва, ул. Дурова, д. 19, стр. 1",
+      "email": "zakupki@gkb7.ru",
+      "phone": "+7 (499) 123-45-67",
+      "responsiblePerson": "Иванова Анна Сергеевна",
+      "responsiblePhone": "+7 (499) 123-45-68",
+      "budgetLevel": "regional",
+      "registryNumber": "03772000001",
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "fullName": "Департамент имущественных и земельных отношений Белгородской области",
+      "shortName": "Депимущество Белгородской области",
+      "inn": "3128071234",
+      "kpp": "312801001",
+      "ogrn": "1023101712345",
+      "okpo": "00765432",
+      "legalAddress": "308000, г. Белгород, Белгородский проспект, д. 60",
+      "postalAddress": "308000, г. Белгород, Белгородский проспект, д. 60",
+      "email": "departament@belregion.ru",
+      "phone": "+7 (4722) 32-11-01",
+      "responsiblePerson": "Колесникова Ольга Николаевна",
+      "responsiblePhone": "+7 (4722) 32-11-02",
+      "budgetLevel": "regional",
+      "registryNumber": "03312000002",
+      "isActive": true
+    },
+    {
+      "id": 3,
+      "fullName": "Муниципальное бюджетное общеобразовательное учреждение «Средняя общеобразовательная школа № 15»",
+      "shortName": "МБОУ «СОШ № 15»",
+      "inn": "3128001234",
+      "kpp": "312801001",
+      "ogrn": "1023101765432",
+      "okpo": "00987654",
+      "legalAddress": "308024, г. Белгород, ул. Корочанская, д. 101",
+      "postalAddress": "308024, г. Белгород, ул. Корочанская, д. 101",
+      "email": "school15@belgorod.ru",
+      "phone": "+7 (4722) 32-11-05",
+      "responsiblePerson": "Смирнова Елена Викторовна",
+      "responsiblePhone": "+7 (4722) 32-11-06",
+      "budgetLevel": "municipal",
+      "registryNumber": "03312000003",
+      "isActive": true
+    },
+    {
+      "id": 4,
+      "fullName": "Администрация города Белгорода",
+      "shortName": "Администрация г. Белгорода",
+      "inn": "3128012345",
+      "kpp": "312801001",
+      "ogrn": "1023101799999",
+      "okpo": "00135790",
+      "legalAddress": "308000, г. Белгород, Белгородский проспект, д. 55",
+      "postalAddress": "308000, г. Белгород, Белгородский проспект, д. 55",
+      "email": "admin@belgorod-admin.ru",
+      "phone": "+7 (4722) 32-11-10",
+      "responsiblePerson": "Гончаров Дмитрий Олегович",
+      "responsiblePhone": "+7 (4722) 32-11-11",
+      "budgetLevel": "municipal",
+      "registryNumber": "03312000004",
+      "isActive": true
+    },
+    {
+      "id": 5,
+      "fullName": "Государственное казенное учреждение Белгородской области «Центр материально-технического обеспечения»",
+      "shortName": "ГКУ БО «Центр МТО»",
+      "inn": "3123123456",
+      "kpp": "312301001",
+      "ogrn": "1023101888888",
+      "okpo": "00246810",
+      "legalAddress": "308002, г. Белгород, ул. Попова, д. 18",
+      "postalAddress": "308002, г. Белгород, ул. Попова, д. 18",
+      "email": "centr-mto@belregion.ru",
+      "phone": "+7 (4722) 32-20-30",
+      "responsiblePerson": "Тарасов Игорь Семёнович",
+      "responsiblePhone": "+7 (4722) 32-20-31",
+      "budgetLevel": "regional",
+      "registryNumber": "03312000005",
+      "isActive": true
+    }
+  ],
+  "structuralUnits": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "name": "Отдел закупок",
+      "conventionalSymbol": "ОЗ",
+      "email": "oz@gkb7.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "name": "Центральная бухгалтерия",
+      "conventionalSymbol": "ЦБ",
+      "email": "cb@gkb7.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "name": "Правовое управление",
+      "conventionalSymbol": "ПУ",
+      "email": "pu@gkb7.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 4,
+      "organizationId": 2,
+      "name": "Управление организации закупок",
+      "conventionalSymbol": "УОЗ",
+      "email": "uoz@dizo.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 5,
+      "organizationId": 2,
+      "name": "Правовое управление",
+      "conventionalSymbol": "ПУ",
+      "email": "pu@dizo.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 6,
+      "organizationId": 3,
+      "name": "Административно-хозяйственная часть",
+      "conventionalSymbol": "АХЧ",
+      "email": "ahch@school15.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 7,
+      "organizationId": 4,
+      "name": "Комитет по организации и контролю закупок",
+      "conventionalSymbol": "КОКЗ",
+      "email": "kokz@belgorod.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 8,
+      "organizationId": 4,
+      "name": "Юридическое управление",
+      "conventionalSymbol": "ЮУ",
+      "email": "yu@belgorod.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 9,
+      "organizationId": 5,
+      "name": "Отдел закупок и складского хозяйства",
+      "conventionalSymbol": "ОЗиСХ",
+      "email": "oz@gku-mto.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 10,
+      "organizationId": 5,
+      "name": "Бухгалтерия",
+      "conventionalSymbol": "БХ",
+      "email": "bh@gku-mto.test",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 11,
+      "organizationId": 1,
+      "name": "Отдел кадров",
+      "conventionalSymbol": "ОК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 12,
+      "organizationId": 1,
+      "name": "Экономический отдел",
+      "conventionalSymbol": "ЭО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 13,
+      "organizationId": 1,
+      "name": "Хозяйственный отдел",
+      "conventionalSymbol": "ХО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 14,
+      "organizationId": 1,
+      "name": "Руководство",
+      "conventionalSymbol": "РУК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 15,
+      "organizationId": 2,
+      "name": "Отдел земельных отношений",
+      "conventionalSymbol": "ОЗО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 16,
+      "organizationId": 2,
+      "name": "Отдел кадров и государственной службы",
+      "conventionalSymbol": "ОКиГС",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 17,
+      "organizationId": 2,
+      "name": "Экономический отдел",
+      "conventionalSymbol": "ЭО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 18,
+      "organizationId": 2,
+      "name": "Планово-финансовый отдел",
+      "conventionalSymbol": "ПФО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 19,
+      "organizationId": 2,
+      "name": "Руководство",
+      "conventionalSymbol": "РУК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 20,
+      "organizationId": 3,
+      "name": "Отдел кадров",
+      "conventionalSymbol": "ОК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 21,
+      "organizationId": 3,
+      "name": "Финансово-экономическая служба",
+      "conventionalSymbol": "ФЭС",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 22,
+      "organizationId": 3,
+      "name": "Руководство",
+      "conventionalSymbol": "РУК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 23,
+      "organizationId": 4,
+      "name": "Управление кадровой политики и муниципальной службы",
+      "conventionalSymbol": "УКПиМС",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 24,
+      "organizationId": 4,
+      "name": "Финансово-казначейское управление",
+      "conventionalSymbol": "ФКУ",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 25,
+      "organizationId": 4,
+      "name": "Комитет по управлению земельно-имущественными отношениями",
+      "conventionalSymbol": "КУЗИО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 26,
+      "organizationId": 4,
+      "name": "Управление перспективного планирования",
+      "conventionalSymbol": "УПП",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 27,
+      "organizationId": 4,
+      "name": "Хозяйственное управление",
+      "conventionalSymbol": "ХУ",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 28,
+      "organizationId": 4,
+      "name": "Руководство",
+      "conventionalSymbol": "РУК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 29,
+      "organizationId": 5,
+      "name": "Юридический отдел",
+      "conventionalSymbol": "ЮО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 30,
+      "organizationId": 5,
+      "name": "Хозяйственный отдел",
+      "conventionalSymbol": "ХО",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 31,
+      "organizationId": 5,
+      "name": "Отдел кадров",
+      "conventionalSymbol": "ОК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    },
+    {
+      "id": 32,
+      "organizationId": 5,
+      "name": "Руководство",
+      "conventionalSymbol": "РУК",
+      "subordination": false,
+      "presenceManager": true,
+      "countPresenceManager": 1
+    }
+  ],
+  "contractServices": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "creationMethod": "employees",
+      "structuralUnitId": 1,
+      "structuralUnitName": "Отдел закупок",
+      "members": [
+        {
+          "employeeId": "7",
+          "employeeFullName": "Петров Сергей Николаевич",
+          "employeeNumber": "102",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitId": "1",
+          "structuralUnitName": "Отдел закупок",
+          "functions": [
+            "planning",
+            "purchase_description",
+            "supplier_determination",
+            "contract_conclusion",
+            "contract_execution"
+          ],
+          "remarks": ""
+        },
+        {
+          "employeeId": "15",
+          "employeeFullName": "Смирнова Анна Викторовна",
+          "employeeNumber": "111",
+          "position": "Начальник отдела кадров",
+          "structuralUnitId": "11",
+          "structuralUnitName": "Отдел кадров",
+          "functions": [
+            "purchase_description",
+            "contract_execution"
+          ],
+          "remarks": ""
+        }
+      ],
+      "head": {
+        "id": 1,
+        "employeeId": "14",
+        "employeeFullName": "Эпинцев Виталий Александрович",
+        "employeeNumber": "100",
+        "position": "Главный врач",
+        "structuralUnitId": "14",
+        "structuralUnitName": "Руководство",
+        "functions": [
+          "planning",
+          "supplier_determination",
+          "contract_conclusion"
+        ],
+        "remarks": "Начальник отдела закупок"
+      },
+      "headOrderNumber": "129-КС/П",
+      "headOrderDate": "2026-01-12",
+      "appointedByEmployeeId": "14",
+      "appointedByName": "Эпинцев Виталий Александрович",
+      "appointedByPosition": "Главный врач",
+      "orderNumber": "128-П",
+      "orderDate": "2026-01-12",
+      "declaredByEmployeeId": "14",
+      "declaredByName": "Эпинцев Виталий Александрович",
+      "declaredByPosition": "Главный врач",
+      "declaredByStructuralUnitId": "14",
+      "declaredByStructuralUnitName": "Руководство",
+      "declaredDate": "2026-01-12",
+      "remarks": "Совокупный годовой объём закупок превышает 100 млн руб., контрактная служба создана обязательна (ч. 2 ст. 38 44-ФЗ)"
+    },
+    {
+      "id": 2,
+      "organizationId": 2,
+      "creationMethod": "employees",
+      "structuralUnitName": "",
+      "members": [
+        {
+          "id": 1,
+          "employeeId": "19",
+          "employeeFullName": "Козлов Денис Александрович",
+          "employeeNumber": "2052",
+          "position": "Главный специалист-эксперт по земельным отношениям",
+          "structuralUnitId": "15",
+          "structuralUnitName": "Отдел земельных отношений",
+          "functions": [
+            "planning",
+            "purchase_description",
+            "supplier_determination"
+          ],
+          "remarks": "Возглавляет контрактную службу"
+        },
+        {
+          "id": 2,
+          "employeeId": 10,
+          "employeeFullName": "Гаврилов Дмитрий Александрович",
+          "employeeNumber": "2051",
+          "position": "Ведущий специалист-эксперт",
+          "structuralUnitId": 5,
+          "structuralUnitName": "Правовое управление",
+          "functions": [
+            "contract_conclusion",
+            "contract_execution"
+          ],
+          "remarks": ""
+        },
+        {
+          "employeeId": "38",
+          "employeeFullName": "Соболева Елена Викторовна",
+          "employeeNumber": "2056",
+          "position": "Главный специалист-эксперт отдела планирования",
+          "structuralUnitId": "4",
+          "structuralUnitName": "Управление организации закупок",
+          "functions": [
+            "purchase_description",
+            "supplier_determination",
+            "contract_execution"
+          ],
+          "remarks": ""
+        },
+        {
+          "employeeId": "21",
+          "employeeFullName": "Соколов Роман Дмитриевич",
+          "employeeNumber": "2054",
+          "position": "Ведущий специалист-эксперт экономического отдела",
+          "structuralUnitId": "17",
+          "structuralUnitName": "Экономический отдел",
+          "functions": [
+            "planning",
+            "purchase_description",
+            "supplier_determination"
+          ],
+          "remarks": ""
+        },
+        {
+          "employeeId": "4",
+          "employeeFullName": "Пояркова София Игоревна",
+          "employeeNumber": "2103",
+          "position": "Начальник управления организации закупок",
+          "structuralUnitId": "4",
+          "structuralUnitName": "Управление организации закупок",
+          "functions": [
+            "supplier_determination",
+            "contract_conclusion"
+          ],
+          "remarks": ""
+        }
+      ],
+      "contractManager": {
+        "employeeId": "",
+        "structuralUnitId": "",
+        "functions": []
+      },
+      "head": {
+        "id": 2,
+        "employeeId": "18",
+        "employeeFullName": "Калашников Сергей Петрович",
+        "employeeNumber": "2001",
+        "position": "Директор Департамента",
+        "structuralUnitId": "19",
+        "structuralUnitName": "Руководство",
+        "functions": [
+          "planning",
+          "purchase_description",
+          "supplier_determination"
+        ],
+        "remarks": "Руководитель контрактной службы"
+      },
+      "headOrderNumber": "16-КС/Р",
+      "headOrderDate": "2026-01-14",
+      "appointedByEmployeeId": "18",
+      "appointedByName": "Калашников Сергей Петрович",
+      "appointedByPosition": "Директор Департамента",
+      "orderNumber": "15-Р",
+      "orderDate": "2026-01-15",
+      "declaredByEmployeeId": "18",
+      "declaredByName": "Калашников Сергей Петрович",
+      "declaredByPosition": "Директор Департамента",
+      "declaredByStructuralUnitId": "19",
+      "declaredByStructuralUnitName": "Руководство",
+      "declaredDate": "2026-01-15",
+      "remarks": ""
+    },
+    {
+      "id": 3,
+      "organizationId": 3,
+      "creationMethod": "contract_manager",
+      "members": [],
+      "contractManager": {
+        "id": 1,
+        "employeeId": 11,
+        "employeeFullName": "Тарасова Елена Викторовна",
+        "employeeNumber": "3101",
+        "position": "Заместитель директора по административно-хозяйственной работе",
+        "structuralUnitId": 6,
+        "structuralUnitName": "Административно-хозяйственная часть",
+        "functions": [
+          "planning",
+          "purchase_description",
+          "supplier_determination",
+          "contract_conclusion",
+          "contract_execution"
+        ],
+        "remarks": ""
+      },
+      "orderNumber": "7-П",
+      "orderDate": "2026-01-09",
+      "declaredByName": "Шкурат Ольга Николаевна",
+      "declaredDate": "2026-01-09",
+      "remarks": "Совокупный годовой объём закупок менее 100 млн руб., функции контрактной службы исполняет контрактный управляющий (ч. 21 ст. 38 44-ФЗ)",
+      "declaredByEmployeeId": 23,
+      "declaredByPosition": "Директор",
+      "declaredByStructuralUnitId": 22,
+      "declaredByStructuralUnitName": "Руководство"
+    },
+    {
+      "organizationId": 4,
+      "creationMethod": "structural_unit",
+      "structuralUnitId": "28",
+      "structuralUnitName": "Руководство",
+      "members": [],
+      "contractManager": {
+        "employeeId": "",
+        "employeeFullName": "",
+        "employeeNumber": "",
+        "position": "",
+        "structuralUnitId": "",
+        "structuralUnitName": "",
+        "functions": [],
+        "remarks": ""
+      },
+      "head": {
+        "employeeId": "26",
+        "employeeFullName": "Мельников Андрей Николаевич",
+        "employeeNumber": "4001",
+        "position": "Первый заместитель главы администрации города Белгорода",
+        "structuralUnitId": "28",
+        "structuralUnitName": "Руководство",
+        "functions": [],
+        "remarks": ""
+      },
+      "headOrderNumber": "",
+      "headOrderDate": "",
+      "appointedByName": "",
+      "appointedByPosition": "",
+      "orderNumber": "15-Р",
+      "orderDate": "2026-11-19",
+      "declaredByEmployeeId": "12",
+      "declaredByName": "Белов Андрей Владимирович",
+      "declaredByPosition": "Начальник юридического управления",
+      "declaredByStructuralUnitId": "8",
+      "declaredByStructuralUnitName": "Юридическое управление",
+      "declaredDate": "2026-11-18",
+      "remarks": "Изменения внесены по результатам несостоявшихся процедур определения поставщика",
+      "id": 4
+    }
+  ],
+  "purchasePlans": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "planNumber": "202603770123450001",
+      "status": "published",
+      "planYear": "2026",
+      "versionNumber": "3",
+      "approvalDate": "2025-12-25",
+      "approvalAuthor": "Главный врач Покровский М.М.",
+      "publishDate": "2026-01-12",
+      "eisUrl": "https://zakupki.gov.ru/epz/buyer/purchaseplan/view.html?planId=202603770123450001",
+      "totalAmount": "159240000.00",
+      "remarks": "План-график размещён в ЕИС 12.01.2026, изменения по результатам состоявшихся процедур",
+      "customer": {
+        "id": 1,
+        "fullName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "shortName": "ГБУЗ «ГКБ № 7 им. М.М. Покровского»",
+        "inn": "7701234567",
+        "kpp": "770101001",
+        "ogrn": "1027701234567",
+        "legalAddress": "127015, г. Москва, ул. Дурова, д. 19, стр. 1",
+        "postalAddress": "127015, г. Москва, ул. Дурова, д. 19, стр. 1",
+        "email": "zakupki@gkb7.ru",
+        "phone": "+7 (499) 123-45-67",
+        "responsiblePerson": "Иванова Анна Сергеевна",
+        "responsiblePhone": "+7 (499) 123-45-68"
+      },
+      "positions": [
+        {
+          "id": 101,
+          "serialNumber": "1",
+          "identificationCode": "326037701234500010000000001П166",
+          "objectOfPurchase": "Поставка медицинского оборудования (аппарат ультразвуковой диагностики экспертного класса)",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "4850000.00",
+          "amountCurrentYear": "4850000.00",
+          "amountPlanPeriodFirstYear": "0",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "Департамент здравоохранения города Москвы",
+          "jointOrganizerName": "",
+          "okpd2Code": "32.50.13.190",
+          "okpd2Name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
+          "objectName": "Аппарат ультразвуковой диагностики экспертного класса",
+          "event": "01 001 0 00 00000 Оснащение учреждения",
+          "description": "Поставка, монтаж и пусконаладочные работы оборудования с предоставлением гарантии не менее 36 месяцев",
+          "ktrCode": "19567",
+          "quantity": "2",
+          "unit": "Штука",
+          "nmck": "4850000.00",
+          "planPlacementDate": "2026-02-16",
+          "contractStartDate": "2026-03-20",
+          "contractEndDate": "2026-04-15",
+          "purchaseMethod": "open_auction",
+          "isSmpSonkoOnly": false,
+          "subcontractorRequirement": "",
+          "advancePaymentPercent": "30",
+          "remarks": "Обеспечение заявки 0,5 %, обеспечение контракта 5 %",
+          "kbk": "20011000000000000000",
+          "purchaseNumber": "0001",
+          "uniqueNumber": "202603770123450001000001",
+          "status": "placed",
+          "statusDate": "2026-01-12",
+          "kbkEntries": [
+            {
+              "kbk": "20011000000000000000",
+              "amountTotal": "2425000.00",
+              "amountCurrentYear": "2425000.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            },
+            {
+              "kbk": "20011000000000090000",
+              "amountTotal": "2425000.00",
+              "amountCurrentYear": "2425000.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        },
+        {
+          "id": 102,
+          "serialNumber": "2",
+          "identificationCode": "326037701234500010000000002П166",
+          "objectOfPurchase": "Поставка расходных материалов для лабораторной диагностики",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "1240000.00",
+          "amountCurrentYear": "620000.00",
+          "amountPlanPeriodFirstYear": "620000.00",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "Департамент здравоохранения города Москвы",
+          "jointOrganizerName": "ГБУ «Клинико-диагностический центр ДЗМ»",
+          "okpd2Code": "21.20.23.119",
+          "okpd2Name": "Материалы, используемые в медицинских целях, прочие",
+          "objectName": "Реактивы и расходные материалы для лабораторных исследований по перечню заказчика",
+          "event": "01 002 0 00 00000 Расходные материалы",
+          "description": "Поставка реактивов и расходных материалов по перечню заказчика партиями по заявкам",
+          "ktrCode": "34112",
+          "quantity": "1",
+          "unit": "Условная единица",
+          "nmck": "1240000.00",
+          "planPlacementDate": "2026-03-02",
+          "contractStartDate": "2026-04-01",
+          "contractEndDate": "2027-03-31",
+          "purchaseMethod": "smp_sonko",
+          "isSmpSonkoOnly": true,
+          "subcontractorRequirement": "5",
+          "advancePaymentPercent": "",
+          "remarks": "Закупка среди субъектов МСП и СОНКО (ч. 1 ст. 30 44-ФЗ)",
+          "kbk": "20012000000000000000",
+          "purchaseNumber": "0002",
+          "uniqueNumber": "202603770123450001000002",
+          "status": "placed",
+          "statusDate": "2026-01-12",
+          "kbkEntries": [
+            {
+              "kbk": "20012000000000000000",
+              "amountTotal": "1240000.00",
+              "amountCurrentYear": "620000.00",
+              "amountPlanPeriodFirstYear": "620000.00",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        },
+        {
+          "id": 103,
+          "serialNumber": "3",
+          "identificationCode": "326037701234500010000000003П166",
+          "objectOfPurchase": "Выполнение работ по текущему ремонту пищевого блока стационара",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "3150000.00",
+          "amountCurrentYear": "3150000.00",
+          "amountPlanPeriodFirstYear": "0",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "",
+          "jointOrganizerName": "",
+          "okpd2Code": "41.20.40.900",
+          "okpd2Name": "Работы строительные специализированные прочие, не включённые в другие группировки",
+          "objectName": "Текущий ремонт пищевого блока стационара",
+          "event": "02 004 0 00 00000 Капитальный ремонт имущественного комплекса",
+          "description": "Работы выполняются по проектной документации, гарантия на результаты работ не менее 5 лет",
+          "ktrCode": "",
+          "quantity": "1",
+          "unit": "Условная единица",
+          "nmck": "3150000.00",
+          "planPlacementDate": "2026-04-20",
+          "contractStartDate": "2026-05-20",
+          "contractEndDate": "2026-08-31",
+          "purchaseMethod": "single_supplier",
+          "isSmpSonkoOnly": false,
+          "subcontractorRequirement": "",
+          "advancePaymentPercent": "15",
+          "remarks": "Закупка у единственного поставщика (п. 4 ч. 1 ст. 93 44-ФЗ)",
+          "kbk": "20013000000000000000",
+          "purchaseNumber": "0003",
+          "uniqueNumber": "202603770123450001000003",
+          "status": "placed",
+          "statusDate": "2026-01-12",
+          "kbkEntries": [
+            {
+              "kbk": "20013000000000000000",
+              "amountTotal": "3150000.00",
+              "amountCurrentYear": "3150000.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        },
+        {
+          "id": 104,
+          "serialNumber": "4",
+          "identificationCode": "326037701234500010000000004П166",
+          "objectOfPurchase": "Строительство (реконструкция) корпуса поликлиники с стационаром",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "150000000.00",
+          "amountCurrentYear": "0",
+          "amountPlanPeriodFirstYear": "100000000.00",
+          "amountPlanPeriodSecondYear": "50000000.00",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": true,
+          "authorizedBodyName": "Департамент здравоохранения города Москвы",
+          "jointOrganizerName": "ГКУ «Дирекция по организации закупок ДЗМ»",
+          "okpd2Code": "41.20.11.100",
+          "okpd2Name": "Работы по возведению зданий и сооружений, кроме зданий и сооружений управления транспортом",
+          "objectName": "Строительство корпуса поликлиники со стационаром на 400 посещений",
+          "event": "04 001 0 00 00000 Развитие сети медицинских организаций",
+          "description": "Работы выполняются по проектной документации, получившей положительное заключение государственной экспертизы",
+          "ktrCode": "",
+          "quantity": "1",
+          "unit": "Условная единица",
+          "nmck": "150000000.00",
+          "planPlacementDate": "2026-09-15",
+          "contractStartDate": "2026-11-20",
+          "contractEndDate": "2028-12-15",
+          "purchaseMethod": "open_competition",
+          "isSmpSonkoOnly": false,
+          "subcontractorRequirement": "5",
+          "advancePaymentPercent": "",
+          "remarks": "Закупка подлежит обязательному общественному обсуждению (ч. 4 ст. 20 44-ФЗ), НМЦК 100 млн рублей и более",
+          "kbk": "20014000000000000000",
+          "purchaseNumber": "0004",
+          "uniqueNumber": "202603770123450001000004",
+          "status": "placed",
+          "statusDate": "2026-01-12",
+          "kbkEntries": [
+            {
+              "kbk": "20014000000000000000",
+              "amountTotal": "150000000.00",
+              "amountCurrentYear": "0",
+              "amountPlanPeriodFirstYear": "100000000.00",
+              "amountPlanPeriodSecondYear": "50000000.00",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "organizationId": 2,
+      "planNumber": "20260331280123450002",
+      "customer": {
+        "fullName": "Департамент имущественных и земельных отношений Белгородской области",
+        "shortName": "Депимущество Белгородской области",
+        "inn": "3128071234",
+        "kpp": "312801001",
+        "ogrn": "1023101712345",
+        "legalAddress": "308000, г. Белгород, Белгородский проспект, д. 60",
+        "postalAddress": "308000, г. Белгород, Белгородский проспект, д. 60",
+        "email": "departament@belregion.ru",
+        "phone": "+7 (4722) 32-11-01",
+        "responsiblePerson": "Колесникова Ольга Николаевна",
+        "responsiblePhone": "+7 (4722) 32-11-02",
+        "id": 2
+      },
+      "planYear": "2026",
+      "status": "changed",
+      "versionNumber": "2",
+      "approvalDate": "2025-12-30",
+      "approvalAuthor": "Директор департамента Сидоров Василий Петрович",
+      "publishDate": "2026-01-15",
+      "eisUrl": "https://zakupki.gov.ru/epz/buyer/purchaseplan/view.html?planId=20260331280123450002",
+      "totalAmount": "2340000.00",
+      "remarks": "Изменения внесены по результатам несостоявшихся процедур определения поставщика",
+      "positions": [
+        {
+          "id": 201,
+          "serialNumber": "1",
+          "identificationCode": "3260331280123450002000000001П166",
+          "objectOfPurchase": "Поставка вычислительной техники (ноутбуки для специалистов отраслевых подразделений)",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "1860000.00",
+          "amountCurrentYear": "0",
+          "amountPlanPeriodFirstYear": "1860000.00",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "Министерство имущественных и земельных отношений Белгородской области",
+          "jointOrganizerName": "ОБГУ «Центр закупок Белгородской области»",
+          "okpd2Code": "26.20.11.110",
+          "okpd2Name": "Компьютеры общего назначения портативные массой менее 10 кг",
+          "objectName": "Ноутбук для специалистов отраслевых подразделений",
+          "kbk": "20011000000000000000",
+          "purchaseNumber": "0001",
+          "uniqueNumber": "20260331280123450002000001",
+          "status": "planned",
+          "statusDate": "",
+          "kbkEntries": [
+            {
+              "kbk": "20011000000000000000",
+              "amountTotal": "930000.00",
+              "amountCurrentYear": "0",
+              "amountPlanPeriodFirstYear": "1860000.00",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            },
+            {
+              "kbk": "20011000000000090000",
+              "amountTotal": "930000.00",
+              "amountCurrentYear": "0",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        },
+        {
+          "id": 202,
+          "serialNumber": "2",
+          "identificationCode": "3260331280123450002000000002П166",
+          "objectOfPurchase": "Оказание услуг по техническому обслуживанию систем кондиционирования здания",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "480000.00",
+          "amountCurrentYear": "240000.00",
+          "amountPlanPeriodFirstYear": "240000.00",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "",
+          "jointOrganizerName": "",
+          "okpd2Code": "43.22.51.000",
+          "okpd2Name": "Работы по монтажу систем отопления и кондиционирования",
+          "objectName": "Техническое обслуживание систем кондиционирования административного здания",
+          "kbk": "20012000000000000000",
+          "purchaseNumber": "0002",
+          "uniqueNumber": "20260331280123450002000002",
+          "status": "planned",
+          "statusDate": "",
+          "kbkEntries": [
+            {
+              "kbk": "20012000000000000000",
+              "amountTotal": "480000.00",
+              "amountCurrentYear": "240000.00",
+              "amountPlanPeriodFirstYear": "240000.00",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "organizationId": 3,
+      "planNumber": "20260331280012340003",
+      "status": "draft",
+      "planYear": "2026",
+      "versionNumber": "1",
+      "approvalDate": "2025-12-28",
+      "approvalAuthor": "Директор Петрова Мария Ивановна",
+      "publishDate": "",
+      "eisUrl": "",
+      "totalAmount": "745000.00",
+      "remarks": "Проект плана-графика, направляются сведения на согласование учредителю",
+      "customer": {
+        "id": 3,
+        "fullName": "Муниципальное бюджетное общеобразовательное учреждение «Средняя общеобразовательная школа № 15»",
+        "shortName": "МБОУ «СОШ № 15»",
+        "inn": "3128001234",
+        "kpp": "312801001",
+        "ogrn": "1023101765432",
+        "legalAddress": "308024, г. Белгород, ул. Корочанская, д. 101",
+        "postalAddress": "308024, г. Белгород, ул. Корочанская, д. 101",
+        "email": "school15@belgorod.ru",
+        "phone": "+7 (4722) 32-11-05",
+        "responsiblePerson": "Смирнова Елена Викторовна",
+        "responsiblePhone": "+7 (4722) 32-11-06"
+      },
+      "positions": [
+        {
+          "id": 301,
+          "serialNumber": "1",
+          "identificationCode": "3260331280012340003000000001П166",
+          "objectOfPurchase": "Поставка учебной мебели для кабинета информатики",
+          "plannedPlacementYear": "2026",
+          "amountTotal": "745000.00",
+          "amountCurrentYear": "745000.00",
+          "amountPlanPeriodFirstYear": "0",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "Управление образования администрации города Белгорода",
+          "jointOrganizerName": "",
+          "okpd2Code": "31.01.12.120",
+          "okpd2Name": "Мебель деревянная для учебных заведений",
+          "objectName": "Парта учебная для кабинета информатики",
+          "event": "05 001 0 00 00000 Модернизация образования",
+          "description": "Мебель должна соответствовать требованиям СанПиН и иметь декларацию о соответствии",
+          "ktrCode": "54321",
+          "quantity": "30",
+          "unit": "Штука",
+          "nmck": "745000.00",
+          "planPlacementDate": "2026-01-30",
+          "contractStartDate": "2026-03-01",
+          "contractEndDate": "2026-03-20",
+          "purchaseMethod": "open_auction",
+          "isSmpSonkoOnly": false,
+          "subcontractorRequirement": "",
+          "advancePaymentPercent": "10",
+          "remarks": "Закупка за счёт субсидии на выполнение муниципального задания",
+          "kbk": "20011000000000000000",
+          "purchaseNumber": "0001",
+          "uniqueNumber": "20260331280012340003000001",
+          "status": "planned",
+          "statusDate": "",
+          "kbkEntries": [
+            {
+              "kbk": "20011000000000000000",
+              "amountTotal": "372500.00",
+              "amountCurrentYear": "372500.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            },
+            {
+              "kbk": "20011000000000090000",
+              "amountTotal": "372500.00",
+              "amountCurrentYear": "372500.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "organizationId": 4,
+      "planNumber": "20250331280123450004",
+      "status": "removed",
+      "planYear": "2025",
+      "versionNumber": "4",
+      "approvalDate": "2024-12-27",
+      "approvalAuthor": "Глава администрации Петренко Андрей Львович",
+      "publishDate": "2025-01-15",
+      "eisUrl": "https://zakupki.gov.ru/epz/buyer/purchaseplan/view.html?planId=20250331280123450004",
+      "totalAmount": "185000.00",
+      "remarks": "План-график удалён в связи с реорганизацией заказчика",
+      "customer": {
+        "id": 4,
+        "fullName": "Администрация города Белгорода",
+        "shortName": "Администрация г. Белгорода",
+        "inn": "3128012345",
+        "kpp": "312801001",
+        "ogrn": "1023101799999",
+        "legalAddress": "308000, г. Белгород, Белгородский проспект, д. 55",
+        "postalAddress": "308000, г. Белгород, Белгородский проспект, д. 55",
+        "email": "admin@belgorod-admin.ru",
+        "phone": "+7 (4722) 32-11-10",
+        "responsiblePerson": "Гончаров Дмитрий Олегович",
+        "responsiblePhone": "+7 (4722) 32-11-11"
+      },
+      "positions": [
+        {
+          "id": 401,
+          "serialNumber": "1",
+          "identificationCode": "3250331280123450004000000001П166",
+          "objectOfPurchase": "Поставка канцелярских товаров для нужд администрации",
+          "plannedPlacementYear": "2025",
+          "amountTotal": "185000.00",
+          "amountCurrentYear": "185000.00",
+          "amountPlanPeriodFirstYear": "0",
+          "amountPlanPeriodSecondYear": "0",
+          "amountSubsequentYears": "0",
+          "isPublicDiscussionRequired": false,
+          "authorizedBodyName": "",
+          "jointOrganizerName": "",
+          "okpd2Code": "17.23.13.191",
+          "okpd2Name": "Принадлежности канцелярские или школьные металлические",
+          "objectName": "Канцелярские товары (бумага, папки, ручки) по перечню заказчика",
+          "event": "01 003 0 00 00000 Обеспечение деятельности администрации",
+          "description": "Поставка партиями по заявкам заказчика в течение срока исполнения контракта",
+          "ktrCode": "",
+          "quantity": "1",
+          "unit": "Условная единица",
+          "nmck": "185000.00",
+          "planPlacementDate": "2025-02-10",
+          "contractStartDate": "2025-03-01",
+          "contractEndDate": "2025-12-31",
+          "purchaseMethod": "smp_sonko",
+          "isSmpSonkoOnly": true,
+          "subcontractorRequirement": "",
+          "advancePaymentPercent": "",
+          "remarks": "Закупка с использованием конкурентных способов закупки у СМП и СОНКО",
+          "kbk": "20011000000000000000",
+          "purchaseNumber": "0001",
+          "uniqueNumber": "20250331280123450004000001",
+          "status": "planned",
+          "statusDate": "",
+          "kbkEntries": [
+            {
+              "kbk": "20011000000000000000",
+              "amountTotal": "92500.00",
+              "amountCurrentYear": "92500.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            },
+            {
+              "kbk": "20011000000000090000",
+              "amountTotal": "92500.00",
+              "amountCurrentYear": "92500.00",
+              "amountPlanPeriodFirstYear": "0",
+              "amountPlanPeriodSecondYear": "0",
+              "amountSubsequentYears": "0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "procurements": [
+    {
+      "id": "2",
+      "Идентификационный код закупки": "262463200012346320100100160014211244",
+      "Наименование закупки": "Ремонт автомобильной дороги \"Курск-Борисоглебск\"-Касторное-граница Липецкой области-Архангельское\" Советского района Курской области",
+      "Номер извещения": "0144200001826000186",
+      "Начальная (максимальная) цена контракта, руб": 38897567.79,
+      "Тип закупки": "Открытый конкурс в электронной форме"
+    },
+    {
+      "id": "3",
+      "Идентификационный код закупки": "262463200012346320100100170014211244",
+      "Наименование закупки": "Ремонт автомобильной дороги с. Толстый Колодезь (пуч.) в Черемисиновском районе Курской области",
+      "Номер извещения": null,
+      "Начальная (максимальная) цена контракта, руб": 32765980,
+      "Тип закупки": "Электронный аукцион"
+    },
+    {
+      "id": "4",
+      "Идентификационный код закупки": "262463200012346320100100180014211244",
+      "Наименование закупки": "Выполнение работ по ремонту автомобильных дорог общего пользования местного значения города Курска в рамках государственной программы Курской области «Развитие транспортной системы, обеспечение перевозки пассажиров в Курской области и безопасности дорожного движения»",
+      "Номер извещения": "0144200001826000188",
+      "Начальная (максимальная) цена контракта, руб": 105965532.79,
+      "Тип закупки": "Открытый конкурс в электронной форме"
+    },
+    {
+      "id": "6",
+      "Идентификационный код закупки": "262463200012346320100100200014211244",
+      "Наименование закупки": "Реконструкция автомобильной дороги по ул. Разветьевская мкр. Заречный в городе Железногорске Курской области",
+      "Номер извещения": "0144200001826000190",
+      "Начальная (максимальная) цена контракта, руб": 57243208.74,
+      "Тип закупки": "Электронный аукцион на выполнение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ"
+    }
+  ],
+  "notices": [],
+  "employeeEducations": [
+    {
+      "id": 1,
+      "employeeId": 6,
+      "type": "higher",
+      "field": "Юриспруденция, специализация «Государственные и муниципальные закупки»",
+      "institution": "Российская академия народного хозяйства и государственной службы",
+      "graduationDate": "2018-06-15",
+      "dpoValidityMonths": 36,
+      "documentNumber": "ВСВ 123456",
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "employeeId": 6,
+      "type": "dpo",
+      "field": "Организация закупок по 44-ФЗ",
+      "institution": "Институт гос. закупок",
+      "graduationDate": "2025-03-10",
+      "dpoValidityMonths": 36,
+      "documentNumber": "УД 789012",
+      "status": "active"
+    },
+    {
+      "id": 3,
+      "employeeId": 7,
+      "type": "higher",
+      "field": "Экономика и управление на предприятии",
+      "institution": "БелГУ",
+      "graduationDate": "2015-06-20",
+      "dpoValidityMonths": 36,
+      "documentNumber": "ВСВ 654321",
+      "status": "active"
+    },
+    {
+      "id": 4,
+      "employeeId": 7,
+      "type": "dpo",
+      "field": "Закупки и контрактная служба по 44-ФЗ",
+      "institution": "Академия гос. службы",
+      "graduationDate": "2025-01-20",
+      "dpoValidityMonths": 36,
+      "documentNumber": "УД 345678",
+      "status": "active"
+    },
+    {
+      "id": 5,
+      "employeeId": 10,
+      "type": "higher",
+      "field": "Юриспруденция (контрактная служба в сфере закупок)",
+      "institution": "МГЮА",
+      "graduationDate": "2012-06-10",
+      "dpoValidityMonths": 36,
+      "documentNumber": "ВСВ 111222",
+      "status": "active"
+    },
+    {
+      "id": 6,
+      "employeeId": 10,
+      "type": "dpo",
+      "field": "Исполнение гос. контрактов по 44-ФЗ",
+      "institution": "Институт гос. закупок",
+      "graduationDate": "2024-01-10",
+      "dpoValidityMonths": 36,
+      "documentNumber": "УД 333444",
+      "status": "expiring"
+    },
+    {
+      "id": 7,
+      "employeeId": 4,
+      "type": "higher",
+      "field": "Государственное и муниципальное управление (закупки)",
+      "institution": "РАНХиГС",
+      "graduationDate": "2010-06-25",
+      "dpoValidityMonths": 36,
+      "documentNumber": "ВСВ 999888",
+      "status": "active"
+    },
+    {
+      "id": 8,
+      "employeeId": 4,
+      "type": "dpo",
+      "field": "Планирование закупок по 44-ФЗ",
+      "institution": "Корпоративный университет",
+      "graduationDate": "2025-05-01",
+      "dpoValidityMonths": 36,
+      "documentNumber": "УД 777666",
+      "status": "active"
+    },
+    {
+      "id": 9,
+      "employeeId": 11,
+      "type": "higher",
+      "field": "Технология машиностроения",
+      "institution": "МГТУ им. Баумана",
+      "graduationDate": "2005-06-30",
+      "dpoValidityMonths": 36,
+      "documentNumber": "ВСВ 555444",
+      "status": "active"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "assigneeId": 6,
+      "assigneeName": "Иванова Анна Сергеевна",
+      "assignedByEmployeeId": 14,
+      "assignedByName": "Эпинцев Виталий Александрович",
+      "functionCode": "purchase_description",
+      "title": "Подготовить обоснование НМЦК по поставке медизделий",
+      "description": "Собрать коммерческие предложения не менее чем от трёх поставщиков и оформить расчёт по одному из методов статьи 22 Закона № 44-ФЗ.",
+      "status": "completed",
+      "origin": "head",
+      "dueDate": "2026-11-20",
+      "createdAt": "2026-11-10",
+      "completedAt": "2026-11-15",
+      "result": ""
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "assigneeId": 6,
+      "assigneeName": "Иванова Анна Сергеевна",
+      "assignedByEmployeeId": 14,
+      "assignedByName": "Эпинцев Виталий Александрович",
+      "functionCode": "contract_execution",
+      "title": "Проверить реестровые записи контрактов за III квартал",
+      "description": "Сверить сроки размещения сведений в реестре контрактов, подготовить перечень нарушений для служебной записки.",
+      "status": "in_progress",
+      "origin": "head",
+      "dueDate": "2026-11-10",
+      "createdAt": "2026-10-20",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "assigneeId": 6,
+      "assigneeName": "Иванова Анна Сергеевна",
+      "assignedByEmployeeId": 14,
+      "assignedByName": "Эпинцев Виталий Александрович",
+      "functionCode": "planning",
+      "title": "Скорректировать план закупок на 2026 год",
+      "description": "Внести изменения в план закупок по позициям, перенесённым на IV квартал.",
+      "status": "completed",
+      "origin": "head",
+      "dueDate": "2026-10-30",
+      "createdAt": "2026-10-01",
+      "completedAt": "2026-10-28",
+      "result": "Изменения размещены в ЕИС 28.10.2026, уведомление направлено в ГРБС."
+    },
+    {
+      "id": 4,
+      "organizationId": 1,
+      "assigneeId": 7,
+      "assigneeName": "Петров Сергей Николаевич",
+      "assignedByEmployeeId": 6,
+      "assignedByName": "Иванова Анна Сергеевна",
+      "functionCode": "supplier_determination",
+      "title": "Разработать документацию электронной процедуры",
+      "description": "Подготовить описание объекта закупки и проект контракта, разместить извещение в ЕИС.",
+      "status": "pending",
+      "origin": "head",
+      "dueDate": "2026-12-01",
+      "createdAt": "2026-11-05",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 5,
+      "organizationId": 1,
+      "assigneeId": 7,
+      "assigneeName": "Петров Сергей Николаевич",
+      "assignedByEmployeeId": 6,
+      "assignedByName": "Иванова Анна Сергеевна",
+      "functionCode": "contract_execution",
+      "title": "Организовать экспертизу результатов исполнения контракта",
+      "description": "Привлечь экспертную организацию, обеспечить приёмку товаров по количеству и качеству.",
+      "status": "in_progress",
+      "origin": "head",
+      "dueDate": "2026-11-18",
+      "createdAt": "2026-11-02",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 6,
+      "organizationId": 1,
+      "assigneeId": 8,
+      "assigneeName": "Сидорова Мария Ивановна",
+      "assignedByEmployeeId": 6,
+      "assignedByName": "Иванова Анна Сергеевна",
+      "functionCode": "purchase_description",
+      "title": "Подготовить отчёт о закупках у СМП и СОНКО",
+      "description": "Рассчитать долю закупок у субъектов МСП за отчётный период и подготовить сведения для отчёта.",
+      "status": "pending",
+      "origin": "head",
+      "dueDate": "2026-11-25",
+      "createdAt": "2026-11-08",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 7,
+      "organizationId": 1,
+      "assigneeId": 8,
+      "assigneeName": "Сидорова Мария Ивановна",
+      "assignedByEmployeeId": 6,
+      "assignedByName": "Иванова Анна Сергеевна",
+      "functionCode": "contract_execution",
+      "title": "Провести мониторинг состояния контрактов",
+      "description": "Проверить ход исполнения контрактов с этапами, оплатой и обеспечением.",
+      "status": "completed",
+      "origin": "head",
+      "dueDate": "2026-11-05",
+      "createdAt": "2026-10-15",
+      "completedAt": "2026-11-04",
+      "result": "Мониторинг проведён, замечаний нет."
+    },
+    {
+      "id": 8,
+      "organizationId": 1,
+      "assigneeId": 9,
+      "assigneeName": "Кузнецова Ольга Петровна",
+      "assignedByEmployeeId": 6,
+      "assignedByName": "Иванова Анна Сергеевна",
+      "functionCode": "purchase_description",
+      "title": "Подготовить сведения о закупках для отчёта ГРБС",
+      "description": "Сформировать сведения о заключённых и расторгнутых контрактах за отчётный период.",
+      "status": "in_progress",
+      "origin": "head",
+      "dueDate": "2026-11-28",
+      "createdAt": "2026-11-09",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 9,
+      "organizationId": 2,
+      "assigneeId": 4,
+      "assigneeName": "Пояркова София Игоревна",
+      "assignedByEmployeeId": 10,
+      "assignedByName": "Гаврилов Дмитрий Александрович",
+      "functionCode": "planning",
+      "title": "Сформировать проект плана-графика на 2027 год",
+      "description": "Распределить ЛФО по позициям плана-графика, обеспечить соответствие лимитам бюджетных обязательств.",
+      "status": "completed",
+      "origin": "head",
+      "dueDate": "2026-11-30",
+      "createdAt": "2026-11-01",
+      "completedAt": "2026-11-15",
+      "result": ""
+    },
+    {
+      "id": 10,
+      "organizationId": 2,
+      "assigneeId": 10,
+      "assigneeName": "Гаврилов Дмитрий Александрович",
+      "assignedByEmployeeId": 4,
+      "assignedByName": "Пояркова София Игоревна",
+      "functionCode": "supplier_determination",
+      "title": "Разместить извещение об открытом конкурсе",
+      "description": "Проверить документацию на соответствие единым требованиям и разместить в ЕИС.",
+      "status": "completed",
+      "origin": "head",
+      "dueDate": "2026-11-06",
+      "createdAt": "2026-10-20",
+      "completedAt": "2026-11-05",
+      "result": "Извещение размещено в ЕИС, контрольный срок соблюдён."
+    },
+    {
+      "id": 11,
+      "organizationId": 3,
+      "assigneeId": 11,
+      "assigneeName": "Тарасова Елена Викторовна",
+      "assignedByEmployeeId": 2,
+      "assignedByName": "Пояркова Наталья Юрьевна",
+      "functionCode": "purchase_description",
+      "title": "Разместить закупку у единственного поставщика",
+      "description": "Подготовить обоснование закупки у единственного поставщика и проект контракта.",
+      "status": "in_progress",
+      "origin": "head",
+      "dueDate": "2026-11-12",
+      "createdAt": "2026-11-03",
+      "completedAt": "",
+      "result": ""
+    },
+    {
+      "id": 12,
+      "organizationId": 3,
+      "assigneeId": 23,
+      "assigneeName": "Шкурат Ольга Николаевна",
+      "assignedByEmployeeId": 11,
+      "assignedByName": "Тарасова Елена Викторовна",
+      "functionCode": "contract_execution",
+      "title": "Оформить результаты приёмки поставленных реактивов",
+      "description": "Проверить комплектность, сроки годности и оформить документы о приёмке с оценкой качества.",
+      "status": "pending",
+      "origin": "head",
+      "dueDate": "2026-12-10",
+      "createdAt": "2026-11-11",
+      "completedAt": "",
+      "result": ""
+    }
+  ],
+  "taskEvaluations": [
+    {
+      "id": 1,
+      "taskId": 3,
+      "evaluatedByEmployeeId": 14,
+      "evaluatedEmployeeId": 6,
+      "evaluatedEmployeeName": "Иванова Анна Сергеевна",
+      "evaluatedByName": "Эпинцев Виталий Александрович",
+      "score": "good",
+      "comment": "Изменения размещены досрочно, качество высокое",
+      "createdAt": "2026-10-29"
+    },
+    {
+      "id": 2,
+      "taskId": 7,
+      "evaluatedByEmployeeId": 6,
+      "evaluatedEmployeeId": 8,
+      "evaluatedEmployeeName": "Сидорова Мария Ивановна",
+      "evaluatedByName": "Иванова Анна Сергеевна",
+      "score": "excellent",
+      "comment": "Мониторинг проведён полностью, замечаний нет",
+      "createdAt": "2026-11-05"
+    },
+    {
+      "id": 3,
+      "taskId": 10,
+      "evaluatedByEmployeeId": 4,
+      "evaluatedEmployeeId": 10,
+      "evaluatedEmployeeName": "Гаврилов Дмитрий Александрович",
+      "evaluatedByName": "Пояркова Ирина Витальевна",
+      "score": "satisfactory",
+      "comment": "Размещено в срок, но есть замечания по оформлению",
+      "createdAt": "2026-11-06"
+    },
+    {
+      "id": 4,
+      "taskId": 9,
+      "evaluatedByEmployeeId": 10,
+      "evaluatedEmployeeId": 4,
+      "evaluatedEmployeeName": "Пояркова Ирина Витальевна",
+      "evaluatedByName": "Гаврилов Дмитрий Александрович",
+      "score": "good",
+      "comment": "План-график сформирован корректно",
+      "createdAt": "2026-11-13"
+    }
+  ],
+  "leaves": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "type": "vacation",
+      "startDate": "2026-11-17",
+      "endDate": "2026-11-28",
+      "status": "approved",
+      "daysCount": 10,
+      "orderNumber": "Отп-045",
+      "orderDate": "2026-10-20",
+      "comment": "Ежегодный оплачиваемый отпуск",
+      "createdAt": "2026-10-15"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "employeeId": 7,
+      "employeeName": "Петров Сергей Николаевич",
+      "type": "sick_leave",
+      "startDate": "2026-11-10",
+      "endDate": "2026-11-20",
+      "status": "ongoing",
+      "daysCount": 7,
+      "orderNumber": "ЛН-112",
+      "orderDate": "2026-11-10",
+      "comment": "Листок нетрудоспособности",
+      "createdAt": "2026-11-10"
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "employeeId": 8,
+      "employeeName": "Сидорова Мария Ивановна",
+      "type": "business_trip",
+      "startDate": "2026-11-24",
+      "endDate": "2026-11-27",
+      "status": "scheduled",
+      "daysCount": 2,
+      "orderNumber": "Ком-012",
+      "orderDate": "2026-11-01",
+      "comment": "Командировка в Москву для участия в совещании ГРБС",
+      "createdAt": "2026-11-01"
+    },
+    {
+      "id": 4,
+      "organizationId": 2,
+      "employeeId": 4,
+      "employeeName": "Пояркова София Игоревна",
+      "type": "vacation",
+      "startDate": "2026-12-28",
+      "endDate": "2027-01-10",
+      "status": "scheduled",
+      "daysCount": 14,
+      "orderNumber": "Отп-067",
+      "orderDate": "2026-11-05",
+      "comment": "Новогодний отпуск",
+      "createdAt": "2026-11-05"
+    },
+    {
+      "id": 5,
+      "organizationId": 2,
+      "employeeId": 10,
+      "employeeName": "Гаврилов Дмитрий Александрович",
+      "type": "sick_leave",
+      "startDate": "2026-11-12",
+      "endDate": "2026-11-18",
+      "status": "completed",
+      "daysCount": 5,
+      "orderNumber": "ЛН-098",
+      "orderDate": "2026-11-12",
+      "comment": "Перенесённый грипп",
+      "createdAt": "2026-11-12"
+    },
+    {
+      "id": 6,
+      "organizationId": 3,
+      "employeeId": 11,
+      "employeeName": "Тарасова Елена Викторовна",
+      "type": "unpaid_leave",
+      "startDate": "2026-11-20",
+      "endDate": "2026-12-05",
+      "status": "approved",
+      "daysCount": 12,
+      "orderNumber": "Б/З-003",
+      "orderDate": "2026-11-10",
+      "comment": "Отпуск без сохранения ЗП по семейным обстоятельствам",
+      "createdAt": "2026-11-10"
+    }
+  ],
+  "contractProjects": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "procurementId": 2,
+      "ikz": "0132100012126000001",
+      "noticeNumber": "0132100012126000001",
+      "contractName": "Контракт на поставку медицинских изделий для ГБУЗ ГКБ №7",
+      "customerName": "ГБУЗ ГКБ №7 ДЗМ",
+      "supplierName": "ООО \"МедТехСнаб\"",
+      "projectDate": "2026-11-15",
+      "conclusionDate": "2026-11-25",
+      "protocolOfDisagreements": true,
+      "subject": {
+        "objectName": "Медицинские изделия (шприцы, перчатки)",
+        "description": "Поставка одноразовых шприцев 5мл и перчаток медицинских нестерильных",
+        "okpd2Code": "23.61.10.110",
+        "kved2Code": "46.46.10",
+        "quantity": "10000 комплектов",
+        "deliveryPlace": "ГБУЗ ГКБ №7, г. Москва, ул. Примерная, д. 1"
+      },
+      "price": {
+        "initialMaxPrice": "1500000.00",
+        "finalPrice": "1425000.00",
+        "priceBasis": "Три коммерческих предложения, расчёт по методу сопоставимых рыночных цен",
+        "priceIncludesExpenses": true,
+        "paymentProcedure": "postpayment",
+        "advancePercent": "",
+        "paymentTermDays": 7
+      },
+      "term": {
+        "startDate": "2026-12-01",
+        "endDate": "2027-02-28",
+        "validUntil": "2027-03-15",
+        "stages": [],
+        "acceptanceProcedure": "Приёмка по количеству и качеству на складе заказчика в течение 3 рабочих дней",
+        "acceptanceTermDays": 10
+      },
+      "quality": {
+        "qualityRequirements": "Соответствие ГОСТ и ТУ, наличие сертификатов соответствия, срок годности не менее 12 месяцев с даты поставки",
+        "warrantyPeriodMonths": 12,
+        "serviceLifeMonths": 36,
+        "specifications": "Шприцы 5мл: ГОСТ Р 52365-2005; Перчатки: ГОСТ 12.4.073-2004"
+      },
+      "security": {
+        "bidSecurityRequired": true,
+        "bidSecurityPercent": "2",
+        "performanceSecurityRequired": true,
+        "performanceSecurityPercent": "5",
+        "warrantySecurityRequired": false,
+        "securityAmount": "71250.00",
+        "penaltyFormula": "1/300 ключевой ставки ЦБ РФ за каждый день просрочки",
+        "fixedPenaltyAmount": "",
+        "interimPenaltyEnabled": true
+      },
+      "change": {
+        "changeConditions": "Изменение возможно по ст. 95 ч. 1 в части количества поставок (±10%)",
+        "allowQuantityChange": true,
+        "allowPriceChange": false,
+        "terminationConditions": "Односторонний отказ по ст. 95 ч. 8 при нарушении сроков поставки более 10 дней",
+        "securityReturnDays": 30
+      },
+      "status": "draft",
+      "createdAt": "2026-11-15",
+      "updatedAt": "2026-11-15"
+    },
+    {
+      "id": 2,
+      "organizationId": 2,
+      "procurementId": 2,
+      "ikz": "0172100012126000002",
+      "noticeNumber": "0172100012126000002",
+      "contractName": "Контракт на выполнение работ по ремонту помещений",
+      "customerName": "ГБОУ СОШ №42",
+      "supplierName": "ООО \"СтройМонтаж-М\"",
+      "projectDate": "2026-11-10",
+      "conclusionDate": "2026-11-20",
+      "protocolOfDisagreements": false,
+      "subject": {
+        "objectName": "Ремонт помещений образовательного учреждения",
+        "description": "Выполнение косметического ремонта: покраска стен и потолков, замена напольных покрытий, ремонт дверей",
+        "okpd2Code": "41.20.10",
+        "kved2Code": "41.20.10.110",
+        "quantity": "1200 кв.м",
+        "deliveryPlace": "ГБОУ СОШ №42, г. Москва"
+      },
+      "price": {
+        "initialMaxPrice": "3500000.00",
+        "finalPrice": "3325000.00",
+        "priceBasis": "Расчёт сметной стоимости на основании строительных норм и цен производителей материалов",
+        "priceIncludesExpenses": true,
+        "paymentProcedure": "advance",
+        "advancePercent": "30",
+        "paymentTermDays": 14
+      },
+      "term": {
+        "startDate": "2026-12-01",
+        "endDate": "2027-04-30",
+        "validUntil": "2027-05-31",
+        "stages": [
+          {
+            "name": "Подготовительные работы",
+            "endDate": "2026-12-15",
+            "amount": "332500.00"
+          },
+          {
+            "name": "Покрасочные работы",
+            "endDate": "2027-02-28",
+            "amount": "1330000.00"
+          },
+          {
+            "name": "Замена напольных покрытий",
+            "endDate": "2027-03-31",
+            "amount": "1000000.00"
+          },
+          {
+            "name": "Финальная приёмка",
+            "endDate": "2027-04-30",
+            "amount": "662500.00"
+          }
+        ],
+        "acceptanceProcedure": "Комиссионная приёмка по акту выполненных работ",
+        "acceptanceTermDays": 10
+      },
+      "quality": {
+        "qualityRequirements": "Соответствие СНиП 3.04.01-87, СП 54.13330.2016",
+        "warrantyPeriodMonths": 24,
+        "serviceLifeMonths": 60,
+        "specifications": ""
+      },
+      "security": {
+        "bidSecurityRequired": true,
+        "bidSecurityPercent": "1",
+        "performanceSecurityRequired": true,
+        "performanceSecurityPercent": "10",
+        "warrantySecurityRequired": true,
+        "securityAmount": "332500.00",
+        "penaltyFormula": "1/300 ключевой ставки ЦБ РФ за каждый день просрочки",
+        "fixedPenaltyAmount": "",
+        "interimPenaltyEnabled": true
+      },
+      "change": {
+        "changeConditions": "Изменение сроков по ст. 95 ч. 1 в связи с изменением объёма работ",
+        "allowQuantityChange": true,
+        "allowPriceChange": false,
+        "terminationConditions": "Односторонний отказ при систематическом нарушении сроков этапов",
+        "securityReturnDays": 30
+      },
+      "status": "draft",
+      "createdAt": "2026-11-10",
+      "updatedAt": "2026-11-10"
+    }
+  ],
+  "smnpPlans": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "year": 2026,
+      "type": "annual",
+      "plannedSmnpAmount": "15000000",
+      "plannedSonekAmount": "3000000",
+      "totalProcurementAmount": "100000000",
+      "plannedSmnpPercent": "15",
+      "publishedInEis": true,
+      "comment": "План закупок у СМП на 2026 год (ст. 29 ч. 1)"
+    },
+    {
+      "id": 2,
+      "organizationId": 2,
+      "year": 2026,
+      "type": "annual",
+      "plannedSmnpAmount": "12000000",
+      "plannedSonekAmount": "2500000",
+      "totalProcurementAmount": "80000000",
+      "plannedSmnpPercent": "15",
+      "publishedInEis": true,
+      "comment": ""
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "year": 2026,
+      "quarter": "q4",
+      "type": "quarterly",
+      "plannedSmnpAmount": "4500000",
+      "plannedSonekAmount": "800000",
+      "totalProcurementAmount": "30000000",
+      "plannedSmnpPercent": "15",
+      "publishedInEis": false,
+      "comment": "План на IV квартал"
+    }
+  ],
+  "smnpReports": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "year": 2026,
+      "type": "annual",
+      "actualSmnpAmount": "16200000",
+      "actualSonekAmount": "3100000",
+      "totalProcurementAmount": "100000000",
+      "actualSmnpPercent": "16.2",
+      "publishedInEis": false,
+      "eisPublishDate": "",
+      "status": "draft",
+      "comment": "Факт: 16.2% — план выполнен (ст. 29 ч. 1)"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "year": 2026,
+      "quarter": "q3",
+      "type": "quarterly",
+      "actualSmnpAmount": "3800000",
+      "actualSonekAmount": "750000",
+      "totalProcurementAmount": "25000000",
+      "actualSmnpPercent": "15.2",
+      "publishedInEis": true,
+      "eisPublishDate": "2026-10-05",
+      "status": "published",
+      "comment": "III квартал: план выполнен"
+    },
+    {
+      "id": 3,
+      "organizationId": 2,
+      "year": 2026,
+      "type": "annual",
+      "actualSmnpAmount": "11500000",
+      "actualSonekAmount": "2800000",
+      "totalProcurementAmount": "80000000",
+      "actualSmnpPercent": "14.4",
+      "publishedInEis": false,
+      "eisPublishDate": "",
+      "status": "review",
+      "comment": "14.4% — план НЕ выполнен (требуется 15%)"
+    }
+  ],
+  "smnpProcurements": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "procurementId": 3,
+      "ikz": "262463200012346320100100170014211244",
+      "procurementName": "Ремонт автомобильной дороги с. Толстый Колодезь (пуч.) в Черемисиновском районе Курской области",
+      "supplierType": "smnp",
+      "procurementMethod": "Электронный аукцион",
+      "initialPrice": "32765980",
+      "contractPrice": "32000000",
+      "savingsAmount": "765980",
+      "noticeDate": "2026-10-15",
+      "contractDate": "2026-11-01",
+      "eisDate": "2026-11-05",
+      "publishedInEis": true,
+      "comment": "Победитель — ООО «ДорСтрой» (реестр МСП)"
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "procurementId": 2,
+      "ikz": "262463200012346320100100160014211244",
+      "procurementName": "Ремонт автомобильной дороги \"Курск-Борисоглебск\"-Касторное-граница Липецкой области-Архангельское\" Советского района Курской области",
+      "supplierType": "sonek",
+      "procurementMethod": "Закупка у единственного поставщика",
+      "initialPrice": "38897567.79",
+      "contractPrice": "38897567",
+      "savingsAmount": "0",
+      "noticeDate": "2026-08-01",
+      "contractDate": "2026-08-20",
+      "eisDate": "2026-08-22",
+      "publishedInEis": true,
+      "comment": "Победитель — АНО «Безопасные дороги» (СОНКО)"
+    },
+    {
+      "id": 4,
+      "organizationId": 2,
+      "procurementId": 4,
+      "ikz": "262463200012346320100100180014211244",
+      "procurementName": "Выполнение работ по ремонту автомобильных дорог общего пользования местного значения города Курска в рамках государственной программы Курской области «Развитие транспортной системы, обеспечение перевозки пассажиров в Курской области и безопасности дорожного движения»",
+      "supplierType": "smnp",
+      "procurementMethod": "Открытый конкурс в электронной форме",
+      "initialPrice": "105965532.79",
+      "contractPrice": "102000000",
+      "savingsAmount": "3965532",
+      "noticeDate": "2026-07-15",
+      "contractDate": "2026-08-10",
+      "eisDate": "2026-08-12",
+      "publishedInEis": true,
+      "comment": "Победитель — ООО «СтройГрад» (реестр МСП)"
+    }
+  ],
+  "contractRegistry": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "contractProjectId": 1,
+      "procurementId": 3,
+      "ikz": "262463200012346320100100170014211244",
+      "contractNumber": "0344200012126000001",
+      "contractDate": "2026-11-01",
+      "contractName": "Ремонт автомобильной дороги с. Толстый Колодезь",
+      "customerName": "ГКУ БО «Центр МТО»",
+      "supplierName": "ООО \"ДорСтрой\"",
+      "supplierInn": "7701234567",
+      "supplierKpp": "770101001",
+      "initialMaxPrice": "32765980",
+      "contractPrice": "32000000",
+      "performanceSecurityAmount": "1600000",
+      "warrantySecurityAmount": "320000",
+      "executionForm": "full",
+      "eisUrl": "https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=1",
+      "eisPublishDate": "2026-11-05",
+      "status": "in_execution",
+      "executionStartDate": "2026-11-10",
+      "executionEndDate": "2027-05-31",
+      "completionDate": "",
+      "treasuryPublishDate": "2026-11-03",
+      "orderNumber": "12-К",
+      "orderDate": "2026-11-01",
+      "signedByEmployeeId": 6,
+      "signedByName": "Иванова Анна Сергеевна",
+      "comment": "Контракт с обеспечением исполнения 5%",
+      "createdAt": "2026-11-01",
+      "updatedAt": "2026-11-10"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "contractProjectId": 2,
+      "procurementId": 2,
+      "ikz": "262463200012346320100100160014211244",
+      "contractNumber": "0344200012126000002",
+      "contractDate": "2026-08-20",
+      "contractName": "Ремонт автомобильной дороги Курск-Борисоглебск",
+      "customerName": "ГКУ БО «Центр МТО»",
+      "supplierName": "АНО \"Безопасные дороги\"",
+      "supplierInn": "5012345678",
+      "supplierKpp": "501201001",
+      "initialMaxPrice": "38897567.79",
+      "contractPrice": "38897567",
+      "performanceSecurityAmount": "1944878",
+      "warrantySecurityAmount": "0",
+      "executionForm": "full",
+      "eisUrl": "https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=2",
+      "eisPublishDate": "2026-08-22",
+      "status": "completed",
+      "executionStartDate": "2026-08-25",
+      "executionEndDate": "2026-11-15",
+      "completionDate": "2026-11-10",
+      "treasuryPublishDate": "2026-08-21",
+      "orderNumber": "08-К",
+      "orderDate": "2026-08-20",
+      "signedByEmployeeId": 6,
+      "signedByName": "Иванова Анна Сергеевна",
+      "comment": "Завершён досрочно",
+      "createdAt": "2026-08-20",
+      "updatedAt": "2026-11-10"
+    },
+    {
+      "id": 3,
+      "organizationId": 2,
+      "contractProjectId": 2,
+      "procurementId": 4,
+      "ikz": "262463200012346320100100180014211244",
+      "contractNumber": "0344300000226000003",
+      "contractDate": "2026-10-12",
+      "contractName": "Выполнение работ по ремонту автомобильных дорог местного значения",
+      "customerName": "Депимущество Белгородской области",
+      "supplierName": "АО \"Белгородавтодор\"",
+      "supplierInn": "3123456789",
+      "supplierKpp": "310001001",
+      "initialMaxPrice": "105965532.79",
+      "contractPrice": "101250000",
+      "performanceSecurityAmount": "5062500",
+      "warrantySecurityAmount": "1012500",
+      "executionForm": "partial",
+      "eisUrl": "https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=3",
+      "eisPublishDate": "2026-10-14",
+      "status": "in_execution",
+      "executionStartDate": "2026-10-15",
+      "executionEndDate": "2027-08-31",
+      "completionDate": "",
+      "treasuryPublishDate": "2026-10-13",
+      "orderNumber": "45-Д",
+      "orderDate": "2026-10-12",
+      "signedByEmployeeId": 4,
+      "signedByName": "Пояркова София Игоревна",
+      "comment": "Контракт разбит на 4 этапа, казначейское сопровождение",
+      "createdAt": "2026-10-12",
+      "updatedAt": "2026-11-12"
+    },
+    {
+      "id": 4,
+      "organizationId": 4,
+      "procurementId": 6,
+      "ikz": "262463200012346320100100200014211244",
+      "contractNumber": "0344300003326000004",
+      "contractDate": "2026-03-25",
+      "contractName": "Реконструкция автомобильной дороги по ул. Победы",
+      "customerName": "Администрация г. Белгорода",
+      "supplierName": "ООО \"СМУ-78\"",
+      "supplierInn": "3128765432",
+      "supplierKpp": "312801001",
+      "initialMaxPrice": "57243208.74",
+      "contractPrice": "54380000",
+      "performanceSecurityAmount": "2719000",
+      "warrantySecurityAmount": "543800",
+      "executionForm": "full",
+      "eisUrl": "https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=4",
+      "eisPublishDate": "2026-03-28",
+      "status": "completed",
+      "executionStartDate": "2026-04-01",
+      "executionEndDate": "2026-10-31",
+      "completionDate": "2026-10-24",
+      "treasuryPublishDate": "2026-03-27",
+      "orderNumber": "118-А",
+      "orderDate": "2026-03-25",
+      "signedByEmployeeId": 26,
+      "signedByName": "Мельников Андрей Николаевич",
+      "comment": "Исполнен досрочно, гарантийные обязательства 3 года",
+      "createdAt": "2026-03-25",
+      "updatedAt": "2026-10-24"
+    }
+  ],
+  "contractStages": [
+    {
+      "id": 1,
+      "contractId": 1,
+      "stageNumber": 1,
+      "name": "Подготовительные работы и устройство основания",
+      "startDate": "2026-11-10",
+      "endDate": "2027-01-31",
+      "amount": "19200000",
+      "paidAmount": "19200000",
+      "status": "completed",
+      "acceptanceActNumber": "АС-1/2027",
+      "acceptanceActDate": "2027-02-02",
+      "comment": ""
+    },
+    {
+      "id": 2,
+      "contractId": 1,
+      "stageNumber": 2,
+      "name": "Асфальтирование проезжей части",
+      "startDate": "2027-02-05",
+      "endDate": "2027-05-31",
+      "amount": "12800000",
+      "paidAmount": "0",
+      "status": "in_progress",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": ""
+    },
+    {
+      "id": 3,
+      "contractId": 2,
+      "stageNumber": 1,
+      "name": "Ремонт дороги с сдачей объекта",
+      "startDate": "2026-08-25",
+      "endDate": "2026-11-15",
+      "amount": "38897567",
+      "paidAmount": "38897567",
+      "status": "completed",
+      "acceptanceActNumber": "АС-14/2026",
+      "acceptanceActDate": "2026-11-10",
+      "comment": ""
+    },
+    {
+      "id": 4,
+      "contractId": 3,
+      "stageNumber": 1,
+      "name": "Разработка проектной документации и разборка покрытия",
+      "startDate": "2026-10-15",
+      "endDate": "2026-12-15",
+      "amount": "30375000",
+      "paidAmount": "30375000",
+      "status": "completed",
+      "acceptanceActNumber": "ЭС-1/2026",
+      "acceptanceActDate": "2026-12-17",
+      "comment": ""
+    },
+    {
+      "id": 5,
+      "contractId": 3,
+      "stageNumber": 2,
+      "name": "Устройство дорожной одежды",
+      "startDate": "2026-12-18",
+      "endDate": "2027-04-30",
+      "amount": "25312500",
+      "paidAmount": "25312500",
+      "status": "in_progress",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": "Работы ведутся с опережением графика"
+    },
+    {
+      "id": 6,
+      "contractId": 3,
+      "stageNumber": 3,
+      "name": "Устройство покрытия и разметки",
+      "startDate": "2027-05-01",
+      "endDate": "2027-07-15",
+      "amount": "30375000",
+      "paidAmount": "0",
+      "status": "planned",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": ""
+    },
+    {
+      "id": 7,
+      "contractId": 3,
+      "stageNumber": 4,
+      "name": "Обустройство дороги и сдача объекта",
+      "startDate": "2027-07-16",
+      "endDate": "2027-08-31",
+      "amount": "15187500",
+      "paidAmount": "0",
+      "status": "planned",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": ""
+    },
+    {
+      "id": 8,
+      "contractId": 4,
+      "stageNumber": 1,
+      "name": "Земляное полотно и дренаж",
+      "startDate": "2026-04-01",
+      "endDate": "2026-07-15",
+      "amount": "32630000",
+      "paidAmount": "32630000",
+      "status": "completed",
+      "acceptanceActNumber": "АС-31/2026",
+      "acceptanceActDate": "2026-07-18",
+      "comment": ""
+    },
+    {
+      "id": 9,
+      "contractId": 4,
+      "stageNumber": 2,
+      "name": "Дорожное покрытие и благоустройство",
+      "startDate": "2026-07-19",
+      "endDate": "2026-10-31",
+      "amount": "21750000",
+      "paidAmount": "21750000",
+      "status": "completed",
+      "acceptanceActNumber": "АС-52/2026",
+      "acceptanceActDate": "2026-10-24",
+      "comment": ""
+    }
+  ],
+  "contractPayments": [
+    {
+      "id": 1,
+      "contractId": 1,
+      "paymentDocumentNumber": "ПД-101",
+      "paymentDate": "2026-11-12",
+      "amount": "12800000",
+      "paymentType": "advance",
+      "invoiceNumber": "СФ-101",
+      "invoiceDate": "2026-11-11",
+      "status": "paid",
+      "bankDocumentNumber": "321000001",
+      "treasuryExecution": true,
+      "comment": "Аванс 40%"
+    },
+    {
+      "id": 2,
+      "contractId": 1,
+      "paymentDocumentNumber": "ПД-114",
+      "paymentDate": "2027-02-10",
+      "amount": "6400000",
+      "paymentType": "intermediate",
+      "invoiceNumber": "СФ-114",
+      "invoiceDate": "2027-02-03",
+      "status": "scheduled",
+      "bankDocumentNumber": "",
+      "treasuryExecution": true,
+      "comment": "Ожидает приёмки этапа 1"
+    },
+    {
+      "id": 3,
+      "contractId": 2,
+      "paymentDocumentNumber": "ПД-077",
+      "paymentDate": "2026-08-27",
+      "amount": "15497567",
+      "paymentType": "advance",
+      "invoiceNumber": "СФ-077",
+      "invoiceDate": "2026-08-26",
+      "status": "paid",
+      "bankDocumentNumber": "321000044",
+      "treasuryExecution": true,
+      "comment": "Аванс 40%"
+    },
+    {
+      "id": 4,
+      "contractId": 2,
+      "paymentDocumentNumber": "ПД-098",
+      "paymentDate": "2026-11-12",
+      "amount": "23400000",
+      "paymentType": "final",
+      "invoiceNumber": "СФ-098",
+      "invoiceDate": "2026-11-11",
+      "status": "paid",
+      "bankDocumentNumber": "321000091",
+      "treasuryExecution": true,
+      "comment": "Окончательный расчёт"
+    },
+    {
+      "id": 5,
+      "contractId": 3,
+      "paymentDocumentNumber": "ПД-205",
+      "paymentDate": "2026-10-17",
+      "amount": "30375000",
+      "paymentType": "advance",
+      "invoiceNumber": "СФ-205",
+      "invoiceDate": "2026-10-16",
+      "status": "paid",
+      "bankDocumentNumber": "322000012",
+      "treasuryExecution": true,
+      "comment": "Аванс 30%"
+    },
+    {
+      "id": 6,
+      "contractId": 3,
+      "paymentDocumentNumber": "ПД-231",
+      "paymentDate": "2026-12-20",
+      "amount": "25312500",
+      "paymentType": "intermediate",
+      "invoiceNumber": "СФ-231",
+      "invoiceDate": "2026-12-18",
+      "status": "paid",
+      "bankDocumentNumber": "322000047",
+      "treasuryExecution": true,
+      "comment": "Оплата этапа 1"
+    },
+    {
+      "id": 7,
+      "contractId": 3,
+      "paymentDocumentNumber": "ПД-244",
+      "paymentDate": "2027-05-05",
+      "amount": "30375000",
+      "paymentType": "intermediate",
+      "invoiceNumber": "СФ-244",
+      "invoiceDate": "",
+      "status": "scheduled",
+      "bankDocumentNumber": "",
+      "treasuryExecution": true,
+      "comment": "Под этап 3"
+    },
+    {
+      "id": 8,
+      "contractId": 4,
+      "paymentDocumentNumber": "ПД-012",
+      "paymentDate": "2026-04-03",
+      "amount": "32630000",
+      "paymentType": "advance",
+      "invoiceNumber": "СФ-012",
+      "invoiceDate": "2026-04-02",
+      "status": "paid",
+      "bankDocumentNumber": "323000004",
+      "treasuryExecution": true,
+      "comment": "Аванс 60%"
+    },
+    {
+      "id": 9,
+      "contractId": 4,
+      "paymentDocumentNumber": "ПД-066",
+      "paymentDate": "2026-10-26",
+      "amount": "21750000",
+      "paymentType": "final",
+      "invoiceNumber": "СФ-066",
+      "invoiceDate": "2026-10-25",
+      "status": "paid",
+      "bankDocumentNumber": "323000078",
+      "treasuryExecution": true,
+      "comment": "Окончательный расчёт"
+    }
+  ],
+  "contractPenalties": [
+    {
+      "id": 1,
+      "contractId": 1,
+      "type": "delay",
+      "detectedDate": "2027-02-12",
+      "amount": "45000",
+      "status": "accrued",
+      "resolutionDate": "",
+      "resolutionDocumentNumber": "",
+      "description": "Нарушение срока выполнения этапа 2 на 4 рабочих дня согласно акту сверки",
+      "reference": "Требование № 1 от 12.02.2027"
+    },
+    {
+      "id": 2,
+      "contractId": 2,
+      "type": "quality",
+      "detectedDate": "2026-10-20",
+      "amount": "38900",
+      "status": "collected",
+      "resolutionDate": "2026-11-05",
+      "resolutionDocumentNumber": "Требование № 2 от 20.10.2026",
+      "description": "Отклонение толщины асфальтового покрытия от проектной на отдельном участке",
+      "reference": "Заключение экспертизы № 44-10/2026"
+    },
+    {
+      "id": 3,
+      "contractId": 3,
+      "type": "delivery",
+      "detectedDate": "2026-12-01",
+      "amount": "202500",
+      "status": "disputed",
+      "resolutionDate": "",
+      "resolutionDocumentNumber": "",
+      "description": "Поставка щебня фракции не соответствующей спецификации контракта",
+      "reference": "Претензия № 7 от 01.12.2026"
+    },
+    {
+      "id": 4,
+      "contractId": 4,
+      "type": "delay",
+      "detectedDate": "2026-08-01",
+      "amount": "163140",
+      "status": "collected",
+      "resolutionDate": "2026-09-10",
+      "resolutionDocumentNumber": "Требование № 15 от 01.08.2026",
+      "description": "Просрочка начала второго этапа на 6 рабочих дней по вине подрядчика",
+      "reference": "Акт сверки от 01.08.2026"
+    }
+  ],
+  "contractDeliveries": [
+    {
+      "id": 1,
+      "contractId": 2,
+      "deliveryDate": "2026-11-10",
+      "itemName": "Ремонт автомобильной дороги, км 0+000 — км 4+350",
+      "quantity": "4.35",
+      "unit": "км",
+      "amount": "38897567",
+      "acceptanceActNumber": "АС-14/2026",
+      "acceptanceActDate": "2026-11-10",
+      "result": "accepted",
+      "notes": ""
+    },
+    {
+      "id": 2,
+      "contractId": 3,
+      "deliveryDate": "2026-12-17",
+      "itemName": "Разборка дорожного покрытия и устройство основания",
+      "quantity": "1",
+      "unit": "компл",
+      "amount": "30375000",
+      "acceptanceActNumber": "ЭС-1/2026",
+      "acceptanceActDate": "2026-12-17",
+      "result": "accepted",
+      "notes": ""
+    },
+    {
+      "id": 3,
+      "contractId": 4,
+      "deliveryDate": "2026-10-24",
+      "itemName": "Асфальтобетонное покрытие ул. Победы",
+      "quantity": "18500",
+      "unit": "м2",
+      "amount": "21750000",
+      "acceptanceActNumber": "АС-52/2026",
+      "acceptanceActDate": "2026-10-24",
+      "result": "accepted_with_notes",
+      "notes": "Замечания по бортовому камню на тротуаре устранены подрядчиком в гарантийный срок"
+    }
+  ],
+  "contractFunctions": [
+    {
+      "id": "fn-order-1",
+      "code": "planning",
+      "paragraph": "п. 3.1",
+      "title": "Планирование закупок",
+      "category": "planning_and_basis",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-order-2",
+      "code": "purchase_description",
+      "paragraph": "п. 3.2",
+      "title": "Описание объекта закупки и обоснование НМЦК",
+      "category": "planning_and_basis",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-order-3",
+      "code": "supplier_determination",
+      "paragraph": "п. 3.3",
+      "title": "Определение поставщика (подрядчика, исполнителя)",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-order-4",
+      "code": "contract_conclusion",
+      "paragraph": "п. 3.4",
+      "title": "Заключение контракта",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-order-5",
+      "code": "contract_execution",
+      "paragraph": "п. 3.5",
+      "title": "Исполнение, изменение, расторжение контракта и отчётность",
+      "category": "execution_and_reporting",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    }
+  ],
+  "okpd2Refs": [
+    {
+      "id": 1,
+      "code": "32.50.11.110",
+      "name": "Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
+      "isNormed": false
+    },
+    {
+      "id": 2,
+      "code": "32.50.11.190",
+      "name": "Инструменты врачебные и медицинские прочие",
+      "isNormed": false
+    },
+    {
+      "id": 3,
+      "code": "32.50.12.110",
+      "name": "Материалы стоматологические пломбировочные",
+      "isNormed": false
+    },
+    {
+      "id": 4,
+      "code": "32.50.13.110",
+      "name": "Изделия медицинские одноразового использования, в том числе катетеры, зонды",
+      "isNormed": false
+    },
+    {
+      "id": 5,
+      "code": "32.50.13.120",
+      "name": "Шприцы автоматические и аналогичные устройства медицинские",
+      "isNormed": false
+    },
+    {
+      "id": 6,
+      "code": "32.50.13.190",
+      "name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
+      "isNormed": false
+    },
+    {
+      "id": 7,
+      "code": "32.50.14.110",
+      "name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
+      "isNormed": true,
+      "normLimit": 250000
+    },
+    {
+      "id": 8,
+      "code": "32.50.15.119",
+      "name": "Изделия медицинские, в том числе хирургические, прочие",
+      "isNormed": false
+    },
+    {
+      "id": 9,
+      "code": "32.50.20.000",
+      "name": "Изделия ортопедические, протезы и вспомогательные устройства",
+      "isNormed": false
+    },
+    {
+      "id": 10,
+      "code": "21.10.51.000",
+      "name": "Препараты фармацевтические прочие",
+      "isNormed": false
+    },
+    {
+      "id": 11,
+      "code": "21.20.10.110",
+      "name": "Материалы, используемые в медицинских целях, кровезаменители и растворы",
+      "isNormed": false
+    },
+    {
+      "id": 12,
+      "code": "21.20.10.130",
+      "name": "Материалы перевязочные медицинские",
+      "isNormed": false
+    },
+    {
+      "id": 13,
+      "code": "21.20.22.000",
+      "name": "Материалы хирургические, включая шовный материал",
+      "isNormed": false
+    },
+    {
+      "id": 14,
+      "code": "21.20.23.119",
+      "name": "Материалы, используемые в медицинских целях, прочие",
+      "isNormed": false
+    },
+    {
+      "id": 15,
+      "code": "41.20.10.000",
+      "name": "Работы строительные по возведению нежилых зданий и сооружений",
+      "isNormed": false
+    },
+    {
+      "id": 16,
+      "code": "41.20.11.100",
+      "name": "Работы по возведению зданий и сооружений, кроме зданий управления транспортом",
+      "isNormed": false
+    },
+    {
+      "id": 17,
+      "code": "41.20.40.900",
+      "name": "Работы строительные специализированные прочие, не включённые в другие группировки",
+      "isNormed": false
+    },
+    {
+      "id": 18,
+      "code": "42.11.20.300",
+      "name": "Работы строительные по строительству автомагистралей и автомобильных дорог",
+      "isNormed": false
+    },
+    {
+      "id": 19,
+      "code": "43.21.10.110",
+      "name": "Производство работ по электроснабжению и освещению",
+      "isNormed": false
+    },
+    {
+      "id": 20,
+      "code": "43.22.11.100",
+      "name": "Работы по монтажу систем водоснабжения, канализации и отопления",
+      "isNormed": false
+    },
+    {
+      "id": 21,
+      "code": "43.22.51.000",
+      "name": "Работы по монтажу систем отопления и кондиционирования",
+      "isNormed": true,
+      "normLimit": 3500000
+    },
+    {
+      "id": 22,
+      "code": "43.29.11.120",
+      "name": "Монтаж прочего инженерного оборудования, не включённого в другие группировки",
+      "isNormed": false
+    },
+    {
+      "id": 23,
+      "code": "43.31.10.000",
+      "name": "Производство штукатурных работ",
+      "isNormed": true,
+      "normLimit": 1200
+    },
+    {
+      "id": 24,
+      "code": "43.32.10.000",
+      "name": "Установка дверей (кроме автоматических и вращающихся), окон и дверных коробок",
+      "isNormed": true,
+      "normLimit": 15000
+    },
+    {
+      "id": 25,
+      "code": "43.33.11.000",
+      "name": "Работы по устройству покрытий полов из керамических и цементных материалов",
+      "isNormed": true,
+      "normLimit": 2500
+    },
+    {
+      "id": 26,
+      "code": "43.34.11.000",
+      "name": "Производство малярных работ зданий",
+      "isNormed": true,
+      "normLimit": 400
+    },
+    {
+      "id": 27,
+      "code": "43.91.11.000",
+      "name": "Работы по устройству покрытий полов и облицовке стен",
+      "isNormed": false
+    },
+    {
+      "id": 28,
+      "code": "43.99.10.000",
+      "name": "Устройство покрытий крыш и гидроизоляции плоских кровель",
+      "isNormed": false
+    },
+    {
+      "id": 29,
+      "code": "23.61.10.110",
+      "name": "Изделия сборные железобетонные фундаментные блоки",
+      "isNormed": false
+    },
+    {
+      "id": 30,
+      "code": "23.63.10.000",
+      "name": "Бетон готовый (товарный бетон)",
+      "isNormed": false
+    },
+    {
+      "id": 31,
+      "code": "23.64.11.000",
+      "name": "Смеси сухие строительные готовые",
+      "isNormed": false
+    },
+    {
+      "id": 32,
+      "code": "08.11.20.000",
+      "name": "Материалы нерудные (песок, гравий) для строительства",
+      "isNormed": false
+    },
+    {
+      "id": 33,
+      "code": "26.20.11.110",
+      "name": "Компьютеры общего назначения портативные массой менее 10 кг",
+      "isNormed": true,
+      "normLimit": 85000
+    },
+    {
+      "id": 34,
+      "code": "26.20.11.120",
+      "name": "Компьютеры общего назначения настольные",
+      "isNormed": true,
+      "normLimit": 75000
+    },
+    {
+      "id": 35,
+      "code": "26.20.12.110",
+      "name": "Устройства печатающие (принтеры) вычислительных машин",
+      "isNormed": true,
+      "normLimit": 40000
+    },
+    {
+      "id": 36,
+      "code": "26.20.12.120",
+      "name": "Устройства вывода многофункциональные (МФУ)",
+      "isNormed": true,
+      "normLimit": 60000
+    },
+    {
+      "id": 37,
+      "code": "26.20.14.110",
+      "name": "Мониторы, отображающие информацию на жидких кристаллах",
+      "isNormed": true,
+      "normLimit": 45000
+    },
+    {
+      "id": 38,
+      "code": "26.20.15.110",
+      "name": "Устройства ввода (клавиатуры, мыши, сканеры штрих-кода)",
+      "isNormed": true,
+      "normLimit": 8000
+    },
+    {
+      "id": 39,
+      "code": "26.20.16.000",
+      "name": "Накопители запоминающие внешние",
+      "isNormed": true,
+      "normLimit": 15000
+    },
+    {
+      "id": 40,
+      "code": "26.20.17.000",
+      "name": "Комплекты и блоки питания вычислительной техники",
+      "isNormed": false
+    },
+    {
+      "id": 41,
+      "code": "26.30.20.110",
+      "name": "Оборудование коммуникационное для передачи данных (коммутаторы, маршрутизаторы)",
+      "isNormed": true,
+      "normLimit": 55000
+    },
+    {
+      "id": 42,
+      "code": "26.30.11.110",
+      "name": "Телефоны для сотовых сетей связи прочего беспроводного мобильного доступа",
+      "isNormed": true,
+      "normLimit": 25000
+    },
+    {
+      "id": 43,
+      "code": "26.40.33.110",
+      "name": "Средства связи, выполняющие функцию цифровых систем связи и передачи информации",
+      "isNormed": false
+    },
+    {
+      "id": 44,
+      "code": "58.29.11.000",
+      "name": "Обеспечение программное системное для компьютеров, кроме систем управления базами данных",
+      "isNormed": false
+    },
+    {
+      "id": 45,
+      "code": "58.29.50.000",
+      "name": "Обеспечение программное для компьютеров прочее",
+      "isNormed": false
+    },
+    {
+      "id": 46,
+      "code": "62.01.11.000",
+      "name": "Услуги по разработке систем программирования, в том числе средств защиты информации",
+      "isNormed": false
+    },
+    {
+      "id": 47,
+      "code": "62.02.10.000",
+      "name": "Услуги по планированию и проектированию компьютерных систем",
+      "isNormed": false
+    },
+    {
+      "id": 48,
+      "code": "62.02.20.000",
+      "name": "Услуги по техническому обслуживанию компьютерных систем",
+      "isNormed": false
+    },
+    {
+      "id": 49,
+      "code": "62.09.20.190",
+      "name": "Услуги по установке программного обеспечения прочие",
+      "isNormed": false
+    },
+    {
+      "id": 50,
+      "code": "63.11.11.000",
+      "name": "Услуги по размещению компьютерных мощностей",
+      "isNormed": false
+    },
+    {
+      "id": 51,
+      "code": "95.11.00.000",
+      "name": "Ремонт компьютеров и периферийного компьютерного оборудования",
+      "isNormed": true,
+      "normLimit": 6000
+    },
+    {
+      "id": 52,
+      "code": "31.01.11.130",
+      "name": "Мебель деревянная офисная прочая",
+      "isNormed": true,
+      "normLimit": 30000
+    },
+    {
+      "id": 53,
+      "code": "31.01.12.120",
+      "name": "Мебель деревянная для учебных заведений",
+      "isNormed": true,
+      "normLimit": 18000
+    },
+    {
+      "id": 54,
+      "code": "31.01.12.140",
+      "name": "Мебель деревянная больничная",
+      "isNormed": true,
+      "normLimit": 22000
+    },
+    {
+      "id": 55,
+      "code": "31.02.10.000",
+      "name": "Мебель деревянная для кухни",
+      "isNormed": true,
+      "normLimit": 40000
+    },
+    {
+      "id": 56,
+      "code": "31.09.11.140",
+      "name": "Мебель деревянная прочая",
+      "isNormed": true,
+      "normLimit": 25000
+    },
+    {
+      "id": 57,
+      "code": "31.09.12.130",
+      "name": "Мебель металлическая для сиденьев",
+      "isNormed": true,
+      "normLimit": 12000
+    },
+    {
+      "id": 58,
+      "code": "31.09.19.000",
+      "name": "Мебель прочая",
+      "isNormed": true,
+      "normLimit": 20000
+    },
+    {
+      "id": 59,
+      "code": "17.23.11.110",
+      "name": "Бумага писчая",
+      "isNormed": true,
+      "normLimit": 900
+    },
+    {
+      "id": 60,
+      "code": "17.23.12.110",
+      "name": "Бумага для записи (блокноты, тетради)",
+      "isNormed": true,
+      "normLimit": 120
+    },
+    {
+      "id": 61,
+      "code": "17.23.13.110",
+      "name": "Папки, обложки и прочие принадлежности из бумаги или картона",
+      "isNormed": true,
+      "normLimit": 60
+    },
+    {
+      "id": 62,
+      "code": "17.23.13.191",
+      "name": "Принадлежности канцелярские или школьные металлические",
+      "isNormed": true,
+      "normLimit": 45
+    },
+    {
+      "id": 63,
+      "code": "17.23.14.110",
+      "name": "Конверты из бумаги или картона",
+      "isNormed": true,
+      "normLimit": 15
+    },
+    {
+      "id": 64,
+      "code": "22.29.25.000",
+      "name": "Принадлежности канцелярские и аналогичные принадлежности из пластмасс",
+      "isNormed": true,
+      "normLimit": 50
+    },
+    {
+      "id": 65,
+      "code": "32.99.12.120",
+      "name": "Карандаши, кроме карандашей для художников",
+      "isNormed": true,
+      "normLimit": 25
+    },
+    {
+      "id": 66,
+      "code": "32.99.15.110",
+      "name": "Ручки шариковые",
+      "isNormed": true,
+      "normLimit": 40
+    },
+    {
+      "id": 67,
+      "code": "17.29.14.110",
+      "name": "Конверты, пакеты из бумаги для упаковки",
+      "isNormed": true,
+      "normLimit": 12
+    },
+    {
+      "id": 68,
+      "code": "18.12.11.000",
+      "name": "Услуги печатные прочие (типографские работы)",
+      "isNormed": true,
+      "normLimit": 5
+    },
+    {
+      "id": 69,
+      "code": "18.14.11.000",
+      "name": "Услуги по переплету и брошюровке",
+      "isNormed": true,
+      "normLimit": 30
+    },
+    {
+      "id": 70,
+      "code": "10.39.11.110",
+      "name": "Овощи (кроме картофеля) и фрукты, переработанные и консервированные",
+      "isNormed": false
+    },
+    {
+      "id": 71,
+      "code": "10.41.54.000",
+      "name": "Масло подсолнечное и его фракции рафинированные",
+      "isNormed": true,
+      "normLimit": 220
+    },
+    {
+      "id": 72,
+      "code": "10.51.30.110",
+      "name": "Молоко питьевое коровье обработанное",
+      "isNormed": true,
+      "normLimit": 110
+    },
+    {
+      "id": 73,
+      "code": "10.51.40.110",
+      "name": "Масло сливочное",
+      "isNormed": true,
+      "normLimit": 260
+    },
+    {
+      "id": 74,
+      "code": "10.61.31.000",
+      "name": "Крупа из пшеницы, ржи, овса, кукурузы и прочих зерновых культур",
+      "isNormed": true,
+      "normLimit": 90
+    },
+    {
+      "id": 75,
+      "code": "10.61.32.111",
+      "name": "Мука пшеничная",
+      "isNormed": true,
+      "normLimit": 70
+    },
+    {
+      "id": 76,
+      "code": "10.84.30.110",
+      "name": "Соль пищевая",
+      "isNormed": true,
+      "normLimit": 40
+    },
+    {
+      "id": 77,
+      "code": "01.13.41.000",
+      "name": "Картофель столовый",
+      "isNormed": true,
+      "normLimit": 60
+    },
+    {
+      "id": 78,
+      "code": "10.13.96.000",
+      "name": "Изделия колбасные варёные из мяса и субпродуктов",
+      "isNormed": false
+    },
+    {
+      "id": 79,
+      "code": "10.11.51.110",
+      "name": "Мясо птицы, кроме индейки, охлаждённое",
+      "isNormed": false
+    },
+    {
+      "id": 80,
+      "code": "01.41.21.000",
+      "name": "Молоко-сырьё коровье",
+      "isNormed": false
+    },
+    {
+      "id": 81,
+      "code": "20.41.31.130",
+      "name": "Мыло хозяйственное и средства моющие",
+      "isNormed": true,
+      "normLimit": 120
+    },
+    {
+      "id": 82,
+      "code": "20.41.32.114",
+      "name": "Средства моющие синтетические",
+      "isNormed": true,
+      "normLimit": 180
+    },
+    {
+      "id": 83,
+      "code": "20.41.44.000",
+      "name": "Средства дезинфекционные",
+      "isNormed": true,
+      "normLimit": 350
+    },
+    {
+      "id": 84,
+      "code": "20.59.52.110",
+      "name": "Реактивы химические",
+      "isNormed": false
+    },
+    {
+      "id": 85,
+      "code": "22.22.19.900",
+      "name": "Тара пластмассовая прочая",
+      "isNormed": false
+    },
+    {
+      "id": 86,
+      "code": "22.19.73.110",
+      "name": "Рукава из вулканизированной резины",
+      "isNormed": false
+    },
+    {
+      "id": 87,
+      "code": "25.99.23.000",
+      "name": "Детали крепёжные металлические (болты, гайки, винты)",
+      "isNormed": false
+    },
+    {
+      "id": 88,
+      "code": "25.99.29.000",
+      "name": "Изделия прочие из недрагоценных металлов",
+      "isNormed": false
+    },
+    {
+      "id": 89,
+      "code": "27.40.11.110",
+      "name": "Светильники электрические, предназначенные для использования со светодиодными лампами",
+      "isNormed": true,
+      "normLimit": 4500
+    },
+    {
+      "id": 90,
+      "code": "27.11.40.000",
+      "name": "Распределительные устройства и панели электрические",
+      "isNormed": false
+    },
+    {
+      "id": 91,
+      "code": "27.35.11.000",
+      "name": "Провода и кабели электрические с изоляцией",
+      "isNormed": false
+    },
+    {
+      "id": 92,
+      "code": "19.20.21.000",
+      "name": "Бензины автомобильные",
+      "isNormed": true,
+      "normLimit": 62
+    },
+    {
+      "id": 93,
+      "code": "19.20.22.000",
+      "name": "Топливо дизельное",
+      "isNormed": true,
+      "normLimit": 68
+    },
+    {
+      "id": 94,
+      "code": "19.20.23.110",
+      "name": "Масла для дизельных и карбюраторных двигателей",
+      "isNormed": true,
+      "normLimit": 700
+    },
+    {
+      "id": 95,
+      "code": "19.20.29.110",
+      "name": "Масла смазочные прочие",
+      "isNormed": true,
+      "normLimit": 650
+    },
+    {
+      "id": 96,
+      "code": "46.71.10.000",
+      "name": "Торговля оптовая твёрдым, жидким и газообразным топливом и подобными продуктами",
+      "isNormed": false
+    },
+    {
+      "id": 97,
+      "code": "35.11.20.000",
+      "name": "Электроэнергия, произведённая прочими электростанциями",
+      "isNormed": true,
+      "normLimit": 6
+    },
+    {
+      "id": 98,
+      "code": "35.13.00.000",
+      "name": "Распределение электроэнергии",
+      "isNormed": true,
+      "normLimit": 4
+    },
+    {
+      "id": 99,
+      "code": "35.23.12.000",
+      "name": "Распределение газообразного топлива по распределительным сетям",
+      "isNormed": true,
+      "normLimit": 9
+    },
+    {
+      "id": 100,
+      "code": "36.00.11.000",
+      "name": "Распределение пресной воды",
+      "isNormed": true,
+      "normLimit": 45
+    },
+    {
+      "id": 101,
+      "code": "37.00.11.000",
+      "name": "Услуги по водоотведению сточных вод",
+      "isNormed": true,
+      "normLimit": 40
+    },
+    {
+      "id": 102,
+      "code": "38.11.10.000",
+      "name": "Услуги по сбору неопасных отходов для последующей переработки и утилизации",
+      "isNormed": true,
+      "normLimit": 120
+    },
+    {
+      "id": 103,
+      "code": "38.21.10.000",
+      "name": "Услуги по обработке и удалению неопасных отходов",
+      "isNormed": true,
+      "normLimit": 900
+    },
+    {
+      "id": 104,
+      "code": "45.20.11.000",
+      "name": "Техническое обслуживание и ремонт легковых автомобилей",
+      "isNormed": true,
+      "normLimit": 12000
+    },
+    {
+      "id": 105,
+      "code": "45.20.12.000",
+      "name": "Техническое обслуживание и ремонт прочих автотранспортных средств",
+      "isNormed": true,
+      "normLimit": 25000
+    },
+    {
+      "id": 106,
+      "code": "45.32.11.000",
+      "name": "Торговля розничная автомобильными деталями и аксессуарами",
+      "isNormed": false
+    },
+    {
+      "id": 107,
+      "code": "49.32.10.000",
+      "name": "Услуги такси",
+      "isNormed": true,
+      "normLimit": 1500
+    },
+    {
+      "id": 108,
+      "code": "49.41.11.000",
+      "name": "Услуги по перевозке грузов автомобилями-самосвалами (самосвальные перевозки)",
+      "isNormed": false
+    },
+    {
+      "id": 109,
+      "code": "49.41.20.000",
+      "name": "Услуги по перевозке грузов прочим специализированным автотранспортом",
+      "isNormed": false
+    },
+    {
+      "id": 110,
+      "code": "81.10.10.000",
+      "name": "Комплексные услуги по обслуживанию недвижимости",
+      "isNormed": false
+    },
+    {
+      "id": 111,
+      "code": "81.21.10.000",
+      "name": "Услуги по общей уборке зданий",
+      "isNormed": true,
+      "normLimit": 55
+    },
+    {
+      "id": 112,
+      "code": "81.22.10.000",
+      "name": "Услуги по чистке и уборке прочая, не включённые в другие группировки",
+      "isNormed": true,
+      "normLimit": 70
+    },
+    {
+      "id": 113,
+      "code": "81.29.11.000",
+      "name": "Услуги по проведению дезинфекционных, дезинсекционных и дератизационных работ",
+      "isNormed": true,
+      "normLimit": 25
+    },
+    {
+      "id": 114,
+      "code": "81.30.11.000",
+      "name": "Услуги по благоустройству ландшафта",
+      "isNormed": true,
+      "normLimit": 150
+    },
+    {
+      "id": 115,
+      "code": "96.01.11.000",
+      "name": "Услуги по химической чистке и стирке",
+      "isNormed": true,
+      "normLimit": 200
+    },
+    {
+      "id": 116,
+      "code": "80.10.11.000",
+      "name": "Услуги по обеспечению охраны общественного порядка и предотвращению преступлений",
+      "isNormed": true,
+      "normLimit": 320
+    },
+    {
+      "id": 117,
+      "code": "66.21.10.000",
+      "name": "Услуги по оценке рисков и потребностей в страховании",
+      "isNormed": false
+    },
+    {
+      "id": 118,
+      "code": "66.21.12.000",
+      "name": "Услуги в области оценки ущерба страховщиками",
+      "isNormed": false
+    },
+    {
+      "id": 119,
+      "code": "69.20.10.000",
+      "name": "Услуги по проведению аудита",
+      "isNormed": false
+    },
+    {
+      "id": 120,
+      "code": "70.22.11.000",
+      "name": "Услуги по консультированию по вопросам управления стратегическими",
+      "isNormed": false
+    },
+    {
+      "id": 121,
+      "code": "71.11.10.000",
+      "name": "Услуги в области архитектуры",
+      "isNormed": true,
+      "normLimit": 900000
+    },
+    {
+      "id": 122,
+      "code": "71.12.10.000",
+      "name": "Услуги по инженерно-техническому проектированию",
+      "isNormed": true,
+      "normLimit": 1200000
+    },
+    {
+      "id": 123,
+      "code": "71.12.11.000",
+      "name": "Разработка проектов по кондиционированию воздуха, холодильной технике, санитарной технике и мониторингу загрязнения окружающей среды",
+      "isNormed": false
+    },
+    {
+      "id": 124,
+      "code": "71.20.11.000",
+      "name": "Испытания и анализ состава и чистоты материалов и веществ",
+      "isNormed": false
+    },
+    {
+      "id": 125,
+      "code": "71.20.19.000",
+      "name": "Услуги по техническим испытаниям и анализу прочие",
+      "isNormed": false
+    },
+    {
+      "id": 126,
+      "code": "72.19.11.000",
+      "name": "Научно-исследовательские разработки в области естественных и технических наук прочие",
+      "isNormed": false
+    },
+    {
+      "id": 127,
+      "code": "74.90.21.000",
+      "name": "Услуги по оценке уязвимости показателей деятельности юридических лиц",
+      "isNormed": false
+    },
+    {
+      "id": 128,
+      "code": "85.41.10.000",
+      "name": "Образование дополнительное детей и взрослых прочее, не включённое в другие группировки",
+      "isNormed": true,
+      "normLimit": 40000
+    },
+    {
+      "id": 129,
+      "code": "85.42.19.000",
+      "name": "Деятельность по дополнительному профессиональному образованию прочая",
+      "isNormed": true,
+      "normLimit": 55000
+    },
+    {
+      "id": 130,
+      "code": "85.42.21.000",
+      "name": "Деятельность по обучению и профессиональной подготовке кадров",
+      "isNormed": false
+    },
+    {
+      "id": 131,
+      "code": "86.10.11.000",
+      "name": "Услуги больничных для стационарных пациентов с общим лечебным профилем",
+      "isNormed": false
+    },
+    {
+      "id": 132,
+      "code": "86.21.10.000",
+      "name": "Услуги в области общей врачебной практики",
+      "isNormed": false
+    },
+    {
+      "id": 133,
+      "code": "86.90.11.000",
+      "name": "Услуги в области здравоохранения прочие",
+      "isNormed": false
+    },
+    {
+      "id": 134,
+      "code": "86.90.19.000",
+      "name": "Деятельность в области медицины прочая, не включённая в другие группировки",
+      "isNormed": false
+    },
+    {
+      "id": 135,
+      "code": "58.11.11.000",
+      "name": "Книги печатные для детей",
+      "isNormed": false
+    },
+    {
+      "id": 136,
+      "code": "58.14.10.000",
+      "name": "Журналы и периодические издания печатные",
+      "isNormed": false
+    },
+    {
+      "id": 137,
+      "code": "73.11.10.000",
+      "name": "Деятельность рекламных агентств",
+      "isNormed": false
+    },
+    {
+      "id": 138,
+      "code": "96.09.10.000",
+      "name": "Услуги персональных услуг прочие",
+      "isNormed": false
+    },
+    {
+      "id": 139,
+      "code": "77.11.11.000",
+      "name": "Аренда и лизинг легковых автомобилей и легких автотранспортных средств",
+      "isNormed": true,
+      "normLimit": 45000
+    },
+    {
+      "id": 140,
+      "code": "77.12.11.000",
+      "name": "Аренда и лизинг прочего автотранспорта и транспортных средств, кроме транспортных средств для общественного транспорта",
+      "isNormed": false
+    },
+    {
+      "id": 141,
+      "code": "68.20.10.000",
+      "name": "Услуги по аренде и управлению собственным или арендованным нежилым недвижимым имуществом",
+      "isNormed": true,
+      "normLimit": 250000
+    },
+    {
+      "id": 142,
+      "code": "52.21.44.000",
+      "name": "Деятельность по эксплуатации автомобильных дорог и автомагистралей",
+      "isNormed": false
+    },
+    {
+      "id": 143,
+      "code": "18.20.11.000",
+      "name": "Воспроизведение записанных программ для ЭВМ",
+      "isNormed": false
+    }
+  ],
+  "legalActs": [
+    {
+      "id": "law-44fz",
+      "shortName": "44-ФЗ",
+      "fullName": "Федеральный закон от 05.04.2013 N 44-ФЗ \"О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд\"",
+      "actType": "federal-law",
+      "adoptedBy": "Президент Российской Федерации",
+      "actNumber": "44-ФЗ",
+      "adoptedDate": "2013-04-05",
+      "effectiveDate": "2014-01-01",
+      "status": "active",
+      "scope": "Общие рамки контрактной системы: планирование, извещение, определение поставщика, контракт, отчётность СМП",
+      "components": [
+        "PurchasePlanList",
+        "PurchasePlanCard",
+        "PurchasePlanForm",
+        "NoticeInfoForm",
+        "ContractProjectForm",
+        "ContractServiceForm",
+        "ContractRegistryPage",
+        "SmnpSonekPage"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true,
+      "notes": "Статьи и части в системе указаны внутри подписей полей (ч. 21 ст. 38, ст. 31, ст. 42 и др.)"
+    },
+    {
+      "id": "order-minfin-158n",
+      "shortName": "Приказ N 158н",
+      "fullName": "Приказ Минфина России от 31.07.2020 N 158н \"Об утверждении Типового положения (регламента) о контрактной службе\"",
+      "actType": "ministry-order",
+      "adoptedBy": "Министерство финансов Российской Федерации",
+      "actNumber": "158н",
+      "adoptedDate": "2020-07-31",
+      "status": "active",
+      "scope": "Способ создания контрактной службы, её состав, функции, назначение руководителя и распределение задач",
+      "components": [
+        "contractService.schema",
+        "contractService.config",
+        "ContractServiceForm",
+        "ContractServiceView",
+        "useMyContractRole",
+        "regulatoryDeadlines",
+        "TasksPage"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true
+    },
+    {
+      "id": "pp-926",
+      "shortName": "ПП РФ N 926",
+      "fullName": "Постановление Правительства РФ от 02.09.2015 N 926 \"Об общих правилах определения требований к закупаемым заказчикам отдельным видам товаров, работ, услуг (в том числе предельных цен товаров, работ, услуг)\"",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "926",
+      "adoptedDate": "2015-09-02",
+      "status": "active",
+      "scope": "Обязательное нормирование: предельная цена единицы нормируемой позиции ОКПД2 и контроль её превышения в записях ПГ и извещении",
+      "components": [
+        "normingControl",
+        "Okpd2Dictionary",
+        "Okpd2Select",
+        "PurchaseObjectsSection",
+        "NormingControlSection",
+        "NormingSubmitButton",
+        "PurchasePlanForm",
+        "PurchasePlanCard"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true
+    },
+    {
+      "id": "pp-1047",
+      "shortName": "ПП РФ N 1047",
+      "fullName": "Постановление Правительства РФ от 13.10.2014 N 1047 (нормативные затраты на обеспечение деятельности заказчика)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "1047",
+      "adoptedDate": "2014-10-13",
+      "status": "active",
+      "scope": "Нормативные затраты, применяемые при расчёте потребностей заказчика",
+      "components": [
+        "normingControl",
+        "okpd2Ref.api"
+      ],
+      "lastCheckedDate": "",
+      "isVerified": false,
+      "notes": "Наименование акта перенесено из расчётов системы, полную формулировку сверить с первоисточником"
+    },
+    {
+      "id": "rasp-2344r",
+      "shortName": "Распоряжение N 2344-р",
+      "fullName": "Распоряжение Правительства РФ N 2344-р (типовая форма плана-графика)",
+      "actType": "government-order",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "2344-р",
+      "adoptedDate": "",
+      "status": "active",
+      "scope": "Состав и порядок граф карточки записи плана-графика",
+      "components": [
+        "purchasePlan.schema",
+        "PurchasePlanCard",
+        "PurchasePlanForm"
+      ],
+      "isVerified": false,
+      "notes": "Дата принятия не внесена: реквизиты взяты из формулировок интерфейса, сверить перед контролем сроков"
+    },
+    {
+      "id": "order-145-206n",
+      "shortName": "Приказ 145/206н",
+      "fullName": "Приказ Минэкономразвития России и Минфина России N 145/206н (форма плана-графика и объём финансового обеспечения)",
+      "actType": "ministry-order",
+      "adoptedBy": "Минэкономразвития России, Минфин России",
+      "actNumber": "145/206н",
+      "adoptedDate": "",
+      "status": "active",
+      "scope": "Разбивка объёма финансового обеспечения записи ПГ: всего, текущий год, плановый период, последующие годы",
+      "components": [
+        "purchasePlan.config",
+        "purchasePlan.schema",
+        "PurchasePlanCard"
+      ],
+      "isVerified": false
+    },
+    {
+      "id": "pp-552",
+      "shortName": "ПП РФ N 552",
+      "fullName": "Постановление Правительства РФ от 05.06.2015 N 552 (порядок формирования и размещения плана-графика)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "552",
+      "adoptedDate": "2015-06-05",
+      "status": "active",
+      "scope": "Сроки размещения плана-графика (10 дней) и изменений в него (3 дня) в задачах планирования",
+      "components": [
+        "regulatoryDeadlines",
+        "PurchasePlanForm"
+      ],
+      "isVerified": false
+    },
+    {
+      "id": "pp-1087",
+      "shortName": "ПП РФ N 1087",
+      "fullName": "Постановление Правительства РФ от 28.11.2013 N 1087 (типовые условия контрактов, контракт жизненного цикла)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "1087",
+      "adoptedDate": "2013-11-28",
+      "status": "active",
+      "scope": "Типовые условия контракта в извещении: контракт жизненного цикла и иные типовые условия",
+      "components": [
+        "noticeInfo.schema",
+        "ContractConditionsSection"
+      ],
+      "isVerified": false
+    },
+    {
+      "id": "pp-19",
+      "shortName": "ПП РФ N 19",
+      "fullName": "Постановление Правительства РФ от 13.01.2014 N 19 (формула цены контракта)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "19",
+      "adoptedDate": "2014-01-13",
+      "status": "active",
+      "scope": "Формула цены и максимальное значение цены контракта в условиях контракта",
+      "components": [
+        "ContractConditionsSection",
+        "noticeInfo.schema"
+      ],
+      "isVerified": false
+    },
+    {
+      "id": "pp-2571",
+      "shortName": "ПП РФ N 2571",
+      "fullName": "Постановление Правительства РФ N 2571 (запреты и ограничения допуска иностранных товаров)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "2571",
+      "adoptedDate": "",
+      "status": "active",
+      "scope": "Позиции national режима, выбираемые в извещении (запрет, ограничение)",
+      "components": [
+        "noticeInfo.config",
+        "NoticeInfoForm"
+      ],
+      "isVerified": false,
+      "notes": "Дата не внесена, перечень позиций сверить с действующей редакцией"
+    },
+    {
+      "id": "pp-1042",
+      "shortName": "ПП РФ N 1042",
+      "fullName": "Постановление Правительства РФ от 30.08.2017 N 1042 (правила определения размера штрафа и пени)",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "1042",
+      "adoptedDate": "2017-08-30",
+      "status": "active",
+      "scope": "Размеры ответственности (штрафы, пени) в проекте контракта",
+      "components": [
+        "contractProject.schema",
+        "ContractProjectForm"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true
+    },
+    {
+      "id": "pp-1466",
+      "shortName": "ПП РФ N 1466",
+      "fullName": "Постановление Правительства РФ от 23.12.2016 N 1466 \"Об типовых условиях контрактов, в соответствии с которыми к исполнению контрактов привлекаются субподрядчики, соисполнители, включенные в реестр субъектов малого и среднего предпринимательства или состоящие в реестре социальных предпринимателей\"",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "1466",
+      "adoptedDate": "2016-12-23",
+      "status": "active",
+      "scope": "Типовые условия привлечения СМП/СОНКО: объём привлечения (п. 1, не менее 5% цены контракта), сроки подачи декларации и копии договора (п. 2-3, 5 рабочих дней), копий документов приёмки и платёжных поручений (п. 4, 10 и 5 рабочих дней), оплата субподрядчику (п. 5, 7 рабочих дней), гражданско-правовая ответственность (п. 6)",
+      "components": [
+        "pp1466",
+        "purchaseNote.schema",
+        "PurchaseNoteModal",
+        "contractSmp.schema",
+        "ContractSmpSection",
+        "ContractSmpRecordModal"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true,
+      "notes": "Сроки — константы системы (services/ContractSmp/pp1466.ts), в карточке контракта не заполняются. Переменная величина одна — процент привлечения по п. 1, он задаётся в служебной записке по позиции ПГ"
+    },
+    {
+      "id": "law-44fz-art103-p3",
+      "shortName": "ч. 3 ст. 103 44-ФЗ",
+      "fullName": "Часть 3 статьи 103 Федерального закона от 05.04.2013 N 44-ФЗ (размещение сведений об исполнении контракта)",
+      "actType": "federal-law",
+      "adoptedBy": "Президент Российской Федерации",
+      "actNumber": "44-ФЗ",
+      "adoptedDate": "2013-04-05",
+      "status": "active",
+      "scope": "Срок заказчика на размещение в ЕИС сведений, полученных от подрядчика, — 3 рабочих дня с момента их получения (от даты receivedAt)",
+      "components": [
+        "contractSmp.schema",
+        "ContractSmpSection",
+        "regulatoryDeadlines"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true,
+      "notes": "Отдельный контур просрочки: виноват заказчик, а не подрядчик. В интерфейсе считается от даты и времени загрузки сведений"
+    }
+  ],
+  "purchaseNotes": [],
+  "contractSmpRecords": [],
+  "accessRequests": [
+    {
+      "organizationId": 2,
+      "employeeId": 10,
+      "employeeName": "Гаврилов Дмитрий Александрович",
+      "type": "missing_education",
+      "message": "Пожалуйста обучите сотрудника для работы по ФЗ-44",
+      "recipientStructuralUnitId": "16",
+      "recipientStructuralUnitName": "Отдел кадров и государственной службы",
+      "status": "new",
+      "createdAt": "2026-11-16T01:24:43.173Z",
+      "id": 1
+    }
+  ],
+  "addressRegions": [
+    {
+      "id": 1,
+      "name": "Респ Адыгея",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 2,
+      "name": "Респ Алтай",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 3,
+      "name": "Респ Башкортостан",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 4,
+      "name": "Респ Бурятия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 5,
+      "name": "Респ Дагестан",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 6,
+      "name": "Донецкая Народная Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 7,
+      "name": "Респ Ингушетия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 8,
+      "name": "Кабардино-Балкарская Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 9,
+      "name": "Респ Калмыкия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 10,
+      "name": "Карачаево-Черкесская Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 11,
+      "name": "Респ Карелия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 12,
+      "name": "Респ Коми",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 13,
+      "name": "Респ Крым",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 14,
+      "name": "Луганская Народная Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 15,
+      "name": "Респ Марий Эл",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 16,
+      "name": "Респ Мордовия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 17,
+      "name": "Респ Саха (Якутия)",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 18,
+      "name": "Респ Северная Осетия — Алания",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 19,
+      "name": "Респ Татарстан",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 20,
+      "name": "Респ Тыва",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 21,
+      "name": "Удмуртская Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 22,
+      "name": "Респ Хакасия",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 23,
+      "name": "Чеченская Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 24,
+      "name": "Чувашская Респ",
+      "kind": "республика",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 25,
+      "name": "Алтайский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 26,
+      "name": "Забайкальский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 27,
+      "name": "Камчатский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 28,
+      "name": "Краснодарский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 29,
+      "name": "Красноярский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 30,
+      "name": "Пермский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 31,
+      "name": "Приморский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 32,
+      "name": "Ставропольский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 33,
+      "name": "Хабаровский край",
+      "kind": "край",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 34,
+      "name": "Амурская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 35,
+      "name": "Архангельская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 36,
+      "name": "Астраханская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 37,
+      "name": "Белгородская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 38,
+      "name": "Брянская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 39,
+      "name": "Владимирская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 40,
+      "name": "Волгоградская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 41,
+      "name": "Вологодская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 42,
+      "name": "Воронежская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 43,
+      "name": "Запорожская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 44,
+      "name": "Ивановская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 45,
+      "name": "Иркутская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 46,
+      "name": "Калининградская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 47,
+      "name": "Калужская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 48,
+      "name": "Кемеровская обл — Кузбасс",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 49,
+      "name": "Кировская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 50,
+      "name": "Костромская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 51,
+      "name": "Курганская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 52,
+      "name": "Курская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 53,
+      "name": "Ленинградская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 54,
+      "name": "Липецкая обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 55,
+      "name": "Магаданская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 56,
+      "name": "Московская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 57,
+      "name": "Мурманская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 58,
+      "name": "Нижегородская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 59,
+      "name": "Новгородская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 60,
+      "name": "Новосибирская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 61,
+      "name": "Омская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 62,
+      "name": "Оренбургская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 63,
+      "name": "Орловская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 64,
+      "name": "Пензенская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 65,
+      "name": "Псковская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 66,
+      "name": "Ростовская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 67,
+      "name": "Рязанская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 68,
+      "name": "Самарская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 69,
+      "name": "Саратовская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 70,
+      "name": "Сахалинская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 71,
+      "name": "Свердловская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 72,
+      "name": "Смоленская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 73,
+      "name": "Тамбовская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 74,
+      "name": "Тверская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 75,
+      "name": "Томская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 76,
+      "name": "Тульская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 77,
+      "name": "Тюменская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 78,
+      "name": "Ульяновская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 79,
+      "name": "Херсонская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 80,
+      "name": "Челябинская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 81,
+      "name": "Ярославская обл",
+      "kind": "область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 82,
+      "name": "г Москва",
+      "kind": "город федерального значения",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 83,
+      "name": "г Санкт-Петербург",
+      "kind": "город федерального значения",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 84,
+      "name": "г Севастополь",
+      "kind": "город федерального значения",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 85,
+      "name": "Еврейская автономная обл",
+      "kind": "автономная область",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 86,
+      "name": "Ненецкий автономный округ",
+      "kind": "автономный округ",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 87,
+      "name": "Ханты-Мансийский автономный округ — Югра",
+      "kind": "автономный округ",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 88,
+      "name": "Чукотский автономный округ",
+      "kind": "автономный округ",
+      "country": "Российская Федерация"
+    },
+    {
+      "id": 89,
+      "name": "Ямало-Ненецкий автономный округ",
+      "kind": "автономный округ",
+      "country": "Российская Федерация"
+    }
+  ],
+  "addressMunicipalities": [
+    {
+      "id": 1,
+      "regionId": 52,
+      "name": "г.о. город Курск",
+      "kind": "городской округ"
+    },
+    {
+      "id": 2,
+      "regionId": 52,
+      "name": "г.о. город Железногорск",
+      "kind": "городской округ"
+    },
+    {
+      "id": 3,
+      "regionId": 52,
+      "name": "г.о. город Курчатов",
+      "kind": "городской округ"
+    },
+    {
+      "id": 4,
+      "regionId": 52,
+      "name": "г.о. город Льгов",
+      "kind": "городской округ"
+    },
+    {
+      "id": 5,
+      "regionId": 52,
+      "name": "г.о. город Щигры",
+      "kind": "городской округ"
+    },
+    {
+      "id": 6,
+      "regionId": 52,
+      "name": "Беловский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 7,
+      "regionId": 52,
+      "name": "Большесолдатский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 8,
+      "regionId": 52,
+      "name": "Глушковский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 9,
+      "regionId": 52,
+      "name": "Горшеченский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 10,
+      "regionId": 52,
+      "name": "Железногорский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 11,
+      "regionId": 52,
+      "name": "Золотухинский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 12,
+      "regionId": 52,
+      "name": "Касторенский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 13,
+      "regionId": 52,
+      "name": "Конышёвский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 14,
+      "regionId": 52,
+      "name": "Кореневский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 15,
+      "regionId": 52,
+      "name": "Курский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 16,
+      "regionId": 52,
+      "name": "Курчатовский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 17,
+      "regionId": 52,
+      "name": "Льговский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 18,
+      "regionId": 52,
+      "name": "Мантуровский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 19,
+      "regionId": 52,
+      "name": "Медвенский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 20,
+      "regionId": 52,
+      "name": "Обоянский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 21,
+      "regionId": 52,
+      "name": "Октябрьский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 22,
+      "regionId": 52,
+      "name": "Поныровский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 23,
+      "regionId": 52,
+      "name": "Пристенский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 24,
+      "regionId": 52,
+      "name": "Рыльский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 25,
+      "regionId": 52,
+      "name": "Советский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 26,
+      "regionId": 52,
+      "name": "Суджанский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 27,
+      "regionId": 52,
+      "name": "Тимский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 28,
+      "regionId": 52,
+      "name": "Фатежский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 29,
+      "regionId": 52,
+      "name": "Хомутский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 30,
+      "regionId": 52,
+      "name": "Черемисиновский район",
+      "kind": "муниципальный район"
+    },
+    {
+      "id": 31,
+      "regionId": 52,
+      "name": "Щигровский район",
+      "kind": "муниципальный район"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+// Цветовая схема сайта. Значения ролей интерфейса — в _themes.scss: там же
+// объявлены светлая (по умолчанию, как сайт ЕИС) и тёмная темы. В компонентах
+// используйте var(--роль), а не эти цвета напрямую.
+$color-swamp: #051f20;
+$color-phthalo-green: #0b2b26;
+$color-deep-fir: #163832;
+$color-plantation: #235347;
+$color-summer-green: #8eb69b;
+$color-snowy-mint: #daf1de;
+
+// Техническая основа светлой темы: бумага, на которой работают цвета схемы.
+// Оттенком палитры не считается, чтобы не смешивать зелёное с белым фоном
+// таблиц и полей, как это сделано в ЕИС.
+$color-paper: #ffffff;
+
+// Typography
+$ff-main: "Poppins", "Arial", sans-serif;
+$ff-accent: "Montserrat", "Arial", sans-serif;
+
+// Animation
+$transition-300: ease-in 0.3s;

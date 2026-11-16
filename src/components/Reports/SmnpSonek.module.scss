@@ -1,0 +1,224 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 20px;
+}
+
+/* ===== Табы ===== */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 20px;
+  padding-bottom: 2px;
+}
+
+.tab {
+  padding: 8px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ===== Инфо-блок ===== */
+
+.infoBox {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+/* ===== Секция ===== */
+
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.sectionHeader h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ===== Таблица ===== */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 14px;
+
+  th,
+  td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--surface-raised);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+  }
+
+  td {
+    color: var(--text-primary);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.ikz {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.badgeSmnp {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.badgeSonek {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.statusBadge {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cellSuccess {
+  color: var(--state-success);
+  font-weight: 600;
+}
+
+.cellDanger {
+  color: var(--state-danger);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* ===== Кнопки ===== */
+
+.btnPrimary {
+  padding: 8px 18px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.btnSmall {
+  padding: 4px 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+
+  &:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+
+.btnDanger {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--state-danger);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--state-danger);
+
+  &:hover {
+    background: var(--state-danger-soft);
+  }
+}
+
+/* ===== Состояния ===== */
+
+.loader {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-secondary);
+}
+
+.empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

@@ -1,0 +1,30 @@
+@import "variables";
+
+.select-type-modal {
+  width: 100%;
+  min-width: 420px;
+  max-width: 480px;
+  padding: 24px;
+  background-color: var(--surface-panel);
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 10px 25px var(--shadow);
+  color: var(--text-primary);
+
+  &__title {
+    margin: 0 0 16px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  &__field {
+    margin-bottom: 24px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+}
