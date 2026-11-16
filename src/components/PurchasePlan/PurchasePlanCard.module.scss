@@ -186,6 +186,12 @@
     overflow-x: auto;
   }
 
+  // Открытый выпадающий список действий по позиции: убираем скролл-контейнер,
+  // чтобы меню не вызывало прокрутку таблицы
+  &__table-wrapper--open {
+    overflow: visible;
+  }
+
   &__table {
     width: 100%;
     border-collapse: collapse;

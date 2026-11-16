@@ -638,7 +638,13 @@ export default function PurchasePlanCard() {
                 По заданным условиям записей плана-графика не найдено.
               </p>
             ) : (
-              <div className={block("table-wrapper")}>
+              <div
+                className={
+                  openActionsPositionId
+                    ? block("table-wrapper", ["open"])
+                    : block("table-wrapper")
+                }
+              >
                 <table className={block("table")}>
                   <thead>
                     {/* Шапка в две строки, как в форме ПГ: под «Номером
