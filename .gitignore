@@ -24,9 +24,8 @@ tsc_output.txt
 check-seeds.mjs
 _tmp_*.mjs
 
-# Конфиги сторонних AI-инструментов
+# Конфиг локального AI-инструмента (не общий для всех агентов)
 opencode.json
-AGENTS.md
 
 # Editor directories and files
 .vscode/*
