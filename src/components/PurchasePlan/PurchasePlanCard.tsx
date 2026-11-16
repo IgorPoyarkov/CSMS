@@ -461,16 +461,6 @@ export default function PurchasePlanCard() {
             ) : (
               "—"
             )}
-            {/* Наименование по ОКПД2 — эта же графа в просмотре плана-графика */}
-            {position.okpd2Name && (
-              <span
-                className={block("clip")}
-                data-full={position.okpd2Name}
-                title={position.okpd2Name}
-              >
-                <span className={block("clip-text")}>{position.okpd2Name}</span>
-              </span>
-            )}
             {/* Позиция подлежит обязательному нормированию: цена единицы не
                 может превышать предельную (ПП РФ N 926) */}
             {normedRef?.isNormed && (
@@ -542,15 +532,20 @@ export default function PurchasePlanCard() {
 
   // Запись плана-графика — две строки таблицы: первая с графами, вторая с ИКЗ
   // под «Номером закупки» и «Наименованием объекта закупки» (как в форме ПГ).
-  // Действия занимают обе строки.
-  function renderPositionRow(position: PurchasePlanPosition, isSub = false) {
-    const rowStyle = isSub
-      ? { background: "var(--stripe)", fontSize: "12px" }
-      : undefined;
+  // Действия занимают обе строки. striped — полоса чётных записей.
+  function renderPositionRow(
+    position: PurchasePlanPosition,
+    isSub = false,
+    striped = false,
+  ) {
+    const rowClass = block("row", [
+      ...(striped ? ["striped"] : []),
+      ...(isSub ? ["sub"] : []),
+    ]);
 
     return (
       <Fragment key={String(position.id)}>
-        <tr style={rowStyle}>
+        <tr className={rowClass}>
           {ROW_COLUMNS.map((key) => (
             <td
               key={key}
@@ -569,19 +564,16 @@ export default function PurchasePlanCard() {
             {renderActionsCell(position)}
           </td>
         </tr>
-        <tr style={rowStyle} className={block("ikz-row")}>
+        <tr className={block("row", ["ikz", ...(striped ? ["striped"] : [])])}>
           {/* Под графой «Планируемый год» — пусто, тянется фоновой линией */}
           <td className={block("cell", ["narrow"])} />
           <td className={block("cell", ["ikz"])} colSpan={2}>
             {position.identificationCode ? (
-              <>
-                <span className={block("ikz-label")}>ИКЗ</span>
-                <span className={block("code", ["ikz"])}>
-                  {position.identificationCode}
-                </span>
-              </>
+              <span className={block("code", ["ikz"])}>
+                {position.identificationCode}
+              </span>
             ) : (
-              <span className={block("ikz-label")}>ИКЗ не сформирован</span>
+              <span className={block("ikz-label")}>не сформирован</span>
             )}
           </td>
           {/* Пустые ячейки под остальными графами первой строки */}
@@ -866,13 +858,13 @@ export default function PurchasePlanCard() {
                       ? groups.map((group) => (
                           <Fragment key={group.kbk}>
                             {groupAmountsRow(group)}
-                            {group.positions.map((position) =>
-                              renderPositionRow(position, true),
+                            {group.positions.map((position, index) =>
+                              renderPositionRow(position, true, index % 2 === 1),
                             )}
                           </Fragment>
                         ))
-                      : visiblePositions.map((position) =>
-                          renderPositionRow(position),
+                      : visiblePositions.map((position, index) =>
+                          renderPositionRow(position, false, index % 2 === 1),
                         )}
                   </tbody>
                 </table>

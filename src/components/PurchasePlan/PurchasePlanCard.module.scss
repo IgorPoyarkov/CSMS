@@ -250,48 +250,6 @@
     white-space: nowrap;
   }
 
-  // Двустрочное наименование с полным текстом по наведению курсора. Обёртка
-  // не обрезает подсказку, поэтому высота строки не меняется — таблица не
-  // «дёргается» (Tasks 5, п. 2)
-  &__clip {
-    position: relative;
-    display: block;
-    cursor: help;
-
-    &-text {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    &::after {
-      content: attr(data-full);
-      position: absolute;
-      left: 0;
-      top: calc(100% + 2px);
-      z-index: 5;
-      display: none;
-      width: max-content;
-      max-width: 280px;
-      padding: 6px 8px;
-      font-size: 12px;
-      line-height: 1.35;
-      white-space: normal;
-      text-transform: none;
-      letter-spacing: normal;
-      color: var(--text-primary);
-      background: var(--surface-panel);
-      border: 1px solid var(--border-strong);
-      border-radius: 4px;
-      box-shadow: 0 4px 10px var(--shadow);
-    }
-
-    &:hover::after {
-      display: block;
-    }
-  }
-
   // Панель поиска, фильтра по КБК и page size над таблицей записей
   &__toolbar {
     display: flex;
@@ -431,17 +389,31 @@
     }
   }
 
-  // Вторая строка записи ПГ: ИКЗ под «Номером закупки» и «Наименованием
-  // объекта закупки». Верхнюю границу не рисуем — строка продолжает запись
-  &__ikz-row {
-    td {
-      padding-top: 0;
-      padding-bottom: 8px;
+  // Строки таблицы: полосы как в форме — чётные записи на мягкой подложке,
+  // обе строки записи (значения и ИКЗ) красятся вместе
+  &__row {
+    &--striped {
+      td {
+        background: var(--stripe);
+      }
+    }
+
+    // Запись внутри группы по КБК — чуть мельче
+    &--sub {
+      font-size: 12px;
+    }
+
+    // Вторая строка записи: ИКЗ под номером и объектом. Верхнюю границу не
+    // рисуем — строка продолжает запись
+    &--ikz {
+      td {
+        padding-top: 0;
+        padding-bottom: 8px;
+      }
     }
   }
 
   &__ikz-label {
-    margin-right: 6px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
