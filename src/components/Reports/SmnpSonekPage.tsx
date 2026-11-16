@@ -6,6 +6,7 @@ import {
   type SmnpSonekPlan,
   type SmnpSonekReport,
   type SmnpSonekProcurement,
+  type SmnpSonekRecord,
 } from "../../services/Reports/smnpSonek.schema";
 import {
   useSmnpPlans,
@@ -17,6 +18,7 @@ import {
 } from "../../services/Reports/smnpSonek.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import LegalActRefs from "../LegalAct/LegalActRefs";
+import SmnpSonekModal, { type SmnpRecordType } from "./SmnpSonekModal";
 import styles from "./SmnpSonek.module.scss";
 
 export default function SmnpSonekPage() {
@@ -44,13 +46,20 @@ export default function SmnpSonekPage() {
     else if (type === "procurement") deleteProcurement(safeId);
   };
 
-  const handleCreate = () => {
-    // TODO: открыть форму создания
-  };
+  // ─── Состояние модалки ─────────────────────────────────────────────────────
+  const [modalState, setModalState] = useState<{
+    open: boolean;
+    type: SmnpRecordType;
+    editing?: SmnpSonekRecord;
+  }>({ open: false, type: "plan" });
 
-  const handleEdit = (_item: unknown) => {
-    // TODO: открыть форму редактирования
-  };
+  const openCreateModal = (type: SmnpRecordType) =>
+    setModalState({ open: true, type });
+
+  const openEditModal = (type: SmnpRecordType, record: SmnpSonekRecord) =>
+    setModalState({ open: true, type, editing: record });
+
+  const closeModal = () => setModalState((s) => ({ ...s, open: false }));
 
   const tabs = [
     { id: "plans" as const, label: "Планы" },
@@ -90,7 +99,10 @@ export default function SmnpSonekPage() {
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h3>Планы закупок у СМП/СОНКО</h3>
-            <button className={styles.btnPrimary} onClick={handleCreate}>
+            <button
+              className={styles.btnPrimary}
+              onClick={() => openCreateModal("plan")}
+            >
               + Новый план
             </button>
           </div>
@@ -128,7 +140,7 @@ export default function SmnpSonekPage() {
                     <td className={styles.actions}>
                       <button
                         className={styles.btnSmall}
-                        onClick={() => handleEdit(p)}
+                        onClick={() => openEditModal("plan", p)}
                       >
                         Ред
                       </button>
@@ -152,7 +164,10 @@ export default function SmnpSonekPage() {
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h3>Отчёты о закупках у СМП/СОНКО</h3>
-            <button className={styles.btnPrimary} onClick={handleCreate}>
+            <button
+              className={styles.btnPrimary}
+              onClick={() => openCreateModal("report")}
+            >
               + Новый отчёт
             </button>
           </div>
@@ -235,7 +250,7 @@ export default function SmnpSonekPage() {
                       <td className={styles.actions}>
                         <button
                           className={styles.btnSmall}
-                          onClick={() => handleEdit(r)}
+                          onClick={() => openEditModal("report", r)}
                         >
                           Ред
                         </button>
@@ -260,7 +275,10 @@ export default function SmnpSonekPage() {
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h3>Закупки у СМП/СОНКО</h3>
-            <button className={styles.btnPrimary} onClick={handleCreate}>
+            <button
+              className={styles.btnPrimary}
+              onClick={() => openCreateModal("procurement")}
+            >
               + Добавить закупку
             </button>
           </div>
@@ -304,7 +322,7 @@ export default function SmnpSonekPage() {
                     <td className={styles.actions}>
                       <button
                         className={styles.btnSmall}
-                        onClick={() => handleEdit(p)}
+                        onClick={() => openEditModal("procurement", p)}
                       >
                         Ред
                       </button>
@@ -321,6 +339,16 @@ export default function SmnpSonekPage() {
             </table>
           )}
         </div>
+      )}
+
+      {/* ===== Модалка ===== */}
+      {modalState.open && (
+        <SmnpSonekModal
+          organizationId={orgId ?? ""}
+          recordType={modalState.type}
+          existingRecord={modalState.editing}
+          onClose={closeModal}
+        />
       )}
     </div>
   );

@@ -93,25 +93,18 @@ export const useDeleteContractSmpRecord = () => {
 
 /**
  * Все сведения о привлечении СМП организации разом — нужно странице выгрузки
- * в ЕИС, где записей много и тянуть их по одному контракту долго.
- *
- * json-server не умеет `contractId_in`, поэтому берём коллекцию целиком и
- * режем по своему списку на клиенте: организация своя, записей немного.
+ * в ЕИС, где записей много и тянуть их по контракту долго.
  */
-export const smpRecordsByContractsQueryKey = [
-  ...contractSmpQueryKey,
-  "byContracts",
-];
+export const smpRecordsQueryKey = [...contractSmpQueryKey, "all"];
 
 const fetchAllRecords = async (): Promise<ContractSmpRecord[]> => {
   const { data } = await api.get(ENDPOINT);
-
   return ContractSmpRecordListSchema.parse(data);
 };
 
 export const useAllContractSmpRecords = (enabled = true) =>
   useQuery({
-    queryKey: smpRecordsByContractsQueryKey,
+    queryKey: smpRecordsQueryKey,
     queryFn: fetchAllRecords,
     enabled,
   });

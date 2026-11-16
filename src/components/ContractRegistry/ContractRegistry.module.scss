@@ -540,6 +540,29 @@
   background: var(--state-danger-soft);
 }
 
+/* Подтверждения достоверности в таблице записей (п. 6 ПП РФ N 1466) */
+
+.smp-section__confirm-cell {
+  font-size: 11px;
+  min-width: 190px;
+}
+
+.smp-section__confirm-row {
+  padding: 3px 0;
+
+  & + & {
+    border-top: 1px dashed var(--border);
+  }
+}
+
+.smp-section__confirm-done {
+  color: var(--text-primary);
+}
+
+.smp-section__confirm-doc {
+  color: var(--text-secondary);
+}
+
 /* Форма сведений о СМП */
 
 .smp-form {
@@ -656,6 +679,102 @@
 .smp-form__error {
   font-size: 11px;
   color: var(--state-danger);
+}
+
+/* Файл-основание */
+
+.smp-form__fileRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.smp-form__fileInput {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+
+  &::file-selector-button {
+    margin-right: 10px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface-raised);
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  }
+}
+
+.smp-form__fileClear {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--state-danger);
+    color: var(--state-danger);
+  }
+}
+
+.smp-form__fileInfo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.smp-form__fileName {
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.smp-form__fileSize {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.smp-form__fileExtracted {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.smp-form__fileEmpty {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--state-warning-soft);
+  border: 1px solid var(--state-warning);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.smp-form__fileHint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
 
 .smp-form__footer {

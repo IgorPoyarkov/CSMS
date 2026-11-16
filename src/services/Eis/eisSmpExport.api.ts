@@ -1,9 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import type { ContractSmpRecord } from "../ContractSmp/contractSmp.schema";
-import {
-  ContractSmpRecordSchema,
-} from "../ContractSmp/contractSmp.schema";
+import { ContractSmpRecordSchema } from "../ContractSmp/contractSmp.schema";
 import { contractSmpQueryKey } from "../ContractSmp/contractSmp.api";
 import type { ContractRegistryItem } from "../ContractRegistry/contractRegistry.schema";
 import { contractRegistryQueryKey } from "../ContractRegistry/contractRegistry.api";
@@ -88,7 +86,8 @@ export const exportContractsToCsv = (
         documentNumber: record.documentNumber,
         documentDate: record.documentDate,
         amount: record.amount ?? "",
-        supplierFull: record.supplierName +
+        supplierFull:
+          record.supplierName +
           (record.supplierInn ? ` (ИНН ${record.supplierInn})` : ""),
         isSmpSubject: record.isSmpSubject ? "Да" : "Нет",
         receivedAt: record.receivedAt || "",
@@ -101,20 +100,16 @@ export const exportContractsToCsv = (
 
   if (rows.length === 0) return 0;
 
-  downloadCsv(recordsToCsv(rows), `smp_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  downloadCsv(
+    recordsToCsv(rows),
+    `smp_export_${new Date().toISOString().slice(0, 10)}.csv`,
+  );
   return rows.length;
 };
 
-/**
- * Конвертировать CSV в массив строк (пользователь подтверждает перед сохранением).
- */
-export { parseCsv } from "./eisExport";
-
 // ─── Вспомогательные подписи ──────────────────────────────────────────────
 
-const contractSmpDocTypeLabel = (
-  type: string,
-): string => {
+const contractSmpDocTypeLabel = (type: string): string => {
   const map: Record<string, string> = {
     subContract: "Договор",
     declaration: "Декларация",
@@ -124,9 +119,7 @@ const contractSmpDocTypeLabel = (
   return map[type] ?? type;
 };
 
-const contractSmpStatusLabel = (
-  status: string,
-): string => {
+const contractSmpStatusLabel = (status: string): string => {
   const map: Record<string, string> = {
     submitted: "Поданы подрядчиком",
     accepted: "Приняты заказчиком",

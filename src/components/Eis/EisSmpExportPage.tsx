@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
-import { useContractRegistry, type ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.api";
+import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import type { ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.schema";
 import { useAllContractSmpRecords } from "../../services/ContractSmp/contractSmp.api";
 import {
   contractSmpDocumentTypeLabels,
@@ -13,6 +14,9 @@ import {
   usePushSmpRecordsToEis,
 } from "../../services/Eis/eisSmpExport.api";
 import useUtils from "../../hooks/useUtils";
+import EdsSignModal from "../Eds/EdsSignModal";
+import { useLogSignatureEvent } from "../../services/Eds/eds.api";
+import type { SignatureEvent } from "../../services/Eds/eds.schema";
 import styles from "./EisSmpExportPage.module.scss";
 
 /**
@@ -48,6 +52,10 @@ export default function EisSmpExportPage() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const pushToEis = usePushSmpRecordsToEis();
+  const logSignature = useLogSignatureEvent();
+
+  // Выгрузка в ЕИС — действие с ЭП: сначала журнал, потом отметка записей
+  const [signing, setSigning] = useState<ContractSmpRecord[] | null>(null);
 
   const stats = useMemo(() => {
     let records = 0;
@@ -66,7 +74,13 @@ export default function EisSmpExportPage() {
       }
     }
 
-    return { contracts: smpContracts.length, records, accepted, pushed, amount };
+    return {
+      contracts: smpContracts.length,
+      records,
+      accepted,
+      pushed,
+      amount,
+    };
   }, [smpContracts, recordsByContract]);
 
   const pendingRecords = useMemo(() => {
@@ -84,7 +98,11 @@ export default function EisSmpExportPage() {
     const key = String(contractId);
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   }
@@ -104,8 +122,14 @@ export default function EisSmpExportPage() {
       alert("В выбранных контрактах нет принятых и не выгруженных сведений.");
       return;
     }
-    if (!confirm(`Отметить ${pendingRecords.length} сведений выгруженными в ЕИС?`)) return;
-    pushToEis.mutate(pendingRecords);
+    setSigning(pendingRecords);
+  }
+
+  function handleSigned(event: SignatureEvent) {
+    if (!signing) return;
+    logSignature.mutate(event);
+    pushToEis.mutate(signing);
+    setSigning(null);
   }
 
   return (
@@ -133,12 +157,18 @@ export default function EisSmpExportPage() {
         </div>
         <div className={block("stat")}>
           <span className={block("statLabel")}>Объём СМП</span>
-          <span className={block("statValue")}>{stats.amount.toLocaleString("ru-RU")} ₽</span>
+          <span className={block("statValue")}>
+            {stats.amount.toLocaleString("ru-RU")} ₽
+          </span>
         </div>
       </div>
 
       <div className={block("actions")}>
-        <button className={block("btn")} onClick={exportCsv} disabled={stats.records === 0}>
+        <button
+          className={block("btn")}
+          onClick={exportCsv}
+          disabled={stats.records === 0}
+        >
           Скачать CSV для ЕИС
         </button>
         <button
@@ -146,11 +176,15 @@ export default function EisSmpExportPage() {
           onClick={pushSelected}
           disabled={pushToEis.isPending || pendingRecords.length === 0}
         >
-          {pushToEis.isPending ? "Выгрузка..." : `Отметить выгруженными (${pendingRecords.length})`}
+          {pushToEis.isPending
+            ? "Выгрузка..."
+            : `Отметить выгруженными (${pendingRecords.length})`}
         </button>
         <button
           className={block("btn")}
-          onClick={() => setSelected(new Set(smpContracts.map((c) => String(c.id))))}
+          onClick={() =>
+            setSelected(new Set(smpContracts.map((c) => String(c.id))))
+          }
         >
           Выбрать все
         </button>
@@ -181,8 +215,21 @@ export default function EisSmpExportPage() {
       {pushToEis.isSuccess && (
         <div className={block("success")}>
           Выгружено: {pushToEis.data.pushed}
-          {pushToEis.data.errors.length > 0 && ` · Ошибки: ${pushToEis.data.errors.join(", ")}`}
+          {pushToEis.data.errors.length > 0 &&
+            ` · Ошибки: ${pushToEis.data.errors.join(", ")}`}
         </div>
+      )}
+
+      {/* Модалка подписания ЭП при выгрузке (Tasks 9, п. 1) */}
+      {signing && signing.length > 0 && (
+        <EdsSignModal
+          action="smp_eis_export"
+          documentLabel={`Выгрузка ${signing.length} сведений о СМП в ЕИС · ${signing[0].documentType} № ${signing[0].documentNumber} от ${signing[0].documentDate}`}
+          entityType="contractSmpRecord"
+          entityId={signing[0].id!}
+          onClose={() => setSigning(null)}
+          onSigned={handleSigned}
+        />
       )}
     </div>
   );
@@ -208,7 +255,9 @@ function ContractSmpCard({
   const pushed = records.filter((r) => r.status === "pushedToEis").length;
 
   return (
-    <div className={`${block("card")} ${selected ? block("card", ["selected"]) : ""}`}>
+    <div
+      className={`${block("card")} ${selected ? block("card", ["selected"]) : ""}`}
+    >
       <div className={block("cardHeader")} onClick={onToggle}>
         <label className={block("checkbox")}>
           <input type="checkbox" checked={selected} onChange={onToggle} />
@@ -227,7 +276,10 @@ function ContractSmpCard({
         <span>Принято: {accepted}</span>
         <span>Выгружено: {pushed}</span>
         <span>
-          Требование: {contract.smpRequiredPercent ? `${contract.smpRequiredPercent}%` : "—"}
+          Требование:{" "}
+          {contract.smpRequiredPercent
+            ? `${contract.smpRequiredPercent}%`
+            : "—"}
         </span>
         <span>Служебка: № {contract.subcontractingSmpNoteNumber}</span>
       </div>
@@ -248,16 +300,22 @@ function ContractSmpCard({
             {records.map((record) => (
               <tr
                 key={record.id}
-                className={record.status === "rejected" ? block("rowRejected") : ""}
+                className={
+                  record.status === "rejected" ? block("rowRejected") : ""
+                }
               >
                 <td>{contractSmpDocumentTypeLabels[record.documentType]}</td>
-                <td>№ {record.documentNumber} от {record.documentDate}</td>
+                <td>
+                  № {record.documentNumber} от {record.documentDate}
+                </td>
                 <td>
                   {record.supplierName}
                   {record.supplierInn && (
                     <>
                       <br />
-                      <span className={block("inn")}>ИНН {record.supplierInn}</span>
+                      <span className={block("inn")}>
+                        ИНН {record.supplierInn}
+                      </span>
                     </>
                   )}
                 </td>

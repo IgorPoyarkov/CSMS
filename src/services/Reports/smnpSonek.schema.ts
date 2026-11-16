@@ -159,6 +159,12 @@ export const SmnpSonekReportSchema = z.object({
 export type SmnpSonekReport = z.infer<typeof SmnpSonekReportSchema>;
 export const SmnpSonekReportListSchema = z.array(SmnpSonekReportSchema);
 
+/** Объединённый тип для формы (план / отчёт / закупка) */
+export type SmnpSonekRecord =
+  | SmnpSonekPlan
+  | SmnpSonekReport
+  | SmnpSonekProcurement;
+
 // Утилиты
 
 // Расчёт доли СМП в общем объёме закупок
@@ -221,5 +227,24 @@ export const emptySmnpReport = (
   actualSmnpPercent: "",
   publishedInEis: false,
   status: "draft",
+  comment: "",
+});
+
+// Создание пустой закупки
+export const emptySmnpProcurement = (
+  organizationId: string | number = "",
+): SmnpSonekProcurement => ({
+  organizationId,
+  supplierType: "smnp",
+  ikz: "",
+  procurementName: "",
+  procurementMethod: "",
+  initialPrice: "",
+  contractPrice: "",
+  savingsAmount: "",
+  noticeDate: "",
+  contractDate: "",
+  eisDate: "",
+  publishedInEis: false,
   comment: "",
 });

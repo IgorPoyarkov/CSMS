@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -20,9 +20,22 @@ import {
   computeSmpDeadlines,
   smpDeadlineStatusLabels,
 } from "../../services/ContractSmp/deadlines";
+import {
+  readSourceFileFields,
+  formatFileSize,
+  SOURCE_FILE_HINT,
+  type SourceFileFields,
+} from "../../services/ContractSmp/sourceFile";
 import { useCreatePenalty } from "../../services/ContractRegistry/contractRegistry.api";
 import styles from "./ContractRegistry.module.scss";
 import useUtils from "../../hooks/useUtils";
+import useMyContractRole from "../../hooks/useMyContractRole";
+import EdsSignModal from "../Eds/EdsSignModal";
+import { useLogSignatureEvent } from "../../services/Eds/eds.api";
+import type {
+  SignatureEventAction,
+  SignatureEvent,
+} from "../../services/Eds/eds.schema";
 
 /**
  * Секция «Привлечение СМП» в карточке контракта (Tasks 9, п. 7, п/п 7).
@@ -47,7 +60,7 @@ export default function SmpSection({
   smpRequiredPercent,
   subcontractingSmpNoteNumber,
 }: SmpSectionProps) {
-  const { bem } = useUtils();
+  const { bem, fullName } = useUtils();
   const block = bem(styles, "smp-section");
 
   const { data: records = [] } = useContractSmpRecords(contractId);
@@ -130,6 +143,84 @@ export default function SmpSection({
       description: penaltyResult.penalty.description,
       reference: penaltyResult.penalty.reference,
     });
+  }
+
+  // ─── Подтверждение достоверности (п. 6 ПП РФ N 1466) ──────────────────────
+
+  const { employee, myRole } = useMyContractRole();
+  const logSignature = useLogSignatureEvent();
+
+  const signerLabel = useMemo(() => {
+    const human = employee?.employee;
+    if (!human) return "";
+    // Подпись вида «Фамилия И. О., должность» — как в бумажных подтверждениях
+    const shortName = fullName(human)
+      .split(" ")
+      .filter(Boolean)
+      .map((word, index) => (index === 0 ? word : `${word[0]}.`))
+      .join(" ");
+    return [shortName, myRole?.role ?? ""].filter(Boolean).join(", ");
+  }, [employee, myRole, fullName]);
+
+  const nowLocalDateTime = () => {
+    const d = new Date();
+    const pad = (v: number) => String(v).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  // Какое действие подписываем: модалка ЭП открывается поверх таблицы
+  const [signing, setSigning] = useState<{
+    record: ContractSmpRecord;
+    action: SignatureEventAction;
+  } | null>(null);
+
+  // Подписываем не молча: сначала журнал (кто, когда, каким сертификатом),
+  // потом уже правка записи. Отказ по чужому ИНН остаётся в журнале —
+  // ровно то, что спрашивает проверка
+  function handleSigned(event: SignatureEvent) {
+    if (!signing) return;
+    const { record, action } = signing;
+
+    logSignature.mutate(event);
+
+    const stamp = [
+      "ЭП",
+      event.certificateOwner,
+      event.certificateSerial
+        ? `срез ${event.certificateSerial.slice(0, 8)}…`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    if (action === "smp_supplier_confirm") {
+      updateRecord.mutate({
+        id: record.id!,
+        supplierConfirmedAt: nowLocalDateTime(),
+        supplierConfirmedBy: signerLabel,
+        supplierConfirmedDocument: stamp,
+      });
+    } else {
+      updateRecord.mutate({
+        id: record.id!,
+        customerConfirmedAt: nowLocalDateTime(),
+        customerConfirmedBy: signerLabel,
+        customerConfirmedDocument: stamp,
+        status: record.status === "submitted" ? "accepted" : record.status,
+      });
+    }
+
+    setSigning(null);
+  }
+
+  function handleSupplierConfirm(record: ContractSmpRecord) {
+    if (record.supplierConfirmedAt) return;
+    setSigning({ record, action: "smp_supplier_confirm" });
+  }
+
+  function handleCustomerConfirm(record: ContractSmpRecord) {
+    if (record.customerConfirmedAt) return;
+    setSigning({ record, action: "smp_customer_confirm" });
   }
 
   // ─── Подпись прогресс-бара ──────────────────────────────────────────────
@@ -446,29 +537,70 @@ export default function SmpSection({
                       )}
                     </select>
                   </td>
-                  <td style={{ fontSize: "11px" }}>
-                    {record.supplierConfirmedAt && (
-                      <div>
-                        Подрядчик: {record.supplierConfirmedAt.slice(0, 10)}
-                        {record.supplierConfirmedBy && (
-                          <>
-                            <br />
-                            <span>{record.supplierConfirmedBy}</span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    {record.customerConfirmedAt && (
-                      <div>
-                        Заказчик: {record.customerConfirmedAt.slice(0, 10)}
-                        {record.customerConfirmedBy && (
-                          <>
-                            <br />
-                            <span>{record.customerConfirmedBy}</span>
-                          </>
-                        )}
-                      </div>
-                    )}
+                  <td className={block("confirm-cell")}>
+                    <div className={block("confirm-row")}>
+                      {record.supplierConfirmedAt ? (
+                        <span className={block("confirm-done")}>
+                          Подрядчик: {record.supplierConfirmedAt.slice(0, 10)}
+                          {record.supplierConfirmedBy && (
+                            <>
+                              <br />
+                              <span>{record.supplierConfirmedBy}</span>
+                            </>
+                          )}
+                          {record.supplierConfirmedDocument && (
+                            <>
+                              <br />
+                              <span className={block("confirm-doc")}>
+                                {record.supplierConfirmedDocument}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <button
+                          className={styles.btnSmall}
+                          onClick={() => handleSupplierConfirm(record)}
+                          disabled={updateRecord.isPending}
+                          title="Действие подрядчика «подтверждаю достоверность» (п. 6 ПП РФ N 1466). В демо его выполняет заказчик — вход подрядчика по ссылке отложен (Tasks 9, п. 2, п/п 3)"
+                        >
+                          Подтвердить достоверность
+                        </button>
+                      )}
+                    </div>
+                    <div className={block("confirm-row")}>
+                      {record.customerConfirmedAt ? (
+                        <span className={block("confirm-done")}>
+                          Заказчик: {record.customerConfirmedAt.slice(0, 10)}
+                          {record.customerConfirmedBy && (
+                            <>
+                              <br />
+                              <span>{record.customerConfirmedBy}</span>
+                            </>
+                          )}
+                          {record.customerConfirmedDocument && (
+                            <>
+                              <br />
+                              <span className={block("confirm-doc")}>
+                                {record.customerConfirmedDocument}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <button
+                          className={styles.btnSmall}
+                          onClick={() => handleCustomerConfirm(record)}
+                          disabled={
+                            updateRecord.isPending ||
+                            record.status !== "submitted"
+                          }
+                          title="Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
+                        >
+                          Принять и подтвердить
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <button
@@ -515,6 +647,18 @@ export default function SmpSection({
           onSave={handleSave}
         />
       )}
+
+      {/* Модалка подписания ЭП (Tasks 9, п. 1) */}
+      {signing && (
+        <EdsSignModal
+          action={signing.action}
+          documentLabel={`${contractSmpDocumentTypeLabels[signing.record.documentType]} № ${signing.record.documentNumber} от ${signing.record.documentDate} · ${signing.record.supplierName}`}
+          entityType="contractSmpRecord"
+          entityId={signing.record.id!}
+          onClose={() => setSigning(null)}
+          onSigned={handleSigned}
+        />
+      )}
     </section>
   );
 }
@@ -546,11 +690,50 @@ function ContractSmpRecordForm({
   const {
     register,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors },
   } = methods;
 
+  // Файл-основание: в базе остаётся только его имя, содержимое не читается
+  const [sourceFile, setSourceFile] = useState<SourceFileFields | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Записи, приложенные к этому договору: акт и платёжка привязываются к нему
+  const existingSourceName = record?.sourceFileName ?? "";
+
   const errorText = (path: string): string | undefined =>
     (errors as Record<string, { message?: string }>)?.[path]?.message;
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fields = readSourceFileFields(file);
+    setSourceFile(fields);
+    setValue("sourceFileName", fields.fileName, { shouldDirty: true });
+
+    // Подставляем только в пустые поля: то, что уже введено вручную, не трём —
+    // извлечённое остаётся подсказкой, которую человек подтверждает сам
+    if (fields.documentNumber && !getValues("documentNumber")) {
+      setValue("documentNumber", fields.documentNumber, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    if (fields.documentDate && !getValues("documentDate")) {
+      setValue("documentDate", fields.documentDate, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }
+
+  function clearSourceFile() {
+    setSourceFile(null);
+    setValue("sourceFileName", "", { shouldDirty: true });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   function onSubmit(data: ContractSmpRecord) {
     onSave(data);
@@ -714,55 +897,155 @@ function ContractSmpRecordForm({
                 </span>
               )}
             </div>
-
-            {/* Дата оплаты субподрядчику */}
-            <div className={block("field")}>
-              <label className={block("label")} htmlFor="smp-paid-date">
-                Дата оплаты субподрядчику
-              </label>
-              <input
-                id="smp-paid-date"
-                className={block("input")}
-                type="date"
-                {...register("paidToSupplierDate")}
-              />
-            </div>
-
-            {/* Подписано подрядчиком */}
-            <div className={block("field")}>
-              <label className={block("label")} htmlFor="smp-acceptance-date">
-                Подписано подрядчиком о приёмке
-              </label>
-              <input
-                id="smp-acceptance-date"
-                className={block("input")}
-                type="date"
-                {...register("acceptanceSignedDate")}
-              />
-            </div>
-
-            {/* Раньше срока контракта */}
-            <div className={block("field")}>
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  {...register("paidEarlierThanContractSchedule")}
-                />
-                Оплата раньше срока по контракту (п. 4б, 10 раб. дн.)
-              </label>
-            </div>
-
-            {/* Замена субподрядчика */}
-            <div className={block("field")}>
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  {...register("isReplacementSubContract")}
-                />
-                Замена субподрядчика (п. 3, 5 раб. дн. от нового договора)
-              </label>
-            </div>
           </div>
+
+          {/* Файл-основание: имя читаем, содержимое остаётся у пользователя */}
+          <fieldset className={block("section")}>
+            <legend>Файл-основание</legend>
+            <div className={block("fileRow")}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="smp-source-file"
+                className={block("fileInput")}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={handleFileChange}
+              />
+              {(sourceFile || existingSourceName) && (
+                <button
+                  type="button"
+                  className={block("fileClear")}
+                  onClick={clearSourceFile}
+                >
+                  Очистить
+                </button>
+              )}
+            </div>
+
+            {(sourceFile || existingSourceName) && (
+              <div className={block("fileInfo")}>
+                <span className={block("fileName")}>
+                  {sourceFile?.fileName ?? existingSourceName}
+                </span>
+                {sourceFile && sourceFile.size > 0 && (
+                  <span className={block("fileSize")}>
+                    {formatFileSize(sourceFile.size)}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {sourceFile && sourceFile.matched.length > 0 && (
+              <div className={block("fileExtracted")}>
+                Из имени файла прочитано:{" "}
+                {sourceFile.matched
+                  .map((field) =>
+                    field === "documentNumber" ? "номер" : "дата",
+                  )
+                  .join(", ")}
+                . Проверьте поля выше — распознавание содержимого документа ещё
+                не подключено.
+              </div>
+            )}
+
+            {sourceFile && sourceFile.matched.length === 0 && (
+              <div className={block("fileEmpty")}>
+                Номер и дата в имени файла не найдены — внесите их вручную.
+              </div>
+            )}
+
+            <p className={block("fileHint")}>{SOURCE_FILE_HINT}</p>
+
+            <div className={block("grid")}>
+              <div className={block("field", ["wide"])}>
+                <label className={block("label")} htmlFor="smp-subject">
+                  Предмет документа
+                </label>
+                <input
+                  id="smp-subject"
+                  className={block("input")}
+                  {...register("subject")}
+                  placeholder="Выполнение работ по благоустройству…"
+                />
+              </div>
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-period">
+                  Период
+                </label>
+                <input
+                  id="smp-period"
+                  className={block("input")}
+                  {...register("period")}
+                  placeholder="2026-03 или I квартал 2026"
+                />
+              </div>
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-source-name">
+                  Имя файла (сохраняется в базе)
+                </label>
+                <input
+                  id="smp-source-name"
+                  className={block("input")}
+                  {...register("sourceFileName")}
+                  readOnly
+                  placeholder="Файл не выбран"
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className={block("section")}>
+            <legend>Реквизиты исполнения</legend>
+            <div className={block("grid")}>
+              {/* Дата оплаты субподрядчику */}
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-paid-date">
+                  Дата оплаты субподрядчику
+                </label>
+                <input
+                  id="smp-paid-date"
+                  className={block("input")}
+                  type="date"
+                  {...register("paidToSupplierDate")}
+                />
+              </div>
+
+              {/* Подписано подрядчиком */}
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-acceptance-date">
+                  Подписано подрядчиком о приёмке
+                </label>
+                <input
+                  id="smp-acceptance-date"
+                  className={block("input")}
+                  type="date"
+                  {...register("acceptanceSignedDate")}
+                />
+              </div>
+
+              {/* Раньше срока контракта */}
+              <div className={block("field")}>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("paidEarlierThanContractSchedule")}
+                  />
+                  Оплата раньше срока по контракту (п. 4б, 10 раб. дн.)
+                </label>
+              </div>
+
+              {/* Замена субподрядчика */}
+              <div className={block("field")}>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("isReplacementSubContract")}
+                  />
+                  Замена субподрядчика (п. 3, 5 раб. дн. от нового договора)
+                </label>
+              </div>
+            </div>
+          </fieldset>
 
           {/* Подтверждения достоверности */}
           <fieldset className={block("section")}>
@@ -794,6 +1077,17 @@ function ContractSmpRecordForm({
                 />
               </div>
               <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-supplier-doc">
+                  Документ подтверждения подрядчика
+                </label>
+                <input
+                  id="smp-supplier-doc"
+                  className={block("input")}
+                  placeholder="Подтверждение достоверности сведений № 1 от 12.11.2026"
+                  {...register("supplierConfirmedDocument")}
+                />
+              </div>
+              <div className={block("field")}>
                 <label
                   className={block("label")}
                   htmlFor="smp-customer-confirmed"
@@ -816,6 +1110,17 @@ function ContractSmpRecordForm({
                   className={block("input")}
                   {...register("customerConfirmedBy")}
                   placeholder="Петров П. П."
+                />
+              </div>
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-customer-doc">
+                  Документ принятия заказчика
+                </label>
+                <input
+                  id="smp-customer-doc"
+                  className={block("input")}
+                  placeholder="Принятие сведений № 1 от 12.11.2026"
+                  {...register("customerConfirmedDocument")}
                 />
               </div>
             </div>
