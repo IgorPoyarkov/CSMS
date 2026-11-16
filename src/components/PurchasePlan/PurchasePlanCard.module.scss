@@ -43,13 +43,6 @@
     color: var(--text-secondary);
   }
 
-  &__header-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 12px;
-  }
-
   &__status-tag {
     display: inline-block;
     padding: 4px 10px;

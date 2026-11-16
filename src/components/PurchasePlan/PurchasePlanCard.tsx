@@ -2,7 +2,6 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
-  useDeletePurchasePlan,
   usePurchasePlan,
   useUpdatePurchasePlan,
 } from "../../services/PurchasePlan/purchasePlan.api";
@@ -13,7 +12,6 @@ import {
   formatMoneyValue,
   planTotalAmount,
   positionStatusLabel,
-  purchasePlanStatusLabel,
 } from "./purchasePlan.config";
 import {
   emptyPurchasePlanPosition,
@@ -101,7 +99,6 @@ export default function PurchasePlanCard() {
     isError,
     error,
   } = usePurchasePlan(id, organizationId);
-  const { mutate: deletePlan, isPending: isDeleting } = useDeletePurchasePlan();
   const { mutate: createSz, isPending: isCreatingSz } = useAddProcurement();
   // Справочник ОКПД2 нужен, чтобы у позиции ПГ показать обязательное
   // нормирование и предельную цену единицы (ПП РФ N 926)
@@ -279,15 +276,6 @@ export default function PurchasePlanCard() {
   // Вложенные функции вызываются после проверок загрузки, но TypeScript не
   // переносит в них сужение plan, поэтому план передаётся через const
   const currentPlan = plan;
-
-  function handleDelete() {
-    if (window.confirm("Удалить план-график и все его записи?")) {
-      deletePlan(
-        { id: planId, organizationId },
-        { onSuccess: () => navigate("/purchase-plans") },
-      );
-    }
-  }
 
   // Правка отдельной записи: план-график перезаписывается целиком (json-server
   // не умеет точечного обновления вложенного массива), но из содержательных
@@ -540,22 +528,6 @@ export default function PurchasePlanCard() {
             План-график {plan.planNumber || "без номера"}
           </h1>
           <p className={block("customer-name")}>{customer.fullName}</p>
-        </div>
-        <div className={block("header-actions")}>
-          <span className={block("status-tag", [plan.status])}>
-            {purchasePlanStatusLabel(plan.status)}
-          </span>
-          <div className={block("actions")}>
-            <button
-              type="button"
-              onClick={() => navigate(`/purchase-plans/${plan.id}/edit`)}
-            >
-              Изменить
-            </button>
-            <button type="button" disabled={isDeleting} onClick={handleDelete}>
-              Удалить
-            </button>
-          </div>
         </div>
       </header>
 
