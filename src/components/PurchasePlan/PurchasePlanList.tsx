@@ -51,20 +51,17 @@ export default function PurchasePlanList() {
   // Пагинация
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
+  const [openMenuPlanId, setOpenMenuPlanId] = useState<string | null>(null);
 
-  // Выпадающий список действий закрывается по клику вне меню: <details>
-  // сам этого не умеет, а оставлять открытое меню в таблице неудобно
+  // Выпадающий список действий: закрывается по клику вне меню. Состояние
+  // единственное на странице — открыто меню у одной записи плана
   useEffect(() => {
     function closeMenus(event: MouseEvent) {
       const target = event.target as Node | null;
 
-      document
-        .querySelectorAll<HTMLDetailsElement>("details[data-plan-actions][open]")
-        .forEach((details) => {
-          if (!target || !details.contains(target)) {
-            details.removeAttribute("open");
-          }
-        });
+      if (target instanceof Element && !target.closest("details[data-plan-actions]")) {
+        setOpenMenuPlanId(null);
+      }
     }
 
     document.addEventListener("click", closeMenus);
@@ -237,7 +234,13 @@ export default function PurchasePlanList() {
 
       {filteredPlans.length > 0 && (
         <>
-          <div className={block("table-wrapper")}>
+          <div
+            className={
+              openMenuPlanId
+                ? block("table-wrapper", ["open"])
+                : block("table-wrapper")
+            }
+          >
             <input
               className={block("search")}
               type="search"
@@ -292,33 +295,37 @@ export default function PurchasePlanList() {
                     <td>{formatMoney(planTotalAmount(plan))}</td>
                     <td>{formatDate(plan.approvalDate)}</td>
                     <td>
-                      <details className={block("menu")} data-plan-actions>
+                      <details
+                        className={block("menu")}
+                        data-plan-actions
+                        open={openMenuPlanId === String(plan.id)}
+                        onToggle={(event) =>
+                          setOpenMenuPlanId(
+                            event.currentTarget.open ? String(plan.id) : null,
+                          )
+                        }
+                      >
                         <summary className={block("menu-trigger")}>
                           Действия
                         </summary>
-                        <div
-                          className={block("menu-list")}
-                          onClick={(event) =>
-                            event.currentTarget
-                              .closest("details")
-                              ?.removeAttribute("open")
-                          }
-                        >
+                        <div className={block("menu-list")}>
                           <button
                             type="button"
                             className={block("menu-item")}
-                            onClick={() =>
-                              navigate(`/purchase-plans/${plan.id}`)
-                            }
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              navigate(`/purchase-plans/${plan.id}`);
+                            }}
                           >
                             Открыть
                           </button>
                           <button
                             type="button"
                             className={block("menu-item")}
-                            onClick={() =>
-                              navigate(`/purchase-plans/${plan.id}/edit`)
-                            }
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              navigate(`/purchase-plans/${plan.id}/edit`);
+                            }}
                           >
                             Изменить
                           </button>
@@ -326,7 +333,10 @@ export default function PurchasePlanList() {
                             type="button"
                             className={block("menu-item", ["danger"])}
                             disabled={isDeleting}
-                            onClick={() => handleDelete(plan)}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              handleDelete(plan);
+                            }}
                           >
                             Удалить
                           </button>

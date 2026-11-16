@@ -336,6 +336,9 @@ export default function PurchasePlanCard() {
 
         return (
           <span className={block("okpd2")}>
+            {position.okpd2Code && (
+              <span className={block("code")}>{position.okpd2Code}</span>
+            )}
             <span className={block("okpd2-name")}>
               {okpd2Name || position.okpd2Code || "—"}
               {normTip && (
@@ -348,9 +351,6 @@ export default function PurchasePlanCard() {
                 </span>
               )}
             </span>
-            {position.okpd2Code && (
-              <span className={block("code")}>{position.okpd2Code}</span>
-            )}
           </span>
         );
       }
@@ -658,7 +658,7 @@ export default function PurchasePlanCard() {
                       <th rowSpan={2} className={block("th", ["narrow"])}>
                         Обязательное общественное обсуждение
                       </th>
-                      <th rowSpan={2} aria-label="Действия" />
+                      <th rowSpan={2}>Действия</th>
                     </tr>
                     <tr>
                       <th colSpan={2}>Идентификационный код закупки</th>
