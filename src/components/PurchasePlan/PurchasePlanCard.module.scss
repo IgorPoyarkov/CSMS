@@ -95,6 +95,12 @@
       background: var(--state-danger);
       color: var(--text-on-accent);
     }
+
+    // Статус записи в таблице: компактный тег, чтобы графа не ширилась
+    &--compact {
+      padding: 2px 6px;
+      font-size: 10px;
+    }
   }
 
   &__actions {
@@ -197,13 +203,14 @@
       padding: 10px 12px;
       text-align: left;
       vertical-align: top;
-      border-bottom: 1px solid var(--border);
+      border: 1px solid var(--border);
     }
 
     th {
       padding: 8px 10px;
       font-size: 11px;
       font-weight: 600;
+      text-align: center;
       text-transform: uppercase;
       letter-spacing: 0.03em;
       line-height: 1.3;
@@ -220,11 +227,6 @@
     width: 1%;
   }
 
-  // Общая шапка ценовых граф
-  &__th--amount {
-    text-align: center;
-  }
-
   // Графа «Планируемый год…»: длинная подпись, но само значение — четыре
   // цифры, поэтому графа узкая
   &__th--year {
@@ -237,6 +239,33 @@
     font-weight: 600;
   }
 
+  // Графа ОКПД2: код и знак нормирования в одну строку
+  &__okpd2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+  }
+
+  // Знак «i» — обязательное нормирование позиции; предупреждение в title
+  &__info {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1px solid var(--state-warning);
+    border-radius: 50%;
+    font-family: inherit;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--state-warning);
+    cursor: help;
+  }
+
   // Вторая строка ячейки: дата статуса, число позиций в группе и т. п.
   &__sub {
     display: block;
@@ -246,6 +275,11 @@
     overflow-wrap: anywhere;
   }
 
+  // Дата статуса в таблице — мельче, чтобы графа «Статус» не ширилась
+  &__sub--compact {
+    font-size: 10px;
+  }
+
   // Объём финансового обеспечения записи под своим КБК
   &__amount {
     display: block;
@@ -253,7 +287,7 @@
     white-space: nowrap;
   }
 
-  // Панель поиска, фильтра по КБК и page size над таблицей записей
+  // Панель поиска и page size над таблицей записей
   &__toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -262,21 +296,9 @@
     margin-bottom: 10px;
   }
 
-  &__toolbar-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  &__toolbar-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-secondary);
-  }
-
-  &__search,
-  &__select {
+  &__search {
+    flex: 1 1 260px;
+    min-width: 200px;
     padding: 6px 8px;
     font-family: inherit;
     font-size: 13px;
@@ -289,21 +311,6 @@
       outline: 1px solid var(--accent);
       border-color: var(--accent);
     }
-  }
-
-  &__search {
-    flex: 1 1 260px;
-    min-width: 200px;
-  }
-
-  &__group-exit {
-    padding: 6px 10px;
-    font-size: 12px;
-    color: var(--accent-emphasis);
-    background: var(--accent-soft);
-    border: 1px solid var(--accent);
-    border-radius: 4px;
-    cursor: pointer;
   }
 
   // Постраничный переход по записям ПГ
@@ -368,6 +375,11 @@
       white-space: nowrap;
     }
 
+    // Короткие значения (статус, общественное обсуждение) — по центру
+    &--center {
+      text-align: center;
+    }
+
     // Наименование объекта — графа, ради которой таблица и существует;
     // остальные поджимаются
     &--wide {
@@ -401,11 +413,6 @@
       }
     }
 
-    // Запись внутри группы по КБК — чуть мельче
-    &--sub {
-      font-size: 12px;
-    }
-
     // Вторая строка записи: ИКЗ под номером и объектом. Верхнюю границу не
     // рисуем — строка продолжает запись
     &--ikz {
@@ -421,16 +428,6 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     color: var(--text-secondary);
-  }
-
-  // Строка итогов по группе КБК
-  &__group-row {
-    background: var(--surface-accent);
-
-    td {
-      font-weight: 600;
-      border-bottom: 1px solid var(--border-strong);
-    }
   }
 
   // Кнопка действия в таблице записей ПГ
@@ -457,36 +454,6 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
-  }
-
-  // КБК — кнопка, по нажатию на неё записи группируются по коду. Код не
-  // переносится: маска целиком читается в одну строку
-  &__kbk-btn {
-    padding: 2px 6px;
-    border: 1px dashed var(--border-strong);
-    border-radius: 6px;
-    background: transparent;
-    font-family: "Courier New", monospace;
-    font-size: 12px;
-    color: var(--accent);
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background-color $transition-300,
-      border-color $transition-300;
-
-    &:hover {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-    }
-  }
-
-  // Обязательное нормирование позиции (ПП РФ N 926): предельная цена единицы
-  &__norm {
-    display: block;
-    font-size: 11px;
-    line-height: 1.3;
-    color: var(--state-warning);
   }
 
   // Действия по записи: правка своей записи и создание СЗ
