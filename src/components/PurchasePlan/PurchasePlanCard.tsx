@@ -150,6 +150,8 @@ export default function PurchasePlanCard() {
   // Создание СЗ (закупки) из позиции ПГ. НМЦК и способ определения
   // поставщика в записи ПГ не указываются, поэтому стартом СЗ берём объём
   // финансового обеспечения, а тип закупки — нейтральный из справочника.
+  // Уполномоченный орган, организатор совместной закупки и КБК берутся из
+  // позиции ПГ и передаются дальше в извещение.
   // Требование о привлечении СМП передаётся из служебки по этой позиции —
   // дальше по цепочке его подхватывает извещение (Tasks 9, п. 7, п/п 3)
   function handleCreateSz(position: PurchasePlanPosition) {
@@ -160,6 +162,9 @@ export default function PurchasePlanCard() {
         toNumber(position.amountTotal) ?? 0,
       "Тип закупки":
         DEFAULT_PROCUREMENT_TYPES[DEFAULT_PROCUREMENT_TYPES.length - 1],
+      "Уполномоченный орган (учреждение)": position.authorizedBodyName || "",
+      "Организатор совместной закупки": position.jointOrganizerName || "",
+      "КБК": position.kbk || "",
     };
     const note = latestPurchaseNoteForPosition(purchaseNotes, position.id);
     createSz(raw, {
@@ -171,6 +176,9 @@ export default function PurchasePlanCard() {
             procurementType: raw["Тип закупки"],
             smpRequiredPercent: note?.smpRequiredPercent,
             purchaseNoteNumber: note ? String(note.noteNumber) : undefined,
+            authorizedBodyName: position.authorizedBodyName || undefined,
+            jointOrganizerName: position.jointOrganizerName || undefined,
+            kbk: position.kbk || undefined,
           },
         });
       },
@@ -577,29 +585,29 @@ export default function PurchasePlanCard() {
         <LegalActRefs component="PurchasePlanCard" />
       </fieldset>
 
+      {/* Основная кнопка добавления записи — над таблицей записей */}
+      <button
+        type="button"
+        className={block("add-btn")}
+        onClick={() =>
+          setEditing({
+            position: {
+              ...emptyPurchasePlanPosition(),
+              serialNumber: String(positions.length + 1),
+            },
+            index: positions.length,
+            isNew: true,
+          })
+        }
+      >
+        Добавить запись
+      </button>
+
       <fieldset className={block("section")}>
         <legend>
           Записи плана-графика ({filteredPositions.length} из {positions.length}
           )
         </legend>
-
-        {/* Основная кнопка добавления записи — над таблицей записей */}
-        <button
-          type="button"
-          className={block("add-btn")}
-          onClick={() =>
-            setEditing({
-              position: {
-                ...emptyPurchasePlanPosition(),
-                serialNumber: String(positions.length + 1),
-              },
-              index: positions.length,
-              isNew: true,
-            })
-          }
-        >
-          Добавить запись
-        </button>
 
         {positions.length === 0 ? (
           <p className={block("status")}>
