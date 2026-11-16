@@ -219,6 +219,16 @@
     white-space: nowrap;
   }
 
+  // Общая шапка ценовых граф
+  &__th--amount {
+    text-align: center;
+  }
+
+  // Длинная подпись графы «Планируемый год…» переносится на несколько строк
+  &__th--year {
+    min-width: 150px;
+  }
+
   &__object {
     display: block;
     font-weight: 600;
@@ -402,6 +412,40 @@
     &--wide {
       min-width: 180px;
     }
+
+    // Ценовые графы: числа не переносятся, выравниваются по правому краю
+    &--amount {
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    // Действия занимают обе строки записи и не раздувают таблицу
+    &--actions {
+      width: 1%;
+      vertical-align: middle;
+    }
+
+    // Ячейка с ИКЗ во второй строке записи
+    &--ikz {
+      padding-top: 0;
+    }
+  }
+
+  // Вторая строка записи ПГ: ИКЗ под «Номером закупки» и «Наименованием
+  // объекта закупки». Верхнюю границу не рисуем — строка продолжает запись
+  &__ikz-row {
+    td {
+      padding-top: 0;
+      padding-bottom: 8px;
+    }
+  }
+
+  &__ikz-label {
+    margin-right: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
   }
 
   // Строка итогов по группе КБК

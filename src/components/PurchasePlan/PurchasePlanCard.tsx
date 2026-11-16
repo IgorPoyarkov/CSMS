@@ -12,12 +12,12 @@ import {
   formatKbk,
   formatMoney,
   formatMoneyValue,
+  planPeriodLabels,
   planTotalAmount,
   positionStatusLabel,
   purchasePlanStatusLabel,
 } from "./purchasePlan.config";
 import {
-  buildPositionUniqueNumber,
   emptyPurchasePlanPosition,
   positionKbkCodes,
   toNumber,
@@ -47,55 +47,54 @@ interface GroupEntry {
 }
 
 /**
- * Столбцы карточки записи ПГ — графы позиции из просмотра плана-графика
- * закупок (Tasks 7, п. 4), в порядке формы:
+ * Графы записи ПГ — по форме просмотра плана-графика закупок
+ * (Tasks 7, п. 4). Порядок слева направо:
  *
- * 1. № п/п (под ним — уникальный номер позиции);
- * 2. планируемый год размещения извещения, направления приглашения,
+ * 1. планируемый год размещения извещения, направления приглашения,
  *    заключения контракта с единственным поставщиком;
- * 3. номер закупки, включённой в план-график;
- * 4. наименование объекта (объектов) закупки;
- * 5. идентификационный код закупки (ИКЗ) — отдельная графа, а не подпись
- *    под объектом: в форме это самостоятельная графа;
- * 6. наименование товара, работы, услуги по ОКПД2;
- * 7. объём финансового обеспечения, всего (рублей) — одна графа, как в форме
- *    (разбивка по годам живёт в записи плана, а не в графах позиции);
- * 8. статус (и дата размещения, когда план-график прошёл контроль);
- * 9. обязательное общественное обсуждение;
- * 10. действия (вне формы ЕИС).
+ * 2. номер закупки, включённой в план-график;
+ * 3. наименование объекта (объектов) закупки;
+ * 4. наименование товара, работы, услуги по ОКПД2;
+ * 5. код бюджетной классификации — один на все ценовые графы записи;
+ * 6. объём финансового обеспечения, всего (рублей) — группа из пяти граф:
+ *    всего, текущий год, 1-й и 2-й годы планового периода, последующие годы;
+ * 7. статус (и дата размещения, когда план-график прошёл контроль);
+ * 8. обязательное общественное обсуждение.
  *
- * КБК отдельной графой не идёт: код стоит над суммой, к которой относится, и
- * остаётся кнопкой группировки. Уполномоченный орган и организатор совместной
- * закупки в графы позиции не входят — они читаются в карточке записи.
+ * ИКЗ печатается второй строкой записи под графами «Номер закупки» и
+ * «Наименование объекта закупки» — как в форме, отдельной строкой таблицы.
+ * Действия — вне формы ЕИС, идут последней графой без заголовка.
  */
-const COLUMN_DEFS = [
-  { key: "serialNumber", title: "№ п/п" },
-  {
-    key: "plannedPlacementYear",
-    title:
-      "Планируемый год размещения извещения, направления приглашения, заключения контракта с единственным поставщиком (подрядчиком, исполнителем)",
-  },
-  { key: "purchaseNumber", title: "Номер закупки, включенной в план-график" },
-  { key: "objectOfPurchase", title: "Наименование объекта (объектов) закупки" },
-  { key: "identificationCode", title: "Идентификационный код закупки" },
-  {
-    key: "okpd2Code",
-    title: "Наименование товара, работы, услуги по ОКПД2",
-  },
-  {
-    key: "amountTotal",
-    title: "Объём финансового обеспечения, всего (рублей)",
-  },
-  { key: "status", title: "Статус" },
-  { key: "isPublicDiscussionRequired", title: "Обязательное общественное обсуждение" },
-  { key: "actions", title: "Действия" },
+const ROW_COLUMNS = [
+  "plannedPlacementYear",
+  "purchaseNumber",
+  "objectOfPurchase",
+  "okpd2Code",
+  "kbk",
+  "amountTotal",
+  "amountCurrentYear",
+  "amountPlanPeriodFirstYear",
+  "amountPlanPeriodSecondYear",
+  "amountSubsequentYears",
+  "status",
+  "isPublicDiscussionRequired",
 ] as const;
 
-type ColumnKey = (typeof COLUMN_DEFS)[number]["key"];
+type ColumnKey = (typeof ROW_COLUMNS)[number];
+
+// Ценовые графы записи: под общей шапкой «Объём финансового обеспечения»
+const AMOUNT_COLUMNS = [
+  "amountTotal",
+  "amountCurrentYear",
+  "amountPlanPeriodFirstYear",
+  "amountPlanPeriodSecondYear",
+  "amountSubsequentYears",
+] as const;
+
+type AmountKey = (typeof AMOUNT_COLUMNS)[number];
 
 // Узкие графы: содержимое короткое, ширину на себя тянуть не должно
 const NARROW_COLUMNS: ColumnKey[] = [
-  "serialNumber",
   "plannedPlacementYear",
   "purchaseNumber",
   "status",
@@ -103,14 +102,10 @@ const NARROW_COLUMNS: ColumnKey[] = [
 ];
 
 // Широкие графы: наименования режутся в две строки, поэтому им нужен запас
-const WIDE_COLUMNS: ColumnKey[] = [
-  "objectOfPurchase",
-  "okpd2Code",
-  "identificationCode",
-];
+const WIDE_COLUMNS: ColumnKey[] = ["objectOfPurchase", "okpd2Code"];
 
-// Строка итогов по КБК: подпись занимает графы до ОКПД2, дальше — количество
-// записей, объём финансового обеспечения и пустые ячейки до конца строки
+// Строка итогов по КБК: подпись занимает графы до КБК включительно, дальше —
+// пять ценовых граф, затем пустые ячейки до конца строки
 const GROUP_SUMMARY_COLSPAN = 5;
 
 // Сколько записей показывать: как в списке планов и в личном кабинете ЕИС
@@ -328,6 +323,7 @@ export default function PurchasePlanCard() {
   }
 
   const { customer } = plan;
+  const labels = planPeriodLabels(plan.planYear);
   const planId = plan.id as string | number;
   // Вложенные функции вызываются после проверок загрузки, но TypeScript не
   // переносит в них сужение plan, поэтому план передаётся через const
@@ -379,84 +375,62 @@ export default function PurchasePlanCard() {
     );
   }
 
-  // Рендер ячейки столбца
+  // Рендер ячейки графы записи
   function renderCell(
     key: ColumnKey,
     position: PurchasePlanPosition,
   ): React.ReactNode {
-    if (key === "actions") return "—"; // действия обрабатываются отдельно
-    const value = position[key as Exclude<ColumnKey, "actions">];
     switch (key) {
-      // Номер записи и её уникальный номер: номер плана-графика и
-      // шестизначный порядковый номер записи
-      case "serialNumber": {
-        const order =
-          position.serialNumber || String(positions.indexOf(position) + 1);
-        const unique =
-          position.uniqueNumber ||
-          buildPositionUniqueNumber(currentPlan.planNumber, order);
-
-        return (
-          <>
-            <span className={block("object")}>{order}</span>
-            {unique && (
-              <span
-                className={block("sub")}
-                title="Уникальный номер позиции в плане-графике закупок"
-              >
-                {unique}
-              </span>
-            )}
-          </>
-        );
-      }
       case "plannedPlacementYear":
-        return value || "—";
+        return position.plannedPlacementYear || "—";
       case "purchaseNumber":
-        return value ? String(value).padStart(4, "0") : "—";
+        return position.purchaseNumber
+          ? String(position.purchaseNumber).padStart(4, "0")
+          : "—";
       case "objectOfPurchase":
-        // ИКЗ теперь отдельная графа формы — под объектом его больше не дублируем
-        return <span className={block("object")}>{value || "—"}</span>;
-      case "identificationCode":
-        return value ? (
-          <span className={block("code", ["ikz"])}>{value}</span>
-        ) : (
-          "—"
+        return (
+          <span className={block("object")}>
+            {position.objectOfPurchase || "—"}
+          </span>
         );
-      case "amountTotal": {
-        // КБК относится к суммам записи, поэтому стоит над своим итогом и
-        // остаётся кнопкой группировки. Кодов у записи может быть несколько —
-        // показываем первый и число остальных
+      case "kbk": {
+        // КБК один на все ценовые графы записи и остаётся кнопкой
+        // группировки. Кодов у записи может быть несколько — показываем
+        // первый и число остальных
         const codes = positionKbkCodes(position);
+        if (codes.length === 0) return "—";
 
         return (
-          <>
-            {codes.length > 0 && (
-              <button
-                className={block("kbk-btn")}
-                type="button"
-                title={
-                  codes.length > 1
-                    ? `Коды бюджетной классификации записи: ${codes
-                        .map(formatKbk)
-                        .join("; ")}`
-                    : "Сгруппировать записи плана-графика по этому КБК"
-                }
-                onClick={() => {
-                  const next = codes[0];
-                  setGroupKbk(groupKbk === next ? null : next);
-                }}
-              >
-                {formatKbk(codes[0])}
-                {codes.length > 1 && ` +${codes.length - 1}`}
-              </button>
-            )}
-            <span className={block("amount")}>
-              {formatMoneyValue(position.amountTotal)}
-            </span>
-          </>
+          <button
+            className={block("kbk-btn")}
+            type="button"
+            title={
+              codes.length > 1
+                ? `Коды бюджетной классификации записи: ${codes
+                    .map(formatKbk)
+                    .join("; ")}`
+                : "Сгруппировать записи плана-графика по этому КБК"
+            }
+            onClick={() => {
+              const next = codes[0];
+              setGroupKbk(groupKbk === next ? null : next);
+            }}
+          >
+            {formatKbk(codes[0])}
+            {codes.length > 1 && ` +${codes.length - 1}`}
+          </button>
         );
       }
+      case "amountTotal":
+      case "amountCurrentYear":
+      case "amountPlanPeriodFirstYear":
+      case "amountPlanPeriodSecondYear":
+      case "amountSubsequentYears":
+        return (
+          <span className={block("amount")}>
+            {formatMoneyValue(position[key])}
+          </span>
+        );
       // Статус записи и дата, когда она размещена (план-график прошёл контроль).
       // Записи без статуса считаются запланированными
       case "status": {
@@ -476,13 +450,17 @@ export default function PurchasePlanCard() {
         );
       }
       case "isPublicDiscussionRequired":
-        return value ? "Да" : "Нет";
+        return position.isPublicDiscussionRequired ? "Да" : "Нет";
       case "okpd2Code": {
         const normedRef = findOkpd2ByCode(okpd2Refs, position.okpd2Code);
 
         return (
           <>
-            {value ? <span className={block("code")}>{value}</span> : "—"}
+            {position.okpd2Code ? (
+              <span className={block("code")}>{position.okpd2Code}</span>
+            ) : (
+              "—"
+            )}
             {/* Наименование по ОКПД2 — эта же графа в просмотре плана-графика */}
             {position.okpd2Name && (
               <span
@@ -507,7 +485,7 @@ export default function PurchasePlanCard() {
         );
       }
       default:
-        return value || "—";
+        return "—";
     }
   }
 
@@ -562,68 +540,113 @@ export default function PurchasePlanCard() {
     );
   }
 
-  // Строка позиции
+  // Запись плана-графика — две строки таблицы: первая с графами, вторая с ИКЗ
+  // под «Номером закупки» и «Наименованием объекта закупки» (как в форме ПГ).
+  // Действия занимают обе строки.
   function renderPositionRow(position: PurchasePlanPosition, isSub = false) {
+    const rowStyle = isSub
+      ? { background: "var(--stripe)", fontSize: "12px" }
+      : undefined;
+
     return (
-      <tr key={isSub ? `sub-${position.id}` : String(position.id)}>
-        {COLUMN_DEFS.map((col) => {
-          if (col.key === "actions") {
-            return (
-              <td key={col.key} className={block("cell")}>
-                {renderActionsCell(position)}
-              </td>
-            );
-          }
-
-          return (
+      <Fragment key={String(position.id)}>
+        <tr style={rowStyle}>
+          {ROW_COLUMNS.map((key) => (
             <td
-              key={col.key}
+              key={key}
               className={block("cell", [
-                ...(NARROW_COLUMNS.includes(col.key) ? ["narrow"] : []),
-                ...(WIDE_COLUMNS.includes(col.key) ? ["wide"] : []),
+                ...(NARROW_COLUMNS.includes(key) ? ["narrow"] : []),
+                ...(WIDE_COLUMNS.includes(key) ? ["wide"] : []),
+                ...((AMOUNT_COLUMNS as readonly ColumnKey[]).includes(key)
+                  ? ["amount"]
+                  : []),
               ])}
-              style={
-                isSub
-                  ? { background: "var(--stripe)", fontSize: "12px" }
-                  : undefined
-              }
             >
-              {renderCell(col.key, position)}
+              {renderCell(key, position)}
             </td>
-          );
-        })}
-      </tr>
+          ))}
+          <td className={block("cell", ["actions"])} rowSpan={2}>
+            {renderActionsCell(position)}
+          </td>
+        </tr>
+        <tr style={rowStyle} className={block("ikz-row")}>
+          {/* Под графой «Планируемый год» — пусто, тянется фоновой линией */}
+          <td className={block("cell", ["narrow"])} />
+          <td className={block("cell", ["ikz"])} colSpan={2}>
+            {position.identificationCode ? (
+              <>
+                <span className={block("ikz-label")}>ИКЗ</span>
+                <span className={block("code", ["ikz"])}>
+                  {position.identificationCode}
+                </span>
+              </>
+            ) : (
+              <span className={block("ikz-label")}>ИКЗ не сформирован</span>
+            )}
+          </td>
+          {/* Пустые ячейки под остальными графами первой строки */}
+          {Array.from({
+            length:
+              ROW_COLUMNS.length -
+              // год (1) и номер+объект (2) уже заняты
+              3,
+          }).map((_, index) => (
+            <td key={`ikz-empty-${index}`} className={block("cell")} />
+          ))}
+        </tr>
+      </Fragment>
     );
   }
 
-  // Итог группы по графе объёма финансового обеспечения
-  function groupAmounts(group: GroupEntry) {
+  // Итоги группы по пяти ценовым графам записи
+  function groupAmounts(group: GroupEntry): Record<AmountKey, number> {
     return group.positions.reduce(
-      (sum, position) => sum + (toNumber(position.amountTotal) ?? 0),
-      0,
+      (acc, position) => {
+        acc.amountTotal += toNumber(position.amountTotal) ?? 0;
+        acc.amountCurrentYear += toNumber(position.amountCurrentYear) ?? 0;
+        acc.amountPlanPeriodFirstYear +=
+          toNumber(position.amountPlanPeriodFirstYear) ?? 0;
+        acc.amountPlanPeriodSecondYear +=
+          toNumber(position.amountPlanPeriodSecondYear) ?? 0;
+        acc.amountSubsequentYears +=
+          toNumber(position.amountSubsequentYears) ?? 0;
+        return acc;
+      },
+      {
+        amountTotal: 0,
+        amountCurrentYear: 0,
+        amountPlanPeriodFirstYear: 0,
+        amountPlanPeriodSecondYear: 0,
+        amountSubsequentYears: 0,
+      },
     );
   }
 
-  // Строка итогов по группе КБК: подпись занимает графы до ОКПД2 включительно,
-  // дальше количество записей, объём финансового обеспечения и пустые ячейки
-  // до конца строки
+  // Строка итогов по группе КБК: подпись занимает графы до КБК включительно,
+  // дальше пять ценовых граф и пустые ячейки до конца строки
   function groupAmountsRow(group: GroupEntry) {
-    const total = groupAmounts(group);
-    const filledColumns = GROUP_SUMMARY_COLSPAN + 2;
+    const amounts = groupAmounts(group);
+    const filledColumns = GROUP_SUMMARY_COLSPAN + AMOUNT_COLUMNS.length;
 
     return (
       <tr key={`sum-${group.kbk}`} className={block("group-row")}>
         <td className={block("cell")} colSpan={GROUP_SUMMARY_COLSPAN}>
           <strong>Итого по КБК {formatKbk(group.kbk)}</strong>
+          <span className={block("sub")}>
+            Позиций в группе: {group.positions.length}
+          </span>
         </td>
-        <td className={block("cell")}>Позиций: {group.positions.length}</td>
-        <td className={block("cell")}>
-          <span className={block("amount")}>{formatMoneyValue(total)}</span>
-        </td>
+        {AMOUNT_COLUMNS.map((key) => (
+          <td key={key} className={block("cell", ["amount"])}>
+            <span className={block("amount")}>
+              {formatMoneyValue(amounts[key])}
+            </span>
+          </td>
+        ))}
         {Array.from({
-          length: Math.max(0, COLUMN_DEFS.length - filledColumns),
-        }).map((_, i) => (
-          <td key={i} />
+          length: Math.max(0, ROW_COLUMNS.length + 1 - filledColumns),
+        }).map((_, index) => (
+          <td key={`sum-empty-${index}`} />
         ))}
       </tr>
     );
@@ -802,18 +825,40 @@ export default function PurchasePlanCard() {
               <div className={block("table-wrapper")}>
                 <table className={block("table")}>
                   <thead>
+                    {/* Шапка в две строки, как в форме ПГ: под «Номером
+                        закупки» и «Наименованием объекта закупки» стоит ИКЗ,
+                        а «Объём финансового обеспечения» раскрыт по годам */}
                     <tr>
-                      {COLUMN_DEFS.map((col) => (
-                        <th
-                          key={col.key}
-                          className={block(
-                            "th",
-                            NARROW_COLUMNS.includes(col.key) ? ["narrow"] : [],
-                          )}
-                        >
-                          {col.title}
-                        </th>
-                      ))}
+                      <th rowSpan={2} className={block("th", ["year"])}>
+                        Планируемый год размещения извещения, направления
+                        приглашения, заключения контракта с единственным
+                        поставщиком (подрядчиком, исполнителем)
+                      </th>
+                      <th>Номер закупки, включенной в план-график</th>
+                      <th>Наименование объекта (объектов) закупки</th>
+                      <th rowSpan={2}>Наименование товара, работы, услуги по ОКПД2</th>
+                      <th rowSpan={2}>Код бюджетной классификации</th>
+                      <th
+                        colSpan={AMOUNT_COLUMNS.length}
+                        className={block("th", ["amount"])}
+                      >
+                        Объём финансового обеспечения, всего (рублей)
+                      </th>
+                      <th rowSpan={2} className={block("th", ["narrow"])}>
+                        Статус
+                      </th>
+                      <th rowSpan={2} className={block("th", ["narrow"])}>
+                        Обязательное общественное обсуждение
+                      </th>
+                      <th rowSpan={2} aria-label="Действия" />
+                    </tr>
+                    <tr>
+                      <th colSpan={2}>Идентификационный код закупки</th>
+                      <th>{labels.total}</th>
+                      <th>{labels.currentYear}</th>
+                      <th>{labels.firstPlanYear}</th>
+                      <th>{labels.secondPlanYear}</th>
+                      <th>{labels.subsequentYears}</th>
                     </tr>
                   </thead>
                   <tbody>
