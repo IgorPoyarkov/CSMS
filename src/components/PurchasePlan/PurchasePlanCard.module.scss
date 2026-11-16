@@ -201,7 +201,6 @@
     th,
     td {
       padding: 10px 12px;
-      text-align: left;
       vertical-align: top;
       border: 1px solid var(--border);
     }
@@ -218,6 +217,15 @@
       background: var(--stripe);
       white-space: normal;
       vertical-align: bottom;
+    }
+
+    // Графа «Номер закупки…»: значение — четыре цифры, а подпись длинная,
+    // поэтому подпись мельче и уже, а общая ширина таблицы не меняется
+    th[data-col="number"] {
+      width: 84px;
+      padding: 8px 6px;
+      font-size: 10px;
+      letter-spacing: 0.01em;
     }
   }
 
@@ -239,11 +247,20 @@
     font-weight: 600;
   }
 
-  // Графа ОКПД2: код и знак нормирования в одну строку
+  // Графа ОКПД2: название выбранного кода и сам код мелкой строкой под ним
   &__okpd2 {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    display: block;
+  }
+
+  &__okpd2-name {
+    display: block;
+    color: var(--text-primary);
+  }
+
+  // Код под названием — мелкой строкой, чтобы графа читалась как в форме
+  &__okpd2 &__code {
+    margin-top: 2px;
+    font-size: 11px;
     color: var(--text-secondary);
   }
 
@@ -255,6 +272,8 @@
     justify-content: center;
     width: 15px;
     height: 15px;
+    margin-left: 6px;
+    vertical-align: middle;
     border: 1px solid var(--state-warning);
     border-radius: 50%;
     font-family: inherit;
@@ -375,7 +394,9 @@
       white-space: nowrap;
     }
 
-    // Короткие значения (статус, общественное обсуждение) — по центру
+    // Текстовые графы (объект закупки, ОКПД2) читаются слева, остальные
+    // значения — по центру: короткие числа и статусы в широких ячейках так
+    // выглядят ровнее
     &--center {
       text-align: center;
     }
@@ -395,7 +416,8 @@
     // Действия занимают обе строки записи и не раздувают таблицу
     &--actions {
       width: 1%;
-      vertical-align: middle;
+      vertical-align: top;
+      text-align: center;
     }
 
     // Ячейка с ИКЗ во второй строке записи
@@ -460,6 +482,7 @@
   &__row-actions {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 6px;
   }
 

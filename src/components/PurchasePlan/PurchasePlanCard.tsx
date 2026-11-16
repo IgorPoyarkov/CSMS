@@ -46,8 +46,8 @@ import styles from "./PurchasePlanCard.module.scss";
  *    заключения контракта с единственным поставщиком;
  * 2. номер закупки, включённой в план-график;
  * 3. наименование объекта (объектов) закупки;
- * 4. наименование товара, работы, услуги по ОКПД2 — код, выбранный
- *    пользователем; у нормируемых позиций рядом стоит знак «i»;
+ * 4. наименование товара, работы, услуги по ОКПД2 — название выбранного
+ *    кода и сам код мелкой строкой; у нормируемых позиций рядом стоит «i»;
  * 5. объём финансового обеспечения, всего (рублей) — одна итоговая графа:
  *    разбивка по годам живёт в записи плана, а не в графах позиции;
  * 6. статус (и дата размещения, когда план-график прошёл контроль);
@@ -324,9 +324,10 @@ export default function PurchasePlanCard() {
           </span>
         );
       case "okpd2Code": {
-        // Код, выбранный пользователем; расшифровка не дублируется —
-        // наименование объекта и есть наименование по ОКПД2
+        // Наименование по ОКПД2, выбранное пользователем, и сам код мелкой
+        // строкой под ним; у нормируемых позиций рядом стоит знак «i»
         const normedRef = findOkpd2ByCode(okpd2Refs, position.okpd2Code);
+        const okpd2Name = position.okpd2Name || normedRef?.name;
         const normTip = normedRef?.isNormed
           ? normedRef.normLimit !== undefined
             ? `Обязательное нормирование: цена единицы не выше ${formatMoney(normedRef.normLimit)} (ПП РФ N 926)`
@@ -335,19 +336,20 @@ export default function PurchasePlanCard() {
 
         return (
           <span className={block("okpd2")}>
-            {position.okpd2Code ? (
+            <span className={block("okpd2-name")}>
+              {okpd2Name || position.okpd2Code || "—"}
+              {normTip && (
+                <span
+                  className={block("info")}
+                  title={normTip}
+                  aria-label={normTip}
+                >
+                  i
+                </span>
+              )}
+            </span>
+            {position.okpd2Code && (
               <span className={block("code")}>{position.okpd2Code}</span>
-            ) : (
-              "—"
-            )}
-            {normTip && (
-              <span
-                className={block("info")}
-                title={normTip}
-                aria-label={normTip}
-              >
-                i
-              </span>
             )}
           </span>
         );
@@ -456,9 +458,10 @@ export default function PurchasePlanCard() {
                 ...((AMOUNT_COLUMNS as readonly ColumnKey[]).includes(key)
                   ? ["amount"]
                   : []),
-                ...(key === "status" || key === "isPublicDiscussionRequired"
-                  ? ["center"]
-                  : []),
+                // Текстовые графы (объект закупки, ОКПД2) читаются слева
+                ...(key === "objectOfPurchase" || key === "okpd2Code"
+                  ? []
+                  : ["center"]),
               ])}
             >
               {renderCell(key, position)}
@@ -469,7 +472,7 @@ export default function PurchasePlanCard() {
           </td>
         </tr>
         <tr className={block("row", ["ikz", ...(striped ? ["striped"] : [])])}>
-          <td className={block("cell", ["ikz"])} colSpan={2}>
+          <td className={block("cell", ["ikz", "center"])} colSpan={2}>
             {position.identificationCode ? (
               <span className={block("code", ["ikz"])}>
                 {position.identificationCode}
@@ -636,7 +639,10 @@ export default function PurchasePlanCard() {
                         приглашения, заключения контракта с единственным
                         поставщиком (подрядчиком, исполнителем)
                       </th>
-                      <th className={block("th", ["narrow"])}>
+                      <th
+                        className={block("th", ["narrow"])}
+                        data-col="number"
+                      >
                         Номер закупки, включенной в план-график
                       </th>
                       <th>Наименование объекта (объектов) закупки</th>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker from "../UI/PageSizePicker";
@@ -51,6 +51,25 @@ export default function PurchasePlanList() {
   // Пагинация
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
+
+  // Выпадающий список действий закрывается по клику вне меню: <details>
+  // сам этого не умеет, а оставлять открытое меню в таблице неудобно
+  useEffect(() => {
+    function closeMenus(event: MouseEvent) {
+      const target = event.target as Node | null;
+
+      document
+        .querySelectorAll<HTMLDetailsElement>("details[data-plan-actions][open]")
+        .forEach((details) => {
+          if (!target || !details.contains(target)) {
+            details.removeAttribute("open");
+          }
+        });
+    }
+
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, []);
 
   function handleDelete(plan: PurchasePlan) {
     if (
@@ -273,29 +292,46 @@ export default function PurchasePlanList() {
                     <td>{formatMoney(planTotalAmount(plan))}</td>
                     <td>{formatDate(plan.approvalDate)}</td>
                     <td>
-                      <div className={block("actions")}>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/purchase-plans/${plan.id}`)}
-                        >
-                          Открыть
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            navigate(`/purchase-plans/${plan.id}/edit`)
+                      <details className={block("menu")} data-plan-actions>
+                        <summary className={block("menu-trigger")}>
+                          Действия
+                        </summary>
+                        <div
+                          className={block("menu-list")}
+                          onClick={(event) =>
+                            event.currentTarget
+                              .closest("details")
+                              ?.removeAttribute("open")
                           }
                         >
-                          Изменить
-                        </button>
-                        <button
-                          type="button"
-                          disabled={isDeleting}
-                          onClick={() => handleDelete(plan)}
-                        >
-                          Удалить
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            className={block("menu-item")}
+                            onClick={() =>
+                              navigate(`/purchase-plans/${plan.id}`)
+                            }
+                          >
+                            Открыть
+                          </button>
+                          <button
+                            type="button"
+                            className={block("menu-item")}
+                            onClick={() =>
+                              navigate(`/purchase-plans/${plan.id}/edit`)
+                            }
+                          >
+                            Изменить
+                          </button>
+                          <button
+                            type="button"
+                            className={block("menu-item", ["danger"])}
+                            disabled={isDeleting}
+                            onClick={() => handleDelete(plan)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </details>
                     </td>
                   </tr>
                 ))}
