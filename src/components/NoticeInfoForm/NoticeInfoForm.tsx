@@ -29,6 +29,7 @@ import PurchaseObjectsSection from "./sections/PurchaseObjectsSection";
 import NormingControlSection from "./sections/NormingControlSection";
 import NormingSubmitButton from "./sections/NormingSubmitButton";
 import ParticipantsRequirementsSection from "./sections/ParticipantsRequirementsSection";
+import ObjectDescriptionSection from "./sections/ObjectDescriptionSection";
 import AttachedDocsSection from "./sections/AttachedDocsSection";
 
 interface LocationState {
@@ -41,6 +42,10 @@ interface LocationState {
   // Требование по СМП наследуется из служебки по позиции ПГ
   smpRequiredPercent?: number;
   purchaseNoteNumber?: string;
+  // Из позиции плана-графика при создании СЗ
+  authorizedBodyName?: string;
+  jointOrganizerName?: string;
+  kbk?: string;
 }
 
 const formatMskDateTime = (date: Date): string => {
@@ -99,6 +104,9 @@ const NoticeInfoForm = () => {
         planPositionNumber: state.planPositionNumber ?? String(id ?? ""),
         ikz: rawIkz,
         nmck: state.nmck ?? 0,
+        authorizedBodyName: state.authorizedBodyName ?? "",
+        jointOrganizerName: state.jointOrganizerName ?? "",
+        kbk: state.kbk ?? "",
       },
       purchaseObjectsCh9St37: false,
       contactInfo: {
@@ -316,6 +324,7 @@ const NoticeInfoForm = () => {
           <ProcedureDatesSection />
           <ContractConditionsSection />
           <PurchaseObjectsSection />
+          <ObjectDescriptionSection />
           <NormingControlSection />
           <ParticipantsRequirementsSection />
           <AttachedDocsSection />

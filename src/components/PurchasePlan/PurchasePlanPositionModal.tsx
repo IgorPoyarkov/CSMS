@@ -1,4 +1,4 @@
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
 import CustomModal from "../UI/CustomModal";
@@ -162,7 +162,8 @@ export default function PurchasePlanPositionModal({
 
   return (
     <CustomModal onClose={onClose}>
-      <form className={block()} onSubmit={handleSubmit(onSubmit)}>
+      <FormProvider {...methods}>
+        <form className={block()} onSubmit={handleSubmit(onSubmit)}>
         <header className={block("header")}>
           <h2 className={block("title")}>
             {isNew
@@ -458,7 +459,8 @@ export default function PurchasePlanPositionModal({
             </button>
           </div>
         </footer>
-      </form>
+        </form>
+      </FormProvider>
     </CustomModal>
   );
 

@@ -22,6 +22,7 @@ import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
+import EdsJournalPage from "./components/Eds/EdsJournalPage";
 
 const router = createBrowserRouter([
   {
@@ -110,6 +111,11 @@ const router = createBrowserRouter([
         // Реестр законодательных актов и связей норм с компонентами системы
         path: "/legal-acts",
         element: <LegalActsRegistry />,
+      },
+      {
+        // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал
+        path: "/eds/journal",
+        element: <EdsJournalPage />,
       },
     ],
   },

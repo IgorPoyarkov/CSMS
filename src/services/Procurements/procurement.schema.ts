@@ -7,6 +7,9 @@ export const RawProcurementSchema = z.object({
   "Номер извещения": z.string().nullable().optional(),
   "Начальная (максимальная) цена контракта, руб": z.coerce.number(),
   "Тип закупки": z.string(),
+  "Уполномоченный орган (учреждение)": z.string().optional(),
+  "Организатор совместной закупки": z.string().optional(),
+  "КБК": z.string().optional(),
 });
 
 export const ProcurementSchema = RawProcurementSchema.transform((raw) => ({
@@ -16,6 +19,9 @@ export const ProcurementSchema = RawProcurementSchema.transform((raw) => ({
   noticeNumber: raw["Номер извещения"] || null,
   nmck: raw["Начальная (максимальная) цена контракта, руб"],
   procurementType: raw["Тип закупки"],
+  authorizedBodyName: raw["Уполномоченный орган (учреждение)"] || null,
+  jointOrganizerName: raw["Организатор совместной закупки"] || null,
+  kbk: raw["КБК"] || null,
 }));
 
 export const ProcurementListSchema = z.array(ProcurementSchema);

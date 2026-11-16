@@ -11,6 +11,7 @@ import {
   normingViolation,
 } from "../../../services/Okpd2Ref/normingControl";
 import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
+import NormingRequirementsBlock from "./NormingRequirementsBlock";
 import styles from "../NoticeInfoForm.module.scss";
 
 const PurchaseObjectsSection = () => {
@@ -292,6 +293,12 @@ const PurchaseObjectsSection = () => {
                       Удалить позицию
                     </button>
                   </div>
+
+                  {/* Типовые требования по п. 7 ПП 926 для нормируемых позиций */}
+                  <NormingRequirementsBlock
+                    index={index}
+                    okpd2OrKtruCode={items[index]?.okpd2OrKtruCode}
+                  />
                 </div>
               );
             })}

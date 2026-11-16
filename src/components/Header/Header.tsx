@@ -133,6 +133,12 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eds/journal"}>
+              <span className={nav("link-name")}>Журнал ЭП</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item", ["end"])}>
             {user ? (
               <div

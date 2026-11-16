@@ -61,6 +61,23 @@ export const PurchaseObjectItemSchema = z.object({
   trademarks: z.string().optional(),
   isSupplyDuringWorks: z.boolean(),
   nationalRegimeType: z.enum(["none", "ban", "restriction", "advantage"]),
+  // Типовые требования по п. 7 ПП РФ N 926 (обязательное нормирование).
+  // Заполняются для нормируемых позиций ОКПД2 — потребительские, качественные,
+  // функциональные и прочие свойства товара/работы/услуги.
+  normingRequirements: z
+    .array(
+      z.object({
+        id: z.string(),
+        requirementType: z.enum([
+          "consumer",
+          "quality",
+          "functional",
+          "other",
+        ]),
+        requirementText: z.string().min(1, "Укажите требование"),
+      }),
+    )
+    .optional(),
 });
 
 export const EvaluationCriterionSchema = z.object({
@@ -116,6 +133,9 @@ export const NoticeInfoSchema = z.object({
     planPositionNumber: z.string(),
     ikz: z.string().min(36, "ИКЗ должен содержать 36 символов"),
     nmck: z.number().nonnegative(),
+    authorizedBodyName: z.string().optional(),
+    jointOrganizerName: z.string().optional(),
+    kbk: z.string().optional(),
   }),
 
   // ВКЛАДКА 1: Жизнеобеспечение (ч. 9 ст. 37)
@@ -200,6 +220,23 @@ export const NoticeInfoSchema = z.object({
     isIndeterminateVolume: z.boolean(),
     items: z.array(PurchaseObjectItemSchema),
   }),
+
+  // ВКЛАДКА 4: Структурированное описание объекта закупки
+  // (ПП РФ от 08.02.2017 № 145 — требования к описанию объекта закупки).
+  // Дополняет типовые требования normingRequirements (ПП РФ N 926) и
+  // Positionen объекта закупки purchaseObjects.items.
+  objectDescription: z
+    .object({
+      objectName: z.string().optional(),
+      okpd2Code: z.string().optional(),
+      okpd2Name: z.string().optional(),
+      consumerProperties: z.string().optional(),
+      qualityCharacteristics: z.string().optional(),
+      functionalProperties: z.string().optional(),
+      environmentalCharacteristics: z.string().optional(),
+      otherRequirements: z.string().optional(),
+    })
+    .optional(),
 
   // ВКЛАДКА 5: Требования к участникам, критерии и обеспечение
   participantsRequirements: z.object({

@@ -406,3 +406,101 @@
     color: var(--state-danger);
   }
 }
+
+// Описание объекта закупки (ПП РФ N 145)
+.object-description {
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__section-title {
+    margin: 0 0 6px;
+    padding-bottom: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+  }
+
+  &__hint {
+    margin: 0 0 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  &__field-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__label {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__input {
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: var(--surface-field);
+    color: var(--text-primary);
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+
+  &__textarea {
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background-color: var(--surface-field);
+    color: var(--text-primary);
+    resize: vertical;
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+
+  &__preview {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  &__preview-title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__preview-text {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+}

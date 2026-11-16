@@ -17,6 +17,17 @@ dist-ssr
 .tmp
 *.tsbuildinfo
 
+# Временные артефакты локальных проверок и скриптов
+.tmpcheck/
+tsc_check.txt
+tsc_output.txt
+check-seeds.mjs
+_tmp_*.mjs
+
+# Конфиги сторонних AI-инструментов
+opencode.json
+AGENTS.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
