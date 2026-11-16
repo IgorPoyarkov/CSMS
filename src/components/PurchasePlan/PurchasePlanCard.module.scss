@@ -201,11 +201,12 @@
     }
 
     th {
-      font-size: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      line-height: 1.35;
+      line-height: 1.3;
       color: var(--text-secondary);
       background: var(--stripe);
       white-space: normal;
@@ -213,10 +214,10 @@
     }
   }
 
-  // Шапка узкой графы: содержимое короткое, ширину на себя тянуть не должно
+  // Шапка узкой графы: содержимое короткое, ширину на себя тянуть не должно.
+  // Подпись переносится по словам, чтобы длинный заголовок не растягивал графу
   &__th--narrow {
     width: 1%;
-    white-space: nowrap;
   }
 
   // Общая шапка ценовых граф
@@ -224,9 +225,11 @@
     text-align: center;
   }
 
-  // Длинная подпись графы «Планируемый год…» переносится на несколько строк
+  // Графа «Планируемый год…»: длинная подпись, но само значение — четыре
+  // цифры, поэтому графа узкая
   &__th--year {
-    min-width: 150px;
+    width: 110px;
+    min-width: 110px;
   }
 
   &__object {
@@ -234,7 +237,7 @@
     font-weight: 600;
   }
 
-  // ИКЗ — под строкой объекта закупки: графа для кода не выделяем
+  // Вторая строка ячейки: дата статуса, число позиций в группе и т. п.
   &__sub {
     display: block;
     font-family: "Courier New", monospace;
@@ -365,7 +368,7 @@
       white-space: nowrap;
     }
 
-    // Наименования и ИКЗ — графы, ради которых таблица и существует;
+    // Наименование объекта — графа, ради которой таблица и существует;
     // остальные поджимаются
     &--wide {
       min-width: 180px;
@@ -456,7 +459,8 @@
     }
   }
 
-  // КБК — кнопка, по нажатию на неё записи группируются по коду
+  // КБК — кнопка, по нажатию на неё записи группируются по коду. Код не
+  // переносится: маска целиком читается в одну строку
   &__kbk-btn {
     padding: 2px 6px;
     border: 1px dashed var(--border-strong);
@@ -465,6 +469,7 @@
     font-family: "Courier New", monospace;
     font-size: 12px;
     color: var(--accent);
+    white-space: nowrap;
     cursor: pointer;
     transition:
       background-color $transition-300,

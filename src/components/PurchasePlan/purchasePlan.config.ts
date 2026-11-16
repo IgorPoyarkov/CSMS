@@ -91,7 +91,8 @@ export const formatKbk = (kbk: string | undefined): string => {
     offset += length;
 
     return part;
-  }).join(" ");
+    // Неразрывные пробелы: маска КБК всегда читается в одну строку
+  }).join("\u00A0");
 };
 
 // Совокупный объём ПГ: берём указанный, иначе считаем по объёму
