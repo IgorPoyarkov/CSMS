@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
   usePurchasePlan,
-  useUpdatePurchasePlan,
 } from "../../services/PurchasePlan/purchasePlan.api";
 import { useAddProcurement } from "../../services/Procurements/procurement.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -14,12 +13,10 @@ import {
   positionStatusLabel,
 } from "./purchasePlan.config";
 import {
-  emptyPurchasePlanPosition,
   positionKbkCodes,
   toNumber,
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
-import PurchasePlanPositionModal from "./PurchasePlanPositionModal";
 import PurchaseNoteModal from "../PurchaseNote/PurchaseNoteModal";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import {
@@ -116,15 +113,6 @@ export default function PurchasePlanCard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<PageSizeValue>(PAGE_SIZES[0]);
   const [page, setPage] = useState(1);
-  // Правка отдельной записи плана-графика (Tasks 7, п. 4): изменяется одна
-  // позиция, а не весь документ. Индекс — положение записи в плане
-  const [editing, setEditing] = useState<{
-    position: PurchasePlanPosition;
-    index: number;
-    isNew: boolean;
-  } | null>(null);
-  const { mutate: updatePlan, isPending: isSavingPosition } =
-    useUpdatePurchasePlan();
 
   // Выпадающий список действий по открытой записи плана-графика
   const [openActionsPositionId, setOpenActionsPositionId] = useState<
@@ -281,46 +269,6 @@ export default function PurchasePlanCard() {
 
   const { customer } = plan;
   const planId = plan.id as string | number;
-  // Вложенные функции вызываются после проверок загрузки, но TypeScript не
-  // переносит в них сужение plan, поэтому план передаётся через const
-  const currentPlan = plan;
-
-  // Правка отдельной записи: план-график перезаписывается целиком (json-server
-  // не умеет точечного обновления вложенного массива), но из содержательных
-  // изменений получает только выбранную позицию
-  function savePosition(position: PurchasePlanPosition) {
-    if (!editing) {
-      return;
-    }
-
-    const nextPositions = editing.isNew
-      ? [...positions, position]
-      : positions.map((current, index) =>
-          index === editing.index ? position : current,
-        );
-
-    updatePlan(
-      { id: planId, data: { ...currentPlan, positions: nextPositions } },
-      { onSuccess: () => setEditing(null) },
-    );
-  }
-
-  function removePosition(index: number) {
-    if (!window.confirm("Удалить запись плана-графика?")) {
-      return;
-    }
-
-    updatePlan(
-      {
-        id: planId,
-        data: {
-          ...currentPlan,
-          positions: positions.filter((_, i) => i !== index),
-        },
-      },
-      { onSuccess: () => setEditing(null) },
-    );
-  }
 
   // Рендер ячейки графы записи
   function renderCell(
@@ -424,11 +372,9 @@ export default function PurchasePlanCard() {
             type="button"
             onClick={() => {
               setOpenActionsPositionId(null);
-              setEditing({
-                position,
-                index: positions.indexOf(position),
-                isNew: false,
-              });
+              navigate(
+                `/purchase-plans/${planId}/positions/${position.id}/edit`,
+              );
             }}
           >
             Изменить
@@ -589,16 +535,7 @@ export default function PurchasePlanCard() {
       <button
         type="button"
         className={block("add-btn")}
-        onClick={() =>
-          setEditing({
-            position: {
-              ...emptyPurchasePlanPosition(),
-              serialNumber: String(positions.length + 1),
-            },
-            index: positions.length,
-            isNew: true,
-          })
-        }
+        onClick={() => navigate(`/purchase-plans/${planId}/positions/new`)}
       >
         Добавить запись
       </button>
@@ -722,23 +659,6 @@ export default function PurchasePlanCard() {
           </>
         )}
       </fieldset>
-
-      {/* Правка отдельной записи плана-графика */}
-      {editing && (
-        <PurchasePlanPositionModal
-          plan={plan}
-          position={editing.position}
-          index={editing.index}
-          positions={positions}
-          isNew={editing.isNew}
-          isSaving={isSavingPosition}
-          onClose={() => setEditing(null)}
-          onSave={savePosition}
-          onDelete={
-            editing.isNew ? undefined : () => removePosition(editing.index)
-          }
-        />
-      )}
       {/* Служебная записка по позиции плана-графика (Tasks 9, п. 7, п/п 3) */}
       {notePosition && organizationId !== undefined && (
         <PurchaseNoteModal

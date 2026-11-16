@@ -10,6 +10,7 @@ import CustomModal from "./components/UI/CustomModal";
 import PurchasePlanList from "./components/PurchasePlan/PurchasePlanList";
 import PurchasePlanCard from "./components/PurchasePlan/PurchasePlanCard";
 import PurchasePlanForm from "./components/PurchasePlan/PurchasePlanForm";
+import PurchasePlanPositionEditPage from "./components/PurchasePlan/PurchasePlanPositionEditPage";
 import ProcurementProcessing from "./components/ProcurementProcessing/ProcurementProcessing";
 import NoticeInfoForm from "./components/NoticeInfoForm/NoticeInfoForm";
 import ContractServicePage from "./components/ContractService/ContractServicePage";
@@ -20,6 +21,7 @@ import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
+import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 
 const router = createBrowserRouter([
   {
@@ -54,6 +56,14 @@ const router = createBrowserRouter([
           { path: "new", element: <PurchasePlanForm /> },
           { path: ":id", element: <PurchasePlanCard /> },
           { path: ":id/edit", element: <PurchasePlanForm /> },
+          {
+            path: ":id/positions/new",
+            element: <PurchasePlanPositionEditPage />,
+          },
+          {
+            path: ":id/positions/:positionId/edit",
+            element: <PurchasePlanPositionEditPage />,
+          },
         ],
       },
       {
@@ -90,6 +100,11 @@ const router = createBrowserRouter([
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования
         path: "/okpd2",
         element: <Okpd2Dictionary />,
+      },
+      {
+        // Типовые требования по п. 7 ПП РФ N 926 для нормируемых кодов ОКПД2
+        path: "/norming-requirements",
+        element: <NormingRequirementsPage />,
       },
       {
         // Реестр законодательных актов и связей норм с компонентами системы
