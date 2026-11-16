@@ -118,6 +118,7 @@ export const SIGNATURE_EVENT_ACTIONS = [
   "smp_reject",
   "smp_eis_export",
   "penalty_accrue",
+  "eds_login",
 ] as const;
 
 export type SignatureEventAction = (typeof SIGNATURE_EVENT_ACTIONS)[number];
@@ -129,6 +130,7 @@ export const signatureEventActionLabels: Record<SignatureEventAction, string> =
     smp_reject: "Отклонение сведений",
     smp_eis_export: "Выгрузка сведений в ЕИС",
     penalty_accrue: "Начисление неустойки подрядчику",
+    eds_login: "Вход в систему по ЭП",
   };
 
 export const SIGNATURE_EVENT_RESULTS = [
@@ -150,6 +152,7 @@ export const SIGNATURE_EVENT_ENTITY_TYPES = [
   "contractSmpRecord",
   "contract",
   "contractPenalty",
+  "session",
 ] as const;
 
 export type SignatureEventEntityType =
@@ -162,6 +165,7 @@ export const signatureEventEntityTypeLabels: Record<
   contractSmpRecord: "Сведения о привлечении СМП",
   contract: "Контракт",
   contractPenalty: "Неустойка",
+  session: "Сеанс входа",
 };
 
 export const SignatureEventSchema = z.object({
@@ -329,4 +333,89 @@ export const extractSnilsFromSubject = (subject: string): string => {
 export const extractNameFromSubject = (subject: string): string => {
   const match = subject.match(/(?:CN|ФИО)\s*[:=]\s*([^,]+)/i);
   return match ? match[1].trim() : "";
+};
+
+// ─── Идентификация человека по сертификату ───────────────────────────────────
+
+// У работника в штатном расписании СНИЛС не хранится, поэтому связка
+// «сертификат → человек» строится по ФИО из subject и ИНН организации.
+// ФИО приводится к набору токенов: регистр, «ё»→«е», точки и дефисы в
+// написании отчества роли не играют («И.О.» и «Игоревна» сверяются отдельно).
+const personTokens = (value: string): string[] =>
+  (value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .split(/[^a-zа-я]+/i)
+    .filter(Boolean);
+
+// Фамилия совпадает только целиком, имя и отчество допускают инициал:
+// в subject квалифицированного сертификата встречается и
+// «Пояркова София Игоревна», и «Пояркова С. И.»
+const tokenMatches = (tokens: string[], word: string, allowInitial: boolean) =>
+  tokens.some(
+    (token) =>
+      token === word ||
+      (allowInitial && token.length === 1 && word.startsWith(token)),
+  );
+
+export const personNamesMatch = (
+  subjectName: string,
+  human: {
+    surname?: string;
+    name?: string;
+    patronymic?: string;
+  },
+): boolean => {
+  const tokens = personTokens(subjectName);
+  if (tokens.length === 0) return false;
+
+  const surname = (human.surname || "").toLowerCase().replace(/ё/g, "е").trim();
+  const name = (human.name || "").toLowerCase().replace(/ё/g, "е").trim();
+  const patronymic = (human.patronymic || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .trim();
+
+  if (!surname || !name) return false;
+  if (!tokenMatches(tokens, surname, false)) return false;
+  if (!tokenMatches(tokens, name, true)) return false;
+
+  // Отчество в сертификате указано — сверяем: тёзки с разными отчествами
+  // в штатке встречаются
+  if (patronymic && tokens.length >= 3) {
+    return tokenMatches(tokens, patronymic, true);
+  }
+
+  return true;
+};
+
+// Ключ сертификата для дедупликации: один и тот же контейнер плагин отдаёт
+// живьём, а реестр — записью с атрибутами, в интерфейсе он должен быть один раз
+export const certificateIdentityKey = (certificate: EdsCertificate): string =>
+  certificate.serialNumber
+    ? `serial:${certificate.serialNumber.toUpperCase()}`
+    : `id:${String(certificate.id ?? certificate.ownerName)}`;
+
+/**
+ * Живые сертификаты плагина ставим первыми, затем зарегистрированные за
+ * организацией; совпадающие по серийнику не дублируются.
+ */
+export const mergeCertificateLists = (
+  pluginCertificates: EdsCertificate[],
+  registeredCertificates: EdsCertificate[],
+): EdsCertificate[] => {
+  const seen = new Set<string>();
+  const merged: EdsCertificate[] = [];
+
+  for (const certificate of [
+    ...pluginCertificates,
+    ...registeredCertificates,
+  ]) {
+    const key = certificateIdentityKey(certificate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(certificate);
+  }
+
+  return merged;
 };

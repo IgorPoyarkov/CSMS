@@ -1,0 +1,224 @@
+/* Окно входа по ЭП — та же сетка, что у модалки подписания EdsSignModal:
+   окна одного домена должны выглядеть родными, а не разными по стилю */
+
+.eds-login {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+}
+
+.eds-login__window {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.eds-login__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.eds-login__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.eds-login__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0 4px;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.eds-login__plugin-ok,
+.eds-login__plugin-warn {
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.eds-login__plugin-ok {
+  background: var(--state-success-soft);
+  border: 1px solid var(--state-success);
+  color: var(--text-primary);
+}
+
+.eds-login__plugin-warn {
+  background: var(--state-warning-soft);
+  border: 1px solid var(--state-warning);
+  color: var(--text-primary);
+}
+
+.eds-login__warn-text {
+  display: block;
+  margin-top: 4px;
+  color: var(--state-warning);
+  font-weight: 600;
+}
+
+.eds-login__form {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eds-login__fieldset {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  legend {
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.eds-login__empty {
+  padding: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.eds-login__cert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eds-login__cert-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  input[type="radio"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  &--warn {
+    background: var(--state-warning-soft);
+    border-color: var(--state-warning);
+  }
+
+  &--danger {
+    background: var(--state-danger-soft);
+    border-color: var(--state-danger);
+  }
+}
+
+.eds-login__cert-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eds-login__cert-name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.eds-login__cert-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Итог проверки подписи: зелёный — плагин подписал наборт, жёлтый — вход
+   без проверки, серый — наборт ещё набирается */
+.eds-login__sign-ok {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-success);
+  font-weight: 600;
+}
+
+.eds-login__sign-pending {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.eds-login__sign-demo {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-warning);
+}
+
+.eds-login__error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-danger);
+}
+
+.eds-login__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.eds-login__btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+
+    &:hover {
+      background: var(--accent-hover);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}

@@ -72,7 +72,7 @@ tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessReque
 contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
 contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 14
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-edsCertificates 3 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Municipalities 89/31
+edsCertificates 4 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -101,7 +101,8 @@ edsCertificates 3 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Mun
   (контракт 5)**. ⚠️ При перенумерации сидов id19–22 уже использовались
   контрактом 1 — проверять занятость id перед вставкой.
 - `edsCertificates` id1 Говоров (active), id2 Иванов (`validTo` 2026-12-01 →
-  expiring), id3 Колесникова **чужой ИНН 3128071234** (для ветки «отказ»).
+  expiring, сотрудник не найден), id3 Колесникова **чужой ИНН 3128071234**
+  (для ветки «отказ»), id4 Пояркова (active, org2, вход для user2).
   `edsSignatureEvents` id1–3: signed / signed (`smp_eis_export`) /
   rejected_certificate (`innMatched: false`). `legalActs` содержит 63-ФЗ
   (`law-63fz`) и ПП 1466 — на них ссылаются сроки и подписи в UI.
@@ -173,7 +174,7 @@ edsCertificates 3 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Mun
 (+ `.module.scss`), роут `/eds/journal`, ссылка «Журнал ЭП» в `Header.tsx`.
 
 **Типы:** `EdsCertificate` (id, organizationId, ownerName, ownerPosition,
-ownerSnils, ogrn, subject, issuer, serialNumber, fingerprint,
+ownerSnils, **inn**, ogrn, subject, issuer, serialNumber, fingerprint,
 signatureAlgorithm, validFrom, validTo, isRevoked, revokeDate, isProxy,
 proxyNumber, source: `plugin` | `manual` | `imported`, note).
 `SignatureEvent` (id, organizationId, contractId, userId, userLabel,
@@ -203,6 +204,36 @@ expiring (≤60 дн.) / expired / revoked; `certificateBelongsToOrganization`.
 1. снимает сертификат пользователя и сохраняет метаданные,
 2. ведёт журнал действий (кто, когда, что подтвердил).
    Юридическая ответственность за подпись — у заказчика.
+
+**Вход по ЭП** (реализован в этой сессии):
+
+- `src/services/Eds/edsAuth.ts` — чистое сопоставление сертификата с учёткой:
+  `resolveEdsAccount(certificate, { organizations, employees, users, today })`
+  → `EdsLoginResolution { status, ok, message, organization?, employee?, user? }`.
+- Статусы: `ok` / `certificate_revoked` / `certificate_expired` /
+  `unknown_organization` / `employee_not_found` / `no_account` /
+  `account_org_mismatch` — каждый даёт внятное сообщение (не «неверный пароль»).
+- Цепочка: `certificate.inn` или `extractInnFromSubject(subject)` →
+  `organizations.inn` → `employees.filter(org)` + `personNamesMatch(ownerName,
+employee)` → `employee.userId` → `users`.
+- `cryptoPro.ts`: `readPluginSignHandles(orgId?)` (handles с raw-объектом
+  плагина), `makeLoginChallenge()` (nonce через `crypto.getRandomValues`),
+  `signLoginChallenge(handle, challenge)` (перебор вариантов вызова
+  `cp.webcrypto.sign`/`signEx` с разными алгоритмами, `null` = не удалось).
+- `eds.api.ts`: `useEdsLogin()` — загружает справочники, вызывает
+  `resolveEdsAccount`, пишет событие `eds_login` в `edsSignatureEvents`
+  (только если организация найдена — `organizationId: ""` = битая ссылка!),
+  при успехе ставит `localStorage.user_email` + обновляет `user` в кэше.
+  `useAllEdsCertificates()` — GET всех сертификатов (для экрана входа).
+- `EdsLoginForm.tsx` + `.module.scss` — выбор сертификата, показ статуса
+  подписи (зелёный = плагин подписал, жёлтый = режим `registry` без проверки
+  подписи), кнопка «Войти по ЭЦП».
+- `LoginForm.tsx`: переключатель «По email / По ЭЦП» (mode: "email" | "eds").
+
+**Честное ограничение стенда:** json-server **не проверяет подпись** —
+верификация набора возможна только на реальном бэкенде. Режим `registry`
+(плагина нет / не подписал) выполняет вход по совпадению ФИО+ИНН и помечает
+это в журнале как «без проверки подписи». На проде этот режим закрывается.
 
 ### Сведения о привлечении СМП (contractSmpRecords)
 
@@ -329,28 +360,32 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `useLogSignatureEvent`. **Общий хук роли** — `src/hooks/useMyContractRole.ts`
 (`{ user, organization, contractService, employee, myRole, isHead }`).
 
-## 7. Результат последней проверки (2026-11-16)
+## 7. Результат последней проверки (2026-11-16, вход по ЭП)
 
 - `npx tsc -b --pretty false` — **10 ошибок**, все в `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`
   (чужая WIP: TS2322 `string` → `never`, неисп. `control`, TS2345);
   **мои файлы чистые**.
-- `npm run build` — успешно (3.59s); `npx oxlint src` — **28 warnings, 1 error**
+- `npx vite build` — успешно (2.68s); `npx oxlint src` — **28 warnings, 1 error**
   (`NormingRequirementsBlock.tsx` — `useFieldArray` conditionally, чужой).
-- Смоук через json-server-копию (порт 3011): PATCH `contractSmpRecords/23` → 200,
-  все коллекции сохранились (contractSmpRecords 23, edsSignatureEvents 3,
-  edsCertificates 3, contractRegistry 5, employees 40, organizations 6).
-  GET `?contractId=5` → 4 записи (id 23–26).
+- Смоук через json-server-копию (порт 3015): `edsCertificates` 4,
+  `edsSignatureEvents` 3, `contractSmpRecords` 23, `organizations` 6,
+  `users` 5, `employees` 40. POST события `eds_login` → 201, счётчики
+  не изменились (кроме +1 событие) — `entityId` не считается ссылкой.
+- Прогон `resolveEdsAccount` на сидах (`.tmpcheck/`, tsc --ignoreConfig +
+  патч импортов на `.js`, запуск node): id1 Говоров → ok →
+  zakupki@kurskavtodor.ru; id2 Иванов → employee_not_found; id3 Колесникова →
+  employee_not_found; id4 Пояркова → ok → test2@test.test.
+  `personNamesMatch` — 7/7 (полное ФИО, инициалы, женское, «ё»↔«е», тёзка с
+  другим отчеством → false).
+- Проверка CSS-токенов: все `var(--*)` в новых `.module.scss` объявлены в
+  `_themes.scss` (было 6 битых — `--surface-success`/`--text-warning` и т.п.,
+  правильные имена `--state-*` / `--state-*-soft`).
 
 ### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
 
-`3e99328` feat(Eds) — журнал ЭП, EdsSignModal, EdsCertificateSchema, парсеры
-`extractInnFromSubject`/`extractSnilsFromSubject`/`extractNameFromSubject`,
-`EdsJournalPage` + роут `/eds/journal`, ссылка в Header.
-`9925081` feat(SMP) — кнопки подтверждения достоверности, расчёт объёма,
-неустойка, сроки по ПП 1466, сиды для org6 (Курскавтодор), контракт 5,
-edsCertificates/edsSignatureEvents, исправление createdAt.
-`837898a` feat роуты + WIP нормирования (чужая работа, статус в коммите).
-`57843ec` docs AGENTS.md.
+`64fa377` docs(state) — PROJECT_STATE на 2026-11-16 + исправление дубля id19.
+`7b82a89` docs(agents) — читать `.koda/PROJECT_STATE.md` первым.
+(далее — вход по ЭП).
 
 ### Незавершённая чужая работа (нормирование)
 
@@ -373,8 +408,12 @@ edsCertificates/edsSignatureEvents, исправление createdAt.
 ## 8. Не реализовано
 
 - Настоящие права: проверка на клиенте, json-server отдаёт коллекции целиком.
-- **Реальное подписание через плагин** (`CPSignEx` в cryptoPro) — сейчас пишется
-  только снимок сертификата + событие в журнал (Tasks 9 п.1).
+- **Реальное подписание через плагин** (`CPSignEx` в cryptoPro) — сейчас
+  решён только вход по сертификату. CPSignEx для подписания документов —
+  следующий шаг (Tasks 9 п.1).
+- **Серверная верификация подписи** — json-server не проверяет подпись набора.
+  На проде: `CPSignVerifyEx` / `crypto.subtle.verify` с открытым ключом из
+  сертификата.
 - Tasks 8 п.2: исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр), чекпоинты
   `contractEvents`, чтение из ЕИС.
 - Tasks 8 п.4: роль «инициатор закупки».
@@ -387,8 +426,9 @@ edsCertificates/edsSignatureEvents, исправление createdAt.
 
 ## 9. Очередь следующей сессии
 
-1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание через
-   плагин КриптоПро ЭЦП Browser plug-in.
+1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание документов
+   через плагин КриптоПро ЭЦП Browser plug-in (не вход, а подписание ПГ,
+   контрактов, служебок).
 2. **Tasks 8 п.2** — сборка XML по схеме ЕИС, чекпоинты `contractEvents`,
    чтение из ЕИС (3–6 недель).
 3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика.
@@ -399,8 +439,8 @@ edsCertificates/edsSignatureEvents, исправление createdAt.
 
 ⚠️ **Известные проблемы:**
 
-- В базе два объекта с id 19 (contract1/org1 и contract5/org6) — **исправлено**
-  в этой сессии (contract5 перенумерован в 23–26, ссылки `entityId` в
-  `edsSignatureEvents` обновлены, смоук через json-server зелёный).
-- json-server на :3001 держит старую версию `db.json` в памяти — нужен
+- В базе был дубль id 19 в `contractSmpRecords` (contract1/org1 и contract5/org6)
+  — **исправлено** (contract5 перенумерован в 23–26, `entityId` в
+  `edsSignatureEvents` обновлены, смоук зелёный).
+- json-server на :3001 держит в памяти старую версию `db.json` — нужен
   перезапуск (`npm run server`), иначе GET новой коллекции = 404.

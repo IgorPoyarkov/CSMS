@@ -9,6 +9,7 @@ import {
   edsCertificateStateLabels,
   formatCertificateLabel,
   formatCertificatePeriod,
+  mergeCertificateLists,
   signatureEventActionLabels,
   type SignatureEventAction,
   type SignatureEvent,
@@ -98,21 +99,10 @@ export default function EdsSignModal({
   // Живые сертификаты плагина первыми; зарегистрированный дубль (тот же
   // серийник) не дублируем — иначе заказчик выбирает между двумя строками
   // одного сертификата
-  const availableCerts = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: EdsCertificate[] = [];
-
-    for (const certificate of [...pluginCerts, ...registeredCerts]) {
-      const key = certificate.serialNumber
-        ? `serial:${certificate.serialNumber}`
-        : `id:${String(certificate.id ?? certificate.ownerName)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      merged.push(certificate);
-    }
-
-    return merged;
-  }, [pluginCerts, registeredCerts]);
+  const availableCerts = useMemo(
+    () => mergeCertificateLists(pluginCerts, registeredCerts),
+    [pluginCerts, registeredCerts],
+  );
 
   const certKeyOf = (certificate: EdsCertificate, index: number): string =>
     String(certificate.serialNumber || certificate.id || index);

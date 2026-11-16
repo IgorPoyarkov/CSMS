@@ -93,4 +93,24 @@
     margin: 0;
     padding: 0;
   }
+
+  &__switch {
+    text-align: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  &__switch-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.875rem;
+    text-decoration: underline;
+    padding: 0.25rem 0.5rem;
+
+    &:hover {
+      color: var(--accent-emphasis);
+    }
+  }
 }

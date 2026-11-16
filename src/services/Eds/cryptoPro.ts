@@ -30,7 +30,9 @@ interface PluginCertificateLike {
   validFrom?: Date | string;
   validTo?: Date | string;
   signatureAlgorithm?: { name?: string } | string;
-  getThumbprint?: (algorithm?: string) => ArrayBuffer | string | Promise<ArrayBuffer | string>;
+  getThumbprint?: (
+    algorithm?: string,
+  ) => ArrayBuffer | string | Promise<ArrayBuffer | string>;
 }
 
 interface CryptoProApiLike {
@@ -39,6 +41,10 @@ interface CryptoProApiLike {
     getCertificates?: () =>
       | PluginCertificateLike[]
       | Promise<PluginCertificateLike[]>;
+    // Подпись набора: разные версии плагина называют метод по-разному и
+    // ждут разные аргументы, поэтому перебираем известные варианты вызова
+    sign?: (...args: unknown[]) => unknown;
+    signEx?: (...args: unknown[]) => unknown;
   };
 }
 
@@ -51,6 +57,9 @@ const plugin = (): CryptoProApiLike | null => {
 
 export interface CryptoProStatus {
   installed: boolean;
+  // Подписать наборт плагин умеет не всегда: чтение сертификатов и
+  // подписание — разные вызовы
+  canSign: boolean;
   version: string;
   // Подсказка для интерфейса: что делать заказчику, если плагина нет
   hint: string;
@@ -65,9 +74,11 @@ export const CRYPTO_PRO_INSTALL_HINT =
 export const describeCryptoPro = (): CryptoProStatus => {
   const cp = plugin();
   const canRead = Boolean(cp?.webcrypto?.getCertificates);
+  const canSign = Boolean(cp?.webcrypto?.sign || cp?.webcrypto?.signEx);
 
   return {
     installed: canRead,
+    canSign: canRead && canSign,
     version: cp?.version ?? "",
     hint: canRead
       ? `Плагин обнаружен${cp?.version ? `, версия ${cp.version}` : ""}: список сертификатов читается с рабочего места автоматически.`
@@ -117,12 +128,14 @@ const readThumbprint = async (
 
 const toEdsCertificate = async (
   certificate: PluginCertificateLike,
-  organizationId: string | number,
+  organizationId?: string | number,
 ): Promise<EdsCertificate> => {
   const subject = subjectName(certificate.subject);
 
   return EdsCertificateSchema.parse({
-    organizationId,
+    // До входа в систему организация неизвестна: при входе по ЭП атрибуты
+    // читаются «в пустоту», а заказчик определяется по ИНН из subject
+    organizationId: organizationId ?? "",
     ownerName: extractNameFromSubject(subject) || "Владелец не определён",
     ownerSnils: extractSnilsFromSubject(subject),
     inn: extractInnFromSubject(subject),
@@ -139,24 +152,147 @@ const toEdsCertificate = async (
   });
 };
 
-/**
- * Сертификаты, которые плагин видит на рабочем месте заказчика.
- * Пустой массив и installed: false — сценарий «плагина нет», он не ошибка.
- */
-export const readPluginCertificates = async (
-  organizationId: string | number,
-): Promise<EdsCertificate[]> => {
+const readRawCertificates = async (): Promise<PluginCertificateLike[]> => {
   const getCertificates = plugin()?.webcrypto?.getCertificates;
   if (!getCertificates) return [];
 
   try {
     const raw = await getCertificates();
-    const list = Array.isArray(raw) ? raw : [];
-    return await Promise.all(
-      list.map((certificate) => toEdsCertificate(certificate, organizationId)),
-    );
+    return Array.isArray(raw) ? raw : [];
   } catch {
     // Плагин может отказать, если пользователь закрыл окно доступа к токенам
     return [];
   }
+};
+
+/**
+ * Сертификат вместе с «ручкой» плагина: атрибуты — это строки, а чтобы
+ * подписать наборт, нужен исходный объект сертификата из хранилища.
+ */
+export interface PluginSignHandle {
+  certificate: EdsCertificate;
+  raw: PluginCertificateLike;
+}
+
+/**
+ * Сертификаты рабочего места вместе с ручками для подписи.
+ * Пустой массив и installed: false — сценарий «плагина нет», он не ошибка.
+ */
+export const readPluginSignHandles = async (
+  organizationId?: string | number,
+): Promise<PluginSignHandle[]> => {
+  const list = await readRawCertificates();
+
+  return Promise.all(
+    list.map(async (raw) => ({
+      raw,
+      certificate: await toEdsCertificate(raw, organizationId),
+    })),
+  );
+};
+
+/**
+ * Сертификаты, которые плагин видит на рабочем месте заказчика.
+ */
+export const readPluginCertificates = async (
+  organizationId?: string | number,
+): Promise<EdsCertificate[]> =>
+  (await readPluginSignHandles(organizationId)).map(
+    (handle) => handle.certificate,
+  );
+
+// ─── Вход по ЭП: наборт и подпись ────────────────────────────────────────────
+
+export const LOGIN_CHALLENGE_PREFIX = "CSMS-EDS-LOGIN";
+
+/**
+ * Одноразовый наборт, который предлагается подписать при входе. Смысл тот же,
+ * что в challenge-response: подпись ставится не на заготовленном тексте,
+ * поэтому её нельзя перенести из прошлого входа. Настоящая проверка подписи
+ * возможна только на сервере — json-server её не выполняет.
+ */
+export const makeLoginChallenge = (): string => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const nonce = Array.from(bytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  return `${LOGIN_CHALLENGE_PREFIX}:${Date.now()}:${nonce}`;
+};
+
+export interface PluginSignature {
+  algorithm: string;
+  value: string;
+}
+
+// Имена алгоритмов подписи в плагине нестабильны: у Госключа свои написания,
+// в старых версиях встречались латинические, поэтому пробуем по очереди
+const SIGN_ALGORITHM_CANDIDATES = [
+  "ГОСТ Р 34.10-2012/256",
+  "GOST R 34.10-2012/256",
+  "GOST3410-2012/256",
+  "RSASSA-PKCS1-v1_5",
+];
+
+const toBase64 = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+};
+
+const normalizeSignature = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (value instanceof ArrayBuffer) return toBase64(new Uint8Array(value));
+  if (ArrayBuffer.isView(value)) {
+    const view = value as ArrayBufferView;
+    return toBase64(
+      new Uint8Array(view.buffer, view.byteOffset, view.byteLength),
+    );
+  }
+  return "";
+};
+
+/**
+ * Попытка подписать наборт на рабочем месте заказчика.
+ *
+ * Вызов и имена алгоритмов различаются между версиями плагина, поэтому
+ * перебираются известные формы аргументов. `null` означает не «отказано», а
+ * «подписать не удалось»: плагин может быть без права подписи, без доступа к
+ * контейнеру или с непредставленной здесь сигнатурой. Интерфейс обязан
+ * объяснить это пользователю, а не показывать «неверная подпись».
+ */
+export const signLoginChallenge = async (
+  handle: PluginSignHandle,
+  challenge: string,
+): Promise<PluginSignature | null> => {
+  const webcrypto = plugin()?.webcrypto;
+  const sign = webcrypto?.sign ?? webcrypto?.signEx;
+  if (!sign) return null;
+
+  const data = new TextEncoder().encode(challenge);
+
+  const attempts: { algorithm: string; args: unknown[] }[] = [];
+  for (const algorithm of SIGN_ALGORITHM_CANDIDATES) {
+    attempts.push({ algorithm, args: [algorithm, handle.raw, data] });
+    attempts.push({ algorithm, args: [{ name: algorithm }, handle.raw, data] });
+  }
+  attempts.push({ algorithm: "", args: [handle.raw, data] });
+
+  for (const attempt of attempts) {
+    try {
+      const value = normalizeSignature(await sign(...attempt.args));
+      if (value) {
+        return {
+          algorithm:
+            attempt.algorithm || handle.certificate.signatureAlgorithm || "",
+          value,
+        };
+      }
+    } catch {
+      // Эта форма вызова не подошла — пробуем следующую
+    }
+  }
+
+  return null;
 };

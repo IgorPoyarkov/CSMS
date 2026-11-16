@@ -5909,6 +5909,28 @@
       "isProxy": false,
       "source": "manual",
       "note": "Сертификат Белгородского заказчика (ИНН 3128071234) — демонстрирует отказ по сверке ИНН"
+    },
+    {
+      "id": 4,
+      "organizationId": 2,
+      "ownerName": "Пояркова София Игоревна",
+      "ownerPosition": "Начальник отдела",
+      "ownerSnils": "44455566677",
+      "inn": "3128071234",
+      "ogrn": "",
+      "subject": "CN=Пояркова София Игоревна, INNЮЛ=3128071234, SNILS=44455566677, L=Белгород, O=Депимущество Белгородской области",
+      "issuer": "УЦ ФНС России",
+      "serialNumber": "AB12CD34EF567890",
+      "fingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "signatureAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "validFrom": "2024-01-10",
+      "validTo": "2027-01-10",
+      "isRevoked": false,
+      "revokeDate": "",
+      "isProxy": false,
+      "proxyNumber": "",
+      "source": "manual",
+      "note": "Для входа по ЭЦП — user2 zakupy@depimushество.belnab.localhost"
     }
   ],
   "edsSignatureEvents": [
@@ -5980,6 +6002,27 @@
       "result": "rejected_certificate",
       "comment": "Попытка подписать сертификатом Белгородского заказчика — ИНН не совпал",
       "createdAt": "2026-11-15T14:30:00"
+    },
+    {
+      "userId": 2,
+      "organizationId": 2,
+      "userLabel": "test2@test.test",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateOwner": "Пояркова София Игоревна",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество БО",
+      "certificateInn": "3128071234",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "innMatched": true,
+      "certificateValidTo": "2027-01-10",
+      "certificateSource": "manual",
+      "action": "eds_login",
+      "createdAt": "2026-11-16T12:00",
+      "comment": "смоук",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "entityType": "session",
+      "result": "signed",
+      "id": 4
     }
   ]
 }
