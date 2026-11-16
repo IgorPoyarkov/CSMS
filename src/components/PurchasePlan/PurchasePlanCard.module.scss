@@ -205,10 +205,18 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.03em;
+      line-height: 1.35;
       color: var(--text-secondary);
       background: var(--stripe);
-      white-space: nowrap;
+      white-space: normal;
+      vertical-align: bottom;
     }
+  }
+
+  // Шапка узкой графы: содержимое короткое, ширину на себя тянуть не должно
+  &__th--narrow {
+    width: 1%;
+    white-space: nowrap;
   }
 
   &__object {
@@ -364,6 +372,15 @@
     font-family: "Courier New", monospace;
     font-size: 12px;
     white-space: nowrap;
+
+    // ИКЗ — 20 цифр: в узкой графе переносится, но остаётся одним кодом
+    &--ikz {
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      letter-spacing: 0.02em;
+    }
   }
 
   // Ячейка таблицы записей ПГ: длинные значения не растягивают сетку
@@ -372,11 +389,18 @@
     max-width: 240px;
     overflow-wrap: break-word;
 
-    // Номер и планирующий год — содержимое короткое, графу не расширяем
+    // Номер, год, статус и обсуждение — содержимое короткое, графу не
+    // расширяем
     &--narrow {
       width: 1%;
       min-width: 0;
       white-space: nowrap;
+    }
+
+    // Наименования и ИКЗ — графы, ради которых таблица и существует;
+    // остальные поджимаются
+    &--wide {
+      min-width: 180px;
     }
   }
 
