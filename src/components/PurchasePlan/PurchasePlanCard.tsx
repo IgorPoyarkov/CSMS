@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
@@ -128,6 +128,27 @@ export default function PurchasePlanCard() {
   } | null>(null);
   const { mutate: updatePlan, isPending: isSavingPosition } =
     useUpdatePurchasePlan();
+
+  // Выпадающий список действий по открытой записи плана-графика
+  const [openActionsPositionId, setOpenActionsPositionId] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    function closeMenus(event: MouseEvent) {
+      const target = event.target as Node | null;
+
+      if (
+        target instanceof Element &&
+        !target.closest("details[data-plan-actions]")
+      ) {
+        setOpenActionsPositionId(null);
+      }
+    }
+
+    document.addEventListener("click", closeMenus);
+    return () => document.removeEventListener("click", closeMenus);
+  }, []);
 
   // Создание СЗ (закупки) из позиции ПГ. НМЦК и способ определения
   // поставщика в записи ПГ не указываются, поэтому стартом СЗ берём объём
@@ -386,53 +407,71 @@ export default function PurchasePlanCard() {
   }
 
   // Действия по записи плана-графика: правка только своей записи (не всего
-  // плана-графика), служебка по позиции и создание закупки из позиции
+  // плана-графика), служебка по позиции и создание закупки из позиции.
+  // В таблице конкретного плана — выпадающий список, как в списке планов
   function renderActionsCell(position: PurchasePlanPosition): React.ReactNode {
     const positionNotes = purchaseNotesForPosition(purchaseNotes, position.id);
 
     return (
-      <div className={block("row-actions")}>
-        <button
-          className={block("edit-btn")}
-          type="button"
-          onClick={() =>
-            setEditing({
-              position,
-              index: positions.indexOf(position),
-              isNew: false,
-            })
-          }
-        >
-          Изменить
-        </button>
-        <button
-          className={block("action-btn")}
-          type="button"
-          onClick={() => setNotePosition(position)}
-        >
-          Создать служебку
-        </button>
-        {positionNotes.length > 0 && (
-          <span className={block("row-actions-note")}>
-            СЗ {positionNotes.map((note) => `№${note.noteNumber}`).join(", ")}
-            {positionNotes.some((note) => note.smpRequiredPercent !== undefined)
-              ? ` · СМП ${Math.max(
-                  ...positionNotes.map((note) =>
-                    Number(note.smpRequiredPercent ?? 0),
-                  ),
-                )}%`
-              : ""}
-          </span>
-        )}
-        <button
-          className={block("action-btn")}
-          type="button"
-          disabled={isCreatingSz}
-          onClick={() => handleCreateSz(position)}
-        >
-          Создать СЗ
-        </button>
-      </div>
+      <details
+        className={block("menu")}
+        data-plan-actions
+        open={openActionsPositionId === String(position.id)}
+        onToggle={(event) =>
+          setOpenActionsPositionId(event.currentTarget.open ? String(position.id) : null)
+        }
+      >
+        <summary className={block("menu-trigger")}>Действия</summary>
+        <div className={block("menu-list")}>
+          <button
+            className={block("menu-item")}
+            type="button"
+            onClick={() => {
+              setOpenActionsPositionId(null);
+              setEditing({
+                position,
+                index: positions.indexOf(position),
+                isNew: false,
+              });
+            }}
+          >
+            Изменить
+          </button>
+          <button
+            className={block("menu-item")}
+            type="button"
+            onClick={() => {
+              setOpenActionsPositionId(null);
+              setNotePosition(position);
+            }}
+          >
+            Создать служебку
+          </button>
+          {positionNotes.length > 0 && (
+            <div className={block("menu-note")}>
+              СЗ {positionNotes.map((note) => `№${note.noteNumber}`).join(", ")}
+              {positionNotes.some((note) => note.smpRequiredPercent !== undefined)
+                ? ` · СМП ${Math.max(
+                    ...positionNotes.map((note) =>
+                      Number(note.smpRequiredPercent ?? 0),
+                    ),
+                  )}%`
+                : ""}
+            </div>
+          )}
+          <button
+            className={block("menu-item")}
+            type="button"
+            disabled={isCreatingSz}
+            onClick={() => {
+              setOpenActionsPositionId(null);
+              handleCreateSz(position);
+            }}
+          >
+            Создать СЗ
+          </button>
+        </div>
+      </details>
     );
   }
 

@@ -486,8 +486,86 @@
     gap: 6px;
   }
 
-  // Номера служебок, заведённых по позиции, и требование по СМП из них
-  &__row-actions-note {
+  // Выпадающий список действий по записи плана-графика — как в списке планов
+  &__menu {
+    position: relative;
+    display: inline-block;
+  }
+
+  &__menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: transparent;
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    cursor: pointer;
+    list-style: none;
+    transition:
+      border-color $transition-300,
+      color $transition-300;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::after {
+      content: "▾";
+      font-size: 10px;
+      line-height: 1;
+    }
+  }
+
+  &__menu[open] > &__menu-trigger,
+  &__menu-trigger:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &__menu-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 160px;
+    padding: 4px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-panel);
+    box-shadow: 0 8px 20px var(--shadow);
+  }
+
+  &__menu-item {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 13px;
+    text-align: left;
+    color: var(--text-primary);
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--accent-soft);
+      color: var(--accent-emphasis);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  // Номера служебок и требование по СМП из них — внутрь меню списка
+  &__menu-note {
+    padding: 6px 10px;
     font-size: 11px;
     line-height: 1.3;
     color: var(--text-secondary);
