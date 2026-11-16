@@ -527,12 +527,29 @@ export default function PurchasePlanCard() {
           <h1 className={block("title")}>
             План-график {plan.planNumber || "без номера"}
           </h1>
-          <p className={block("customer-name")}>{customer.fullName}</p>
+        </div>
+        <div className={block("header-actions")}>
+          <button
+            type="button"
+            className={block("add-btn")}
+            onClick={() =>
+              setEditing({
+                position: {
+                  ...emptyPurchasePlanPosition(),
+                  serialNumber: String(positions.length + 1),
+                },
+                index: positions.length,
+                isNew: true,
+              })
+            }
+          >
+            Добавить запись
+          </button>
         </div>
       </header>
 
       <fieldset className={block("section")}>
-        <legend>Сведения о плане</legend>
+        <legend>Сведения о плане-графике</legend>
 
         <ul className={block("fields")}>
           <li className={block("field")}>
@@ -612,25 +629,6 @@ export default function PurchasePlanCard() {
                   setPage(1);
                 }}
               />
-
-              {/* Новая запись заводится без перехода в режим правки всего
-                  плана-графика */}
-              <button
-                type="button"
-                className={block("add-btn")}
-                onClick={() =>
-                  setEditing({
-                    position: {
-                      ...emptyPurchasePlanPosition(),
-                      serialNumber: String(positions.length + 1),
-                    },
-                    index: positions.length,
-                    isNew: true,
-                  })
-                }
-              >
-                Добавить запись
-              </button>
             </div>
 
             {visiblePositions.length === 0 ? (

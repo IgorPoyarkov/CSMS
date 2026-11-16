@@ -43,6 +43,13 @@
     color: var(--text-secondary);
   }
 
+  &__header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
   &__status-tag {
     display: inline-block;
     padding: 4px 10px;
@@ -590,20 +597,22 @@
   }
 
   // Новая запись плана-графика из панели над таблицей
+  // Основная кнопка добавления записи в шапку конкретного плана-графика
   &__add-btn {
-    padding: 6px 12px;
+    align-self: flex-end;
+    padding: 8px 16px;
     border: 1px solid var(--accent);
-    border-radius: 4px;
-    background: var(--accent-soft);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--accent-emphasis);
+    border-radius: 8px;
+    background: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-on-accent);
     white-space: nowrap;
     cursor: pointer;
 
     &:hover {
-      background: var(--accent);
-      color: var(--text-on-accent);
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
     }
   }
 
