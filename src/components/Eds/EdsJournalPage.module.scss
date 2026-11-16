@@ -1,0 +1,224 @@
+@import "variables";
+
+.eds-journal {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eds-journal__title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.eds-journal__org {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.eds-journal__inn {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Канал чтения сертификатов */
+
+.eds-journal__plugin {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.eds-journal__plugin-hint {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Показатели */
+
+.eds-journal__stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.eds-journal__stat {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+
+  &--warn {
+    border-color: var(--state-warning);
+    background: var(--state-warning-soft);
+  }
+
+  &--danger {
+    border-color: var(--state-danger);
+    background: var(--state-danger-soft);
+  }
+}
+
+.eds-journal__stat-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.eds-journal__stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Секции */
+
+.eds-journal__section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  padding: 16px;
+}
+
+.eds-journal__section-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.eds-journal__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+/* Фильтры журнала */
+
+.eds-journal__filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.eds-journal__filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.eds-journal__filter-select,
+.eds-journal__filter-input {
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+/* Таблицы */
+
+.eds-journal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th,
+  td {
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--surface-accent);
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.eds-journal__row-danger {
+  background: var(--state-danger-soft);
+}
+
+.eds-journal__row-warn {
+  background: var(--state-warning-soft);
+}
+
+/* Состояния */
+
+.eds-journal__state-ok {
+  color: var(--state-success);
+  font-weight: 600;
+}
+
+.eds-journal__state-warn {
+  color: var(--state-warning);
+  font-weight: 600;
+}
+
+.eds-journal__state-danger {
+  color: var(--state-danger);
+  font-weight: 600;
+}
+
+.eds-journal__inn-mismatch {
+  color: var(--state-danger);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Кнопки */
+
+.eds-journal__btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
