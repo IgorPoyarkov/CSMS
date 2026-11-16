@@ -2,7 +2,7 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-15.
+> Дата последнего обновления: 2026-11-16 (после домена ЭП и СМП-контроля).
 
 ## 0. Откуда брать задачи
 
@@ -21,22 +21,13 @@
 - `npm start` — Vite (:5173) + `json-server-auth db.json` (:3001). `npm run build`
   = `tsc -b && vite build`. Линт: `npx oxlint src` (в проекте oxlint; `npm run lint`
   — осколок eslint). Типы: `npx tsc -b --pretty false`.
-- Прогон схем и моков без сервера: node 24 + `--experimental-strip-types` через
-  собственный resolve-хук (импорты в проекте без расширения):
-  `node --experimental-strip-types --import ./.tmp/register.mjs ./.tmp/<check>.mjs`,
-  где чекер импортирует `src/**/*.schema.ts` напрямую. **Временное — в `.tmp/`.**
-- Действующие чекеры в `.tmp/`: `check-contracts` (реестр: схемы, суммы этапов,
-  `totalPaid`/`paymentPercent`/`totalPenalties`, `isContractOverdue`),
-  `check-employees` (схема штатки, уникальность табельных/email, «подразделение
-  своей организации», «подписант контракта работает у заказчика», ИКЗ = ИКЗ
-  закупки), `check-contrast` (рамки светлой темы ≥ 3:1 по WCAG 1.4.11, читает
-  значения прямо из `_themes.scss`), `check-tasks`, `check-evaluation`,
-  `check-calendar`, `check-education`, `check-smnp`, `check-contract-project`.
-  ⚠️ Ассерты чекеров завязаны на объём моков — после правки `db.json` их надо
-  синхронизировать (сейчас `check-smnp` ждёт 4 закупки СМП, в базе 3;
-  `check-evaluation` ждёт 3 завершённые задачи, в базе 4).
+- Прогон схем и моков без сервера:
+  1. **json-server-копия** на свободном порту: `Start-Job { node node_modules/json-server/lib/cli/bin.js db.json --port 3010 }` — 6 секунд старта, затем `GET`/`PATCH` на порт 3010.
+  2. **tsc --ignoreConfig** — `npx tsc --project tsconfig.json --noEmit --skipLibCheck --ignoreConfig <список schema-файлов> --module esnext --target es2022 --moduleResolution bundler --outDir .tmpcheck` + патч относительных импортов `.ts` → `.js` (`[regex]::Replace` с MatchEvaluator, не `ForEach-Object`).
+- ⚠️ В `.tmp/` (не в репозитории) были временные чекеры (`check-contracts`, `check-employees` и т.д.) — после правки `db.json` их ассерты рассинхронизируются; не коммитить.
 - Vite отдаёт изменённый модуль `GET http://localhost:5173/<path>` — 200 значит
   собралось (быстрая замена сборки).
+- ⚠️ **PowerShell `Get-Content -Raw` ломает UTF-8** (BOM/байты-последовательности) — правки делать через `edit_file`, не через `sed`/`ForEach-Object` на тексте.
 - ⚠️ Запущенный json-server держит `db.json` в памяти: после ручной правки файла
   его нужно перезапустить, иначе `GET` новой коллекции = 404, а любая мутация
   перезапишет файл старой версией. Для смоук-тестов — копия базы на свободном
@@ -72,20 +63,26 @@
   Реквизиты заказчика вручную не вводятся; чужие записи отклоняются на клиенте
   (`isPlanOfOrganization` и аналоги, сравнение через `String()`).
 
-## 3. Данные (`db.json`, 2026-11-15)
+## 3. Данные (`db.json`, 2026-11-16)
 
 ```
-users 4 · employees 39 · organizations 5 · structuralUnits 32 (это отделы!)
-contractServices 3 · purchasePlans 4 · procurements 4 · notices 0 · contracts 0
-tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6
-contractProjects 2 · contractRegistry 4 · contractStages 9 · contractPayments 9
-contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/3/3
+users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отделы!)
+contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts 0
+tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
+contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
+contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 14
+smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
+edsCertificates 3 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
   4 Администрация г. Белгорода, 5 ГКУ БО «Центр МТО» (без пользователя —
-  проверка «сотрудник ≠ пользователь»).
-- Учётки: `test1..test4@test.test` → org 1..4. Связь с штаткой — поле
+  проверка «сотрудник ≠ пользователь»), **6 ГКУ «Курскавтодор»** (ИНН
+  4629040439, КПП 463201001, ОГРН 1024600964816, 305004 г. Курск, ул.
+  Менделеева 2 — реквизиты из открытых источников, для пилота по СМП/ЭП).
+- Учётки: `test1..test4@test.test` → org 1..4, **`zakupki@kurskavtodor.ru` /
+  `qwerty12` → org 6** (user id5 → employee id41 Говоров А. Н., отдел id33
+  «Управление государственных закупок»). Связь с штаткой — поле
   `employees.userId`: emp6→user1 (работник службы), emp4→user2 (руководитель
   службы org2), emp11→user3 (контрактный управляющий org3), emp26→user4
   (org4 — службы нет). **В `users` поля `employeeId` нет** — искать работника
@@ -98,6 +95,16 @@ contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/
 - `leaves` покрывают все статусы (`approved`/`ongoing`/`scheduled`/`completed`)
   и типы (отпуск, больничный, командировка, б/з) — на них проверяется график
   отпусков при постановке задачи.
+- Реестр: контракты 1..3 (org1/org2, закупки СМП), **5 = `0346200000626000001`,
+  45 000 000 ₽, требование СМП 10 %, служебка `purchaseNotes` id4** — на нём
+  отработаны сценарии СМП и ЭП. Записи СМП: id1–18 (контракты 1–3), **id23–26
+  (контракт 5)**. ⚠️ При перенумерации сидов id19–22 уже использовались
+  контрактом 1 — проверять занятость id перед вставкой.
+- `edsCertificates` id1 Говоров (active), id2 Иванов (`validTo` 2026-12-01 →
+  expiring), id3 Колесникова **чужой ИНН 3128071234** (для ветки «отказ»).
+  `edsSignatureEvents` id1–3: signed / signed (`smp_eis_export`) /
+  rejected_certificate (`innMatched: false`). `legalActs` содержит 63-ФЗ
+  (`law-63fz`) и ПП 1466 — на них ссылаются сроки и подписи в UI.
 
 ## 4. Домены и бизнес-правила
 
@@ -155,7 +162,95 @@ contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/
 `isContractOverdue`, `emptyContract`. API реестра — 20 хуков (CRUD по каждой из
 пяти коллекций). Контракт обязан ссылаться на закупку/проект **своей**
 организации, ИКЗ берётся из закупки, подписант — её же работник (проверяет
-`check-employees`).
+`check-employees`). Цепочка целиком: ПГ → служебка (`purchaseNotes`) →
+извещение → проект контракта → подписанный контракт → запись реестра;
+требование СМП рождается в служебке и наследуется вниз (`smpRequiredPercent`).
+
+### Электронная подпись (Eds)
+
+**Файлы:** `src/services/Eds/eds.schema.ts` + `.api.ts` + `cryptoPro.ts`;
+`src/components/Eds/EdsSignModal.tsx` + `.module.scss`; `EdsJournalPage.tsx`
+(+ `.module.scss`), роут `/eds/journal`, ссылка «Журнал ЭП» в `Header.tsx`.
+
+**Типы:** `EdsCertificate` (id, organizationId, ownerName, ownerPosition,
+ownerSnils, ogrn, subject, issuer, serialNumber, fingerprint,
+signatureAlgorithm, validFrom, validTo, isRevoked, revokeDate, isProxy,
+proxyNumber, source: `plugin` | `manual` | `imported`, note).
+`SignatureEvent` (id, organizationId, contractId, userId, userLabel,
+action: `smp_supplier_confirm` | `smp_customer_confirm` | `smp_reject` |
+`smp_eis_export` | `penalty_accrue`; entityType: `contractSmpRecord` |
+`contract` | `contractPenalty`; entityId; certificateId; certificateOwner/
+Inn/Serial/Fingerprint/Algorithm/ValidTo; innMatched: bool; certificateSource;
+result: `signed` | `rejected_certificate` | `failed`; comment; createdAt).
+
+**Хуки:** `useEdsCertificates(orgId)`, `useCreateEdsCertificate`,
+`useSignatureEvents(contractId, orgId)`, `useLogSignatureEvent`.
+
+**Парсеры:** `extractInnFromSubject(subject)` → ИНН ЮЛ (по `INNЮЛ`);
+`extractSnilsFromSubject` → СНИЛС (по `SNILS`);
+`extractNameFromSubject` → ФИО; `certificateStateOn(cert, date)` → active /
+expiring (≤60 дн.) / expired / revoked; `certificateBelongsToOrganization`.
+
+**EdsSignModal:** выбор сертификата (плагиновые первыми, дедуп по серийнику),
+сверка сертификата ИНН с ИНН организации; при несовпадении — кнопка «Записать
+отказ в журнал». При совпадении — комментарий → `useLogSignatureEvent`
+создаёт запись EdsCertificate + событие в журнал. Штамп «ЭП · Владелец ·
+срез XXX…7890» остаётся в `comment` события.
+
+**Важно:** **Мы НЕ подписываем документы за заказчика.** Подписание
+(`CPSignEx`) — следующий шаг (Tasks 9 п.1). Сейчас система только:
+
+1. снимает сертификат пользователя и сохраняет метаданные,
+2. ведёт журнал действий (кто, когда, что подтвердил).
+   Юридическая ответственность за подпись — у заказчика.
+
+### Сведения о привлечении СМП (contractSmpRecords)
+
+**Файлы:** `src/services/ContractSmp/contractSmp.schema.ts` + `.api.ts` +
+`deadlines.ts` + `pp1466.ts` + `sourceFile.ts`;
+`ContractSmpSection.tsx` (внутри `ContractRegistryPage.tsx`) — таблица записей,
+локальная форма `ContractSmpRecordForm`, кнопки подтверждения достоверности
+(`handleSupplierConfirm` / `handleCustomerConfirm`), выгрузка в ЕИС
+(`EisSmpExportPage.tsx`, роут через страницу реестра).
+
+**Схема:** `documentType` (договор/акт/платёжка), `documentNumber`, `documentDate`,
+`amount`, `subject`, `period`, `supplierName/Inn/Kpp`, `isSmpSubject`,
+`supplierConfirmedAt/By/Document`, `customerConfirmedAt/By/Document`,
+`status` (`submitted` | `accepted` | `rejected` | `pushedToEis`),
+`eisPublishDate/RecordNumber`, `comment`, `sourceFileName`, `createdAt`.
+
+**Расчёты:** `smpActualAmount(records)` — сумма принятых записей,
+`smpRequiredAmount(contract)` — 10 % (или иной %) от цены контракта,
+`smpVolumeProgress(actual, required)` — процент закрытия,
+`computeSmpVolume(contract, records)` — `SmpVolumeResult { actual, required,
+progress, shortfall, shortfallPercent }`,
+`computeSmpPenalty(contract, records, shortfall)` — неустойка в
+`contractPenalties` (тип `other`).
+
+**Сроки по ПП 1466:** `SMP_DEADLINE_RULES` — 5 раб. дней (декларация СМП/копия
+договора), 10 раб. дней (акт/платёжка), 5 доп. раб. дней (если оплата раньше
+срока контракта), 7 раб. дней (оплата субподрядчику).
+`computeSupplierDeadlines(records, { today?, extraHolidays? })` /
+`computeCustomerDeadlines(records, { today?, extraHolidays? })`
+→ `SmpDeadlineItem[] { rule, dueDate, status: met|pending|overdue|no_basis }`.
+Срок заказчика в ЕИС: `CUSTOMER_EIS_DEADLINE_RULE` — 3 раб. дня с `receivedAt`
+(ч. 3 ст. 103 44-ФЗ).
+
+**Подтверждение достоверности:** два отдельных действия с датой, кем и по какому
+документу (`supplierConfirmedAt/By/Document` + `customerConfirmedAt/By/Document`).
+`signerLabel` = `useMyContractRole` + `fullName`. Подрядчик и заказчик
+подтверждают независимо.
+
+**Распознавание файлов:** `readSourceFileFields(file: File)` — чтение имени
+файла, извлечение номера (`№123`), даты (`2026-01-15` / `15.01.2026`),
+годовых номеров отсекаются. Подстановка только в пустые поля;
+`SOURCE_FILE_HINT` — плашка «из имени файла прочитано: номер, дата — проверьте»
+или «не найдено — внесите вручную».
+
+**Сиды:** contract1: id1–8 + id19 (org1, 9 записей, недобор 1 400 000 / 56,25 %,
+неустойка 35 000); contract2: id9–12 + 15–18 (org1, 8 записей, закрыт 107,98 %);
+contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, неустойка
+3 062,5); contract5: id23–26 (org6, 4 записи, 3 подтверждены, 1 отклонён).
 
 ## 5. UI: темы, рамки, модалки, навигация
 
@@ -184,8 +279,9 @@ contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/
   авторизован), кнопка профиля (аватар + «Фамилия И.О.», `aria-haspopup`) и
   переключатель темы справа. Меню профиля раскрывается наведением, `:focus-within`
   и кликом (касания): «Личный кабинет» и «Выйти», пункты выровнены по правому
-  краю, email не показывается. Открытие дублируется классом `--open`, между
-  кнопкой и меню невидимый «мостик» `::before` (иначе ховер рвётся в зазоре).
+  краю, email не показывается. **Ссылка «Журнал ЭП»** → `/eds/journal`.
+  Открытие меню дублируется классом `--open`, между кнопкой и меню невидимый
+  «мостик» `::before` (иначе ховер рвётся в зазоре).
 - **Личный кабинет** (`components/Account/PersonalAccount/`): порядок секций —
   персональные данные (аватар-кружок 64px с карандашом-svg → модалка правки;
   список строк «ФИО: …»; организация не показана; `<details>` с ролью в КС и
@@ -214,7 +310,9 @@ contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/
 `/tasks` (группировка по функциям раздела III), `/tasks/:id` (просмотр, правка
 и оценка для `isHead`), `/purchase-plans` (+`/new`, `/:id`, `/:id/edit`),
 `/contract-service`, `/procurement-processing` (+`:id/notice-info`,
-`:id/contract-project`), `/reports/smnp`, `/contract-registry`.
+`:id/contract-project`), `/reports/smnp`, `/contract-registry`,
+`/norming-requirements` (WIP — нормирование, чужая работа),
+`/eds/journal` (журнал действий по ЭП).
 
 Хуки по доменам: `tasks.api` — `useOrganizationTasks`, `useAssigneeTasks`,
 `useTask`, `useCreateTask`, `useUpdateTask`, `useUpdateTaskProgress`,
@@ -224,39 +322,85 @@ contractPenalties 4 · contractDeliveries 3 · smnpPlans/Reports/Procurements 3/
 `useSaveEducation`, `useDeleteEducation`; `calendar.api` —
 `useOrganizationLeaves`, `useEmployeeLeaves` + CRUD; `contractRegistry.api` —
 20 хуков по пяти коллекциям; `StaffingTable.api` — работники, подразделения,
-`useFetchEmployeeByUserId`, `useUpdateEmployeeProfile`.
-Общий хук роли — `src/hooks/useMyContractRole.ts`
+`useFetchEmployeeByUserId`, `useUpdateEmployeeProfile`. **ContractSmp:**
+`useContractSmpRecords`, `useAllContractSmpRecords`, `useCreateContractSmpRecord`,
+`useUpdateContractSmpRecord`, `useDeleteContractSmpRecord`. **Eds:**
+`useEdsCertificates`, `useCreateEdsCertificate`, `useSignatureEvents`,
+`useLogSignatureEvent`. **Общий хук роли** — `src/hooks/useMyContractRole.ts`
 (`{ user, organization, contractService, employee, myRole, isHead }`).
 
-## 7. Результат последней проверки (2026-11-15)
+## 7. Результат последней проверки (2026-11-16)
 
-- `npx tsc -b --pretty false` — 0 ошибок.
-- `npm run build` — успешно; `npx oxlint src` — 24 warning, 0 errors.
-- check-контрактов, штата, контраста — зелёные.
+- `npx tsc -b --pretty false` — **10 ошибок**, все в `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`
+  (чужая WIP: TS2322 `string` → `never`, неисп. `control`, TS2345);
+  **мои файлы чистые**.
+- `npm run build` — успешно (3.59s); `npx oxlint src` — **28 warnings, 1 error**
+  (`NormingRequirementsBlock.tsx` — `useFieldArray` conditionally, чужой).
+- Смоук через json-server-копию (порт 3011): PATCH `contractSmpRecords/23` → 200,
+  все коллекции сохранились (contractSmpRecords 23, edsSignatureEvents 3,
+  edsCertificates 3, contractRegistry 5, employees 40, organizations 6).
+  GET `?contractId=5` → 4 записи (id 23–26).
 
-### Новые файлы (Tasks 2)
+### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
 
-- `src/services/ContractService/contractFunction.schema.ts` — сущность `ContractFunction` (code, title, category, isFromOrder, isDeletable, organizationId).
-- `src/services/ContractService/contractFunction.api.ts` — API: `useFetchContractFunctions`, `useOrganizationFunctions`, `useAddContractFunction`, `useDeleteContractFunction`.
-- `src/components/Account/AccessRequestModal/` — модалка заявки на образование.
-- `src/components/ContractService/contractService.config.ts` — `contractServiceFunctionCategories` (3 категории).
+`3e99328` feat(Eds) — журнал ЭП, EdsSignModal, EdsCertificateSchema, парсеры
+`extractInnFromSubject`/`extractSnilsFromSubject`/`extractNameFromSubject`,
+`EdsJournalPage` + роут `/eds/journal`, ссылка в Header.
+`9925081` feat(SMP) — кнопки подтверждения достоверности, расчёт объёма,
+неустойка, сроки по ПП 1466, сиды для org6 (Курскавтодор), контракт 5,
+edsCertificates/edsSignatureEvents, исправление createdAt.
+`837898a` feat роуты + WIP нормирования (чужая работа, статус в коммите).
+`57843ec` docs AGENTS.md.
 
-### Новые БД-коллекции
+### Незавершённая чужая работа (нормирование)
 
-- `contractFunctions` — 5 приказных функций (isFromOrder=true, isDeletable=false, organizationId=null). ⚠️ **json-server нужно перезапустить** после добавления новой коллекции.
+`src/components/NoticeInfoForm/sections/ObjectDescriptionSection.tsx` —
+10 ошибок `tsc` (`Type 'string' is not assignable to type 'never'`, неисп.
+`control`); `NormingRequirementsBlock.tsx` — 1 ошибка oxlint
+(`useFieldArray` conditionally). Статус зафиксирован в коммите `837898a`.
 
-### Изменения
+### Новые файлы и коллекции
 
-- `ContractServiceForm.tsx` — функция починена (toggleFunction), кастомный чекбокс + группировка по категориям (`<details>`), подтверждение смены способа создания, руководитель первым при редактировании, проверка совокупного объёма убрана.
-- `TaskAssignModal.tsx` — фильтр категории первым.
-- `PersonalAccount.tsx` — предупреждение об образовании + кнопка «Направить заявку».
-- `CurrentTasks.md` — статус Tasks 1 и Tasks 2 обновлён.
-- `PROJECT.md` — описание проекта обновлено.
+- **Eds:** `src/services/Eds/eds.schema.ts`, `.api.ts`, `cryptoPro.ts`;
+  `src/components/Eds/EdsSignModal.tsx` + `.module.scss`;
+  `src/components/Eds/EdsJournalPage.tsx` + `.module.scss`.
+- **ContractSmp:** `src/services/ContractSmp/deadlines.ts`, `pp1466.ts`,
+  `sourceFile.ts`; `src/components/Eis/EisSmpExportPage.tsx` + `.module.scss`.
+- **Коллекции db.json:** `edsCertificates` (3), `edsSignatureEvents` (3),
+  `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
+  (89/31).
 
 ## 8. Не реализовано
 
 - Настоящие права: проверка на клиенте, json-server отдаёт коллекции целиком.
-- Вход по ЭЦП и имитация входа в ЕИС, подписание ПГ и контрактов ЭЦП.
+- **Реальное подписание через плагин** (`CPSignEx` в cryptoPro) — сейчас пишется
+  только снимок сертификата + событие в журнал (Tasks 9 п.1).
+- Tasks 8 п.2: исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр), чекпоинты
+  `contractEvents`, чтение из ЕИС.
+- Tasks 8 п.4: роль «инициатор закупки».
+- Tasks 9 п.3: срезы ПГ/реестра контрактов/извещений (ядро, 2–3 недели).
+- **Не делать:** вход подрядчика по ссылке-приглашению (отложен), OCR содержимого
+  PDF, годовой отчёт СМП (только напоминалка).
+- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` и `contracts` пусты.
 - Руководитель службы как отдельный документ (п. 2.3), положение о службе
   (п. 1.3), штатная схема соподчинения, собственные функции сверх раздела III.
-- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` и `contracts` пусты.
+
+## 9. Очередь следующей сессии
+
+1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание через
+   плагин КриптоПро ЭЦП Browser plug-in.
+2. **Tasks 8 п.2** — сборка XML по схеме ЕИС, чекпоинты `contractEvents`,
+   чтение из ЕИС (3–6 недель).
+3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика.
+4. **Tasks 8 п.4** — роль «инициатор закупки» (1–2 дня).
+
+**Не трогать:** чужую WIP нормирования (пусть второй агент доделает в GitHub).
+**Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
+
+⚠️ **Известные проблемы:**
+
+- В базе два объекта с id 19 (contract1/org1 и contract5/org6) — **исправлено**
+  в этой сессии (contract5 перенумерован в 23–26, ссылки `entityId` в
+  `edsSignatureEvents` обновлены, смоук через json-server зелёный).
+- json-server на :3001 держит старую версию `db.json` в памяти — нужен
+  перезапуск (`npm run server`), иначе GET новой коллекции = 404.
