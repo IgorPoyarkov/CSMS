@@ -139,6 +139,13 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Проверка рабочего места: плагин КриптоПро, сертификаты, подпись */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eds/diagnostics"}>
+              <span className={nav("link-name")}>Проверка ЭП</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item", ["end"])}>
             {user ? (
               <div

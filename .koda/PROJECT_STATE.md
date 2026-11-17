@@ -252,6 +252,21 @@ expiring (≤60 дн.) / expired / revoked; `certificateBelongsToOrganization`.
 создаёт запись EdsCertificate + событие в журнал. Штамп «ЭП · Владелец ·
 срез XXX…7890» остаётся в `comment` события.
 
+**Проверка рабочего места** (сессия 2026-11-17): `src/services/Eds/pluginSign.ts` —
+мост к CAdESCOM. Плагин выставляет `cadesplugin` (старые сборки — `cpcsp`), а не
+`cp`, поэтому детект проверяет все три имени. Экспорт: `detectPluginEnv`
+(канал/версия/что доступно), `readStoreCertificates` (хранилище «Мой»: subject,
+issuer, серийник decimal→HEX, отпечаток, даты `ДД.ММ.ГГГГ`→ISO, `HasPrivateKey`,
+ИНН/СНИЛС через `extract*FromSubject`), `signText` (открепленная
+`CAdESCOM.CadesSignedData`, `CADESCOM_CADES_BES`, содержимое в
+`CADESCOM_BASE64_TO_BINARY`), `makeSignCheckText`, `describePluginError`.
+Экран `/eds/diagnostics` (`PluginDiagnosticsPage` + `.module.scss`): строка
+«канал плагина / чтение / подпись», таблица сертификатов с подсветкой срока и
+кнопкой «Подписать тест», `<details>` «если сертификат не виден». Всё — по
+кнопке, без `useEffect` (тот же урок про `set-state-in-effect`). Ссылка
+«Проверка ЭП» в `Header.tsx`. `describeCryptoPro` теперь учитывает
+`cadesplugin`, иначе журнал на машине заказчика показывал «плагин не найден».
+
 **Важно:** **Мы НЕ подписываем документы за заказчика.** Подписание
 (`CPSignEx`) — следующий шаг (Tasks 9 п.1). Сейчас система только:
 
@@ -401,7 +416,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `/contract-service`, `/procurement-processing` (+`:id/notice-info`,
 `:id/contract-project`), `/reports/smnp`, `/contract-registry`,
 `/norming-requirements` (WIP — нормирование, чужая работа),
-`/eds/journal` (журнал действий по ЭП).
+`/eds/journal` (журнал действий по ЭП), `/eds/diagnostics` (проверка плагина
+КриптоПро, сертификатов и пробной подписи на рабочем месте).
 
 Хуки по доменам: `tasks.api` — `useOrganizationTasks`, `useAssigneeTasks`,
 `useTask`, `useCreateTask`, `useUpdateTask`, `useUpdateTaskProgress`,
@@ -467,6 +483,14 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   в проекте **нет** (`_btn.scss` — только `.btn`, `&--additionally`, `&--arrow`),
   поэтому всё новое — через `.module.scss`.
 
+- **Проверка ЭП (2026-11-17):** `npx tsc -b` — те же 10 ошибок чужого WIP
+  (`ObjectDescriptionSection.tsx`), мои файлы чистые; `npx oxlint src` — по
+  `pluginSign.ts` и `PluginDiagnosticsPage.tsx` замечаний нет (остаётся 1 чужой
+  error в `NormingRequirementsBlock.tsx`); `npx vite build` — успешно (4.46 s).
+  ⚠️ Реальная подпись на стенде ещё не прогонялась: нужен токен заказчика и
+  плагин в его браузере — проверяется на `/eds/diagnostics` кнопкой
+  «Подписать тест».
+
 ### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
 
 `18e95fe` feat(Eds) — вход по ЭП; `ab66099` docs. Далее — feat(ContractRegistry)
@@ -526,7 +550,9 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 
 1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание документов
    через плагин КриптоПро ЭЦП Browser plug-in (не вход, а подписание ПГ,
-   контрактов, служебок).
+   контрактов, служебок). 🟡 Начато: `pluginSign.ts` (`signText` через
+   `CAdESCOM.CadesSignedData`) и экран `/eds/diagnostics` готовы, проверены
+   сборкой; осталось подписать реальный документ и собрать пакет для выгрузки.
 2. **Tasks 8 п.2 (а, в)** — сборка XML по схеме ЕИС и чтение из ЕИС;
    чекпоинты `contractEvents` (п. б) уже сделаны — см. §4.
 3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика

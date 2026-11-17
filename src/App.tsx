@@ -23,6 +23,7 @@ import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
+import PluginDiagnosticsPage from "./components/Eds/PluginDiagnosticsPage";
 
 const router = createBrowserRouter([
   {
@@ -116,6 +117,12 @@ const router = createBrowserRouter([
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал
         path: "/eds/journal",
         element: <EdsJournalPage />,
+      },
+      {
+        // Диагностика рабочего места: видит ли браузер плагин и сертификаты,
+        // ставится ли подпись (Tasks 9, п. 1 — до отправки документов в ЕИС)
+        path: "/eds/diagnostics",
+        element: <PluginDiagnosticsPage />,
       },
     ],
   },

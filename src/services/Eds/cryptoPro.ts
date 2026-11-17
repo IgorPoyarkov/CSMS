@@ -5,6 +5,7 @@ import {
   extractSnilsFromSubject,
   type EdsCertificate,
 } from "./eds.schema";
+import { cadesPluginVersionSync, hasCadesPlugin } from "./pluginSign";
 
 /**
  * Мост к криптографическому плагину на рабочем месте заказчика.
@@ -73,16 +74,25 @@ export const CRYPTO_PRO_INSTALL_HINT =
 
 export const describeCryptoPro = (): CryptoProStatus => {
   const cp = plugin();
-  const canRead = Boolean(cp?.webcrypto?.getCertificates);
-  const canSign = Boolean(cp?.webcrypto?.sign || cp?.webcrypto?.signEx);
+  const viaWebcrypto = Boolean(cp?.webcrypto?.getCertificates);
+  // Реальный плагин выставляет cadesplugin/cpcsp, а не cp: без этой ветки
+  // журнал на рабочем месте заказчика показывал «плагин не найден»
+  const viaCades = hasCadesPlugin();
+  const version = cadesPluginVersionSync() || cp?.version || "";
+
+  const installed = viaCades || viaWebcrypto;
+  const canSign =
+    viaCades || Boolean(cp?.webcrypto?.sign || cp?.webcrypto?.signEx);
 
   return {
-    installed: canRead,
-    canSign: canRead && canSign,
-    version: cp?.version ?? "",
-    hint: canRead
-      ? `Плагин обнаружен${cp?.version ? `, версия ${cp.version}` : ""}: список сертификатов читается с рабочего места автоматически.`
-      : CRYPTO_PRO_INSTALL_HINT,
+    installed,
+    canSign,
+    version,
+    hint: viaCades
+      ? `Плагин обнаружен${version ? `, версия ${version}` : ""}: сертификаты читаются с рабочего места (CAdESCOM), подпись доступна.`
+      : viaWebcrypto
+        ? `Плагин обнаружен${version ? `, версия ${version}` : ""}: список сертификатов читается с рабочего места автоматически.`
+        : CRYPTO_PRO_INSTALL_HINT,
   };
 };
 
