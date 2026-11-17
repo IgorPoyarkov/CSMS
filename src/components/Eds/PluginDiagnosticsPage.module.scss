@@ -116,6 +116,37 @@
   }
 }
 
+/* Что нашлось в окне браузера */
+
+.eds-check__probe {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.eds-check__probeLabel {
+  color: var(--text-secondary);
+}
+
+.eds-check__probeItem {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+
+  &--found {
+    border-color: var(--state-success);
+    background: var(--state-success-soft);
+  }
+
+  &--missing {
+    border-color: var(--border);
+    color: var(--text-secondary);
+  }
+}
+
 .eds-check__error {
   padding: 10px 14px;
   border: 1px solid var(--state-danger);

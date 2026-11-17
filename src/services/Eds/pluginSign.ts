@@ -97,6 +97,30 @@ const createObject = async <T>(api: CadesApi, name: string): Promise<T> => {
 /** Есть ли в браузере канал CAdESCOM (его использует чтение и подпись). */
 export const hasCadesPlugin = (): boolean => cadesApi() !== null;
 
+/**
+ * Что вообще лежит в окне браузера под именами плагина.
+ *
+ * Расширение «CryptoPro Extension for CAdES Browser Plug-in» само по себе
+ * инъекцию не делает: объект появляется, только когда рядом стоит нативная
+ * часть (msi плагина). Экран показывает `typeof` по каждому имени, чтобы
+ * «расширение установлено, а ничего нет» не приходилось угадывать.
+ */
+export interface PluginProbe {
+  name: string;
+  type: string;
+}
+
+const PLUGIN_GLOBALS = ["cadesplugin", "cpcsp", "cp"] as const;
+
+export const probePluginGlobals = (): PluginProbe[] => {
+  const target = globalWindow();
+
+  return PLUGIN_GLOBALS.map((name) => ({
+    name,
+    type: typeof target[name],
+  }));
+};
+
 /** Версия плагина, если её удаётся прочитать без ожидания. */
 export const cadesPluginVersionSync = (): string => {
   const api = cadesApi();

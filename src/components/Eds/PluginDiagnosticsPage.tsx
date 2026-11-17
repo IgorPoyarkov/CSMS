@@ -5,10 +5,12 @@ import {
   PLUGIN_SECURE_CONTEXT_HINT,
   detectPluginEnv,
   makeSignCheckText,
+  probePluginGlobals,
   readStoreCertificates,
   signText,
   type PluginCertificateInfo,
   type PluginEnv,
+  type PluginProbe,
 } from "../../services/Eds/pluginSign";
 import styles from "./PluginDiagnosticsPage.module.scss";
 
@@ -66,6 +68,7 @@ export default function PluginDiagnosticsPage() {
 
   const [checking, setChecking] = useState(false);
   const [env, setEnv] = useState<PluginEnv | null>(null);
+  const [probe, setProbe] = useState<PluginProbe[]>([]);
   const [certificates, setCertificates] = useState<PluginCertificateInfo[]>([]);
   const [error, setError] = useState("");
   const [signingKey, setSigningKey] = useState("");
@@ -80,6 +83,8 @@ export default function PluginDiagnosticsPage() {
     setSignStates({});
 
     try {
+      setProbe(probePluginGlobals());
+
       const detected = await detectPluginEnv();
       setEnv(detected);
 
@@ -197,6 +202,32 @@ export default function PluginDiagnosticsPage() {
               {env.found ? PLUGIN_SECURE_CONTEXT_HINT : PLUGIN_ABSENT_HINT}
             </p>
           )}
+
+          {env.kind === "none" && (
+            <p className={block("hint")}>
+              Установленное расширение «CryptoPro Extension for CAdES Browser
+              Plug-in» само объект не создаёт: ему нужна нативная часть —
+              «КриптоПро ЭЦП Browser plug-in» (msi) и её служба (видна в
+              <i> services.msc</i> как «КриптоПро ЭЦП Browser plug-in»). Без неё
+              расширение стоит, но в страницу ничего не внедряет.
+            </p>
+          )}
+        </div>
+      )}
+
+      {probe.length > 0 && (
+        <div className={block("probe")}>
+          <span className={block("probeLabel")}>Объекты плагина в окне:</span>
+          {probe.map((item) => (
+            <span
+              key={item.name}
+              className={block("probeItem", [
+                item.type === "undefined" ? "missing" : "found",
+              ])}
+            >
+              {item.name}: {item.type}
+            </span>
+          ))}
         </div>
       )}
 
