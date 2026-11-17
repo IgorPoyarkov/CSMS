@@ -67,6 +67,24 @@ export const exportContractsToCsv = (
   contracts: ContractRegistryItem[],
   allRecords: ContractSmpRecord[],
 ): number => {
+  const { csv, count } = buildSmpExportCsv(contracts, allRecords);
+  if (count === 0) return 0;
+
+  downloadCsv(csv, `smp_export_${new Date().toISOString().slice(0, 10)}.csv`);
+  return count;
+};
+
+/**
+ * Собрать содержимое файла без скачивания.
+ *
+ * Нужна отдельно, потому что подпись ставится под конкретными байтами:
+ * подписанный пакет обязан содержать ровно то, что подписывали, поэтому
+ * и скачивание, и подпись берут одну и ту же строку.
+ */
+export const buildSmpExportCsv = (
+  contracts: ContractRegistryItem[],
+  allRecords: ContractSmpRecord[],
+): { csv: string; count: number } => {
   const rows: CsvRow[] = [];
 
   for (const contract of contracts) {
@@ -98,13 +116,7 @@ export const exportContractsToCsv = (
     }
   }
 
-  if (rows.length === 0) return 0;
-
-  downloadCsv(
-    recordsToCsv(rows),
-    `smp_export_${new Date().toISOString().slice(0, 10)}.csv`,
-  );
-  return rows.length;
+  return { csv: rows.length ? recordsToCsv(rows) : "", count: rows.length };
 };
 
 // ─── Вспомогательные подписи ──────────────────────────────────────────────

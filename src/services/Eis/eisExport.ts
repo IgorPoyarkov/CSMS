@@ -52,10 +52,21 @@ const escapeCsvField = (value: string): string => {
  */
 export const downloadCsv = (csv: string, fileName: string): void => {
   // BOM для корректного открытия в Excel (UTF-8 с BOM)
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csv], {
-    type: "text/csv;charset=utf-8",
-  });
+  downloadText("\uFEFF" + csv, fileName, "text/csv;charset=utf-8");
+};
+
+/** Скачать текстовый файл с заданным типом содержимого. */
+export const downloadText = (
+  text: string,
+  fileName: string,
+  mime: string,
+): void => {
+  const blob = new Blob([text], { type: mime });
+  downloadBlob(blob, fileName);
+};
+
+/** Скачать бинарный файл (например, подпись `.sig` в DER). */
+export const downloadBlob = (blob: Blob, fileName: string): void => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

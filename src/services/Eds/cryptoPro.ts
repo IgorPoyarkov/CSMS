@@ -5,7 +5,12 @@ import {
   extractSnilsFromSubject,
   type EdsCertificate,
 } from "./eds.schema";
-import { cadesPluginVersionSync, hasCadesPlugin } from "./pluginSign";
+import {
+  cadesPluginVersionSync,
+  hasCadesPlugin,
+  readStoreCertificates,
+  type PluginCertificateInfo,
+} from "./pluginSign";
 
 /**
  * Мост к криптографическому плагину на рабочем месте заказчика.
@@ -203,13 +208,48 @@ export const readPluginSignHandles = async (
 
 /**
  * Сертификаты, которые плагин видит на рабочем месте заказчика.
+ *
+ * Два источника по очереди: WebCrypto-ветка `window.cp` (старые сборки и
+ * Госключ) и хранилище «Мой» через CAdESCOM. Второй — рабочий путь
+ * «КриптоПро ЭЦП Browser plug-in»: именно он отдаёт сертификат с токена,
+ * поэтому без него список оставался пустым на живой машине.
  */
 export const readPluginCertificates = async (
   organizationId?: string | number,
-): Promise<EdsCertificate[]> =>
-  (await readPluginSignHandles(organizationId)).map(
-    (handle) => handle.certificate,
+): Promise<EdsCertificate[]> => {
+  const handles = await readPluginSignHandles(organizationId);
+  if (handles.length > 0) return handles.map((handle) => handle.certificate);
+
+  const store = await readStoreCertificates().catch(() => null);
+  if (!store || store.certificates.length === 0) return [];
+
+  return store.certificates.map((info) =>
+    fromStoreCertificate(info, organizationId),
   );
+};
+
+/** Сертификат из хранилища «Мой» в форме, принятой в журнале ЭП. */
+const fromStoreCertificate = (
+  info: PluginCertificateInfo,
+  organizationId?: string | number,
+): EdsCertificate =>
+  EdsCertificateSchema.parse({
+    // До входа в систему организация неизвестна — как и в остальных ветках
+    organizationId: organizationId ?? "",
+    ownerName: extractNameFromSubject(info.subject) || "Владелец не определён",
+    ownerSnils: info.snils || extractSnilsFromSubject(info.subject),
+    inn: info.inn || extractInnFromSubject(info.subject),
+    subject: info.subject,
+    issuer: info.issuer,
+    serialNumber: info.serialNumber,
+    fingerprint: info.fingerprint,
+    signatureAlgorithm: info.algorithm,
+    validFrom: info.validFrom,
+    validTo: info.validTo,
+    isRevoked: false,
+    isProxy: false,
+    source: "plugin",
+  });
 
 // ─── Вход по ЭП: наборт и подпись ────────────────────────────────────────────
 

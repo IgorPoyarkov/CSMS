@@ -195,6 +195,26 @@ export const PLUGIN_BRIDGE_NO_ANSWER_HINT =
   "(известный сбой x64-установщика плагина) и не запущена служба самого " +
   "плагина. Проверьте в КриптоПро CSP, что виден токен и сертификат.";
 
+/**
+ * Дождаться ответа плагина.
+ *
+ * Возвращает текст ошибки или `""`, если плагин готов. Именно `""`, а не
+ * исключение: «плагина нет» — штатный сценарий для браузера без расширения,
+ * и вызывающий код обрабатывает его как понятное сообщение, а не как сбой.
+ */
+const readinessError = async (): Promise<string> => {
+  try {
+    await awaitCadesPluginReady();
+    return "";
+  } catch (error) {
+    return `${describePluginError(error)} ${
+      hasExtensionBridge()
+        ? PLUGIN_BRIDGE_NO_ANSWER_HINT
+        : PLUGIN_BRIDGE_ABSENT_HINT
+    }`;
+  }
+};
+
 const readPluginVersion = async (): Promise<string> => {
   const api = cadesApi();
   if (!api) return "";
@@ -227,23 +247,27 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
     apiLoadError = describePluginError(error);
   }
 
-  const bridge = hasExtensionBridge();
-
   if (!globalWindow().cadesplugin) {
     return {
       kind: "none",
       found: false,
       version: "",
-      bridge,
+      bridge: hasExtensionBridge(),
       canReadCertificates: false,
       canSign: false,
-      hint: apiLoadError || (bridge ? PLUGIN_BRIDGE_NO_ANSWER_HINT : PLUGIN_ABSENT_HINT),
+      hint: apiLoadError || PLUGIN_ABSENT_HINT,
     };
   }
 
   try {
     await awaitCadesPluginReady();
   } catch (error) {
+    // Мост читается ПОСЛЕ ожидания: `nmcades_plugin_api.js` внедряется уже
+    // после загрузки API-скрипта, поэтому замер сразу после `loadCadesApi`
+    // показывал «нет» даже на рабочем плагине. К этому моменту прошло ~12 с,
+    // и признак честный.
+    const bridge = hasExtensionBridge();
+
     return {
       kind: "cadesplugin",
       found: false,
@@ -263,7 +287,9 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
     kind: "cadesplugin",
     found: true,
     version,
-    bridge,
+    // Плагин ответил — значит мост был и работал; замеряем по факту, а не по
+    // предположению, чтобы строка диагностики не противоречила сертификатам
+    bridge: hasExtensionBridge(),
     canReadCertificates: true,
     canSign: true,
     hint: `Плагин ответил${version ? `, версия ${version}` : ""}: сертификаты читаются с рабочего места, подпись доступна.`,
@@ -390,6 +416,15 @@ export const readStoreCertificates = async (): Promise<ReadCertificatesResult> =
     return { certificates: [], error: PLUGIN_ABSENT_HINT };
   }
 
+  // Фабрика `CreateObjectAsync` появляется вместе со скриптом, а сам плагин
+  // может так и не ответить (нет расширения или native host). Без ожидания
+  // такой браузер отвечает сырым «Cannot read properties of undefined»,
+  // и человек не понимает, что чинить
+  const unready = await readinessError();
+  if (unready) {
+    return { certificates: [], error: unready };
+  }
+
   let store: CadesStore | null = null;
 
   try {
@@ -482,6 +517,11 @@ export const signText = async (
   const api = cadesApi();
   if (!api) throw new Error(PLUGIN_ABSENT_HINT);
 
+  // Сырая ошибка «Cannot read properties of undefined (CreateObjectAsync)»
+  // означает лишь одно: плагин ещё/уже не ответил — объясняем это словами
+  const unready = await readinessError();
+  if (unready) throw new Error(unready);
+
   const detached = options.detached ?? true;
   const content = utf8ToBase64(text);
 
@@ -532,6 +572,16 @@ export const describePluginError = (error: unknown): string => {
         : asText((error as CadesObject | null)?.message);
 
   const base = message.trim() || "Плагин вернул пустой ответ.";
+
+  // Внутренняя ошибка API-скрипта: он уже объявил фабрику, но объект за ней
+  // ещё не создан. Человеку это имя ничего не говорит — заменяем
+  if (/CreateObjectAsync|pluginObject/.test(base)) {
+    return (
+      "Плагин объявлен в странице, но не ответил: расширение не подключилось " +
+      "к нативной части. Проверьте страницу «Проверка ЭП» — она покажет, " +
+      "внедрилось ли расширение."
+    );
+  }
 
   return `${base} Проверьте: подключён ли токен, вставлен ли он до открытия браузера, виден ли сертификат в КриптоПро CSP и не истёк ли срок его действия.`;
 };

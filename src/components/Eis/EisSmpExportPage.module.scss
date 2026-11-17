@@ -247,3 +247,86 @@
   border-radius: 6px;
   color: var(--state-success);
 }
+
+/* ─── Пакет с подписью ──────────────────────────────────────────────────── */
+
+.eis-page__signer {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.eis-page__signerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eis-page__signerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.eis-page__signerClose {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.eis-page__signerLead {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.eis-page__signerMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-page__signerList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.eis-page__signerItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  cursor: pointer;
+
+  input[type="radio"] {
+    margin-top: 2px;
+    cursor: pointer;
+  }
+}
+
+.eis-page__signerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.eis-page__signerSubject {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-word;
+}

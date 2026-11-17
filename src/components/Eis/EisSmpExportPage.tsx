@@ -10,6 +10,7 @@ import {
   type ContractSmpRecord,
 } from "../../services/ContractSmp/contractSmp.schema";
 import {
+  buildSmpExportCsv,
   exportContractsToCsv,
   usePushSmpRecordsToEis,
 } from "../../services/Eis/eisSmpExport.api";
@@ -17,6 +18,15 @@ import useUtils from "../../hooks/useUtils";
 import EdsSignModal from "../Eds/EdsSignModal";
 import { useLogSignatureEvent } from "../../services/Eds/eds.api";
 import type { SignatureEvent } from "../../services/Eds/eds.schema";
+import {
+  readStoreCertificates,
+  type PluginCertificateInfo,
+} from "../../services/Eds/pluginSign";
+import {
+  downloadSmpPackage,
+  signSmpPackage,
+  type SignedSmpPackage,
+} from "../../services/Eds/smpPackage";
 import styles from "./EisSmpExportPage.module.scss";
 
 /**
@@ -26,6 +36,18 @@ import styles from "./EisSmpExportPage.module.scss";
  * без неё сюда не попадают. Два действия: скачать CSV по полям реестра
  * и отметить принятые записи выгруженными.
  */
+
+/** Ключ сертификата в списке: отпечаток стабильнее серийника и индекса. */
+const certKeyOf = (certificate: PluginCertificateInfo, index: number): string =>
+  certificate.fingerprint || certificate.serialNumber || `cert-${index}`;
+
+// Локальное время для журнала: по нему сверяются с часами ЕИС и логином
+const nowLocalDateTime = (): string => {
+  const d = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 export default function EisSmpExportPage() {
   const { bem } = useUtils();
@@ -56,6 +78,141 @@ export default function EisSmpExportPage() {
 
   // Выгрузка в ЕИС — действие с ЭП: сначала журнал, потом отметка записей
   const [signing, setSigning] = useState<ContractSmpRecord[] | null>(null);
+
+  /*
+   * Пакет с открепленной подписью.
+   *
+   * Журнал фиксирует «кто расписался», пакет — «что подписано». Это разные
+   * вещи: без файлов отправлять в ЕИС нечего, а без записи в журнале потом
+   * невозможно доказать, чьим ключом подписан документ.
+   */
+  const [packageOpen, setPackageOpen] = useState(false);
+  const [packageLoading, setPackageLoading] = useState(false);
+  const [packageCerts, setPackageCerts] = useState<PluginCertificateInfo[]>([]);
+  const [packageCertKey, setPackageCertKey] = useState("");
+  const [packageBusy, setPackageBusy] = useState(false);
+  const [packageError, setPackageError] = useState("");
+  const [packageResult, setPackageResult] = useState<SignedSmpPackage | null>(
+    null,
+  );
+
+  const packageTargets = () =>
+    selected.size
+      ? smpContracts.filter((c) => selected.has(String(c.id)))
+      : smpContracts;
+
+  async function openPackage() {
+    setPackageOpen(true);
+    setPackageError("");
+    setPackageResult(null);
+    setPackageCerts([]);
+    setPackageLoading(true);
+
+    try {
+      const result = await readStoreCertificates();
+      // Подписывать можно только тем сертификатом, у которого есть закрытый
+      // ключ: публичная часть в хранилище есть у всех, а ключ — не у всех
+      const usable = result.certificates.filter((c) => c.hasPrivateKey);
+      setPackageCerts(usable);
+
+      if (result.error) {
+        setPackageError(result.error);
+      } else if (usable.length === 0) {
+        setPackageError(
+          "В хранилище «Мой» нет сертификатов с закрытым ключом — подписывать нечем. " +
+            "Проверьте токен и страницу «Проверка ЭП».",
+        );
+      }
+
+      // Своя ЭП заказчика важнее любой другой: подпись чужим ключом ЕИС не примет
+      const orgInn = organization?.inn ?? "";
+      const preferred =
+        usable.find((certificate) => orgInn && certificate.inn === orgInn) ??
+        usable[0];
+      const preferredIndex = preferred ? usable.indexOf(preferred) : -1;
+      setPackageCertKey(
+        preferredIndex >= 0 ? certKeyOf(preferred, preferredIndex) : "",
+      );
+    } catch (caught) {
+      setPackageError(
+        caught instanceof Error ? caught.message : String(caught),
+      );
+    } finally {
+      setPackageLoading(false);
+    }
+  }
+
+  async function signPackage() {
+    const certificate = packageCerts.find(
+      (item, index) => certKeyOf(item, index) === packageCertKey,
+    );
+    if (!certificate) return;
+
+    const targets = packageTargets();
+    const { csv, count } = buildSmpExportCsv(targets, allRecords);
+
+    if (count === 0) {
+      setPackageError(
+        "Нечего подписывать: в выбранных контрактах нет сведений о СМП.",
+      );
+      return;
+    }
+
+    const label =
+      `Сведения о привлечении СМП: строк ${count}, контрактов ${targets.length}` +
+      `, от ${new Date().toISOString().slice(0, 10)}`;
+
+    setPackageBusy(true);
+    setPackageError("");
+
+    try {
+      const signed = await signSmpPackage(csv, certificate, label);
+      downloadSmpPackage(signed, csv);
+      setPackageResult(signed);
+
+      const innMatches = Boolean(
+        certificate.inn &&
+          organization?.inn &&
+          certificate.inn === organization.inn,
+      );
+      const targetRecords = targets.flatMap(
+        (contract) => recordsByContract.get(String(contract.id)) ?? [],
+      );
+
+      // Без ИНН журнал не пройдёт валидацию: запись имеет смысл только с
+      // владельцем сертификата, иначе это строка «что-то подписано»
+      if (certificate.inn) {
+        logSignature.mutate({
+          organizationId: organization?.id ?? "",
+          contractId: targets[0]?.id,
+          action: "smp_eis_export",
+          entityType: "contractSmpRecord",
+          entityId: targetRecords[0]?.id ?? "smp-export",
+          documentLabel: label,
+          certificateOwner: certificate.subject.slice(0, 200),
+          certificateInn: certificate.inn,
+          certificateSerial: certificate.serialNumber,
+          certificateFingerprint: certificate.fingerprint,
+          certificateAlgorithm: certificate.algorithm,
+          certificateValidTo: certificate.validTo,
+          innMatched: innMatches,
+          certificateSource: "plugin",
+          result: innMatches ? "signed" : "rejected_certificate",
+          comment:
+            `Пакет ${signed.documentName}, подпись ${signed.signatureName}, ` +
+            `SHA-256 ${signed.sha256}. Подпись поставлена на рабочем месте, ` +
+            "сервером не проверялась.",
+          createdAt: nowLocalDateTime(),
+        });
+      }
+    } catch (caught) {
+      setPackageError(
+        caught instanceof Error ? caught.message : String(caught),
+      );
+    } finally {
+      setPackageBusy(false);
+    }
+  }
 
   const stats = useMemo(() => {
     let records = 0;
@@ -173,6 +330,13 @@ export default function EisSmpExportPage() {
         </button>
         <button
           className={block("btn", ["primary"])}
+          onClick={openPackage}
+          disabled={stats.records === 0}
+        >
+          Подписать пакет (ЭП)
+        </button>
+        <button
+          className={block("btn", ["primary"])}
           onClick={pushSelected}
           disabled={pushToEis.isPending || pendingRecords.length === 0}
         >
@@ -192,6 +356,96 @@ export default function EisSmpExportPage() {
           Снять выделение
         </button>
       </div>
+
+      {packageOpen && (
+        <div className={block("signer")}>
+          <div className={block("signerHead")}>
+            <h3 className={block("signerTitle")}>
+              Пакет с открепленной подписью
+            </h3>
+            <button
+              type="button"
+              className={block("signerClose")}
+              onClick={() => setPackageOpen(false)}
+              aria-label="Закрыть"
+            >
+              ×
+            </button>
+          </div>
+
+          <p className={block("signerLead")}>
+            Подписывается тот же CSV, что скачивается кнопкой «Скачать CSV для
+            ЕИС». Ключ остаётся в токене: наружу выходит только подпись.
+            Скачаются три файла — документ, открепленная подпись <b>.sig</b> и
+            манифест с отпечатком сертификата и SHA-256 документа.
+          </p>
+
+          {packageLoading && (
+            <p className={block("signerMeta")}>
+              Читаю сертификаты с рабочего места…
+            </p>
+          )}
+
+          {packageCerts.length > 0 && (
+            <div className={block("signerList")}>
+              {packageCerts.map((certificate, index) => {
+                const key = certKeyOf(certificate, index);
+
+                return (
+                  <label key={key} className={block("signerItem")}>
+                    <input
+                      type="radio"
+                      name="smp-package-cert"
+                      checked={packageCertKey === key}
+                      onChange={() => setPackageCertKey(key)}
+                    />
+                    <span className={block("signerInfo")}>
+                      <span className={block("signerSubject")}>
+                        {certificate.subject || "Владелец не определён"}
+                      </span>
+                      <span className={block("signerMeta")}>
+                        ИНН {certificate.inn || "—"} · действует до{" "}
+                        {certificate.validTo || "—"} · серийник{" "}
+                        {certificate.serialNumber || "—"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          {packageError && <div className={block("error")}>{packageError}</div>}
+
+          {packageResult && (
+            <div className={block("success")}>
+              Подписано: {packageResult.documentName} ·{" "}
+              {packageResult.documentBytes} байт · подпись{" "}
+              {packageResult.signatureBytes} байт · SHA-256{" "}
+              {packageResult.sha256.slice(0, 16)}…
+              <br />
+              Подпись поставлена на этом компьютере и сервером не проверена —
+              её проверяет ЕИС при загрузке пакета.
+            </div>
+          )}
+
+          <div className={block("actions")}>
+            <button
+              className={block("btn", ["primary"])}
+              onClick={signPackage}
+              disabled={packageBusy || !packageCertKey}
+            >
+              {packageBusy ? "Подписываю…" : "Подписать и скачать пакет"}
+            </button>
+            <button
+              className={block("btn")}
+              onClick={() => setPackageOpen(false)}
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
 
       {smpContracts.length === 0 ? (
         <div className={block("empty")}>
