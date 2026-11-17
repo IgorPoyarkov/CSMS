@@ -63,7 +63,7 @@
   Реквизиты заказчика вручную не вводятся; чужие записи отклоняются на клиенте
   (`isPlanOfOrganization` и аналоги, сравнение через `String()`).
 
-## 3. Данные (`db.json`, 2026-11-16)
+## 3. Данные (`db.json`, 2026-11-17)
 
 ```
 users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отделы!)
@@ -72,7 +72,7 @@ tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessReque
 contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
 contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 14
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-edsCertificates 4 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Municipalities 89/31
+edsCertificates 4 · edsSignatureEvents 11 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -167,6 +167,20 @@ edsCertificates 4 · edsSignatureEvents 3 · okpd2Refs 143 · addressRegions/Mun
 извещение → проект контракта → подписанный контракт → запись реестра;
 требование СМП рождается в служебке и наследуется вниз (`smpRequiredPercent`).
 
+**Подгрузка сведений из реестра по реестровому номеру контракта** (сессия
+2026-11-17): `lookupContractByNumber(contractNumber, organizationId)` в
+`contractRegistry.api.ts` → `ContractLookup { contract, anotherOrganization }`.
+Сначала запрос `?contractNumber=…&organizationId=…` (разграничение на уровне
+запроса), при пустом результате уточняющий запрос без фильтра по организации —
+чтобы отличить «нет в реестре» от «есть у другого заказчика» (чужие сведения не
+возвращаются). На странице блок «Подгрузка сведений из реестра контрактов»:
+найденный контракт раскрывается, подсвечивается (`cardHighlighted`) и к нему
+прокрутка; сами сведения подтягивает карточка (этапы, платежи, неустойки,
+поставки, СМП). Запрос — по кнопке, через async-обработчик (не через `useQuery`:
+результат нужен один раз по действию пользователя, без каскадных setState).
+`MIN_CONTRACT_NUMBER_LENGTH` = 3 — как `requiredText(3, …)` в схеме номера;
+пустой фильтр json-server вернул бы весь реестр.
+
 ### Электронная подпись (Eds)
 
 **Файлы:** `src/services/Eds/eds.schema.ts` + `.api.ts` + `cryptoPro.ts`;
@@ -229,6 +243,10 @@ employee)` → `employee.userId` → `users`.
   подписи (зелёный = плагин подписал, жёлтый = режим `registry` без проверки
   подписи), кнопка «Войти по ЭЦП».
 - `LoginForm.tsx`: переключатель «По email / По ЭЦП» (mode: "email" | "eds").
+- Прогон `resolveEdsAccount` на сидах: id1 Говоров → `ok` →
+  zakupki@kurskavtodor.ru; id2 Иванов и id3 Колесникова → `employee_not_found`;
+  id4 Пояркова → `ok` → test2@test.test. `personNamesMatch` — 7/7 (полное ФИО,
+  инициалы «Говоров А.Н.», «ё»↔«е», тёзка с другим отчеством → false).
 
 **Честное ограничение стенда:** json-server **не проверяет подпись** —
 верификация набора возможна только на реальном бэкенде. Режим `registry`
@@ -360,34 +378,39 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `useLogSignatureEvent`. **Общий хук роли** — `src/hooks/useMyContractRole.ts`
 (`{ user, organization, contractService, employee, myRole, isHead }`).
 
-## 7. Результат последней проверки (2026-11-16, вход по ЭП)
+## 7. Результат последней проверки (2026-11-17, подгрузка из реестра по номеру)
 
-- `npx tsc -b --pretty false` — **10 ошибок**, все в `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`
-  (чужая WIP: TS2322 `string` → `never`, неисп. `control`, TS2345);
-  **мои файлы чистые**.
-- `npx vite build` — успешно (2.68s); `npx oxlint src` — **28 warnings, 1 error**
-  (`NormingRequirementsBlock.tsx` — `useFieldArray` conditionally, чужой).
-- Смоук через json-server-копию (порт 3015): `edsCertificates` 4,
-  `edsSignatureEvents` 3, `contractSmpRecords` 23, `organizations` 6,
-  `users` 5, `employees` 40. POST события `eds_login` → 201, счётчики
-  не изменились (кроме +1 событие) — `entityId` не считается ссылкой.
-- Прогон `resolveEdsAccount` на сидах (`.tmpcheck/`, tsc --ignoreConfig +
-  патч импортов на `.js`, запуск node): id1 Говоров → ok →
-  zakupki@kurskavtodor.ru; id2 Иванов → employee_not_found; id3 Колесникова →
-  employee_not_found; id4 Пояркова → ok → test2@test.test.
-  `personNamesMatch` — 7/7 (полное ФИО, инициалы, женское, «ё»↔«е», тёзка с
-  другим отчеством → false).
-- Проверка CSS-токенов: все `var(--*)` в новых `.module.scss` объявлены в
-  `_themes.scss` (было 6 битых — `--surface-success`/`--text-warning` и т.п.,
-  правильные имена `--state-*` / `--state-*-soft`).
+- `npx tsc -b --pretty false` — **10 ошибок**, все в
+  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx` (чужой WIP: TS2322
+  `string` → `never`, неисп. `control`, TS2345); **мои файлы чистые**.
+- `npx oxlint src` — **28 warnings, 1 error** (`NormingRequirementsBlock.tsx` —
+  `useFieldArray` conditionally, чужой). По `ContractRegistryPage.tsx` и
+  `contractRegistry.api.ts` замечаний нет. Урок: `set-state-in-effect` и
+  «useMemo has unnecessary dependency» раньше в проекте не срабатывали —
+  подгрузку поэтому сделали через async-обработчик кнопки, а не `useQuery` +
+  `useEffect` (иначе пришлось бы поднимать setState в эффект).
+- `npx vite build` — успешно (4.76s).
+- Смоук json-server (копия на :3014, старт ~14 с). ⚠️ `Start-Job` живёт только
+  внутри одного вызова терминала: сервер и все запросы надо делать **одной
+  командой**, иначе порт пустой. Реестр: id1/id2 org1
+  (`0344200012126000001`, `…002`), id3 org2, id4 org4, id5 org6
+  (`0346200000626000001`). `?contractNumber=…&organizationId=6` → 1 (свой);
+  тот же номер с `organizationId=1` → 0 своих, 1 в реестре → «у другого
+  заказчика»; заведомо неверный номер → 0 и 0 → «не найден».
+- CSS-токены новых блоков объявлены в `_themes.scss` (`--surface-panel`,
+  `--surface-field`, `--surface-raised`, `--border`, `--border-strong`,
+  `--accent`, `--accent-emphasis`, `--accent-soft`, `--state-success|warning|danger`
+  и `-soft`). ⚠️ Глобальных классов `.notice`, `.pill`, `.card`, `.btn--primary`
+  в проекте **нет** (`_btn.scss` — только `.btn`, `&--additionally`, `&--arrow`),
+  поэтому всё новое — через `.module.scss`.
 
 ### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
 
-`64fa377` docs(state) — PROJECT_STATE на 2026-11-16 + исправление дубля id19.
-`7b82a89` docs(agents) — читать `.koda/PROJECT_STATE.md` первым.
-(далее — вход по ЭП).
+`18e95fe` feat(Eds) — вход по ЭП; `ab66099` docs. Далее — feat(ContractRegistry)
+подгрузка сведений по реестровому номеру и `chore(db)` (события `eds_login`
+из прогона входа по ЭП: `edsSignatureEvents` 3 → 11).
 
-### Незавершённая чужая работа (нормирование)
+### Незавершённая чужая работа (нормирование) — без изменений
 
 `src/components/NoticeInfoForm/sections/ObjectDescriptionSection.tsx` —
 10 ошибок `tsc` (`Type 'string' is not assignable to type 'never'`, неисп.
@@ -396,12 +419,16 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 
 ### Новые файлы и коллекции
 
-- **Eds:** `src/services/Eds/eds.schema.ts`, `.api.ts`, `cryptoPro.ts`;
-  `src/components/Eds/EdsSignModal.tsx` + `.module.scss`;
-  `src/components/Eds/EdsJournalPage.tsx` + `.module.scss`.
+- **Eds:** `src/services/Eds/eds.schema.ts`, `.api.ts`, `cryptoPro.ts`,
+  `edsAuth.ts`; `src/components/Eds/EdsSignModal.tsx`, `EdsLoginForm.tsx`,
+  `EdsJournalPage.tsx` (+ `.module.scss`).
 - **ContractSmp:** `src/services/ContractSmp/deadlines.ts`, `pp1466.ts`,
   `sourceFile.ts`; `src/components/Eis/EisSmpExportPage.tsx` + `.module.scss`.
-- **Коллекции db.json:** `edsCertificates` (3), `edsSignatureEvents` (3),
+- **Подгрузка из реестра (2026-11-17):** новых файлов нет — правки
+  `contractRegistry.api.ts` (`ContractLookup`, `lookupContractByNumber`,
+  `MIN_CONTRACT_NUMBER_LENGTH`), `ContractRegistryPage.tsx` (блок подгрузки,
+  `cardHighlighted`, прокрутка) и `ContractRegistry.module.scss`.
+- **Коллекции db.json:** `edsCertificates` (4), `edsSignatureEvents` (11),
   `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
   (89/31).
 
@@ -418,6 +445,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `contractEvents`, чтение из ЕИС.
 - Tasks 8 п.4: роль «инициатор закупки».
 - Tasks 9 п.3: срезы ПГ/реестра контрактов/извещений (ядро, 2–3 недели).
+- Подгрузка по реестровому номеру (2026-11-17) читает **локальный** реестр
+  `contractRegistry`; получение тех же сведений из ЕИС — это Tasks 9 п.3.
 - **Не делать:** вход подрядчика по ссылке-приглашению (отложен), OCR содержимого
   PDF, годовой отчёт СМП (только напоминалка).
 - Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` и `contracts` пусты.
@@ -431,7 +460,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
    контрактов, служебок).
 2. **Tasks 8 п.2** — сборка XML по схеме ЕИС, чекпоинты `contractEvents`,
    чтение из ЕИС (3–6 недель).
-3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика.
+3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика
+   (туда же — замена локальной подгрузки по реестровому номеру на данные ЕИС).
 4. **Tasks 8 п.4** — роль «инициатор закупки» (1–2 дня).
 
 **Не трогать:** чужую WIP нормирования (пусть второй агент доделает в GitHub).
