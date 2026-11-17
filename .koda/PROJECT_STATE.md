@@ -80,10 +80,10 @@
 users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отделы!)
 contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts — удалена
 tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
-contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
+contractProjects 2 · contractRegistry 6 · contractStages 11 · contractPayments 10
 contractPenalties 5 · contractDeliveries 3 · contractEvents 21 · contractFunctions 5 · legalActs 14
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-edsCertificates 4 · edsSignatureEvents 11 · okpd2Refs 143 · addressRegions/Municipalities 89/31
+edsCertificates 4 · edsSignatureEvents 19 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -180,17 +180,30 @@ edsCertificates 4 · edsSignatureEvents 11 · okpd2Refs 143 · addressRegions/Mu
 
 **Подгрузка сведений из реестра по реестровому номеру контракта** (сессия
 2026-11-17): `lookupContractByNumber(contractNumber, organizationId)` в
-`contractRegistry.api.ts` → `ContractLookup { contract, anotherOrganization }`.
-Сначала запрос `?contractNumber=…&organizationId=…` (разграничение на уровне
-запроса), при пустом результате уточняющий запрос без фильтра по организации —
-чтобы отличить «нет в реестре» от «есть у другого заказчика» (чужие сведения не
-возвращаются). На странице блок «Подгрузка сведений из реестра контрактов»:
+`contractRegistry.api.ts` → `ContractLookup { contract, matchedBy,
+anotherOrganization }`. Порядок поиска: точное совпадение среди своих → свой
+контракт по фрагменту (`contractNumber_like`, в json-server именно `_like`, а не
+`__like`; хорошо дружит с `organizationId`) → чужие контракты (только чтобы
+отличить «нет в реестре» от «контракт другого заказчика», чужие сведения не
+возвращаются). `normalizeContractNumber()` убирает пробелы, `№` и дефисы — номер
+копируют из ЕИС. На странице блок «Подгрузка сведений из реестра контрактов»:
 найденный контракт раскрывается, подсвечивается (`cardHighlighted`) и к нему
 прокрутка; сами сведения подтягивает карточка (этапы, платежи, неустойки,
-поставки, СМП). Запрос — по кнопке, через async-обработчик (не через `useQuery`:
-результат нужен один раз по действию пользователя, без каскадных setState).
-`MIN_CONTRACT_NUMBER_LENGTH` = 3 — как `requiredText(3, …)` в схеме номера;
-пустой фильтр json-server вернул бы весь реестр.
+поставки, СМП). Частичное совпадение помечается в сообщении. Под подсказкой —
+пилюли с номерами своей организации (из уже загруженного `contracts`, без доп.
+запроса), клик = подставить и подгрузить. Запрос — по кнопке, через
+async-обработчик (не через `useQuery`: результат нужен один раз по действию
+пользователя, без каскадных setState). `MIN_CONTRACT_NUMBER_LENGTH` = 3 — как
+`requiredText(3, …)` в схеме номера; пустой фильтр json-server вернул бы весь
+реестр.
+
+⚠️ **Подгрузка читает локальный `contractRegistry`, а не ЕИС.** Реальные номера
+реестровых записей (вида `2462904043926000011`) в сидах отсутствуют → «не
+найдено». Прямой запрос из браузера в ЕИС невозможен (CORS + нужен
+`iservice-key`), из этой среды ещё и DNS не резолвит `api.zakupki.gov.ru`.
+Настоящий обмен — Tasks 9 п.3 (серверный прокси). Для демонстрации в сидах есть
+контракт id 6 (org6) с номером `2462904043926000011`, 2 этапа (49,6 + 74,4 млн =
+цене 124 млн) и аванс 37,2 млн.
 
 ### Чекпоинты процесса по контракту (`contractEvents`)
 
@@ -476,6 +489,15 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   (`0346200000626000001`). `?contractNumber=…&organizationId=6` → 1 (свой);
   тот же номер с `organizationId=1` → 0 своих, 1 в реестре → «у другого
   заказчика»; заведомо неверный номер → 0 и 0 → «не найден».
+- Смоук подгрузки по фрагменту (:3016, после добавления контракта id 6):
+  реестр 6; `contractNumber=2462904043926000011&organizationId=6` → 1;
+  `contractNumber_like=246290404&organizationId=6` → 1; тот же номер с
+  `organizationId=1` → 0, без фильтра → 1 (ветка «другой заказчик»);
+  этапы c6 = 2 (49,6 + 74,4 = цене 124 млн), платежи c6 = 1. Проверены
+  фильтры json-server: `contractNumber_like` работает, `contractNumber__like`
+  и `contractNumber=<часть>` → 0.
+- ⚠️ Запущенный `npm run server` (:3001) держит `db.json` в памяти: новый сид
+  id 6 появится в UI только после перезапуска сервера.
 - CSS-токены новых блоков объявлены в `_themes.scss` (`--surface-panel`,
   `--surface-field`, `--surface-raised`, `--border`, `--border-strong`,
   `--accent`, `--accent-emphasis`, `--accent-soft`, `--state-success|warning|danger`
@@ -493,9 +515,19 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 
 ### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
 
-`18e95fe` feat(Eds) — вход по ЭП; `ab66099` docs. Далее — feat(ContractRegistry)
-подгрузка сведений по реестровому номеру и `chore(db)` (события `eds_login`
-из прогона входа по ЭП: `edsSignatureEvents` 3 → 11).
+`18e95fe` feat(Eds) — вход по ЭП; `ab66099` docs; `ba52fc6` feat(ContractRegistry)
+— подгрузка по реестровому номеру; `e514b71` chore(db) — события `eds_login`
+(3 → 11); `9116708` docs(state). Далее — feat(ContractRegistry) подгрузка по
+части номера + подсказки, `27146d1` chore(db) — демо-контракт id 6.
+
+⚠️ **Параллельная работа в одном рабочем дереве.** В 04:08 и 04:10 этого же дня
+коммиты `0aa2b7f` (чекпоинты процесса) и `3e740bd` (плагин КриптоПро) делались
+через `git add -A` и утащили мои незакоммиченные правки подгрузки — они попали в
+чужий `0aa2b7f`. Код цел (проверено в HEAD: `normalizeContractNumber`,
+`lookupContractByNumber`, `runLookup`, `knownNumbers` рядом с чужим
+`ContractEventsSection`), но история перемешана. Правило: коммитить сразу по
+окончании своей задачи и не делать `git add -A`, пока в `git status` чужие
+незакоммиченные файлы.
 
 ### Незавершённая чужая работа (нормирование) — без изменений
 
