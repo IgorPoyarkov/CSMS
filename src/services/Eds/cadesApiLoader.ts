@@ -13,7 +13,9 @@
  * из расширения (`chrome-extension://<id>/…`).
  */
 
-const SCRIPT_PATH = "/cadesplugin_api.js";
+// Путь от корня сборки: при выкладке в подкаталог base меняется, и жёсткий
+// «/cadesplugin_api.js» дал бы 404 — плагин «не находился» бы без причины
+const SCRIPT_PATH = `${import.meta.env.BASE_URL}cadesplugin_api.js`;
 const SCRIPT_ATTR = "data-csms-cades-api";
 // Плагин сам сдаётся через 20 с; здесь ждём меньше, чтобы интерфейс не висел
 const READY_TIMEOUT_MS = 12000;

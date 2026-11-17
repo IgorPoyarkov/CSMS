@@ -1,7 +1,6 @@
 import { useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
-  PLUGIN_ABSENT_HINT,
   PLUGIN_SECURE_CONTEXT_HINT,
   detectPluginEnv,
   makeSignCheckText,
@@ -185,6 +184,12 @@ export default function PluginDiagnosticsPage() {
             </span>
           </div>
           <div className={block("cardRow")}>
+            <span className={block("cardLabel")}>Мост расширения</span>
+            <span className={block("cardValue")}>
+              {env.bridge ? "есть" : "нет"}
+            </span>
+          </div>
+          <div className={block("cardRow")}>
             <span className={block("cardLabel")}>Чтение сертификатов</span>
             <span className={block("cardValue")}>
               {env.canReadCertificates ? "да" : "нет"}
@@ -198,9 +203,9 @@ export default function PluginDiagnosticsPage() {
           </div>
           <p className={block("hint")}>{env.hint}</p>
 
-          {!env.canSign && (
+          {!secureContext && (
             <p className={block("hint", ["warn"])}>
-              {env.found ? PLUGIN_SECURE_CONTEXT_HINT : PLUGIN_ABSENT_HINT}
+              {PLUGIN_SECURE_CONTEXT_HINT}
             </p>
           )}
 

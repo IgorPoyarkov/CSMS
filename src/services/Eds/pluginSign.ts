@@ -111,7 +111,11 @@ export interface PluginProbe {
   type: string;
 }
 
-const PLUGIN_GLOBALS = ["cadesplugin", "cpcsp", "cp"] as const;
+const PLUGIN_GLOBALS = [
+  "cadesplugin",
+  "cpcsp_chrome_nmcades",
+  "cp",
+] as const;
 
 export const probePluginGlobals = (): PluginProbe[] => {
   const target = globalWindow();
@@ -144,19 +148,26 @@ export const PLUGIN_SECURE_CONTEXT_HINT =
   "ваш сертификат.";
 
 /**
- * Подсказка про расширение: в списке дополнений оно называется
- * «Extension for CAdES Browser Plugin» — слова CryptoPro в названии нет,
- * поэтому его обычно и не находят.
+ * Подсказка про имя расширения перенесена в `PLUGIN_BRIDGE_ABSENT_HINT`:
+ * в списке дополнений оно называется «Extension for CAdES Browser Plugin» —
+ * слова CryptoPro в названии нет, поэтому его обычно и не находят.
  */
-export const PLUGIN_EXTENSION_HINT =
-  "В списке дополнений браузера расширение называется «Extension for CAdES " +
-  "Browser Plugin» (без слова CryptoPro) — проверьте, что оно включено.";
 
 /** Состояние канала плагина: что нашлось и что из этого доступно. */
 export interface PluginEnv {
   kind: PluginKind;
   found: boolean;
   version: string;
+  /**
+   * Мост расширения `window.cpcsp_chrome_nmcades` есть в окне.
+   *
+   * Это отдельный признак, и он экономит целый круг диагностики: мост
+   * внедряет контент-скрипт расширения, значит расширение включено и страницу
+   * не игнорирует. Если мост есть, а плагин молчит — виновата нативная часть
+   * (служба плагина, регистрация хоста native messaging). Если моста нет —
+   * виновато само расширение.
+   */
+  bridge: boolean;
   /** Чтение хранилища сертификатов через CAdESCOM. */
   canReadCertificates: boolean;
   /** Открепленная подпись `CAdESCOM.CadesSignedData`. */
@@ -164,6 +175,25 @@ export interface PluginEnv {
   /** Подсказка для интерфейса, если чего-то не хватает. */
   hint: string;
 }
+
+/** Мост расширения: его создаёт `nmcades_plugin_api.js` в контент-скрипте. */
+const hasExtensionBridge = (): boolean =>
+  typeof window !== "undefined" &&
+  Boolean(globalWindow().cpcsp_chrome_nmcades);
+
+export const PLUGIN_BRIDGE_ABSENT_HINT =
+  "Расширение не внедрилось в страницу: в окне нет моста " +
+  "cpcsp_chrome_nmcades. Проверьте, что «Extension for CAdES Browser " +
+  "Plugin» включено и браузер полностью перезапущен (Яндекс держит фоновые " +
+  "процессы после закрытия окон), затем откройте этот же адрес в Chrome — " +
+  "так сразу видно, дело в браузере или в расширении.";
+
+export const PLUGIN_BRIDGE_NO_ANSWER_HINT =
+  "Расширение внедрилось (мост cpcsp_chrome_nmcades есть), но плагин не " +
+  "ответил — значит дело не в браузере, а в нативной части. Две частые " +
+  "причины: не зарегистрирован хост native messaging ru.cryptopro.nmcades " +
+  "(известный сбой x64-установщика плагина) и не запущена служба самого " +
+  "плагина. Проверьте в КриптоПро CSP, что виден токен и сертификат.";
 
 const readPluginVersion = async (): Promise<string> => {
   const api = cadesApi();
@@ -197,14 +227,17 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
     apiLoadError = describePluginError(error);
   }
 
+  const bridge = hasExtensionBridge();
+
   if (!globalWindow().cadesplugin) {
     return {
       kind: "none",
       found: false,
       version: "",
+      bridge,
       canReadCertificates: false,
       canSign: false,
-      hint: apiLoadError || PLUGIN_ABSENT_HINT,
+      hint: apiLoadError || (bridge ? PLUGIN_BRIDGE_NO_ANSWER_HINT : PLUGIN_ABSENT_HINT),
     };
   }
 
@@ -215,9 +248,12 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
       kind: "cadesplugin",
       found: false,
       version: "",
+      bridge,
       canReadCertificates: false,
       canSign: false,
-      hint: `${describePluginError(error)} ${PLUGIN_EXTENSION_HINT}`,
+      hint: `${describePluginError(error)} ${
+        bridge ? PLUGIN_BRIDGE_NO_ANSWER_HINT : PLUGIN_BRIDGE_ABSENT_HINT
+      }`,
     };
   }
 
@@ -227,6 +263,7 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
     kind: "cadesplugin",
     found: true,
     version,
+    bridge,
     canReadCertificates: true,
     canSign: true,
     hint: `Плагин ответил${version ? `, версия ${version}` : ""}: сертификаты читаются с рабочего места, подпись доступна.`,
