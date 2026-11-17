@@ -222,6 +222,9 @@ export const ContractEventSchema = z.object({
   basis: z.string().optional(),
   comment: z.string().optional(),
   createdAt: optionalDate(),
+  // Когда отметку исправляли: журнал должен показывать правки, а не
+  // выглядеть так, будто запись сразу была верной
+  updatedAt: optionalDate(),
 });
 
 export type ContractEvent = z.infer<typeof ContractEventSchema>;

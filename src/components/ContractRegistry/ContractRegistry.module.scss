@@ -1014,8 +1014,19 @@
   gap: 12px;
   padding: 6px 0;
 
-  &:hover .events__delete {
+  /* Кнопки правки и удаления не отвлекают, пока строка не в работе */
+  &:hover .events__delete,
+  &:hover .events__edit,
+  &:focus-within .events__delete,
+  &:focus-within .events__edit {
     opacity: 1;
+  }
+
+  /* Запись, которую сейчас правят, видно в таймлайне */
+  &--editing {
+    border-radius: 4px;
+    outline: 1px dashed var(--accent);
+    outline-offset: 2px;
   }
 }
 
@@ -1113,6 +1124,36 @@
   }
 }
 
+.events__edit {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    outline: 1px solid var(--accent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
 .events__empty {
   margin: 0;
   padding: 12px 16px;
@@ -1166,6 +1207,14 @@
     border-color: var(--accent);
     color: var(--accent);
   }
+}
+
+.events__formTitle {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .events__form {

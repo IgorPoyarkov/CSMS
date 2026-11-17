@@ -3,6 +3,7 @@ import {
   useContractEvents,
   useCreateContractEvent,
   useDeleteContractEvent,
+  useUpdateContractEvent,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import {
   CONTRACT_EVENT_CHECKPOINTS,
@@ -41,7 +42,9 @@ export default function ContractEventsSection({
 
   const { data: events = [], isLoading } = useContractEvents(contractId);
   const createEvent = useCreateContractEvent();
+  const updateEvent = useUpdateContractEvent();
   const deleteEvent = useDeleteContractEvent();
+  const saving = createEvent.isPending || updateEvent.isPending;
 
   // Снимок ФИО того, кто отмечает этап: запись должна читаться и после
   // изменения штатного расписания
@@ -53,6 +56,8 @@ export default function ContractEventsSection({
   const nextCheckpoint = useMemo(() => nextContractEvent(events), [events]);
 
   const [formOpen, setFormOpen] = useState(false);
+  // Правка уже созданной отметки: null — форма добавляет новую запись
+  const [editing, setEditing] = useState<ContractEvent | null>(null);
   const [checkpoint, setCheckpoint] =
     useState<ContractEventCheckpoint>(nextCheckpoint);
   const [occurredAt, setOccurredAt] = useState(today());
@@ -61,6 +66,7 @@ export default function ContractEventsSection({
 
   function openForm() {
     // По умолчанию предлагаем ближайший неотмеченный шаг
+    setEditing(null);
     setCheckpoint(nextContractEvent(events));
     setOccurredAt(today());
     setBasis("");
@@ -68,21 +74,51 @@ export default function ContractEventsSection({
     setFormOpen(true);
   }
 
+  // Правка отметки: автор и дата ввода остаются прежними — исправляем только
+  // сведения о самом событии, чтобы журнал не терял, кто его вёл
+  function openEdit(entry: ContractEvent) {
+    setEditing(entry);
+    setCheckpoint(entry.checkpoint);
+    setOccurredAt(entry.occurredAt ?? today());
+    setBasis(entry.basis ?? "");
+    setComment(entry.comment ?? "");
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditing(null);
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    createEvent.mutate({
-      contractId,
+    const payload = {
       checkpoint,
       occurredAt,
-      employeeId: human?.id,
-      employeeName: employeeName || undefined,
       basis: basis.trim(),
       comment: comment.trim(),
-      createdAt: today(),
-    });
+    };
 
-    setFormOpen(false);
+    if (editing) {
+      if (editing.id === undefined) return;
+
+      updateEvent.mutate({
+        id: editing.id,
+        ...payload,
+        updatedAt: today(),
+      });
+    } else {
+      createEvent.mutate({
+        contractId,
+        ...payload,
+        employeeId: human?.id,
+        employeeName: employeeName || undefined,
+        createdAt: today(),
+      });
+    }
+
+    closeForm();
   }
 
   function handleDelete(entry: ContractEvent) {
@@ -94,7 +130,10 @@ export default function ContractEventsSection({
       return;
     }
 
-    deleteEvent.mutate(entry.id!);
+    if (editing?.id === entry.id) closeForm();
+    if (entry.id === undefined) return;
+
+    deleteEvent.mutate(entry.id);
   }
 
   return (
@@ -116,7 +155,12 @@ export default function ContractEventsSection({
       {ordered.length > 0 && (
         <ol className={block("list")}>
           {ordered.map((entry) => (
-            <li key={entry.id} className={block("item")}>
+            <li
+              key={entry.id}
+              className={block("item", [
+                editing?.id === entry.id ? "editing" : "",
+              ])}
+            >
               <span
                 className={block("dot", [entry.checkpoint])}
                 aria-hidden="true"
@@ -133,12 +177,15 @@ export default function ContractEventsSection({
                   </span>
                 </div>
 
-                {(entry.employeeName || entry.basis) && (
+                {(entry.employeeName || entry.basis || entry.updatedAt) && (
                   <div className={block("meta")}>
                     {entry.employeeName && (
                       <span>Отметил: {entry.employeeName}</span>
                     )}
                     {entry.basis && <span>Основание: {entry.basis}</span>}
+                    {entry.updatedAt && (
+                      <span>Изменено: {formatDate(entry.updatedAt)}</span>
+                    )}
                   </div>
                 )}
 
@@ -146,6 +193,17 @@ export default function ContractEventsSection({
                   <p className={block("comment")}>{entry.comment}</p>
                 )}
               </div>
+
+              <button
+                type="button"
+                className={block("edit")}
+                onClick={() => openEdit(entry)}
+                disabled={saving}
+                title="Изменить отметку"
+                aria-label={`Изменить отметку «${contractEventCheckpointLabels[entry.checkpoint]}»`}
+              >
+                ✎
+              </button>
 
               <button
                 type="button"
@@ -164,6 +222,10 @@ export default function ContractEventsSection({
 
       {formOpen ? (
         <form className={block("form")} onSubmit={handleSubmit}>
+          <p className={block("formTitle")}>
+            {editing ? "Правка отметки" : "Новая отметка этапа"}
+          </p>
+
           <div className={block("field")}>
             <label
               className={block("fieldLabel")}
@@ -239,16 +301,20 @@ export default function ContractEventsSection({
             <button
               type="button"
               className={block("btnGhost")}
-              onClick={() => setFormOpen(false)}
+              onClick={closeForm}
             >
               Отмена
             </button>
             <button
               type="submit"
               className={block("btnPrimary")}
-              disabled={createEvent.isPending}
+              disabled={saving}
             >
-              {createEvent.isPending ? "Сохранение…" : "Отметить этап"}
+              {saving
+                ? "Сохранение…"
+                : editing
+                  ? "Сохранить"
+                  : "Отметить этап"}
             </button>
           </div>
         </form>
