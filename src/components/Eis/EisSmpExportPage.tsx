@@ -418,14 +418,21 @@ export default function EisSmpExportPage() {
           {packageError && <div className={block("error")}>{packageError}</div>}
 
           {packageResult && (
-            <div className={block("success")}>
-              Подписано: {packageResult.documentName} ·{" "}
-              {packageResult.documentBytes} байт · подпись{" "}
-              {packageResult.signatureBytes} байт · SHA-256{" "}
+            <div
+              className={block(
+                packageResult.verified ? "success" : "error",
+              )}
+            >
+              {packageResult.verified ? "Подписано" : "Подписано с оговоркой"}:{" "}
+              {packageResult.documentName} · {packageResult.documentBytes} байт
+              · подпись {packageResult.signatureBytes} байт · SHA-256{" "}
               {packageResult.sha256.slice(0, 16)}…
               <br />
-              Подпись поставлена на этом компьютере и сервером не проверена —
-              её проверяет ЕИС при загрузке пакета.
+              {packageResult.verified
+                ? "Плагин проверил на этом компьютере: подпись сходится с документом. " +
+                  "Полномочия подписанта и цепочку УЦ проверит ЕИС при загрузке пакета."
+                : `Локальная проверка не прошла: ${packageResult.verifyMessage} ` +
+                  "Файлы скачаны, но отправлять такой пакет в ЕИС не стоит."}
             </div>
           )}
 

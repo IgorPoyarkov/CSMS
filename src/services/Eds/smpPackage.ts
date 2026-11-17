@@ -1,5 +1,5 @@
 import { downloadBlob, downloadText } from "../Eis/eisExport";
-import { signText, type PluginCertificateInfo } from "./pluginSign";
+import { signText, verifyTextSignature, type PluginCertificateInfo } from "./pluginSign";
 
 /**
  * Подписанный пакет сведений о привлечении СМП.
@@ -37,6 +37,9 @@ export interface SignedSmpPackage {
   certificate: PluginCertificateInfo;
   /** Открепленная подпись в base64: из неё собирается бинарный `.sig`. */
   signatureBase64: string;
+  /** Локальная проверка «документ + .sig» тем же плагином. */
+  verified: boolean;
+  verifyMessage: string;
 }
 
 /*
@@ -107,6 +110,13 @@ export const signSmpPackage = async (
   const signatureName = `${documentName}.sig`;
   const manifestName = `smp_svedeniya_${stamp}.manifest.json`;
 
+  // Проверяем парами «документ + .sig» сразу: если плагин подписал не то, что
+  // скачается (например, кодировка не та), это видно здесь, а не в ЕИС
+  const verification = await verifyTextSignature(
+    documentText,
+    signature.value,
+  );
+
   return {
     documentName,
     signatureName,
@@ -118,6 +128,8 @@ export const signSmpPackage = async (
     signedAt: signedAt.toISOString(),
     certificate,
     signatureBase64: signature.value,
+    verified: verification.valid,
+    verifyMessage: verification.message,
   };
 };
 
@@ -137,6 +149,8 @@ export const buildSmpManifest = (signed: SignedSmpPackage): string => {
       signatureBytes: signed.signatureBytes,
       signedAt: signed.signedAt,
       documentLabel: signed.documentLabel,
+      locallyVerified: signed.verified,
+      locallyVerificationNote: signed.verifyMessage,
       certificate: {
         subject: certificate.subject,
         issuer: certificate.issuer,

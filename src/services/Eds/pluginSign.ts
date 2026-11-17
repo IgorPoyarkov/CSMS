@@ -603,6 +603,76 @@ export const signText = async (
 export const makeSignCheckText = (): string =>
   `${SIGN_CHECK_PREFIX}:${Date.now()}`;
 
+export interface VerifyResult {
+  valid: boolean;
+  message: string;
+}
+
+/**
+ * Проверить открепленную подпись против текста — тем же плагином, офлайн.
+ *
+ * Зачем: подпись могут не принять в ЕИС, и узнать об этом на портале дороже,
+ * чем здесь. Проверка идёт по открытому ключу из сертификата, который лежит
+ * внутри самой подписи, — сервер и интернет не нужны. Это проверка целостности
+ * пары «документ + .sig», а не подтверждение полномочий: цепочку УЦ и статус
+ * сертификата она не смотрит.
+ */
+export const verifyTextSignature = async (
+  text: string,
+  signatureBase64: string,
+): Promise<VerifyResult> => {
+  await loadCadesApi().catch(() => undefined);
+
+  const api = cadesApi();
+  if (!api) return { valid: false, message: PLUGIN_ABSENT_HINT };
+
+  const unready = await readinessError();
+  if (unready) return { valid: false, message: unready };
+
+  try {
+    const signedData = (await createObject<CadesObject>(
+      api,
+      "CAdESCOM.CadesSignedData",
+    )) as CadesObject & {
+      VerifyCades?: (
+        signature: string,
+        type: number,
+        detached: boolean,
+      ) => unknown;
+    };
+
+    await setProperty(signedData, "ContentEncoding", CADESCOM_BASE64_TO_BINARY);
+    await setProperty(signedData, "Content", utf8ToBase64(text));
+
+    const verify = signedData.VerifyCades;
+    if (typeof verify !== "function") {
+      return {
+        valid: false,
+        message:
+          "Плагин не умеет проверять подпись (нет метода VerifyCades) — " +
+          "проверьте пакет средствами ЕИС или КриптоПро CSP.",
+      };
+    }
+
+    // Успех плагин отдаёт нулём (HRESULT S_OK); при несовпадении бросает
+    // исключение с причиной — её и показываем
+    const result = await Promise.resolve(
+      verify.call(signedData, signatureBase64, CADESCOM_CADES_BES, true),
+    );
+
+    if (result === 0 || result === undefined || result === true) {
+      return { valid: true, message: "Подпись сходится с документом." };
+    }
+
+    return {
+      valid: false,
+      message: `Плагин вернул «${asText(result)}»: подпись с документом не сходится.`,
+    };
+  } catch (error) {
+    return { valid: false, message: describePluginError(error) };
+  }
+};
+
 /** Ошибку плагина показываем как есть плюс подсказку, что проверить. */
 export const describePluginError = (error: unknown): string => {
   const message =

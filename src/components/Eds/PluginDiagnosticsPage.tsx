@@ -7,6 +7,7 @@ import {
   probePluginGlobals,
   readStoreCertificates,
   signText,
+  verifyTextSignature,
   type PluginCertificateInfo,
   type PluginEnv,
   type PluginProbe,
@@ -112,14 +113,23 @@ export default function PluginDiagnosticsPage() {
     setSignStates((prev) => ({ ...prev, [key]: { status: "ok", message: "" } }));
 
     try {
-      const result = await signText(certificate, makeSignCheckText());
+      const text = makeSignCheckText();
+      const result = await signText(certificate, text);
+      const verification =
+        result.bytes > 0
+          ? await verifyTextSignature(text, result.value)
+          : null;
+
       setSignStates((prev) => ({
         ...prev,
         [key]: {
           status: result.bytes > 0 ? "ok" : "error",
           message:
             result.bytes > 0
-              ? `Подпись получена: ${result.bytes} байт, ${result.detached ? "открепленная" : "вложенная"}, ${result.algorithm}. Начало: ${result.value.slice(0, 48)}…`
+              ? `Подпись получена: ${result.bytes} байт, ${result.detached ? "открепленная" : "вложенная"}, ${result.algorithm}. Начало: ${result.value.slice(0, 48)}… · ` +
+                (verification?.valid
+                  ? "плагин проверил: подпись сходится с текстом."
+                  : `проверка не прошла: ${verification?.message ?? "причина неизвестна"}`)
               : "Плагин вернул пустую подпись — вероятно, нет доступа к контейнеру ключа.",
           bytes: result.bytes,
         },
