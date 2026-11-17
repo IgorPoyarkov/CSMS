@@ -83,10 +83,11 @@ export default function PluginDiagnosticsPage() {
     setSignStates({});
 
     try {
-      setProbe(probePluginGlobals());
-
       const detected = await detectPluginEnv();
       setEnv(detected);
+      // Проверка объектов — после загрузки API-скрипта: до неё cadesplugin
+      // ещё не объявлен, и список показал бы только undefined
+      setProbe(probePluginGlobals());
 
       if (!detected.canReadCertificates) {
         setCertificates([]);
@@ -205,11 +206,12 @@ export default function PluginDiagnosticsPage() {
 
           {env.kind === "none" && (
             <p className={block("hint")}>
-              Установленное расширение «CryptoPro Extension for CAdES Browser
-              Plug-in» само объект не создаёт: ему нужна нативная часть —
-              «КриптоПро ЭЦП Browser plug-in» (msi) и её служба (видна в
-              <i> services.msc</i> как «КриптоПро ЭЦП Browser plug-in»). Без неё
-              расширение стоит, но в страницу ничего не внедряет.
+              Объект <b>cadesplugin</b> создаёт скрипт
+              <i> cadesplugin_api.js</i>, который страница подключает сама
+              (так делают ЕИС и все ЭТП); расширение в браузере отдаёт только
+              мост к плагину. Скрипт не загрузился — проверьте, что файл
+              лежит в <i>public/cadesplugin_api.js</i> и отдаётся с адреса
+              <i> /cadesplugin_api.js</i>.
             </p>
           )}
         </div>

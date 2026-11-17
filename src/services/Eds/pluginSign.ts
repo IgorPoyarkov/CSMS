@@ -1,4 +1,5 @@
 import { extractInnFromSubject, extractSnilsFromSubject } from "./eds.schema";
+import { loadCadesApi, awaitCadesPluginReady } from "./cadesApiLoader";
 
 /**
  * Мост к КриптоПро ЭЦП Browser plug-in по объектной модели CAdESCOM.
@@ -25,7 +26,7 @@ const CADESCOM_CADES_BES = 1;
 const CADESCOM_ENCODE_BASE64 = 0;
 
 /** Имя объекта плагина, который нашёлся в окне браузера. */
-export type PluginKind = "cadesplugin" | "cpcsp" | "cp" | "none";
+export type PluginKind = "cadesplugin" | "none";
 
 type CadesObject = Record<string, unknown>;
 
@@ -142,6 +143,15 @@ export const PLUGIN_SECURE_CONTEXT_HINT =
   "КриптоПро CSP → Сервис → Просмотреть сертификаты в контейнере виден " +
   "ваш сертификат.";
 
+/**
+ * Подсказка про расширение: в списке дополнений оно называется
+ * «Extension for CAdES Browser Plugin» — слова CryptoPro в названии нет,
+ * поэтому его обычно и не находят.
+ */
+export const PLUGIN_EXTENSION_HINT =
+  "В списке дополнений браузера расширение называется «Extension for CAdES " +
+  "Browser Plugin» (без слова CryptoPro) — проверьте, что оно включено.";
+
 /** Состояние канала плагина: что нашлось и что из этого доступно. */
 export interface PluginEnv {
   kind: PluginKind;
@@ -155,16 +165,15 @@ export interface PluginEnv {
   hint: string;
 }
 
-const readAboutVersion = async (api: CadesApi): Promise<string> => {
+const readPluginVersion = async (): Promise<string> => {
+  const api = cadesApi();
+  if (!api) return "";
+
   try {
-    const about = api.About;
-    if (typeof about !== "function") return "";
+    const about = await createObject<CadesObject>(api, "CAdESCOM.About");
+    const version = await readValue(about, "PluginVersion");
 
-    const info = (await about.call(api)) as CadesObject | string;
-    if (typeof info === "string") return info;
-
-    const value = info.PluginVersion ?? info.Version;
-    return typeof value === "string" ? value : "";
+    return typeof version === "string" ? version : "";
   } catch {
     // Версия — удобство, а не условие работы: молча идём дальше
     return "";
@@ -172,55 +181,55 @@ const readAboutVersion = async (api: CadesApi): Promise<string> => {
 };
 
 /**
- * Что браузер видит прямо сейчас. Функция честно возвращает «нет плагина»
- * вместо исключения: сценарий «заказчик открыл не тот браузер» — обычный,
- * и интерфейс обязан объяснить его, а не падать.
+ * Что браузер видит прямо сейчас.
+ *
+ * Сначала подключается `cadesplugin_api.js` — без него глобального объекта нет
+ * вообще. Затем ожидается готовность: `cadesplugin` — это Promise, который
+ * отклоняется, если расширение не ответило. «Объект объявлен» и «плагин
+ * работает» — разные состояния, и второе проверяется только ожиданием.
  */
 export const detectPluginEnv = async (): Promise<PluginEnv> => {
-  const api = cadesApi();
+  let apiLoadError = "";
 
-  if (api) {
-    const kind: PluginKind = globalWindow().cadesplugin ? "cadesplugin" : "cpcsp";
-    const version = (await readAboutVersion(api)) || cadesPluginVersionSync();
-
-    return {
-      kind,
-      found: true,
-      version,
-      canReadCertificates: true,
-      canSign: true,
-      hint: `Канал ${kind}${version ? `, версия ${version}` : ""}: сертификаты читаются с рабочего места, подпись доступна.`,
-    };
+  try {
+    await loadCadesApi();
+  } catch (error) {
+    apiLoadError = describePluginError(error);
   }
 
-  // Ветка WebCrypto (`window.cp`): плагин нашёлся, но хранилище сертификатов
-  // через неё не читается — там только подпись набора
-  const cp = globalWindow().cp as
-    | { version?: string; webcrypto?: Record<string, unknown> }
-    | undefined;
-
-  if (cp) {
+  if (!globalWindow().cadesplugin) {
     return {
-      kind: "cp",
-      found: true,
-      version: cp.version ?? "",
+      kind: "none",
+      found: false,
+      version: "",
       canReadCertificates: false,
-      canSign: Boolean(cp.webcrypto?.sign ?? cp.webcrypto?.signEx),
-      hint:
-        "Найден объект cp (WebCrypto-ветка): подписать наборт можно, но " +
-        "сертификаты из хранилища так не читаются. Для чтения сертификатов " +
-        "и подписания документов нужен CAdESCOM — «КриптоПро ЭЦП Browser " +
-        "plug-in».",
+      canSign: false,
+      hint: apiLoadError || PLUGIN_ABSENT_HINT,
     };
   }
+
+  try {
+    await awaitCadesPluginReady();
+  } catch (error) {
+    return {
+      kind: "cadesplugin",
+      found: false,
+      version: "",
+      canReadCertificates: false,
+      canSign: false,
+      hint: `${describePluginError(error)} ${PLUGIN_EXTENSION_HINT}`,
+    };
+  }
+
+  const version = await readPluginVersion();
 
   return {
-    kind: "none",
-    found: false,
-    version: "",
-    canReadCertificates: false,
-    canSign: false,
-    hint: PLUGIN_ABSENT_HINT,
+    kind: "cadesplugin",
+    found: true,
+    version,
+    canReadCertificates: true,
+    canSign: true,
+    hint: `Плагин ответил${version ? `, версия ${version}` : ""}: сертификаты читаются с рабочего места, подпись доступна.`,
   };
 };
 
@@ -246,7 +255,7 @@ export interface PluginCertificateInfo {
 }
 
 const readValue = async (
-  target: CadesCertificate,
+  target: CadesObject,
   name: string,
 ): Promise<unknown> => {
   try {
@@ -336,6 +345,9 @@ export interface ReadCertificatesResult {
  * показать, что нашлось, — иначе «сертификат не виден» невозможно объяснить.
  */
 export const readStoreCertificates = async (): Promise<ReadCertificatesResult> => {
+  // API-скрипт подключается по требованию: без него глобального объекта нет
+  await loadCadesApi().catch(() => undefined);
+
   const api = cadesApi();
   if (!api) {
     return { certificates: [], error: PLUGIN_ABSENT_HINT };
@@ -428,6 +440,8 @@ export const signText = async (
   text: string,
   options: SignOptions = {},
 ): Promise<SignatureResult> => {
+  await loadCadesApi().catch(() => undefined);
+
   const api = cadesApi();
   if (!api) throw new Error(PLUGIN_ABSENT_HINT);
 
