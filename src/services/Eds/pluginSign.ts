@@ -298,6 +298,47 @@ export const detectPluginEnv = async (): Promise<PluginEnv> => {
 
 // ─── Чтение сертификатов ─────────────────────────────────────────────────────
 
+/**
+ * Записать свойство COM-объекта плагина.
+ *
+ * В CAdESCOM свойства выставляются не присваиванием, а методом: у `CPSigner`
+ * это `propset_Certificate`. Прямое `signer.Certificate = cert` на актуальной
+ * сборке плагина падает с «Cannot set property Certificate of #&lt;Object&gt;
+ * which has only a getter» — у свойства объявлен только геттер.
+ *
+ * Поэтому перебираем известные формы записи: `propset_`, `put_`, затем прямое
+ * присваивание (старые сборки умеют только его). Если не подошла ни одна,
+ * сообщаем, что именно пробовали, — догадываться в следующем заходе не нужно.
+ */
+const setProperty = async (
+  target: unknown,
+  name: string,
+  value: unknown,
+): Promise<void> => {
+  const object = target as Record<string, unknown>;
+  const tried: string[] = [];
+
+  for (const method of [`propset_${name}`, `put_${name}`]) {
+    const candidate = object[method];
+    if (typeof candidate !== "function") continue;
+
+    tried.push(method);
+    await Promise.resolve((candidate as (v: unknown) => unknown).call(target, value));
+    return;
+  }
+
+  tried.push(`${name} = …`);
+  try {
+    object[name] = value;
+    return;
+  } catch (error) {
+    throw new Error(
+      `Плагин не дал записать свойство ${name}. Пробовали: ${tried.join(", ")}. ` +
+        `Ответ плагина: ${describePluginError(error)}`,
+    );
+  }
+};
+
 /** Сертификат рабочего места в виде, пригодном для интерфейса. */
 export interface PluginCertificateInfo {
   subject: string;
@@ -526,14 +567,14 @@ export const signText = async (
   const content = utf8ToBase64(text);
 
   const signer = await createObject<CadesSigner>(api, "CAdESCOM.CPSigner");
-  signer.Certificate = certificate.raw;
+  await setProperty(signer, "Certificate", certificate.raw);
 
   const signedData = await createObject<CadesSignedData>(
     api,
     "CAdESCOM.CadesSignedData",
   );
-  signedData.ContentEncoding = CADESCOM_BASE64_TO_BINARY;
-  signedData.Content = content;
+  await setProperty(signedData, "ContentEncoding", CADESCOM_BASE64_TO_BINARY);
+  await setProperty(signedData, "Content", content);
 
   const value = await Promise.resolve(
     signedData.SignCades(
