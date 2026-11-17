@@ -2780,6 +2780,39 @@
       "comment": "Пилотный контракт заказчика с ЭП — для демонстрации журнала подписаний",
       "createdAt": "2026-09-15",
       "updatedAt": "2026-11-16"
+    },
+    {
+      "id": 6,
+      "organizationId": 6,
+      "ikz": "26246320001234629040100180024211244",
+      "contractNumber": "2462904043926000011",
+      "contractDate": "2026-10-05",
+      "contractName": "Капитальный ремонт моста на автомобильной дороге Курск — Поныри",
+      "customerName": "ОКУ «Курскавтодор»",
+      "supplierName": "АО «Мостотрест-Регион»",
+      "supplierInn": "4629052233",
+      "supplierKpp": "462901001",
+      "initialMaxPrice": "128500000.00",
+      "contractPrice": "124000000",
+      "performanceSecurityAmount": "6200000",
+      "warrantySecurityAmount": "12400000",
+      "executionForm": "full",
+      "eisUrl": "https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=2462904043926000011",
+      "eisPublishDate": "2026-10-07",
+      "status": "in_execution",
+      "smpRequiredPercent": "5",
+      "subcontractingSmpNoteNumber": "5",
+      "executionStartDate": "2026-10-12",
+      "executionEndDate": "2027-10-31",
+      "completionDate": "",
+      "treasuryPublishDate": "2026-10-06",
+      "orderNumber": "18-Д",
+      "orderDate": "2026-10-05",
+      "signedByEmployeeId": 41,
+      "signedByName": "Говоров А. Н.",
+      "comment": "Демонстрационный контракт: реестровая запись ЕИС для проверки подгрузки сведений по номеру",
+      "createdAt": "2026-10-05",
+      "updatedAt": "2026-11-17"
     }
   ],
   "contractEvents": [
@@ -3141,6 +3174,34 @@
       "acceptanceActNumber": "АС-52/2026",
       "acceptanceActDate": "2026-10-24",
       "comment": ""
+    },
+    {
+      "id": 10,
+      "contractId": 6,
+      "stageNumber": 1,
+      "name": "Устройство опор и пролётных строений",
+      "startDate": "2026-10-12",
+      "endDate": "2027-04-30",
+      "amount": "49600000",
+      "paidAmount": "37200000",
+      "status": "in_progress",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": ""
+    },
+    {
+      "id": 11,
+      "contractId": 6,
+      "stageNumber": 2,
+      "name": "Дорожное полотно подходов и барьерное ограждение",
+      "startDate": "2027-05-01",
+      "endDate": "2027-10-31",
+      "amount": "74400000",
+      "paidAmount": "0",
+      "status": "planned",
+      "acceptanceActNumber": "",
+      "acceptanceActDate": "",
+      "comment": ""
     }
   ],
   "contractPayments": [
@@ -3269,6 +3330,20 @@
       "bankDocumentNumber": "323000078",
       "treasuryExecution": true,
       "comment": "Окончательный расчёт"
+    },
+    {
+      "id": 10,
+      "contractId": 6,
+      "paymentDocumentNumber": "ПД-101",
+      "paymentDate": "2026-10-15",
+      "amount": "37200000",
+      "paymentType": "advance",
+      "invoiceNumber": "СФ-101",
+      "invoiceDate": "2026-10-14",
+      "status": "paid",
+      "bankDocumentNumber": "323000121",
+      "treasuryExecution": true,
+      "comment": "Аванс 30%"
     }
   ],
   "contractPenalties": [
@@ -6526,6 +6601,28 @@
       "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
       "createdAt": "2026-11-17T03:44",
       "id": 17
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-17T04:17",
+      "id": 18
     }
   ]
 }
