@@ -2,7 +2,7 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-16 (после домена ЭП и СМП-контроля).
+> Дата последнего обновления: 2026-11-17 (после чекпоинтов процесса по контракту).
 
 ## 0. Откуда брать задачи
 
@@ -38,6 +38,17 @@
   коллекции). Пустая строка `""` — тоже битая ссылка. **Пустые `*Id` в базу не
   сохраняем**: поле либо заполнено, либо отсутствует (`omitEmptyReferences` в
   API службы, реестра и задач).
+- ⚠️ **Пустая коллекция — тоже ловушка.** `"contracts": []` делала `contractId`
+  «битой» ссылкой, и `DELETE` в любой коллекции реестра вычищал **все** связанные
+  записи (этапы, платежи, неустойки, поставки, записи СМП, события ЭП). Коллекция
+  удалена из `db.json` — её никто не запрашивал. `"notices": []` оставлена:
+  ссылок `noticeId` в данных нет, поэтому она безопасна.
+- ⚠️ `null` в поле `*Id` валит `getRemovable` (`null.toString()` → 500 на любом
+  DELETE). Убраны `organizationId: null` у приказных `contractFunctions` и
+  `purchasePlanId/positionId: null` у `purchaseNotes` id4: схемы дают
+  `default(null)`/`optional`, логика читает `isFromOrder`.
+- Проверка данных перед мутациями: `node -e` со скриптом по образцу
+  `getRemovable` из `mixins.js` — должен печатать «no removable».
 - ⚠️ `BaseEmployeeSchema.email` — `z.email()`: кириллица в адресе не проходит, а
   API парсит каждого работника, поэтому падает весь ЛК. Моки — только латиница
   (`.tmp/fix-employee-emails.mjs` транслитерировал 22 адреса).
@@ -67,10 +78,10 @@
 
 ```
 users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отделы!)
-contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts 0
+contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts — удалена
 tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
 contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
-contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 14
+contractPenalties 5 · contractDeliveries 3 · contractEvents 21 · contractFunctions 5 · legalActs 14
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
 edsCertificates 4 · edsSignatureEvents 11 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
@@ -180,6 +191,35 @@ edsCertificates 4 · edsSignatureEvents 11 · okpd2Refs 143 · addressRegions/Mu
 результат нужен один раз по действию пользователя, без каскадных setState).
 `MIN_CONTRACT_NUMBER_LENGTH` = 3 — как `requiredText(3, …)` в схеме номера;
 пустой фильтр json-server вернул бы весь реестр.
+
+### Чекпоинты процесса по контракту (`contractEvents`)
+
+**Зачем:** ЕИС не сообщает, на каком шаге находится контракт, — по Tasks 8 п. 2 б
+это наша зона ответственности. Заказчик отмечает пройденные этапы сам, и по
+карточке видно, где контракт: `project_created` → `customer_approved` →
+`supplier_signed` → `customer_signed` → `registry_included` →
+`execution_started` → `acceptance` → `payment` → `completed` | `terminated`.
+
+**Файлы:** `ContractEventSchema`, `CONTRACT_EVENT_CHECKPOINTS`,
+`contractEventCheckpointLabels`, `CONTRACT_EVENT_ORDER`, `sortContractEvents`,
+`nextContractEvent`, `emptyContractEvent` в `contractRegistry.schema.ts`;
+CRUD и хуки `useContractEvents` / `useCreateContractEvent` /
+`useUpdateContractEvent` / `useDeleteContractEvent` в `contractRegistry.api.ts`;
+`ContractEventsSection.tsx` — секция в карточке реестра.
+
+**Поля:** `contractId`, `checkpoint`, `occurredAt` (дата события, а не дата
+ввода), снимок `employeeId`/`employeeName`, `basis` (номер и дата
+документа-основания), `comment`, `createdAt`.
+
+**Поведение:** таймлайн (дата, этап, кто отметил, основание, комментарий),
+инлайн-форма «+ Отметить этап» с подстановкой ближайшего неотмеченного шага,
+удаление отметки. Сведения из ЕИС сюда не пишутся: когда появится канал
+(Tasks 9 п. 3), часть событий можно будет подтверждать по данным ЕИС, но журнал
+остаётся нашим. Правка уже созданной отметки — следующий шаг, сейчас добавить
+и удалить.
+
+**Сиды:** контракт 1 — 6 событий (до «начато исполнение»), контракт 2 — 9
+(до «исполнение завершено»), контракт 5 (org6) — 6.
 
 ### Электронная подпись (Eds)
 
@@ -375,10 +415,33 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `useContractSmpRecords`, `useAllContractSmpRecords`, `useCreateContractSmpRecord`,
 `useUpdateContractSmpRecord`, `useDeleteContractSmpRecord`. **Eds:**
 `useEdsCertificates`, `useCreateEdsCertificate`, `useSignatureEvents`,
-`useLogSignatureEvent`. **Общий хук роли** — `src/hooks/useMyContractRole.ts`
+`useLogSignatureEvent`. **Чекпоинты процесса:** `useContractEvents`,
+`useCreateContractEvent`, `useUpdateContractEvent`, `useDeleteContractEvent`.
+**Общий хук роли** — `src/hooks/useMyContractRole.ts`
 (`{ user, organization, contractService, employee, myRole, isHead }`).
 
-## 7. Результат последней проверки (2026-11-17, подгрузка из реестра по номеру)
+## 7. Результат последней проверки (2026-11-17, чекпоинты процесса)
+
+### Проверка 2026-11-17 (чекпоинты процесса по контракту)
+
+- `npx tsc -b --pretty false` — те же **10 ошибок**, все в чужом
+  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`; мои файлы чистые.
+- `npx oxlint src` — **28 warnings, 1 error** (чужой `NormingRequirementsBlock`);
+  по `ContractEventsSection.tsx`, `contractRegistry.api.ts` и
+  `contractRegistry.schema.ts` замечаний нет.
+- `npx vite build` — успешно (6.84 s).
+- Смоук json-server (копия на :3010, порт предварительно освобождён):
+  `GET /contractEvents?contractId=1` → 6, `contractId=2` → 9, `contractId=5` → 6;
+  `POST` → 7; `DELETE` → снова 6, при этом `contractRegistry` 5,
+  `contractStages` 9, `contractSmpRecords` 23, `purchaseNotes` 4 — без изменений.
+  ⚠️ `Start-Process`/`Start-Job` при падении скрипта оставляют сервер на порту —
+  перед повторным прогоном порт надо освобождать, иначе запросы уходят к старому
+  процессу со старой копией базы (на этом потерялся один прогон).
+- По пути устранены две мины json-server, из-за которых **любой `DELETE`**
+  удалял связанные записи: пустая `"contracts": []` и `null` в `*Id` (детали —
+  §1). После правки `db.json` проверка `getRemovable` даёт «no removable».
+
+### Проверка 2026-11-17 (подгрузка по реестровому номеру)
 
 - `npx tsc -b --pretty false` — **10 ошибок**, все в
   `NoticeInfoForm/sections/ObjectDescriptionSection.tsx` (чужой WIP: TS2322
@@ -428,9 +491,14 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `contractRegistry.api.ts` (`ContractLookup`, `lookupContractByNumber`,
   `MIN_CONTRACT_NUMBER_LENGTH`), `ContractRegistryPage.tsx` (блок подгрузки,
   `cardHighlighted`, прокрутка) и `ContractRegistry.module.scss`.
+- **Чекпоинты процесса (2026-11-17):** новый файл
+  `src/components/ContractRegistry/ContractEventsSection.tsx`; правки
+  `contractRegistry.schema.ts` (схема и хелперы событий),
+  `contractRegistry.api.ts` (CRUD + 4 хука), `ContractRegistryPage.tsx`,
+  `ContractRegistry.module.scss`; коллекция `contractEvents` (21 запись).
 - **Коллекции db.json:** `edsCertificates` (4), `edsSignatureEvents` (11),
   `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
-  (89/31).
+  (89/31), `contractEvents` (21).
 
 ## 8. Не реализовано
 
@@ -441,15 +509,16 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Серверная верификация подписи** — json-server не проверяет подпись набора.
   На проде: `CPSignVerifyEx` / `crypto.subtle.verify` с открытым ключом из
   сертификата.
-- Tasks 8 п.2: исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр), чекпоинты
-  `contractEvents`, чтение из ЕИС.
+- Tasks 8 п.2 (а, в): исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр)
+  и чтение из ЕИС; чекпоинты `contractEvents` (п. б) сделаны.
 - Tasks 8 п.4: роль «инициатор закупки».
 - Tasks 9 п.3: срезы ПГ/реестра контрактов/извещений (ядро, 2–3 недели).
 - Подгрузка по реестровому номеру (2026-11-17) читает **локальный** реестр
   `contractRegistry`; получение тех же сведений из ЕИС — это Tasks 9 п.3.
 - **Не делать:** вход подрядчика по ссылке-приглашению (отложен), OCR содержимого
   PDF, годовой отчёт СМП (только напоминалка).
-- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` и `contracts` пусты.
+- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` пуста, коллекция
+  `contracts` удалена (мешала json-server, см. §1).
 - Руководитель службы как отдельный документ (п. 2.3), положение о службе
   (п. 1.3), штатная схема соподчинения, собственные функции сверх раздела III.
 
@@ -458,8 +527,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание документов
    через плагин КриптоПро ЭЦП Browser plug-in (не вход, а подписание ПГ,
    контрактов, служебок).
-2. **Tasks 8 п.2** — сборка XML по схеме ЕИС, чекпоинты `contractEvents`,
-   чтение из ЕИС (3–6 недель).
+2. **Tasks 8 п.2 (а, в)** — сборка XML по схеме ЕИС и чтение из ЕИС;
+   чекпоинты `contractEvents` (п. б) уже сделаны — см. §4.
 3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика
    (туда же — замена локальной подгрузки по реестровому номеру на данные ЕИС).
 4. **Tasks 8 п.4** — роль «инициатор закупки» (1–2 дня).

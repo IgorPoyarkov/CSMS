@@ -18,11 +18,13 @@ import {
   useContractDeliveries,
   useDeleteContract,
   lookupContractByNumber,
+  normalizeContractNumber,
   MIN_CONTRACT_NUMBER_LENGTH,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import SmpSection from "./ContractSmpSection";
+import ContractEventsSection from "./ContractEventsSection";
 import styles from "./ContractRegistry.module.scss";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -114,9 +116,8 @@ export default function ContractRegistryPage() {
   // Карточка, полученная подгрузкой, — подсвечиваем её до сброса поиска
   const [loadedId, setLoadedId] = useState<string | number | null>(null);
 
-  const handleLookup = async (event: FormEvent) => {
-    event.preventDefault();
-    const trimmed = numberInput.trim();
+  /** Подгрузка по конкретному номеру: вызывают и форма, и подсказки списка. */
+  const runLookup = async (rawNumber: string) => {
     if (!orgId) {
       setNotice({
         tone: "danger",
@@ -124,10 +125,11 @@ export default function ContractRegistryPage() {
       });
       return;
     }
-    if (trimmed.length < MIN_CONTRACT_NUMBER_LENGTH) {
+    const needle = normalizeContractNumber(rawNumber);
+    if (needle.length < MIN_CONTRACT_NUMBER_LENGTH) {
       setLoadedId(null);
       setNotice(
-        trimmed
+        needle
           ? {
               tone: "danger",
               text: `Реестровый номер должен содержать не менее ${MIN_CONTRACT_NUMBER_LENGTH} символов.`,
@@ -139,17 +141,21 @@ export default function ContractRegistryPage() {
     setIsLooking(true);
     setNotice({
       tone: "pending",
-      text: `Ищем контракт ${trimmed} в реестре...`,
+      text: `Ищем контракт ${needle} в реестре...`,
     });
     try {
-      const result = await lookupContractByNumber(trimmed, orgId);
+      const result = await lookupContractByNumber(needle, orgId);
       const found = result.contract;
       if (found && found.id !== undefined) {
         setExpandedId(found.id);
         setLoadedId(found.id);
         setNotice({
           tone: "success",
-          text: `Подгружены сведения контракта ${found.contractNumber}: ${found.contractName}`,
+          text: `Подгружены сведения контракта ${found.contractNumber}${
+            result.matchedBy === "partial"
+              ? " (номер совпал с введённым частично)"
+              : ""
+          }: ${found.contractName}`,
         });
         // Прокрутку делаем после раскрытия карточки, иначе промахнёмся по позиции
         const cardId = contractCardDomId(found.id);
@@ -165,11 +171,11 @@ export default function ContractRegistryPage() {
         result.anotherOrganization
           ? {
               tone: "warning",
-              text: `Контракт ${trimmed} в реестре есть, но относится к другому заказчику — его сведения вам недоступны.`,
+              text: `Контракт ${needle} в реестре есть, но относится к другому заказчику — его сведения вам недоступны.`,
             }
           : {
               tone: "danger",
-              text: `Контракт с реестровым номером ${trimmed} не найден.`,
+              text: `Контракт с реестровым номером ${needle} не найден. Можно ввести часть номера или выбрать контракт из списка ниже.`,
             },
       );
     } catch {
@@ -183,11 +189,21 @@ export default function ContractRegistryPage() {
     }
   };
 
+  const handleLookup = (event: FormEvent) => {
+    event.preventDefault();
+    void runLookup(numberInput);
+  };
+
   const handleLookupReset = () => {
     setNumberInput("");
     setNotice(null);
     setLoadedId(null);
   };
+
+  // Номера контрактов своей организации — подсказки, если номер ввели с ошибкой
+  const knownNumbers = (contracts ?? [])
+    .map((contract) => contract.contractNumber)
+    .filter(Boolean);
 
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
@@ -214,7 +230,7 @@ export default function ContractRegistryPage() {
               className={styles.lookupInput}
               value={numberInput}
               onChange={(event) => setNumberInput(event.target.value)}
-              placeholder="Например: 0346200000626000001"
+              placeholder="Например: 0346200000626000001 или его часть"
               autoComplete="off"
             />
           </div>
@@ -237,7 +253,8 @@ export default function ContractRegistryPage() {
         </form>
         <p className={styles.lookupHint}>
           По номеру подтягиваются сведения контракта вашей организации: этапы,
-          платежи, неустойки, поставки и объём субподряда СМП.
+          платежи, неустойки, поставки и объём субподряда СМП. Достаточно части
+          номера.
         </p>
         {notice && (
           <div
@@ -245,6 +262,30 @@ export default function ContractRegistryPage() {
             role="status"
           >
             {notice.text}
+          </div>
+        )}
+        {knownNumbers.length > 0 && (
+          <div className={styles.lookupSuggestions}>
+            <span className={styles.lookupSuggestionsLabel}>
+              Контракты вашей организации:
+            </span>
+            {knownNumbers.map((number) => (
+              <button
+                key={number}
+                type="button"
+                className={`${styles.lookupSuggestion} ${
+                  normalizeContractNumber(numberInput) === number
+                    ? styles.lookupSuggestion_active
+                    : ""
+                }`}
+                onClick={() => {
+                  setNumberInput(number);
+                  void runLookup(number);
+                }}
+              >
+                {number}
+              </button>
+            ))}
           </div>
         )}
       </section>
@@ -359,6 +400,7 @@ function ContractCard({
       {expanded && (
         <div className={styles.cardBody}>
           <PaymentSummary contract={contract} />
+          <ContractEventsSection contractId={contract.id ?? ""} />
           <StagesSection contractId={contract.id} />
           <PaymentsSection contractId={contract.id} />
           <PenaltiesSection contractId={contract.id} />

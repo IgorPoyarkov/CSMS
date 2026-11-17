@@ -169,6 +169,64 @@ export const ContractDeliverySchema = z.object({
 export type ContractDelivery = z.infer<typeof ContractDeliverySchema>;
 export const ContractDeliveryListSchema = z.array(ContractDeliverySchema);
 
+// ─── Чекпоинты процесса по контракту (Tasks 8 п. 2 б) ─────────────────────
+//
+// ЕИС о ходе процесса ничего не сообщает, поэтому этапы отмечает сам заказчик:
+// проверка → подписание → включение в реестр → исполнение → оплата. Это наш
+// собственный журнал, а не данные, полученные из ЕИС, — поэтому он не зависит
+// от каналов обмена и работает уже сейчас.
+
+export const CONTRACT_EVENT_CHECKPOINTS = [
+  "project_created",
+  "customer_approved",
+  "supplier_signed",
+  "customer_signed",
+  "registry_included",
+  "execution_started",
+  "acceptance",
+  "payment",
+  "completed",
+  "terminated",
+] as const;
+
+export type ContractEventCheckpoint =
+  (typeof CONTRACT_EVENT_CHECKPOINTS)[number];
+
+export const contractEventCheckpointLabels: Record<
+  ContractEventCheckpoint,
+  string
+> = {
+  project_created: "Проект контракта сформирован",
+  customer_approved: "Проверен контрактной службой",
+  supplier_signed: "Подписан поставщиком",
+  customer_signed: "Подписан заказчиком",
+  registry_included: "Включён в реестр контрактов",
+  execution_started: "Начато исполнение",
+  acceptance: "Приёмка состоялась",
+  payment: "Оплата произведена",
+  completed: "Исполнение завершено",
+  terminated: "Контракт расторгнут",
+};
+
+export const ContractEventSchema = z.object({
+  id: z.union([z.string(), z.number()]).optional(),
+  contractId: z.union([z.string(), z.number()]),
+  // Что именно произошло
+  checkpoint: z.enum(CONTRACT_EVENT_CHECKPOINTS),
+  // Дата события, а не дата ввода записи
+  occurredAt: optionalDate(),
+  // Кто отметил — снимок ФИО, чтобы запись читалась после изменения штатки
+  employeeId: z.union([z.string(), z.number()]).optional(),
+  employeeName: optionalText(3, "Укажите ФИО"),
+  // Документ-основание: номер и дата протокола, приказа, акта
+  basis: z.string().optional(),
+  comment: z.string().optional(),
+  createdAt: optionalDate(),
+});
+
+export type ContractEvent = z.infer<typeof ContractEventSchema>;
+export const ContractEventListSchema = z.array(ContractEventSchema);
+
 // ─── Итоговый контракт реестра ─────────────────────────────────────────────
 
 export const ContractRegistryItemSchema = z.object({
@@ -302,4 +360,49 @@ export const emptyContract = (
   comment: "",
   createdAt: new Date().toISOString().slice(0, 10),
   updatedAt: new Date().toISOString().slice(0, 10),
+});
+
+// ─── Чекпоинты процесса: порядок, сортировка, заготовка ────────────────────
+
+// Маршрут контракта — порядок, в котором этапы идут в интерфейсе
+export const CONTRACT_EVENT_ORDER = Object.fromEntries(
+  CONTRACT_EVENT_CHECKPOINTS.map((checkpoint, index) => [checkpoint, index]),
+) as Record<ContractEventCheckpoint, number>;
+
+/**
+ * События по дате (запись без даты уходит в конец), при равных датах —
+ * по маршруту контракта.
+ */
+export const sortContractEvents = (events: ContractEvent[]): ContractEvent[] =>
+  [...events].sort((a, b) => {
+    const left = a.occurredAt ?? "";
+    const right = b.occurredAt ?? "";
+    if (left && right && left !== right) return left.localeCompare(right);
+    if (left && !right) return -1;
+    if (!left && right) return 1;
+    return (
+      CONTRACT_EVENT_ORDER[a.checkpoint] - CONTRACT_EVENT_ORDER[b.checkpoint]
+    );
+  });
+
+/** Ближайший неотмеченный этап — его предлагаем в форме по умолчанию. */
+export const nextContractEvent = (
+  events: ContractEvent[],
+): ContractEventCheckpoint =>
+  CONTRACT_EVENT_CHECKPOINTS.find(
+    (checkpoint) => !events.some((event) => event.checkpoint === checkpoint),
+  ) ?? "completed";
+
+/** Заготовка записи о событии. */
+export const emptyContractEvent = (
+  contractId: string | number = "",
+  checkpoint: ContractEventCheckpoint = "project_created",
+): ContractEvent => ({
+  contractId,
+  checkpoint,
+  occurredAt: new Date().toISOString().slice(0, 10),
+  employeeName: "",
+  basis: "",
+  comment: "",
+  createdAt: new Date().toISOString().slice(0, 10),
 });

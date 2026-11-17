@@ -640,7 +640,6 @@
       "avatar": ""
     }
   ],
-  "contracts": [],
   "organizations": [
     {
       "id": 1,
@@ -2752,8 +2751,6 @@
     {
       "id": 5,
       "organizationId": 6,
-      "contractProjectId": 0,
-      "procurementId": 0,
       "ikz": "26246320001234629040100180014211244",
       "contractNumber": "0346200000626000001",
       "contractDate": "2026-09-15",
@@ -2783,6 +2780,239 @@
       "comment": "Пилотный контракт заказчика с ЭП — для демонстрации журнала подписаний",
       "createdAt": "2026-09-15",
       "updatedAt": "2026-11-16"
+    }
+  ],
+  "contractEvents": [
+    {
+      "id": 1,
+      "contractId": 1,
+      "checkpoint": "project_created",
+      "occurredAt": "2026-10-28",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Служебная записка № 1 от 20.10.2026",
+      "comment": "Проект сформирован из позиции плана-графика",
+      "createdAt": "2026-10-28"
+    },
+    {
+      "id": 2,
+      "contractId": 1,
+      "checkpoint": "customer_approved",
+      "occurredAt": "2026-10-30",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Протокол проверки КС № 7 от 30.10.2026",
+      "comment": "",
+      "createdAt": "2026-10-30"
+    },
+    {
+      "id": 3,
+      "contractId": 1,
+      "checkpoint": "supplier_signed",
+      "occurredAt": "2026-10-31",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "УКЭП поставщика, файл подписи от 31.10.2026",
+      "comment": "",
+      "createdAt": "2026-10-31"
+    },
+    {
+      "id": 4,
+      "contractId": 1,
+      "checkpoint": "customer_signed",
+      "occurredAt": "2026-11-01",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Приказ № 12-К от 01.11.2026",
+      "comment": "",
+      "createdAt": "2026-11-01"
+    },
+    {
+      "id": 5,
+      "contractId": 1,
+      "checkpoint": "registry_included",
+      "occurredAt": "2026-11-05",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Реестровая запись ЕИС от 05.11.2026",
+      "comment": "Сведения размещены в реестре контрактов",
+      "createdAt": "2026-11-05"
+    },
+    {
+      "id": 6,
+      "contractId": 1,
+      "checkpoint": "execution_started",
+      "occurredAt": "2026-11-10",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Акт начала работ от 10.11.2026",
+      "comment": "",
+      "createdAt": "2026-11-10"
+    },
+    {
+      "id": 7,
+      "contractId": 2,
+      "checkpoint": "project_created",
+      "occurredAt": "2026-08-10",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Служебная записка № 2 от 01.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-10"
+    },
+    {
+      "id": 8,
+      "contractId": 2,
+      "checkpoint": "customer_approved",
+      "occurredAt": "2026-08-15",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Протокол проверки КС № 5 от 15.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-15"
+    },
+    {
+      "id": 9,
+      "contractId": 2,
+      "checkpoint": "supplier_signed",
+      "occurredAt": "2026-08-18",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "УКЭП поставщика, файл подписи от 18.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-18"
+    },
+    {
+      "id": 10,
+      "contractId": 2,
+      "checkpoint": "customer_signed",
+      "occurredAt": "2026-08-20",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Приказ № 08-К от 20.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-20"
+    },
+    {
+      "id": 11,
+      "contractId": 2,
+      "checkpoint": "registry_included",
+      "occurredAt": "2026-08-22",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Реестровая запись ЕИС от 22.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-22"
+    },
+    {
+      "id": 12,
+      "contractId": 2,
+      "checkpoint": "execution_started",
+      "occurredAt": "2026-08-25",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Акт начала работ от 25.08.2026",
+      "comment": "",
+      "createdAt": "2026-08-25"
+    },
+    {
+      "id": 13,
+      "contractId": 2,
+      "checkpoint": "acceptance",
+      "occurredAt": "2026-11-10",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Акт приёмки АС-14/2026 от 10.11.2026",
+      "comment": "Работы приняты без замечаний",
+      "createdAt": "2026-11-10"
+    },
+    {
+      "id": 14,
+      "contractId": 2,
+      "checkpoint": "payment",
+      "occurredAt": "2026-11-12",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Платёжное поручение № 512 от 12.11.2026",
+      "comment": "",
+      "createdAt": "2026-11-12"
+    },
+    {
+      "id": 15,
+      "contractId": 2,
+      "checkpoint": "completed",
+      "occurredAt": "2026-11-13",
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "basis": "Сведения об исполнении в ЕИС от 13.11.2026",
+      "comment": "Контракт исполнен досрочно",
+      "createdAt": "2026-11-13"
+    },
+    {
+      "id": 16,
+      "contractId": 5,
+      "checkpoint": "project_created",
+      "occurredAt": "2026-09-10",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "Служебная записка № 4 от 05.09.2026",
+      "comment": "Пилотный контракт, требование СМП 10 %",
+      "createdAt": "2026-09-10"
+    },
+    {
+      "id": 17,
+      "contractId": 5,
+      "checkpoint": "customer_approved",
+      "occurredAt": "2026-09-12",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "Протокол проверки КС № 3 от 12.09.2026",
+      "comment": "",
+      "createdAt": "2026-09-12"
+    },
+    {
+      "id": 18,
+      "contractId": 5,
+      "checkpoint": "supplier_signed",
+      "occurredAt": "2026-09-14",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "УКЭП поставщика, файл подписи от 14.09.2026",
+      "comment": "",
+      "createdAt": "2026-09-14"
+    },
+    {
+      "id": 19,
+      "contractId": 5,
+      "checkpoint": "customer_signed",
+      "occurredAt": "2026-09-15",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "Приказ № 12-Д от 15.09.2026",
+      "comment": "",
+      "createdAt": "2026-09-15"
+    },
+    {
+      "id": 20,
+      "contractId": 5,
+      "checkpoint": "registry_included",
+      "occurredAt": "2026-09-17",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "Реестровая запись ЕИС от 17.09.2026",
+      "comment": "",
+      "createdAt": "2026-09-17"
+    },
+    {
+      "id": 21,
+      "contractId": 5,
+      "checkpoint": "execution_started",
+      "occurredAt": "2026-09-20",
+      "employeeId": 41,
+      "employeeName": "Говоров А. Н.",
+      "basis": "Акт начала работ от 20.09.2026",
+      "comment": "",
+      "createdAt": "2026-09-20"
     }
   ],
   "contractStages": [
@@ -3150,7 +3380,6 @@
       "title": "Планирование закупок",
       "category": "planning_and_basis",
       "isFromOrder": true,
-      "organizationId": null,
       "isDeletable": false
     },
     {
@@ -3160,7 +3389,6 @@
       "title": "Описание объекта закупки и обоснование НМЦК",
       "category": "planning_and_basis",
       "isFromOrder": true,
-      "organizationId": null,
       "isDeletable": false
     },
     {
@@ -3170,7 +3398,6 @@
       "title": "Определение поставщика (подрядчика, исполнителя)",
       "category": "procurement",
       "isFromOrder": true,
-      "organizationId": null,
       "isDeletable": false
     },
     {
@@ -3180,7 +3407,6 @@
       "title": "Заключение контракта",
       "category": "procurement",
       "isFromOrder": true,
-      "organizationId": null,
       "isDeletable": false
     },
     {
@@ -3190,7 +3416,6 @@
       "title": "Исполнение, изменение, расторжение контракта и отчётность",
       "category": "execution_and_reporting",
       "isFromOrder": true,
-      "organizationId": null,
       "isDeletable": false
     }
   ],
@@ -4462,9 +4687,7 @@
     {
       "id": 4,
       "organizationId": 6,
-      "purchasePlanId": null,
       "purchasePlanNumber": "",
-      "positionId": null,
       "positionSerialNumber": "",
       "positionUniqueNumber": "",
       "noteNumber": "4",
@@ -6174,6 +6397,135 @@
       "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
       "createdAt": "2026-11-17T01:56",
       "id": 11
+    },
+    {
+      "organizationId": 2,
+      "userId": 2,
+      "userLabel": "test2@test.test",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество Белгородской области · без проверки подписи",
+      "certificateId": 4,
+      "certificateOwner": "Пояркова София Игоревна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-01-10",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
+      "createdAt": "2026-11-17T03:31",
+      "id": 12
+    },
+    {
+      "organizationId": 6,
+      "userLabel": "Иванов Алексей Сергеевич",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": "FF00112233445566",
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 2,
+      "certificateOwner": "Иванов Алексей Сергеевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "FF00112233445566",
+      "certificateFingerprint": "B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2026-12-01",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "failed",
+      "comment": "Владелец сертификата «Иванов Алексей Сергеевич» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
+      "createdAt": "2026-11-17T03:31",
+      "id": 13
+    },
+    {
+      "organizationId": 6,
+      "userLabel": "Колесникова Ольга Николаевна",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": "DEADBEEF00001111",
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 3,
+      "certificateOwner": "Колесникова Ольга Николаевна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "DEADBEEF00001111",
+      "certificateFingerprint": "C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2028-05-31",
+      "innMatched": false,
+      "certificateSource": "manual",
+      "result": "failed",
+      "comment": "Владелец сертификата «Колесникова Ольга Николаевна» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
+      "createdAt": "2026-11-17T03:31",
+      "id": 14
+    },
+    {
+      "organizationId": 6,
+      "userLabel": "Колесникова Ольга Николаевна",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": "DEADBEEF00001111",
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 3,
+      "certificateOwner": "Колесникова Ольга Николаевна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "DEADBEEF00001111",
+      "certificateFingerprint": "C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2028-05-31",
+      "innMatched": false,
+      "certificateSource": "manual",
+      "result": "failed",
+      "comment": "Владелец сертификата «Колесникова Ольга Николаевна» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
+      "createdAt": "2026-11-17T03:31",
+      "id": 15
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-17T03:31",
+      "id": 16
+    },
+    {
+      "organizationId": 2,
+      "userId": 2,
+      "userLabel": "test2@test.test",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество Белгородской области · без проверки подписи",
+      "certificateId": 4,
+      "certificateOwner": "Пояркова София Игоревна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-01-10",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
+      "createdAt": "2026-11-17T03:44",
+      "id": 17
     }
   ]
 }

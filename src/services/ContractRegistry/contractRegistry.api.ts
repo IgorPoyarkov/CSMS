@@ -11,11 +11,14 @@ import {
   ContractPenaltySchema,
   ContractDeliveryListSchema,
   ContractDeliverySchema,
+  ContractEventListSchema,
+  ContractEventSchema,
   type ContractRegistryItem,
   type ContractStage,
   type ContractPayment,
   type ContractPenalty,
   type ContractDelivery,
+  type ContractEvent,
 } from "./contractRegistry.schema";
 
 const CONTRACTS_ENDPOINT = "/contractRegistry";
@@ -23,6 +26,7 @@ const STAGES_ENDPOINT = "/contractStages";
 const PAYMENTS_ENDPOINT = "/contractPayments";
 const PENALTIES_ENDPOINT = "/contractPenalties";
 const DELIVERIES_ENDPOINT = "/contractDeliveries";
+const EVENTS_ENDPOINT = "/contractEvents";
 
 const omitEmptyReferences = <T extends Record<string, unknown>>(data: T): T =>
   Object.fromEntries(
@@ -39,6 +43,8 @@ const omitEmptyReferences = <T extends Record<string, unknown>>(data: T): T =>
 export type ContractLookup = {
   /** Найденный контракт своей организации. */
   contract: ContractRegistryItem | null;
+  /** Чем сработало совпадение: точным номером или его фрагментом. */
+  matchedBy: "exact" | "partial" | null;
   /** Такой номер в реестре есть, но контракт относится к другой организации. */
   anotherOrganization: boolean;
 };
@@ -80,6 +86,14 @@ const deleteContract = async (
 };
 
 /**
+ * Номер реестровой записи пользователь вводит с клавиатуры или копирует из ЕИС,
+ * поэтому убираем пробелы (в т.ч. неразрывный), дефисы и неразрывные переносы.
+ * Сам номер при этом не меняем — сравнение остаётся по фактическим символам.
+ */
+export const normalizeContractNumber = (value: string): string =>
+  value.replace(/[\s\u00A0\u2116-]/g, "");
+
+/**
  * Контракты по реестровому номеру. json-server сравнивает поле целиком, поэтому
  * номер передают как есть. organizationId передавать обязательно для запросов
  * от имени пользователя — без него ищется по всему реестру.
@@ -91,6 +105,23 @@ const fetchContractsByNumber = async (
   const response = await api.get(CONTRACTS_ENDPOINT, {
     params: {
       contractNumber,
+      ...(organizationId === undefined ? {} : { organizationId }),
+    },
+  });
+  return ContractRegistryItemListSchema.parse(response.data);
+};
+
+/**
+ * Поиск по фрагменту номера (`_like` в json-server) — спасает, когда ввели
+ * не весь номер или ошиблись в его конце. Фильтр по организации сохраняется.
+ */
+const fetchContractsByNumberPart = async (
+  contractNumberPart: string,
+  organizationId?: string | number,
+): Promise<ContractRegistryItem[]> => {
+  const response = await api.get(CONTRACTS_ENDPOINT, {
+    params: {
+      contractNumber_like: contractNumberPart,
       ...(organizationId === undefined ? {} : { organizationId }),
     },
   });
@@ -119,22 +150,46 @@ export const MIN_CONTRACT_NUMBER_LENGTH = 3;
 /**
  * Подгрузка сведений контракта из реестра по его реестровому номеру.
  *
- * Сначала ищем только среди контрактов своей организации — разграничение
- * по организации здесь на уровне запроса. Если своего контракта с таким номером
- * нет, делаем уточняющий запрос по всему реестру, чтобы честно ответить
- * «номер есть, но он у другого заказчика», а не «не найдено». Сведения чужого
- * контракта при этом не возвращаются.
+ * Порядок поиска: точное совпадение среди своих → свой контракт по фрагменту
+ * номера → чужие контракты (только чтобы отличить «нет в реестре» от «контракт
+ * другого заказчика», его сведения не возвращаются). Разграничение по
+ * организации выполняется на уровне запроса.
  */
 export const lookupContractByNumber = async (
   contractNumber: string,
   organizationId: string | number,
 ): Promise<ContractLookup> => {
-  const own = await fetchContractsByNumber(contractNumber, organizationId);
-  if (own.length > 0) {
-    return { contract: pickLatestContract(own), anotherOrganization: false };
+  const needle = normalizeContractNumber(contractNumber);
+
+  const ownExact = await fetchContractsByNumber(needle, organizationId);
+  if (ownExact.length > 0) {
+    return {
+      contract: pickLatestContract(ownExact),
+      matchedBy: "exact",
+      anotherOrganization: false,
+    };
   }
-  const foreign = await fetchContractsByNumber(contractNumber);
-  return { contract: null, anotherOrganization: foreign.length > 0 };
+
+  const ownPart = await fetchContractsByNumberPart(needle, organizationId);
+  if (ownPart.length > 0) {
+    return {
+      contract: pickLatestContract(ownPart),
+      matchedBy: "partial",
+      anotherOrganization: false,
+    };
+  }
+
+  const foreignExact = await fetchContractsByNumber(needle);
+  if (foreignExact.length > 0) {
+    return { contract: null, matchedBy: null, anotherOrganization: true };
+  }
+
+  const foreignPart = await fetchContractsByNumberPart(needle);
+  return {
+    contract: null,
+    matchedBy: null,
+    anotherOrganization: foreignPart.length > 0,
+  };
 };
 
 // ─── Этапы ──────────────────────────────────────────────────────────────────
@@ -275,6 +330,37 @@ const deleteDelivery = async (
   id: string | number,
 ): Promise<string | number> => {
   await api.delete(`${DELIVERIES_ENDPOINT}/${id}`);
+  return id;
+};
+
+// ─── Чекпоинты процесса (Tasks 8 п. 2 б) ───────────────────────────────────
+
+const fetchEventsByContract = async (
+  contractId: string | number,
+): Promise<ContractEvent[]> => {
+  const response = await api.get(EVENTS_ENDPOINT, {
+    params: { contractId },
+  });
+  return ContractEventListSchema.parse(response.data);
+};
+
+const createEvent = async (event: ContractEvent): Promise<ContractEvent> => {
+  const response = await api.post(EVENTS_ENDPOINT, omitEmptyReferences(event));
+  return ContractEventSchema.parse(response.data);
+};
+
+const updateEvent = async ({
+  id,
+  ...data
+}: {
+  id: string | number;
+} & Partial<ContractEvent>): Promise<ContractEvent> => {
+  const response = await api.patch(`${EVENTS_ENDPOINT}/${id}`, data);
+  return ContractEventSchema.parse(response.data);
+};
+
+const deleteEvent = async (id: string | number): Promise<string | number> => {
+  await api.delete(`${EVENTS_ENDPOINT}/${id}`);
   return id;
 };
 
@@ -460,6 +546,41 @@ export const useDeleteDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteDelivery,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+  });
+};
+
+// Чекпоинты процесса
+export const useContractEvents = (contractId: string | number | undefined) =>
+  useQuery({
+    queryKey: [...contractRegistryQueryKey, "events", String(contractId)],
+    queryFn: () => fetchEventsByContract(contractId as string | number),
+    enabled: Boolean(contractId),
+  });
+
+export const useCreateContractEvent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createEvent,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+  });
+};
+
+export const useUpdateContractEvent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateEvent,
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+  });
+};
+
+export const useDeleteContractEvent = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteEvent,
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
