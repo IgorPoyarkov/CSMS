@@ -35,6 +35,14 @@ const omitEmptyReferences = <T extends Record<string, unknown>>(data: T): T =>
 
 // ─── Контракты ──────────────────────────────────────────────────────────────
 
+/** Результат подгрузки сведений контракта по реестровому номеру. */
+export type ContractLookup = {
+  /** Найденный контракт своей организации. */
+  contract: ContractRegistryItem | null;
+  /** Такой номер в реестре есть, но контракт относится к другой организации. */
+  anotherOrganization: boolean;
+};
+
 const fetchContractsByOrg = async (
   organizationId: string | number,
 ): Promise<ContractRegistryItem[]> => {
@@ -47,21 +55,86 @@ const fetchContractsByOrg = async (
 const createContract = async (
   contract: ContractRegistryItem,
 ): Promise<ContractRegistryItem> => {
-  const response = await api.post(CONTRACTS_ENDPOINT, omitEmptyReferences(contract));
+  const response = await api.post(
+    CONTRACTS_ENDPOINT,
+    omitEmptyReferences(contract),
+  );
   return ContractRegistryItemSchema.parse(response.data);
 };
 
 const updateContract = async ({
   id,
   ...data
-}: { id: string | number } & Partial<ContractRegistryItem>): Promise<ContractRegistryItem> => {
+}: {
+  id: string | number;
+} & Partial<ContractRegistryItem>): Promise<ContractRegistryItem> => {
   const response = await api.patch(`${CONTRACTS_ENDPOINT}/${id}`, data);
   return ContractRegistryItemSchema.parse(response.data);
 };
 
-const deleteContract = async (id: string | number): Promise<string | number> => {
+const deleteContract = async (
+  id: string | number,
+): Promise<string | number> => {
   await api.delete(`${CONTRACTS_ENDPOINT}/${id}`);
   return id;
+};
+
+/**
+ * Контракты по реестровому номеру. json-server сравнивает поле целиком, поэтому
+ * номер передают как есть. organizationId передавать обязательно для запросов
+ * от имени пользователя — без него ищется по всему реестру.
+ */
+const fetchContractsByNumber = async (
+  contractNumber: string,
+  organizationId?: string | number,
+): Promise<ContractRegistryItem[]> => {
+  const response = await api.get(CONTRACTS_ENDPOINT, {
+    params: {
+      contractNumber,
+      ...(organizationId === undefined ? {} : { organizationId }),
+    },
+  });
+  return ContractRegistryItemListSchema.parse(response.data);
+};
+
+/**
+ * Один номер может относиться к нескольким записям реестра (изменение контракта),
+ * поэтому берём запись с самой свежей датой заключения.
+ */
+const pickLatestContract = (
+  rows: ContractRegistryItem[],
+): ContractRegistryItem | null =>
+  rows.length === 0
+    ? null
+    : [...rows].sort((a, b) =>
+        String(b.contractDate).localeCompare(String(a.contractDate)),
+      )[0];
+
+/**
+ * Минимальная длина реестрового номера — как в схеме контракта
+ * (requiredText(3, "Укажите номер контракта")).
+ */
+export const MIN_CONTRACT_NUMBER_LENGTH = 3;
+
+/**
+ * Подгрузка сведений контракта из реестра по его реестровому номеру.
+ *
+ * Сначала ищем только среди контрактов своей организации — разграничение
+ * по организации здесь на уровне запроса. Если своего контракта с таким номером
+ * нет, делаем уточняющий запрос по всему реестру, чтобы честно ответить
+ * «номер есть, но он у другого заказчика», а не «не найдено». Сведения чужого
+ * контракта при этом не возвращаются.
+ */
+export const lookupContractByNumber = async (
+  contractNumber: string,
+  organizationId: string | number,
+): Promise<ContractLookup> => {
+  const own = await fetchContractsByNumber(contractNumber, organizationId);
+  if (own.length > 0) {
+    return { contract: pickLatestContract(own), anotherOrganization: false };
+  }
+  const foreign = await fetchContractsByNumber(contractNumber);
+  return { contract: null, anotherOrganization: foreign.length > 0 };
 };
 
 // ─── Этапы ──────────────────────────────────────────────────────────────────
@@ -83,7 +156,9 @@ const createStage = async (stage: ContractStage): Promise<ContractStage> => {
 const updateStage = async ({
   id,
   ...data
-}: { id: string | number } & Partial<ContractStage>): Promise<ContractStage> => {
+}: {
+  id: string | number;
+} & Partial<ContractStage>): Promise<ContractStage> => {
   const response = await api.patch(`${STAGES_ENDPOINT}/${id}`, data);
   return ContractStageSchema.parse(response.data);
 };
@@ -107,14 +182,19 @@ const fetchPaymentsByContract = async (
 const createPayment = async (
   payment: ContractPayment,
 ): Promise<ContractPayment> => {
-  const response = await api.post(PAYMENTS_ENDPOINT, omitEmptyReferences(payment));
+  const response = await api.post(
+    PAYMENTS_ENDPOINT,
+    omitEmptyReferences(payment),
+  );
   return ContractPaymentSchema.parse(response.data);
 };
 
 const updatePayment = async ({
   id,
   ...data
-}: { id: string | number } & Partial<ContractPayment>): Promise<ContractPayment> => {
+}: {
+  id: string | number;
+} & Partial<ContractPayment>): Promise<ContractPayment> => {
   const response = await api.patch(`${PAYMENTS_ENDPOINT}/${id}`, data);
   return ContractPaymentSchema.parse(response.data);
 };
@@ -138,14 +218,19 @@ const fetchPenaltiesByContract = async (
 const createPenalty = async (
   penalty: ContractPenalty,
 ): Promise<ContractPenalty> => {
-  const response = await api.post(PENALTIES_ENDPOINT, omitEmptyReferences(penalty));
+  const response = await api.post(
+    PENALTIES_ENDPOINT,
+    omitEmptyReferences(penalty),
+  );
   return ContractPenaltySchema.parse(response.data);
 };
 
 const updatePenalty = async ({
   id,
   ...data
-}: { id: string | number } & Partial<ContractPenalty>): Promise<ContractPenalty> => {
+}: {
+  id: string | number;
+} & Partial<ContractPenalty>): Promise<ContractPenalty> => {
   const response = await api.patch(`${PENALTIES_ENDPOINT}/${id}`, data);
   return ContractPenaltySchema.parse(response.data);
 };
@@ -169,19 +254,26 @@ const fetchDeliveriesByContract = async (
 const createDelivery = async (
   delivery: ContractDelivery,
 ): Promise<ContractDelivery> => {
-  const response = await api.post(DELIVERIES_ENDPOINT, omitEmptyReferences(delivery));
+  const response = await api.post(
+    DELIVERIES_ENDPOINT,
+    omitEmptyReferences(delivery),
+  );
   return ContractDeliverySchema.parse(response.data);
 };
 
 const updateDelivery = async ({
   id,
   ...data
-}: { id: string | number } & Partial<ContractDelivery>): Promise<ContractDelivery> => {
+}: {
+  id: string | number;
+} & Partial<ContractDelivery>): Promise<ContractDelivery> => {
   const response = await api.patch(`${DELIVERIES_ENDPOINT}/${id}`, data);
   return ContractDeliverySchema.parse(response.data);
 };
 
-const deleteDelivery = async (id: string | number): Promise<string | number> => {
+const deleteDelivery = async (
+  id: string | number,
+): Promise<string | number> => {
   await api.delete(`${DELIVERIES_ENDPOINT}/${id}`);
   return id;
 };
@@ -191,9 +283,15 @@ const deleteDelivery = async (id: string | number): Promise<string | number> => 
 export const contractRegistryQueryKey = ["contractRegistry"];
 
 // Контракты
-export const useContractRegistry = (organizationId: string | number | undefined) =>
+export const useContractRegistry = (
+  organizationId: string | number | undefined,
+) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "contracts", String(organizationId)],
+    queryKey: [
+      ...contractRegistryQueryKey,
+      "contracts",
+      String(organizationId),
+    ],
     queryFn: () => fetchContractsByOrg(organizationId as string | number),
     enabled: Boolean(organizationId),
   });
@@ -202,7 +300,8 @@ export const useCreateContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createContract,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -210,7 +309,8 @@ export const useUpdateContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateContract,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -218,7 +318,8 @@ export const useDeleteContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteContract,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -234,7 +335,8 @@ export const useCreateStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createStage,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -242,7 +344,8 @@ export const useUpdateStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateStage,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -250,7 +353,8 @@ export const useDeleteStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteStage,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -266,7 +370,8 @@ export const useCreatePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createPayment,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -274,7 +379,8 @@ export const useUpdatePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updatePayment,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -282,7 +388,8 @@ export const useDeletePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deletePayment,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -298,7 +405,8 @@ export const useCreatePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createPenalty,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -306,7 +414,8 @@ export const useUpdatePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updatePenalty,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -314,12 +423,15 @@ export const useDeletePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deletePenalty,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
 // Поставки
-export const useContractDeliveries = (contractId: string | number | undefined) =>
+export const useContractDeliveries = (
+  contractId: string | number | undefined,
+) =>
   useQuery({
     queryKey: [...contractRegistryQueryKey, "deliveries", String(contractId)],
     queryFn: () => fetchDeliveriesByContract(contractId as string | number),
@@ -330,7 +442,8 @@ export const useCreateDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createDelivery,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -338,7 +451,8 @@ export const useUpdateDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateDelivery,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
 
@@ -346,6 +460,7 @@ export const useDeleteDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteDelivery,
-    onSuccess: () => qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };

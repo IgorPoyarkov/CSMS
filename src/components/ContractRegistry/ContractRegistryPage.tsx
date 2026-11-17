@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   totalPaid,
   paymentPercent,
@@ -17,6 +17,8 @@ import {
   useContractPenalties,
   useContractDeliveries,
   useDeleteContract,
+  lookupContractByNumber,
+  MIN_CONTRACT_NUMBER_LENGTH,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
@@ -80,6 +82,16 @@ const formatMoney = (value: string | number | undefined | null): string => {
   });
 };
 
+/** id DOM-узла карточки — чтобы прокрутить страницу к подгруженному контракту. */
+const contractCardDomId = (id: string | number) => `contract-card-${id}`;
+
+type LookupNoticeTone = "pending" | "success" | "warning" | "danger";
+
+interface LookupNotice {
+  tone: LookupNoticeTone;
+  text: string;
+}
+
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
@@ -95,6 +107,88 @@ export default function ContractRegistryPage() {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  // ─── Подгрузка сведений из реестра по реестровому номеру контракта ────────
+  const [numberInput, setNumberInput] = useState("");
+  const [notice, setNotice] = useState<LookupNotice | null>(null);
+  const [isLooking, setIsLooking] = useState(false);
+  // Карточка, полученная подгрузкой, — подсвечиваем её до сброса поиска
+  const [loadedId, setLoadedId] = useState<string | number | null>(null);
+
+  const handleLookup = async (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = numberInput.trim();
+    if (!orgId) {
+      setNotice({
+        tone: "danger",
+        text: "Организация не определена — подгрузка сведений недоступна.",
+      });
+      return;
+    }
+    if (trimmed.length < MIN_CONTRACT_NUMBER_LENGTH) {
+      setLoadedId(null);
+      setNotice(
+        trimmed
+          ? {
+              tone: "danger",
+              text: `Реестровый номер должен содержать не менее ${MIN_CONTRACT_NUMBER_LENGTH} символов.`,
+            }
+          : null,
+      );
+      return;
+    }
+    setIsLooking(true);
+    setNotice({
+      tone: "pending",
+      text: `Ищем контракт ${trimmed} в реестре...`,
+    });
+    try {
+      const result = await lookupContractByNumber(trimmed, orgId);
+      const found = result.contract;
+      if (found && found.id !== undefined) {
+        setExpandedId(found.id);
+        setLoadedId(found.id);
+        setNotice({
+          tone: "success",
+          text: `Подгружены сведения контракта ${found.contractNumber}: ${found.contractName}`,
+        });
+        // Прокрутку делаем после раскрытия карточки, иначе промахнёмся по позиции
+        const cardId = contractCardDomId(found.id);
+        requestAnimationFrame(() => {
+          document
+            .getElementById(cardId)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        return;
+      }
+      setLoadedId(null);
+      setNotice(
+        result.anotherOrganization
+          ? {
+              tone: "warning",
+              text: `Контракт ${trimmed} в реестре есть, но относится к другому заказчику — его сведения вам недоступны.`,
+            }
+          : {
+              tone: "danger",
+              text: `Контракт с реестровым номером ${trimmed} не найден.`,
+            },
+      );
+    } catch {
+      setLoadedId(null);
+      setNotice({
+        tone: "danger",
+        text: "Не удалось подгрузить сведения из реестра контрактов.",
+      });
+    } finally {
+      setIsLooking(false);
+    }
+  };
+
+  const handleLookupReset = () => {
+    setNumberInput("");
+    setNotice(null);
+    setLoadedId(null);
+  };
+
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
   }
@@ -102,6 +196,58 @@ export default function ContractRegistryPage() {
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>Реестр контрактов (ст. 82, 103 ФЗ-44)</h2>
+
+      <section className={styles.lookup}>
+        <h3 className={styles.lookupTitle}>
+          Подгрузка сведений из реестра контрактов
+        </h3>
+        <form className={styles.lookupRow} onSubmit={handleLookup}>
+          <div className={styles.lookupField}>
+            <label
+              className={styles.lookupLabel}
+              htmlFor="registry-contract-number"
+            >
+              Реестровый номер контракта
+            </label>
+            <input
+              id="registry-contract-number"
+              className={styles.lookupInput}
+              value={numberInput}
+              onChange={(event) => setNumberInput(event.target.value)}
+              placeholder="Например: 0346200000626000001"
+              autoComplete="off"
+            />
+          </div>
+          <button
+            type="submit"
+            className={styles.lookupSubmit}
+            disabled={isLooking}
+          >
+            {isLooking ? "Подгружаем..." : "Подгрузить"}
+          </button>
+          {(numberInput || notice) && (
+            <button
+              type="button"
+              className={styles.lookupReset}
+              onClick={handleLookupReset}
+            >
+              Сбросить
+            </button>
+          )}
+        </form>
+        <p className={styles.lookupHint}>
+          По номеру подтягиваются сведения контракта вашей организации: этапы,
+          платежи, неустойки, поставки и объём субподряда СМП.
+        </p>
+        {notice && (
+          <div
+            className={`${styles.lookupNotice} ${styles[`lookupNotice_${notice.tone}`]}`}
+            role="status"
+          >
+            {notice.text}
+          </div>
+        )}
+      </section>
 
       {!contracts || contracts.length === 0 ? (
         <div className={styles.empty}>Контрактов нет</div>
@@ -112,6 +258,14 @@ export default function ContractRegistryPage() {
               key={contract.id}
               contract={contract}
               expanded={expandedId === contract.id}
+              highlighted={
+                loadedId !== null && String(contract.id) === String(loadedId)
+              }
+              domId={
+                contract.id === undefined
+                  ? undefined
+                  : contractCardDomId(contract.id)
+              }
               onToggle={() => toggleExpand(contract.id)}
               onDelete={() => {
                 if (contract.id && confirm("Удалить контракт из реестра?")) {
@@ -132,6 +286,9 @@ export default function ContractRegistryPage() {
 interface ContractCardProps {
   contract: ContractRegistryItem;
   expanded: boolean;
+  /** Карточка получена подгрузкой по реестровому номеру — выделяем её. */
+  highlighted: boolean;
+  domId?: string;
   onToggle: () => void;
   onDelete: () => void;
   formatDate: (date?: string) => string;
@@ -140,6 +297,8 @@ interface ContractCardProps {
 function ContractCard({
   contract,
   expanded,
+  highlighted,
+  domId,
   onToggle,
   onDelete,
   formatDate,
@@ -147,7 +306,12 @@ function ContractCard({
   const overdue = isContractOverdue(contract);
 
   return (
-    <div className={`${styles.card} ${overdue ? styles.cardOverdue : ""}`}>
+    <div
+      id={domId}
+      className={`${styles.card} ${overdue ? styles.cardOverdue : ""} ${
+        highlighted ? styles.cardHighlighted : ""
+      }`}
+    >
       <div className={styles.cardHeader} onClick={onToggle}>
         <div className={styles.cardHeaderLeft}>
           <span className={styles.contractNumber}>

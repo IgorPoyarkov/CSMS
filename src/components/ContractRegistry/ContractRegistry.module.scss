@@ -24,6 +24,132 @@
   gap: 12px;
 }
 
+/* ===== Подгрузка сведений по реестровому номеру контракта ===== */
+
+.lookup {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.lookupTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lookupRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lookupField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 320px;
+}
+
+.lookupLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lookupInput {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.lookupSubmit,
+.lookupReset {
+  padding: 7px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.lookupSubmit {
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: var(--accent-emphasis);
+    border-color: var(--accent-emphasis);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+}
+
+.lookupReset {
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+
+  &:hover {
+    background: var(--surface-raised);
+  }
+}
+
+.lookupHint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lookupNotice {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.lookupNotice_pending {
+  color: var(--text-secondary);
+}
+
+.lookupNotice_success {
+  background: var(--state-success-soft);
+  border-color: var(--state-success);
+}
+
+.lookupNotice_warning {
+  background: var(--state-warning-soft);
+  border-color: var(--state-warning);
+}
+
+.lookupNotice_danger {
+  background: var(--state-danger-soft);
+  border-color: var(--state-danger);
+}
+
 /* ===== Карточка контракта ===== */
 
 .card {
@@ -36,6 +162,12 @@
 .cardOverdue {
   border-color: var(--state-danger);
   box-shadow: 0 0 0 1px var(--state-danger-soft);
+}
+
+/* Карточка, полученная подгрузкой по реестровому номеру */
+.cardHighlighted {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .cardHeader {
