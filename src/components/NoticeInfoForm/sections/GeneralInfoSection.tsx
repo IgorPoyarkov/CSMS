@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
@@ -11,16 +10,46 @@ import styles from "../NoticeInfoForm.module.scss";
 interface GeneralInfoSectionProps {
   /**
    * Способ определения поставщика, зафиксированный служебной запиской.
-   * Если он известен, в извещении не показываем выбор по всем способам —
-   * способ выводится строкой с возможностью осознанно его изменить.
+   * Способ в извещении не выбирается — из него берётся семейство
+   * (конкурс / аукцион / котировки / единственный поставщик), внутри которого
+   * выбирается подспособ (например, конкурс на строительство — OKB20).
    */
   lockedPlacingWayCode?: string;
 }
 
-// Конкурсные способы: только для них применяется ч. 19 ст. 48 Закона N 44-ФЗ
-const isContestCode = (code?: string): boolean => {
+type PlacingWayFamily = "contest" | "auction" | "quotation" | "single";
+
+const PLACING_WAY_FAMILY_LABELS: Record<PlacingWayFamily, string> = {
+  contest: "Конкурс",
+  auction: "Электронный аукцион",
+  quotation: "Электронный запрос котировок",
+  single: "Закупка у единственного поставщика",
+};
+
+const placingWayFamily = (code?: string): PlacingWayFamily | null => {
   const normalized = (code ?? "").trim().toUpperCase();
-  return normalized.startsWith("OK") || normalized.startsWith("EOK");
+  if (normalized.startsWith("OK") || normalized.startsWith("EOK")) {
+    return "contest";
+  }
+  if (normalized.startsWith("EA")) return "auction";
+  if (normalized.startsWith("ZK")) return "quotation";
+  if (normalized.startsWith("EP")) return "single";
+  return null;
+};
+
+// Конкурсные способы: только для них применяется ч. 19 ст. 48 Закона N 44-ФЗ
+const isContestCode = (code?: string): boolean =>
+  placingWayFamily(code) === "contest";
+
+// Строительство, реконструкция и капремонт: по п. 8 ч. 1 ст. 33 44-ФЗ
+// проводится открытый конкурс в электронной форме (OKB20)
+const isBuildingOkpd2 = (code?: string): boolean => {
+  const digits = (code ?? "").replace(/\D/g, "");
+  return (
+    digits.startsWith("41") ||
+    digits.startsWith("42") ||
+    digits.startsWith("43")
+  );
 };
 
 const GeneralInfoSection = ({
@@ -31,16 +60,26 @@ const GeneralInfoSection = ({
   const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
-  // Способ уже определён служебной запиской — по умолчанию показываем его
-  // зафиксированным; выбор по всем способам раскрывается по кнопке
-  const [isPlacingWayEditing, setIsPlacingWayEditing] = useState(false);
-  const lockedWay = PLACING_WAYS_ALL.find(
-    (way) => way.code === lockedPlacingWayCode,
-  );
-
   const generalInfo = watch("generalInfo");
   const isContestWay = isContestCode(generalInfo.placingWayCode);
   const purchaseObjects = watch("purchaseObjects.items") ?? [];
+
+  // Семейство способа: если СЗ его задала, выбор ограничивается подспособами
+  // этого семейства; без СЗ доступен полный список
+  const lockedFamily = placingWayFamily(lockedPlacingWayCode);
+  const currentFamily = placingWayFamily(generalInfo.placingWayCode);
+  const family = currentFamily ?? lockedFamily;
+  const availableWays = lockedFamily
+    ? PLACING_WAYS_ALL.filter(
+        (way) => placingWayFamily(way.code) === (currentFamily ?? lockedFamily),
+      )
+    : PLACING_WAYS_ALL;
+
+  // Подсказка по подспособу: строительные ОКПД2 требуют конкурса OKB20
+  const buildingRecommended =
+    family === "contest" &&
+    generalInfo.placingWayCode !== "OKB20" &&
+    purchaseObjects.some((item) => isBuildingOkpd2(item?.okpd2OrKtruCode));
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     generalInfo.placingWayCode,
     purchaseObjects.map((item) => ({
@@ -78,27 +117,21 @@ const GeneralInfoSection = ({
               <sup>*</sup>
             </span>
             <div className={block("field-col")}>
-              {lockedWay && !isPlacingWayEditing ? (
-                <div className={block("field-col")}>
-                  <span className={block("value")}>
-                    {lockedWay.label} ({lockedWay.code})
-                  </span>
-                  <span className={block("muted")}>
-                    Способ определения поставщика зафиксирован служебной записью
-                    и позицией плана-графика — выбирать его заново в извещении
-                    не требуется.
-                  </span>
-                  <button
-                    type="button"
-                    className={block("link-btn")}
-                    onClick={() => setIsPlacingWayEditing(true)}
-                  >
-                    Изменить способ (если служебная записка пересмотрена)
-                  </button>
-                </div>
-              ) : (
+              {family && (
+                <span className={block("value")}>
+                  Способ: {PLACING_WAY_FAMILY_LABELS[family]}
+                </span>
+              )}
+              {lockedFamily && family === lockedFamily && (
+                <span className={block("muted")}>
+                  Способ определения поставщика зафиксирован служебной записью и
+                  позицией плана-графика. Выберите подспособ закупки.
+                </span>
+              )}
+
+              {availableWays.length > 1 ? (
                 <div className={block("radio-group")}>
-                  {PLACING_WAYS_ALL.map((way) => (
+                  {availableWays.map((way) => (
                     <label key={way.code} className={block("radio")}>
                       <input
                         type="radio"
@@ -115,18 +148,34 @@ const GeneralInfoSection = ({
                       <span>{way.label}</span>
                     </label>
                   ))}
-                  {lockedWay && (
+                </div>
+              ) : (
+                availableWays.length === 1 && (
+                  <span className={block("value")}>
+                    {availableWays[0].label} ({availableWays[0].code})
+                  </span>
+                )
+              )}
+
+              {buildingRecommended && (
+                <div className={block("yellow-warning")}>
+                  <span className={block("warning-badge")}>i</span>
+                  <div>
+                    <div>
+                      По ОКПД2 объекта закупки (строительство, реконструкция,
+                      капитальный ремонт) применяется открытый конкурс в
+                      электронной форме по п. 8 ч. 1 ст. 33 Закона № 44-ФЗ.
+                    </div>
                     <button
                       type="button"
                       className={block("link-btn")}
-                      onClick={() => {
-                        setValue("generalInfo.placingWayCode", lockedWay.code);
-                        setIsPlacingWayEditing(false);
-                      }}
+                      onClick={() =>
+                        setValue("generalInfo.placingWayCode", "OKB20")
+                      }
                     >
-                      Вернуть способ из служебной записки ({lockedWay.code})
+                      Выбрать подспособ OKB20
                     </button>
-                  )}
+                  </div>
                 </div>
               )}
 
@@ -279,7 +328,11 @@ const GeneralInfoSection = ({
               Сведения о связи с позицией плана-графика
             </span>
             <span className={block("value")}>
-              {generalInfo.planPositionNumber} (ИКЗ: {generalInfo.ikz})
+              Уникальный номер позиции:{" "}
+              {generalInfo.positionUniqueNumber || "—"}
+              {generalInfo.positionSerialNumber
+                ? ` · № позиции в плане-графике: ${generalInfo.positionSerialNumber}`
+                : ""}
             </span>
           </div>
         </div>

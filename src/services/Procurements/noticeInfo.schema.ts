@@ -72,31 +72,57 @@ export const PurchaseObjectItemSchema = z.object({
     .array(
       z.object({
         id: z.string(),
-        requirementType: z.enum([
-          "consumer",
-          "quality",
-          "functional",
-          "other",
-        ]),
+        requirementType: z.enum(["consumer", "quality", "functional", "other"]),
         requirementText: z.string().min(1, "Укажите требование"),
       }),
     )
     .optional(),
 });
 
+// Типы критериев оценки в извещении (п. 3 Положения о оценке, ПП РФ N 2604).
+// Порядок фиксирован: в форме всегда шесть слотов, состав задаётся флагом
+// `enabled` — так критерии из служебной записки не теряются при переносе.
+export const NOTICE_EVALUATION_CRITERION_TYPES = [
+  "price",
+  "exploitation_expenses",
+  "lifecycle_cost",
+  "energy_service_expenses",
+  "qualitative_characteristics",
+  "qualification",
+] as const;
+
+export type NoticeEvaluationCriterionType =
+  (typeof NOTICE_EVALUATION_CRITERION_TYPES)[number];
+
+// Показатель критерия (п. 7, 8 Положения) — переносится из служебной записки
+// и в извещении показывается в полной форме: наименование, значимость,
+// единица измерения, направление, способ оценки и шкала
+export const EvaluationIndicatorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.string().optional(),
+  weightPercent: z.number().min(0).max(100).optional(),
+  unit: z.string().optional(),
+  best: z.string().optional(),
+  scoring: z.string().optional(),
+  limitMin: z.number().optional(),
+  limitMax: z.number().optional(),
+  scaleText: z.string().optional(),
+});
+
+export type NoticeEvaluationIndicator = z.infer<
+  typeof EvaluationIndicatorSchema
+>;
+
 export const EvaluationCriterionSchema = z.object({
   id: z.string(),
-  type: z.enum([
-    "price",
-    "exploitation_expenses",
-    "lifecycle_cost",
-    "energy_service_expenses",
-    "qualitative_characteristics",
-    "qualification",
-  ]),
+  type: z.enum(NOTICE_EVALUATION_CRITERION_TYPES),
   enabled: z.boolean(),
   weightPercent: z.number().min(0).max(100),
   additionalInfo: z.string().optional(),
+  // Отдельные положения о применении критерия (раздел III формы оценки)
+  note: z.string().optional(),
+  indicators: z.array(EvaluationIndicatorSchema).optional(),
 });
 
 export const AttachedDocItemSchema = z.object({
@@ -141,6 +167,9 @@ export const NoticeInfoSchema = z.object({
     authorizedBodyApproval: z.string(),
     orderName: z.string().min(1, "Наименование объекта закупки обязательно"),
     planPositionNumber: z.string(),
+    // Уникальный номер позиции плана-графика (связь с ПГ), а не ИКЗ
+    positionUniqueNumber: z.string().optional(),
+    positionSerialNumber: z.string().optional(),
     ikz: z.string().min(36, "ИКЗ должен содержать 36 символов"),
     nmck: z.number().nonnegative(),
     authorizedBodyName: z.string().optional(),

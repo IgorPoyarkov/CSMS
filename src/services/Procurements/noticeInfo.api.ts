@@ -13,6 +13,10 @@ import type {
 export interface OrganizationDto {
   id: number | string;
   fullName: string;
+  shortName?: string;
+  // Реквизиты нужны для кода заказчика в ИКЗ (ИНН 10 + КПП 9 + вид организации)
+  inn?: string;
+  kpp?: string;
   postalAddress: string;
   legalAddress: string;
   email: string;
@@ -21,15 +25,13 @@ export interface OrganizationDto {
   procurementRequisites?: OrganizationProcurementRequisites;
 }
 
-export const useGetOrganizationById = (
-  organizationId?: string | number
-) => {
+export const useGetOrganizationById = (organizationId?: string | number) => {
   return useQuery<OrganizationDto>({
     queryKey: ["organization", organizationId],
     enabled: Boolean(organizationId),
     queryFn: async () => {
       const { data } = await api.get<OrganizationDto>(
-        `/organizations/${organizationId}`
+        `/organizations/${organizationId}`,
       );
       return data;
     },
@@ -42,7 +44,7 @@ export const useGetEmployeeByEmail = (email?: string) => {
     enabled: Boolean(email),
     queryFn: async () => {
       const { data } = await api.get<BaseEmployee[]>(
-        `/employees?email=${email}`
+        `/employees?email=${email}`,
       );
       if (data && data.length > 0) {
         return BaseEmployeeSchema.parse(data);

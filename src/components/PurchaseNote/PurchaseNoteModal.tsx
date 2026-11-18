@@ -16,6 +16,7 @@ import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
+import MoneyInput from "../UI/MoneyInput/MoneyInput";
 import AddressCascade from "../UI/AddressCascade/AddressCascade";
 import SecurityRequisitesFields from "./SecurityRequisitesFields";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
@@ -1220,10 +1221,7 @@ export default function PurchaseNoteModal({
               const itemDescId = watch(`items.${idx}.objectDescriptionId`);
               const itemOkpd2 = watch(`items.${idx}.okpd2Code`) || "";
               const itemUnit = watch(`items.${idx}.unit`) || "";
-              const itemRegime = checkOkpd2NationalRegime(
-                itemOkpd2,
-                okpd2Refs,
-              );
+              const itemRegime = checkOkpd2NationalRegime(itemOkpd2, okpd2Refs);
               const itemRegimeIssue = nationalRegimeValidation.issues.find(
                 (issue) => issue.code === itemRegime.code,
               );
@@ -1379,11 +1377,17 @@ export default function PurchaseNoteModal({
                       >
                         Цена за единицу, руб.
                       </label>
-                      <input
+                      <MoneyInput
                         id={`note-item-price-${idx}`}
                         className={block("input")}
-                        {...register(`items.${idx}.unitPrice`)}
-                        placeholder="0.00"
+                        value={watch(`items.${idx}.unitPrice`)}
+                        onChange={(next) =>
+                          setValue(
+                            `items.${idx}.unitPrice`,
+                            next ? String(next) : "",
+                            { shouldDirty: true },
+                          )
+                        }
                       />
                     </div>
 
@@ -1394,11 +1398,17 @@ export default function PurchaseNoteModal({
                       >
                         Сумма по объекту, руб.
                       </label>
-                      <input
+                      <MoneyInput
                         id={`note-item-total-${idx}`}
                         className={block("input")}
-                        {...register(`items.${idx}.totalPrice`)}
-                        placeholder="0.00"
+                        value={watch(`items.${idx}.totalPrice`)}
+                        onChange={(next) =>
+                          setValue(
+                            `items.${idx}.totalPrice`,
+                            next ? String(next) : "",
+                            { shouldDirty: true },
+                          )
+                        }
                       />
                     </div>
 
@@ -1958,11 +1968,17 @@ export default function PurchaseNoteModal({
             <label className={block("label")} htmlFor="note-nmck">
               НМЦК, рублей
             </label>
-            <input
+            <MoneyInput
               id="note-nmck"
               className={block("input")}
-              {...register("initialMaxPrice")}
-              placeholder="0.00"
+              value={watch("initialMaxPrice")}
+              ariaLabel="Начальная (максимальная) цена контракта"
+              onChange={(next) =>
+                setValue("initialMaxPrice", next ? String(next) : "", {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
             {errorText("initialMaxPrice") && (
               <span className={block("error")}>

@@ -309,6 +309,18 @@
     color: var(--text-secondary);
   }
 
+  &__indicator-list {
+    margin: 4px 0 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+
+    li + li {
+      margin-top: 2px;
+    }
+  }
+
   &__link-btn {
     align-self: flex-start;
     padding: 0;

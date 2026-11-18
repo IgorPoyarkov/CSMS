@@ -19,6 +19,7 @@ import {
 } from "../../../services/NationalRegime/pp1875";
 import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
+import MoneyInput from "../../UI/MoneyInput/MoneyInput";
 import styles from "../NoticeInfoForm.module.scss";
 
 const PurchaseObjectsSection = () => {
@@ -274,25 +275,21 @@ const PurchaseObjectsSection = () => {
                       </span>
                       {/* Цена единицы нормируемой позиции сверх предельной —
                           ошибка; она гасится только подписью главного подписанта */}
-                      <input
-                        type="number"
-                        step="any"
+                      <MoneyInput
                         className={block(
                           "input",
                           violation && !isBreachSigned ? ["invalid"] : [],
                         )}
-                        {...register(
-                          `purchaseObjects.items.${index}.unitPrice`,
-                          {
-                            valueAsNumber: true,
-                            onChange: (e) =>
-                              handleRecalcRow(
-                                index,
-                                currentQty,
-                                Number(e.target.value) || 0,
-                              ),
-                          },
-                        )}
+                        value={items[index]?.unitPrice}
+                        ariaLabel={`Цена за единицу, позиция ${index + 1}`}
+                        onChange={(next) => {
+                          setValue(
+                            `purchaseObjects.items.${index}.unitPrice`,
+                            next,
+                            { shouldDirty: true },
+                          );
+                          handleRecalcRow(index, currentQty, next);
+                        }}
                       />
                       {violation &&
                         (isBreachSigned ? (
@@ -317,15 +314,11 @@ const PurchaseObjectsSection = () => {
 
                     <div>
                       <span className={block("caption")}>Стоимость, руб.</span>
-                      <input
-                        type="number"
-                        step="any"
-                        readOnly
+                      <MoneyInput
                         className={block("input")}
-                        {...register(
-                          `purchaseObjects.items.${index}.totalPrice`,
-                          { valueAsNumber: true },
-                        )}
+                        value={items[index]?.totalPrice}
+                        readOnly
+                        ariaLabel={`Стоимость, позиция ${index + 1}`}
                       />
                     </div>
                   </div>

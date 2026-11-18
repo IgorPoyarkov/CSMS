@@ -10,6 +10,7 @@ import {
   useGetOrganizationById,
 } from "../../services/Procurements/noticeInfo.api";
 import {
+  NOTICE_EVALUATION_CRITERION_TYPES,
   NoticeInfoSchema,
   type NoticeInfoFormValues,
 } from "../../services/Procurements/noticeInfo.schema";
@@ -62,6 +63,8 @@ interface LocationState {
   authorizedBodyName?: string;
   jointOrganizerName?: string;
   kbk?: string;
+  positionUniqueNumber?: string;
+  positionSerialNumber?: string;
 }
 
 const formatMskDateTime = (date: Date): string => {
@@ -69,6 +72,72 @@ const formatMskDateTime = (date: Date): string => {
   return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(
     date.getHours(),
   )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+type NoticeCriterion =
+  NoticeInfoFormValues["participantsRequirements"]["evaluationCriteria"][number];
+
+interface IkzParts {
+  year: string;
+  customerCode: string;
+  planNumber: string;
+  orderNumber: string;
+  okpd2: string;
+  kvr: string;
+}
+
+interface IkzPartsSources {
+  ikz?: string;
+  inn?: string;
+  kpp?: string;
+  plannedYear?: string | number;
+  positionUniqueNumber?: string;
+  purchaseNumber?: string | number;
+  okpd2Code?: string;
+  kbk?: string;
+}
+
+const digitsOnly = (value?: string | number): string =>
+  String(value ?? "").replace(/\D/g, "");
+
+/**
+ * Разбирает ИКЗ на составные части. Нормативная длина ИКЗ — 36 знаков:
+ * год (2) + код заказчика (20) + номер плана-графика (4) + номер закупки (3)
+ * + ОКПД2 (4) + КВР (3). В базе встречаются синтетические 24–30-значные
+ * номера: для них части собираются из карточки организации и позиции ПГ,
+ * а не нарезаются по позициям строки (иначе код заказчика получается мусорным).
+ */
+const deriveIkzParts = (sources: IkzPartsSources): IkzParts => {
+  const digits = digitsOnly(sources.ikz);
+
+  if (digits.length >= 36) {
+    return {
+      year: `20${digits.slice(0, 2)}`,
+      customerCode: digits.slice(2, 22),
+      planNumber: digits.slice(22, 26),
+      orderNumber: digits.slice(26, 29),
+      okpd2: digits.slice(29, 33),
+      kvr: digits.slice(33, 36),
+    };
+  }
+
+  const unique = digitsOnly(sources.positionUniqueNumber);
+  const plannedYear = digitsOnly(sources.plannedYear);
+  const year = plannedYear.length === 4 ? plannedYear : unique.slice(0, 4);
+  const purchaseNumber = digitsOnly(sources.purchaseNumber);
+
+  return {
+    year,
+    // Код заказчика — 20 знаков: ИНН (10) + КПП (9) + код вида организации (1).
+    // Последний разряд в карточке организации не хранится — дополняем вручную.
+    customerCode: `${digitsOnly(sources.inn)}${digitsOnly(sources.kpp)}`,
+    planNumber: unique.slice(-4),
+    orderNumber: purchaseNumber
+      ? purchaseNumber.padStart(3, "0").slice(-3)
+      : "",
+    okpd2: digitsOnly(sources.okpd2Code).slice(0, 4),
+    kvr: digitsOnly(sources.kbk).slice(-3),
+  };
 };
 
 const NoticeInfoForm = () => {
@@ -185,6 +254,8 @@ const NoticeInfoForm = () => {
         authorizedBodyApproval: "Не требуется",
         orderName: state.name ?? "",
         planPositionNumber: state.planPositionNumber ?? String(id ?? ""),
+        positionUniqueNumber: state.positionUniqueNumber ?? "",
+        positionSerialNumber: state.positionSerialNumber ?? "",
         ikz: rawIkz,
         nmck: state.nmck ?? 0,
         authorizedBodyName: state.authorizedBodyName ?? "",
@@ -270,22 +341,17 @@ const NoticeInfoForm = () => {
       },
       participantsRequirements: {
         isNiokrOrConsulting: false,
-        evaluationCriteria: [
-          {
-            id: "price",
-            type: "price",
-            enabled: true,
-            weightPercent: 60,
-            additionalInfo: "",
-          },
-          {
-            id: "qualification",
-            type: "qualification",
-            enabled: true,
-            weightPercent: 40,
-            additionalInfo: "",
-          },
-        ],
+        // Все шесть слотов критериев Положения N 2604 присутствуют всегда:
+        // из служебной записки приходят значения, а не только состав
+        evaluationCriteria: NOTICE_EVALUATION_CRITERION_TYPES.map((type) => ({
+          id: type,
+          type,
+          enabled: type === "price",
+          weightPercent: type === "price" ? 100 : 0,
+          additionalInfo: "",
+          note: "",
+          indicators: [],
+        })),
         advantageDisabledArt29: false,
         advantagePenalSystemArt28: false,
         advantageSmpPart3Art30: false,
@@ -432,6 +498,24 @@ const NoticeInfoForm = () => {
     if (matchedNote) {
       setValue("purchaseNoteId", matchedNote.id);
 
+      // Позиция плана-графика: источник сведений уровня планирования —
+      // уникального номера позиции, общественного обсуждения, КБК и ОКПД2
+      const plan =
+        matchedNote.purchasePlanId !== undefined &&
+        matchedNote.purchasePlanId !== null
+          ? purchasePlans.find(
+              (item) => String(item.id) === String(matchedNote.purchasePlanId),
+            )
+          : undefined;
+      const planPosition =
+        plan &&
+        matchedNote.positionId !== undefined &&
+        matchedNote.positionId !== null
+          ? plan.positions.find(
+              (item) => String(item.id) === String(matchedNote.positionId),
+            )
+          : undefined;
+
       const [last = "", first = "", middle = ""] = (
         matchedNote.initiatorName ?? ""
       )
@@ -450,24 +534,64 @@ const NoticeInfoForm = () => {
 
       // Критерии оценки по ПП РФ N 2604 приходят из служебной записки:
       // в СЗ они уже сверены с ОКПД2 позиции плана-графика
-      const noteCriteria = normalizeCriteria(
-        matchedNote.evaluationCriteria,
-      ).filter((criterion) => criterion.enabled);
+      // Критерии переносятся в полной форме: все шесть слотов сохраняются,
+      // а из служебной записки приходят флаг применения, значимость,
+      // примечание и показатели (п. 7, 8 Положения)
+      const noteCriteria = normalizeCriteria(matchedNote.evaluationCriteria);
+      const criteriaByNoticeType = new Map(
+        noteCriteria.map((criterion) => [
+          criterionToNoticeType[criterion.type],
+          criterion,
+        ]),
+      );
+      const currentCriteria = getValues(
+        "participantsRequirements.evaluationCriteria",
+      );
 
-      if (noteCriteria.length > 0) {
-        setValue(
-          "participantsRequirements.evaluationCriteria",
-          noteCriteria.map((criterion) => ({
-            id: criterion.type,
-            type: criterionToNoticeType[
-              criterion.type
-            ] as NoticeInfoFormValues["participantsRequirements"]["evaluationCriteria"][number]["type"],
-            enabled: true,
-            weightPercent: Number(criterion.weightPercent),
-            additionalInfo: criterion.note ?? "",
-          })),
-        );
-      }
+      setValue(
+        "participantsRequirements.evaluationCriteria",
+        NOTICE_EVALUATION_CRITERION_TYPES.map((type) => {
+          const existing = currentCriteria.find((item) => item.type === type);
+          const source = criteriaByNoticeType.get(type);
+
+          if (!source) {
+            return (
+              existing ?? {
+                id: type,
+                type,
+                enabled: false,
+                weightPercent: 0,
+                additionalInfo: "",
+                note: "",
+                indicators: [],
+              }
+            );
+          }
+
+          return {
+            id: existing?.id ?? type,
+            type,
+            enabled: Boolean(source.enabled),
+            weightPercent: Number(source.weightPercent ?? 0),
+            additionalInfo: source.note ?? "",
+            note: source.note ?? "",
+            indicators: (source.indicators ?? []).map(
+              (indicator, indicatorIndex) => ({
+                id: indicator.id ?? `${type}-ind-${indicatorIndex}`,
+                name: indicator.name,
+                kind: indicator.kind,
+                weightPercent: Number(indicator.weightPercent ?? 0),
+                unit: indicator.unit,
+                best: indicator.best,
+                scoring: indicator.scoring,
+                limitMin: indicator.limitMin,
+                limitMax: indicator.limitMax,
+                scaleText: indicator.scaleText,
+              }),
+            ),
+          };
+        }) as NoticeCriterion[],
+      );
 
       if (matchedNote.evaluationObjectCategory) {
         setValue(
@@ -485,27 +609,52 @@ const NoticeInfoForm = () => {
       if (matchedNote.subject) {
         setValue("generalInfo.orderName", matchedNote.subject);
       }
+      // Связь с позицией плана-графика — уникальный номер позиции, а не ИКЗ
+      if (matchedNote.positionUniqueNumber) {
+        setValue(
+          "generalInfo.positionUniqueNumber",
+          matchedNote.positionUniqueNumber,
+        );
+      } else if (planPosition?.uniqueNumber) {
+        setValue("generalInfo.positionUniqueNumber", planPosition.uniqueNumber);
+      }
+      if (matchedNote.positionSerialNumber) {
+        setValue(
+          "generalInfo.positionSerialNumber",
+          matchedNote.positionSerialNumber,
+        );
+      } else if (planPosition?.serialNumber !== undefined) {
+        setValue(
+          "generalInfo.positionSerialNumber",
+          String(planPosition.serialNumber),
+        );
+      }
+
       if (matchedNote.ikz) {
         setValue("generalInfo.ikz", matchedNote.ikz);
         setValue("ikz", matchedNote.ikz);
-        setValue(
-          "contractConditions.ikzYear",
-          `20${matchedNote.ikz.slice(0, 2)}`,
-        );
-        setValue(
-          "contractConditions.ikzCustomerCode",
-          matchedNote.ikz.slice(2, 22),
-        );
-        setValue(
-          "contractConditions.ikzPlanNumber",
-          matchedNote.ikz.slice(22, 26),
-        );
-        setValue(
-          "contractConditions.ikzOrderNumber",
-          matchedNote.ikz.slice(26, 29),
-        );
-        setValue("contractConditions.ikzOkpd2", matchedNote.ikz.slice(29, 33));
-        setValue("contractConditions.ikzKvr", matchedNote.ikz.slice(33, 36));
+
+        // Нормативный ИКЗ — 36 знаков; у синтетических номеров части
+        // собираются из организации и позиции ПГ, а не нарезаются построчно
+        const ikzParts = deriveIkzParts({
+          ikz: matchedNote.ikz,
+          inn: userOrganization?.inn,
+          kpp: userOrganization?.kpp,
+          plannedYear: planPosition?.plannedPlacementYear,
+          positionUniqueNumber:
+            matchedNote.positionUniqueNumber ?? planPosition?.uniqueNumber,
+          purchaseNumber:
+            planPosition?.purchaseNumber ?? matchedNote.positionSerialNumber,
+          okpd2Code: matchedNote.items?.[0]?.okpd2Code ?? matchedNote.okpd2Code,
+          kbk: matchedNote.kbk ?? planPosition?.kbk,
+        });
+
+        setValue("contractConditions.ikzYear", ikzParts.year);
+        setValue("contractConditions.ikzCustomerCode", ikzParts.customerCode);
+        setValue("contractConditions.ikzPlanNumber", ikzParts.planNumber);
+        setValue("contractConditions.ikzOrderNumber", ikzParts.orderNumber);
+        setValue("contractConditions.ikzOkpd2", ikzParts.okpd2);
+        setValue("contractConditions.ikzKvr", ikzParts.kvr);
       }
       if (matchedNote.initialMaxPrice) {
         const parsedNmck = Number.parseFloat(matchedNote.initialMaxPrice);
@@ -532,24 +681,11 @@ const NoticeInfoForm = () => {
 
       // Обязательное общественное обсуждение (ст. 20 Закона N 44-ФЗ)
       // планируется в позиции плана-графика — переносим в условия контракта
-      if (
-        matchedNote.purchasePlanId !== undefined &&
-        matchedNote.purchasePlanId !== null &&
-        matchedNote.positionId !== undefined &&
-        matchedNote.positionId !== null
-      ) {
-        const plan = purchasePlans.find(
-          (item) => String(item.id) === String(matchedNote.purchasePlanId),
+      if (planPosition?.isPublicDiscussionRequired !== undefined) {
+        setValue(
+          "contractConditions.requiresPublicDiscussionArt20",
+          Boolean(planPosition.isPublicDiscussionRequired),
         );
-        const planPosition = plan?.positions.find(
-          (item) => String(item.id) === String(matchedNote.positionId),
-        );
-        if (planPosition?.isPublicDiscussionRequired !== undefined) {
-          setValue(
-            "contractConditions.requiresPublicDiscussionArt20",
-            Boolean(planPosition.isPublicDiscussionRequired),
-          );
-        }
       }
 
       // Условия контракта
@@ -1081,6 +1217,8 @@ const NoticeInfoForm = () => {
     matchedDesc,
     objectDescriptions,
     purchasePlans,
+    userOrganization?.inn,
+    userOrganization?.kpp,
     methods.formState.isDirty,
     setValue,
     getValues,

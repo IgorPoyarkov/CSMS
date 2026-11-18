@@ -163,6 +163,47 @@ const ParticipantsRequirementsSection = () => {
                       />
                     </div>
                   )}
+
+                  {/* Показатели критерия переносятся из служебной записки
+                      в полной форме (п. 7, 8 Положения N 2604) */}
+                  {crit.indicators && crit.indicators.length > 0 && (
+                    <div className={block("field-col")}>
+                      <span className={block("caption")}>
+                        Показатели критерия (из служебной записки):
+                      </span>
+                      <ul className={block("indicator-list")}>
+                        {crit.indicators.map((indicator) => (
+                          <li key={indicator.id}>
+                            <strong>{indicator.name}</strong>
+                            {indicator.weightPercent !== undefined
+                              ? ` — значимость ${indicator.weightPercent}%`
+                              : ""}
+                            {indicator.unit
+                              ? `, ед. измерения: ${indicator.unit}`
+                              : ""}
+                            {indicator.best
+                              ? `, ${
+                                  indicator.best === "min"
+                                    ? "лучше меньшее значение"
+                                    : "лучше большее значение"
+                                }`
+                              : ""}
+                            {indicator.limitMin !== undefined ||
+                            indicator.limitMax !== undefined
+                              ? `, пределы: ${indicator.limitMin ?? "—"}…${indicator.limitMax ?? "—"}`
+                              : ""}
+                            {indicator.scoring === "scale" &&
+                            indicator.scaleText
+                              ? ` · шкала: ${indicator.scaleText.replace(/\n/g, "; ")}`
+                              : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {crit.note && (
+                    <span className={block("hint")}>{crit.note}</span>
+                  )}
                 </div>
               ))}
             </div>

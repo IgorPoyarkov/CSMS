@@ -2,6 +2,7 @@ import { useFieldArray, useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import AddressCascade from "../../UI/AddressCascade/AddressCascade";
+import MoneyInput from "../../UI/MoneyInput/MoneyInput";
 import { RUSSIA } from "../../../services/AddressRef/addressRef.schema";
 import { LIFECYCLE_CASES_PP1087 } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
@@ -43,11 +44,16 @@ const ContractConditionsSection = () => {
             Начальная (максимальная) цена контракта<sup>*</sup>
           </span>
           <div className={block("inline-group")}>
-            <input
-              type="number"
-              step="any"
+            <MoneyInput
               className={block("input", ["phone-num"])}
-              {...register("generalInfo.nmck", { valueAsNumber: true })}
+              value={nmck}
+              ariaLabel="Начальная (максимальная) цена контракта"
+              onChange={(next) =>
+                setValue("generalInfo.nmck", next, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
             <span className={block("muted")}>{conditions.currency}</span>
           </div>
@@ -142,13 +148,25 @@ const ContractConditionsSection = () => {
               />
             </div>
             <div>
-              <span className={block("caption")}>Код заказчика</span>
+              <span className={block("caption")}>
+                Код заказчика (ИНН + КПП + вид)
+              </span>
               <input
                 type="text"
+                inputMode="numeric"
                 maxLength={20}
+                placeholder="20 знаков"
                 className={block("input")}
                 {...register("contractConditions.ikzCustomerCode")}
               />
+              {conditions.ikzCustomerCode &&
+                conditions.ikzCustomerCode.replace(/\D/g, "").length !== 20 && (
+                  <span className={block("caption")}>
+                    {conditions.ikzCustomerCode.replace(/\D/g, "").length}{" "}
+                    знаков: добавьте код вида организации (ИНН и КПП уже
+                    перенесены).
+                  </span>
+                )}
             </div>
             <div>
               <span className={block("caption")}>№ в плане-графике</span>
@@ -169,10 +187,11 @@ const ContractConditionsSection = () => {
               />
             </div>
             <div>
-              <span className={block("caption")}>Код ОКПД2</span>
+              <span className={block("caption")}>Код ОКПД2 (4 знака)</span>
               <input
                 type="text"
-                maxLength={6}
+                inputMode="numeric"
+                maxLength={4}
                 className={block("input")}
                 {...register("contractConditions.ikzOkpd2")}
               />
