@@ -704,7 +704,6 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
   (89/31), `contractEvents` (21).
 
-
 - **Служебная записка / Реестр потребностей (2026-11-17, AI Studio):**
   - Роут `/purchase-notes` (`PurchaseNotesRegistryPage`) и `/purchase-plans/:id/positions/:positionId/requirement` (`PurchaseNotePage`).
   - Разграничение прав редактирования СЗ через `useMyContractRole` (функции КС раздела III приказа № 158н / работники структурного подразделения КС).
@@ -867,15 +866,25 @@ Tasks 12 в `CurrentTasks.md` — не чек-лист, а архитектур�
 экзотика ЕИС и 223-ФЗ — не поддерживаем. Текущая кодовая база этого не тянет
 (223-ФЗ нигде не обрабатывается) — так и держать.
 
-### 10.5. Статус синхронизации на момент записи
+### 10.5. Статус синхронизации и проверок на 2026-11-18 (обновлено после pull)
 
-`origin/master` = `6cc1ee4` (реестр потребностей, статусы СЗ, `.docx`/`.pdf`,
-права КС, НМЦК, ООЗ, ОКЕИ) — **локально не подтянут**: в рабочем дереве чужие
-незакоммиченные правки (`App.tsx`, `Main.tsx`, `useMyContractRole.ts`, `db.json`,
-`pluginSign.ts`, `smpPackage.ts`, `EisSmpExportPage.tsx`, `Header.tsx` + новые
-`EdsFileSigner.*`, `PurchaseDescription/*`), и 4 из них пересекаются с `6cc1ee4`,
-поэтому `git pull` отказался бы работать. Pull и пуш — после того, как автор
-незакоммиченного закоммитит свою работу (или даст согласие на `git stash`).
-⚠️ После pull ошибки чужого WIP в `ObjectDescriptionSection.tsx` (10 шт.)
-вероятно уйдут — в `6cc1ee4` этот файл переписан (+267 строк), проверять сразу
-после pull.
+`origin/master` = `6cc1ee4` (реестр потребностей, статусы СЗ, выгрузка
+`.docx`/`.pdf`, права КС, расчёт НМЦК, ООЗ, ОКЕИ) — **подтянут**, merge-коммит
+`981cde9`. До этого локальная история разошлась (`804b91b` PurchaseDescription +
+`4564d35` эта заметка против `6cc1ee4`), конфликт был один —
+`src/hooks/useMyContractRole.ts`: разрешён как union (наши права + их
+`canEditPurchaseNote` / `canDisagreeKbk` / `canEditCustomerRequisites` /
+`isLoading`), проверено построчно — из нашей версии не удалено ничего.
+
+Проверки на объединённом коде: `npx tsc -b --pretty false` — **0 ошибок**,
+`npx oxlint src` — **31 warnings, 0 errors**, `npx vite build` — успешно (4,80 s).
+
+⚠️ Прежние записи §7 про «10 ошибок tsc в чужом WIP `ObjectDescriptionSection.tsx`»
+и «1 ошибку oxlint в `NormingRequirementsBlock.tsx`» — **устарели**: эти файлы
+переписаны в `6cc1ee4`, обе проблемы ушли. Ориентир по чужой WIP нормирования
+теперь — только §10.3 A.4 (ролевые секции служебки).
+
+⚠️ В рабочем дереве по-прежнему есть незакоммиченные чужие правки
+(`CurrentTasks.md`, `EisSmpExportPage.tsx`, `pluginSign.ts`, `smpPackage.ts`,
+новые `EdsFileSigner.*`) — их не трогать и не добавлять в свои коммиты.
+Правило из §7 в силе: `git add -A` не делать, пока в `git status` чужие файлы.
