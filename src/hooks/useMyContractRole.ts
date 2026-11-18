@@ -26,7 +26,24 @@ const useMyContractRole = () => {
       myRole?.role.includes("Контрактный управляющий"),
   );
 
-  return { user, organization, contractService, employee, myRole, isHead };
+  // Роль «инициатор закупки» (Tasks 8, п. 4): работник подразделения-заказчика,
+  // который НЕ входит в контрактную службу. Он готовит описание объекта
+  // закупки и смету у нас, видит только свои черновики, а готовое описание
+  // направляет в КС. Отдельной записи в справочнике ролей не нужно: роль
+  // выводится из состава службы, как и остальные роли интерфейса.
+  const isContractServiceMember = Boolean(myRole);
+  const isPurchaseInitiator = Boolean(employee) && !isContractServiceMember;
+
+  return {
+    user,
+    organization,
+    contractService,
+    employee,
+    myRole,
+    isHead,
+    isContractServiceMember,
+    isPurchaseInitiator,
+  };
 };
 
 export default useMyContractRole;

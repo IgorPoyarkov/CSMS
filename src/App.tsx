@@ -24,6 +24,7 @@ import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import PluginDiagnosticsPage from "./components/Eds/PluginDiagnosticsPage";
+import PurchaseDescriptionsPage from "./components/PurchaseDescription/PurchaseDescriptionsPage";
 
 const router = createBrowserRouter([
   {
@@ -112,6 +113,13 @@ const router = createBrowserRouter([
         // Реестр законодательных актов и связей норм с компонентами системы
         path: "/legal-acts",
         element: <LegalActsRegistry />,
+      },
+      {
+        // Описания объектов закупки: роль «инициатор закупки» — работник
+        // подразделения-заказчика вне КС готовит описание и направляет в КС
+        // (Tasks 8, п. 4)
+        path: "/purchase-descriptions",
+        element: <PurchaseDescriptionsPage />,
       },
       {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал

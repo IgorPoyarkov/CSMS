@@ -2180,6 +2180,23 @@
       "createdAt": "2026-11-11",
       "completedAt": "",
       "result": ""
+    },
+    {
+      "id": 13,
+      "organizationId": 1,
+      "assigneeId": 14,
+      "assigneeName": "Эпинцев Виталий Александрович",
+      "assignedByEmployeeId": 17,
+      "assignedByName": "Егорова Мария Петровна",
+      "functionCode": "purchase_description",
+      "title": "Проверить описание объекта закупки: Поставка хозяйственных товаров и моющих средств для нужд стационара",
+      "description": "Инициатор: Егорова Мария Петровна. Подразделение: Хозяйственный отдел. ОКПД2: 20.41.32 — Средства моющие. Смета: 111 450 руб. Проверить описание и поставить позицию в план-график.",
+      "status": "pending",
+      "origin": "system",
+      "dueDate": "2026-11-16",
+      "createdAt": "2026-11-10",
+      "completedAt": "",
+      "result": ""
     }
   ],
   "taskEvaluations": [
@@ -4777,6 +4794,137 @@
       "createdAt": "2026-09-01"
     }
   ],
+  "purchaseDescriptions": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "authorEmployeeId": 17,
+      "authorName": "Егорова Мария Петровна",
+      "structuralUnitId": 13,
+      "structuralUnitName": "Хозяйственный отдел",
+      "title": "Поставка хозяйственных товаров и моющих средств для нужд стационара",
+      "okpd2Code": "20.41.32",
+      "okpd2Name": "Средства моющие",
+      "requirements": "Средства моющие и чистящие в потребительской упаковке, наличие свидетельства о государственной регистрации, срок годности на дату поставки не менее 12 месяцев.",
+      "justification": "Обеспечение санитарно-эпидемиологического режима отделений стационара, текущая потребность на I полугодие 2027 года.",
+      "items": [
+        {
+          "id": 1,
+          "name": "Мыло жидкое с дозатором, 500 мл",
+          "unit": "шт",
+          "quantity": "240",
+          "unitPrice": "185.00"
+        },
+        {
+          "id": 2,
+          "name": "Средство для мытья посуды, 5 л",
+          "unit": "шт",
+          "quantity": "60",
+          "unitPrice": "640.00"
+        },
+        {
+          "id": 3,
+          "name": "Мешки для мусора 60 л, упаковка 20 шт",
+          "unit": "упак",
+          "quantity": "300",
+          "unitPrice": "95.50"
+        }
+      ],
+      "status": "submitted",
+      "submittedAt": "2026-11-10",
+      "taskId": 13,
+      "createdAt": "2026-11-09",
+      "updatedAt": "2026-11-10"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "authorEmployeeId": 16,
+      "authorName": "Фомин Игорь Николаевич",
+      "structuralUnitId": 12,
+      "structuralUnitName": "Экономический отдел",
+      "title": "Оказание услуг по проведению обязательного аудита бухгалтерской отчётности",
+      "okpd2Code": "69.20.10",
+      "okpd2Name": "Услуги в области аудита",
+      "requirements": "Аудиторская организация — член саморегулируемой организации аудиторов, срок действия членства не истекает до подписания аудиторского заключения.",
+      "justification": "Обязательный аудит годовой бухгалтерской отчётности учреждения за 2026 год.",
+      "items": [],
+      "status": "draft",
+      "submittedAt": "",
+      "createdAt": "2026-11-14",
+      "updatedAt": "2026-11-14"
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "authorEmployeeId": 17,
+      "authorName": "Егорова Мария Петровна",
+      "structuralUnitId": 13,
+      "structuralUnitName": "Хозяйственный отдел",
+      "title": "Выполнение работ по замене участков трубопровода системы отопления",
+      "okpd2Code": "43.22.12",
+      "okpd2Name": "Работы по монтажу систем отопления",
+      "requirements": "Работы выполняются в действующем здании без остановки работы отделений, материалы должны иметь сертификаты соответствия.",
+      "justification": "Устранение аварийных участков трубопровода в корпусе 2 по предписанию обслуживающей организации.",
+      "items": [
+        {
+          "id": 1,
+          "name": "Труба стальная Ду50",
+          "unit": "м",
+          "quantity": "120",
+          "unitPrice": "1450.00"
+        },
+        {
+          "id": 2,
+          "name": "Отвод стальной Ду50",
+          "unit": "шт",
+          "quantity": "40",
+          "unitPrice": "620.00"
+        }
+      ],
+      "status": "returned",
+      "submittedAt": "2026-11-06",
+      "reviewedAt": "2026-11-12",
+      "reviewComment": "Уточните объёмы по дефектовке: расход труб не сходится с длиной участков, нужна ведомость работ.",
+      "createdAt": "2026-11-05",
+      "updatedAt": "2026-11-12"
+    },
+    {
+      "id": 4,
+      "organizationId": 6,
+      "authorEmployeeId": 41,
+      "authorName": "Говоров Андрей Николаевич",
+      "structuralUnitId": 33,
+      "structuralUnitName": "Управление государственных закупок",
+      "title": "Поставка дорожных знаков и барьерных ограждений для участка автомобильной дороги",
+      "okpd2Code": "25.99.29",
+      "okpd2Name": "Изделия прочие из недрагоценных металлов",
+      "requirements": "Знаки дорожные по ГОСТ 32945-2014, ограждения барьерные по ГОСТ 26804-2012, паспорта и сертификаты соответствия на партию.",
+      "justification": "Приведение участка дороги в нормативное состояние по предписанию ГИБДД.",
+      "items": [
+        {
+          "id": 1,
+          "name": "Знак дорожный 2.1 «Главная дорога»",
+          "unit": "шт",
+          "quantity": "18",
+          "unitPrice": "4200.00"
+        },
+        {
+          "id": 2,
+          "name": "Ограждение барьерное металлическое, 1 м",
+          "unit": "м",
+          "quantity": "240",
+          "unitPrice": "3150.00"
+        }
+      ],
+      "status": "accepted",
+      "submittedAt": "2026-10-28",
+      "reviewedAt": "2026-11-03",
+      "reviewComment": "Позиция включена в проект плана-графика на 2027 год.",
+      "createdAt": "2026-10-27",
+      "updatedAt": "2026-11-03"
+    }
+  ],
   "contractSmpRecords": [
     {
       "id": 1,
@@ -6623,6 +6771,114 @@
       "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
       "createdAt": "2026-11-17T04:17",
       "id": 18
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-17T04:25",
+      "id": 19
+    },
+    {
+      "organizationId": 2,
+      "userId": 2,
+      "userLabel": "test2@test.test",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество Белгородской области · без проверки подписи",
+      "certificateId": 4,
+      "certificateOwner": "Пояркова София Игоревна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-01-10",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
+      "createdAt": "2026-11-17T04:48",
+      "id": 20
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-17T04:49",
+      "id": 21
+    },
+    {
+      "organizationId": 2,
+      "userId": 2,
+      "userLabel": "test2@test.test",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество Белгородской области · без проверки подписи",
+      "certificateId": 4,
+      "certificateOwner": "Пояркова София Игоревна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-01-10",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
+      "createdAt": "2026-11-17T05:23",
+      "id": 22
+    },
+    {
+      "organizationId": 2,
+      "contractId": 3,
+      "action": "smp_eis_export",
+      "entityType": "contractSmpRecord",
+      "entityId": 13,
+      "documentLabel": "Сведения о привлечении СМП: строк 2, контрактов 1, от 2026-11-17",
+      "certificateOwner": "CN=Пояркова Наталья Юрьевна, SN=Пояркова, G=Наталья Юрьевна, E=n.y.pojarkova@roadkursk.ru, ИНН=461702446358, СНИЛС=11462295944, O=\"ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"\"КУРСКАВТОДОР\"\"\", T=Ведущий эксперт до",
+      "certificateInn": "4617024463",
+      "certificateSerial": "1EBD2F5E89F0CAFB34997EE257D3DA61",
+      "certificateFingerprint": "D56AB57E969C08FD9D8E15BF2B3953FF21BEEDF1",
+      "certificateAlgorithm": "",
+      "certificateValidTo": "2027-05-13",
+      "innMatched": false,
+      "certificateSource": "plugin",
+      "result": "rejected_certificate",
+      "comment": "Пакет smp_svedeniya_2026-11-17_0523.csv, подпись smp_svedeniya_2026-11-17_0523.csv.sig, SHA-256 c67d3d985c9de199e5b849844d0f7a8df2ce16f09bbd8ddfa794a0266d0ff50f. Подпись поставлена на рабочем месте, сервером не проверялась.",
+      "createdAt": "2026-11-17T05:23",
+      "id": 23
     }
   ]
 }
