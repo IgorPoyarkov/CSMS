@@ -1827,6 +1827,56 @@ export default function MarketNmckCalculator({
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={3}>
+                    <strong>
+                      Итого по статьям затрат (учтено{" "}
+                      {costResult.validItemsCount} из {costItems.length})
+                    </strong>
+                    {costResult.costInputScope === "unit" &&
+                      costResult.rawItemsSum > 0 && (
+                        <span>
+                          {" "}
+                          · На весь объём ({costResult.quantity}{" "}
+                          {unit || "ед."}):{" "}
+                          {formatNmckMoney(costResult.costSubtotal)} ₽
+                        </span>
+                      )}
+                  </td>
+                  <td className={block("computed-cell")}>
+                    <strong>
+                      {formatNmckMoney(costResult.rawItemsSum)} ₽
+                    </strong>
+                  </td>
+                  <td className={block("computed-cell")}>
+                    {costResult.rawItemsSum > 0 ? "100.0%" : "—"}
+                  </td>
+                  <td />
+                </tr>
+                <tr>
+                  <td colSpan={3}>
+                    Прибыль (коэффициент k ={" "}
+                    <strong>{costResult.profitCoeff.toFixed(2)}</strong>,
+                    рентабельность{" "}
+                    <strong>+{costResult.profitPercent.toFixed(2)}%</strong>)
+                  </td>
+                  <td className={block("computed-cell")}>
+                    +{formatNmckMoney(costResult.profitAmount)} ₽
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+                <tr>
+                  <td colSpan={3}>
+                    Итоговая НМЦК = Затраты × k_приб (цена ед.:{" "}
+                    {formatNmckMoney(costResult.unitPrice)} ₽)
+                  </td>
+                  <td className={block("computed-cell")}>
+                    {formatNmckMoney(costResult.nmckTotal)} ₽
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
             </table>
           </div>
 
@@ -1860,6 +1910,20 @@ export default function MarketNmckCalculator({
                 onChange={(e) => handleProfitCoeffChange(e.target.value)}
                 placeholder="1.10"
               />
+              {!disabled && (
+                <div className={block("add-group")} style={{ marginTop: 4 }}>
+                  {["1.00", "1.05", "1.10", "1.15", "1.20"].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={block("btn", ["compact"])}
+                      onClick={() => handleProfitCoeffChange(preset)}
+                    >
+                      k={preset}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className={block("field")}>
