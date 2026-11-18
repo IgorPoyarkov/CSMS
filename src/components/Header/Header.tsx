@@ -146,6 +146,13 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Пакеты ЕИС: подпись, отправка и статусы ФЛК вместо скачанного файла */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/packages"}>
+              <span className={nav("link-name")}>Пакеты ЕИС</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eds/journal"}>
               <span className={nav("link-name")}>Журнал ЭП</span>

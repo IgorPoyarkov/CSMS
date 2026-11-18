@@ -1,0 +1,143 @@
+@import "variables";
+
+.eis-packages {
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eis-packages__title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.eis-packages__lead {
+  margin: 0;
+  max-width: 90ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Честное предупреждение о режиме заглушки: его нельзя прятать в подвал */
+.eis-packages__notice {
+  padding: 12px 14px;
+  border: 1px solid var(--state-warning);
+  border-radius: 8px;
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eis-packages__create {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-panel);
+}
+
+.eis-packages__form-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.eis-packages__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.eis-packages__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-packages__input,
+.eis-packages__select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  max-width: 100%;
+}
+
+.eis-packages__form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.eis-packages__btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--surface-raised);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--accent);
+    color: var(--text-on-accent);
+    border-color: var(--accent);
+
+    &:hover {
+      background: var(--accent-hover);
+    }
+  }
+}
+
+.eis-packages__hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-packages__error {
+  padding: 10px 12px;
+  border: 1px solid var(--state-danger);
+  border-radius: 6px;
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eis-packages__empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.eis-packages__summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.eis-packages__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
