@@ -87,6 +87,17 @@
   color: var(--text-primary);
 }
 
+.prefillBanner {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
 /* ===== Навигация ===== */
 
 .nav {

@@ -620,6 +620,17 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
   (89/31), `contractEvents` (21).
 
+
+- **Служебная записка / Реестр потребностей (2026-11-17, AI Studio):**
+  - Роут `/purchase-notes` (`PurchaseNotesRegistryPage`) и `/purchase-plans/:id/positions/:positionId/requirement` (`PurchaseNotePage`).
+  - Разграничение прав редактирования СЗ через `useMyContractRole` (функции КС раздела III приказа № 158н / работники структурного подразделения КС).
+  - Визуальные статусы согласования (`PurchaseNoteStatusBadge`: `в работе`, `на согласовании`, `согласовано`, `отклонено`, `аннулировано`) в реестре потребностей, карточке ПГ и форме СЗ.
+  - Выгрузка сформированной СЗ в `.docx` (`docx`) и кириллический `.pdf` (`pdfmake` + `Roboto`) в `src/services/PurchaseNote/purchaseNoteExport.ts` с листом согласования и подписей.
+  - Доработки СЗ (`PurchaseNoteModal`): инициатор из сотрудников организации (по умолчанию текущий пользователь), ссылка/выбор ООЗ (`/norming-requirements`), КБК по годам из ПГ (read-only) + запрос на изменение КБК/КВР, файл и запрос НМЦК + встроенный расчёт НМЦК (`NmckJustificationPanel` по ст. 22 / Приказу № 567), поля описаний требований ст. 31 (кроме ч. 1.1 и санкций РНП; вложенный п. 4 ПП 2571 с типовым текстом), объединённый блок гарантии качества и ОГО, реквизиты организации из КС (`CustomerProcurementRequisitesCard`).
+- **ООЗ и ОКЕИ (2026-11-17, AI Studio):**
+  - `objectDescriptions` в `db.json`, `NormingRequirementsPage`, `ObjectDescriptionEditor`, `Order158nValidatorPanel`, `pp-145` в `legalActs`.
+  - `OkeiSelect` / `OkeiRef` (при отсутствии `/okei` на `json-server :3001` допускается ручной ввод единицы измерения).
+
 ## 8. Не реализовано
 
 - Настоящие права: проверка на клиенте, json-server отдаёт коллекции целиком.

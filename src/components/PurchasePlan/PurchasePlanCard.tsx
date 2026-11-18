@@ -3,8 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
   usePurchasePlan,
+  useUpdatePurchasePlan,
 } from "../../services/PurchasePlan/purchasePlan.api";
-import { useAddProcurement } from "../../services/Procurements/procurement.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
   formatMoney,
@@ -14,23 +14,17 @@ import {
 } from "./purchasePlan.config";
 import {
   positionKbkCodes,
-  toNumber,
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
-import PurchaseNoteModal from "../PurchaseNote/PurchaseNoteModal";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
-import {
-  latestPurchaseNoteForPosition,
-  purchaseNotesForPosition,
-} from "../../services/PurchaseNote/purchaseNote.schema";
+import { purchaseNotesForPosition } from "../../services/PurchaseNote/purchaseNote.schema";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
-import type { RawProcurement } from "../../services/Procurements/procurement.schema";
 import LegalActRefs from "../LegalAct/LegalActRefs";
+import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
-import { DEFAULT_PROCUREMENT_TYPES } from "../ProcurementProcessing/procurement.config";
 import styles from "./PurchasePlanCard.module.scss";
 
 /**
@@ -96,15 +90,16 @@ export default function PurchasePlanCard() {
     isError,
     error,
   } = usePurchasePlan(id, organizationId);
-  const { mutate: createSz, isPending: isCreatingSz } = useAddProcurement();
+  const { mutate: updatePlan, isPending: isUpdatingPlan } =
+    useUpdatePurchasePlan();
   // Справочник ОКПД2 нужен, чтобы у позиции ПГ показать обязательное
   // нормирование и предельную цену единицы (ПП РФ N 926)
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
-  // Служебные записки по позициям ПГ — носители требования по СМП
+  // Потребности / служебные записки по позициям ПГ
   const { data: purchaseNotes = [] } = usePurchaseNotes(organizationId);
-  const [notePosition, setNotePosition] = useState<PurchasePlanPosition | null>(
-    null,
-  );
+  const [confirmDeletePositionId, setConfirmDeletePositionId] = useState<
+    string | null
+  >(null);
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "purchase-plan-card");
 
@@ -128,6 +123,7 @@ export default function PurchasePlanCard() {
         !target.closest("details[data-plan-actions]")
       ) {
         setOpenActionsPositionId(null);
+        setConfirmDeletePositionId(null);
       }
     }
 
@@ -135,42 +131,26 @@ export default function PurchasePlanCard() {
     return () => document.removeEventListener("click", closeMenus);
   }, []);
 
-  // Создание СЗ (закупки) из позиции ПГ. НМЦК и способ определения
-  // поставщика в записи ПГ не указываются, поэтому стартом СЗ берём объём
-  // финансового обеспечения, а тип закупки — нейтральный из справочника.
-  // Уполномоченный орган, организатор совместной закупки и КБК берутся из
-  // позиции ПГ и передаются дальше в извещение.
-  // Требование о привлечении СМП передаётся из служебки по этой позиции —
-  // дальше по цепочке его подхватывает извещение (Tasks 9, п. 7, п/п 3)
-  function handleCreateSz(position: PurchasePlanPosition) {
-    const raw: RawProcurement = {
-      "Идентификационный код закупки": position.identificationCode || "",
-      "Наименование закупки": position.objectOfPurchase,
-      "Начальная (максимальная) цена контракта, руб":
-        toNumber(position.amountTotal) ?? 0,
-      "Тип закупки":
-        DEFAULT_PROCUREMENT_TYPES[DEFAULT_PROCUREMENT_TYPES.length - 1],
-      "Уполномоченный орган (учреждение)": position.authorizedBodyName || "",
-      "Организатор совместной закупки": position.jointOrganizerName || "",
-      "КБК": position.kbk || "",
-    };
-    const note = latestPurchaseNoteForPosition(purchaseNotes, position.id);
-    createSz(raw, {
-      onSuccess: (created) => {
-        navigate(`/procurement-processing/${created.id}/notice-info`, {
-          state: {
-            ikz: position.identificationCode,
-            name: position.objectOfPurchase,
-            procurementType: raw["Тип закупки"],
-            smpRequiredPercent: note?.smpRequiredPercent,
-            purchaseNoteNumber: note ? String(note.noteNumber) : undefined,
-            authorizedBodyName: position.authorizedBodyName || undefined,
-            jointOrganizerName: position.jointOrganizerName || undefined,
-            kbk: position.kbk || undefined,
-          },
-        });
+  function handleDeletePosition(positionId: string | number | undefined) {
+    if (!plan || !plan.id || positionId === undefined) return;
+    const nextPositions = (plan.positions ?? []).filter(
+      (item) => String(item.id) !== String(positionId),
+    );
+    updatePlan(
+      {
+        id: plan.id,
+        data: {
+          ...plan,
+          positions: nextPositions,
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          setConfirmDeletePositionId(null);
+          setOpenActionsPositionId(null);
+        },
+      },
+    );
   }
 
   const positions = useMemo(() => plan?.positions ?? [], [plan]);
@@ -218,7 +198,7 @@ export default function PurchasePlanCard() {
   const visiblePositions = isPaged
     ? filteredPositions.slice(
         (currentPage - 1) * Number(pageSize),
-        Number(pageSize),
+        currentPage * Number(pageSize),
       )
     : filteredPositions;
 
@@ -329,9 +309,10 @@ export default function PurchasePlanCard() {
       // Записи без статуса считаются запланированными
       case "status": {
         const status = position.status ?? "planned";
+        const posNotes = purchaseNotesForPosition(purchaseNotes, position.id);
 
         return (
-          <>
+          <div className={block("status-stack")}>
             <span className={block("status-tag", [status, "compact"])}>
               {positionStatusLabel(status)}
             </span>
@@ -340,7 +321,15 @@ export default function PurchasePlanCard() {
                 от {formatDate(position.statusDate)}
               </span>
             )}
-          </>
+            {posNotes.map((note) => (
+              <div key={String(note.id ?? note.noteNumber)} className={block("note-status-line")}>
+                <span className={block("sub", ["compact"])}>
+                  СЗ №{note.noteNumber}:
+                </span>
+                <PurchaseNoteStatusBadge status={note.status} compact />
+              </div>
+            ))}
+          </div>
         );
       }
       case "isPublicDiscussionRequired":
@@ -350,20 +339,25 @@ export default function PurchasePlanCard() {
     }
   }
 
-  // Действия по записи плана-графика: правка только своей записи (не всего
-  // плана-графика), служебка по позиции и создание закупки из позиции.
-  // В таблице конкретного плана — выпадающий список, как в списке планов
+  // Действия по записи плана-графика: правка позиции, единый поинт
+  // «Сформировать потребность» (СЗ) и удаление текущей позиции ПГ.
   function renderActionsCell(position: PurchasePlanPosition): React.ReactNode {
     const positionNotes = purchaseNotesForPosition(purchaseNotes, position.id);
+    const positionKey = String(position.id ?? "");
+    const isConfirmingDelete = confirmDeletePositionId === positionKey;
 
     return (
       <details
         className={block("menu")}
         data-plan-actions
-        open={openActionsPositionId === String(position.id)}
-        onToggle={(event) =>
-          setOpenActionsPositionId(event.currentTarget.open ? String(position.id) : null)
-        }
+        open={openActionsPositionId === positionKey}
+        onToggle={(event) => {
+          const isOpen = event.currentTarget.open;
+          setOpenActionsPositionId(isOpen ? positionKey : null);
+          if (!isOpen) {
+            setConfirmDeletePositionId(null);
+          }
+        }}
       >
         <summary className={block("menu-trigger")}>Действия</summary>
         <div className={block("menu-list")}>
@@ -382,36 +376,77 @@ export default function PurchasePlanCard() {
           <button
             className={block("menu-item")}
             type="button"
+            disabled={position.id === undefined}
             onClick={() => {
               setOpenActionsPositionId(null);
-              setNotePosition(position);
+              navigate(
+                `/purchase-plans/${planId}/positions/${position.id}/requirement`,
+              );
             }}
           >
-            Создать служебку
+            Сформировать потребность
           </button>
           {positionNotes.length > 0 && (
             <div className={block("menu-note")}>
-              СЗ {positionNotes.map((note) => `№${note.noteNumber}`).join(", ")}
-              {positionNotes.some((note) => note.smpRequiredPercent !== undefined)
-                ? ` · СМП ${Math.max(
+              {positionNotes.map((note) => (
+                <div
+                  key={String(note.id ?? note.noteNumber)}
+                  className={block("menu-note-item")}
+                >
+                  <span>СЗ №{note.noteNumber}</span>
+                  <PurchaseNoteStatusBadge status={note.status} compact />
+                </div>
+              ))}
+              {positionNotes.some(
+                (note) =>
+                  (note.requiresSmpSubcontracting ??
+                    (note.smpRequiredPercent !== undefined &&
+                      Number(note.smpRequiredPercent) > 0)) &&
+                  note.smpRequiredPercent !== undefined,
+              ) && (
+                <span>
+                  СМП{" "}
+                  {Math.max(
                     ...positionNotes.map((note) =>
                       Number(note.smpRequiredPercent ?? 0),
                     ),
-                  )}%`
-                : ""}
+                  )}
+                  %
+                </span>
+              )}
             </div>
           )}
-          <button
-            className={block("menu-item")}
-            type="button"
-            disabled={isCreatingSz}
-            onClick={() => {
-              setOpenActionsPositionId(null);
-              handleCreateSz(position);
-            }}
-          >
-            Создать СЗ
-          </button>
+          {!isConfirmingDelete ? (
+            <button
+              className={block("menu-item", ["danger"])}
+              type="button"
+              disabled={isUpdatingPlan || position.id === undefined}
+              onClick={() => setConfirmDeletePositionId(positionKey)}
+            >
+              Удалить
+            </button>
+          ) : (
+            <div className={block("menu-confirm")}>
+              <span>Удалить эту позицию ПГ?</span>
+              <div className={block("menu-confirm-actions")}>
+                <button
+                  type="button"
+                  className={block("menu-confirm-btn")}
+                  disabled={isUpdatingPlan}
+                  onClick={() => handleDeletePosition(position.id)}
+                >
+                  {isUpdatingPlan ? "Удаление..." : "Да, удалить"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingPlan}
+                  onClick={() => setConfirmDeletePositionId(null)}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </details>
     );
@@ -481,6 +516,14 @@ export default function PurchasePlanCard() {
           <h1 className={block("title")}>
             План-график {plan.planNumber || "без номера"}
           </h1>
+        </div>
+        <div className={block("actions")}>
+          <button
+            type="button"
+            onClick={() => navigate("/purchase-notes")}
+          >
+            Реестр потребностей (СЗ)
+          </button>
         </div>
       </header>
 
@@ -659,15 +702,6 @@ export default function PurchasePlanCard() {
           </>
         )}
       </fieldset>
-      {/* Служебная записка по позиции плана-графика (Tasks 9, п. 7, п/п 3) */}
-      {notePosition && organizationId !== undefined && (
-        <PurchaseNoteModal
-          organizationId={organizationId}
-          plan={plan}
-          position={notePosition}
-          onClose={() => setNotePosition(null)}
-        />
-      )}
     </section>
   );
 }

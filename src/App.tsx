@@ -11,6 +11,8 @@ import PurchasePlanList from "./components/PurchasePlan/PurchasePlanList";
 import PurchasePlanCard from "./components/PurchasePlan/PurchasePlanCard";
 import PurchasePlanForm from "./components/PurchasePlan/PurchasePlanForm";
 import PurchasePlanPositionEditPage from "./components/PurchasePlan/PurchasePlanPositionEditPage";
+import PurchaseNotePage from "./components/PurchaseNote/PurchaseNotePage";
+import PurchaseNotesRegistryPage from "./components/PurchaseNote/PurchaseNotesRegistryPage";
 import ProcurementProcessing from "./components/ProcurementProcessing/ProcurementProcessing";
 import NoticeInfoForm from "./components/NoticeInfoForm/NoticeInfoForm";
 import ContractServicePage from "./components/ContractService/ContractServicePage";
@@ -66,7 +68,15 @@ const router = createBrowserRouter([
             path: ":id/positions/:positionId/edit",
             element: <PurchasePlanPositionEditPage />,
           },
+          {
+            path: ":id/positions/:positionId/requirement",
+            element: <PurchaseNotePage />,
+          },
         ],
+      },
+      {
+        path: "/purchase-notes",
+        element: <PurchaseNotesRegistryPage />,
       },
       {
         path: "/contract-service",

@@ -40,6 +40,9 @@ const ProcurementProcessing: React.FC = () => {
             ikz: item.ikz,
             name: item.name,
             procurementType: item.procurementType,
+            nmck: item.nmck,
+            noticeNumber: item.noticeNumber ?? undefined,
+            kbk: item.kbk ?? undefined,
           },
         });
         break;

@@ -1,7 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { useForm, useFieldArray, FormProvider } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  useForm,
+  useFieldArray,
+  FormProvider,
+  type FieldErrors,
+  type Resolver,
+} from "react-hook-form";
 import {
   ContractProjectSchema,
   emptyContractProject,
@@ -12,18 +17,39 @@ import {
 } from "../../services/ContractProject/contractProject.schema";
 import {
   useCreateContractProject,
-  useContractProject,
+  useOrganizationContractProjects,
   useUpdateContractProject,
 } from "../../services/ContractProject/contractProject.api";
+import { useCurrentOrganization } from "../../services/Organization/organization.api";
+import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { hasSmpSubcontractingRequirement } from "../../services/PurchaseNote/purchaseNote.schema";
+import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import {
+  buildObjectDescriptionSummaryText,
+  formatCharacteristicValue,
+} from "../../services/ObjectDescription/objectDescription.schema";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import styles from "./ContractProject.module.scss";
 
 // ─── Типы полей формы (плоские) ────────────────────────────────────────────
 
+interface ContractLocationState {
+  ikz?: string;
+  name?: string;
+  procurementType?: string;
+  nmck?: number;
+  noticeNumber?: string;
+  kbk?: string;
+}
+
 interface FlatForm {
+  procurementId: string;
   contractName: string;
   ikz: string;
   noticeNumber: string;
+  smpRequiredPercent: string;
+  subcontractingSmpNoteNumber: string;
   customerName: string;
   supplierName: string;
   projectDate: string;
@@ -76,9 +102,12 @@ interface FlatForm {
 }
 
 const fromProject = (p: ContractProject): FlatForm => ({
+  procurementId: p.procurementId !== undefined ? String(p.procurementId) : "",
   contractName: p.contractName ?? "",
   ikz: p.ikz ?? "",
   noticeNumber: p.noticeNumber ?? "",
+  smpRequiredPercent: p.smpRequiredPercent ?? "",
+  subcontractingSmpNoteNumber: p.subcontractingSmpNoteNumber ?? "",
   customerName: p.customerName ?? "",
   supplierName: p.supplierName ?? "",
   projectDate: p.projectDate ?? "",
@@ -103,8 +132,14 @@ const fromProject = (p: ContractProject): FlatForm => ({
   acceptanceProcedure: p.term.acceptanceProcedure ?? "",
   acceptanceTermDays: String(p.term.acceptanceTermDays ?? 10),
   qualityRequirements: p.quality.qualityRequirements ?? "",
-  warrantyPeriodMonths: String(p.quality.warrantyPeriodMonths ?? ""),
-  serviceLifeMonths: String(p.quality.serviceLifeMonths ?? ""),
+  warrantyPeriodMonths:
+    p.quality.warrantyPeriodMonths !== undefined
+      ? String(p.quality.warrantyPeriodMonths)
+      : "",
+  serviceLifeMonths:
+    p.quality.serviceLifeMonths !== undefined
+      ? String(p.quality.serviceLifeMonths)
+      : "",
   specifications: p.quality.specifications ?? "",
   bidSecurityRequired: p.security.bidSecurityRequired ?? false,
   bidSecurityPercent: p.security.bidSecurityPercent ?? "",
@@ -119,7 +154,10 @@ const fromProject = (p: ContractProject): FlatForm => ({
   allowQuantityChange: p.change.allowQuantityChange ?? false,
   allowPriceChange: p.change.allowPriceChange ?? false,
   terminationConditions: p.change.terminationConditions ?? "",
-  securityReturnDays: String(p.change.securityReturnDays ?? 30),
+  securityReturnDays:
+    p.change.securityReturnDays !== undefined
+      ? String(p.change.securityReturnDays)
+      : "30",
   stages: (p.term.stages ?? []).map((s) => ({
     name: s.name,
     endDate: s.endDate ?? "",
@@ -129,9 +167,12 @@ const fromProject = (p: ContractProject): FlatForm => ({
 
 const toProject = (f: FlatForm, orgId: string | number): ContractProject => ({
   organizationId: orgId,
-  contractName: f.contractName,
+  procurementId: f.procurementId || undefined,
   ikz: f.ikz,
   noticeNumber: f.noticeNumber,
+  smpRequiredPercent: f.smpRequiredPercent || undefined,
+  subcontractingSmpNoteNumber: f.subcontractingSmpNoteNumber || undefined,
+  contractName: f.contractName,
   customerName: f.customerName,
   supplierName: f.supplierName,
   projectDate: f.projectDate,
@@ -150,7 +191,9 @@ const toProject = (f: FlatForm, orgId: string | number): ContractProject => ({
     finalPrice: f.finalPrice,
     priceBasis: f.priceBasis,
     priceIncludesExpenses: f.priceIncludesExpenses,
-    paymentProcedure: f.paymentProcedure as any,
+    paymentProcedure:
+      (f.paymentProcedure as "advance" | "postpayment" | "staged") ||
+      "postpayment",
     advancePercent: f.advancePercent,
     paymentTermDays: f.paymentTermDays ? Number(f.paymentTermDays) : undefined,
   },
@@ -199,36 +242,446 @@ const toProject = (f: FlatForm, orgId: string | number): ContractProject => ({
   updatedAt: new Date().toISOString().slice(0, 10),
 });
 
+// Маппинг ошибок вложенной ContractProjectSchema обратно на плоские поля формы
+const createFlatResolver =
+  (getOrgId: () => string | number): Resolver<FlatForm> =>
+  async (values) => {
+    const candidate = toProject(values, getOrgId());
+    const parsed = ContractProjectSchema.safeParse(candidate);
+    if (parsed.success) {
+      return { values, errors: {} };
+    }
+
+    const flatErrors: FieldErrors<FlatForm> = {};
+    for (const issue of parsed.error.issues) {
+      const leaf = issue.path[issue.path.length - 1];
+      const fieldKey =
+        typeof leaf === "string" && leaf in values
+          ? (leaf as keyof FlatForm)
+          : (String(issue.path[0] ?? "contractName") as keyof FlatForm);
+      if (!flatErrors[fieldKey]) {
+        flatErrors[fieldKey] = {
+          type: issue.code,
+          message: issue.message,
+        };
+      }
+    }
+
+    return { values: {}, errors: flatErrors };
+  };
+
 // ─── Компонент ─────────────────────────────────────────────────────────────
 
 export default function ContractProjectForm() {
   const { id } = useParams();
   const location = useLocation();
-  const stateData = location.state as
-    | { ikz?: string; name?: string; procurementType?: string }
-    | undefined;
+  const stateData = location.state as ContractLocationState | undefined;
 
-  const { data: existing, isLoading: loadingExisting } = useContractProject(id);
-  const { mutate: createProject } = useCreateContractProject();
-  const { mutate: updateProject } = useUpdateContractProject();
+  const { data: organization } = useCurrentOrganization();
+  const orgId = organization?.id ?? 1;
+
+  const { data: orgProjects = [], isLoading: loadingProjects } =
+    useOrganizationContractProjects(orgId);
+  const { data: notices = [] } = useNotices();
+  const { data: purchaseNotes = [] } = usePurchaseNotes(orgId);
+  const { data: objectDescriptions = [] } =
+    useOrganizationObjectDescriptions(orgId);
+
+  const { mutate: createProject, isPending: isCreating } =
+    useCreateContractProject();
+  const { mutate: updateProject, isPending: isUpdating } =
+    useUpdateContractProject();
 
   const [activeSection, setActiveSection] = useState("general");
   const [saved, setSaved] = useState(false);
 
-  const orgId = 1;
-  const defaultProject = existing ?? emptyContractProject(orgId);
-  const defaultForm = fromProject(defaultProject);
+  // Существующий проект контракта именно этой закупки (по procurementId или ИКЗ)
+  const existing = useMemo(() => {
+    if (id) {
+      const byProc = orgProjects.find(
+        (p) => String(p.procurementId ?? "") === String(id),
+      );
+      if (byProc) return byProc;
+    }
+    if (stateData?.ikz) {
+      return orgProjects.find((p) => p.ikz === stateData.ikz);
+    }
+    return undefined;
+  }, [orgProjects, id, stateData?.ikz]);
 
-  // Автоподстановка из закупки
-  if (!existing && stateData?.ikz && !defaultForm.ikz) {
-    defaultForm.ikz = stateData.ikz;
-    defaultForm.contractName = `Контракт: ${stateData.name ?? ""}`;
-  }
+  // Извещение для текущей закупки (из /notices)
+  const matchedNotice = useMemo(() => {
+    if (id) {
+      const byProc = notices
+        .filter((n) => String(n.procurementId ?? "") === String(id))
+        .slice(-1)[0];
+      if (byProc) return byProc;
+    }
+    const targetIkz = stateData?.ikz;
+    if (targetIkz) {
+      return notices
+        .filter((n) => n.ikz === targetIkz || n.generalInfo?.ikz === targetIkz)
+        .slice(-1)[0];
+    }
+    return undefined;
+  }, [notices, id, stateData?.ikz]);
+
+  // Потребность (СЗ) для текущей закупки
+  const matchedNote = useMemo(() => {
+    const noteId = matchedNotice?.purchaseNoteId;
+    if (noteId !== undefined && noteId !== null && noteId !== "") {
+      const byId = purchaseNotes.find((n) => String(n.id) === String(noteId));
+      if (byId) return byId;
+    }
+    if (id) {
+      const byProc = purchaseNotes
+        .filter((n) => String(n.procurementId ?? "") === String(id))
+        .slice(-1)[0];
+      if (byProc) return byProc;
+    }
+    const targetIkz =
+      matchedNotice?.generalInfo?.ikz || stateData?.ikz || undefined;
+    if (targetIkz) {
+      return purchaseNotes.filter((n) => n.ikz === targetIkz).slice(-1)[0];
+    }
+    return undefined;
+  }, [purchaseNotes, matchedNotice, id, stateData?.ikz]);
+
+  // Структурированное ООЗ (если привязано к извещению или СЗ)
+  const matchedDesc = useMemo(() => {
+    const onlyOoz = objectDescriptions.filter(
+      (d) => d.kind === "object_description",
+    );
+    const descId =
+      matchedNotice?.objectDescriptionId ?? matchedNote?.objectDescriptionId;
+    if (descId !== undefined && descId !== null && descId !== "") {
+      const byId = onlyOoz.find((d) => String(d.id) === String(descId));
+      if (byId) return byId;
+    }
+    if (id) {
+      const byProc = onlyOoz.find(
+        (d) => String(d.procurementId ?? "") === String(id),
+      );
+      if (byProc) return byProc;
+    }
+    const targetIkz =
+      matchedNotice?.generalInfo?.ikz || matchedNote?.ikz || stateData?.ikz;
+    if (targetIkz) {
+      return onlyOoz.find((d) => d.ikz === targetIkz);
+    }
+    return undefined;
+  }, [objectDescriptions, matchedNotice, matchedNote, id, stateData?.ikz]);
+
+  const initialForm = useMemo(() => {
+    const base = fromProject(existing ?? emptyContractProject(orgId));
+    if (!existing && stateData?.ikz && !base.ikz) {
+      base.procurementId = id ?? "";
+      base.ikz = stateData.ikz;
+      base.noticeNumber = stateData.noticeNumber ?? "";
+      base.contractName = `Контракт: ${stateData.name ?? ""}`;
+      base.objectName = stateData.name ?? "";
+      if (stateData.nmck !== undefined && stateData.nmck > 0) {
+        base.initialMaxPrice = stateData.nmck.toFixed(2);
+      }
+      base.projectDate = new Date().toISOString().slice(0, 10);
+    }
+    return base;
+  }, [existing, orgId, stateData, id]);
+
+  const orgIdRef = useRef(orgId);
+  orgIdRef.current = orgId;
 
   const methods = useForm<FlatForm>({
-    resolver: zodResolver(ContractProjectSchema) as any,
-    defaultValues: defaultForm,
+    resolver: createFlatResolver(() => orgIdRef.current),
+    defaultValues: initialForm,
   });
+
+  const appliedKeyRef = useRef<string>("");
+
+  // Асинхронная подгрузка существующего проекта ИЛИ предзаполнение из Извещения + СЗ + ООЗ
+  useEffect(() => {
+    if (methods.formState.isDirty) return;
+
+    if (existing) {
+      const key = `existing:${existing.id}`;
+      if (appliedKeyRef.current === key) return;
+      appliedKeyRef.current = key;
+      methods.reset(fromProject(existing));
+      return;
+    }
+
+    if (!matchedNotice && !matchedNote && !matchedDesc && !organization) {
+      return;
+    }
+
+    const key = `prefill:${id ?? ""}:${matchedNotice?.id ?? "n"}:${matchedNote?.id ?? "p"}:${matchedDesc?.id ?? "d"}:${organization?.id ?? "o"}`;
+    if (appliedKeyRef.current === key) return;
+    appliedKeyRef.current = key;
+
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const noticeObj = matchedNotice?.objectDescription;
+    const noticeCond = matchedNotice?.contractConditions;
+    const noticeReq = matchedNotice?.participantsRequirements;
+    const noticeItems = matchedNotice?.purchaseObjects?.items ?? [];
+
+    const objectTitle =
+      noticeObj?.objectName ||
+      matchedNotice?.generalInfo.orderName ||
+      matchedNote?.subject ||
+      stateData?.name ||
+      "";
+
+    const descriptionParts: string[] = [];
+    if (matchedDesc) {
+      descriptionParts.push(buildObjectDescriptionSummaryText(matchedDesc));
+    } else if (noticeObj) {
+      if (noticeObj.consumerProperties) {
+        descriptionParts.push(
+          `Потребительские свойства: ${noticeObj.consumerProperties}`,
+        );
+      }
+      if (noticeObj.qualityCharacteristics) {
+        descriptionParts.push(
+          `Качественные характеристики: ${noticeObj.qualityCharacteristics}`,
+        );
+      }
+      if (noticeObj.functionalProperties) {
+        descriptionParts.push(
+          `Функциональные характеристики: ${noticeObj.functionalProperties}`,
+        );
+      }
+      if (noticeObj.environmentalCharacteristics) {
+        descriptionParts.push(
+          `Экологические характеристики: ${noticeObj.environmentalCharacteristics}`,
+        );
+      }
+      if (noticeObj.otherRequirements) {
+        descriptionParts.push(noticeObj.otherRequirements);
+      }
+    } else if (matchedNote) {
+      descriptionParts.push(matchedNote.subject);
+      if (matchedNote.otherRequirements) {
+        descriptionParts.push(matchedNote.otherRequirements);
+      }
+    }
+
+    const quantityStr =
+      matchedNotice?.purchaseObjects?.isIndeterminateVolume ||
+      matchedNote?.isIndeterminateVolume
+        ? "Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)"
+        : noticeItems.length > 0
+          ? noticeItems
+              .map((it) => `${it.quantity} ${it.unit}`.trim())
+              .join("; ")
+          : matchedNote?.quantity
+            ? `${matchedNote.quantity} ${matchedNote.unit ?? ""}`.trim()
+            : "";
+
+    const deliveryPlacesList = noticeCond?.deliveryPlaces?.length
+      ? noticeCond.deliveryPlaces
+      : (matchedNote?.deliveryPlaces ?? []);
+    const deliveryPlaceFromCascade = deliveryPlacesList
+      .map((pl) =>
+        [pl.region, pl.municipality, pl.settlement, pl.address, pl.additionalInfo]
+          .filter(Boolean)
+          .join(", "),
+      )
+      .filter(Boolean)
+      .join("; ");
+
+    const nmckValue =
+      matchedNotice?.generalInfo?.nmck && matchedNotice.generalInfo.nmck > 0
+        ? matchedNotice.generalInfo.nmck.toFixed(2)
+        : matchedNote?.initialMaxPrice
+          ? matchedNote.initialMaxPrice
+          : stateData?.nmck !== undefined && stateData.nmck > 0
+            ? stateData.nmck.toFixed(2)
+            : "";
+
+    const perfRequired =
+      noticeReq?.requiresContractSecurity ??
+      matchedNote?.requiresContractSecurity ??
+      true;
+    const perfPercentStr =
+      noticeReq?.contractSecurityPercent !== undefined
+        ? String(noticeReq.contractSecurityPercent)
+        : (matchedNote?.contractSecurityPercent ?? "5");
+
+    const nmckNum = Number.parseFloat(nmckValue);
+    const perfNum = Number.parseFloat(perfPercentStr);
+    const computedSecurityAmount =
+      perfRequired &&
+      Number.isFinite(nmckNum) &&
+      nmckNum > 0 &&
+      Number.isFinite(perfNum) &&
+      perfNum > 0
+        ? ((nmckNum * perfNum) / 100).toFixed(2)
+        : "";
+
+    const specLines = noticeItems.map(
+      (it, idx) =>
+        `${idx + 1}. ${it.name} (ОКПД2/КТРУ: ${it.okpd2OrKtruCode || "—"}) — ${it.quantity} ${it.unit} × ${it.unitPrice.toFixed(2)} руб = ${it.totalPrice.toFixed(2)} руб`,
+    );
+    if (specLines.length === 0 && matchedDesc?.characteristics?.length) {
+      matchedDesc.characteristics.forEach((c, idx) => {
+        specLines.push(
+          `${idx + 1}. ${c.name}: ${formatCharacteristicValue(c)}`,
+        );
+      });
+    }
+
+    const warrantyMonths =
+      matchedNote?.warrantyTermMonths !== undefined
+        ? String(matchedNote.warrantyTermMonths)
+        : (matchedDesc?.warrantyTermMonths ?? "");
+
+    const qualityDetails = [
+      matchedNote?.warrantyMaintenanceInfo &&
+        `Гарантийное обслуживание: ${matchedNote.warrantyMaintenanceInfo}`,
+      matchedNote?.manufacturerWarrantyInfo &&
+        `Гарантия производителя: ${matchedNote.manufacturerWarrantyInfo}`,
+      matchedNote?.warrantyTermAndVolume &&
+        `Срок и объём гарантии: ${matchedNote.warrantyTermAndVolume}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const qualityText =
+      qualityDetails ||
+      noticeObj?.qualityCharacteristics ||
+      matchedDesc?.standards
+        .map((s) => `${s.code}${s.title ? ` (${s.title})` : ""}`)
+        .join(", ") ||
+      matchedNote?.otherRequirements ||
+      (objectTitle
+        ? `Товар (работа, услуга) должен соответствовать требованиям ст. 33 Закона № 44-ФЗ, ГОСТ и техническим регламентам для объекта «${objectTitle}»`
+        : "");
+
+    const allowUnilateral =
+      noticeCond?.allowUnilateralRefusalArt95 ??
+      matchedNote?.allowUnilateralRefusalArt95 ??
+      true;
+
+    // Срок оплаты зависит от казначейского сопровождения (расчёт на этапе проекта контракта)
+    const hasTreasury = Boolean(
+      noticeReq?.requiresTreasurySupport ?? matchedNote?.requiresTreasurySupport,
+    );
+    const computedPaymentTermDays = matchedNote?.paymentTermDays
+      ? String(matchedNote.paymentTermDays)
+      : hasTreasury
+        ? "10"
+        : "7";
+
+    const hasAdvanceFlag = Boolean(
+      noticeCond?.hasAdvance ?? matchedNote?.hasAdvance,
+    );
+
+    const smpEnabled = matchedNote
+      ? hasSmpSubcontractingRequirement(matchedNote)
+      : Boolean(noticeReq?.subcontractingSmpPart5Art30);
+
+    const acceptanceText =
+      matchedNote?.acceptanceTermMode === "date" && matchedNote.acceptanceDate
+        ? `Приёмка и экспертиза результатов исполнения контракта по ст. 94 Закона № 44-ФЗ в срок до ${matchedNote.acceptanceDate}`
+        : `Приёмка и экспертиза результатов исполнения контракта по ст. 94 Закона № 44-ФЗ в течение ${matchedNote?.acceptanceTermDays ?? 10} рабочих дней ${matchedNote?.acceptanceEventBase || "со дня предоставления документа о приёмке"}`;
+
+    methods.reset({
+      ...initialForm,
+      procurementId: id ?? "",
+      contractName: objectTitle ? `Контракт: ${objectTitle}` : initialForm.contractName,
+      ikz:
+        matchedNotice?.generalInfo?.ikz ||
+        matchedNote?.ikz ||
+        stateData?.ikz ||
+        initialForm.ikz,
+      noticeNumber:
+        matchedNotice?.generalInfo?.noticeNumber ||
+        stateData?.noticeNumber ||
+        initialForm.noticeNumber,
+      smpRequiredPercent: smpEnabled
+        ? noticeReq?.subcontractingSmpRequiredPercent ||
+          (matchedNote?.smpRequiredPercent !== undefined
+            ? String(matchedNote.smpRequiredPercent)
+            : "")
+        : "",
+      subcontractingSmpNoteNumber:
+        noticeReq?.subcontractingSmpNoteNumber ||
+        (matchedNote?.noteNumber ? String(matchedNote.noteNumber) : ""),
+      customerName:
+        matchedNotice?.contactInfo?.organizationName ||
+        organization?.fullName ||
+        initialForm.customerName,
+      projectDate: initialForm.projectDate || todayIso,
+      objectName: objectTitle || initialForm.objectName,
+      description: descriptionParts.join("\n") || initialForm.description,
+      okpd2Code:
+        noticeObj?.okpd2Code ||
+        matchedDesc?.okpd2Code ||
+        matchedNote?.okpd2Code ||
+        initialForm.okpd2Code,
+      quantity: quantityStr || initialForm.quantity,
+      deliveryPlace:
+        deliveryPlaceFromCascade ||
+        matchedNote?.deliveryPlace ||
+        initialForm.deliveryPlace,
+      initialMaxPrice: nmckValue || initialForm.initialMaxPrice,
+      priceBasis:
+        matchedNote?.priceBasis ||
+        "Обоснование НМЦК в соответствии со ст. 22 Закона № 44-ФЗ",
+      paymentProcedure: hasAdvanceFlag
+        ? "advance"
+        : noticeCond?.hasMultipleStages
+          ? "staged"
+          : "postpayment",
+      advancePercent: noticeCond?.hasAdvance
+        ? String(noticeCond.advancePercent)
+        : (matchedNote?.advancePercent ?? ""),
+      paymentTermDays: computedPaymentTermDays,
+      startDate:
+        matchedNote?.deliveryTermMode === "absolute"
+          ? (matchedNote?.desiredStartDate ?? "")
+          : "",
+      endDate:
+        matchedNote?.deliveryTermMode === "absolute"
+          ? (matchedNote?.desiredEndDate ?? "")
+          : "",
+      acceptanceTermDays: String(matchedNote?.acceptanceTermDays ?? 10),
+      acceptanceProcedure: acceptanceText,
+      qualityRequirements: qualityText,
+      warrantyPeriodMonths: warrantyMonths,
+      specifications: specLines.join("\n"),
+      bidSecurityRequired:
+        noticeReq?.requiresApplicationSecurity ??
+        matchedNote?.requiresApplicationSecurity ??
+        initialForm.bidSecurityRequired,
+      bidSecurityPercent:
+        noticeReq?.requiresApplicationSecurity &&
+        noticeReq.applicationSecurityPercent !== undefined
+          ? String(noticeReq.applicationSecurityPercent)
+          : (matchedNote?.applicationSecurityPercent ??
+            initialForm.bidSecurityPercent),
+      performanceSecurityRequired: perfRequired,
+      performanceSecurityPercent: perfPercentStr,
+      warrantySecurityRequired:
+        noticeReq?.requiresWarrantySecurity ??
+        matchedNote?.requiresWarrantySecurity ??
+        false,
+      securityAmount: computedSecurityAmount,
+      terminationConditions: allowUnilateral
+        ? "Заказчик и поставщик вправе принять решение об одностороннем отказе от исполнения контракта по основаниям, предусмотренным ГК РФ (ч. 8, 9, 19 ст. 95 Закона № 44-ФЗ)"
+        : "",
+    });
+  }, [
+    existing,
+    matchedNotice,
+    matchedNote,
+    matchedDesc,
+    organization,
+    id,
+    stateData,
+    initialForm,
+    methods,
+  ]);
 
   const { fields, append, remove } = useFieldArray({
     control: methods.control,
@@ -237,21 +690,26 @@ export default function ContractProjectForm() {
 
   const watched = methods.watch();
   const completion = sectionCompletion(toProject(watched, orgId));
-
   const deadline = conclusionDeadline(watched.conclusionDate);
 
   const onSubmit = (data: FlatForm) => {
     const project = toProject(data, orgId);
-    if (id) {
-      updateProject({ id: Number(id), ...project });
+    const markSaved = () => {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    };
+
+    if (existing?.id !== undefined) {
+      updateProject(
+        { id: existing.id, ...project },
+        { onSuccess: markSaved },
+      );
     } else {
-      createProject(project);
+      createProject(project, { onSuccess: markSaved });
     }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   };
 
-  if (loadingExisting) return <div className={styles.loader}>Загрузка...</div>;
+  if (loadingProjects) return <div className={styles.loader}>Загрузка...</div>;
 
   const sections = [
     { id: "general", label: "Общие сведения" },
@@ -368,11 +826,24 @@ export default function ContractProjectForm() {
     );
   };
 
+  const prefillSources = [
+    matchedNotice ? "Извещение (44-ФЗ)" : null,
+    matchedNote ? `СЗ № ${matchedNote.noteNumber}` : null,
+    matchedDesc ? `ООЗ «${matchedDesc.title}»` : null,
+  ].filter(Boolean);
+
   return (
     <div className={styles.container}>
       <h2 className={styles.title}>
         Проект контракта {existing ? `#${existing.id}` : ""}
       </h2>
+
+      {!existing && prefillSources.length > 0 && (
+        <div className={styles.prefillBanner}>
+          <strong>Предзаполнено по цепочке:</strong> {prefillSources.join(" + ")}.
+          Проверьте обязательные условия ст. 33 и ст. 34 перед сохранением.
+        </div>
+      )}
 
       {/* Прогресс заполнения */}
       <div className={styles.progress}>
@@ -444,6 +915,19 @@ export default function ContractProjectForm() {
               <div className={styles.row}>
                 {renderField("ikz", "ИКЗ", "text", "0123456789012345678901234")}
                 {renderField("noticeNumber", "Номер извещения")}
+              </div>
+              <div className={styles.row}>
+                {renderField(
+                  "smpRequiredPercent",
+                  "Привлечение СМП/СОНКО, %",
+                  "text",
+                  "5",
+                  "ПП РФ № 1466 (из СЗ и извещения)",
+                )}
+                {renderField(
+                  "subcontractingSmpNoteNumber",
+                  "Номер СЗ (основание СМП)",
+                )}
               </div>
               {renderField("customerName", "Заказчик")}
               {renderField("supplierName", "Поставщик (победитель)")}
@@ -682,8 +1166,14 @@ export default function ContractProjectForm() {
 
           {/* Кнопки */}
           <div className={styles.actions}>
-            <button type="submit" className={styles.btnPrimary}>
-              {id ? "Сохранить изменения" : "Создать проект контракта"}
+            <button
+              type="submit"
+              className={styles.btnPrimary}
+              disabled={isCreating || isUpdating}
+            >
+              {existing
+                ? "Сохранить изменения"
+                : "Создать проект контракта"}
             </button>
             {saved && (
               <span className={styles.savedMessage}>Проект сохранён</span>

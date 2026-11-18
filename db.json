@@ -4699,6 +4699,25 @@
       "lastCheckedDate": "2026-11-16",
       "isVerified": true,
       "notes": "Квалифицированная ЭП — основа подписания в системе: сертификат выдаётся аккредитованным УЦ, ключ хранится у владельца, подпись ставится через КриптоПро ЭЦП Browser plug-in"
+    },
+    {
+      "id": "pp-145",
+      "shortName": "ПП РФ N 145",
+      "fullName": "Постановление Правительства РФ от 08.02.2017 N 145 \"Об утверждении Правил формирования и ведения в единой информационной системе в сфере закупок каталога товаров, работ, услуг и Правил использования каталога товаров, работ, услуг\"",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "145",
+      "adoptedDate": "2017-02-08",
+      "status": "active",
+      "scope": "Структурированное описание объекта закупки, обязательное применение позиций КТРУ и обоснование дополнительных характеристик",
+      "components": [
+        "NormingRequirementsPage",
+        "ObjectDescriptionSection",
+        "PurchaseObjectsSection"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-16",
+      "isVerified": true
     }
   ],
   "purchaseNotes": [
@@ -6623,6 +6642,181 @@
       "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
       "createdAt": "2026-11-17T04:17",
       "id": 18
+    }
+  ],
+  "objectDescriptions": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "kind": "object_description",
+      "status": "approved",
+      "title": "Кровать медицинская функциональная для палат интенсивной терапии",
+      "okpd2Code": "32.50.14.110",
+      "okpd2Name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
+      "useKtru": true,
+      "ktruCode": "32.50.14.110-00000012",
+      "unit": "шт",
+      "quantity": "4",
+      "isIndeterminateVolume": false,
+      "characteristics": [
+        {
+          "id": "ch-1",
+          "category": "technical",
+          "name": "Количество секций ложа",
+          "unit": "шт",
+          "valueType": "exact",
+          "valueText": "4",
+          "minValue": "",
+          "maxValue": "",
+          "isMandatoryFromKtru": true,
+          "isAdditionalOverKtru": false,
+          "additionalJustification": "",
+          "instructionForParticipant": "Указать точное значение из технической документации изделия."
+        },
+        {
+          "id": "ch-2",
+          "category": "functional",
+          "name": "Максимальная безопасная рабочая нагрузка",
+          "unit": "кг",
+          "valueType": "min",
+          "valueText": "",
+          "minValue": "220",
+          "maxValue": "",
+          "isMandatoryFromKtru": true,
+          "isAdditionalOverKtru": false,
+          "additionalJustification": "",
+          "instructionForParticipant": "Значение не должно быть менее 220 кг."
+        },
+        {
+          "id": "ch-3",
+          "category": "quality",
+          "name": "Материал покрытия каркаса (устойчивость к дезинфекции)",
+          "unit": "",
+          "valueType": "text",
+          "valueText": "Полимерно-порошковое покрытие, устойчивое к многократной обработке дезинфицирующими средствами",
+          "minValue": "",
+          "maxValue": "",
+          "isMandatoryFromKtru": false,
+          "isAdditionalOverKtru": true,
+          "additionalJustification": "Необходимо для соблюдения санитарно-эпидемиологического режима в палатах интенсивной терапии (СанПиН 3.3686-21).",
+          "instructionForParticipant": "Подтверждается регистрационным удостоверением или паспортом изделия."
+        }
+      ],
+      "trademarkRule": "none",
+      "trademarkName": "",
+      "trademarkJustification": "",
+      "standards": [
+        {
+          "id": "st-1",
+          "standardType": "GOST",
+          "code": "ГОСТ Р 50444-2020",
+          "title": "Приборы, аппараты и оборудование медицинские. Общие технические требования",
+          "hasDeviation": false,
+          "deviationJustification": ""
+        }
+      ],
+      "isNewGoodsRequired": true,
+      "warrantyTermMonths": "24",
+      "warrantyRequirements": "Гарантийное обслуживание на территории заказчика, замена неисправных узлов в срок не более 5 рабочих дней.",
+      "participantInstruction": "Конкретные показатели товара указываются участником в структурированной заявке в соответствии со значениями диапазонов и минимальных границ.",
+      "noRestrictionDeclaration": true,
+      "otherRequirements": "Наличие действующего регистрационного удостоверения Росздравнадзора.",
+      "authorName": "Иванова А. С.",
+      "approvedByName": "Главный врач ГБУЗ ГКБ № 7",
+      "approvedDate": "2026-11-15",
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": 2,
+      "organizationId": 2,
+      "kind": "object_description",
+      "status": "ready",
+      "title": "Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
+      "okpd2Code": "32.50.11.110",
+      "okpd2Name": "Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
+      "useKtru": false,
+      "ktruCode": "",
+      "unit": "усл. ед",
+      "quantity": "1",
+      "isIndeterminateVolume": false,
+      "characteristics": [
+        {
+          "id": "ch-21",
+          "category": "consumer",
+          "name": "Потребительские свойства результата",
+          "unit": "",
+          "valueType": "text",
+          "valueText": "Соответствие утвержденному техническому регламенту заказчика и требованиям безопасности",
+          "minValue": "",
+          "maxValue": "",
+          "isMandatoryFromKtru": false,
+          "isAdditionalOverKtru": false,
+          "additionalJustification": "",
+          "instructionForParticipant": ""
+        }
+      ],
+      "trademarkRule": "none",
+      "trademarkName": "",
+      "trademarkJustification": "",
+      "standards": [],
+      "isNewGoodsRequired": true,
+      "warrantyTermMonths": "12",
+      "warrantyRequirements": "",
+      "participantInstruction": "",
+      "noRestrictionDeclaration": true,
+      "otherRequirements": "",
+      "authorName": "Пояркова С. А.",
+      "approvedByName": "",
+      "approvedDate": "",
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": 3,
+      "kind": "norming_template",
+      "status": "approved",
+      "title": "Типовые требования (ПП 926): Мебель медицинская",
+      "okpd2Code": "32.50.14.110",
+      "okpd2Name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
+      "useKtru": false,
+      "ktruCode": "",
+      "unit": "шт",
+      "quantity": "",
+      "isIndeterminateVolume": false,
+      "characteristics": [
+        {
+          "id": "tpl-1",
+          "category": "consumer",
+          "name": "Назначение и условия эксплуатации",
+          "unit": "",
+          "valueType": "text",
+          "valueText": "Применение в стационарных отделениях медицинских организаций",
+          "minValue": "",
+          "maxValue": "",
+          "isMandatoryFromKtru": false,
+          "isAdditionalOverKtru": false,
+          "additionalJustification": "",
+          "instructionForParticipant": ""
+        },
+        {
+          "id": "tpl-2",
+          "category": "quality",
+          "name": "Устойчивость к дезинфекции",
+          "unit": "",
+          "valueType": "text",
+          "valueText": "Поверхности из нержавеющей стали или с химически стойким полимерным покрытием",
+          "minValue": "",
+          "maxValue": "",
+          "isMandatoryFromKtru": false,
+          "isAdditionalOverKtru": false,
+          "additionalJustification": "",
+          "instructionForParticipant": ""
+        }
+      ],
+      "trademarkRule": "none",
+      "standards": [],
+      "isNewGoodsRequired": true,
+      "noRestrictionDeclaration": true,
+      "updatedAt": "2026-11-16"
     }
   ]
 }

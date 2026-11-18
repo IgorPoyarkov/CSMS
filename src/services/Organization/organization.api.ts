@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import { useFetchCurrentUser } from "../Users/user.api";
 import {
@@ -42,5 +42,30 @@ export const useCurrentOrganization = () => {
     queryKey: [...organizationsQueryKey, organizationId],
     queryFn: () => fetchOrganizationById(organizationId as string | number),
     enabled: Boolean(organizationId),
+  });
+};
+
+// Обновление сведений организации (в т.ч. актуализация платёжных реквизитов
+// для обеспечений уполномоченным членом КС).
+export const useUpdateOrganization = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string | number;
+      patch: Partial<BaseOrganization>;
+    }): Promise<BaseOrganization> => {
+      const response = await api.patch(`${ENDPOINT}/${id}`, patch);
+      return BaseOrganizationSchema.parse(response.data);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+      queryClient.invalidateQueries({
+        queryKey: [...organizationsQueryKey, variables.id],
+      });
+    },
   });
 };

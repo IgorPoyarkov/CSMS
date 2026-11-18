@@ -67,7 +67,10 @@ export const useUpdatePurchaseNote = () => {
       id,
       ...changes
     }: { id: string | number } & Partial<PurchaseNote>) => {
-      const { data } = await api.patch(`${ENDPOINT}/${id}`, changes);
+      const { data } = await api.patch(
+        `${ENDPOINT}/${id}`,
+        omitEmptyReferences(changes),
+      );
 
       return PurchaseNoteSchema.parse(data);
     },

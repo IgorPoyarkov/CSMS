@@ -5,6 +5,10 @@ import {
   type BaseEmployee,
 } from "../StaffingTable/StaffingTable.schema";
 import type { NoticeInfoFormValues } from "./noticeInfo.schema";
+import type {
+  OrganizationBudgetLevel,
+  OrganizationProcurementRequisites,
+} from "../Organization/organization.schema";
 
 export interface OrganizationDto {
   id: number | string;
@@ -13,6 +17,8 @@ export interface OrganizationDto {
   legalAddress: string;
   email: string;
   phone: string;
+  budgetLevel?: OrganizationBudgetLevel;
+  procurementRequisites?: OrganizationProcurementRequisites;
 }
 
 export const useGetOrganizationById = (
@@ -46,12 +52,34 @@ export const useGetEmployeeByEmail = (email?: string) => {
   });
 };
 
+const omitEmptyReferences = <T extends Record<string, unknown>>(data: T): T =>
+  Object.fromEntries(
+    Object.entries(data).filter(
+      ([key, value]) =>
+        !/Id$/.test(key) ||
+        (value !== "" && value !== null && value !== undefined),
+    ),
+  ) as T;
+
+export const useNotices = () => {
+  return useQuery<NoticeInfoFormValues[]>({
+    queryKey: ["notices"],
+    queryFn: async () => {
+      const { data } = await api.get<NoticeInfoFormValues[]>("/notices");
+      return Array.isArray(data) ? data : [];
+    },
+  });
+};
+
 export const useCreateNotice = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: NoticeInfoFormValues) => {
-      const { data } = await api.post("/notices", payload);
+      const { data } = await api.post(
+        "/notices",
+        omitEmptyReferences(payload as Record<string, unknown>),
+      );
       return data;
     },
     onSuccess: () => {

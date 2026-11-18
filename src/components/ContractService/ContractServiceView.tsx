@@ -26,6 +26,7 @@ import {
   useAccessRequests,
 } from "../../services/AccessRequest/accessRequest.api";
 import AccessRequestModal from "../Account/AccessRequestModal/AccessRequestModal";
+import CustomerProcurementRequisitesCard from "./CustomerProcurementRequisitesCard";
 import styles from "./ContractServicePage.module.scss";
 
 interface ContractServiceViewProps {
@@ -297,6 +298,8 @@ export default function ContractServiceView({
           </ul>
         </section>
       )}
+      <CustomerProcurementRequisitesCard />
+
       {accessRequestTarget && (
         <AccessRequestModal
           employeeId={accessRequestTarget.employeeId}
