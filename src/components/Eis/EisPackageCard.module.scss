@@ -143,6 +143,14 @@
   flex-wrap: wrap;
 }
 
+/* Встроенный браузер приложения: объясняем коротко, а не диагностикой плагина */
+.eis-package__sign-unavailable {
+  flex: 1 1 320px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--state-warning);
+}
+
 .eis-package__field {
   display: flex;
   flex-direction: column;

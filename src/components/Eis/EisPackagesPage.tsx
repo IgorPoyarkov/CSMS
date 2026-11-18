@@ -15,6 +15,7 @@ import {
   isEisContractNumber,
   type EisDocumentType,
 } from "../../services/Eis/eisPackages.schema";
+import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
 import EisPackageCard from "./EisPackageCard";
 import styles from "./EisPackagesPage.module.scss";
 
@@ -38,6 +39,12 @@ export default function EisPackagesPage() {
   const { data: contracts = [] } = useContractRegistry(organization?.id);
   const { data: packages = [], isPending, isError, error } = useEisPackages();
   const createPackage = useCreateEisPackage();
+
+  // Во встроенном браузере приложения плагина КриптоПро нет и быть не может.
+  // Об этом честнее сказать сразу, чем дать человеку нажать «Подписать»
+  // и получить стену диагностики, которая к его случаю не относится
+  const embeddedBrowser = isEmbeddedBrowser();
+  const currentUrl = typeof window === "undefined" ? "" : window.location.href;
 
   const [documentType, setDocumentType] =
     useState<EisDocumentType>("SmpAttraction");
@@ -116,6 +123,19 @@ export default function EisPackagesPage() {
         Когда появится Альбом форматов ЕИС, поменяется только начинка шлюза, а
         этот экран — нет.
       </div>
+
+      {/* Встроенный браузер приложения: подписи здесь не будет ни при каком
+          раскладе, и человек должен узнать это до нажатия кнопки */}
+      {embeddedBrowser && (
+        <div className={block("browser-notice")}>
+          <b>Подписать здесь нельзя.</b> Вы открыли страницу во встроенном
+          браузере приложения — расширения КриптоПро CAdES в нём нет. Откройте
+          тот же адрес в Яндекс.Браузере или Chrome (токен и сертификаты те же):{" "}
+          <a className={block("browser-link")} href={currentUrl}>
+            {currentUrl}
+          </a>
+        </div>
+      )}
 
       <form
         className={block("create")}

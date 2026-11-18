@@ -22,6 +22,10 @@ import {
   verifyTextSignature,
   type PluginCertificateInfo,
 } from "../../services/Eds/pluginSign";
+import {
+  EMBEDDED_BROWSER_HINT,
+  isEmbeddedBrowser,
+} from "../../services/Eds/edsEnvironment";
 import styles from "./EisPackageCard.module.scss";
 
 /**
@@ -89,6 +93,9 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
   const canRefresh = isStatusPending(item.status);
   const canRevise =
     item.status === "RejectedByFlk" || item.status === "SendFailed";
+  // Встроенный браузер приложения — не «сломанный плагин», а среда, где его
+  // не может быть. Проверяем один раз за рендер: UA за сессию не меняется
+  const embeddedBrowser = isEmbeddedBrowser();
 
   const selectedCertificate =
     certificates?.find(
@@ -264,7 +271,11 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
 
       {canSign && (
         <div className={block("sign-block")}>
-          {certificates === null ? (
+          {embeddedBrowser ? (
+            <span className={block("sign-unavailable")}>
+              {EMBEDDED_BROWSER_HINT}
+            </span>
+          ) : certificates === null ? (
             <button
               type="button"
               className={block("btn", ["primary"])}

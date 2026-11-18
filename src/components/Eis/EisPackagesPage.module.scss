@@ -32,6 +32,23 @@
   line-height: 1.5;
 }
 
+/* Встроенный браузер приложения: здесь подписи не будет, и это не поломка */
+.eis-packages__browser-notice {
+  padding: 12px 14px;
+  border: 1px solid var(--state-danger);
+  border-radius: 8px;
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eis-packages__browser-link {
+  color: inherit;
+  font-weight: 600;
+  word-break: break-all;
+}
+
 .eis-packages__create {
   display: flex;
   flex-direction: column;
