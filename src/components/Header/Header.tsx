@@ -113,6 +113,16 @@ const Header = ({}: HeaderProps) => {
             </li>
           )}
 
+          {/* Инициатор закупки — работник подразделения-заказчика вне КС:
+              дефектовка, проект сметы и проект графика для службы */}
+          {user && (
+            <li className={nav("item")}>
+              <NavLink className={nav("link", ["logo"])} to={"/defect-lists"}>
+                <span className={nav("link-name")}>Дефектовки</span>
+              </NavLink>
+            </li>
+          )}
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/okpd2"}>
               <span className={nav("link-name")}>Справочник ОКПД2</span>

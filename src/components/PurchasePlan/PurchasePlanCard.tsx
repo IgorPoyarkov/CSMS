@@ -23,7 +23,6 @@ import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
-import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import styles from "./PurchasePlanCard.module.scss";
@@ -362,7 +361,10 @@ export default function PurchasePlanCard() {
               </span>
             )}
             {posNotes.map((note) => (
-              <div key={String(note.id ?? note.noteNumber)} className={block("note-status-line")}>
+              <div
+                key={String(note.id ?? note.noteNumber)}
+                className={block("note-status-line")}
+              >
                 <span className={block("sub", ["compact"])}>
                   СЗ №{note.noteNumber}:
                 </span>
@@ -571,10 +573,7 @@ export default function PurchasePlanCard() {
           </h1>
         </div>
         <div className={block("actions")}>
-          <button
-            type="button"
-            onClick={() => navigate("/purchase-notes")}
-          >
+          <button type="button" onClick={() => navigate("/purchase-notes")}>
             Реестр потребностей (СЗ)
           </button>
         </div>
@@ -622,9 +621,6 @@ export default function PurchasePlanCard() {
           {customer.inn ? ` · ИНН ${customer.inn}` : ""}
           {customer.kpp ? ` · КПП ${customer.kpp}` : ""}
         </p>
-        {/* Форма записи и состав граф берутся из актов реестра: при правке
-            нормы меняется запись реестра, а не подписи в таблице */}
-        <LegalActRefs component="PurchasePlanCard" />
       </fieldset>
 
       {/* Основная кнопка добавления записи — над таблицей записей */}
@@ -695,10 +691,7 @@ export default function PurchasePlanCard() {
                         приглашения, заключения контракта с единственным
                         поставщиком (подрядчиком, исполнителем)
                       </th>
-                      <th
-                        className={block("th", ["narrow"])}
-                        data-col="number"
-                      >
+                      <th className={block("th", ["narrow"])} data-col="number">
                         Номер закупки, включенной в план-график
                       </th>
                       <th>Наименование объекта (объектов) закупки</th>

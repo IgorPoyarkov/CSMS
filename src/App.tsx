@@ -26,6 +26,7 @@ import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
+import DefectListsPage from "./components/DefectList/DefectListsPage";
 
 const router = createBrowserRouter([
   {
@@ -132,6 +133,12 @@ const router = createBrowserRouter([
         // Модуль расчёта НМЦК методом сопоставимых рыночных цен (анализ рынка)
         path: "/nmck-calculator",
         element: <NmckCalculatorPage />,
+      },
+      {
+        // Дефектовки: роль «инициатор закупки» — объёмы работ, проект сметы
+        // контракта (421/пр) и проект календарного графика (336/пр)
+        path: "/defect-lists",
+        element: <DefectListsPage />,
       },
     ],
   },
