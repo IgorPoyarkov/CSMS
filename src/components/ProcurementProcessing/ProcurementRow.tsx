@@ -1,12 +1,13 @@
 import type React from "react";
 import useUtils from "../../hooks/useUtils";
-import type { Procurement } from "../../services/Procurements/procurement.schema";
+import {
+  noticeStatusLabel,
+  type Procurement,
+} from "../../services/Procurements/procurement.schema";
 import CustomButton from "../UI/CustomButton";
 import {
-  deleteButtonConfig,
-  leftRowButtons,
-  remarksButtonConfig,
-  rightColOneButtons,
+  noticeActionButtons,
+  noticeDangerButtons,
   type ProcurementActionType,
 } from "./procurement.config";
 import styles from "./ProcurementRow.module.scss";
@@ -14,15 +15,15 @@ import styles from "./ProcurementRow.module.scss";
 interface ProcurementRowProps {
   procurement: Procurement;
   onAction: (action: ProcurementActionType, item: Procurement) => void;
-  onDelete: (id: string | number) => void;
   isDeleting?: boolean;
+  isStatusPending?: boolean;
 }
 
 const ProcurementRow: React.FC<ProcurementRowProps> = ({
   procurement,
   onAction,
-  onDelete,
   isDeleting = false,
+  isStatusPending = false,
 }) => {
   const { bem } = useUtils();
   const block = bem(styles, "procurement-row");
@@ -34,16 +35,6 @@ const ProcurementRow: React.FC<ProcurementRowProps> = ({
 
   return (
     <li className={block()}>
-      <div className={block("actions-left")}>
-        {leftRowButtons.map(({ action, config }) => (
-          <CustomButton
-            key={action}
-            configuration={config}
-            onClick={() => onAction(action, procurement)}
-          />
-        ))}
-      </div>
-
       <div className={block("info")}>
         <div className={block("cell", ["main"])}>
           <span className={block("ikz")}>ИКЗ: {procurement.ikz}</span>
@@ -65,36 +56,43 @@ const ProcurementRow: React.FC<ProcurementRowProps> = ({
           )}
         </div>
 
+        <div className={block("cell", ["status"])}>
+          <span
+            className={block("status-badge", [procurement.noticeStatus])}
+            title="Статус извещения"
+          >
+            {noticeStatusLabel(procurement.noticeStatus)}
+          </span>
+        </div>
+
         <div className={block("cell", ["price"])}>{formattedPrice}</div>
       </div>
 
-      <div className={block("actions-right")}>
-        <div className={block("actions-col")}>
-          {rightColOneButtons.map(({ action, config }) => (
-            <CustomButton
-              key={action}
-              configuration={config}
-              onClick={() => onAction(action, procurement)}
-            />
-          ))}
-        </div>
-
-        <div className={block("actions-col")}>
+      <div className={block("actions")}>
+        {noticeActionButtons.map(({ action, config }) => (
           <CustomButton
-            configuration={remarksButtonConfig}
-            onClick={() => onAction("create_remarks", procurement)}
+            key={action}
+            configuration={config}
+            onClick={() => onAction(action, procurement)}
           />
+        ))}
+
+        {noticeDangerButtons.map(({ action, config }) => (
           <CustomButton
+            key={action}
             configuration={{
-              ...deleteButtonConfig,
+              ...config,
               button: {
-                ...deleteButtonConfig.button,
-                disabled: isDeleting,
+                ...config.button,
+                disabled:
+                  action === "cancel_notice"
+                    ? isStatusPending || procurement.noticeStatus === "cancelled"
+                    : isDeleting,
               },
             }}
-            onClick={() => onDelete(procurement.id)}
+            onClick={() => onAction(action, procurement)}
           />
-        </div>
+        ))}
       </div>
     </li>
   );

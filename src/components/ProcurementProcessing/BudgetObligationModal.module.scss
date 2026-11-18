@@ -1,0 +1,121 @@
+@import "variables";
+
+.budget-obligation {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 92vw);
+  padding: 20px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text-primary);
+
+  &__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    word-break: break-word;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px 14px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__input,
+  &__textarea {
+    width: 100%;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-field);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+
+    &:focus-visible {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+  }
+
+  &__input[readonly] {
+    background: var(--stripe);
+    color: var(--text-secondary);
+  }
+
+  &__textarea {
+    min-height: 64px;
+    resize: vertical;
+  }
+
+  &__error {
+    margin: 0;
+    font-size: 12px;
+    color: var(--state-danger);
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    &--primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--text-on-accent);
+      font-weight: 600;
+
+      &:hover:not(:disabled) {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+        color: var(--text-on-accent);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}

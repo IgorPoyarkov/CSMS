@@ -1,97 +1,84 @@
 import type { ConfigurationButton } from "../UI/CustomButton";
 
+/**
+ * Действия над текущим извещением. Список сокращён до рабочего контура:
+ * просмотр/редактирование, внесение изменений, бюджетное обязательство,
+ * отмена и удаление. «Сформировать документы», «приказ» и «замечания»
+ * убраны — они относятся к подготовительным шагам, а не к текущим извещениям.
+ */
 export type ProcurementActionType =
-  | "btn93_notice_docs"       // Кнопка93: Сформировать документы для извещения
-  | "btn96_contract_project"  // Кнопка96: Сформировать проект контракта
-  | "btn352_edit_notice"      // Кнопка352: Внести изменения в извещение
-  | "btn305_edit_docs"        // Кнопка305: Внести изменения в документы к извещению
-  | "btn353_create_order"     // Кнопка353: Приказ о проведении закупки
-  | "create_remarks";         // Сформировать замечания по закупке
+  | "view_notice" // Просмотр / редактирование извещения
+  | "edit_notice" // Внесение изменений в извещение
+  | "budget_obligation" // Формирование бюджетного обязательства
+  | "cancel_notice" // Отмена извещения
+  | "delete_procurement"; // Удаление записи
 
-export const leftRowButtons: Array<{
+export const noticeActionButtons: Array<{
   action: ProcurementActionType;
   config: ConfigurationButton;
 }> = [
   {
-    action: "btn93_notice_docs",
+    action: "view_notice",
     config: {
       button: {
-        name: "btn93_notice_docs",
+        name: "view_notice",
         type: "button",
-        value: "Сформировать документы для извещения",
+        value: "Просмотр / редактирование",
         modifier: ["primary"],
       },
     },
   },
   {
-    action: "btn96_contract_project",
+    action: "edit_notice",
     config: {
       button: {
-        name: "btn96_contract_project",
+        name: "edit_notice",
         type: "button",
-        value: "Сформировать проект контракта",
-        modifier: ["primary"],
-      },
-    },
-  },
-];
-
-export const rightColOneButtons: Array<{
-  action: ProcurementActionType;
-  config: ConfigurationButton;
-}> = [
-  {
-    action: "btn352_edit_notice",
-    config: {
-      button: {
-        name: "btn352_edit_notice",
-        type: "button",
-        value: "Внести изменения в извещение",
-        modifier: ["primary"],
-      },
-    },
-  },
-  {
-    action: "btn305_edit_docs",
-    config: {
-      button: {
-        name: "btn305_edit_docs",
-        type: "button",
-        value: "Внести изменения в документы к извещению",
-        modifier: ["primary"],
-      },
-    },
-  },
-  {
-    action: "btn353_create_order",
-    config: {
-      button: {
-        name: "btn353_create_order",
-        type: "button",
-        value: "Приказ о проведении закупки",
+        value: "Внести изменения",
         modifier: ["info"],
       },
     },
   },
+  {
+    action: "budget_obligation",
+    config: {
+      button: {
+        name: "budget_obligation",
+        type: "button",
+        value: "Бюджетное обязательство",
+        modifier: ["primary"],
+      },
+    },
+  },
 ];
 
-export const remarksButtonConfig: ConfigurationButton = {
-  button: {
-    name: "create_remarks",
-    type: "button",
-    value: "Сформировать замечания по закупке",
-    modifier: ["primary", "tall"],
+export const noticeDangerButtons: Array<{
+  action: ProcurementActionType;
+  config: ConfigurationButton;
+}> = [
+  {
+    action: "cancel_notice",
+    config: {
+      button: {
+        name: "cancel_notice",
+        type: "button",
+        value: "Отмена извещения",
+        modifier: ["danger"],
+      },
+    },
   },
-};
-
-export const deleteButtonConfig: ConfigurationButton = {
-  button: {
-    name: "delete",
-    type: "button",
-    value: "Удалить",
-    modifier: ["danger"],
+  {
+    action: "delete_procurement",
+    config: {
+      button: {
+        name: "delete_procurement",
+        type: "button",
+        value: "Удалить",
+        modifier: ["danger"],
+      },
+    },
   },
-};
+];
 
 // Дефолтный список типов закупок (в дальнейшем будет подтягиваться из справочника организации)
 export const DEFAULT_PROCUREMENT_TYPES = [

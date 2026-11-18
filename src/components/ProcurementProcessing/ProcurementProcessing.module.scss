@@ -29,6 +29,29 @@
     top: 0;
   }
 
+  &__close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-raised);
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+  }
+
   &__status {
     text-align: center;
     font-size: 16px;
@@ -36,6 +59,56 @@
 
     &--error {
       color: var(--state-danger);
+    }
+  }
+
+  // Сообщение о сформированном бюджетном обязательстве
+  &__notice {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--state-success);
+    border-radius: 8px;
+    background: var(--state-success-soft);
+    font-size: 13px;
+    color: var(--state-success);
+
+    &--success {
+      color: var(--state-success);
+    }
+  }
+
+  // Фильтр по статусу извещения
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  &__filter {
+    padding: 6px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    background: var(--surface-raised);
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300,
+      color $transition-300;
+
+    &:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    &--active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent-emphasis);
+      font-weight: 600;
     }
   }
 

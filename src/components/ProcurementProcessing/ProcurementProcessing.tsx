@@ -1,41 +1,81 @@
 import type React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
   useDeleteProcurement,
   useGetProcurements,
+  useUpdateProcurementStatus,
 } from "../../services/Procurements/procurement.api";
-import type { Procurement } from "../../services/Procurements/procurement.schema";
+import {
+  NOTICE_FILTER_STATUSES,
+  noticeStatusLabel,
+  type BudgetObligation,
+  type NoticeStatus,
+  type Procurement,
+} from "../../services/Procurements/procurement.schema";
+import { useCurrentOrganization } from "../../services/Organization/organization.api";
 
 import type { ProcurementActionType } from "./procurement.config";
 import ProcurementRow from "./ProcurementRow";
-import SelectProcurementTypeModal from "./SelectProcurementTypeModal";
+import BudgetObligationModal from "./BudgetObligationModal";
 import styles from "./ProcurementProcessing.module.scss";
 import Loader from "../UI/Loader";
+
+type StatusFilter = NoticeStatus | "all";
 
 const ProcurementProcessing: React.FC = () => {
   const { bem } = useUtils();
   const block = bem(styles, "procurement-processing");
   const navigate = useNavigate();
 
+  const { data: organization } = useCurrentOrganization();
   const { data: procurements = [], isLoading, isError } = useGetProcurements();
   const { mutate: deleteProcurement, isPending: isDeleting } =
     useDeleteProcurement();
+  const { mutate: updateStatus, isPending: isStatusPending } =
+    useUpdateProcurementStatus();
 
-  const [noticeModalProcurement, setNoticeModalProcurement] =
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [budgetProcurement, setBudgetProcurement] =
     useState<Procurement | null>(null);
+  const [budgetMessage, setBudgetMessage] = useState<string | null>(null);
+
+  // В разделе — только текущие извещения: отменённые записи скрыты
+  const currentProcurements = useMemo(
+    () =>
+      procurements.filter(
+        (item) => item.noticeStatus !== "cancelled",
+      ),
+    [procurements],
+  );
+
+  // Счётчики по статусам для фильтра
+  const statusCounts = useMemo(() => {
+    const counts = new Map<NoticeStatus, number>();
+    currentProcurements.forEach((item) => {
+      counts.set(item.noticeStatus, (counts.get(item.noticeStatus) ?? 0) + 1);
+    });
+    return counts;
+  }, [currentProcurements]);
+
+  const visibleProcurements = useMemo(
+    () =>
+      statusFilter === "all"
+        ? currentProcurements
+        : currentProcurements.filter(
+            (item) => item.noticeStatus === statusFilter,
+          ),
+    [currentProcurements, statusFilter],
+  );
 
   const handleAction = (action: ProcurementActionType, item: Procurement) => {
     switch (action) {
-      case "btn93_notice_docs":
-        // Кнопка93: открыть модалку "Выберите тип закупки"
-        setNoticeModalProcurement(item);
-        break;
-
-      case "btn96_contract_project":
-        // Кнопка96: переход на компонент "Проект контракта"
-        navigate(`/procurement-processing/${item.id}/contract-project`, {
+      case "view_notice":
+      case "edit_notice":
+        // Оба действия открывают форму извещения: просмотр доступен по правам,
+        // «Внести изменения» ведёт туда же, но с явным намерением правки
+        navigate(`/procurement-processing/${item.id}/notice-info`, {
           state: {
             ikz: item.ikz,
             name: item.name,
@@ -47,34 +87,44 @@ const ProcurementProcessing: React.FC = () => {
         });
         break;
 
-      case "btn305_edit_docs":
-        console.log("Кнопка305 (Способ):", item.procurementType, item.ikz);
+      case "budget_obligation":
+        setBudgetMessage(null);
+        setBudgetProcurement(item);
         break;
 
-      case "btn352_edit_notice":
-        console.log("Кнопка352 (Изменения в извещение):", item.ikz);
+      case "cancel_notice":
+        if (
+          window.confirm(
+            `Отменить извещение ${item.noticeNumber || item.ikz}? Запись останется в системе со статусом «Отменено» и будет скрыта из текущих.`,
+          )
+        ) {
+          updateStatus({ id: item.id, status: "cancelled" });
+        }
         break;
 
-      case "btn353_create_order":
-        console.log("Кнопка353 (Приказ):", item.ikz);
-        break;
-
-      case "create_remarks":
-        console.log("Замечания по закупке:", item.ikz);
+      case "delete_procurement":
+        if (window.confirm("Удалить запись закупки без возможности восстановления?")) {
+          deleteProcurement(item.id);
+        }
         break;
     }
   };
 
-  const handleDelete = (id: string | number) => {
-    if (window.confirm("Удалить закупку из Документации для УУ?")) {
-      deleteProcurement(id);
-    }
+  const handleBudgetCreated = (obligation: BudgetObligation) => {
+    setBudgetMessage(
+      `Бюджетное обязательство ${obligation.obligationNumber} на сумму ${Number(
+        obligation.amount,
+      ).toLocaleString("ru-RU", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })} руб. сформировано.`,
+    );
   };
 
   return (
     <section className={block()}>
       <header className={block("header")}>
-        <h1 className={block("title")}>Обработка информации по Закупке</h1>
+        <h1 className={block("title")}>Извещения (текущие)</h1>
         <button
           type="button"
           className={`${block("close")} btn`}
@@ -92,22 +142,58 @@ const ProcurementProcessing: React.FC = () => {
         </p>
       )}
 
-      <ul className={block("list")}>
-        {procurements.map((item) => (
-          <ProcurementRow
-            key={item.id}
-            procurement={item}
-            onAction={handleAction}
-            onDelete={handleDelete}
-            isDeleting={isDeleting}
-          />
-        ))}
-      </ul>
+      {budgetMessage && (
+        <p className={block("notice", ["success"])} role="status">
+          {budgetMessage}
+        </p>
+      )}
 
-      {noticeModalProcurement && (
-        <SelectProcurementTypeModal
-          procurement={noticeModalProcurement}
-          onClose={() => setNoticeModalProcurement(null)}
+      <div className={block("filters")} role="group" aria-label="Фильтр по статусу извещения">
+        <button
+          type="button"
+          className={block("filter", statusFilter === "all" ? ["active"] : [])}
+          onClick={() => setStatusFilter("all")}
+        >
+          Все ({currentProcurements.length})
+        </button>
+        {NOTICE_FILTER_STATUSES.map((status) => (
+          <button
+            key={status}
+            type="button"
+            className={block("filter", statusFilter === status ? ["active"] : [])}
+            onClick={() => setStatusFilter(status)}
+          >
+            {noticeStatusLabel(status)} ({statusCounts.get(status) ?? 0})
+          </button>
+        ))}
+      </div>
+
+      {visibleProcurements.length === 0 ? (
+        <p className={block("status")}>
+          {statusFilter === "all"
+            ? "Текущих извещений нет"
+            : `Нет извещений со статусом «${noticeStatusLabel(statusFilter)}»`}
+        </p>
+      ) : (
+        <ul className={block("list")}>
+          {visibleProcurements.map((item) => (
+            <ProcurementRow
+              key={item.id}
+              procurement={item}
+              onAction={handleAction}
+              isDeleting={isDeleting}
+              isStatusPending={isStatusPending}
+            />
+          ))}
+        </ul>
+      )}
+
+      {budgetProcurement && (
+        <BudgetObligationModal
+          procurement={budgetProcurement}
+          organizationId={organization?.id}
+          onClose={() => setBudgetProcurement(null)}
+          onCreated={handleBudgetCreated}
         />
       )}
     </section>
