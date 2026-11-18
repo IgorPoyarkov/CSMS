@@ -81,6 +81,7 @@ import {
 } from "../../services/Nmck/marketNmck";
 import {
   checkOkpd2AuctionList,
+  isContestPlacingWay,
   validatePlacingWayAgainstAuctionList,
 } from "../../services/Okpd2Ref/auctionListControl";
 import {
@@ -492,7 +493,9 @@ export default function PurchaseNoteModal({
   const watchedDeliveryMode = watch("deliveryTermMode") ?? "relative";
   const watchedAcceptanceMode = watch("acceptanceTermMode") ?? "event";
   const watchedStatus = (watch("status") ?? "draft") as PurchaseNoteStatus;
-  const watchedPlacingWay = watch("placingWayCode") || "OKP20";
+  // Способ определения поставщика по умолчанию не подставляется: пока
+  // пользователь не выбрал его, способ считается незаданным
+  const watchedPlacingWay = watch("placingWayCode") ?? "";
   const watchedItems = (watch("items") ?? []) as PurchaseNoteObjectItem[];
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     watchedPlacingWay,
@@ -515,9 +518,15 @@ export default function PurchaseNoteModal({
   );
 
   // Критерии оценки по ПП РФ N 2604: вид процедуры берём из выбранного
-  // способа закупки, категорию объекта — из ОКПД2 позиций плана-графика
+  // способа закупки, категорию объекта — из ОКПД2 позиций плана-графика.
+  // Раздел критериев открывается только для конкурса (OK*/EOK*): пока
+  // способ не выбран или выбран аукцион/котировки/ЕП — критериев в СЗ нет.
+  const evaluationWaySelected = Boolean(watchedPlacingWay);
   const evaluationKind = procedureKindFromPlacingWay(watchedPlacingWay);
-  const evaluationApplies = pp2604Applies(evaluationKind);
+  const evaluationApplies =
+    evaluationWaySelected &&
+    isContestPlacingWay(watchedPlacingWay) &&
+    pp2604Applies(evaluationKind);
   const evaluationOkpd2Codes = watchedItems
     .map((item) => item.okpd2Code)
     .filter((code): code is string => Boolean(code));
@@ -529,30 +538,41 @@ export default function PurchaseNoteModal({
   const evaluationCriteria = normalizeCriteria(
     (watch("evaluationCriteria") ?? []) as Criterion[],
   );
-  const evaluationIssues = validateBidEvaluation(
-    {
-      procedureKind: evaluationKind,
-      objectCategory: evaluationCategory,
-      criteria: evaluationCriteria,
-      bids: [],
-      status: "draft",
-      nmck: watch("initialMaxPrice") ?? "",
-      okpd2Codes: evaluationOkpd2Codes,
-    },
-    { checkIndicators: false, checkBids: false },
-  );
+  const evaluationIssues = evaluationApplies
+    ? validateBidEvaluation(
+        {
+          procedureKind: evaluationKind,
+          objectCategory: evaluationCategory,
+          criteria: evaluationCriteria,
+          bids: [],
+          status: "draft",
+          nmck: watch("initialMaxPrice") ?? "",
+          okpd2Codes: evaluationOkpd2Codes,
+        },
+        { checkIndicators: false, checkBids: false },
+      )
+    : [];
 
-  // Категория по умолчанию — из ОКПД2 позиции плана-графика
+  // Категория по умолчанию — из ОКПД2 позиции плана-графика (только конкурс)
   useEffect(() => {
+    if (!evaluationApplies) {
+      return;
+    }
     if (!getValues("evaluationObjectCategory") && detectedCategory.category) {
       setValue("evaluationObjectCategory", detectedCategory.category as never, {
         shouldDirty: false,
       });
     }
-  }, [detectedCategory.category, getValues, setValue]);
+  }, [evaluationApplies, detectedCategory.category, getValues, setValue]);
 
-  // В старых СЗ критериев нет — заполняем заготовкой один раз
+  // Критерии существуют в СЗ только для конкурса: для аукциона, запроса
+  // котировок и невыбранного способа раздел не показывается, а при
+  // сохранении критерии в запись не попадают (см. onSubmit).
   useEffect(() => {
+    if (!evaluationApplies) {
+      return;
+    }
+
     const current = getValues("evaluationCriteria");
 
     if (!Array.isArray(current) || current.length === 0) {
@@ -560,27 +580,6 @@ export default function PurchaseNoteModal({
         shouldDirty: false,
       });
     }
-  }, [getValues, setValue]);
-
-  // Для аукциона и запроса котировок Положение не применяется: только цена
-  useEffect(() => {
-    if (evaluationApplies) {
-      return;
-    }
-
-    const current = normalizeCriteria(
-      (getValues("evaluationCriteria") ?? []) as Criterion[],
-    );
-
-    setValue(
-      "evaluationCriteria",
-      current.map((criterion) => ({
-        ...criterion,
-        enabled: criterion.type === "price",
-        weightPercent: criterion.type === "price" ? 100 : 0,
-      })) as never,
-      { shouldDirty: false },
-    );
   }, [evaluationApplies, getValues, setValue]);
 
   const watchedAdvantageSmp = Boolean(watch("advantageSmpPart3Art30"));
@@ -870,11 +869,16 @@ export default function PurchaseNoteModal({
     const normalized: PurchaseNote = {
       ...data,
       // Критерии фиксируются вместе со способом закупки и категорией по ОКПД2:
-      // из СЗ они попадают в извещение
-      evaluationProcedureKind: evaluationKind,
-      evaluationObjectCategory: evaluationCategory,
-      evaluationOkpd2Codes,
-      evaluationCriteria,
+      // из СЗ они попадают в извещение. Если выбран не конкурс (или способ
+      // ещё не выбран), Положение N 2604 не применяется — полей в СЗ нет.
+      evaluationProcedureKind: evaluationApplies ? evaluationKind : undefined,
+      evaluationObjectCategory: evaluationApplies
+        ? evaluationCategory
+        : undefined,
+      evaluationOkpd2Codes: evaluationApplies
+        ? evaluationOkpd2Codes
+        : undefined,
+      evaluationCriteria: evaluationApplies ? evaluationCriteria : undefined,
       kbk: defaultKbk || data.kbk,
       kbkDisagreementAuthor:
         data.kbkDisagreement && employee?.employee
@@ -1722,6 +1726,7 @@ export default function PurchaseNoteModal({
               className={block("select")}
               {...register("placingWayCode")}
             >
+              <option value="">Выберите способ</option>
               {PLACING_WAYS_ALL.map((way) => (
                 <option key={way.code} value={way.code}>
                   {way.label}
@@ -2747,9 +2752,7 @@ export default function PurchaseNoteModal({
                               </td>
                               <td>
                                 {row.status === "smp" ? (
-                                  <span
-                                    className={block("smp-status", ["ok"])}
-                                  >
+                                  <span className={block("smp-status", ["ok"])}>
                                     {row.entry?.category
                                       ? smpRegistryCategoryLabels[
                                           row.entry.category
@@ -2757,16 +2760,12 @@ export default function PurchaseNoteModal({
                                       : "СМП"}
                                   </span>
                                 ) : row.status === "not_smp" ? (
-                                  <span
-                                    className={block("smp-status", ["no"])}
-                                  >
+                                  <span className={block("smp-status", ["no"])}>
                                     не в реестре
                                   </span>
                                 ) : (
                                   <span
-                                    className={block("smp-status", [
-                                      "unknown",
-                                    ])}
+                                    className={block("smp-status", ["unknown"])}
                                   >
                                     нужен ИНН
                                   </span>
@@ -2781,9 +2780,7 @@ export default function PurchaseNoteModal({
                     {smpComposition.recommendation && (
                       <div className={block("smp-recommendation")}>
                         <div className={block("smp-recommendation-head")}>
-                          <strong>
-                            {smpComposition.recommendation.title}
-                          </strong>
+                          <strong>{smpComposition.recommendation.title}</strong>
                           <span
                             className={block("hint")}
                             style={{ marginTop: 0 }}
@@ -3036,137 +3033,141 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
-      {/* 5. Критерии оценки заявок по ПП РФ N 2604 (для извещения) */}
-      <fieldset className={block("section")} disabled={isReadOnly}>
-        <legend>5. Критерии оценки заявок (ПП РФ N 2604)</legend>
-        <div className={block("grid")}>
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>
-              Применение Положения к выбранной процедуре
-            </span>
-            <p className={block("hint")}>
-              {procedureApplicabilityHint[evaluationKind]}
-            </p>
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-eval-category">
-              Категория объекта закупки (приложение N 2)
-            </label>
-            <select
-              id="note-eval-category"
-              className={block("select")}
-              {...register("evaluationObjectCategory")}
-            >
-              {OBJECT_CATEGORY_LIMITS.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
-            <span className={block("hint")}>
-              Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
-              {evaluationLimits.maxExpenses === null
-                ? "не применяются"
-                : `не более ${evaluationLimits.maxExpenses}%`}
-              , характеристики и квалификация — не более{" "}
-              {evaluationLimits.maxNonCost}%.
-            </span>
-          </div>
-
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>
-              Связь с ОКПД2 позиции плана-графика
-            </span>
-            {detectedCategory.matches.length === 0 ? (
-              <span className={block("hint")}>
-                Коды ОКПД2 в объектах закупки не указаны — категория выбрана
-                вручную.
+      {/* 5. Критерии оценки заявок по ПП РФ N 2604 — открываются только при
+          выбранном конкурсе. Для аукциона, котировок и невыбранного способа
+          раздела в служебной записке нет. */}
+      {evaluationApplies && (
+        <fieldset className={block("section")} disabled={isReadOnly}>
+          <legend>5. Критерии оценки заявок (ПП РФ N 2604)</legend>
+          <div className={block("grid")}>
+            <div className={block("field", ["wide"])}>
+              <span className={block("label")}>
+                Применение Положения к выбранной процедуре
               </span>
-            ) : (
+              <p className={block("hint")}>
+                {procedureApplicabilityHint[evaluationKind]}
+              </p>
+            </div>
+
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="note-eval-category">
+                Категория объекта закупки (приложение N 2)
+              </label>
+              <select
+                id="note-eval-category"
+                className={block("select")}
+                {...register("evaluationObjectCategory")}
+              >
+                {OBJECT_CATEGORY_LIMITS.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
               <span className={block("hint")}>
-                {detectedCategory.matches
-                  .map(
-                    (match) =>
-                      `${match.code} → ${
-                        match.category
-                          ? objectCategoryLimits(match.category).label
-                          : "правило не найдено"
-                      }`,
-                  )
-                  .join("; ")}
-                {detectedCategory.conflict
-                  ? ". Объекты попали в разные категории — выберите категорию вручную."
-                  : ""}
+                Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
+                {evaluationLimits.maxExpenses === null
+                  ? "не применяются"
+                  : `не более ${evaluationLimits.maxExpenses}%`}
+                , характеристики и квалификация — не более{" "}
+                {evaluationLimits.maxNonCost}%.
               </span>
-            )}
-          </div>
+            </div>
 
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>
-              Критерии и значимость (сумма — 100%)
-            </span>
-            <div className={block("pp2571-list")}>
-              {evaluationCriteria.map((criterion, index) => (
-                <div className={block("req-item")} key={criterion.type}>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      disabled={
-                        !evaluationApplies && criterion.type !== "price"
-                      }
-                      {...register(`evaluationCriteria.${index}.enabled`)}
-                    />
-                    <span>{criterionShortLabels[criterion.type]}</span>
-                  </label>
+            <div className={block("field", ["wide"])}>
+              <span className={block("label")}>
+                Связь с ОКПД2 позиции плана-графика
+              </span>
+              {detectedCategory.matches.length === 0 ? (
+                <span className={block("hint")}>
+                  Коды ОКПД2 в объектах закупки не указаны — категория выбрана
+                  вручную.
+                </span>
+              ) : (
+                <span className={block("hint")}>
+                  {detectedCategory.matches
+                    .map(
+                      (match) =>
+                        `${match.code} → ${
+                          match.category
+                            ? objectCategoryLimits(match.category).label
+                            : "правило не найдено"
+                        }`,
+                    )
+                    .join("; ")}
+                  {detectedCategory.conflict
+                    ? ". Объекты попали в разные категории — выберите категорию вручную."
+                    : ""}
+                </span>
+              )}
+            </div>
 
-                  {criterion.enabled && (
-                    <div className={block("req-desc")}>
-                      <label className={block("label")}>
-                        Значимость критерия, %
-                      </label>
+            <div className={block("field", ["wide"])}>
+              <span className={block("label")}>
+                Критерии и значимость (сумма — 100%)
+              </span>
+              <div className={block("pp2571-list")}>
+                {evaluationCriteria.map((criterion, index) => (
+                  <div className={block("req-item")} key={criterion.type}>
+                    <label className={block("checkbox")}>
                       <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step="0.01"
-                        className={block("input", ["code"])}
+                        type="checkbox"
                         disabled={
                           !evaluationApplies && criterion.type !== "price"
                         }
-                        {...register(
-                          `evaluationCriteria.${index}.weightPercent`,
-                        )}
+                        {...register(`evaluationCriteria.${index}.enabled`)}
                       />
-                      {criterion.type !== "price" && (
-                        <span className={block("hint")}>
-                          Показатели оценки (опыт, характеристики и т. п.)
-                          настраиваются на экране «Оценка заявок».
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+                      <span>{criterionShortLabels[criterion.type]}</span>
+                    </label>
 
-          {evaluationIssues.length > 0 && (
-            <div className={block("field", ["wide"])}>
-              {evaluationIssues.map((issue, index) => (
-                <div
-                  key={`${issue.level}-${index}`}
-                  className={block("alert-warning")}
-                  role="alert"
-                >
-                  {issue.level === "error" ? "Ошибка: " : "Внимание: "}
-                  {issue.message}
-                </div>
-              ))}
+                    {criterion.enabled && (
+                      <div className={block("req-desc")}>
+                        <label className={block("label")}>
+                          Значимость критерия, %
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step="0.01"
+                          className={block("input", ["code"])}
+                          disabled={
+                            !evaluationApplies && criterion.type !== "price"
+                          }
+                          {...register(
+                            `evaluationCriteria.${index}.weightPercent`,
+                          )}
+                        />
+                        {criterion.type !== "price" && (
+                          <span className={block("hint")}>
+                            Показатели оценки (опыт, характеристики и т. п.)
+                            настраиваются на экране «Оценка заявок».
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
-        </div>
-      </fieldset>
+
+            {evaluationIssues.length > 0 && (
+              <div className={block("field", ["wide"])}>
+                {evaluationIssues.map((issue, index) => (
+                  <div
+                    key={`${issue.level}-${index}`}
+                    className={block("alert-warning")}
+                    role="alert"
+                  >
+                    {issue.level === "error" ? "Ошибка: " : "Внимание: "}
+                    {issue.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </fieldset>
+      )}
 
       {/* 6. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
       <fieldset className={block("section")} disabled={isReadOnly}>

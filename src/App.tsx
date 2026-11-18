@@ -28,6 +28,7 @@ import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
 import DefectListsPage from "./components/DefectList/DefectListsPage";
 import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
+import VacationSchedulePage from "./components/VacationSchedule/VacationSchedulePage";
 
 const router = createBrowserRouter([
   {
@@ -156,6 +157,11 @@ const router = createBrowserRouter([
         // Оценка заявок: критерии, значимость и баллы по ПП РФ N 2604
         path: "/bid-evaluations",
         element: <BidEvaluationsPage />,
+      },
+      {
+        // График отпусков (форма Т-2): планирование, проверки ТК РФ, выгрузки
+        path: "/vacation-schedule",
+        element: <VacationSchedulePage />,
       },
     ],
   },

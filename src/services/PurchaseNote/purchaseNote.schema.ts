@@ -207,9 +207,7 @@ export const PurchaseNoteSchema = z
       .optional(),
     requiresBankSupport: z.boolean().optional(),
     // Устаревшие поля для обратной совместимости старых записей
-    paymentProcedure: z
-      .enum(["postpayment", "advance", "staged"])
-      .optional(),
+    paymentProcedure: z.enum(["postpayment", "advance", "staged"]).optional(),
     paymentTermDays: optionalNonNegativeInt(),
 
     // Сроки поставки (относительные / абсолютные) и приёмки (от события / датой)
@@ -274,8 +272,7 @@ export const PurchaseNoteSchema = z
     requiresApplicationSecurity: z.boolean().optional(),
     applicationSecurityPercent: optionalPercent(),
     applicationSecurityOrder: z.string().optional(),
-    applicationSecurityRequisites:
-      OrganizationSecurityAccountSchema.optional(),
+    applicationSecurityRequisites: OrganizationSecurityAccountSchema.optional(),
     applicationSecurityBudgetRequisites:
       BudgetPart13Art44RequisitesSchema.optional(),
 
@@ -515,7 +512,9 @@ export const emptyPurchaseNote = (
   initialMaxPrice: "",
   priceBasis:
     "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
-  placingWayCode: "OKP20",
+  // Способ определения поставщика не выбирается по умолчанию: пользователь
+  // должен осознанно выбрать его в форме (плейсхолдер «Выберите способ»)
+  placingWayCode: "",
   procurementType: "Прочее",
   hasAdvance: false,
   advancePercent: "",
@@ -528,8 +527,7 @@ export const emptyPurchaseNote = (
   desiredEndDate: "",
   executionTermDays: 30,
   acceptanceTermMode: "event",
-  acceptanceEventBase:
-    "с даты поступления заказчику документа о приёмке в ЕИС",
+  acceptanceEventBase: "с даты поступления заказчику документа о приёмке в ЕИС",
   acceptanceTermDays: 10,
   acceptanceDate: "",
   deliveryPlaces: [emptyDeliveryPlace("1")],

@@ -16,6 +16,7 @@ import {
 } from "../../services/Eis/eisSmpExport.api";
 import useUtils from "../../hooks/useUtils";
 import EdsSignModal from "../Eds/EdsSignModal";
+import EdsFileSigner from "../Eds/EdsFileSigner";
 import { useLogSignatureEvent } from "../../services/Eds/eds.api";
 import type { SignatureEvent } from "../../services/Eds/eds.schema";
 import {
@@ -453,6 +454,8 @@ export default function EisSmpExportPage() {
           </div>
         </div>
       )}
+
+      <EdsFileSigner />
 
       {smpContracts.length === 0 ? (
         <div className={block("empty")}>

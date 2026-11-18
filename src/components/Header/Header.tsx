@@ -155,6 +155,17 @@ const Header = ({}: HeaderProps) => {
             </li>
           )}
 
+          {user && (
+            <li className={nav("item")}>
+              <NavLink
+                className={nav("link", ["logo"])}
+                to={"/vacation-schedule"}
+              >
+                <span className={nav("link-name")}>График отпусков</span>
+              </NavLink>
+            </li>
+          )}
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
               <span className={nav("link-name")}>ЕИС / СМП</span>
