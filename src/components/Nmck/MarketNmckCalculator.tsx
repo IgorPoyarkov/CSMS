@@ -5,6 +5,8 @@ import {
   CheckCircle2,
   Database,
   FileDown,
+  Landmark,
+  Layers,
   Plus,
   Save,
   Scale,
@@ -12,30 +14,49 @@ import {
 } from "lucide-react";
 import useUtils from "../../hooks/useUtils";
 import {
+  COST_ITEM_CATEGORIES,
+  COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_LABELS,
   MARKET_PRICE_SOURCE_TYPES,
   NMCK_METHODS,
   NMCK_METHOD_LABELS,
+  type CostItemCategory,
   type MarketPriceSourceType,
   type NmckCalculationRecord,
+  type NmckCostItem,
   type NmckMarketOffer,
   type NmckMethod,
 } from "../../services/Nmck/nmck.schema";
 import {
+  DEFAULT_COST_PROFIT_BASIS,
   DEFAULT_NORMATIVE_ACT,
+  HIGH_PROFIT_PERCENT_THRESHOLD,
   MAX_RECOMMENDED_CV_PERCENT,
   MIN_RECOMMENDED_SOURCES,
+  buildCostCalculationRecord,
+  buildCostNmckBasisText,
   buildMarketNmckBasisText,
   buildNmckCalculationRecord,
   buildNormativeCalculationRecord,
   buildNormativeNmckBasisText,
+  buildTariffCalculationRecord,
+  buildTariffNmckBasisText,
+  calculateCostNmck,
   calculateMarketNmck,
   calculateNormativeNmck,
+  calculateTariffNmck,
+  createEmptyCostItem,
   createEmptyMarketOffer,
   exportNmckCalculationToDocx,
   formatNmckMoney,
   parseNumericInput,
 } from "../../services/Nmck/marketNmck";
+import {
+  DEFAULT_COST_ITEM_TEMPLATES,
+  OFFICIAL_REGULATED_TARIFFS,
+  findMatchingTariffsByOkpd2,
+  type OfficialTariffEntry,
+} from "../../services/Nmck/regulatedTariffs";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -78,11 +99,21 @@ export interface MarketNmckCalculatorProps {
   onClose?: () => void;
 }
 
+const renderMethodIcon = (method: NmckMethod) => {
+  if (method === "normative") return <Scale size={14} aria-hidden="true" />;
+  if (method === "tariff") return <Landmark size={14} aria-hidden="true" />;
+  if (method === "cost") return <Layers size={14} aria-hidden="true" />;
+  return <Calculator size={14} aria-hidden="true" />;
+};
+
 /**
  * Интерактивный калькулятор НМЦК (ст. 22 Закона № 44-ФЗ, Приказ МЭР № 567):
  * - метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22);
  * - нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, ПП РФ № 926 / № 1047)
- *   с увязкой со справочником нормирования ОКПД2.
+ *   с увязкой со справочником нормирования ОКПД2;
+ * - тарифный метод (ч. 8 ст. 22 44-ФЗ, разд. V Приказа МЭР № 567)
+ *   с выбором регулируемых тарифов из официальных источников;
+ * - затратный метод / метод сложения затрат (ч. 10–11 ст. 22 44-ФЗ, разд. VI № 567).
  */
 export default function MarketNmckCalculator({
   initialRecord,
@@ -142,7 +173,7 @@ export default function MarketNmckCalculator({
     defaultUpdatePlanAmount,
   );
 
-  // Поля метода сопоставимых рыночных цен (анализ рынка)
+  // 1. Поля метода сопоставимых рыночных цен (анализ рынка)
   const [applyAutoInflation, setApplyAutoInflation] = useState(
     () => initialRecord?.applyAutoInflation ?? false,
   );
@@ -163,7 +194,7 @@ export default function MarketNmckCalculator({
   );
   const [selectedContractId, setSelectedContractId] = useState("");
 
-  // Поля нормативного метода (ст. 19, ч. 7 ст. 22 44-ФЗ, увязка с ОКПД2)
+  // 2. Поля нормативного метода (ст. 19, ч. 7 ст. 22 44-ФЗ, увязка с ОКПД2)
   const [normativeUnitPrice, setNormativeUnitPrice] = useState(() => {
     if (initialRecord?.normativeUnitPrice !== undefined) {
       return initialRecord.normativeUnitPrice.toFixed(2);
@@ -180,6 +211,60 @@ export default function MarketNmckCalculator({
     () => initialRecord?.normativeDocument || "",
   );
 
+  // 3. Поля тарифного метода (ч. 8 ст. 22 44-ФЗ, официальные источники)
+  const [tariffId, setTariffId] = useState(
+    () => initialRecord?.tariffId || "",
+  );
+  const [tariffName, setTariffName] = useState(
+    () => initialRecord?.tariffName || "",
+  );
+  const [tariffSourceName, setTariffSourceName] = useState(
+    () => initialRecord?.tariffSourceName || "",
+  );
+  const [tariffDocument, setTariffDocument] = useState(
+    () => initialRecord?.tariffDocument || "",
+  );
+  const [tariffValidFrom, setTariffValidFrom] = useState(
+    () => initialRecord?.tariffValidFrom || "",
+  );
+  const [tariffValidTo, setTariffValidTo] = useState(
+    () => initialRecord?.tariffValidTo || "",
+  );
+  const [tariffUnitPrice, setTariffUnitPrice] = useState(() =>
+    initialRecord?.tariffUnitPrice !== undefined
+      ? initialRecord.tariffUnitPrice.toFixed(2)
+      : "",
+  );
+
+  // 4. Поля затратного метода (ч. 10–11 ст. 22 44-ФЗ)
+  const [costInputScope, setCostInputScope] = useState<"total" | "unit">(
+    () => initialRecord?.costInputScope ?? "total",
+  );
+  const [costItems, setCostItems] = useState<NmckCostItem[]>(() =>
+    initialRecord?.costItems && initialRecord.costItems.length > 0
+      ? initialRecord.costItems
+      : DEFAULT_COST_ITEM_TEMPLATES.map((tpl, idx) =>
+          createEmptyCostItem(idx, tpl.category, tpl.name, tpl.basis),
+        ),
+  );
+  const [costProfitCoeff, setCostProfitCoeff] = useState(() =>
+    initialRecord?.costProfitCoeff !== undefined
+      ? String(initialRecord.costProfitCoeff)
+      : "1.10",
+  );
+  const [costProfitPercent, setCostProfitPercent] = useState(() => {
+    if (initialRecord?.costProfitPercent !== undefined) {
+      return initialRecord.costProfitPercent.toFixed(2);
+    }
+    if (initialRecord?.costProfitCoeff !== undefined) {
+      return ((initialRecord.costProfitCoeff - 1) * 100).toFixed(2);
+    }
+    return "10.00";
+  });
+  const [costProfitBasis, setCostProfitBasis] = useState(
+    () => initialRecord?.costProfitBasis || DEFAULT_COST_PROFIT_BASIS,
+  );
+
   const [isExporting, setIsExporting] = useState(false);
 
   const matchedOkpd2 = useMemo(
@@ -190,6 +275,19 @@ export default function MarketNmckCalculator({
     () => checkOkpd2AuctionList(okpd2Code, okpd2Refs),
     [okpd2Code, okpd2Refs],
   );
+  const matchingTariffs = useMemo(
+    () => findMatchingTariffsByOkpd2(okpd2Code),
+    [okpd2Code],
+  );
+
+  // Сортировка тарифов: сначала подходящие по ОКПД2, затем остальные официальные тарифы
+  const orderedTariffs = useMemo(() => {
+    const matchedIds = new Set(matchingTariffs.map((t) => t.id));
+    return [
+      ...matchingTariffs,
+      ...OFFICIAL_REGULATED_TARIFFS.filter((t) => !matchedIds.has(t.id)),
+    ];
+  }, [matchingTariffs]);
 
   // Если цена норматива ещё не заполнена, но для выбранного ОКПД2 уже подгрузился
   // предел нормирования из справочника — отображаем его как эффективную цену по умолчанию
@@ -231,8 +329,36 @@ export default function MarketNmckCalculator({
     [quantity, effectiveNormUnitPrice, matchedOkpd2],
   );
 
+  const tariffResult = useMemo(
+    () =>
+      calculateTariffNmck({
+        quantity,
+        unitPrice: tariffUnitPrice,
+        validTo: tariffValidTo,
+        calculationDate,
+      }),
+    [quantity, tariffUnitPrice, tariffValidTo, calculationDate],
+  );
+
+  const costResult = useMemo(
+    () =>
+      calculateCostNmck({
+        quantity,
+        costInputScope,
+        items: costItems,
+        profitCoeff: costProfitCoeff,
+      }),
+    [quantity, costInputScope, costItems, costProfitCoeff],
+  );
+
   const currentNmckTotal =
-    method === "normative" ? normResult.nmckTotal : marketResult.nmckTotal;
+    method === "normative"
+      ? normResult.nmckTotal
+      : method === "tariff"
+        ? tariffResult.nmckTotal
+        : method === "cost"
+          ? costResult.nmckTotal
+          : marketResult.nmckTotal;
 
   const marketNormLimitExceeded =
     method === "market_analysis" &&
@@ -258,6 +384,30 @@ export default function MarketNmckCalculator({
     [contractRegistryItems],
   );
 
+  const applyOfficialTariff = (entry: OfficialTariffEntry) => {
+    setTariffId(entry.id);
+    setTariffName(entry.name);
+    setTariffSourceName(entry.sourceName);
+    setTariffDocument(entry.document);
+    setTariffValidFrom(entry.validFrom);
+    setTariffValidTo(entry.validTo);
+    setTariffUnitPrice(entry.unitPrice.toFixed(2));
+    if (entry.unit) {
+      setUnit(entry.unit);
+    }
+  };
+
+  const handleSelectOfficialTariffId = (selectedId: string) => {
+    if (!selectedId) {
+      setTariffId("");
+      return;
+    }
+    const found = OFFICIAL_REGULATED_TARIFFS.find((t) => t.id === selectedId);
+    if (found) {
+      applyOfficialTariff(found);
+    }
+  };
+
   const handleSelectOkpd2 = (selected: Okpd2Ref | null) => {
     const nextCode = selected?.code ?? "";
     const nextName = selected?.name ?? "";
@@ -266,6 +416,10 @@ export default function MarketNmckCalculator({
 
     if (selected?.isNormed && selected.normLimit !== undefined) {
       setNormativeUnitPrice(selected.normLimit.toFixed(2));
+    }
+    const tariffsForCode = findMatchingTariffsByOkpd2(nextCode);
+    if (method === "tariff" && tariffsForCode.length > 0 && !tariffUnitPrice) {
+      applyOfficialTariff(tariffsForCode[0]);
     }
   };
 
@@ -278,6 +432,13 @@ export default function MarketNmckCalculator({
       matchedOkpd2.normLimit !== undefined
     ) {
       setNormativeUnitPrice(matchedOkpd2.normLimit.toFixed(2));
+    }
+    if (
+      nextMethod === "tariff" &&
+      tariffUnitPrice.trim() === "" &&
+      matchingTariffs.length > 0
+    ) {
+      applyOfficialTariff(matchingTariffs[0]);
     }
   };
 
@@ -329,6 +490,50 @@ export default function MarketNmckCalculator({
     updateOffer(marketResult.maxDeviationOfferIndex, { included: false });
   };
 
+  // Обработчики затратного метода
+  const updateCostItem = (idx: number, patch: Partial<NmckCostItem>) => {
+    setCostItems((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, ...patch } : item)),
+    );
+  };
+
+  const handleAddCostItem = (category: CostItemCategory = "other") => {
+    setCostItems((prev) => [
+      ...prev,
+      createEmptyCostItem(prev.length, category),
+    ]);
+  };
+
+  const handleRemoveCostItem = (idx: number) => {
+    if (costItems.length <= 1) return;
+    setCostItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleApplyCostTemplates = () => {
+    setCostItems(
+      DEFAULT_COST_ITEM_TEMPLATES.map((tpl, idx) =>
+        createEmptyCostItem(idx, tpl.category, tpl.name, tpl.basis),
+      ),
+    );
+  };
+
+  const handleProfitCoeffChange = (raw: string) => {
+    setCostProfitCoeff(raw);
+    const parsed = parseNumericInput(raw);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      setCostProfitPercent(((parsed - 1) * 100).toFixed(2));
+    }
+  };
+
+  const handleProfitPercentChange = (raw: string) => {
+    setCostProfitPercent(raw);
+    const parsed = parseNumericInput(raw);
+    if (Number.isFinite(parsed)) {
+      const nextCoeff = 1 + parsed / 100;
+      setCostProfitCoeff(Number(nextCoeff.toFixed(4)).toString());
+    }
+  };
+
   const buildCurrentRecordAndBasis = (): {
     record: NmckCalculationRecord;
     basisText: string;
@@ -355,6 +560,60 @@ export default function MarketNmckCalculator({
         okpd2Code,
         normativeAct,
         normativeDocument,
+      });
+      return { record, basisText };
+    }
+
+    if (method === "tariff") {
+      const record = buildTariffCalculationRecord({
+        subject,
+        okpd2Code,
+        okpd2Name: resolvedOkpd2Name,
+        quantity,
+        unit,
+        calculationDate,
+        calculatorName,
+        tariffId,
+        tariffName,
+        tariffSourceName,
+        tariffDocument,
+        tariffValidFrom,
+        tariffValidTo,
+        notes,
+        result: tariffResult,
+      });
+      const basisText = buildTariffNmckBasisText({
+        result: tariffResult,
+        unit,
+        okpd2Code,
+        tariffName,
+        tariffSourceName,
+        tariffDocument,
+        tariffValidFrom,
+        tariffValidTo,
+      });
+      return { record, basisText };
+    }
+
+    if (method === "cost") {
+      const record = buildCostCalculationRecord({
+        subject,
+        okpd2Code,
+        okpd2Name: resolvedOkpd2Name,
+        quantity,
+        unit,
+        calculationDate,
+        calculatorName,
+        items: costItems,
+        costProfitBasis,
+        notes,
+        result: costResult,
+      });
+      const basisText = buildCostNmckBasisText({
+        result: costResult,
+        unit,
+        okpd2Code,
+        costProfitBasis,
       });
       return { record, basisText };
     }
@@ -410,7 +669,13 @@ export default function MarketNmckCalculator({
   const canSaveOrExport =
     method === "normative"
       ? normResult.nmckTotal > 0
-      : marketResult.activeCount > 0 && marketResult.nmckTotal > 0;
+      : method === "tariff"
+        ? tariffResult.nmckTotal > 0
+        : method === "cost"
+          ? costResult.validItemsCount > 0 &&
+            costResult.isValidProfitCoeff &&
+            costResult.nmckTotal > 0
+          : marketResult.activeCount > 0 && marketResult.nmckTotal > 0;
 
   return (
     <div className={block("", embedded ? ["embedded"] : [])}>
@@ -445,11 +710,7 @@ export default function MarketNmckCalculator({
             )}
             onClick={() => handleSwitchMethod(m)}
           >
-            {m === "normative" ? (
-              <Scale size={14} aria-hidden="true" />
-            ) : (
-              <Calculator size={14} aria-hidden="true" />
-            )}
+            {renderMethodIcon(m)}
             {NMCK_METHOD_LABELS[m]}
           </button>
         ))}
@@ -458,7 +719,11 @@ export default function MarketNmckCalculator({
       <p className={block("subtitle")}>
         {method === "market_analysis"
           ? `Метод сопоставимых рыночных цен (анализ рынка) — ч. 2–5 ст. 22 Закона № 44-ФЗ и Методические рекомендации МЭР № 567. Рекомендуется ≥ ${MIN_RECOMMENDED_SOURCES} источников и коэффициент вариации V ≤ ${MAX_RECOMMENDED_CV_PERCENT}%.`
-          : "Нормативный метод — ч. 7 ст. 22, ст. 19 Закона № 44-ФЗ, ПП РФ от 02.09.2015 № 926 и ПП РФ от 13.10.2014 № 1047. Автоматически подтягивает предельные цены из справочника нормирования ОКПД2."}
+          : method === "normative"
+            ? "Нормативный метод — ч. 7 ст. 22, ст. 19 Закона № 44-ФЗ, ПП РФ от 02.09.2015 № 926 и ПП РФ от 13.10.2014 № 1047. Автоматически подтягивает предельные цены из справочника нормирования ОКПД2."
+            : method === "tariff"
+              ? "Тарифный метод — ч. 8 ст. 22 Закона № 44-ФЗ, разд. V Приказа МЭР № 567. Применяется, если цены на закупаемые ТРУ подлежат государственному или муниципальному регулированию (выбор из официальных источников)."
+              : "Затратный метод (метод сложения затрат) — ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР № 567. Суммируются прямые и косвенные статьи затрат и учитывается обычная для отрасли прибыль."}
       </p>
 
       {/* Параметры объекта закупки и расчёта */}
@@ -479,7 +744,7 @@ export default function MarketNmckCalculator({
 
         <div className={block("field", ["wide"])}>
           <label className={block("label")} htmlFor="nmck-okpd2">
-            Код ОКПД2 (связь с нормированием и аукционным перечнем)
+            Код ОКПД2 (связь с нормированием, тарифами и аукционным перечнем)
           </label>
           <Okpd2Select
             id="nmck-okpd2"
@@ -569,7 +834,7 @@ export default function MarketNmckCalculator({
         </div>
       </div>
 
-      {/* Индикатор увязки ОКПД2 с обязательным нормированием и аукционным перечнем */}
+      {/* Индикатор увязки ОКПД2 с обязательным нормированием */}
       {matchedOkpd2?.isNormed ? (
         <div className={block("norm-banner")} role="status">
           <span>
@@ -584,7 +849,7 @@ export default function MarketNmckCalculator({
               ? ` Установленная предельная цена единицы: ${formatNmckMoney(matchedOkpd2.normLimit)} ₽.`
               : " Предельная цена единицы устанавливается ведомственным перечнем."}
           </span>
-          {method === "market_analysis" && !disabled && (
+          {method !== "normative" && !disabled && (
             <button
               type="button"
               className={block("btn", ["compact"])}
@@ -605,6 +870,36 @@ export default function MarketNmckCalculator({
             </span>
           </div>
         )
+      )}
+
+      {/* Индикатор увязки ОКПД2 с регулируемыми тарифами */}
+      {matchingTariffs.length > 0 && method !== "tariff" && (
+        <div className={block("norm-banner")} role="status">
+          <span>
+            <Landmark
+              size={14}
+              style={{ verticalAlign: "text-bottom", marginRight: 6 }}
+              aria-hidden="true"
+            />
+            <strong>Регулируемый тариф по ОКПД2 ({okpd2Code}):</strong> в
+            справочнике официальных источников найден тариф «
+            {matchingTariffs[0].name}» (
+            {formatNmckMoney(matchingTariffs[0].unitPrice)} ₽/
+            {matchingTariffs[0].unit}, {matchingTariffs[0].sourceName}).
+          </span>
+          {!disabled && (
+            <button
+              type="button"
+              className={block("btn", ["compact"])}
+              onClick={() => {
+                applyOfficialTariff(matchingTariffs[0]);
+                setMethod("tariff");
+              }}
+            >
+              Применить тарифный метод
+            </button>
+          )}
+        </div>
       )}
 
       {method === "market_analysis" ? (
@@ -1026,7 +1321,7 @@ export default function MarketNmckCalculator({
             </div>
           )}
         </>
-      ) : (
+      ) : method === "normative" ? (
         <>
           {/* Поля нормативного метода с увязкой по ОКПД2 */}
           <div className={block("params")}>
@@ -1186,6 +1481,512 @@ export default function MarketNmckCalculator({
               </div>
             )}
         </>
+      ) : method === "tariff" ? (
+        <>
+          {/* Поля тарифного метода: выбор официального источника и регулируемого тарифа */}
+          <div className={block("params")}>
+            <div className={block("field", ["wide"])}>
+              <label
+                className={block("label")}
+                htmlFor="nmck-official-tariff-select"
+              >
+                Выбор тарифа из официальных источников (ФАС России, ФГИС ЕИАС,
+                региональный тарифный орган)
+              </label>
+              <select
+                id="nmck-official-tariff-select"
+                className={block("select")}
+                disabled={disabled}
+                value={tariffId}
+                onChange={(e) => handleSelectOfficialTariffId(e.target.value)}
+              >
+                <option value="">
+                  — Выберите официальный тариф или введите реквизиты вручную —
+                </option>
+                {orderedTariffs.map((t) => {
+                  const isOkpd2Match = matchingTariffs.some(
+                    (m) => m.id === t.id,
+                  );
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {isOkpd2Match ? "[По ОКПД2] " : ""}
+                      {t.name} — {formatNmckMoney(t.unitPrice)} ₽/{t.unit} (
+                      {t.sourceName})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className={block("field", ["wide"])}>
+              <label className={block("label")} htmlFor="nmck-tariff-name">
+                Регулируемый товар / работа / услуга
+              </label>
+              <input
+                id="nmck-tariff-name"
+                className={block("input")}
+                disabled={disabled}
+                value={tariffName}
+                onChange={(e) => setTariffName(e.target.value)}
+                placeholder="Наименование регулируемой услуги / тарифа"
+              />
+            </div>
+
+            <div className={block("field")}>
+              <label
+                className={block("label")}
+                htmlFor="nmck-tariff-unit-price"
+              >
+                Регулируемый тариф за ед. (Т_рег), ₽ *
+              </label>
+              <input
+                id="nmck-tariff-unit-price"
+                className={block("input", ["num"])}
+                disabled={disabled}
+                value={tariffUnitPrice}
+                onChange={(e) => setTariffUnitPrice(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className={block("field", ["wide"])}>
+              <label className={block("label")} htmlFor="nmck-tariff-source">
+                Официальный источник / орган регулирования *
+              </label>
+              <input
+                id="nmck-tariff-source"
+                className={block("input")}
+                disabled={disabled}
+                value={tariffSourceName}
+                onChange={(e) => setTariffSourceName(e.target.value)}
+                placeholder="Например: ФАС России / Комитет по тарифам и ценам (ФГИС ЕИАС)"
+              />
+            </div>
+
+            <div className={block("field", ["wide"])}>
+              <label className={block("label")} htmlFor="nmck-tariff-doc">
+                Реквизиты постановления / приказа об утверждении тарифа *
+              </label>
+              <input
+                id="nmck-tariff-doc"
+                className={block("input")}
+                disabled={disabled}
+                value={tariffDocument}
+                onChange={(e) => setTariffDocument(e.target.value)}
+                placeholder="Например: Постановление Комитета по тарифам от … № …"
+              />
+            </div>
+
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="nmck-tariff-from">
+                Тариф действует с
+              </label>
+              <input
+                id="nmck-tariff-from"
+                type="date"
+                className={block("input")}
+                disabled={disabled}
+                value={tariffValidFrom}
+                onChange={(e) => setTariffValidFrom(e.target.value)}
+              />
+            </div>
+
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="nmck-tariff-to">
+                Тариф действует по
+              </label>
+              <input
+                id="nmck-tariff-to"
+                type="date"
+                className={block("input")}
+                disabled={disabled}
+                value={tariffValidTo}
+                onChange={(e) => setTariffValidTo(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Сводные показатели тарифного метода */}
+          <div className={block("metrics")}>
+            <div className={block("metric")}>
+              <span className={block("metric-label")}>
+                Официальный источник
+              </span>
+              <span className={block("metric-value")} style={{ fontSize: 13 }}>
+                {tariffSourceName.trim() || "Не указан"}
+              </span>
+              <span className={block("metric-sub")}>
+                {tariffDocument.trim() || "Укажите реквизиты акта"}
+              </span>
+            </div>
+
+            <div className={block("metric")}>
+              <span className={block("metric-label")}>
+                Регулируемый тариф (Т_рег)
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(tariffResult.unitPrice)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                За 1 {unit || "ед."} (объём v: {tariffResult.quantity})
+              </span>
+            </div>
+
+            <div
+              className={block("metric", [
+                tariffResult.isExpired
+                  ? "danger"
+                  : tariffValidTo
+                    ? "ok"
+                    : "default",
+              ])}
+            >
+              <span className={block("metric-label")}>
+                Срок действия тарифа
+              </span>
+              <span className={block("metric-value")}>
+                {tariffResult.isExpired
+                  ? "Срок действия истёк"
+                  : tariffValidTo
+                    ? `до ${tariffValidTo}`
+                    : "Не задан"}
+              </span>
+              <span className={block("metric-sub")}>
+                {tariffValidFrom
+                  ? `с ${tariffValidFrom}`
+                  : "Контроль актуальности по дате расчёта"}
+              </span>
+            </div>
+
+            <div className={block("metric", ["primary"])}>
+              <span className={block("metric-label")}>
+                Итоговая НМЦК (v × Т_рег)
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(tariffResult.nmckTotal)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                ч. 8 ст. 22 Закона № 44-ФЗ
+              </span>
+            </div>
+          </div>
+
+          {tariffResult.isExpired && (
+            <div className={block("alert", ["danger"])} role="alert">
+              <span>
+                <AlertTriangle size={14} aria-hidden="true" /> Срок действия
+                выбранного тарифа ({tariffValidTo}) истёк относительно даты
+                расчёта ({calculationDate}). Выберите актуальный тариф из
+                официального источника или продлите период.
+              </span>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Настройки затратного метода */}
+          <div className={block("options-bar")}>
+            <div className={block("inline-group")}>
+              <span className={block("label")}>Статьи затрат задаются:</span>
+              <div
+                className={block("segmented")}
+                role="group"
+                aria-label="Режим ввода стоимости статей затрат"
+              >
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={block(
+                    "seg-btn",
+                    costInputScope === "total" ? ["active"] : [],
+                  )}
+                  onClick={() => setCostInputScope("total")}
+                >
+                  На весь объём закупки
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  className={block(
+                    "seg-btn",
+                    costInputScope === "unit" ? ["active"] : [],
+                  )}
+                  onClick={() => setCostInputScope("unit")}
+                >
+                  На 1 единицу ({unit || "ед."})
+                </button>
+              </div>
+            </div>
+
+            {!disabled && (
+              <button
+                type="button"
+                className={block("btn", ["compact"])}
+                onClick={handleApplyCostTemplates}
+              >
+                Заполнить типовые статьи затрат (ст. 22 44-ФЗ)
+              </button>
+            )}
+          </div>
+
+          {/* Таблица статей затрат */}
+          <div className={block("table-wrap")}>
+            <table className={block("table")}>
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>Категория и статья затрат</th>
+                  <th>Расчёт / обоснование статьи (смета, норматив)</th>
+                  <th>
+                    Стоимость{" "}
+                    {costInputScope === "unit"
+                      ? `на 1 ${unit || "ед."}, ₽`
+                      : "всего, ₽"}
+                  </th>
+                  <th>Доля</th>
+                  <th>Удалить</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costResult.evaluatedItems.map((row) => (
+                  <tr key={row.item.id}>
+                    <td>{row.index + 1}</td>
+                    <td>
+                      <div className={block("source-stack")}>
+                        <select
+                          className={block("select")}
+                          disabled={disabled}
+                          value={row.item.category ?? "other"}
+                          onChange={(e) =>
+                            updateCostItem(row.index, {
+                              category: e.target.value as CostItemCategory,
+                            })
+                          }
+                        >
+                          {COST_ITEM_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {COST_ITEM_CATEGORY_LABELS[cat]}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          className={block("input")}
+                          disabled={disabled}
+                          value={row.item.name}
+                          onChange={(e) =>
+                            updateCostItem(row.index, {
+                              name: e.target.value,
+                            })
+                          }
+                          placeholder="Наименование статьи затрат"
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <input
+                        className={block("input")}
+                        disabled={disabled}
+                        value={row.item.basis ?? ""}
+                        onChange={(e) =>
+                          updateCostItem(row.index, {
+                            basis: e.target.value,
+                          })
+                        }
+                        placeholder="Основание / формула расчёта (необяз.)"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className={`${block("input", ["num"])} ${block("price-input")}`}
+                        disabled={disabled}
+                        value={row.item.amount}
+                        onChange={(e) =>
+                          updateCostItem(row.index, {
+                            amount: e.target.value,
+                          })
+                        }
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td className={block("computed-cell")}>
+                      {row.isValidAmount
+                        ? `${row.sharePercent.toFixed(1)}%`
+                        : "—"}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className={block("btn", ["danger"])}
+                        disabled={disabled || costItems.length <= 1}
+                        onClick={() => handleRemoveCostItem(row.index)}
+                        title="Удалить статью затрат"
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={block("actions-row")}>
+            <div className={block("add-group")}>
+              <button
+                type="button"
+                className={block("btn", ["compact"])}
+                disabled={disabled}
+                onClick={() => handleAddCostItem("materials")}
+              >
+                <Plus size={14} aria-hidden="true" /> Добавить статью затрат
+              </button>
+            </div>
+          </div>
+
+          {/* Параметры прибыли */}
+          <div className={block("params")}>
+            <div className={block("field")}>
+              <label
+                className={block("label")}
+                htmlFor="nmck-cost-profit-coeff"
+              >
+                Коэффициент прибыли (k_приб, ≥ 1.00) *
+              </label>
+              <input
+                id="nmck-cost-profit-coeff"
+                className={block("input", ["num"])}
+                disabled={disabled}
+                value={costProfitCoeff}
+                onChange={(e) => handleProfitCoeffChange(e.target.value)}
+                placeholder="1.10"
+              />
+            </div>
+
+            <div className={block("field")}>
+              <label
+                className={block("label")}
+                htmlFor="nmck-cost-profit-percent"
+              >
+                Эквивалент нормы прибыли, %
+              </label>
+              <input
+                id="nmck-cost-profit-percent"
+                className={block("input", ["num"])}
+                disabled={disabled}
+                value={costProfitPercent}
+                onChange={(e) => handleProfitPercentChange(e.target.value)}
+                placeholder="10.00"
+              />
+            </div>
+
+            <div className={block("field", ["wide"])}>
+              <label
+                className={block("label")}
+                htmlFor="nmck-cost-profit-basis"
+              >
+                Обоснование обычной для данной сферы деятельности прибыли (ч.
+                10 ст. 22)
+              </label>
+              <input
+                id="nmck-cost-profit-basis"
+                className={block("input")}
+                disabled={disabled}
+                value={costProfitBasis}
+                onChange={(e) => setCostProfitBasis(e.target.value)}
+                placeholder={DEFAULT_COST_PROFIT_BASIS}
+              />
+            </div>
+          </div>
+
+          {/* Сводные показатели затратного метода */}
+          <div className={block("metrics")}>
+            <div className={block("metric")}>
+              <span className={block("metric-label")}>
+                Сумма статей затрат
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(costResult.costSubtotal)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                Учтено статей: {costResult.validItemsCount} из{" "}
+                {costItems.length}
+                {costResult.costInputScope === "unit"
+                  ? ` (${formatNmckMoney(costResult.rawItemsSum)} ₽/ед. × ${costResult.quantity})`
+                  : ""}
+              </span>
+            </div>
+
+            <div
+              className={block("metric", [
+                !costResult.isValidProfitCoeff
+                  ? "danger"
+                  : costResult.highProfitWarning
+                    ? "warn"
+                    : "ok",
+              ])}
+            >
+              <span className={block("metric-label")}>
+                Прибыль (k = {costResult.profitCoeff.toFixed(2)} / +
+                {costResult.profitPercent.toFixed(2)}%)
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(costResult.profitAmount)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                {costResult.isValidProfitCoeff
+                  ? "ч. 10 ст. 22 Закона № 44-ФЗ"
+                  : "Коэффициент должен быть ≥ 1.00"}
+              </span>
+            </div>
+
+            <div className={block("metric")}>
+              <span className={block("metric-label")}>
+                Расчётная цена единицы
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(costResult.unitPrice)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                За 1 {unit || "ед."} с прибылью
+              </span>
+            </div>
+
+            <div className={block("metric", ["primary"])}>
+              <span className={block("metric-label")}>
+                Итоговая НМЦК (Затраты × k_приб)
+              </span>
+              <span className={block("metric-value")}>
+                {formatNmckMoney(costResult.nmckTotal)} ₽
+              </span>
+              <span className={block("metric-sub")}>
+                Объём: {costResult.quantity} {unit || "ед."}
+              </span>
+            </div>
+          </div>
+
+          {!costResult.isValidProfitCoeff && (
+            <div className={block("alert", ["danger"])} role="alert">
+              <span>
+                <AlertTriangle size={14} aria-hidden="true" /> Коэффициент
+                прибыли должен быть не меньше 1.00 (1.00 = нулевая прибыль, 1.10
+                = 10% прибыли).
+              </span>
+            </div>
+          )}
+
+          {costResult.highProfitWarning && (
+            <div className={block("alert", ["warning"])} role="status">
+              <span>
+                <AlertTriangle size={14} aria-hidden="true" /> Заданная норма
+                прибыли ({costResult.profitPercent.toFixed(2)}%, k=
+                {costResult.profitCoeff.toFixed(2)}) превышает{" "}
+                {HIGH_PROFIT_PERCENT_THRESHOLD}%. Согласно ч. 10 ст. 22 Закона №
+                44-ФЗ требуется документально подтвердить, что такой уровень
+                является обычной прибылью для данной сферы деятельности.
+              </span>
+            </div>
+          )}
+        </>
       )}
 
       {planLimitExceeded && planAmountLimit !== null && (
@@ -1209,7 +2010,7 @@ export default function MarketNmckCalculator({
           disabled={disabled}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Например: условия поставки, срок гарантии, НДС, источники запросов в ЕИС / реквизиты ведомственного норматива…"
+          placeholder="Например: условия поставки, срок гарантии, НДС, источники запросов в ЕИС / реквизиты норматива, тарифа или сметы…"
         />
       </div>
 
@@ -1245,7 +2046,7 @@ export default function MarketNmckCalculator({
             <button
               type="button"
               className={block("btn", ["primary"])}
-              disabled={disabled || isSaving || currentNmckTotal <= 0}
+              disabled={disabled || isSaving || !canSaveOrExport}
               onClick={handleSave}
             >
               {isSaving ? (
@@ -1286,6 +2087,35 @@ export default function MarketNmckCalculator({
             />
             Расчёт нормативным методом сформирован (ч. 7 ст. 22, ст. 19 Закона
             № 44-ФЗ).
+          </p>
+        )}
+
+      {method === "tariff" &&
+        tariffResult.nmckTotal > 0 &&
+        !tariffResult.isExpired && (
+          <p className={block("subtitle")}>
+            <CheckCircle2
+              size={13}
+              style={{ verticalAlign: "text-bottom", marginRight: 4 }}
+              aria-hidden="true"
+            />
+            Расчёт тарифным методом сформирован на основании регулируемого
+            тарифа (ч. 8 ст. 22 Закона № 44-ФЗ).
+          </p>
+        )}
+
+      {method === "cost" &&
+        costResult.validItemsCount > 0 &&
+        costResult.isValidProfitCoeff &&
+        costResult.nmckTotal > 0 && (
+          <p className={block("subtitle")}>
+            <CheckCircle2
+              size={13}
+              style={{ verticalAlign: "text-bottom", marginRight: 4 }}
+              aria-hidden="true"
+            />
+            Расчёт затратным методом (метод сложения затрат) сформирован (ч.
+            10–11 ст. 22 Закона № 44-ФЗ).
           </p>
         )}
     </div>

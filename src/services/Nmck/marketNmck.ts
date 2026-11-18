@@ -1,7 +1,10 @@
 import {
+  COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_LABELS,
+  type CostItemCategory,
   type MarketPriceSourceType,
   type NmckCalculationRecord,
+  type NmckCostItem,
   type NmckMarketOffer,
 } from "./nmck.schema";
 import type { Okpd2Ref } from "../Okpd2Ref/okpd2Ref.schema";
@@ -11,15 +14,24 @@ import type { Okpd2Ref } from "../Okpd2Ref/okpd2Ref.schema";
  * Приказ Минэкономразвития России от 02.10.2013 № 567):
  * 1) метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22);
  * 2) нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, ПП РФ № 926 и № 1047)
- *    с автоматической увязкой с нормируемыми позициями ОКПД2.
+ *    с автоматической увязкой с нормируемыми позициями ОКПД2;
+ * 3) тарифный метод (ч. 8 ст. 22 44-ФЗ, разд. V Приказа МЭР № 567);
+ * 4) затратный метод / метод сложения затрат (ч. 10–11 ст. 22 44-ФЗ, разд. VI № 567).
  */
 
 export const MAX_RECOMMENDED_CV_PERCENT = 33;
 export const MIN_RECOMMENDED_SOURCES = 3;
 export const MAX_OFFER_AGE_DAYS = 180; // ~6 месяцев (п. 3.16 № 567)
+export const HIGH_PROFIT_PERCENT_THRESHOLD = 30;
 
 export const DEFAULT_NORMATIVE_ACT =
   "Ст. 19, ч. 7 ст. 22 Закона № 44-ФЗ; ПП РФ от 02.09.2015 № 926; ПП РФ от 13.10.2014 № 1047";
+
+export const DEFAULT_TARIFF_ACT =
+  "Ч. 8 ст. 22 Закона № 44-ФЗ, разд. V Методических рекомендаций (Приказ МЭР России от 02.10.2013 № 567)";
+
+export const DEFAULT_COST_PROFIT_BASIS =
+  "Ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Методических рекомендаций № 567 (обычная прибыль для данной сферы деятельности)";
 
 export interface MarketNmckInput {
   quantity: number | string;
@@ -80,6 +92,52 @@ export interface NormativeNmckResult {
   exceedsNormLimit: boolean;
   excessUnit: number;
   excessTotal: number;
+  nmckTotal: number;
+}
+
+export interface TariffNmckInput {
+  quantity: number | string;
+  unitPrice: number | string;
+  validTo?: string;
+  calculationDate?: string;
+}
+
+export interface TariffNmckResult {
+  quantity: number;
+  unitPrice: number;
+  isValidUnitPrice: boolean;
+  isExpired: boolean;
+  nmckTotal: number;
+}
+
+export interface CostNmckInput {
+  quantity: number | string;
+  costInputScope?: "total" | "unit";
+  items: NmckCostItem[];
+  profitCoeff: number | string;
+}
+
+export interface EvaluatedCostItem {
+  item: NmckCostItem;
+  index: number;
+  numericAmount: number;
+  isValidAmount: boolean;
+  sharePercent: number;
+}
+
+export interface CostNmckResult {
+  quantity: number;
+  costInputScope: "total" | "unit";
+  evaluatedItems: EvaluatedCostItem[];
+  validItemsCount: number;
+  rawItemsSum: number;
+  costSubtotal: number;
+  profitCoeff: number;
+  isValidProfitCoeff: boolean;
+  profitPercent: number;
+  profitAmount: number;
+  highProfitWarning: boolean;
+  unitPrice: number;
   nmckTotal: number;
 }
 
@@ -173,6 +231,21 @@ export function createEmptyMarketOffer(
     commercialCoeff: "1",
     adjustmentComment: "",
     included: true,
+  };
+}
+
+export function createEmptyCostItem(
+  index: number,
+  category: CostItemCategory = "materials",
+  name = "",
+  basis = "",
+): NmckCostItem {
+  return {
+    id: `cost-${Date.now()}-${index + 1}-${Math.random().toString(36).slice(2, 6)}`,
+    category,
+    name: name || `Статья затрат № ${index + 1}`,
+    basis,
+    amount: "",
   };
 }
 
@@ -365,6 +438,107 @@ export function calculateNormativeNmck(
   };
 }
 
+/**
+ * Расчёт НМЦК тарифным методом (ч. 8 ст. 22 Закона № 44-ФЗ,
+ * разд. V Приказа МЭР № 567): НМЦК = v × Ц_тариф.
+ */
+export function calculateTariffNmck(input: TariffNmckInput): TariffNmckResult {
+  const parsedQty = parseNumericInput(input.quantity);
+  const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+
+  const parsedPrice = parseNumericInput(input.unitPrice);
+  const isValidUnitPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
+  const unitPrice = isValidUnitPrice ? roundMoney(parsedPrice) : 0;
+
+  const daysUntilExpiry = diffCalendarDays(
+    input.calculationDate,
+    input.validTo,
+  );
+  const isExpired = daysUntilExpiry !== null && daysUntilExpiry < 0;
+
+  const nmckTotal = isValidUnitPrice ? roundMoney(unitPrice * quantity) : 0;
+
+  return {
+    quantity,
+    unitPrice,
+    isValidUnitPrice,
+    isExpired,
+    nmckTotal,
+  };
+}
+
+/**
+ * Расчёт НМЦК затратным методом / методом сложения затрат
+ * (ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР № 567):
+ * НМЦК = (Σ Статьи затрат) × k_приб.
+ */
+export function calculateCostNmck(input: CostNmckInput): CostNmckResult {
+  const parsedQty = parseNumericInput(input.quantity);
+  const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+  const costInputScope = input.costInputScope === "unit" ? "unit" : "total";
+
+  const preliminary = input.items.map((item, index) => {
+    const parsedAmount = parseNumericInput(item.amount);
+    const isValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
+    return {
+      item,
+      index,
+      numericAmount: isValidAmount ? roundMoney(parsedAmount) : 0,
+      isValidAmount,
+      sharePercent: 0,
+    };
+  });
+
+  const validItems = preliminary.filter((row) => row.isValidAmount);
+  const rawItemsSum = roundMoney(
+    validItems.reduce((acc, row) => acc + row.numericAmount, 0),
+  );
+
+  const evaluatedItems = preliminary.map((row) => ({
+    ...row,
+    sharePercent:
+      rawItemsSum > 0 && row.isValidAmount
+        ? roundMoney((row.numericAmount / rawItemsSum) * 100)
+        : 0,
+  }));
+
+  const costSubtotal =
+    costInputScope === "unit"
+      ? roundMoney(rawItemsSum * quantity)
+      : rawItemsSum;
+
+  const parsedCoeff = parseNumericInput(input.profitCoeff);
+  const isValidProfitCoeff = Number.isFinite(parsedCoeff) && parsedCoeff >= 1;
+  const profitCoeff = isValidProfitCoeff ? roundCoeff(parsedCoeff) : 1;
+  const profitPercent = roundMoney((profitCoeff - 1) * 100);
+
+  const nmckTotal =
+    costSubtotal > 0 && isValidProfitCoeff
+      ? roundMoney(costSubtotal * profitCoeff)
+      : 0;
+  const profitAmount =
+    nmckTotal > 0 ? roundMoney(nmckTotal - costSubtotal) : 0;
+  const unitPrice = nmckTotal > 0 ? roundMoney(nmckTotal / quantity) : 0;
+  const highProfitWarning =
+    isValidProfitCoeff && profitPercent > HIGH_PROFIT_PERCENT_THRESHOLD;
+
+  return {
+    quantity,
+    costInputScope,
+    evaluatedItems,
+    validItemsCount: validItems.length,
+    rawItemsSum,
+    costSubtotal,
+    profitCoeff,
+    isValidProfitCoeff,
+    profitPercent,
+    profitAmount,
+    highProfitWarning,
+    unitPrice,
+    nmckTotal,
+  };
+}
+
 /** Снимок расчёта (анализ рынка) для сохранения в СЗ */
 export function buildNmckCalculationRecord(params: {
   subject: string;
@@ -465,6 +639,103 @@ export function buildNormativeCalculationRecord(params: {
   };
 }
 
+/** Снимок расчёта (тарифный метод) для сохранения в СЗ */
+export function buildTariffCalculationRecord(params: {
+  subject: string;
+  okpd2Code?: string;
+  okpd2Name?: string;
+  quantity: number | string;
+  unit: string;
+  calculationDate: string;
+  calculatorName?: string;
+  tariffId?: string;
+  tariffName?: string;
+  tariffSourceName: string;
+  tariffDocument: string;
+  tariffValidFrom?: string;
+  tariffValidTo?: string;
+  notes?: string;
+  result: TariffNmckResult;
+}): NmckCalculationRecord {
+  return {
+    method: "tariff",
+    calculatedAt: new Date().toISOString().slice(0, 10),
+    calculationDate: params.calculationDate,
+    calculatorName: params.calculatorName?.trim() || undefined,
+    subject: params.subject.trim() || "Объект закупки",
+    okpd2Code: params.okpd2Code?.trim() || undefined,
+    okpd2Name: params.okpd2Name?.trim() || undefined,
+    quantity: String(params.result.quantity),
+    unit: params.unit.trim() || "ед.",
+    offers: [],
+    activeCount: 0,
+    meanUnitPrice: params.result.unitPrice,
+    minUnitPrice: params.result.unitPrice,
+    maxUnitPrice: params.result.unitPrice,
+    stdDev: 0,
+    cvPercent: 0,
+    isHomogeneous: true,
+    nmckMinTotal: params.result.nmckTotal,
+    tariffId: params.tariffId?.trim() || undefined,
+    tariffName: params.tariffName?.trim() || undefined,
+    tariffSourceName: params.tariffSourceName.trim() || undefined,
+    tariffDocument: params.tariffDocument.trim() || undefined,
+    tariffValidFrom: params.tariffValidFrom?.trim() || undefined,
+    tariffValidTo: params.tariffValidTo?.trim() || undefined,
+    tariffUnitPrice: params.result.unitPrice,
+    tariffExpired: params.result.isExpired,
+    nmckTotal: params.result.nmckTotal,
+    notes: params.notes?.trim() || undefined,
+  };
+}
+
+/** Снимок расчёта (затратный метод) для сохранения в СЗ */
+export function buildCostCalculationRecord(params: {
+  subject: string;
+  okpd2Code?: string;
+  okpd2Name?: string;
+  quantity: number | string;
+  unit: string;
+  calculationDate: string;
+  calculatorName?: string;
+  items: NmckCostItem[];
+  costProfitBasis?: string;
+  notes?: string;
+  result: CostNmckResult;
+}): NmckCalculationRecord {
+  return {
+    method: "cost",
+    calculatedAt: new Date().toISOString().slice(0, 10),
+    calculationDate: params.calculationDate,
+    calculatorName: params.calculatorName?.trim() || undefined,
+    subject: params.subject.trim() || "Объект закупки",
+    okpd2Code: params.okpd2Code?.trim() || undefined,
+    okpd2Name: params.okpd2Name?.trim() || undefined,
+    quantity: String(params.result.quantity),
+    unit: params.unit.trim() || "ед.",
+    offers: [],
+    activeCount: params.result.validItemsCount,
+    meanUnitPrice: params.result.unitPrice,
+    minUnitPrice: params.result.unitPrice,
+    maxUnitPrice: params.result.unitPrice,
+    stdDev: 0,
+    cvPercent: 0,
+    isHomogeneous: true,
+    nmckMinTotal: params.result.nmckTotal,
+    costItems: params.items,
+    costInputScope: params.result.costInputScope,
+    costSubtotal: params.result.costSubtotal,
+    costProfitCoeff: params.result.profitCoeff,
+    costProfitPercent: params.result.profitPercent,
+    costProfitAmount: params.result.profitAmount,
+    costProfitBasis:
+      params.costProfitBasis?.trim() || DEFAULT_COST_PROFIT_BASIS,
+    costUnitPrice: params.result.unitPrice,
+    nmckTotal: params.result.nmckTotal,
+    notes: params.notes?.trim() || undefined,
+  };
+}
+
 /** Текстовое обоснование НМЦК (анализ рынка) */
 export function buildMarketNmckBasisText(
   result: MarketNmckResult,
@@ -517,6 +788,59 @@ export function buildNormativeNmckBasisText(params: {
     ? ` Документ / пункт перечня: ${params.normativeDocument}.`
     : "";
   return `Нормативный метод определения НМЦК (ст. 19, ч. 7 ст. 22 Закона № 44-ФЗ, разд. IV Приказа МЭР № 567)${okpdPart}. Правовое основание: ${params.normativeAct || DEFAULT_NORMATIVE_ACT}.${docPart}${limitPart} Расчёт: ${formatNmckMoney(params.result.unitPrice)} ₽/ед. × ${params.result.quantity} ${params.unit || "ед."} = ${formatNmckMoney(params.result.nmckTotal)} ₽.`;
+}
+
+/** Текстовое обоснование НМЦК (тарифный метод) */
+export function buildTariffNmckBasisText(params: {
+  result: TariffNmckResult;
+  unit: string;
+  okpd2Code?: string;
+  tariffName?: string;
+  tariffSourceName: string;
+  tariffDocument: string;
+  tariffValidFrom?: string;
+  tariffValidTo?: string;
+}): string {
+  const okpdPart = params.okpd2Code
+    ? ` по коду ОКПД2 ${params.okpd2Code}`
+    : "";
+  const namePart = params.tariffName ? ` (${params.tariffName})` : "";
+  const sourcePart = params.tariffSourceName
+    ? ` Официальный источник / орган регулирования: ${params.tariffSourceName}.`
+    : "";
+  const docPart = params.tariffDocument
+    ? ` Реквизиты утверждающего акта: ${params.tariffDocument}.`
+    : "";
+  const validityPart =
+    params.tariffValidFrom || params.tariffValidTo
+      ? ` Период действия тарифа: с ${params.tariffValidFrom || "—"} по ${params.tariffValidTo || "—"}.`
+      : "";
+  return `Тарифный метод определения НМЦК (ч. 8 ст. 22 Закона № 44-ФЗ, разд. V Приказа МЭР № 567)${okpdPart}${namePart}.${sourcePart}${docPart}${validityPart} Расчёт: ${formatNmckMoney(params.result.unitPrice)} ₽/ед. × ${params.result.quantity} ${params.unit || "ед."} = ${formatNmckMoney(params.result.nmckTotal)} ₽.`;
+}
+
+/** Текстовое обоснование НМЦК (затратный метод) */
+export function buildCostNmckBasisText(params: {
+  result: CostNmckResult;
+  unit: string;
+  okpd2Code?: string;
+  costProfitBasis?: string;
+}): string {
+  const okpdPart = params.okpd2Code
+    ? ` (ОКПД2 ${params.okpd2Code})`
+    : "";
+  const itemsText = params.result.evaluatedItems
+    .filter((row) => row.isValidAmount)
+    .map(
+      (row) =>
+        `${row.item.name || "Статья затрат"}: ${formatNmckMoney(row.numericAmount)} ₽`,
+    )
+    .join("; ");
+  const scopeNote =
+    params.result.costInputScope === "unit"
+      ? `Сумма затрат на 1 ед.: ${formatNmckMoney(params.result.rawItemsSum)} ₽; на объём ${params.result.quantity} ${params.unit || "ед."}: ${formatNmckMoney(params.result.costSubtotal)} ₽.`
+      : `Сумма статей затрат по объёму контракта: ${formatNmckMoney(params.result.costSubtotal)} ₽.`;
+
+  return `Затратный метод (метод сложения затрат) определения НМЦК (ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР № 567)${okpdPart}. Учтено статей затрат: ${params.result.validItemsCount} (${itemsText || "без детализации"}). ${scopeNote} Коэффициент прибыли k=${params.result.profitCoeff.toFixed(2)} (норма прибыли ${params.result.profitPercent.toFixed(2)}%, прибыль ${formatNmckMoney(params.result.profitAmount)} ₽; основание: ${params.costProfitBasis?.trim() || DEFAULT_COST_PROFIT_BASIS}). Цена ед.: ${formatNmckMoney(params.result.unitPrice)} ₽. Итоговая НМЦК: ${formatNmckMoney(params.result.nmckTotal)} ₽.`;
 }
 
 /**
@@ -638,124 +962,265 @@ export async function exportNmckCalculationToDocx(params: {
       offers: record.offers,
     });
 
-  const bodyBlocks =
-    record.method === "normative"
-      ? [
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({
-                text: "Метод определения НМЦК: нормативный метод (ст. 19, ч. 7 ст. 22 Федерального закона № 44-ФЗ, разд. IV Приказа МЭР России № 567).",
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            borders,
-            rows: [
-              new TableRow({
-                tableHeader: true,
+  const buildBodyBlocks = () => {
+    if (record.method === "normative") {
+      return [
+        new Paragraph({
+          spacing: { after: 120 },
+          children: [
+            new TextRun({
+              text: "Метод определения НМЦК: нормативный метод (ст. 19, ч. 7 ст. 22 Федерального закона № 44-ФЗ, разд. IV Приказа МЭР России № 567).",
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders,
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: [
+                "Код ОКПД2",
+                "НПА / основание нормирования",
+                "Предельная цена по нормативу, ₽/ед.",
+                "Принятая цена ед., ₽",
+                "Количество",
+                "Итого НМЦК, ₽",
+              ].map((h) => makeCell(h, true)),
+            }),
+            new TableRow({
+              children: [
+                record.okpd2Code || "—",
+                `${record.normativeAct || DEFAULT_NORMATIVE_ACT}${record.normativeDocument ? `\n(${record.normativeDocument})` : ""}`,
+                record.normLimitUnitPrice !== undefined
+                  ? formatNmckMoney(record.normLimitUnitPrice)
+                  : "Не установлена в ОКПД2",
+                formatNmckMoney(
+                  record.normativeUnitPrice ?? record.meanUnitPrice,
+                ),
+                `${record.quantity} ${record.unit}`,
+                formatNmckMoney(record.nmckTotal),
+              ].map((v) => makeCell(v)),
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { before: 120, after: 80 },
+          children: [
+            new TextRun({
+              text: record.exceedsNormLimit
+                ? `ВНИМАНИЕ: принятая цена единицы превышает нормативный предел (${formatNmckMoney(record.normLimitUnitPrice ?? 0)} ₽). Требуется специальное обоснование.`
+                : "Предельная цена нормирования соблюдена.",
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+      ];
+    }
+
+    if (record.method === "tariff") {
+      const validityStr =
+        record.tariffValidFrom || record.tariffValidTo
+          ? `${record.tariffValidFrom || "—"} — ${record.tariffValidTo || "—"}`
+          : "Не указан";
+      return [
+        new Paragraph({
+          spacing: { after: 120 },
+          children: [
+            new TextRun({
+              text: `Метод определения НМЦК: тарифный метод (${DEFAULT_TARIFF_ACT}).`,
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders,
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: [
+                "Регулируемый товар / услуга",
+                "Официальный источник",
+                "Постановление / Приказ об утверждении тарифа",
+                "Срок действия",
+                "Тариф ед., ₽",
+                "Объём",
+                "Итого НМЦК, ₽",
+              ].map((h) => makeCell(h, true)),
+            }),
+            new TableRow({
+              children: [
+                record.tariffName || record.subject || "—",
+                record.tariffSourceName || "—",
+                record.tariffDocument || "—",
+                validityStr,
+                formatNmckMoney(record.tariffUnitPrice ?? record.meanUnitPrice),
+                `${record.quantity} ${record.unit}`,
+                formatNmckMoney(record.nmckTotal),
+              ].map((v) => makeCell(v)),
+            }),
+          ],
+        }),
+        ...(record.tariffExpired
+          ? [
+              new Paragraph({
+                spacing: { before: 120, after: 80 },
                 children: [
-                  "Код ОКПД2",
-                  "НПА / основание нормирования",
-                  "Предельная цена по нормативу, ₽/ед.",
-                  "Принятая цена ед., ₽",
-                  "Количество",
-                  "Итого НМЦК, ₽",
-                ].map((h) => makeCell(h, true)),
+                  new TextRun({
+                    text: `ВНИМАНИЕ: срок действия выбранного тарифа (${record.tariffValidTo || "—"}) истёк на дату расчёта (${record.calculationDate || "—"}).`,
+                    size: 20,
+                    font: "Times New Roman",
+                  }),
+                ],
               }),
+            ]
+          : []),
+      ];
+    }
+
+    if (record.method === "cost") {
+      const costEval = calculateCostNmck({
+        quantity: record.quantity,
+        costInputScope: record.costInputScope,
+        items: record.costItems ?? [],
+        profitCoeff: record.costProfitCoeff ?? 1,
+      });
+      return [
+        new Paragraph({
+          spacing: { after: 120 },
+          children: [
+            new TextRun({
+              text: "Метод определения НМЦК: затратный метод / метод сложения затрат (ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР России № 567).",
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders,
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: [
+                "№",
+                "Категория",
+                "Статья затрат",
+                "Расчёт / обоснование",
+                "Стоимость, ₽",
+                "Доля, %",
+              ].map((h) => makeCell(h, true)),
+            }),
+            ...costEval.evaluatedItems.map((row, idx) =>
               new TableRow({
                 children: [
-                  record.okpd2Code || "—",
-                  `${record.normativeAct || DEFAULT_NORMATIVE_ACT}${record.normativeDocument ? `\n(${record.normativeDocument})` : ""}`,
-                  record.normLimitUnitPrice !== undefined
-                    ? formatNmckMoney(record.normLimitUnitPrice)
-                    : "Не установлена в ОКПД2",
-                  formatNmckMoney(record.normativeUnitPrice ?? record.meanUnitPrice),
-                  `${record.quantity} ${record.unit}`,
-                  formatNmckMoney(record.nmckTotal),
+                  String(idx + 1),
+                  COST_ITEM_CATEGORY_LABELS[row.item.category ?? "other"],
+                  row.item.name || "—",
+                  row.item.basis || "—",
+                  row.isValidAmount
+                    ? formatNmckMoney(row.numericAmount)
+                    : "—",
+                  row.isValidAmount ? `${row.sharePercent.toFixed(1)}%` : "—",
                 ].map((v) => makeCell(v)),
               }),
-            ],
+            ),
+          ],
+        }),
+        new Paragraph({
+          spacing: { before: 140, after: 60 },
+          children: [
+            new TextRun({
+              text: `Сумма статей затрат (${costEval.costInputScope === "unit" ? `на 1 ед.: ${formatNmckMoney(costEval.rawItemsSum)} ₽ × ${record.quantity} ${record.unit} = ` : ""}${formatNmckMoney(record.costSubtotal ?? costEval.costSubtotal)} ₽) · Коэффициент прибыли k = ${(record.costProfitCoeff ?? costEval.profitCoeff).toFixed(2)} (рентабельность ${(record.costProfitPercent ?? costEval.profitPercent).toFixed(2)}%, прибыль ${formatNmckMoney(record.costProfitAmount ?? costEval.profitAmount)} ₽).`,
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 60 },
+          children: [
+            new TextRun({
+              text: `Расчётная цена единицы с учётом прибыли: ${formatNmckMoney(record.costUnitPrice ?? costEval.unitPrice)} ₽ · Обоснование обычной прибыли: ${record.costProfitBasis || DEFAULT_COST_PROFIT_BASIS}`,
+              size: 20,
+              font: "Times New Roman",
+            }),
+          ],
+        }),
+      ];
+    }
+
+    return [
+      new Paragraph({
+        spacing: { after: 120 },
+        children: [
+          new TextRun({
+            text: "Метод определения НМЦК: метод сопоставимых рыночных цен (анализ рынка), ч. 2–5 ст. 22 Федерального закона № 44-ФЗ, Приказ Минэкономразвития России от 02.10.2013 № 567.",
+            size: 20,
+            font: "Times New Roman",
           }),
-          new Paragraph({
-            spacing: { before: 120, after: 80 },
+        ],
+      }),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders,
+        rows: [
+          new TableRow({
+            tableHeader: true,
             children: [
-              new TextRun({
-                text: record.exceedsNormLimit
-                  ? `ВНИМАНИЕ: принятая цена единицы превышает нормативный предел (${formatNmckMoney(record.normLimitUnitPrice ?? 0)} ₽). Требуется специальное обоснование.`
-                  : "Предельная цена нормирования соблюдена.",
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
+              "№",
+              "Источник ценовой информации / Поставщик",
+              "Документ и дата",
+              "Цена ед., ₽",
+              "kинф × kком",
+              "Привед. цена, ₽",
+              "Учтено",
+            ].map((h) => makeCell(h, true)),
           }),
-        ]
-      : [
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({
-                text: "Метод определения НМЦК: метод сопоставимых рыночных цен (анализ рынка), ч. 2–5 ст. 22 Федерального закона № 44-ФЗ, Приказ Минэкономразвития России от 02.10.2013 № 567.",
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
+          ...marketResult.evaluatedOffers.map((item, idx) =>
+            new TableRow({
+              children: [
+                String(idx + 1),
+                `${item.offer.supplierName || "—"}\n(${MARKET_PRICE_SOURCE_LABELS[item.offer.sourceType ?? "commercial_offer"]})`,
+                `${item.offer.sourceDocument || "б/н"}${item.offer.offerDate ? ` от ${item.offer.offerDate}` : ""}`,
+                item.isValidPrice ? formatNmckMoney(item.baseUnitPrice) : "—",
+                `${item.effectiveInflationCoeff.toFixed(4)} × ${item.effectiveCommercialCoeff.toFixed(4)}`,
+                item.isValidPrice ? formatNmckMoney(item.adjustedUnitPrice) : "—",
+                item.isIncluded && item.isValidPrice ? "Да" : "Исключено",
+              ].map((v) => makeCell(v)),
+            }),
+          ),
+        ],
+      }),
+      new Paragraph({
+        spacing: { before: 140, after: 60 },
+        children: [
+          new TextRun({
+            text: `Средняя приведённая цена единицы: ${formatNmckMoney(marketResult.meanUnitPrice)} ₽ · Мин.: ${formatNmckMoney(marketResult.minUnitPrice)} ₽ · Макс.: ${formatNmckMoney(marketResult.maxUnitPrice)} ₽`,
+            size: 20,
+            font: "Times New Roman",
           }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            borders,
-            rows: [
-              new TableRow({
-                tableHeader: true,
-                children: [
-                  "№",
-                  "Источник ценовой информации / Поставщик",
-                  "Документ и дата",
-                  "Цена ед., ₽",
-                  "kинф × kком",
-                  "Привед. цена, ₽",
-                  "Учтено",
-                ].map((h) => makeCell(h, true)),
-              }),
-              ...marketResult.evaluatedOffers.map((item, idx) =>
-                new TableRow({
-                  children: [
-                    String(idx + 1),
-                    `${item.offer.supplierName || "—"}\n(${MARKET_PRICE_SOURCE_LABELS[item.offer.sourceType ?? "commercial_offer"]})`,
-                    `${item.offer.sourceDocument || "б/н"}${item.offer.offerDate ? ` от ${item.offer.offerDate}` : ""}`,
-                    item.isValidPrice ? formatNmckMoney(item.baseUnitPrice) : "—",
-                    `${item.effectiveInflationCoeff.toFixed(4)} × ${item.effectiveCommercialCoeff.toFixed(4)}`,
-                    item.isValidPrice ? formatNmckMoney(item.adjustedUnitPrice) : "—",
-                    item.isIncluded && item.isValidPrice ? "Да" : "Исключено",
-                  ].map((v) => makeCell(v)),
-                }),
-              ),
-            ],
+        ],
+      }),
+      new Paragraph({
+        spacing: { after: 60 },
+        children: [
+          new TextRun({
+            text: `Среднее квадратическое отклонение (σ): ${formatNmckMoney(marketResult.stdDev)} ₽ · Коэффициент вариации (V): ${marketResult.cvPercent.toFixed(2)}% (${marketResult.isHomogeneous ? "выборка однородна <= 33%" : "превышает 33%, требуется уточнение выборки"})`,
+            size: 20,
+            font: "Times New Roman",
           }),
-          new Paragraph({
-            spacing: { before: 140, after: 60 },
-            children: [
-              new TextRun({
-                text: `Средняя приведённая цена единицы: ${formatNmckMoney(marketResult.meanUnitPrice)} ₽ · Мин.: ${formatNmckMoney(marketResult.minUnitPrice)} ₽ · Макс.: ${formatNmckMoney(marketResult.maxUnitPrice)} ₽`,
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [
-              new TextRun({
-                text: `Среднее квадратическое отклонение (σ): ${formatNmckMoney(marketResult.stdDev)} ₽ · Коэффициент вариации (V): ${marketResult.cvPercent.toFixed(2)}% (${marketResult.isHomogeneous ? "выборка однородна <= 33%" : "превышает 33%, требуется уточнение выборки"})`,
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-        ];
+        ],
+      }),
+    ];
+  };
+
+  const bodyBlocks = buildBodyBlocks();
 
   const doc = new Document({
     sections: [

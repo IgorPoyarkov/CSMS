@@ -8,6 +8,8 @@ import {
   FileDown,
   FileSpreadsheet,
   FileText,
+  Landmark,
+  Layers,
   Scale,
   Upload,
   X,
@@ -54,12 +56,14 @@ import { useUpdateOrganization } from "../../services/Organization/organization.
 import { MINIMUM_SMP_REQUIRED_PERCENT } from "../../services/ContractSmp/pp1466";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import {
+  COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_SHORT,
   NMCK_METHOD_LABELS,
   type NmckCalculationRecord,
   type NmckMarketOffer,
 } from "../../services/Nmck/nmck.schema";
 import {
+  calculateCostNmck,
   calculateMarketNmck,
   exportNmckCalculationToDocx,
   formatNmckMoney,
@@ -2035,13 +2039,18 @@ export default function PurchaseNoteModal({
                     <div className={block("card-title-inline")}>
                       {watchedNmckCalculation.method === "normative" ? (
                         <Scale size={15} aria-hidden="true" />
+                      ) : watchedNmckCalculation.method === "tariff" ? (
+                        <Landmark size={15} aria-hidden="true" />
+                      ) : watchedNmckCalculation.method === "cost" ? (
+                        <Layers size={15} aria-hidden="true" />
                       ) : (
                         <Calculator size={15} aria-hidden="true" />
                       )}
                       <span
                         className={block(
                           "nmck-badge",
-                          watchedNmckCalculation.exceedsNormLimit
+                          watchedNmckCalculation.exceedsNormLimit ||
+                            watchedNmckCalculation.tariffExpired
                             ? ["danger"]
                             : [],
                         )}
@@ -2170,7 +2179,7 @@ export default function PurchaseNoteModal({
                           </div>
                         )}
                     </>
-                  ) : (
+                  ) : watchedNmckCalculation.method === "normative" ? (
                     <>
                       <div className={block("nmck-kpis")}>
                         <div className={block("nmck-kpi")}>
@@ -2223,6 +2232,154 @@ export default function PurchaseNoteModal({
                           )}{" "}
                           ₽).
                         </div>
+                      )}
+                    </>
+                  ) : watchedNmckCalculation.method === "tariff" ? (
+                    <>
+                      <div className={block("nmck-kpis")}>
+                        <div className={block("nmck-kpi")}>
+                          <span>Итоговая НМЦК</span>
+                          <strong>
+                            {formatNmckMoney(watchedNmckCalculation.nmckTotal)}{" "}
+                            ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Регулируемый тариф</span>
+                          <strong>
+                            {formatNmckMoney(
+                              watchedNmckCalculation.tariffUnitPrice ??
+                                watchedNmckCalculation.meanUnitPrice,
+                            )}{" "}
+                            ₽ / {watchedNmckCalculation.unit}
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Объём (кол-во)</span>
+                          <strong>
+                            {watchedNmckCalculation.quantity}{" "}
+                            {watchedNmckCalculation.unit}
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Срок действия тарифа</span>
+                          <strong>
+                            {watchedNmckCalculation.tariffValidTo
+                              ? `до ${watchedNmckCalculation.tariffValidTo}`
+                              : "не указан"}
+                          </strong>
+                        </div>
+                      </div>
+                      <p className={block("hint")} style={{ marginTop: 0 }}>
+                        <strong>Официальный источник:</strong>{" "}
+                        {watchedNmckCalculation.tariffSourceName || "—"}
+                        {watchedNmckCalculation.tariffDocument
+                          ? ` · Акт: ${watchedNmckCalculation.tariffDocument}`
+                          : ""}
+                      </p>
+                      {watchedNmckCalculation.tariffExpired && (
+                        <div className={block("alert-warning")} role="alert">
+                          Внимание: срок действия выбранного тарифа (
+                          {watchedNmckCalculation.tariffValidTo}) истёк на дату
+                          расчёта.
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className={block("nmck-kpis")}>
+                        <div className={block("nmck-kpi")}>
+                          <span>Итоговая НМЦК</span>
+                          <strong>
+                            {formatNmckMoney(watchedNmckCalculation.nmckTotal)}{" "}
+                            ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Сумма статей затрат</span>
+                          <strong>
+                            {formatNmckMoney(
+                              watchedNmckCalculation.costSubtotal ?? 0,
+                            )}{" "}
+                            ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Коэффициент прибыли / прибыль</span>
+                          <strong>
+                            k ={" "}
+                            {(
+                              watchedNmckCalculation.costProfitCoeff ?? 1
+                            ).toFixed(2)}{" "}
+                            (+
+                            {formatNmckMoney(
+                              watchedNmckCalculation.costProfitAmount ?? 0,
+                            )}{" "}
+                            ₽)
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Расчётная цена единицы</span>
+                          <strong>
+                            {formatNmckMoney(
+                              watchedNmckCalculation.costUnitPrice ??
+                                watchedNmckCalculation.meanUnitPrice,
+                            )}{" "}
+                            ₽ / {watchedNmckCalculation.unit}
+                          </strong>
+                        </div>
+                      </div>
+                      {watchedNmckCalculation.costItems &&
+                        watchedNmckCalculation.costItems.length > 0 && (
+                          <div style={{ overflowX: "auto" }}>
+                            <table className={block("nmck-table")}>
+                              <thead>
+                                <tr>
+                                  <th>№</th>
+                                  <th>Категория и статья затрат</th>
+                                  <th>Обоснование</th>
+                                  <th>Стоимость, ₽</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {calculateCostNmck({
+                                  quantity: watchedNmckCalculation.quantity,
+                                  costInputScope:
+                                    watchedNmckCalculation.costInputScope,
+                                  items: watchedNmckCalculation.costItems,
+                                  profitCoeff:
+                                    watchedNmckCalculation.costProfitCoeff ?? 1,
+                                }).evaluatedItems.map((row, idx) => (
+                                  <tr key={row.item.id}>
+                                    <td>{idx + 1}</td>
+                                    <td>
+                                      [
+                                      {
+                                        COST_ITEM_CATEGORY_LABELS[
+                                          row.item.category ?? "other"
+                                        ]
+                                      }
+                                      ] {row.item.name || "—"}
+                                    </td>
+                                    <td>{row.item.basis || "—"}</td>
+                                    <td>
+                                      <strong>
+                                        {row.isValidAmount
+                                          ? formatNmckMoney(row.numericAmount)
+                                          : "—"}
+                                      </strong>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      {watchedNmckCalculation.costProfitBasis && (
+                        <p className={block("hint")} style={{ marginTop: 0 }}>
+                          <strong>Обоснование прибыли:</strong>{" "}
+                          {watchedNmckCalculation.costProfitBasis}
+                        </p>
                       )}
                     </>
                   )}
