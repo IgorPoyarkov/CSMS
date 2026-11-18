@@ -27,7 +27,7 @@ import EisPackagesPage from "./components/Eis/EisPackagesPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import PluginDiagnosticsPage from "./components/Eds/PluginDiagnosticsPage";
-import PurchaseDescriptionsPage from "./components/PurchaseDescription/PurchaseDescriptionsPage";
+import DefectListsPage from "./components/DefectList/DefectListsPage";
 
 const router = createBrowserRouter([
   {
@@ -131,11 +131,11 @@ const router = createBrowserRouter([
         element: <LegalActsRegistry />,
       },
       {
-        // Описания объектов закупки: роль «инициатор закупки» — работник
-        // подразделения-заказчика вне КС готовит описание и направляет в КС
-        // (Tasks 8, п. 4)
-        path: "/purchase-descriptions",
-        element: <PurchaseDescriptionsPage />,
+        // Дефектовки: роль «инициатор закупки» — работник подразделения-
+        // заказчика вне КС готовит объёмы работ, проект сметы контракта
+        // (421/пр) и проект календарного графика (336/пр) (Tasks 8, п. 4)
+        path: "/defect-lists",
+        element: <DefectListsPage />,
       },
       {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал

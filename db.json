@@ -2189,14 +2189,31 @@
       "assignedByEmployeeId": 17,
       "assignedByName": "Егорова Мария Петровна",
       "functionCode": "purchase_description",
-      "title": "Проверить описание объекта закупки: Поставка хозяйственных товаров и моющих средств для нужд стационара",
-      "description": "Инициатор: Егорова Мария Петровна. Подразделение: Хозяйственный отдел. ОКПД2: 20.41.32 — Средства моющие. Смета: 111 450 руб. Проверить описание и поставить позицию в план-график.",
+      "title": "Проверить дефектовку и проект сметы: Замена участков трубопровода системы отопления",
+      "description": "Инициатор: Егорова Мария Петровна. Подразделение: Хозяйственный отдел. Позиций дефектовки: 2, прямые затраты 198 800 руб. Проект сметы: 288 562,18 руб. Этапов графика: 2 на 288 562,18 руб. Проверить документы и поставить позицию в план-график.",
       "status": "pending",
       "origin": "system",
       "dueDate": "2026-11-16",
       "createdAt": "2026-11-10",
       "completedAt": "",
       "result": ""
+    },
+    {
+      "organizationId": 2,
+      "title": "Проверить дефектовку и проект сметы: Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
+      "description": "Инициатор: Пояркова София Игоревна. Подразделение: Управление организации закупок. Позиций дефектовки: 2, прямые затраты 111,00 руб. Проект сметы: 167,09 руб. Этапов графика: 1 на 167,09 руб. Проверить документы и поставить позицию в план-график.",
+      "status": "pending",
+      "origin": "system",
+      "functionCode": "purchase_description",
+      "assigneeId": "18",
+      "assigneeName": "Калашников Сергей Петрович",
+      "assignedByEmployeeId": 4,
+      "assignedByName": "Пояркова София Игоревна",
+      "dueDate": "2026-11-22",
+      "createdAt": "2026-11-18",
+      "completedAt": "",
+      "result": "",
+      "id": 14
     }
   ],
   "taskEvaluations": [
@@ -4735,6 +4752,46 @@
       "sourceUrl": "http://pravo.gov.ru",
       "lastCheckedDate": "2026-11-16",
       "isVerified": true
+    },
+    {
+      "id": "minstroy-421pr",
+      "shortName": "Приказ Минстроя России N 421/пр",
+      "fullName": "Об утверждении Методики определения сметной стоимости строительства, реконструкции, капитального ремонта, сноса объектов капитального строительства, работ по сохранению объектов культурного наследия (памятников истории и культуры) народов Российской Федерации",
+      "actType": "ministry-order",
+      "adoptedBy": "Минстрой России",
+      "actNumber": "421/пр",
+      "adoptedDate": "2020-08-04",
+      "effectiveDate": "2020-08-04",
+      "status": "active",
+      "scope": "Определение сметной стоимости: прямые затраты, накладные расходы, сметная прибыль — основа проекта сметы контракта",
+      "components": [
+        "DefectListModal",
+        "ContractEstimate"
+      ],
+      "sourceUrl": "https://minstroyrf.gov.ru/docs/74851/",
+      "lastCheckedDate": "2026-11-18",
+      "isVerified": true,
+      "notes": "Реквизиты сверены с публикацией на сайте Минстроя России. Применяется в проекте сметы контракта (DefectList)."
+    },
+    {
+      "id": "minstroy-336pr",
+      "shortName": "Приказ Минстроя России N 336/пр",
+      "fullName": "Об утверждении Методики составления графика выполнения строительно-монтажных работ и графика оплаты выполненных по контракту (договору), предметом которого являются строительство, реконструкция объектов капитального строительства",
+      "actType": "ministry-order",
+      "adoptedBy": "Минстрой России",
+      "actNumber": "336/пр",
+      "adoptedDate": "2018-06-05",
+      "effectiveDate": "2018-06-05",
+      "status": "active",
+      "scope": "Составление графика выполнения строительно-монтажных работ и графика оплаты — основа проекта календарного графика",
+      "components": [
+        "DefectListModal",
+        "ContractSchedule"
+      ],
+      "sourceUrl": "http://www.publication.pravo.gov.ru/Document/View/0001201810240028",
+      "lastCheckedDate": "2026-11-18",
+      "isVerified": true,
+      "notes": "Реквизиты сверены с публикацией на pravo.gov.ru. Применяется в проекте календарного графика (DefectList)."
     }
   ],
   "purchaseNotes": [
@@ -4813,7 +4870,7 @@
       "createdAt": "2026-09-01"
     }
   ],
-  "purchaseDescriptions": [
+  "defectLists": [
     {
       "id": 1,
       "organizationId": 1,
@@ -4821,34 +4878,64 @@
       "authorName": "Егорова Мария Петровна",
       "structuralUnitId": 13,
       "structuralUnitName": "Хозяйственный отдел",
-      "title": "Поставка хозяйственных товаров и моющих средств для нужд стационара",
-      "okpd2Code": "20.41.32",
-      "okpd2Name": "Средства моющие",
-      "requirements": "Средства моющие и чистящие в потребительской упаковке, наличие свидетельства о государственной регистрации, срок годности на дату поставки не менее 12 месяцев.",
-      "justification": "Обеспечение санитарно-эпидемиологического режима отделений стационара, текущая потребность на I полугодие 2027 года.",
+      "objectName": "Замена участков трубопровода системы отопления",
+      "basis": "Дефектный акт № 14 от 03.11.2026",
       "items": [
         {
           "id": 1,
-          "name": "Мыло жидкое с дозатором, 500 мл",
-          "unit": "шт",
-          "quantity": "240",
-          "unitPrice": "185.00"
+          "section": "Отопление",
+          "normCode": "16-02-001-01",
+          "name": "Труба стальная Ду50",
+          "unit": "м",
+          "quantity": "120",
+          "unitPrice": "1450.00"
         },
         {
           "id": 2,
-          "name": "Средство для мытья посуды, 5 л",
+          "section": "Отопление",
+          "normCode": "16-02-002-01",
+          "name": "Отвод стальной Ду50",
           "unit": "шт",
-          "quantity": "60",
-          "unitPrice": "640.00"
-        },
-        {
-          "id": 3,
-          "name": "Мешки для мусора 60 л, упаковка 20 шт",
-          "unit": "упак",
-          "quantity": "300",
-          "unitPrice": "95.50"
+          "quantity": "40",
+          "unitPrice": "620.00"
         }
       ],
+      "estimate": {
+        "method": "index",
+        "normativeBase": "FER",
+        "priceLevel": "IV квартал 2026",
+        "legalActId": "minstroy-421pr",
+        "overheadPercent": 12,
+        "profitPercent": 8,
+        "vatPercent": 20,
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
+      "schedule": {
+        "plannedStart": "2027-01-12",
+        "plannedEnd": "2027-03-31",
+        "stages": [
+          {
+            "id": "stage-1",
+            "name": "Демонтаж и подготовка",
+            "startDate": "2027-01-12",
+            "endDate": "2027-02-10",
+            "amount": "100000.00"
+          },
+          {
+            "id": "stage-2",
+            "name": "Монтаж трубопровода",
+            "startDate": "2027-02-11",
+            "endDate": "2027-03-31",
+            "amount": "188562.18"
+          }
+        ],
+        "legalActId": "minstroy-336pr",
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
       "status": "submitted",
       "submittedAt": "2026-11-10",
       "taskId": 13,
@@ -4862,12 +4949,58 @@
       "authorName": "Фомин Игорь Николаевич",
       "structuralUnitId": 12,
       "structuralUnitName": "Экономический отдел",
-      "title": "Оказание услуг по проведению обязательного аудита бухгалтерской отчётности",
-      "okpd2Code": "69.20.10",
-      "okpd2Name": "Услуги в области аудита",
-      "requirements": "Аудиторская организация — член саморегулируемой организации аудиторов, срок действия членства не истекает до подписания аудиторского заключения.",
-      "justification": "Обязательный аудит годовой бухгалтерской отчётности учреждения за 2026 год.",
-      "items": [],
+      "objectName": "Текущий ремонт помещений экономического отдела",
+      "basis": "Дефектный акт № 9 от 12.11.2026",
+      "items": [
+        {
+          "id": 1,
+          "section": "Отделочные работы",
+          "normCode": "15-04-005-01",
+          "name": "Демонтаж старых покрытий стен",
+          "unit": "м²",
+          "quantity": "85",
+          "unitPrice": "350.00"
+        },
+        {
+          "id": 2,
+          "section": "Отделочные работы",
+          "normCode": "15-02-016-01",
+          "name": "Штукатурка стен",
+          "unit": "м²",
+          "quantity": "120",
+          "unitPrice": "480.00"
+        },
+        {
+          "id": 3,
+          "section": "Отделочные работы",
+          "normCode": "15-04-025-01",
+          "name": "Окраска стен водоэмульсионной краской",
+          "unit": "м²",
+          "quantity": "120",
+          "unitPrice": "220.00"
+        }
+      ],
+      "estimate": {
+        "method": "index",
+        "normativeBase": "TER",
+        "priceLevel": "IV квартал 2026",
+        "legalActId": "minstroy-421pr",
+        "overheadPercent": 12,
+        "profitPercent": 8,
+        "vatPercent": 20,
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
+      "schedule": {
+        "plannedStart": "",
+        "plannedEnd": "",
+        "stages": [],
+        "legalActId": "minstroy-336pr",
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
       "status": "draft",
       "submittedAt": "",
       "createdAt": "2026-11-14",
@@ -4880,31 +5013,53 @@
       "authorName": "Егорова Мария Петровна",
       "structuralUnitId": 13,
       "structuralUnitName": "Хозяйственный отдел",
-      "title": "Выполнение работ по замене участков трубопровода системы отопления",
-      "okpd2Code": "43.22.12",
-      "okpd2Name": "Работы по монтажу систем отопления",
-      "requirements": "Работы выполняются в действующем здании без остановки работы отделений, материалы должны иметь сертификаты соответствия.",
-      "justification": "Устранение аварийных участков трубопровода в корпусе 2 по предписанию обслуживающей организации.",
+      "objectName": "Ремонт кровли корпуса 2",
+      "basis": "Дефектный акт № 11 от 05.11.2026",
       "items": [
         {
           "id": 1,
-          "name": "Труба стальная Ду50",
-          "unit": "м",
-          "quantity": "120",
-          "unitPrice": "1450.00"
+          "section": "Кровля",
+          "normCode": "12-01-017-01",
+          "name": "Демонтаж кровельного покрытия",
+          "unit": "м²",
+          "quantity": "180",
+          "unitPrice": "380.00"
         },
         {
           "id": 2,
-          "name": "Отвод стальной Ду50",
-          "unit": "шт",
-          "quantity": "40",
-          "unitPrice": "620.00"
+          "section": "Кровля",
+          "normCode": "12-01-034-02",
+          "name": "Устройство пароизоляции",
+          "unit": "м²",
+          "quantity": "180",
+          "unitPrice": "210.00"
         }
       ],
+      "estimate": {
+        "method": "index",
+        "normativeBase": "FER",
+        "priceLevel": "IV квартал 2026",
+        "legalActId": "minstroy-421pr",
+        "overheadPercent": 12,
+        "profitPercent": 8,
+        "vatPercent": 20,
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
+      "schedule": {
+        "plannedStart": "",
+        "plannedEnd": "",
+        "stages": [],
+        "legalActId": "minstroy-336pr",
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
       "status": "returned",
       "submittedAt": "2026-11-06",
       "reviewedAt": "2026-11-12",
-      "reviewComment": "Уточните объёмы по дефектовке: расход труб не сходится с длиной участков, нужна ведомость работ.",
+      "reviewComment": "Уточните объёмы по дефектовке: расход материалов не сходится с площадью, нужна ведомость работ.",
       "createdAt": "2026-11-05",
       "updatedAt": "2026-11-12"
     },
@@ -4915,14 +5070,13 @@
       "authorName": "Говоров Андрей Николаевич",
       "structuralUnitId": 33,
       "structuralUnitName": "Управление государственных закупок",
-      "title": "Поставка дорожных знаков и барьерных ограждений для участка автомобильной дороги",
-      "okpd2Code": "25.99.29",
-      "okpd2Name": "Изделия прочие из недрагоценных металлов",
-      "requirements": "Знаки дорожные по ГОСТ 32945-2014, ограждения барьерные по ГОСТ 26804-2012, паспорта и сертификаты соответствия на партию.",
-      "justification": "Приведение участка дороги в нормативное состояние по предписанию ГИБДД.",
+      "objectName": "Установка дорожных знаков и барьерных ограждений",
+      "basis": "Дефектный акт № 27 от 20.10.2026",
       "items": [
         {
           "id": 1,
+          "section": "Дорожные знаки",
+          "normCode": "27-03-001-01",
           "name": "Знак дорожный 2.1 «Главная дорога»",
           "unit": "шт",
           "quantity": "18",
@@ -4930,18 +5084,120 @@
         },
         {
           "id": 2,
+          "section": "Ограждения",
+          "normCode": "27-03-012-01",
           "name": "Ограждение барьерное металлическое, 1 м",
           "unit": "м",
           "quantity": "240",
           "unitPrice": "3150.00"
         }
       ],
+      "estimate": {
+        "method": "index",
+        "normativeBase": "FER",
+        "priceLevel": "IV квартал 2026",
+        "legalActId": "minstroy-421pr",
+        "overheadPercent": 12,
+        "profitPercent": 8,
+        "vatPercent": 20,
+        "status": "approved",
+        "approvedAt": "2026-11-03",
+        "approvedBy": "Говоров Андрей Николаевич"
+      },
+      "schedule": {
+        "plannedStart": "2027-04-01",
+        "plannedEnd": "2027-06-30",
+        "stages": [
+          {
+            "id": "stage-1",
+            "name": "Дорожные знаки",
+            "startDate": "2027-04-01",
+            "endDate": "2027-05-15",
+            "amount": "600000.00"
+          },
+          {
+            "id": "stage-2",
+            "name": "Ограждения",
+            "startDate": "2027-05-16",
+            "endDate": "2027-06-30",
+            "amount": "607084.03"
+          }
+        ],
+        "legalActId": "minstroy-336pr",
+        "status": "approved",
+        "approvedAt": "2026-11-03",
+        "approvedBy": "Говоров Андрей Николаевич"
+      },
       "status": "accepted",
       "submittedAt": "2026-10-28",
       "reviewedAt": "2026-11-03",
       "reviewComment": "Позиция включена в проект плана-графика на 2027 год.",
       "createdAt": "2026-10-27",
       "updatedAt": "2026-11-03"
+    },
+    {
+      "organizationId": 2,
+      "authorEmployeeId": 4,
+      "authorName": "Пояркова София Игоревна",
+      "structuralUnitId": 4,
+      "structuralUnitName": "Управление организации закупок",
+      "objectDescriptionId": 2,
+      "objectName": "Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
+      "basis": "Бюджетная смета по КБК 20011000000000000000",
+      "items": [
+        {
+          "section": "",
+          "normCode": "",
+          "name": "Поставка учебной мебели для кабинета информатики",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "12"
+        },
+        {
+          "section": "",
+          "normCode": "",
+          "name": "фцу",
+          "unit": "",
+          "quantity": "3",
+          "unitPrice": "33"
+        }
+      ],
+      "estimate": {
+        "method": "index",
+        "normativeBase": "FER",
+        "priceLevel": "",
+        "legalActId": "order-minfin-158n",
+        "overheadPercent": 12,
+        "profitPercent": 12,
+        "vatPercent": 20,
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
+      "schedule": {
+        "plannedStart": "2026-11-19",
+        "plannedEnd": "2026-12-06",
+        "stages": [
+          {
+            "id": "stage-1",
+            "name": "Прочие работы",
+            "startDate": "2026-11-18",
+            "endDate": "2026-12-05",
+            "amount": "167.09"
+          }
+        ],
+        "legalActId": "minstroy-421pr",
+        "status": "draft",
+        "approvedAt": "",
+        "approvedBy": ""
+      },
+      "status": "submitted",
+      "submittedAt": "2026-11-18",
+      "reviewComment": "",
+      "createdAt": "2026-11-18",
+      "updatedAt": "2026-11-18",
+      "id": 5,
+      "taskId": 14
     }
   ],
   "contractSmpRecords": [
@@ -6898,6 +7154,28 @@
       "comment": "Пакет smp_svedeniya_2026-11-17_0523.csv, подпись smp_svedeniya_2026-11-17_0523.csv.sig, SHA-256 c67d3d985c9de199e5b849844d0f7a8df2ce16f09bbd8ddfa794a0266d0ff50f. Подпись поставлена на рабочем месте, сервером не проверялась.",
       "createdAt": "2026-11-17T05:23",
       "id": 23
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-18T05:19",
+      "id": 24
     }
   ],
   "objectDescriptions": [

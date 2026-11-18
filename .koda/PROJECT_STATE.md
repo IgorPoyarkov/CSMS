@@ -85,9 +85,9 @@ users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отд�
 contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts — удалена
 tasks 13 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
 contractProjects 2 · contractRegistry 6 · contractStages 11 · contractPayments 10
-contractPenalties 5 · contractDeliveries 3 · contractEvents 21 · contractFunctions 5 · legalActs 14
+contractPenalties 5 · contractDeliveries 3 · contractEvents 21 · contractFunctions 5 · legalActs 17
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-purchaseDescriptions 4 · edsCertificates 4 · edsSignatureEvents 19 · okpd2Refs 143
+defectLists 4 · edsCertificates 4 · edsSignatureEvents 19 · okpd2Refs 143
 addressRegions/Municipalities 89/31
 ```
 
@@ -241,58 +241,72 @@ CRUD и хуки `useContractEvents` / `useCreateContractEvent` /
 **Сиды:** контракт 1 — 6 событий (до «начато исполнение»), контракт 2 — 9
 (до «исполнение завершено»), контракт 5 (org6) — 6.
 
-### Описания объектов закупки (`purchaseDescriptions`)
+### Дефектовки и производные документы (`defectLists`)
 
 **Зачем:** Tasks 8 п. 4 — роль «инициатор закупки», работник
-подразделения-заказчика, не входящий в контрактную службу. Он готовит
-описание объекта закупки и смету (дефектовку) в структурированной форме,
-а не на листе А4 и не в Excel, видит только свои документы и направляет
-готовое описание в КС. В КС появляется задача «проверить описание и поставить
-позицию в ПГ» — дальше процесс идёт без инициатора.
+подразделения-заказчика, не входящий в контрактную службу. Он описывает
+не объект закупки целиком (наименование, ОКПД2 и требования уже живут
+в ООЗ — `objectDescriptions`), а **объёмы работ** дефектовкой. Из дефектовки
+вырастают два документа, которые раньше делались в Excel: **проект сметы
+контракта** и **проект календарного графика**. Наименование и ОКПД2 не
+дублируются — есть ссылка `objectDescriptionId`, а `objectName` — снимок
+для печати.
 
 **Роль:** отдельной записи в справочнике нет — роль выводится из состава
-службы, как и остальные роли интерфейса. В `useMyContractRole` добавлены
-`isContractServiceMember` (есть строка в ростере) и `isPurchaseInitiator`
-(работник есть в штатке и в КС не входит). Константы роли —
-`PURCHASE_INITIATOR_ROLE` / `PURCHASE_INITIATOR_ROLE_HINT` в схеме.
+службы. В `useMyContractRole` добавлены `isContractServiceMember`
+(есть строка в ростере либо работник в структурном подразделении службы)
+и `isPurchaseInitiator`. Константы роли — `DEFECT_INITIATOR_ROLE` /
+`DEFECT_INITIATOR_ROLE_HINT` в схеме.
 
-**Файлы:** `src/services/PurchaseDescription/purchaseDescription.schema.ts`
+**Файлы:** `src/services/DefectList/defectList.schema.ts` + `.api.ts`;
+`src/components/DefectList/DefectListsPage.tsx` (+ `.module.scss`) и
+`DefectListModal.tsx` (+ `.module.scss`); роут `/defect-lists` в `App.tsx`,
+ссылки — «Дефектовки» в `Header.tsx` и в разделах на главной (`Main.tsx`).
 
-- `.api.ts`; `src/components/PurchaseDescription/PurchaseDescriptionsPage.tsx`
-  (+ `.module.scss`) и `PurchaseDescriptionModal.tsx` (+ `.module.scss`);
-  роут `/purchase-descriptions` в `App.tsx`, ссылки — «Описания объектов»
-  в `Header.tsx` и в разделах на главной (`Main.tsx`).
+**Схема:** `organizationId`, снимок автора и подразделения, связь с ООЗ
+(`objectDescriptionId`) и цепочкой (`procurementId`, `purchasePlanId`,
+`positionId`), `objectName` (снимок), `basis` (дефектный акт).
+`items[]`: `section` (раздел работ), `normCode` (шифр ГЭСН/ФЕР), `name`,
+`unit`, `quantity`, `unitPrice`. Вложенный `estimate`: метод
+(`resource|index|analog`), нормативная база (`FER|TER|GESN`), `priceLevel`,
+`legalActId` (421/пр), накладные/прибыль/НДС в процентах, статус.
+Вложенный `schedule`: `plannedStart`/`plannedEnd`, `stages[]` (этап, даты,
+сумма), `legalActId` (336/пр), статус. Статус документа —
+`draft | submitted | accepted | returned`, плюс `submittedAt`, `reviewedAt`,
+`reviewComment`, `taskId`.
 
-**Схема:** `organizationId`, снимок автора (`authorEmployeeId`,
-`authorName`, `structuralUnitId/Name`), объект закупки по ПП РФ N 145
-(`title`, `okpd2Code/Name`, `requirements` — ТРУ по п. 7 ПП РФ N 926,
-`justification`), смета `items[]` (`name`, `unit`, `quantity`, `unitPrice`;
-сумма строки и итог считаются на лету), статус
-`draft | submitted | accepted | returned`, `submittedAt`, `reviewedAt`,
-`reviewComment`, `taskId`, зарезервированы `purchasePlanId`/`positionId`.
-Хелперы: `purchaseDescriptionItemAmount`, `purchaseDescriptionTotal`,
-`isPurchaseDescriptionEditable` (только draft/returned),
-`purchaseDescriptionsOfEmployee`, `sortPurchaseDescriptions`, `addDays`.
+**Расчёты:** `defectItemAmount`, `defectDirectCost`,
+`groupDefectItemsBySection` (из разделов строятся и смета, и этапы),
+`computeEstimateTotals` (прямые → накладные → сметная прибыль → НДС),
+`scheduleTotal`, `scheduleDifference`, `buildScheduleStages` (этапы =
+разделы, суммы пропорциональны прямым затратам, последний этап забирает
+округлительный остаток, сроки делятся на периоде), `normalizeEstimate` /
+`normalizeSchedule` (частичные значения формы → полный блок).
 
-**Поведение:** инициатор видит только свои описания, работник КС — все
-описания организации (по задаче их нужно проверять). Фильтр по статусу
-со счётчиками; создание и правка — модалкой, удаление — только черновик.
-«Направить в КС» создаёт задачу в `tasks` (`origin: system`,
-`functionCode: purchase_description`, исполнитель — первая строка ростера:
-руководитель службы или контрактный управляющий, срок +5 дней,
-`assignedBy*` — автор описания) и переводит запись в `submitted`
-с `taskId`. Если руководитель КС не назначен, отправка блокируется
-с объяснением.
+**Нормы в `legalActs`:** `minstroy-421pr` — приказ Минстроя России
+от 04.08.2020 № 421/пр (методика определения сметной стоимости — смета
+контракта); `minstroy-336pr` — приказ Минстроя России от 05.06.2018
+№ 336/пр (методика графика выполнения СМР и графика оплаты). Оба сверены
+с первоисточником, `isVerified: true`.
 
-**Сиды:** org1 — id1 `submitted` (Егорова, Хозяйственный отдел, задача id13),
-id2 `draft` (Фомин, Экономический отдел), id3 `returned` (Егорова, с
-комментарием КС); org6 — id4 `accepted` (Говоров, Управление госзакупок).
-⚠️ В org6 в сиде только один работник (id41, он же руководитель КС), поэтому
-автор описания там — он; в реальности описание готовит подразделение-заказчик.
+**Поведение:** инициатор видит только свои дефектовки, работник КС — все.
+Фильтр по статусу со счётчиками; карточка показывает три итога (прямые
+затраты, проект сметы, проект графика и расхождение). В модалке: выбор ООЗ
+(наименование и ОКПД2 подтягиваются), дефектовка позициями, коэффициенты
+сметы с расчётом итогов, «Сформировать из сметы» для графика.
+«Направить в КС» создаёт задачу (`origin: system`,
+`functionCode: purchase_description`, исполнитель — первая строка ростера,
+срок +5 дней) и переводит запись в `submitted`.
 
-**Осталось:** заполнение `purchasePlanId`/`positionId`, когда КС ставит
-позицию в ПГ; уведомление инициатору о возврате; серверные права
-(сейчас, как и везде, проверка на клиенте).
+**Сиды:** org1 — id1 `submitted` (Егорова, отопление, задача id13),
+id2 `draft` (Фомин, отделочные работы), id3 `returned` (Егорова, кровля,
+комментарий КС); org6 — id4 `accepted` (Говоров, дорожные знаки, смета
+и график утверждены). ⚠️ В org6 в сиде один работник (id41, он же
+руководитель КС), поэтому автор там — он.
+
+**Осталось:** связать принятую дефектовку с позицией ПГ
+(`purchasePlanId`/`positionId`), уведомление инициатору о возврате,
+серверные права, печатные формы сметы (по 421/пр) и графика.
 
 ### Электронная подпись (Eds)
 
@@ -532,8 +546,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 и оценка для `isHead`), `/purchase-plans` (+`/new`, `/:id`, `/:id/edit`),
 `/contract-service`, `/procurement-processing` (+`:id/notice-info`,
 `:id/contract-project`), `/reports/smnp`, `/contract-registry`,
-`/purchase-descriptions` (описания объектов закупки: инициатор видит свои,
-КС — все),
+`/defect-lists` (дефектовки: инициатор видит свои, КС — все; из дефектовки
+собираются проект сметы 421/пр и проект графика 336/пр),
 `/norming-requirements` (WIP — нормирование, чужая работа),
 `/eds/journal` (журнал действий по ЭП), `/eds/diagnostics` (проверка плагина
 КриптоПро, сертификатов и пробной подписи на рабочем месте),
@@ -558,28 +572,26 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 **Общий хук роли** — `src/hooks/useMyContractRole.ts`
 (`{ user, organization, contractService, employee, myRole, isHead }`).
 
-## 7. Результат последней проверки (2026-11-18, описания объектов закупки)
+## 7. Результат последней проверки (2026-11-18, дефектовки)
 
-### Проверка 2026-11-18 (роль «инициатор закупки»)
+### Проверка 2026-11-18 (дефектовки, смета 421/пр, график 336/пр)
 
-- `npx tsc -b --pretty false` — те же **10 ошибок**, все в чужом
-  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`; мои файлы чистые.
-- `npx oxlint src` — **28 warnings, 1 error** (чужая WIP нормирования), как
-  в базовой линии; по `PurchaseDescription/**` и `useMyContractRole.ts`
-  замечаний нет. По пути сняты два замечания React Compiler: `watch` заменён
-  на `useWatch` (watch в рендере не мемоизируется), `new Date()` вынесен
-  на модульный уровень.
-- `npx vite build` — успешно (7.06 s).
-- Смоук json-server (копия `.tmp/db-smoke.json` на :3019):
-  `PATCH /purchaseDescriptions/2` обновил запись; после мутации
-  `purchaseDescriptions` 4, `tasks` 13, `employees` 40,
-  `contractSmpRecords` 23, `purchaseNotes` 4, `contractRegistry` 6 —
-  ничего не вычищено. Ссылки сидов проверены скриптом:
-  `organizationId`/`authorEmployeeId`/`structuralUnitId`/`taskId`
-  существуют.
-- ⚠️ `CurrentTasks.md` в это время переписывался параллельно (появился
-  архитектурный раздел) — правка статуса п. 4 Tasks 8 не легла из-за гонки
-  записи; статус зафиксирован здесь.
+- `npx tsc -b --pretty false` — **0 ошибок** (чужой WIP нормирования закрыт
+  удалённым коммитом `6cc1ee4`).
+- `npx oxlint src` — по `DefectList/**` и `useMyContractRole.ts` замечаний
+  нет; в `App.tsx`/`Header.tsx`/`Main.tsx` остаются только прежние
+  замечания (children-проп, пустой паттерн).
+- `npx vite build` — успешно (6.00 s).
+- Смоук json-server (копия `.tmpcheck/db-smoke.json` на :3021):
+  `GET /defectLists?organizationId=1` → 3; `PATCH /defectLists/2` прошёл,
+  после мутации `defectLists` 4, `tasks` 13, `employees` 40,
+  `contractSmpRecords` 23, `purchaseNotes` 4, `contractRegistry` 6,
+  `objectDescriptions` 3, `legalActs` 17 — ничего не вычищено.
+- Миграция `db.json`: `purchaseDescriptions` удалена, вместо неё
+  `defectLists` (4 записи), добавлены акты 421/пр и 336/пр, задача id13
+  переписана под дефектовку.
+- ⚠️ `CurrentTasks.md` переписывается параллельным агентом — статус
+  Tasks 8 п. 4 зафиксирован здесь.
 
 ### Проверка 2026-11-17 (правка отметок чекпоинтов)
 
@@ -688,12 +700,14 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `EdsJournalPage.tsx` (+ `.module.scss`).
 - **ContractSmp:** `src/services/ContractSmp/deadlines.ts`, `pp1466.ts`,
   `sourceFile.ts`; `src/components/Eis/EisSmpExportPage.tsx` + `.module.scss`.
-- **PurchaseDescription (2026-11-18):** `src/services/PurchaseDescription/`
-  (`purchaseDescription.schema.ts`, `.api.ts`),
-  `src/components/PurchaseDescription/` (`PurchaseDescriptionsPage.tsx`,
-  `PurchaseDescriptionModal.tsx` + два `.module.scss`); правки
-  `useMyContractRole.ts`, `App.tsx`, `Header.tsx`, `Main.tsx`; коллекция
-  `purchaseDescriptions` (4 записи) + задача id13 в `db.json`.
+- **DefectList (2026-11-18):** `src/services/DefectList/`
+  (`defectList.schema.ts`, `.api.ts`), `src/components/DefectList/`
+  (`DefectListsPage.tsx`, `DefectListModal.tsx` + два `.module.scss`);
+  правки `useMyContractRole.ts`, `App.tsx`, `Header.tsx`, `Main.tsx`;
+  коллекция `defectLists` (4 записи), акты `minstroy-421pr` и
+  `minstroy-336pr`, задача id13 в `db.json`. Старая
+  `PurchaseDescription/**` удалена (была промежуточной версией этой же
+  задачи, от которой отказались в пользу дефектовки).
 - **Подгрузка из реестра (2026-11-17):** новых файлов нет — правки
   `contractRegistry.api.ts` (`ContractLookup`, `lookupContractByNumber`,
   `MIN_CONTRACT_NUMBER_LENGTH`), `ContractRegistryPage.tsx` (блок подгрузки,
@@ -752,9 +766,9 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
    чекпоинты `contractEvents` (п. б) уже сделаны — см. §4.
 3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика
    (туда же — замена локальной подгрузки по реестровому номеру на данные ЕИС).
-4. **Доделать описания объектов закупки** (см. §4): связать принятое описание
-   с позицией ПГ (`purchasePlanId`/`positionId`), уведомление инициатору
-   о возврате, перенос проверки прав на сервер.
+4. **Доделать дефектовки** (см. §4): связать принятую дефектовку с позицией
+   ПГ (`purchasePlanId`/`positionId`), уведомление инициатору о возврате,
+   перенос проверки прав на сервер, печатные формы сметы и графика.
 
 **Не трогать:** чужую WIP нормирования (пусть второй агент доделает в GitHub).
 **Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
