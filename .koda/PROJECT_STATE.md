@@ -2,8 +2,9 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-18 (дефектовки + проект сметы 421/пр +
-> проект графика 336/пр; после удалённого коммита восстановлены сиды).
+> Дата последнего обновления: 2026-11-18 (КТРУ, сводная таблица объектов закупки,
+> единый набор характеристик, автонацрежим в СЗ, файл ООЗ в извещении,
+> кастомные чекбоксы/радио).
 
 ## 0. Откуда брать задачи
 
@@ -73,7 +74,7 @@ tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessReque
 contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
 contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 16
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-objectDescriptions 5 · edsCertificates 4 · edsSignatureEvents 4 · okpd2Refs 143 · addressRegions/Municipalities 89/31
+objectDescriptions 5 · edsCertificates 4 · edsSignatureEvents 4 · okpd2Refs 143 · ktruRefs 6 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -514,3 +515,14 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Сиды:** СЗ 1 — 3 КП, все СМП (100% → только СМП); СЗ 2 и 3 — 1 СМП из 4 (25% → привлечение).
 - **Проверки:** `npx tsc -b` — чисто, `npx oxlint src` — 0 ошибок (21 существующее предупреждение), `npx vite build` — успешно; логика проверена скриптом: note 1 → `smp_only` 100%, note 2 → `subcontracting` 25%. Визуальный смоук СЗ № 2 (`/purchase-notes` → «Открыть СЗ», раздел 4): таблица 4 КП (1 «Микропредприятие», 3 «не в реестре»), сводка «СМП: 1 из 4 · 25%», рекомендация «Привлечение СМП/СОНКО — 25%»; после нажатия «Применить рекомендацию» появилось сообщение, в разделе 6 включился чекбокс привлечения субподрядчиков и `25` % (объём при НМЦК 175,50 ₽ — 43,88 ₽).
 - ⚠️ В рабочем дереве остаётся незакоммиченная ветка второго агента (`src/components/VacationSchedule`, `src/services/VacationSchedule`, `seed-vacation-schedule.mjs`, правки `App.tsx`/`Header.tsx`/`Main.tsx`). Её сиды (`vacationSchedules`, `leaves`, `users`, `procurements`, `legalActs`, `edsSignatureEvents`) уже попали в `db.json` при коммите `033bff9` — в сообщении коммита это помечено.
+
+## 17. КТРУ, сводная таблица объектов закупки и кастомные контролы (2026-11-18)
+
+- **Справочник КТРУ:** `src/services/KtruRef/ktruRef.schema.ts` (`KtruRef`, характеристики с `isMandatory`), `.api.ts` (`useKtruDictionary`, `searchKtru`, `findKtruByCode`, `findKtruByOkpd2`), `ktruControl.ts` (`checkKtruUsage`, `ktruRequirements`, `ktruCharacteristicText`). Коллекция `ktruRefs` — 6 позиций для ОКПД2 32.50.13.190, 26.20.11.110, 21.20.10.110, 41.20.40.900, 43.31.10.000. API терпим к отсутствию коллекции: 404 → пустой справочник.
+- **КТРУ в UI:** `src/components/UI/KtruSelect/KtruSelect.tsx` — нативный select, ограниченный позициями выбранного ОКПД2 (выпадающий слой не обрезается таблицей). В извещении и СЗ при коде ОКПД2, который есть в КТРУ, показывается предупреждение ПП РФ № 145: описание строится по позиции каталога; выбор КТРУ подставляет наименование и единицу измерения.
+- **Извещение — объект закупки:** `PurchaseObjectsSection.tsx` перестроен: сверху блок «Позиции ОКПД2 / КТРУ, выбранные заказчиком» (код, КТРУ, наименование, ожидаемый нацрежим), ниже сводная таблица с редактированием и удалением строк, под ней **один** `NormingRequirementsBlock` на всю закупку. Набор характеристик хранится в `purchaseObjects.normingRequirements`; кнопка «Подставить характеристики КТРУ» переносит обязательные характеристики каталога. Старые `items[].normingRequirements` читаются для совместимости.
+- **СЗ — раздел 2:** ООЗ выбирается один раз над таблицей (`objectDescriptionId` СЗ), позиции редактируются в сводной таблице (`items`), удаление доступно в каждой строке. При выборе ОКПД2 национальный режим по ПП РФ № 1875 подставляется автоматически; в извещении он приходит из СЗ, а при пустом значении подставляется по справочнику.
+- **Схемы:** `PurchaseNoteObjectItemSchema` — `ktruCode`/`ktruName`; `PurchaseObjectItemSchema` — `ktruCode`/`ktruName`/`objectDescriptionId`; `purchaseObjects.normingRequirements`; `objectDescription.ktruCode`/`ktruName`. `NoticeInfoForm` при переносе СЗ разделяет ОКПД2 и КТРУ, собирает единый набор характеристик без дублей и подставляет ожидаемый нацрежим.
+- **Файл ООЗ:** `ObjectDescriptionSection` — выбор позиции КТРУ (код ОКПД2 берётся из описания или первой позиции закупки), кнопки «Сформировать файл ООЗ и приложить» и «Прикрепить выбранный файл»; записи попадают в `attachedDocs` с категорией `object_description` и видны в разделе прилагаемых документов.
+- **Кастомные контролы:** `src/components/UI/CustomCheckbox.tsx`, `CustomRadio.tsx`, `ChoiceControl.module.scss` (label + скрытый input + span, совместимы с `register`). Глобальные стили `src/scss/global/_controls.scss` приводят все нативные `input[type=checkbox|radio]` к тому же виду: `appearance:none`, рамка/заливка из ролей темы, галочка SVG-фоном (белая в светлой, тёмная в тёмной), точка радио градиентом, видимый `focus-visible`, disabled.
+- **Проверки:** `npx tsc -b` — чисто; `npx oxlint src` — 0 ошибок (21 существующее предупреждение); `npx vite build` — успешно. Визуальный смоук `/procurement-processing/1/notice-info`: блок выбранных позиций, таблица с ОКПД2/КТРУ, предупреждение КТРУ и аукционного перечня, сводка «ожидается Запрет», единый набор характеристик, формирование файла ООЗ, кастомные радио и чекбоксы. ⚠️ Выпадающий список `Okpd2Select` внутри таблицы обрезался `overflow-x:auto` — контейнеры таблиц переведены на `overflow: visible`.

@@ -1,8 +1,12 @@
+import { Fragment } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import Okpd2Select from "../../UI/Okpd2Select/Okpd2Select";
+import KtruSelect from "../../UI/KtruSelect/KtruSelect";
 import OkeiSelect from "../../UI/OkeiSelect/OkeiSelect";
+import MoneyInput from "../../UI/MoneyInput/MoneyInput";
+import CustomCheckbox from "../../UI/CustomCheckbox";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -17,25 +21,40 @@ import {
   nationalRegimeExpectedLabel,
   validateNationalRegime,
 } from "../../../services/NationalRegime/pp1875";
+import {
+  findKtruByCode,
+  useKtruDictionary,
+} from "../../../services/KtruRef/ktruRef.api";
+import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
+import type { KtruRef } from "../../../services/KtruRef/ktruRef.schema";
+import type { Okpd2Ref } from "../../../services/Okpd2Ref/okpd2Ref.schema";
 import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
-import MoneyInput from "../../UI/MoneyInput/MoneyInput";
 import styles from "../NoticeInfoForm.module.scss";
 
+/**
+ * Объект закупки в извещении.
+ *
+ * Порядок секции повторяет логику заказчика: сначала видно, какие позиции
+ * ОКПД2 / КТРУ он выбрал (блок над таблицей), затем сводная таблица, в которой
+ * позиции можно править и удалять, и один общий набор характеристик.
+ * Национальный режим приходит из служебной записки, но при смене кода
+ * подставляется заново по ПП РФ № 1875.
+ */
 const PurchaseObjectsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue, control } =
     useFormContext<NoticeInfoFormValues>();
 
-  const items = watch("purchaseObjects.items");
+  const items = watch("purchaseObjects.items") ?? [];
   const isIndeterminate = watch("purchaseObjects.isIndeterminateVolume");
   // Подпись главного подписанта опускает контроль нормирования до предупреждения
   const breachSignedBy = watch("normingControl.breachConfirmedByName");
   const isBreachSigned = Boolean(breachSignedBy);
 
-  // Справочник ОКПД2 даёт признак нормирования и предельную цену единицы
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: ktruRefs = [] } = useKtruDictionary();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -60,34 +79,147 @@ const PurchaseObjectsSection = () => {
     setValue(`purchaseObjects.items.${index}.totalPrice`, sum);
   };
 
+  // Выбор ОКПД2: подставляем наименование, национальный режим по ПП 1875
+  // и сбрасываем КТРУ, если оно относится к другому коду
+  const handleSelectOkpd2 = (index: number, item: Okpd2Ref | null) => {
+    const code = item?.code ?? "";
+    setValue(`purchaseObjects.items.${index}.okpd2OrKtruCode`, code, {
+      shouldDirty: true,
+    });
+
+    if (item && !items[index]?.name) {
+      setValue(`purchaseObjects.items.${index}.name`, item.name);
+    }
+
+    const expected = checkOkpd2NationalRegime(code, okpd2Refs);
+    setValue(
+      `purchaseObjects.items.${index}.nationalRegimeType`,
+      expected.regime ?? "none",
+      { shouldDirty: true },
+    );
+
+    const currentKtru = items[index]?.ktruCode;
+    if (currentKtru) {
+      const allowed = ktruRefs.some(
+        (k) => k.ktruCode === currentKtru && k.okpd2Code === code,
+      );
+      if (!allowed) {
+        setValue(`purchaseObjects.items.${index}.ktruCode`, "");
+        setValue(`purchaseObjects.items.${index}.ktruName`, "");
+      }
+    }
+  };
+
+  // Выбор позиции КТРУ: наименование и единица измерения каталога
+  const handleSelectKtru = (index: number, item: KtruRef | null) => {
+    setValue(`purchaseObjects.items.${index}.ktruCode`, item?.ktruCode ?? "", {
+      shouldDirty: true,
+    });
+    setValue(`purchaseObjects.items.${index}.ktruName`, item?.name ?? "", {
+      shouldDirty: true,
+    });
+
+    if (item) {
+      if (!items[index]?.name) {
+        setValue(`purchaseObjects.items.${index}.name`, item.name);
+      }
+      if (item.unit && !items[index]?.unit) {
+        setValue(`purchaseObjects.items.${index}.unit`, item.unit);
+      }
+    }
+  };
+
   return (
     <section className={block("section")}>
       <h2 className={block("section-title")}>Объект закупки</h2>
 
+      {/* Выбранные позиции ОКПД2 / КТРУ — над остальными полями, чтобы было
+          видно, что именно выбрал заказчик */}
+      <div className={block("object-selection")}>
+        <span className={block("caption")}>
+          Позиции ОКПД2 / КТРУ, выбранные заказчиком
+        </span>
+        {items.length === 0 ? (
+          <span className={block("muted")}>
+            Позиции не выбраны — добавьте товар, работу или услугу в таблице.
+          </span>
+        ) : (
+          <ul className={block("selection-list")}>
+            {items.map((item, index) => {
+              const regime = checkOkpd2NationalRegime(
+                item.okpd2OrKtruCode,
+                okpd2Refs,
+              );
+              const ktru = findKtruByCode(ktruRefs, item.ktruCode);
+
+              return (
+                <li
+                  key={`selection-${index}`}
+                  className={block("selection-item")}
+                >
+                  <span className={block("selection-code")}>
+                    {item.okpd2OrKtruCode || "ОКПД2 не выбран"}
+                  </span>
+                  {item.ktruCode && (
+                    <span className={block("selection-ktru")}>
+                      КТРУ {item.ktruCode}
+                      {ktru ? ` — ${ktru.name}` : ""}
+                    </span>
+                  )}
+                  <span className={block("selection-name")}>
+                    {item.name || "Наименование не заполнено"}
+                  </span>
+                  {regime.regime && (
+                    <span className={block("selection-regime")}>
+                      {regime.regime === "ban"
+                        ? "запрет (ПП РФ № 1875, прил. № 1)"
+                        : "ограничение (ПП РФ № 1875, прил. № 2)"}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* Предупреждения КТРУ: позиция есть в каталоге — характеристики
+            берутся из КТРУ (ПП РФ № 145) */}
+        {items.map((item, index) => {
+          const ktruIssue = checkKtruUsage(
+            ktruRefs,
+            item.okpd2OrKtruCode,
+            item.ktruCode,
+          );
+          if (!ktruIssue) return null;
+
+          return (
+            <span
+              key={`ktru-issue-${index}`}
+              className={block(
+                ktruIssue.level === "error" ? "red-note" : "yellow-warning",
+              )}
+            >
+              {ktruIssue.level === "warning" && (
+                <span className={block("warning-badge")}>!</span>
+              )}
+              <span>{ktruIssue.message}</span>
+            </span>
+          );
+        })}
+      </div>
+
       <div className={block("form-grid")}>
         <div className={block("row", ["single"])}>
           <div className={block("field-col")}>
-            <label className={block("checkbox")}>
-              <input
-                type="checkbox"
-                {...register("purchaseObjects.isMedicines")}
-              />
-              <span>
-                Лекарственные препараты (признак устанавливается только при
-                закупке лекарственных препаратов)
-              </span>
-            </label>
+            <CustomCheckbox
+              label="Лекарственные препараты (признак устанавливается только при закупке лекарственных препаратов)"
+              {...register("purchaseObjects.isMedicines")}
+            />
 
-            <label className={block("checkbox")}>
-              <input
-                type="checkbox"
-                {...register("purchaseObjects.isIndeterminateVolume")}
-              />
-              <span>
-                Невозможно определить количество (объем) закупаемых товаров,
-                работ, услуг
-              </span>
-            </label>
+            <CustomCheckbox
+              label="Невозможно определить количество (объем) закупаемых товаров, работ, услуг"
+              {...register("purchaseObjects.isIndeterminateVolume")}
+            />
           </div>
         </div>
 
@@ -101,6 +233,8 @@ const PurchaseObjectsSection = () => {
                   append({
                     id: String(Date.now()),
                     okpd2OrKtruCode: "",
+                    ktruCode: "",
+                    ktruName: "",
                     name: "",
                     unit: "Условная единица",
                     quantity: 1,
@@ -126,251 +260,284 @@ const PurchaseObjectsSection = () => {
               </span>
             </div>
 
-            {fields.map((field, index) => {
-              const currentQty = items[index]?.quantity || 0;
-              const currentPrice = items[index]?.unitPrice || 0;
-              // Позиция подпадает под нормирование и её цена за единицу
-              // сравнивается с предельной ценой (ПП РФ N 926)
-              const normedRef = findOkpd2ByCode(
-                okpd2Refs,
-                items[index]?.okpd2OrKtruCode,
-              );
-              const violation = normingViolation(
-                {
-                  code: items[index]?.okpd2OrKtruCode,
-                  unitPrice: items[index]?.unitPrice,
-                },
-                okpd2Refs,
-              );
-              const auctionCheck = checkOkpd2AuctionList(
-                items[index]?.okpd2OrKtruCode,
-                okpd2Refs,
-              );
-              const regimeCheck = checkOkpd2NationalRegime(
-                items[index]?.okpd2OrKtruCode,
-                okpd2Refs,
-              );
-              const regimeIssue = nationalRegimeValidation.issues.find(
-                (issue) => issue.code === regimeCheck.code,
-              );
+            {/* Сводная таблица позиций: редактирование и удаление на месте */}
+            <div className={block("positions-table-wrap")}>
+              <table className={block("positions-table")}>
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>ОКПД2 / КТРУ</th>
+                    <th>Наименование</th>
+                    <th>Ед. изм.</th>
+                    <th>Кол-во</th>
+                    <th>Цена за ед., руб.</th>
+                    <th>Стоимость, руб.</th>
+                    <th>Нац. режим</th>
+                    <th aria-label="Действия" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field, index) => {
+                    const currentQty = items[index]?.quantity || 0;
+                    const currentPrice = items[index]?.unitPrice || 0;
+                    const normedRef = findOkpd2ByCode(
+                      okpd2Refs,
+                      items[index]?.okpd2OrKtruCode,
+                    );
+                    const violation = normingViolation(
+                      {
+                        code: items[index]?.okpd2OrKtruCode,
+                        unitPrice: items[index]?.unitPrice,
+                      },
+                      okpd2Refs,
+                    );
+                    const auctionCheck = checkOkpd2AuctionList(
+                      items[index]?.okpd2OrKtruCode,
+                      okpd2Refs,
+                    );
+                    const regimeCheck = checkOkpd2NationalRegime(
+                      items[index]?.okpd2OrKtruCode,
+                      okpd2Refs,
+                    );
+                    const regimeIssue = nationalRegimeValidation.issues.find(
+                      (issue) => issue.code === regimeCheck.code,
+                    );
+                    const ktruIssue = checkKtruUsage(
+                      ktruRefs,
+                      items[index]?.okpd2OrKtruCode,
+                      items[index]?.ktruCode,
+                    );
 
-              return (
-                <div key={field.id} className={block("sub-box")}>
-                  <div className={block("object-grid")}>
-                    <div>
-                      <span className={block("caption")}>
-                        Код позиции (ОКПД2 / КТРУ)
-                      </span>
-                      {/* Код выбирается из справочника ОКПД2 с поиском по коду
-                          и наименованию; наименование подставляется в позицию */}
-                      <Okpd2Select
-                        code={items[index]?.okpd2OrKtruCode}
-                        name={items[index]?.name}
-                        onSelect={(item) => {
-                          setValue(
-                            `purchaseObjects.items.${index}.okpd2OrKtruCode`,
-                            item?.code ?? "",
-                          );
+                    const hasWarnings = Boolean(
+                      normedRef?.isNormed ||
+                      auctionCheck.inAuctionList ||
+                      regimeIssue ||
+                      ktruIssue ||
+                      violation,
+                    );
 
-                          if (item && !items[index]?.name) {
-                            setValue(
-                              `purchaseObjects.items.${index}.name`,
-                              item.name,
-                            );
-                          }
-                        }}
-                      />
-                      {normedRef?.isNormed && (
-                        <span className={block("yellow-warning")}>
-                          <span className={block("warning-badge")}>!</span>
-                          <span>
-                            Код {normedRef.code} подлежит обязательному
-                            нормированию.
-                            {normedRef.normLimit !== undefined
-                              ? ` Предельная цена единицы — ${formatRub(normedRef.normLimit)}.`
-                              : " Предельная цена единицы устанавливается правовым актом о нормировании."}
-                          </span>
-                        </span>
-                      )}
-                      {auctionCheck.inAuctionList && (
-                        <span className={block("yellow-warning")}>
-                          <span className={block("warning-badge")}>!</span>
-                          <span>
-                            Аукционный перечень (РП РФ № 471-р): для кода{" "}
-                            {auctionCheck.code} обязателен электронный аукцион
-                            (кроме котировок / ед. поставщика).
-                          </span>
-                        </span>
-                      )}
-                      {regimeCheck.regime && (
-                        <span className={block("yellow-warning")}>
-                          <span className={block("warning-badge")}>!</span>
-                          <span>
-                            ПП РФ № 1875:{" "}
-                            {regimeCheck.regime === "ban"
-                              ? "запрет (приложение № 1)"
-                              : "ограничение (приложение № 2)"}
-                            {regimeCheck.groupLabel
-                              ? ` — ${regimeCheck.groupLabel}`
-                              : ""}
-                            .
-                          </span>
-                        </span>
-                      )}
-                    </div>
+                    return (
+                      <Fragment key={field.id}>
+                        <tr>
+                          <td className={block("positions-index")}>
+                            {index + 1}
+                          </td>
+                          <td className={block("positions-code-cell")}>
+                            <Okpd2Select
+                              code={items[index]?.okpd2OrKtruCode}
+                              name={items[index]?.name}
+                              onSelect={(item) =>
+                                handleSelectOkpd2(index, item)
+                              }
+                            />
+                            <KtruSelect
+                              className={block("select")}
+                              okpd2Code={items[index]?.okpd2OrKtruCode}
+                              ktruCode={items[index]?.ktruCode}
+                              onSelect={(item) => handleSelectKtru(index, item)}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              placeholder="Наименование позиции"
+                              className={block("input")}
+                              {...register(
+                                `purchaseObjects.items.${index}.name`,
+                              )}
+                            />
+                          </td>
+                          <td>
+                            <OkeiSelect
+                              compact
+                              value={items[index]?.unit ?? ""}
+                              valueMode="name"
+                              placeholder="Ед. по ОКЕИ…"
+                              onChange={(nextUnit) =>
+                                setValue(
+                                  `purchaseObjects.items.${index}.unit`,
+                                  nextUnit,
+                                  { shouldDirty: true },
+                                )
+                              }
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              step="any"
+                              disabled={isIndeterminate}
+                              className={block("input")}
+                              {...register(
+                                `purchaseObjects.items.${index}.quantity`,
+                                {
+                                  valueAsNumber: true,
+                                  onChange: (e) =>
+                                    handleRecalcRow(
+                                      index,
+                                      Number(e.target.value) || 0,
+                                      currentPrice,
+                                    ),
+                                },
+                              )}
+                            />
+                          </td>
+                          <td>
+                            <MoneyInput
+                              className={block(
+                                "input",
+                                violation && !isBreachSigned ? ["invalid"] : [],
+                              )}
+                              value={items[index]?.unitPrice}
+                              ariaLabel={`Цена за единицу, позиция ${index + 1}`}
+                              onChange={(next) => {
+                                setValue(
+                                  `purchaseObjects.items.${index}.unitPrice`,
+                                  next,
+                                  { shouldDirty: true },
+                                );
+                                handleRecalcRow(index, currentQty, next);
+                              }}
+                            />
+                          </td>
+                          <td>
+                            <MoneyInput
+                              className={block("input")}
+                              value={items[index]?.totalPrice}
+                              readOnly
+                              ariaLabel={`Стоимость, позиция ${index + 1}`}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className={block("select")}
+                              {...register(
+                                `purchaseObjects.items.${index}.nationalRegimeType`,
+                              )}
+                            >
+                              {NATIONAL_REGIME_OPTIONS.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {regimeCheck.regime && (
+                              <span className={block("caption")}>
+                                ПП РФ № 1875:{" "}
+                                {regimeCheck.regime === "ban"
+                                  ? "запрет"
+                                  : "ограничение"}
+                                {regimeCheck.groupLabel
+                                  ? ` — ${regimeCheck.groupLabel}`
+                                  : ""}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className={block("small-btn", ["danger"])}
+                              onClick={() => remove(index)}
+                            >
+                              Удалить
+                            </button>
+                          </td>
+                        </tr>
 
-                    <div>
-                      <span className={block("caption")}>
-                        Наименование товара, работы, услуги
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="Наименование позиции"
-                        className={block("input")}
-                        {...register(`purchaseObjects.items.${index}.name`)}
-                      />
-                    </div>
-                    <div>
-                      <span className={block("caption")}>Ед. изм.</span>
-                      <OkeiSelect
-                        compact
-                        value={items[index]?.unit ?? ""}
-                        valueMode="name"
-                        placeholder="Ед. по ОКЕИ…"
-                        onChange={(nextUnit) =>
-                          setValue(
-                            `purchaseObjects.items.${index}.unit`,
-                            nextUnit,
-                            { shouldDirty: true },
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <span className={block("caption")}>
-                        {isIndeterminate ? "Объем (не опр.)" : "Количество"}
-                      </span>
-                      <input
-                        type="number"
-                        step="any"
-                        disabled={isIndeterminate}
-                        className={block("input")}
-                        {...register(
-                          `purchaseObjects.items.${index}.quantity`,
-                          {
-                            valueAsNumber: true,
-                            onChange: (e) =>
-                              handleRecalcRow(
-                                index,
-                                Number(e.target.value) || 0,
-                                currentPrice,
-                              ),
-                          },
+                        {hasWarnings && (
+                          <tr>
+                            <td
+                              colSpan={9}
+                              className={block("positions-warnings")}
+                            >
+                              {normedRef?.isNormed && (
+                                <span className={block("yellow-warning")}>
+                                  <span className={block("warning-badge")}>
+                                    !
+                                  </span>
+                                  <span>
+                                    Код {normedRef.code} подлежит обязательному
+                                    нормированию.
+                                    {normedRef.normLimit !== undefined
+                                      ? ` Предельная цена единицы — ${formatRub(normedRef.normLimit)}.`
+                                      : " Предельная цена единицы устанавливается правовым актом о нормировании."}
+                                  </span>
+                                </span>
+                              )}
+                              {auctionCheck.inAuctionList && (
+                                <span className={block("yellow-warning")}>
+                                  <span className={block("warning-badge")}>
+                                    !
+                                  </span>
+                                  <span>
+                                    Аукционный перечень (РП РФ № 471-р): для
+                                    кода {auctionCheck.code} обязателен
+                                    электронный аукцион (кроме котировок / ед.
+                                    поставщика).
+                                  </span>
+                                </span>
+                              )}
+                              {ktruIssue && (
+                                <span
+                                  className={block(
+                                    ktruIssue.level === "error"
+                                      ? "red-note"
+                                      : "yellow-warning",
+                                  )}
+                                >
+                                  {ktruIssue.level === "warning" && (
+                                    <span className={block("warning-badge")}>
+                                      !
+                                    </span>
+                                  )}
+                                  <span>{ktruIssue.message}</span>
+                                </span>
+                              )}
+                              {regimeIssue && (
+                                <span
+                                  className={block(
+                                    regimeIssue.level === "error"
+                                      ? "red-note"
+                                      : "yellow-warning",
+                                  )}
+                                >
+                                  {regimeIssue.message}
+                                </span>
+                              )}
+                              {violation &&
+                                (isBreachSigned ? (
+                                  <span className={block("yellow-warning")}>
+                                    <span className={block("warning-badge")}>
+                                      !
+                                    </span>
+                                    <span>
+                                      Предельная цена превышена на{" "}
+                                      {formatRub(violation.excess)}, нарушение
+                                      принято главным подписантом.
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className={block("red-note")}>
+                                    Так делать нельзя: цена за единицу{" "}
+                                    {formatRub(violation.unitPrice)} превышает
+                                    предельную {formatRub(violation.normLimit)}{" "}
+                                    (ПП РФ N 926). Сохранение извещения
+                                    заблокировано до подписи главного
+                                    подписанта.
+                                  </span>
+                                ))}
+                            </td>
+                          </tr>
                         )}
-                      />
-                    </div>
-                    <div>
-                      <span className={block("caption")}>
-                        Цена за ед., руб.
-                      </span>
-                      {/* Цена единицы нормируемой позиции сверх предельной —
-                          ошибка; она гасится только подписью главного подписанта */}
-                      <MoneyInput
-                        className={block(
-                          "input",
-                          violation && !isBreachSigned ? ["invalid"] : [],
-                        )}
-                        value={items[index]?.unitPrice}
-                        ariaLabel={`Цена за единицу, позиция ${index + 1}`}
-                        onChange={(next) => {
-                          setValue(
-                            `purchaseObjects.items.${index}.unitPrice`,
-                            next,
-                            { shouldDirty: true },
-                          );
-                          handleRecalcRow(index, currentQty, next);
-                        }}
-                      />
-                      {violation &&
-                        (isBreachSigned ? (
-                          <span className={block("yellow-warning")}>
-                            <span className={block("warning-badge")}>!</span>
-                            <span>
-                              Предельная цена превышена на{" "}
-                              {formatRub(violation.excess)}, нарушение принято
-                              главным подписантом.
-                            </span>
-                          </span>
-                        ) : (
-                          <span className={block("red-note")}>
-                            Так делать нельзя: цена за единицу{" "}
-                            {formatRub(violation.unitPrice)} превышает
-                            предельную {formatRub(violation.normLimit)} (ПП РФ N
-                            926). Сохранение извещения заблокировано до подписи
-                            главного подписанта.
-                          </span>
-                        ))}
-                    </div>
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                    <div>
-                      <span className={block("caption")}>Стоимость, руб.</span>
-                      <MoneyInput
-                        className={block("input")}
-                        value={items[index]?.totalPrice}
-                        readOnly
-                        ariaLabel={`Стоимость, позиция ${index + 1}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={block("inline-group")}>
-                    <span className={block("caption")}>
-                      Нац. режим (ст. 14 44-ФЗ):
-                    </span>
-                    <select
-                      className={block("select")}
-                      {...register(
-                        `purchaseObjects.items.${index}.nationalRegimeType`,
-                      )}
-                    >
-                      {NATIONAL_REGIME_OPTIONS.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      type="button"
-                      className={block("small-btn", ["danger"])}
-                      onClick={() => remove(index)}
-                    >
-                      Удалить позицию
-                    </button>
-                  </div>
-
-                  {regimeIssue && (
-                    <span
-                      className={block(
-                        regimeIssue.level === "error"
-                          ? "red-note"
-                          : regimeIssue.level === "warning"
-                            ? "yellow-warning"
-                            : "muted",
-                      )}
-                    >
-                      {regimeIssue.message}
-                    </span>
-                  )}
-
-                  {/* Типовые требования по п. 7 ПП 926 для нормируемых позиций */}
-                  <NormingRequirementsBlock
-                    index={index}
-                    okpd2OrKtruCode={items[index]?.okpd2OrKtruCode}
-                  />
-                </div>
-              );
-            })}
+            {/* Один набор характеристик на всю закупку */}
+            <NormingRequirementsBlock />
 
             {/* Сводка по национальному режиму (ПП РФ N 1875) */}
             {nationalRegimeValidation.expectedMode && (

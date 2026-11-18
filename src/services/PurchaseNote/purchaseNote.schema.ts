@@ -87,6 +87,10 @@ export const PurchaseNoteObjectItemSchema = z.object({
   name: z.string().trim().min(1, "Укажите наименование объекта закупки"),
   okpd2Code: z.string().optional(),
   okpd2Name: z.string().optional(),
+  // Позиция КТРУ, если код ОКПД2 присутствует в каталоге (ПП РФ № 145):
+  // наименование, единица измерения и характеристики берутся из каталога
+  ktruCode: z.string().optional(),
+  ktruName: z.string().optional(),
   unit: z.string().optional(),
   quantity: z.string().optional(),
   unitPrice: optionalMoney(),
@@ -497,6 +501,8 @@ export const emptyPurchaseNote = (
       name: "",
       okpd2Code: "",
       okpd2Name: "",
+      ktruCode: "",
+      ktruName: "",
       unit: "",
       quantity: "1",
       unitPrice: "",

@@ -662,7 +662,24 @@
       "responsiblePhone": "+7 (499) 123-45-68",
       "budgetLevel": "regional",
       "registryNumber": "03772000001",
-      "isActive": true
+      "isActive": true,
+      "procurementRequisites": {
+        "securityRequisites": {
+          "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+          "recipientInn": "7701234567",
+          "recipientKpp": "770101001"
+        },
+        "budgetPart13Art44Requisites": {
+          "recipientInn": "7701234567",
+          "recipientKpp": "770101001",
+          "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»"
+        },
+        "defaultApplicationSecurityOrder": "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+        "defaultContractSecurityOrder": "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+        "defaultWarrantySecurityOrder": "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+        "updatedAt": "2026-11-18",
+        "updatedByName": "Иванова Анна Сергеевна"
+      }
     },
     {
       "id": 2,
@@ -5133,12 +5150,12 @@
       "quantity": "1",
       "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
       "nmckRequestStatus": "none",
-      "placingWayCode": "OKP20",
+      "placingWayCode": "EA20",
       "procurementType": "Прочее",
-      "hasAdvance": false,
+      "hasAdvance": true,
       "advancePercent": "",
-      "requiresTreasurySupport": false,
-      "treasurySupportType": "",
+      "requiresTreasurySupport": true,
+      "treasurySupportType": "full",
       "requiresBankSupport": false,
       "deliveryTermMode": "relative",
       "deliveryStartOffsetDays": 0,
@@ -5153,17 +5170,17 @@
         {
           "id": "1",
           "country": "Российская Федерация",
-          "region": "",
+          "region": "Курганская обл",
           "municipality": "",
-          "settlement": "",
-          "address": "",
-          "additionalInfo": ""
+          "settlement": "Курск",
+          "address": "ул. Энгельса, д. 115/4",
+          "additionalInfo": "ул. Энгельса, д. 115/4"
         }
       ],
-      "deliveryPlace": "Российская Федерация",
+      "deliveryPlace": "Российская Федерация, Курганская обл, Курск, ул. Энгельса, д. 115/4, ул. Энгельса, д. 115/4",
       "nationalRegimeType": "none",
-      "advantageSmpPart3Art30": false,
-      "requiresSmpSubcontracting": true,
+      "advantageSmpPart3Art30": true,
+      "requiresSmpSubcontracting": false,
       "unifiedRequirementsPart1Art31": true,
       "unifiedRequirementsPart1Art31Text": "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
       "requirementP1Part1Art31": false,
@@ -9502,6 +9519,305 @@
       "note": "",
       "createdAt": "2026-11-18",
       "id": 4
+    },
+    {
+      "organizationId": 1,
+      "year": 2027,
+      "status": "draft",
+      "rows": [
+        {
+          "id": "row-1795015850939-822",
+          "employeeId": 6,
+          "employeeName": "Иванова Анна Сергеевна",
+          "position": "Начальник отдела закупок",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-589",
+          "employeeId": 7,
+          "employeeName": "Петров Сергей Николаевич",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-876",
+          "employeeId": 8,
+          "employeeName": "Сидорова Мария Ивановна",
+          "position": "Юрисконсульт",
+          "structuralUnitName": "Правовое управление",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-379",
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-141",
+          "employeeId": 14,
+          "employeeName": "Эпинцев Виталий Александрович",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-227",
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-754",
+          "employeeId": 16,
+          "employeeName": "Фомин Игорь Николаевич",
+          "position": "Экономист по планированию закупок",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-188",
+          "employeeId": 17,
+          "employeeName": "Егорова Мария Петровна",
+          "position": "Заведующий хозяйством",
+          "structuralUnitName": "Хозяйственный отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-952",
+          "employeeId": 36,
+          "employeeName": "Козлова Мария Дмитриевна",
+          "position": "Специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795015850939-451",
+          "employeeId": 37,
+          "employeeName": "Никитин Игорь Павлович",
+          "position": "Экономист по расчёту НМЦК",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-18",
+      "id": 5
+    }
+  ],
+  "ktruRefs": [
+    {
+      "id": 1,
+      "ktruCode": "32.50.13.190-00000001",
+      "okpd2Code": "32.50.13.190",
+      "name": "Шприц инъекционный однократного применения",
+      "unit": "Штука",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-1-1",
+          "name": "Объём шприца",
+          "unit": "мл",
+          "valueType": "exact",
+          "valueText": "5",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-1-2",
+          "name": "Наличие иглы в комплекте",
+          "valueType": "enum",
+          "valueText": "да; нет",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-1-3",
+          "name": "Стерильность",
+          "valueType": "exact",
+          "valueText": "стерильно",
+          "isMandatory": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "ktruCode": "32.50.13.190-00000002",
+      "okpd2Code": "32.50.13.190",
+      "name": "Шприц инъекционный с иглой защищённой",
+      "unit": "Штука",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-2-1",
+          "name": "Объём шприца",
+          "unit": "мл",
+          "valueType": "min",
+          "minValue": "1",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-2-2",
+          "name": "Защита иглы после инъекции",
+          "valueType": "exact",
+          "valueText": "автоматическая",
+          "isMandatory": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "ktruCode": "26.20.11.110-00000001",
+      "okpd2Code": "26.20.11.110",
+      "name": "Ноутбук персональный",
+      "unit": "Штука",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-3-1",
+          "name": "Тип процессора",
+          "valueType": "text",
+          "valueText": "не ниже 4 ядер, 2,4 ГГц",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-3-2",
+          "name": "Объём оперативной памяти",
+          "unit": "Гбайт",
+          "valueType": "min",
+          "minValue": "16",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-3-3",
+          "name": "Диагональ экрана",
+          "unit": "дюйм",
+          "valueType": "range",
+          "minValue": "14",
+          "maxValue": "16",
+          "isMandatory": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "ktruCode": "21.20.10.110-00000001",
+      "okpd2Code": "21.20.10.110",
+      "name": "Препарат лекарственный для медицинского применения",
+      "unit": "Упаковка",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-4-1",
+          "name": "Международное непатентованное наименование",
+          "valueType": "text",
+          "valueText": "",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-4-2",
+          "name": "Дозировка",
+          "valueType": "text",
+          "valueText": "",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-4-3",
+          "name": "Количество единиц в упаковке",
+          "unit": "шт.",
+          "valueType": "min",
+          "minValue": "1",
+          "isMandatory": true
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "ktruCode": "41.20.40.900-00000001",
+      "okpd2Code": "41.20.40.900",
+      "name": "Работы строительные по возведению нежилых зданий и сооружений",
+      "unit": "Рубль",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-5-1",
+          "name": "Состав и объём работ",
+          "valueType": "text",
+          "valueText": "определяется проектной документацией",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-5-2",
+          "name": "Срок выполнения работ",
+          "valueType": "text",
+          "valueText": "",
+          "isMandatory": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "ktruCode": "43.31.10.000-00000001",
+      "okpd2Code": "43.31.10.000",
+      "name": "Работы штукатурные",
+      "unit": "Рубль",
+      "legalActId": "pp-145",
+      "characteristics": [
+        {
+          "id": "ktru-6-1",
+          "name": "Толщина штукатурного слоя",
+          "unit": "мм",
+          "valueType": "range",
+          "minValue": "5",
+          "maxValue": "30",
+          "isMandatory": true
+        },
+        {
+          "id": "ktru-6-2",
+          "name": "Материал отделки",
+          "valueType": "text",
+          "valueText": "",
+          "isMandatory": false
+        }
+      ]
     }
   ]
 }

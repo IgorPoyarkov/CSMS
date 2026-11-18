@@ -1,0 +1,74 @@
+// Единый кастомный вид чекбоксов и радиокнопок во всём проекте.
+//
+// Компонент ChoiceControl (label + span) используется в новых формах, но в
+// старых остались нативные input. Здесь они приводятся к тому же виду:
+// appearance:none убирает системный контрол, рамка и заливка берутся из ролей
+// темы, галочка рисуется SVG-фоном (работает и в Firefox, где псевдоэлементы
+// на input не поддерживаются), точка радиокнопки — радиальным градиентом.
+input[type="checkbox"],
+input[type="radio"] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0 0.4rem 0 0;
+  padding: 0;
+  vertical-align: middle;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--surface-field);
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 1px solid var(--field-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:hover,
+input[type="radio"]:hover {
+  border-color: var(--accent);
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+}
+
+// Белая галочка для светлой темы (accent-emphasis = тёмно-зелёный)
+input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10' viewBox='0 0 12 10'%3E%3Cpath d='M1 5.2 4.2 8.4 11 1.6' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+// Тёмная галочка для тёмной темы (accent-emphasis = светло-мятный)
+[data-theme="dark"] input[type="checkbox"]:checked {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10' viewBox='0 0 12 10'%3E%3Cpath d='M1 5.2 4.2 8.4 11 1.6' fill='none' stroke='%23051f20' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+// Точка радиокнопки
+input[type="radio"]:checked {
+  background-image: radial-gradient(
+    circle,
+    var(--text-on-accent) 0 3.5px,
+    transparent 4px
+  );
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

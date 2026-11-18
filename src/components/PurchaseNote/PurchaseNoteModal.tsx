@@ -20,8 +20,10 @@ import {
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
+import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import MoneyInput from "../UI/MoneyInput/MoneyInput";
+import CustomCheckbox from "../UI/CustomCheckbox";
 import AddressCascade from "../UI/AddressCascade/AddressCascade";
 import SecurityRequisitesFields from "./SecurityRequisitesFields";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
@@ -108,6 +110,10 @@ import {
   type Criterion,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
+import { useKtruDictionary } from "../../services/KtruRef/ktruRef.api";
+import { checkKtruUsage } from "../../services/KtruRef/ktruControl";
+import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
+import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import {
   NATIONAL_REGIME_OPTIONS,
   PLACING_WAYS_ALL,
@@ -183,6 +189,7 @@ export default function PurchaseNoteModal({
   const { data: orgEmployees = [] } =
     useFetchOrganizationEmployees(organizationId);
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: ktruRefs = [] } = useKtruDictionary();
   const { data: allObjectDescriptions = [] } =
     useOrganizationObjectDescriptions(organizationId);
   const { data: contractRegistryItems = [] } =
@@ -277,6 +284,8 @@ export default function PurchaseNoteModal({
                 name: note.subject || position.objectOfPurchase || "",
                 okpd2Code: note.okpd2Code || position.okpd2Code || "",
                 okpd2Name: note.okpd2Name || position.okpd2Name || "",
+                ktruCode: "",
+                ktruName: "",
                 unit: note.unit || "",
                 quantity: note.isIndeterminateVolume
                   ? "1"
@@ -369,11 +378,19 @@ export default function PurchaseNoteModal({
           name: position.objectOfPurchase || autoMatchedDesc?.title || "",
           okpd2Code: position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
           okpd2Name: position.okpd2Name || autoMatchedDesc?.okpd2Name || "",
+          ktruCode: autoMatchedDesc?.ktruCode ?? "",
+          ktruName: "",
           unit: autoMatchedDesc?.unit || "",
           quantity: firstQty,
           unitPrice: "",
           totalPrice: String(position.amountTotal ?? ""),
-          nationalRegimeType: "none",
+          // Национальный режим ставится по умолчанию по ПП РФ № 1875:
+          // на этапе служебной записки заказчик уже видит ожидаемый режим
+          nationalRegimeType:
+            checkOkpd2NationalRegime(
+              position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
+              okpd2Refs,
+            ).regime ?? "none",
           isSupplyDuringWorks: false,
         },
       ],
@@ -497,6 +514,13 @@ export default function PurchaseNoteModal({
   // пользователь не выбрал его, способ считается незаданным
   const watchedPlacingWay = watch("placingWayCode") ?? "";
   const watchedItems = (watch("items") ?? []) as PurchaseNoteObjectItem[];
+  const watchedOozId = watch("objectDescriptionId");
+  const selectedOoz = objectDescriptions.find(
+    (desc) =>
+      watchedOozId !== null &&
+      watchedOozId !== undefined &&
+      String(desc.id) === String(watchedOozId),
+  );
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     watchedPlacingWay,
     watchedItems.map((item) => ({
@@ -658,31 +682,81 @@ export default function PurchaseNoteModal({
     }
   };
 
-  // Привязка структурированного ООЗ к конкретному объекту закупки
-  const handleSelectItemOoz = (index: number, selectedId: string) => {
+  // Единое структурированное ООЗ на служебную записку: набор характеристик
+  // в СЗ один, поэтому ООЗ выбирается над таблицей позиций, а не в каждой
+  // строке. Первая позиция подтягивает реквизиты из описания.
+  const handleSelectNoteOoz = (selectedId: string) => {
     if (isReadOnly) return;
-    setValue(`items.${index}.objectDescriptionId`, selectedId || undefined);
+    setValue("objectDescriptionId", selectedId || undefined);
+    setValue("items.0.objectDescriptionId", selectedId || undefined);
     const found = objectDescriptions.find(
       (desc) => String(desc.id) === selectedId,
     );
     if (!found) return;
 
-    setValue(`items.${index}.name`, found.title);
-    if (found.okpd2Code) setValue(`items.${index}.okpd2Code`, found.okpd2Code);
-    if (found.okpd2Name) setValue(`items.${index}.okpd2Name`, found.okpd2Name);
-    if (found.unit) setValue(`items.${index}.unit`, found.unit);
+    setValue("items.0.name", found.title);
+    if (found.okpd2Code) {
+      setValue("items.0.okpd2Code", found.okpd2Code);
+      // Национальный режим по умолчанию — по ПП РФ № 1875
+      setValue(
+        "items.0.nationalRegimeType",
+        checkOkpd2NationalRegime(found.okpd2Code, okpd2Refs).regime ?? "none",
+        { shouldDirty: true },
+      );
+    }
+    if (found.okpd2Name) setValue("items.0.okpd2Name", found.okpd2Name);
+    setValue("items.0.ktruCode", found.ktruCode ?? "");
+    setValue("items.0.ktruName", "");
+    if (found.unit) setValue("items.0.unit", found.unit);
     if (!watchedIndeterminate && found.quantity) {
-      setValue(`items.${index}.quantity`, found.quantity);
+      setValue("items.0.quantity", found.quantity);
     }
 
-    if (index === 0) {
-      setValue("objectDescriptionId", selectedId || undefined);
-      if (!watch("subject")?.trim()) {
-        setValue("subject", found.title);
-      }
-      if (found.otherRequirements && !watch("otherRequirements")) {
-        setValue("otherRequirements", found.otherRequirements);
-      }
+    if (!watch("subject")?.trim()) {
+      setValue("subject", found.title);
+    }
+    if (found.otherRequirements && !watch("otherRequirements")) {
+      setValue("otherRequirements", found.otherRequirements);
+    }
+  };
+
+  // Выбор ОКПД2 в позиции: наименование, национальный режим по ПП РФ № 1875
+  // и сброс КТРУ, если оно относится к другому коду
+  const handleSelectItemOkpd2 = (index: number, selected: Okpd2Ref | null) => {
+    if (isReadOnly) return;
+    const code = selected?.code ?? "";
+    setValue(`items.${index}.okpd2Code`, code);
+    setValue(`items.${index}.okpd2Name`, selected?.name ?? "");
+    setValue(
+      `items.${index}.nationalRegimeType`,
+      checkOkpd2NationalRegime(code, okpd2Refs).regime ?? "none",
+      { shouldDirty: true },
+    );
+
+    const currentKtru = getValues(`items.${index}.ktruCode`);
+    if (
+      currentKtru &&
+      !ktruRefs.some((k) => k.ktruCode === currentKtru && k.okpd2Code === code)
+    ) {
+      setValue(`items.${index}.ktruCode`, "");
+      setValue(`items.${index}.ktruName`, "");
+    }
+  };
+
+  // Выбор позиции КТРУ: наименование и единица измерения каталога
+  const handleSelectItemKtru = (index: number, item: KtruRef | null) => {
+    if (isReadOnly) return;
+    setValue(`items.${index}.ktruCode`, item?.ktruCode ?? "", {
+      shouldDirty: true,
+    });
+    setValue(`items.${index}.ktruName`, item?.name ?? "", {
+      shouldDirty: true,
+    });
+    if (item && !getValues(`items.${index}.name`)) {
+      setValue(`items.${index}.name`, item.name);
+    }
+    if (item?.unit && !getValues(`items.${index}.unit`)) {
+      setValue(`items.${index}.unit`, item.unit);
     }
   };
 
@@ -1400,265 +1474,245 @@ export default function PurchaseNoteModal({
 
           {/* Флаг невозможности определить количество — строго над объектами */}
           <div className={block("field", ["wide"])}>
-            <label className={block("checkbox")}>
-              <input
-                type="checkbox"
-                checked={watchedIndeterminate}
-                disabled={isReadOnly}
-                onChange={(e) => handleToggleIndeterminate(e.target.checked)}
-              />
-              <span>
-                Невозможно определить количество/объём товаров, работ, услуг (ч.
-                24 ст. 22 Закона № 44-ФЗ — во всех объектах количество
-                фиксируется равным 1)
-              </span>
-            </label>
+            <CustomCheckbox
+              label="Невозможно определить количество/объём товаров, работ, услуг (ч. 24 ст. 22 Закона № 44-ФЗ — во всех объектах количество фиксируется равным 1)"
+              checked={watchedIndeterminate}
+              disabled={isReadOnly}
+              onChange={(e) => handleToggleIndeterminate(e.target.checked)}
+            />
           </div>
 
-          {/* Список объектов закупки */}
+          {/* Единое ООЗ: один набор характеристик на служебную записку.
+              Выбор объекта идёт над таблицей — видно, что выбрал заказчик. */}
           <div className={block("field", ["wide"])}>
-            {itemFields.map((item, idx) => {
-              const itemDescId = watch(`items.${idx}.objectDescriptionId`);
-              const itemOkpd2 = watch(`items.${idx}.okpd2Code`) || "";
-              const itemUnit = watch(`items.${idx}.unit`) || "";
-              const itemRegime = checkOkpd2NationalRegime(itemOkpd2, okpd2Refs);
-              const itemRegimeIssue = nationalRegimeValidation.issues.find(
-                (issue) => issue.code === itemRegime.code,
-              );
+            <div className={block("label-row")}>
+              <label className={block("label")} htmlFor="note-ooz">
+                Структурированное ООЗ — единый набор характеристик (из
+                /norming-requirements)
+              </label>
+              <Link to="/norming-requirements" className={block("inline-link")}>
+                Открыть конструктор ООЗ
+                <ExternalLink size={12} aria-hidden="true" />
+              </Link>
+            </div>
+            <select
+              id="note-ooz"
+              className={block("select")}
+              disabled={isReadOnly}
+              value={
+                watchedOozId !== null && watchedOozId !== undefined
+                  ? String(watchedOozId)
+                  : ""
+              }
+              onChange={(e) => handleSelectNoteOoz(e.target.value)}
+            >
+              <option value="">
+                — Не выбрано (заполнить вручную / позже) —
+              </option>
+              {objectDescriptions.map((desc) => (
+                <option key={String(desc.id)} value={String(desc.id)}>
+                  {desc.title} ({desc.okpd2Code}
+                  {desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})
+                </option>
+              ))}
+            </select>
+            {selectedOoz && (
+              <span className={block("hint")}>
+                Характеристик в ООЗ: {selectedOoz.characteristics.length}
+                {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}
+              </span>
+            )}
+          </div>
 
-              return (
-                <div key={item.id} className={block("item-card")}>
-                  <div className={block("item-card-header")}>
-                    <span>Объект закупки № {idx + 1}</span>
-                    {itemFields.length > 1 && (
-                      <button
-                        type="button"
-                        className={block("danger-btn")}
-                        disabled={isReadOnly}
-                        onClick={() => removeItem(idx)}
-                      >
-                        Удалить объект
-                      </button>
-                    )}
-                  </div>
+          {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ, правка и удаление */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("positions-table-wrap")}>
+              <table className={block("positions-table")}>
+                <thead>
+                  <tr>
+                    <th>№</th>
+                    <th>ОКПД2 / КТРУ</th>
+                    <th>Наименование</th>
+                    <th>Ед.</th>
+                    <th>Кол-во</th>
+                    <th>Цена, руб.</th>
+                    <th>Сумма, руб.</th>
+                    <th>Нац. режим</th>
+                    <th>При работах</th>
+                    <th aria-label="Действия" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemFields.map((item, idx) => {
+                    const itemOkpd2 = watch(`items.${idx}.okpd2Code`) || "";
+                    const itemUnit = watch(`items.${idx}.unit`) || "";
+                    const itemKtru = watch(`items.${idx}.ktruCode`) || "";
+                    const itemRegime = checkOkpd2NationalRegime(
+                      itemOkpd2,
+                      okpd2Refs,
+                    );
+                    const itemRegimeIssue =
+                      nationalRegimeValidation.issues.find(
+                        (issue) => issue.code === itemRegime.code,
+                      );
+                    const ktruIssue = checkKtruUsage(
+                      ktruRefs,
+                      itemOkpd2,
+                      itemKtru,
+                    );
+                    const auctionCheck = checkOkpd2AuctionList(
+                      itemOkpd2,
+                      okpd2Refs,
+                    );
 
-                  <div className={block("grid")}>
-                    <div className={block("field", ["wide"])}>
-                      <div className={block("label-row")}>
-                        <label
-                          className={block("label")}
-                          htmlFor={`note-item-ooz-${idx}`}
-                        >
-                          Связанное структурированное ООЗ (из
-                          /norming-requirements)
-                        </label>
-                        <Link
-                          to="/norming-requirements"
-                          className={block("inline-link")}
-                        >
-                          Открыть конструктор ООЗ (/norming-requirements)
-                          <ExternalLink size={12} aria-hidden="true" />
-                        </Link>
-                      </div>
-                      <select
-                        id={`note-item-ooz-${idx}`}
-                        className={block("select")}
-                        value={
-                          itemDescId !== null && itemDescId !== undefined
-                            ? String(itemDescId)
-                            : ""
-                        }
-                        onChange={(e) =>
-                          handleSelectItemOoz(idx, e.target.value)
-                        }
-                      >
-                        <option value="">
-                          — Не выбрано (заполнить вручную / позже) —
-                        </option>
-                        {objectDescriptions.map((desc) => (
-                          <option key={String(desc.id)} value={String(desc.id)}>
-                            {desc.title} ({desc.okpd2Code}
-                            {desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className={block("field", ["wide"])}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`note-item-name-${idx}`}
-                      >
-                        Наименование объекта закупки *
-                      </label>
-                      <input
-                        id={`note-item-name-${idx}`}
-                        className={block("input")}
-                        {...register(`items.${idx}.name`)}
-                      />
-                    </div>
-
-                    <div className={block("field")}>
-                      <span className={block("label")}>Код ОКПД2</span>
-                      <Okpd2Select
-                        code={itemOkpd2}
-                        disabled={isReadOnly}
-                        onSelect={(selected) => {
-                          setValue(
-                            `items.${idx}.okpd2Code`,
-                            selected?.code ?? "",
-                          );
-                          setValue(
-                            `items.${idx}.okpd2Name`,
-                            selected?.name ?? "",
-                          );
-                        }}
-                      />
-                      {itemOkpd2 &&
-                        checkOkpd2AuctionList(itemOkpd2, okpd2Refs)
-                          .inAuctionList && (
-                          <span className={block("hint")}>
-                            Код входит в аукционный перечень (РП РФ № 471-р) —
-                            обязателен электронный аукцион.
-                          </span>
-                        )}
-                      {itemRegime.regime && (
-                        <span className={block("hint")}>
-                          ПП РФ № 1875:{" "}
-                          {itemRegime.regime === "ban"
-                            ? "запрет (приложение № 1)"
-                            : "ограничение (приложение № 2)"}
-                          {itemRegime.groupLabel
-                            ? ` — ${itemRegime.groupLabel}`
-                            : ""}
-                          .
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={block("field")}>
-                      <span className={block("label")}>
-                        Единица измерения (ОКЕИ)
-                      </span>
-                      <OkeiSelect
-                        value={itemUnit}
-                        disabled={isReadOnly}
-                        onChange={(val) => setValue(`items.${idx}.unit`, val)}
-                      />
-                    </div>
-
-                    <div className={block("field")}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`note-item-qty-${idx}`}
-                      >
-                        Количество / объём
-                      </label>
-                      <input
-                        id={`note-item-qty-${idx}`}
-                        className={block("input")}
-                        disabled={isReadOnly || watchedIndeterminate}
-                        value={
-                          watchedIndeterminate
-                            ? "1"
-                            : (watch(`items.${idx}.quantity`) ?? "")
-                        }
-                        onChange={(e) =>
-                          setValue(`items.${idx}.quantity`, e.target.value)
-                        }
-                        placeholder="1"
-                      />
-                    </div>
-
-                    <div className={block("field")}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`note-item-price-${idx}`}
-                      >
-                        Цена за единицу, руб.
-                      </label>
-                      <MoneyInput
-                        id={`note-item-price-${idx}`}
-                        className={block("input")}
-                        value={watch(`items.${idx}.unitPrice`)}
-                        onChange={(next) =>
-                          setValue(
-                            `items.${idx}.unitPrice`,
-                            next ? String(next) : "",
-                            { shouldDirty: true },
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className={block("field")}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`note-item-total-${idx}`}
-                      >
-                        Сумма по объекту, руб.
-                      </label>
-                      <MoneyInput
-                        id={`note-item-total-${idx}`}
-                        className={block("input")}
-                        value={watch(`items.${idx}.totalPrice`)}
-                        onChange={(next) =>
-                          setValue(
-                            `items.${idx}.totalPrice`,
-                            next ? String(next) : "",
-                            { shouldDirty: true },
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className={block("field")}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`note-item-regime-${idx}`}
-                      >
-                        Национальный режим (ст. 14 44-ФЗ)
-                      </label>
-                      <select
-                        id={`note-item-regime-${idx}`}
-                        className={block("select")}
-                        {...register(`items.${idx}.nationalRegimeType`)}
-                      >
-                        {NATIONAL_REGIME_OPTIONS.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      {itemRegimeIssue && (
-                        <span
-                          className={block(
-                            itemRegimeIssue.level === "error"
-                              ? "error"
-                              : "warning",
+                    return (
+                      <tr key={item.id}>
+                        <td className={block("positions-index")}>{idx + 1}</td>
+                        <td className={block("positions-code-cell")}>
+                          <Okpd2Select
+                            code={itemOkpd2}
+                            disabled={isReadOnly}
+                            onSelect={(selected) =>
+                              handleSelectItemOkpd2(idx, selected)
+                            }
+                          />
+                          <KtruSelect
+                            className={block("select")}
+                            okpd2Code={itemOkpd2}
+                            ktruCode={itemKtru}
+                            disabled={isReadOnly}
+                            onSelect={(ktru) => handleSelectItemKtru(idx, ktru)}
+                          />
+                          {ktruIssue && (
+                            <span
+                              className={block(
+                                ktruIssue.level === "error" ? "error" : "hint",
+                              )}
+                            >
+                              {ktruIssue.message}
+                            </span>
                           )}
-                        >
-                          {itemRegimeIssue.message}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className={block("field", ["wide"])}>
-                      <label className={block("checkbox")}>
-                        <input
-                          type="checkbox"
-                          {...register(`items.${idx}.isSupplyDuringWorks`)}
-                        />
-                        <span>
-                          Товар поставляется при выполнении работ / оказании
-                          услуг
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                          {auctionCheck.inAuctionList && (
+                            <span className={block("hint")}>
+                              Аукционный перечень (РП РФ № 471-р) — обязателен
+                              электронный аукцион.
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <input
+                            className={block("input")}
+                            placeholder="Наименование"
+                            {...register(`items.${idx}.name`)}
+                          />
+                        </td>
+                        <td>
+                          <OkeiSelect
+                            value={itemUnit}
+                            disabled={isReadOnly}
+                            onChange={(val) =>
+                              setValue(`items.${idx}.unit`, val)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            className={block("input")}
+                            disabled={isReadOnly || watchedIndeterminate}
+                            value={
+                              watchedIndeterminate
+                                ? "1"
+                                : (watch(`items.${idx}.quantity`) ?? "")
+                            }
+                            onChange={(e) =>
+                              setValue(`items.${idx}.quantity`, e.target.value)
+                            }
+                            placeholder="1"
+                          />
+                        </td>
+                        <td>
+                          <MoneyInput
+                            className={block("input")}
+                            value={watch(`items.${idx}.unitPrice`)}
+                            onChange={(next) =>
+                              setValue(
+                                `items.${idx}.unitPrice`,
+                                next ? String(next) : "",
+                                { shouldDirty: true },
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <MoneyInput
+                            className={block("input")}
+                            value={watch(`items.${idx}.totalPrice`)}
+                            onChange={(next) =>
+                              setValue(
+                                `items.${idx}.totalPrice`,
+                                next ? String(next) : "",
+                                { shouldDirty: true },
+                              )
+                            }
+                          />
+                        </td>
+                        <td>
+                          <select
+                            className={block("select")}
+                            {...register(`items.${idx}.nationalRegimeType`)}
+                          >
+                            {NATIONAL_REGIME_OPTIONS.map((opt) => (
+                              <option key={opt.id} value={opt.id}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                          {itemRegime.regime && (
+                            <span className={block("hint")}>
+                              ПП РФ № 1875:{" "}
+                              {itemRegime.regime === "ban"
+                                ? "запрет"
+                                : "ограничение"}
+                              {itemRegime.groupLabel
+                                ? ` — ${itemRegime.groupLabel}`
+                                : ""}
+                            </span>
+                          )}
+                          {itemRegimeIssue && (
+                            <span
+                              className={block(
+                                itemRegimeIssue.level === "error"
+                                  ? "error"
+                                  : "warning",
+                              )}
+                            >
+                              {itemRegimeIssue.message}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <CustomCheckbox
+                            compact
+                            aria-label={`Товар поставляется при выполнении работ, позиция ${idx + 1}`}
+                            {...register(`items.${idx}.isSupplyDuringWorks`)}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className={block("danger-btn")}
+                            disabled={isReadOnly}
+                            onClick={() => removeItem(idx)}
+                          >
+                            Удалить
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             <button
               type="button"
@@ -1671,6 +1725,8 @@ export default function PurchaseNoteModal({
                   name: "",
                   okpd2Code: "",
                   okpd2Name: "",
+                  ktruCode: "",
+                  ktruName: "",
                   unit: "",
                   quantity: "1",
                   unitPrice: "",

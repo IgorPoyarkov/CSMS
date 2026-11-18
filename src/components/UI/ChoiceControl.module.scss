@@ -1,0 +1,129 @@
+// Кастомные чекбоксы и радиокнопки.
+//
+// Нативный input остаётся в разметке (доступность, клавиатура, react-hook-form),
+// но визуально скрыт: видимый квадрат/круг рисует соседний span. Это позволяет
+// одинаково выглядеть в обеих темах и не зависеть от accent-color браузера.
+.choice {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 100%;
+  color: var(--text-primary);
+  line-height: 1.4;
+  cursor: pointer;
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  // Скрываем нативный контрол, но не убираем из потока фокуса
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  &__box {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    border: 1px solid var(--field-border);
+    border-radius: 4px;
+    background-color: var(--surface-field);
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  // Галочка чекбокса
+  &__box::after {
+    content: "";
+    width: 10px;
+    height: 6px;
+    border: solid var(--text-on-accent);
+    border-width: 0 0 2px 2px;
+    transform: rotate(-45deg) translateY(-1px) scale(0);
+    transition: transform 0.15s ease;
+  }
+
+  &__input:checked + &__box {
+    border-color: var(--accent-emphasis);
+    background-color: var(--accent-emphasis);
+  }
+
+  &__input:checked + &__box::after {
+    transform: rotate(-45deg) translateY(-1px) scale(1);
+  }
+
+  &__input:focus-visible + &__box {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  &__input:disabled + &__box {
+    opacity: 0.55;
+  }
+
+  // Радиокнопка: круг и точка внутри
+  &--radio &__box {
+    border-radius: 50%;
+  }
+
+  &--radio &__box::after {
+    width: 8px;
+    height: 8px;
+    border: 0;
+    border-radius: 50%;
+    background-color: var(--text-on-accent);
+    transform: scale(0);
+  }
+
+  &--radio &__input:checked + &__box::after {
+    transform: scale(1);
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 0.95rem;
+  }
+
+  &__hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  // Компактный вариант для ячеек таблиц и строк-фильтров
+  &--compact {
+    gap: 6px;
+    align-items: center;
+  }
+
+  &--compact &__box {
+    width: 16px;
+    height: 16px;
+    margin-top: 0;
+  }
+
+  &--compact &__label {
+    font-size: 0.85rem;
+  }
+}

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
@@ -7,10 +8,15 @@ import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../../services/Okpd2Ref/okpd2Ref.api";
+import { useKtruDictionary } from "../../../services/KtruRef/ktruRef.api";
+import { ktruRequirements } from "../../../services/KtruRef/ktruControl";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import styles from "../NoticeInfoForm.module.scss";
 
-const REQUIREMENT_TYPES: { id: "consumer" | "quality" | "functional" | "other"; label: string }[] = [
+const REQUIREMENT_TYPES: {
+  id: "consumer" | "quality" | "functional" | "other";
+  label: string;
+}[] = [
   { id: "consumer", label: "Потребительские свойства" },
   { id: "quality", label: "Качественные свойства" },
   { id: "functional", label: "Функциональные свойства" },
@@ -30,41 +36,55 @@ const mapCategoryToRequirementType = (
   return "other";
 };
 
-interface NormingRequirementsBlockProps {
-  index: number;
-  okpd2OrKtruCode: string;
-}
-
 /**
- * Блок типовых требований по п. 7 ПП РФ N 926 для нормируемой позиции.
- * Показывается только если код ОКПД2 помечен в справочнике как подлежащий
- * обязательному нормированию (isNormed).
+ * Единый набор характеристик объекта закупки.
+ *
+ * Раньше блок повторялся в каждой позиции, и заказчик заполнял характеристики
+ * отдельно для каждой строки. Теперь набор один на закупку (п. 7 ПП РФ № 926):
+ * он подставляется из шаблонов нормирования, из позиций КТРУ или
+ * редактируется вручную. Позиции объекта закупки живут в сводной таблице
+ * выше и на набор характеристик не влияют.
  */
-const NormingRequirementsBlock = ({
-  index,
-  okpd2OrKtruCode,
-}: NormingRequirementsBlockProps) => {
+const NormingRequirementsBlock = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { organization } = useMyContractRole();
-  const { register, control } = useFormContext<NoticeInfoFormValues>();
+  const { register, control, watch, getValues, setValue } =
+    useFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: ktruRefs = [] } = useKtruDictionary();
   const { byCode: templatesByCode } = useNormingTemplates(organization?.id);
 
-  // Хук вызываем безусловно до условного возврата, чтобы не нарушать Rules of Hooks
   const { fields, append, remove, replace } = useFieldArray({
     control,
-    name: `purchaseObjects.items.${index}.normingRequirements`,
+    name: "purchaseObjects.normingRequirements",
   });
 
-  const matched = findOkpd2ByCode(okpd2Refs, okpd2OrKtruCode);
-  const isNormed = Boolean(matched?.isNormed);
+  // useFieldArray требует массив; старые извещения приходят без него
+  useEffect(() => {
+    if (!Array.isArray(getValues("purchaseObjects.normingRequirements"))) {
+      setValue("purchaseObjects.normingRequirements", [], {
+        shouldDirty: false,
+      });
+    }
+  }, [getValues, setValue]);
 
-  if (!isNormed) {
-    return null;
-  }
+  const items = watch("purchaseObjects.items") ?? [];
+  const ktruCodes = items
+    .map((item) => item.ktruCode)
+    .filter((code): code is string => Boolean(code));
+  const firstNormedCode = items
+    .map((item) => item.okpd2OrKtruCode)
+    .find((code) => Boolean(findOkpd2ByCode(okpd2Refs, code)?.isNormed));
+  const savedTemplate = firstNormedCode
+    ? templatesByCode[firstNormedCode]
+    : undefined;
 
-  const savedTemplate = matched ? templatesByCode[matched.code] : undefined;
+  const handleLoadKtru = () => {
+    const requirements = ktruRequirements(ktruRefs, ktruCodes);
+    if (requirements.length === 0) return;
+    replace(requirements);
+  };
 
   const handleLoadTemplate = () => {
     if (!savedTemplate || savedTemplate.characteristics.length === 0) {
@@ -82,30 +102,49 @@ const NormingRequirementsBlock = ({
   return (
     <div className={block("norming-req-block")}>
       <h3 className={block("norming-req-title")}>
-        Типовые требования (п. 7 ПП РФ N 926)
+        Набор характеристик объекта закупки (п. 7 ПП РФ N 926, КТРУ)
       </h3>
       <span className={block("norming-req-hint")}>
-        Код {matched?.code} — обязательное нормирование. Укажите
-        потребительские, качественные и функциональные свойства товара.
+        Один набор характеристик на всю закупку. Позиции ОКПД2 / КТРУ выбираются
+        в сводной таблице выше; характеристики КТРУ и шаблоны нормирования
+        подставляются кнопками.
       </span>
 
-      {savedTemplate && savedTemplate.characteristics.length > 0 && (
-        <button
-          type="button"
-          className={block("small-btn")}
-          onClick={handleLoadTemplate}
-        >
-          Подгрузить шаблон ПП 926 из базы ({savedTemplate.characteristics.length})
-        </button>
-      )}
+      <div className={block("inline-group")}>
+        {ktruCodes.length > 0 && (
+          <button
+            type="button"
+            className={block("small-btn")}
+            onClick={handleLoadKtru}
+          >
+            Подставить характеристики КТРУ ({ktruCodes.length})
+          </button>
+        )}
+        {savedTemplate && savedTemplate.characteristics.length > 0 && (
+          <button
+            type="button"
+            className={block("small-btn")}
+            onClick={handleLoadTemplate}
+          >
+            Подгрузить шаблон ПП 926 из базы (
+            {savedTemplate.characteristics.length})
+          </button>
+        )}
+      </div>
 
       <div className={block("norming-req-list")}>
+        {fields.length === 0 && (
+          <span className={block("muted")}>
+            Набор характеристик пока пуст. Добавьте требование вручную или
+            подставьте характеристики КТРУ.
+          </span>
+        )}
         {fields.map((field, i) => (
           <div key={field.id} className={block("norming-req-item")}>
             <select
               className={block("select")}
               {...register(
-                `purchaseObjects.items.${index}.normingRequirements.${i}.requirementType`,
+                `purchaseObjects.normingRequirements.${i}.requirementType`,
               )}
             >
               {REQUIREMENT_TYPES.map((t) => (
@@ -119,7 +158,7 @@ const NormingRequirementsBlock = ({
               className={block("input")}
               placeholder="Текст требования"
               {...register(
-                `purchaseObjects.items.${index}.normingRequirements.${i}.requirementText`,
+                `purchaseObjects.normingRequirements.${i}.requirementText`,
               )}
             />
             <button

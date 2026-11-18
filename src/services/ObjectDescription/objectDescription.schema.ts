@@ -47,8 +47,7 @@ export const CHARACTERISTIC_CATEGORIES = [
   "other",
 ] as const;
 
-export type CharacteristicCategory =
-  (typeof CHARACTERISTIC_CATEGORIES)[number];
+export type CharacteristicCategory = (typeof CHARACTERISTIC_CATEGORIES)[number];
 
 export const characteristicCategoryLabels: Record<
   CharacteristicCategory,
@@ -318,7 +317,9 @@ export const validateObjectDescriptionCompliance = (
   );
   const hasAnyInstruction =
     Boolean(desc.participantInstruction?.trim()) ||
-    desc.characteristics.some((c) => Boolean(c.instructionForParticipant?.trim()));
+    desc.characteristics.some((c) =>
+      Boolean(c.instructionForParticipant?.trim()),
+    );
 
   if (hasVariableValues && !hasAnyInstruction) {
     issues.push({
@@ -385,6 +386,8 @@ export const toNoticeObjectDescriptionFields = (
     objectName: desc.title,
     okpd2Code: desc.okpd2Code,
     okpd2Name: desc.okpd2Name ?? "",
+    ktruCode: desc.ktruCode ?? "",
+    ktruName: "",
     consumerProperties: joinByCategory(["consumer"]),
     qualityCharacteristics: joinByCategory(["quality", "technical"]),
     functionalProperties: joinByCategory(["functional", "operational"]),
@@ -428,7 +431,9 @@ export const buildObjectDescriptionSummaryText = (
         `${idx + 1}. [${characteristicCategoryLabels[c.category]}] ${c.name}: ${formatCharacteristicValue(c)}${ktruTag}`,
       );
       if (c.isAdditionalOverKtru && c.additionalJustification) {
-        lines.push(`   Обоснование доп. характеристики (ПП 145): ${c.additionalJustification}`);
+        lines.push(
+          `   Обоснование доп. характеристики (ПП 145): ${c.additionalJustification}`,
+        );
       }
       if (c.instructionForParticipant) {
         lines.push(`   Инструкция участнику: ${c.instructionForParticipant}`);
@@ -438,9 +443,12 @@ export const buildObjectDescriptionSummaryText = (
 
   lines.push("", `Товарный знак: ${trademarkRuleLabels[desc.trademarkRule]}`);
   if (desc.trademarkRule !== "none") {
-    if (desc.trademarkName) lines.push(`Наименование знака: ${desc.trademarkName}`);
+    if (desc.trademarkName)
+      lines.push(`Наименование знака: ${desc.trademarkName}`);
     if (desc.trademarkJustification) {
-      lines.push(`Параметры эквивалентности / обоснование: ${desc.trademarkJustification}`);
+      lines.push(
+        `Параметры эквивалентности / обоснование: ${desc.trademarkJustification}`,
+      );
     }
   }
 
@@ -463,7 +471,9 @@ export const buildObjectDescriptionSummaryText = (
     );
   }
   if (desc.participantInstruction) {
-    lines.push(`Инструкция по заполнению заявки: ${desc.participantInstruction}`);
+    lines.push(
+      `Инструкция по заполнению заявки: ${desc.participantInstruction}`,
+    );
   }
   if (desc.otherRequirements) {
     lines.push(`Иные требования: ${desc.otherRequirements}`);

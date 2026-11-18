@@ -264,6 +264,65 @@
     color: var(--text-primary);
   }
 
+  // Сводная таблица объектов закупки: правка и удаление строк на месте.
+  // overflow не задан — иначе обрезаются выпадающие списки ОКПД2/КТРУ.
+  &__positions-table-wrap {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-panel);
+  }
+
+  &__positions-table {
+    width: 100%;
+    min-width: 1120px;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th,
+    td {
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-weight: 700;
+      white-space: nowrap;
+      background: var(--surface-raised);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    td {
+      min-width: 90px;
+    }
+  }
+
+  &__positions-index {
+    width: 34px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__positions-code-cell {
+    min-width: 250px;
+
+    > * {
+      display: block;
+    }
+
+    > * + * {
+      margin-top: 6px;
+    }
+  }
+
   &__radio-row {
     display: flex;
     flex-wrap: wrap;

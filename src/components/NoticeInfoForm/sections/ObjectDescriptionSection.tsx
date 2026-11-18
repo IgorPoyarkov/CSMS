@@ -1,9 +1,15 @@
-import { useFormContext } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useFieldArray, useFormContext } from "react-hook-form";
+import { ExternalLink, FileText, Upload } from "lucide-react";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
 import { useOrganizationObjectDescriptions } from "../../../services/ObjectDescription/objectDescription.api";
 import { toNoticeObjectDescriptionFields } from "../../../services/ObjectDescription/objectDescription.schema";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
+import { useKtruDictionary } from "../../../services/KtruRef/ktruRef.api";
+import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
+import KtruSelect from "../../UI/KtruSelect/KtruSelect";
 import LegalActRefs from "../../LegalAct/LegalActRefs";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -55,26 +61,61 @@ const DESCRIPTION_FIELDS: {
 
 /**
  * Структурированное описание объекта закупки (ПП РФ от 08.02.2017 № 145).
- * Позволяет подставить готовое ООЗ из конструктора (/norming-requirements)
- * или заполнить поля вручную.
+ *
+ * Описание формируется с ранних этапов (конструктор ООЗ) и переносится в
+ * извещение. Здесь же выбирается позиция КТРУ (если код ОКПД2 есть в каталоге)
+ * и прикладывается отдельный файл описания — он крепится к извещению
+ * в разделе «Прилагаемые документы».
  */
 const ObjectDescriptionSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "object-description");
+  const eis = bem(styles, "eis-main");
   const { organization } = useMyContractRole();
   const { data: savedDescriptions = [] } = useOrganizationObjectDescriptions(
     organization?.id,
   );
-  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { data: ktruRefs = [] } = useKtruDictionary();
+  const { register, watch, setValue, control } =
+    useFormContext<NoticeInfoFormValues>();
 
   const objectDescription = watch("objectDescription");
+  // Код ОКПД2 описания может быть ещё не заполнен вручную, но уже выбран
+  // в таблице объектов закупки — используем его для КТРУ и имени файла
+  const firstItemCode = watch("purchaseObjects.items.0.okpd2OrKtruCode") || "";
   const templates = savedDescriptions.filter(
     (item) => item.kind === "object_description",
+  );
+
+  const {
+    fields: attachedFields,
+    append,
+    remove,
+  } = useFieldArray({
+    control,
+    name: "attachedDocs",
+  });
+  const [draftFileName, setDraftFileName] = useState("");
+
+  const oozDocs = useMemo(
+    () =>
+      attachedFields
+        .map((field, index) => ({ field, index }))
+        .filter(({ field }) => field.category === "object_description"),
+    [attachedFields],
   );
 
   if (!objectDescription) {
     return null;
   }
+
+  const effectiveOkpd2 = objectDescription.okpd2Code || firstItemCode;
+
+  const ktruIssue = checkKtruUsage(
+    ktruRefs,
+    effectiveOkpd2,
+    objectDescription.ktruCode,
+  );
 
   const handleApplySaved = (selectedId: string) => {
     if (!selectedId) return;
@@ -85,17 +126,60 @@ const ObjectDescriptionSection = () => {
     });
   };
 
+  const attachFile = (fileName: string, description: string) => {
+    const trimmed = fileName.trim();
+    if (!trimmed) return;
+    append({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      category: "object_description",
+      fileName: trimmed,
+      description:
+        description.trim() ||
+        "Структурированное описание объекта закупки (ст. 33 44-ФЗ, ПП РФ № 145)",
+    });
+  };
+
+  // Файл формируется из текущего описания: в системе хранится имя и описание,
+  // сам документ выгружается из конструктора ООЗ / печатной формы
+  const handleGenerateFile = () => {
+    const code = effectiveOkpd2 || "ООЗ";
+    const ktru = objectDescription.ktruCode
+      ? `_КТРУ_${objectDescription.ktruCode}`
+      : "";
+    const date = new Date().toISOString().slice(0, 10);
+    attachFile(
+      `Описание_объекта_закупки_${code}${ktru}_${date}.docx`,
+      `Структурированное описание объекта закупки${
+        objectDescription.objectName ? `: ${objectDescription.objectName}` : ""
+      }${objectDescription.ktruCode ? ` (КТРУ ${objectDescription.ktruCode})` : ""}`,
+    );
+  };
+
+  const handleFilePick = (fileList: FileList | null) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    setDraftFileName(file.name);
+  };
+
   return (
     <section className={block("section")}>
       <h2 className={block("section-title")}>
         Описание объекта закупки (ст. 33 44-ФЗ, ПП РФ N 145)
       </h2>
       <p className={block("hint")}>
-        Структурированное описание в соответствии с Постановлением
-        Правительства РФ от 08.02.2017 N 145. Можно выбрать готовую заготовку из
-        конструктора ООЗ или заполнить поля вручную.
+        Структурированное описание в соответствии с Постановлением Правительства
+        РФ от 08.02.2017 N 145. Можно выбрать готовую заготовку из конструктора
+        ООЗ или заполнить поля вручную. Отдельный файл описания прикладывается к
+        извещению и уходит в раздел «Прилагаемые документы».
       </p>
       <LegalActRefs component="ObjectDescriptionSection" />
+
+      <div className={eis("inline-group")}>
+        <Link to="/norming-requirements" className={eis("link-btn")}>
+          Открыть конструктор ООЗ
+          <ExternalLink size={12} aria-hidden="true" />
+        </Link>
+      </div>
 
       {templates.length > 0 && (
         <div className={block("field-col", ["full"])}>
@@ -134,6 +218,46 @@ const ObjectDescriptionSection = () => {
           </div>
         ))}
 
+        {/* Позиция КТРУ: если код ОКПД2 есть в каталоге, описание строится
+            по позиции КТРУ (ПП РФ № 145) */}
+        <div className={block("field-col", ["full"])}>
+          <label className={block("label")}>Позиция КТРУ</label>
+          <KtruSelect
+            className={block("select")}
+            okpd2Code={effectiveOkpd2}
+            ktruCode={objectDescription.ktruCode}
+            onSelect={(item) => {
+              setValue("objectDescription.ktruCode", item?.ktruCode ?? "", {
+                shouldDirty: true,
+              });
+              setValue("objectDescription.ktruName", item?.name ?? "", {
+                shouldDirty: true,
+              });
+              // Код ОКПД2 берём из позиции закупки, чтобы описание и таблица
+              // не расходились
+              if (!objectDescription.okpd2Code && effectiveOkpd2) {
+                setValue("objectDescription.okpd2Code", effectiveOkpd2, {
+                  shouldDirty: true,
+                });
+              }
+              if (item && !objectDescription.objectName) {
+                setValue("objectDescription.objectName", item.name, {
+                  shouldDirty: true,
+                });
+              }
+            }}
+          />
+          {ktruIssue && (
+            <span
+              className={eis(
+                ktruIssue.level === "error" ? "red-note" : "yellow-warning",
+              )}
+            >
+              {ktruIssue.message}
+            </span>
+          )}
+        </div>
+
         <div className={block("field-col", ["full"])}>
           <label className={block("label")}>Иные требования</label>
           <textarea
@@ -143,6 +267,62 @@ const ObjectDescriptionSection = () => {
             {...register("objectDescription.otherRequirements")}
           />
         </div>
+      </div>
+
+      {/* Файл описания объекта закупки, который крепится к извещению */}
+      <div className={block("preview")}>
+        <h3 className={block("preview-title")}>
+          <FileText size={14} aria-hidden="true" /> Файл описания объекта
+          закупки
+        </h3>
+        <div className={eis("inline-group")}>
+          <button
+            type="button"
+            className={eis("small-btn")}
+            onClick={handleGenerateFile}
+          >
+            Сформировать файл ООЗ и приложить
+          </button>
+          <input type="file" onChange={(e) => handleFilePick(e.target.files)} />
+          <button
+            type="button"
+            className={eis("small-btn")}
+            disabled={!draftFileName}
+            onClick={() => {
+              attachFile(
+                draftFileName,
+                "Описание объекта закупки (файл заказчика)",
+              );
+              setDraftFileName("");
+            }}
+          >
+            <Upload size={12} aria-hidden="true" /> Прикрепить выбранный файл
+          </button>
+        </div>
+
+        {oozDocs.length === 0 ? (
+          <span className={eis("muted")}>
+            Файл описания пока не приложен — извещение можно сохранить, но ООЗ в
+            составе документов будет отсутствовать.
+          </span>
+        ) : (
+          <ul className={eis("doc-list")}>
+            {oozDocs.map(({ field, index }) => (
+              <li key={field.id} className={eis("doc-item")}>
+                <span>
+                  <strong>{field.fileName}</strong> — {field.description}
+                </span>
+                <button
+                  type="button"
+                  className={eis("small-btn", ["danger"])}
+                  onClick={() => remove(index)}
+                >
+                  Удалить
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className={block("preview")}>
@@ -155,6 +335,9 @@ const ObjectDescriptionSection = () => {
                   ? ` — ${objectDescription.okpd2Name}`
                   : ""
               })`
+            : ""}
+          {objectDescription.ktruCode
+            ? `; КТРУ ${objectDescription.ktruCode}`
             : ""}
           {objectDescription.consumerProperties
             ? `; потребительские свойства: ${objectDescription.consumerProperties}`

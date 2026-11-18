@@ -16,7 +16,10 @@ import {
 } from "../../services/Procurements/noticeInfo.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../services/Okpd2Ref/normingControl";
-import { validateNationalRegime } from "../../services/NationalRegime/pp1875";
+import {
+  checkOkpd2NationalRegime,
+  validateNationalRegime,
+} from "../../services/NationalRegime/pp1875";
 import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
@@ -328,11 +331,14 @@ const NoticeInfoForm = () => {
         isMedicines: false,
         isIndeterminateVolume: false,
         items: [],
+        normingRequirements: [],
       },
       objectDescription: {
         objectName: state.name ?? "",
         okpd2Code: "",
         okpd2Name: "",
+        ktruCode: "",
+        ktruName: "",
         consumerProperties: "",
         qualityCharacteristics: "",
         functionalProperties: "",
@@ -1163,10 +1169,22 @@ const NoticeInfoForm = () => {
             requirementText: `${c.name}: ${formatCharacteristicValue(c)}`,
           }));
 
+          // ОКПД2 и КТРУ теперь хранятся раздельно: проверки нормирования,
+          // аукционного перечня и нацрежима работают по ОКПД2, а КТРУ
+          // выбирается отдельной позицией каталога
+          const okpd2Code = item.okpd2Code || itemDesc?.okpd2Code || "";
+          const declaredRegime =
+            item.nationalRegimeType ?? matchedNote.nationalRegimeType ?? "none";
+          const expectedRegime = checkOkpd2NationalRegime(
+            okpd2Code,
+            okpd2Refs,
+          ).regime;
+
           return {
             id: item.id || `sz-item-${idx + 1}`,
-            okpd2OrKtruCode:
-              itemDesc?.ktruCode || item.okpd2Code || itemDesc?.okpd2Code || "",
+            okpd2OrKtruCode: okpd2Code,
+            ktruCode: item.ktruCode ?? itemDesc?.ktruCode ?? "",
+            ktruName: item.ktruName ?? "",
             name: item.name || matchedNote.subject || itemDesc?.title || "",
             unit: item.unit || itemDesc?.unit || "шт",
             quantity,
@@ -1174,10 +1192,12 @@ const NoticeInfoForm = () => {
             totalPrice,
             trademarks: itemDesc?.trademarkName || "",
             isSupplyDuringWorks: Boolean(item.isSupplyDuringWorks),
+            // Национальный режим приходит из служебной записки; если там
+            // режим не установлен, подставляем ожидаемый по ПП РФ № 1875
             nationalRegimeType:
-              item.nationalRegimeType ??
-              matchedNote.nationalRegimeType ??
-              "none",
+              declaredRegime === "none" && expectedRegime
+                ? expectedRegime
+                : declaredRegime,
             normingRequirements:
               normingReqs.length > 0 ? normingReqs : undefined,
           };
@@ -1209,14 +1229,20 @@ const NoticeInfoForm = () => {
           requirementText: `${c.name}: ${formatCharacteristicValue(c)}`,
         }));
 
+        const okpd2Code =
+          matchedNote?.okpd2Code || matchedDesc?.okpd2Code || "";
+        const declaredRegime = matchedNote?.nationalRegimeType ?? "none";
+        const expectedRegime = checkOkpd2NationalRegime(
+          okpd2Code,
+          okpd2Refs,
+        ).regime;
+
         setValue("purchaseObjects.items", [
           {
             id: "sz-item-1",
-            okpd2OrKtruCode:
-              matchedDesc?.ktruCode ||
-              matchedNote?.okpd2Code ||
-              matchedDesc?.okpd2Code ||
-              "",
+            okpd2OrKtruCode: okpd2Code,
+            ktruCode: matchedDesc?.ktruCode ?? "",
+            ktruName: "",
             name: matchedNote?.subject || matchedDesc?.title || "",
             unit: matchedNote?.unit || matchedDesc?.unit || "шт",
             quantity,
@@ -1224,17 +1250,44 @@ const NoticeInfoForm = () => {
             totalPrice,
             trademarks: matchedDesc?.trademarkName || "",
             isSupplyDuringWorks: false,
-            nationalRegimeType: matchedNote?.nationalRegimeType ?? "none",
+            nationalRegimeType:
+              declaredRegime === "none" && expectedRegime
+                ? expectedRegime
+                : declaredRegime,
             normingRequirements:
               normingReqs.length > 0 ? normingReqs : undefined,
           },
         ]);
       }
     }
+
+    // Единый набор характеристик: собираем характеристики всех позиций ООЗ
+    // без повторов. Позиции хранят набор только для совместимости старых
+    // записей, в форме он живёт на уровне purchaseObjects.
+    const currentNorming =
+      getValues("purchaseObjects.normingRequirements") ?? [];
+    if (currentNorming.length === 0) {
+      const collected = (getValues("purchaseObjects.items") ?? []).flatMap(
+        (item) => item.normingRequirements ?? [],
+      );
+      const seen = new Set<string>();
+      const unique = collected.filter((requirement) => {
+        const key = requirement.requirementText.trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (unique.length > 0) {
+        setValue("purchaseObjects.normingRequirements", unique, {
+          shouldDirty: false,
+        });
+      }
+    }
   }, [
     matchedNote,
     matchedDesc,
     objectDescriptions,
+    okpd2Refs,
     purchasePlans,
     userOrganization?.inn,
     userOrganization?.kpp,

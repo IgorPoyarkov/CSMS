@@ -54,9 +54,24 @@ export const DeliveryPlaceSchema = z.object({
   additionalInfo: z.string().optional(),
 });
 
+export const PurchaseObjectRequirementSchema = z.object({
+  id: z.string(),
+  requirementType: z.enum(["consumer", "quality", "functional", "other"]),
+  requirementText: z.string().min(1, "Укажите требование"),
+});
+
+export type PurchaseObjectRequirement = z.infer<
+  typeof PurchaseObjectRequirementSchema
+>;
+
 export const PurchaseObjectItemSchema = z.object({
   id: z.string(),
   okpd2OrKtruCode: z.string(),
+  // Позиция КТРУ, выбранная для кода ОКПД2 (ПП РФ № 145)
+  ktruCode: z.string().optional(),
+  ktruName: z.string().optional(),
+  // Связанное структурированное ООЗ (единый набор характеристик)
+  objectDescriptionId: z.union([z.string(), z.number()]).optional(),
   name: z.string(),
   unit: z.string(),
   quantity: z.number(),
@@ -65,18 +80,9 @@ export const PurchaseObjectItemSchema = z.object({
   trademarks: z.string().optional(),
   isSupplyDuringWorks: z.boolean(),
   nationalRegimeType: z.enum(["none", "ban", "restriction", "advantage"]),
-  // Типовые требования по п. 7 ПП РФ N 926 (обязательное нормирование).
-  // Заполняются для нормируемых позиций ОКПД2 — потребительские, качественные,
-  // функциональные и прочие свойства товара/работы/услуги.
-  normingRequirements: z
-    .array(
-      z.object({
-        id: z.string(),
-        requirementType: z.enum(["consumer", "quality", "functional", "other"]),
-        requirementText: z.string().min(1, "Укажите требование"),
-      }),
-    )
-    .optional(),
+  // Устаревшие требования по позиции (совместимость старых записей).
+  // Новые извещения ведут единый набор в purchaseObjects.normingRequirements.
+  normingRequirements: z.array(PurchaseObjectRequirementSchema).optional(),
 });
 
 // Типы критериев оценки в извещении (п. 3 Положения о оценке, ПП РФ N 2604).
@@ -258,6 +264,9 @@ export const NoticeInfoSchema = z.object({
     isMedicines: z.boolean(),
     isIndeterminateVolume: z.boolean(),
     items: z.array(PurchaseObjectItemSchema),
+    // Единый набор характеристик объекта закупки (п. 7 ПП РФ № 926 / ООЗ).
+    // Раньше набор дублировался в каждой позиции; теперь он один на закупку.
+    normingRequirements: z.array(PurchaseObjectRequirementSchema).optional(),
   }),
 
   // ВКЛАДКА 4: Структурированное описание объекта закупки
@@ -269,6 +278,8 @@ export const NoticeInfoSchema = z.object({
       objectName: z.string().optional(),
       okpd2Code: z.string().optional(),
       okpd2Name: z.string().optional(),
+      ktruCode: z.string().optional(),
+      ktruName: z.string().optional(),
       consumerProperties: z.string().optional(),
       qualityCharacteristics: z.string().optional(),
       functionalProperties: z.string().optional(),
