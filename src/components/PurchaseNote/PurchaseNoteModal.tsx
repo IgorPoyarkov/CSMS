@@ -24,6 +24,7 @@ import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import MoneyInput from "../UI/MoneyInput/MoneyInput";
 import CustomCheckbox from "../UI/CustomCheckbox";
+import CustomSelect from "../UI/CustomSelect";
 import AddressCascade from "../UI/AddressCascade/AddressCascade";
 import SecurityRequisitesFields from "./SecurityRequisitesFields";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
@@ -86,7 +87,9 @@ import {
 } from "../../services/Okpd2Ref/auctionListControl";
 import {
   checkOkpd2NationalRegime,
+  isAdvantageApplicable,
   nationalRegimeExpectedLabel,
+  nationalRegimeModeLabel,
   validateNationalRegime,
 } from "../../services/NationalRegime/pp1875";
 import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
@@ -159,13 +162,14 @@ interface PurchaseNoteModalProps {
   onSaveAndProceedToNotice?: (note: PurchaseNote) => void;
 }
 
+// Сумма без знака рубля: единица измерения уже указана в заголовке графы
 const formatRub = (value: string | number | undefined): string => {
   const num = toNumber(value);
   if (num === null) return "—";
   return `${new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(num)} ₽`;
+  }).format(num)}`;
 };
 
 // Годовые суммы финансирования по КБК: в СЗ правятся по годам, «всего»
@@ -661,11 +665,12 @@ export default function PurchaseNoteModal({
       watchedOozId !== undefined &&
       String(desc.id) === String(watchedOozId),
   );
-  // Готовность ООЗ и полнота закупок по позиции плана-графика
-  const watchedOozSetComplete = Boolean(watch("oozSetComplete"));
-  const watchedPositionProcurementsComplete = Boolean(
-    watch("positionProcurementsComplete"),
-  );
+  // Готовность ООЗ и полнота закупок по позиции плана-графика.
+  // По умолчанию оба флага включены: заказчик снимает их осознанно,
+  // когда набор объектов ещё не сформирован или закупка не последняя.
+  const watchedOozSetComplete = watch("oozSetComplete") ?? true;
+  const watchedPositionProcurementsComplete =
+    watch("positionProcurementsComplete") ?? true;
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     watchedPlacingWay,
     watchedItems.map((item) => ({
@@ -2051,6 +2056,12 @@ export default function PurchaseNoteModal({
                       itemOkpd2,
                       okpd2Refs,
                     );
+                    // «Преимущество» — право заказчика и только по товарам,
+                    // когда запрет/ограничение по коду не обязательны
+                    const itemAdvantageApplicable = isAdvantageApplicable(
+                      itemOkpd2,
+                      itemRegime.regime,
+                    );
                     const itemRegimeIssue =
                       nationalRegimeValidation.issues.find(
                         (issue) => issue.code === itemRegime.code,
@@ -2285,12 +2296,32 @@ export default function PurchaseNoteModal({
                                       `items.${idx}.nationalRegimeType`,
                                     )}
                                   >
-                                    {NATIONAL_REGIME_OPTIONS.map((opt) => (
+                                    {NATIONAL_REGIME_OPTIONS.filter(
+                                      (opt) =>
+                                        opt.id !== "advantage" ||
+                                        itemAdvantageApplicable ||
+                                        itemRegimeValue === "advantage",
+                                    ).map((opt) => (
                                       <option key={opt.id} value={opt.id}>
                                         {opt.label}
                                       </option>
                                     ))}
                                   </select>
+                                  {itemAdvantageApplicable ? (
+                                    <span className={block("hint")}>
+                                      «Преимущество» — право заказчика: можно
+                                      установить, а можно не устанавливать. По
+                                      ст. 14 Закона № 44-ФЗ применяется только к
+                                      товарам российского происхождения, когда
+                                      запрет и ограничение не установлены.
+                                    </span>
+                                  ) : (
+                                    <span className={block("hint")}>
+                                      {itemRegime.regime
+                                        ? `«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(itemRegime.regime)}».`
+                                        : "«Преимущество» недоступно: применяется только к товарам (не к работам и услугам)."}
+                                    </span>
+                                  )}
                                   {itemRegime.regime && (
                                     <span className={block("hint")}>
                                       ПП РФ № 1875:{" "}
@@ -2525,21 +2556,27 @@ export default function PurchaseNoteModal({
         </legend>
         <div className={block("grid")}>
           <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-placing-way">
+            <span className={block("label")}>
               Способ определения поставщика
-            </label>
-            <select
-              id="note-placing-way"
-              className={block("select")}
-              {...register("placingWayCode")}
-            >
-              <option value="">Выберите способ</option>
-              {PLACING_WAYS_ALL.map((way) => (
-                <option key={way.code} value={way.code}>
-                  {way.label}
-                </option>
-              ))}
-            </select>
+            </span>
+            {/* Кастомный список: нативный select с длинными названиями
+                способов выпадал за пределы экрана */}
+            <CustomSelect
+              listData={PLACING_WAYS_ALL}
+              selectedValue={watchedPlacingWay || null}
+              placeholder="Выберите способ"
+              getKey={(way) => way.code}
+              getLabel={(way) => way.label}
+              renderItem={(way) => way.label}
+              searchable
+              searchPlaceholder="Поиск способа закупки…"
+              onClick={(_key, way) =>
+                setValue("placingWayCode", way.code, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
             {auctionValidation.hasViolation &&
               auctionValidation.warningMessage && (
                 <div className={block("alert-warning")} role="alert">
@@ -3183,12 +3220,8 @@ export default function PurchaseNoteModal({
                                     setKbkFundingYear(row, column.field, next)
                                   }
                                 />
-                                {limit !== null && (
-                                  <span
-                                    className={block(
-                                      overLimit ? "error" : "hint",
-                                    )}
-                                  >
+                                {limit !== null && overLimit && (
+                                  <span className={block("error")}>
                                     лимит ПГ: {formatRub(limit)}
                                   </span>
                                 )}

@@ -50,6 +50,40 @@ export const nationalRegimeExpectedLabel = (
 ): string =>
   expected ? NATIONAL_REGIME_MODE_LABELS[expected] : "не установлен";
 
+export type Okpd2ObjectKind = "goods" | "work" | "service" | "unknown";
+
+/**
+ * Вид объекта закупки по коду ОКПД2: 01–39 — товары, 41–43 — работы,
+ * 45 и далее — услуги. Нужен, чтобы не предлагать «Преимущество»
+ * для работ и услуг: по ст. 14 Закона № 44-ФЗ ценовая преференция
+ * установлена только в отношении товаров.
+ */
+export const okpd2ObjectKind = (code?: string): Okpd2ObjectKind => {
+  const digits = (code ?? "").replace(/\D/g, "");
+  if (digits.length < 2) {
+    return "unknown";
+  }
+  const group = Number(digits.slice(0, 2));
+  if (!Number.isFinite(group)) {
+    return "unknown";
+  }
+  if (group >= 1 && group <= 39) return "goods";
+  if (group >= 41 && group <= 43) return "work";
+  return "service";
+};
+
+/**
+ * «Преимущество» — право, а не обязанность заказчика: его можно
+ * установить, а можно не устанавливать. Допустимо только по товарам
+ * и только если по коду не требуются обязательные запрет или
+ * ограничение (ПП РФ № 1875).
+ */
+export const isAdvantageApplicable = (
+  code: string | undefined,
+  requiredRegime: NationalRegimeExpected,
+): boolean =>
+  requiredRegime === null && okpd2ObjectKind(code) === "goods";
+
 interface RegimeRule {
   prefix: string;
   label: string;

@@ -526,6 +526,10 @@ export const emptyPurchaseNote = (
   fundingSource: "Бюджет субъекта Российской Федерации",
   subject: "",
   isIndeterminateVolume: false,
+  // По умолчанию набор объектов считается конечным, а закупка — последней
+  // по позиции плана-графика: заказчик снимает флаги осознанно
+  oozSetComplete: true,
+  positionProcurementsComplete: true,
   items: [
     {
       id: "item-1",

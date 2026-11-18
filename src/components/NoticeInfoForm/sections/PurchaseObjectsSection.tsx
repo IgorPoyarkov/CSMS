@@ -18,7 +18,9 @@ import {
 import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import {
   checkOkpd2NationalRegime,
+  isAdvantageApplicable,
   nationalRegimeExpectedLabel,
+  nationalRegimeModeLabel,
   validateNationalRegime,
 } from "../../../services/NationalRegime/pp1875";
 import {
@@ -269,6 +271,16 @@ const PurchaseObjectsSection = ({
                       currentItem?.okpd2OrKtruCode,
                       okpd2Refs,
                     );
+                    // «Преимущество» — право заказчика и только по товарам,
+                    // когда запрет/ограничение по коду не обязательны
+                    const advantageAllowed = isAdvantageApplicable(
+                      currentItem?.okpd2OrKtruCode,
+                      regimeCheck.regime,
+                    );
+                    const declaredRegime =
+                      watch(
+                        `purchaseObjects.items.${index}.nationalRegimeType`,
+                      ) || "none";
                     const regimeIssue = nationalRegimeValidation.issues.find(
                       (issue) => issue.code === regimeCheck.code,
                     );
@@ -455,12 +467,31 @@ const PurchaseObjectsSection = ({
                                 `purchaseObjects.items.${index}.nationalRegimeType`,
                               )}
                             >
-                              {NATIONAL_REGIME_OPTIONS.map((opt) => (
+                              {NATIONAL_REGIME_OPTIONS.filter(
+                                (opt) =>
+                                  opt.id !== "advantage" ||
+                                  advantageAllowed ||
+                                  declaredRegime === "advantage",
+                              ).map((opt) => (
                                 <option key={opt.id} value={opt.id}>
                                   {opt.label}
                                 </option>
                               ))}
                             </select>
+                            {advantageAllowed ? (
+                              <span className={block("caption")}>
+                                «Преимущество» — право заказчика: можно
+                                установить, а можно не устанавливать (только
+                                товары российского происхождения, когда запрет и
+                                ограничение не установлены).
+                              </span>
+                            ) : (
+                              <span className={block("caption")}>
+                                {regimeCheck.regime
+                                  ? `«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(regimeCheck.regime)}».`
+                                  : "«Преимущество» недоступно: применяется только к товарам (не к работам и услугам)."}
+                              </span>
+                            )}
                             {regimeCheck.regime && (
                               <span className={block("caption")}>
                                 ПП РФ № 1875:{" "}
