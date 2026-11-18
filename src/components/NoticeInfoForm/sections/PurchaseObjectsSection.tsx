@@ -11,6 +11,7 @@ import {
   formatRub,
   normingViolation,
 } from "../../../services/Okpd2Ref/normingControl";
+import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
 import styles from "../NoticeInfoForm.module.scss";
@@ -124,6 +125,10 @@ const PurchaseObjectsSection = () => {
                 },
                 okpd2Refs,
               );
+              const auctionCheck = checkOkpd2AuctionList(
+                items[index]?.okpd2OrKtruCode,
+                okpd2Refs,
+              );
 
               return (
                 <div key={field.id} className={block("sub-box")}>
@@ -160,6 +165,16 @@ const PurchaseObjectsSection = () => {
                             {normedRef.normLimit !== undefined
                               ? ` Предельная цена единицы — ${formatRub(normedRef.normLimit)}.`
                               : " Предельная цена единицы устанавливается правовым актом о нормировании."}
+                          </span>
+                        </span>
+                      )}
+                      {auctionCheck.inAuctionList && (
+                        <span className={block("yellow-warning")}>
+                          <span className={block("warning-badge")}>!</span>
+                          <span>
+                            Аукционный перечень (РП РФ № 471-р): для кода{" "}
+                            {auctionCheck.code} обязателен электронный аукцион
+                            (кроме котировок / ед. поставщика).
                           </span>
                         </span>
                       )}

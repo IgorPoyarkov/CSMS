@@ -3516,930 +3516,1088 @@
       "id": 1,
       "code": "32.50.11.110",
       "name": "Шприцы, иглы, катетеры, канюли и аналогичные инструменты",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 2,
       "code": "32.50.11.190",
       "name": "Инструменты врачебные и медицинские прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 3,
       "code": "32.50.12.110",
       "name": "Материалы стоматологические пломбировочные",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 4,
       "code": "32.50.13.110",
       "name": "Изделия медицинские одноразового использования, в том числе катетеры, зонды",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 5,
       "code": "32.50.13.120",
       "name": "Шприцы автоматические и аналогичные устройства медицинские",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 6,
       "code": "32.50.13.190",
       "name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 7,
       "code": "32.50.14.110",
       "name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
       "isNormed": true,
-      "normLimit": 250000
+      "normLimit": 250000,
+      "isAuctionRequired": true
     },
     {
       "id": 8,
       "code": "32.50.15.119",
       "name": "Изделия медицинские, в том числе хирургические, прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 9,
       "code": "32.50.20.000",
       "name": "Изделия ортопедические, протезы и вспомогательные устройства",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 10,
       "code": "21.10.51.000",
       "name": "Препараты фармацевтические прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 11,
       "code": "21.20.10.110",
       "name": "Материалы, используемые в медицинских целях, кровезаменители и растворы",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 12,
       "code": "21.20.10.130",
       "name": "Материалы перевязочные медицинские",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 13,
       "code": "21.20.22.000",
       "name": "Материалы хирургические, включая шовный материал",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 14,
       "code": "21.20.23.119",
       "name": "Материалы, используемые в медицинских целях, прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 15,
       "code": "41.20.10.000",
       "name": "Работы строительные по возведению нежилых зданий и сооружений",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Строительные работы (раздел 41) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 16,
       "code": "41.20.11.100",
       "name": "Работы по возведению зданий и сооружений, кроме зданий управления транспортом",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Строительные работы (раздел 41) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 17,
       "code": "41.20.40.900",
       "name": "Работы строительные специализированные прочие, не включённые в другие группировки",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Строительные работы (раздел 41) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 18,
       "code": "42.11.20.300",
       "name": "Работы строительные по строительству автомагистралей и автомобильных дорог",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Работы на сооружениях (раздел 42) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 19,
       "code": "43.21.10.110",
       "name": "Производство работ по электроснабжению и освещению",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 20,
       "code": "43.22.11.100",
       "name": "Работы по монтажу систем водоснабжения, канализации и отопления",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 21,
       "code": "43.22.51.000",
       "name": "Работы по монтажу систем отопления и кондиционирования",
       "isNormed": true,
-      "normLimit": 3500000
+      "normLimit": 3500000,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 22,
       "code": "43.29.11.120",
       "name": "Монтаж прочего инженерного оборудования, не включённого в другие группировки",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 23,
       "code": "43.31.10.000",
       "name": "Производство штукатурных работ",
       "isNormed": true,
-      "normLimit": 1200
+      "normLimit": 1200,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 24,
       "code": "43.32.10.000",
       "name": "Установка дверей (кроме автоматических и вращающихся), окон и дверных коробок",
       "isNormed": true,
-      "normLimit": 15000
+      "normLimit": 15000,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 25,
       "code": "43.33.11.000",
       "name": "Работы по устройству покрытий полов из керамических и цементных материалов",
       "isNormed": true,
-      "normLimit": 2500
+      "normLimit": 2500,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 26,
       "code": "43.34.11.000",
       "name": "Производство малярных работ зданий",
       "isNormed": true,
-      "normLimit": 400
+      "normLimit": 400,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 27,
       "code": "43.91.11.000",
       "name": "Работы по устройству покрытий полов и облицовке стен",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 28,
       "code": "43.99.10.000",
       "name": "Устройство покрытий крыш и гидроизоляции плоских кровель",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Специализированные строительные работы (раздел 43) исключены из обязательного аукционного перечня РП РФ от 25.06.2020 № 1675-р — возможен конкурс или аукцион."
     },
     {
       "id": 29,
       "code": "23.61.10.110",
       "name": "Изделия сборные железобетонные фундаментные блоки",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 30,
       "code": "23.63.10.000",
       "name": "Бетон готовый (товарный бетон)",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 31,
       "code": "23.64.11.000",
       "name": "Смеси сухие строительные готовые",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 32,
       "code": "08.11.20.000",
       "name": "Материалы нерудные (песок, гравий) для строительства",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 33,
       "code": "26.20.11.110",
       "name": "Компьютеры общего назначения портативные массой менее 10 кг",
       "isNormed": true,
-      "normLimit": 85000
+      "normLimit": 85000,
+      "isAuctionRequired": true
     },
     {
       "id": 34,
       "code": "26.20.11.120",
       "name": "Компьютеры общего назначения настольные",
       "isNormed": true,
-      "normLimit": 75000
+      "normLimit": 75000,
+      "isAuctionRequired": true
     },
     {
       "id": 35,
       "code": "26.20.12.110",
       "name": "Устройства печатающие (принтеры) вычислительных машин",
       "isNormed": true,
-      "normLimit": 40000
+      "normLimit": 40000,
+      "isAuctionRequired": true
     },
     {
       "id": 36,
       "code": "26.20.12.120",
       "name": "Устройства вывода многофункциональные (МФУ)",
       "isNormed": true,
-      "normLimit": 60000
+      "normLimit": 60000,
+      "isAuctionRequired": true
     },
     {
       "id": 37,
       "code": "26.20.14.110",
       "name": "Мониторы, отображающие информацию на жидких кристаллах",
       "isNormed": true,
-      "normLimit": 45000
+      "normLimit": 45000,
+      "isAuctionRequired": true
     },
     {
       "id": 38,
       "code": "26.20.15.110",
       "name": "Устройства ввода (клавиатуры, мыши, сканеры штрих-кода)",
       "isNormed": true,
-      "normLimit": 8000
+      "normLimit": 8000,
+      "isAuctionRequired": true
     },
     {
       "id": 39,
       "code": "26.20.16.000",
       "name": "Накопители запоминающие внешние",
       "isNormed": true,
-      "normLimit": 15000
+      "normLimit": 15000,
+      "isAuctionRequired": true
     },
     {
       "id": 40,
       "code": "26.20.17.000",
       "name": "Комплекты и блоки питания вычислительной техники",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 41,
       "code": "26.30.20.110",
       "name": "Оборудование коммуникационное для передачи данных (коммутаторы, маршрутизаторы)",
       "isNormed": true,
-      "normLimit": 55000
+      "normLimit": 55000,
+      "isAuctionRequired": true
     },
     {
       "id": 42,
       "code": "26.30.11.110",
       "name": "Телефоны для сотовых сетей связи прочего беспроводного мобильного доступа",
       "isNormed": true,
-      "normLimit": 25000
+      "normLimit": 25000,
+      "isAuctionRequired": true
     },
     {
       "id": 43,
       "code": "26.40.33.110",
       "name": "Средства связи, выполняющие функцию цифровых систем связи и передачи информации",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 44,
       "code": "58.29.11.000",
       "name": "Обеспечение программное системное для компьютеров, кроме систем управления базами данных",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 45,
       "code": "58.29.50.000",
       "name": "Обеспечение программное для компьютеров прочее",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 46,
       "code": "62.01.11.000",
       "name": "Услуги по разработке систем программирования, в том числе средств защиты информации",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 47,
       "code": "62.02.10.000",
       "name": "Услуги по планированию и проектированию компьютерных систем",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 48,
       "code": "62.02.20.000",
       "name": "Услуги по техническому обслуживанию компьютерных систем",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 49,
       "code": "62.09.20.190",
       "name": "Услуги по установке программного обеспечения прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 50,
       "code": "63.11.11.000",
       "name": "Услуги по размещению компьютерных мощностей",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 51,
       "code": "95.11.00.000",
       "name": "Ремонт компьютеров и периферийного компьютерного оборудования",
       "isNormed": true,
-      "normLimit": 6000
+      "normLimit": 6000,
+      "isAuctionRequired": false
     },
     {
       "id": 52,
       "code": "31.01.11.130",
       "name": "Мебель деревянная офисная прочая",
       "isNormed": true,
-      "normLimit": 30000
+      "normLimit": 30000,
+      "isAuctionRequired": true
     },
     {
       "id": 53,
       "code": "31.01.12.120",
       "name": "Мебель деревянная для учебных заведений",
       "isNormed": true,
-      "normLimit": 18000
+      "normLimit": 18000,
+      "isAuctionRequired": true
     },
     {
       "id": 54,
       "code": "31.01.12.140",
       "name": "Мебель деревянная больничная",
       "isNormed": true,
-      "normLimit": 22000
+      "normLimit": 22000,
+      "isAuctionRequired": true
     },
     {
       "id": 55,
       "code": "31.02.10.000",
       "name": "Мебель деревянная для кухни",
       "isNormed": true,
-      "normLimit": 40000
+      "normLimit": 40000,
+      "isAuctionRequired": true
     },
     {
       "id": 56,
       "code": "31.09.11.140",
       "name": "Мебель деревянная прочая",
       "isNormed": true,
-      "normLimit": 25000
+      "normLimit": 25000,
+      "isAuctionRequired": true
     },
     {
       "id": 57,
       "code": "31.09.12.130",
       "name": "Мебель металлическая для сиденьев",
       "isNormed": true,
-      "normLimit": 12000
+      "normLimit": 12000,
+      "isAuctionRequired": true
     },
     {
       "id": 58,
       "code": "31.09.19.000",
       "name": "Мебель прочая",
       "isNormed": true,
-      "normLimit": 20000
+      "normLimit": 20000,
+      "isAuctionRequired": true
     },
     {
       "id": 59,
       "code": "17.23.11.110",
       "name": "Бумага писчая",
       "isNormed": true,
-      "normLimit": 900
+      "normLimit": 900,
+      "isAuctionRequired": true
     },
     {
       "id": 60,
       "code": "17.23.12.110",
       "name": "Бумага для записи (блокноты, тетради)",
       "isNormed": true,
-      "normLimit": 120
+      "normLimit": 120,
+      "isAuctionRequired": true
     },
     {
       "id": 61,
       "code": "17.23.13.110",
       "name": "Папки, обложки и прочие принадлежности из бумаги или картона",
       "isNormed": true,
-      "normLimit": 60
+      "normLimit": 60,
+      "isAuctionRequired": true
     },
     {
       "id": 62,
       "code": "17.23.13.191",
       "name": "Принадлежности канцелярские или школьные металлические",
       "isNormed": true,
-      "normLimit": 45
+      "normLimit": 45,
+      "isAuctionRequired": true
     },
     {
       "id": 63,
       "code": "17.23.14.110",
       "name": "Конверты из бумаги или картона",
       "isNormed": true,
-      "normLimit": 15
+      "normLimit": 15,
+      "isAuctionRequired": true
     },
     {
       "id": 64,
       "code": "22.29.25.000",
       "name": "Принадлежности канцелярские и аналогичные принадлежности из пластмасс",
       "isNormed": true,
-      "normLimit": 50
+      "normLimit": 50,
+      "isAuctionRequired": true
     },
     {
       "id": 65,
       "code": "32.99.12.120",
       "name": "Карандаши, кроме карандашей для художников",
       "isNormed": true,
-      "normLimit": 25
+      "normLimit": 25,
+      "isAuctionRequired": true
     },
     {
       "id": 66,
       "code": "32.99.15.110",
       "name": "Ручки шариковые",
       "isNormed": true,
-      "normLimit": 40
+      "normLimit": 40,
+      "isAuctionRequired": true
     },
     {
       "id": 67,
       "code": "17.29.14.110",
       "name": "Конверты, пакеты из бумаги для упаковки",
       "isNormed": true,
-      "normLimit": 12
+      "normLimit": 12,
+      "isAuctionRequired": true
     },
     {
       "id": 68,
       "code": "18.12.11.000",
       "name": "Услуги печатные прочие (типографские работы)",
       "isNormed": true,
-      "normLimit": 5
+      "normLimit": 5,
+      "isAuctionRequired": true
     },
     {
       "id": 69,
       "code": "18.14.11.000",
       "name": "Услуги по переплету и брошюровке",
       "isNormed": true,
-      "normLimit": 30
+      "normLimit": 30,
+      "isAuctionRequired": true
     },
     {
       "id": 70,
       "code": "10.39.11.110",
       "name": "Овощи (кроме картофеля) и фрукты, переработанные и консервированные",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 71,
       "code": "10.41.54.000",
       "name": "Масло подсолнечное и его фракции рафинированные",
       "isNormed": true,
-      "normLimit": 220
+      "normLimit": 220,
+      "isAuctionRequired": true
     },
     {
       "id": 72,
       "code": "10.51.30.110",
       "name": "Молоко питьевое коровье обработанное",
       "isNormed": true,
-      "normLimit": 110
+      "normLimit": 110,
+      "isAuctionRequired": true
     },
     {
       "id": 73,
       "code": "10.51.40.110",
       "name": "Масло сливочное",
       "isNormed": true,
-      "normLimit": 260
+      "normLimit": 260,
+      "isAuctionRequired": true
     },
     {
       "id": 74,
       "code": "10.61.31.000",
       "name": "Крупа из пшеницы, ржи, овса, кукурузы и прочих зерновых культур",
       "isNormed": true,
-      "normLimit": 90
+      "normLimit": 90,
+      "isAuctionRequired": true
     },
     {
       "id": 75,
       "code": "10.61.32.111",
       "name": "Мука пшеничная",
       "isNormed": true,
-      "normLimit": 70
+      "normLimit": 70,
+      "isAuctionRequired": true
     },
     {
       "id": 76,
       "code": "10.84.30.110",
       "name": "Соль пищевая",
       "isNormed": true,
-      "normLimit": 40
+      "normLimit": 40,
+      "isAuctionRequired": true
     },
     {
       "id": 77,
       "code": "01.13.41.000",
       "name": "Картофель столовый",
       "isNormed": true,
-      "normLimit": 60
+      "normLimit": 60,
+      "isAuctionRequired": true
     },
     {
       "id": 78,
       "code": "10.13.96.000",
       "name": "Изделия колбасные варёные из мяса и субпродуктов",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 79,
       "code": "10.11.51.110",
       "name": "Мясо птицы, кроме индейки, охлаждённое",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 80,
       "code": "01.41.21.000",
       "name": "Молоко-сырьё коровье",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false,
+      "auctionNote": "Исключение РП РФ № 471-р: код 01.4 (продукция животноводства) выведен из аукционного перечня."
     },
     {
       "id": 81,
       "code": "20.41.31.130",
       "name": "Мыло хозяйственное и средства моющие",
       "isNormed": true,
-      "normLimit": 120
+      "normLimit": 120,
+      "isAuctionRequired": true
     },
     {
       "id": 82,
       "code": "20.41.32.114",
       "name": "Средства моющие синтетические",
       "isNormed": true,
-      "normLimit": 180
+      "normLimit": 180,
+      "isAuctionRequired": true
     },
     {
       "id": 83,
       "code": "20.41.44.000",
       "name": "Средства дезинфекционные",
       "isNormed": true,
-      "normLimit": 350
+      "normLimit": 350,
+      "isAuctionRequired": true
     },
     {
       "id": 84,
       "code": "20.59.52.110",
       "name": "Реактивы химические",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 85,
       "code": "22.22.19.900",
       "name": "Тара пластмассовая прочая",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 86,
       "code": "22.19.73.110",
       "name": "Рукава из вулканизированной резины",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 87,
       "code": "25.99.23.000",
       "name": "Детали крепёжные металлические (болты, гайки, винты)",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 88,
       "code": "25.99.29.000",
       "name": "Изделия прочие из недрагоценных металлов",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 89,
       "code": "27.40.11.110",
       "name": "Светильники электрические, предназначенные для использования со светодиодными лампами",
       "isNormed": true,
-      "normLimit": 4500
+      "normLimit": 4500,
+      "isAuctionRequired": true
     },
     {
       "id": 90,
       "code": "27.11.40.000",
       "name": "Распределительные устройства и панели электрические",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 91,
       "code": "27.35.11.000",
       "name": "Провода и кабели электрические с изоляцией",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 92,
       "code": "19.20.21.000",
       "name": "Бензины автомобильные",
       "isNormed": true,
-      "normLimit": 62
+      "normLimit": 62,
+      "isAuctionRequired": true
     },
     {
       "id": 93,
       "code": "19.20.22.000",
       "name": "Топливо дизельное",
       "isNormed": true,
-      "normLimit": 68
+      "normLimit": 68,
+      "isAuctionRequired": true
     },
     {
       "id": 94,
       "code": "19.20.23.110",
       "name": "Масла для дизельных и карбюраторных двигателей",
       "isNormed": true,
-      "normLimit": 700
+      "normLimit": 700,
+      "isAuctionRequired": true
     },
     {
       "id": 95,
       "code": "19.20.29.110",
       "name": "Масла смазочные прочие",
       "isNormed": true,
-      "normLimit": 650
+      "normLimit": 650,
+      "isAuctionRequired": true
     },
     {
       "id": 96,
       "code": "46.71.10.000",
       "name": "Торговля оптовая твёрдым, жидким и газообразным топливом и подобными продуктами",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 97,
       "code": "35.11.20.000",
       "name": "Электроэнергия, произведённая прочими электростанциями",
       "isNormed": true,
-      "normLimit": 6
+      "normLimit": 6,
+      "isAuctionRequired": true
     },
     {
       "id": 98,
       "code": "35.13.00.000",
       "name": "Распределение электроэнергии",
       "isNormed": true,
-      "normLimit": 4
+      "normLimit": 4,
+      "isAuctionRequired": true
     },
     {
       "id": 99,
       "code": "35.23.12.000",
       "name": "Распределение газообразного топлива по распределительным сетям",
       "isNormed": true,
-      "normLimit": 9
+      "normLimit": 9,
+      "isAuctionRequired": true
     },
     {
       "id": 100,
       "code": "36.00.11.000",
       "name": "Распределение пресной воды",
       "isNormed": true,
-      "normLimit": 45
+      "normLimit": 45,
+      "isAuctionRequired": true
     },
     {
       "id": 101,
       "code": "37.00.11.000",
       "name": "Услуги по водоотведению сточных вод",
       "isNormed": true,
-      "normLimit": 40
+      "normLimit": 40,
+      "isAuctionRequired": true
     },
     {
       "id": 102,
       "code": "38.11.10.000",
       "name": "Услуги по сбору неопасных отходов для последующей переработки и утилизации",
       "isNormed": true,
-      "normLimit": 120
+      "normLimit": 120,
+      "isAuctionRequired": true
     },
     {
       "id": 103,
       "code": "38.21.10.000",
       "name": "Услуги по обработке и удалению неопасных отходов",
       "isNormed": true,
-      "normLimit": 900
+      "normLimit": 900,
+      "isAuctionRequired": true
     },
     {
       "id": 104,
       "code": "45.20.11.000",
       "name": "Техническое обслуживание и ремонт легковых автомобилей",
       "isNormed": true,
-      "normLimit": 12000
+      "normLimit": 12000,
+      "isAuctionRequired": true
     },
     {
       "id": 105,
       "code": "45.20.12.000",
       "name": "Техническое обслуживание и ремонт прочих автотранспортных средств",
       "isNormed": true,
-      "normLimit": 25000
+      "normLimit": 25000,
+      "isAuctionRequired": true
     },
     {
       "id": 106,
       "code": "45.32.11.000",
       "name": "Торговля розничная автомобильными деталями и аксессуарами",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 107,
       "code": "49.32.10.000",
       "name": "Услуги такси",
       "isNormed": true,
-      "normLimit": 1500
+      "normLimit": 1500,
+      "isAuctionRequired": true
     },
     {
       "id": 108,
       "code": "49.41.11.000",
       "name": "Услуги по перевозке грузов автомобилями-самосвалами (самосвальные перевозки)",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 109,
       "code": "49.41.20.000",
       "name": "Услуги по перевозке грузов прочим специализированным автотранспортом",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 110,
       "code": "81.10.10.000",
       "name": "Комплексные услуги по обслуживанию недвижимости",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 111,
       "code": "81.21.10.000",
       "name": "Услуги по общей уборке зданий",
       "isNormed": true,
-      "normLimit": 55
+      "normLimit": 55,
+      "isAuctionRequired": false
     },
     {
       "id": 112,
       "code": "81.22.10.000",
       "name": "Услуги по чистке и уборке прочая, не включённые в другие группировки",
       "isNormed": true,
-      "normLimit": 70
+      "normLimit": 70,
+      "isAuctionRequired": false
     },
     {
       "id": 113,
       "code": "81.29.11.000",
       "name": "Услуги по проведению дезинфекционных, дезинсекционных и дератизационных работ",
       "isNormed": true,
-      "normLimit": 25
+      "normLimit": 25,
+      "isAuctionRequired": false
     },
     {
       "id": 114,
       "code": "81.30.11.000",
       "name": "Услуги по благоустройству ландшафта",
       "isNormed": true,
-      "normLimit": 150
+      "normLimit": 150,
+      "isAuctionRequired": false
     },
     {
       "id": 115,
       "code": "96.01.11.000",
       "name": "Услуги по химической чистке и стирке",
       "isNormed": true,
-      "normLimit": 200
+      "normLimit": 200,
+      "isAuctionRequired": false
     },
     {
       "id": 116,
       "code": "80.10.11.000",
       "name": "Услуги по обеспечению охраны общественного порядка и предотвращению преступлений",
       "isNormed": true,
-      "normLimit": 320
+      "normLimit": 320,
+      "isAuctionRequired": false
     },
     {
       "id": 117,
       "code": "66.21.10.000",
       "name": "Услуги по оценке рисков и потребностей в страховании",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 118,
       "code": "66.21.12.000",
       "name": "Услуги в области оценки ущерба страховщиками",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 119,
       "code": "69.20.10.000",
       "name": "Услуги по проведению аудита",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 120,
       "code": "70.22.11.000",
       "name": "Услуги по консультированию по вопросам управления стратегическими",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 121,
       "code": "71.11.10.000",
       "name": "Услуги в области архитектуры",
       "isNormed": true,
-      "normLimit": 900000
+      "normLimit": 900000,
+      "isAuctionRequired": false
     },
     {
       "id": 122,
       "code": "71.12.10.000",
       "name": "Услуги по инженерно-техническому проектированию",
       "isNormed": true,
-      "normLimit": 1200000
+      "normLimit": 1200000,
+      "isAuctionRequired": false
     },
     {
       "id": 123,
       "code": "71.12.11.000",
       "name": "Разработка проектов по кондиционированию воздуха, холодильной технике, санитарной технике и мониторингу загрязнения окружающей среды",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 124,
       "code": "71.20.11.000",
       "name": "Испытания и анализ состава и чистоты материалов и веществ",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 125,
       "code": "71.20.19.000",
       "name": "Услуги по техническим испытаниям и анализу прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 126,
       "code": "72.19.11.000",
       "name": "Научно-исследовательские разработки в области естественных и технических наук прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 127,
       "code": "74.90.21.000",
       "name": "Услуги по оценке уязвимости показателей деятельности юридических лиц",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 128,
       "code": "85.41.10.000",
       "name": "Образование дополнительное детей и взрослых прочее, не включённое в другие группировки",
       "isNormed": true,
-      "normLimit": 40000
+      "normLimit": 40000,
+      "isAuctionRequired": false
     },
     {
       "id": 129,
       "code": "85.42.19.000",
       "name": "Деятельность по дополнительному профессиональному образованию прочая",
       "isNormed": true,
-      "normLimit": 55000
+      "normLimit": 55000,
+      "isAuctionRequired": false
     },
     {
       "id": 130,
       "code": "85.42.21.000",
       "name": "Деятельность по обучению и профессиональной подготовке кадров",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 131,
       "code": "86.10.11.000",
       "name": "Услуги больничных для стационарных пациентов с общим лечебным профилем",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 132,
       "code": "86.21.10.000",
       "name": "Услуги в области общей врачебной практики",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 133,
       "code": "86.90.11.000",
       "name": "Услуги в области здравоохранения прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 134,
       "code": "86.90.19.000",
       "name": "Деятельность в области медицины прочая, не включённая в другие группировки",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 135,
       "code": "58.11.11.000",
       "name": "Книги печатные для детей",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 136,
       "code": "58.14.10.000",
       "name": "Журналы и периодические издания печатные",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     },
     {
       "id": 137,
       "code": "73.11.10.000",
       "name": "Деятельность рекламных агентств",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 138,
       "code": "96.09.10.000",
       "name": "Услуги персональных услуг прочие",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 139,
       "code": "77.11.11.000",
       "name": "Аренда и лизинг легковых автомобилей и легких автотранспортных средств",
       "isNormed": true,
-      "normLimit": 45000
+      "normLimit": 45000,
+      "isAuctionRequired": false
     },
     {
       "id": 140,
       "code": "77.12.11.000",
       "name": "Аренда и лизинг прочего автотранспорта и транспортных средств, кроме транспортных средств для общественного транспорта",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 141,
       "code": "68.20.10.000",
       "name": "Услуги по аренде и управлению собственным или арендованным нежилым недвижимым имуществом",
       "isNormed": true,
-      "normLimit": 250000
+      "normLimit": 250000,
+      "isAuctionRequired": false
     },
     {
       "id": 142,
       "code": "52.21.44.000",
       "name": "Деятельность по эксплуатации автомобильных дорог и автомагистралей",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": false
     },
     {
       "id": 143,
       "code": "18.20.11.000",
       "name": "Воспроизведение записанных программ для ЭВМ",
-      "isNormed": false
+      "isNormed": false,
+      "isAuctionRequired": true
     }
   ],
   "legalActs": [
@@ -4734,6 +4892,28 @@
       ],
       "sourceUrl": "http://pravo.gov.ru",
       "lastCheckedDate": "2026-11-16",
+      "isVerified": true
+    },
+    {
+      "id": "rpr-471r",
+      "shortName": "РП РФ N 471-р",
+      "fullName": "Распоряжение Правительства РФ от 21.03.2016 N 471-р (ред. от 31.10.2022) \"О перечне товаров, работ, услуг, в случае осуществления закупок которых заказчик обязан проводить аукцион в электронной форме (электронный аукцион)\"",
+      "actType": "government-order",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "471-р",
+      "adoptedDate": "2016-03-21",
+      "effectiveDate": "2016-03-21",
+      "status": "active",
+      "scope": "Обязательный электронный аукцион (ч. 6 ст. 24 Закона № 44-ФЗ): контроль выбора способа определения поставщика по кодам ОКПД2",
+      "components": [
+        "Okpd2Dictionary",
+        "Okpd2Select",
+        "PurchaseNoteModal",
+        "NoticeInfoForm",
+        "PurchasePlanPositionModal"
+      ],
+      "sourceUrl": "https://www.consultant.ru/document/cons_doc_LAW_195973/",
+      "lastCheckedDate": "2026-11-17",
       "isVerified": true
     }
   ],

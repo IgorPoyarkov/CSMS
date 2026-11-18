@@ -52,8 +52,13 @@ import {
 import { useUpdateOrganization } from "../../services/Organization/organization.api";
 import { MINIMUM_SMP_REQUIRED_PERCENT } from "../../services/ContractSmp/pp1466";
 import {
+  checkOkpd2AuctionList,
+  validatePlacingWayAgainstAuctionList,
+} from "../../services/Okpd2Ref/auctionListControl";
+import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
+import {
   NATIONAL_REGIME_OPTIONS,
-  PLACING_WAYS_CONTEST,
+  PLACING_WAYS_ALL,
   PP2571_POSITIONS,
 } from "../../services/Procurements/noticeInfo.config";
 import { DEFAULT_PROCUREMENT_TYPES } from "../ProcurementProcessing/procurement.config";
@@ -125,6 +130,7 @@ export default function PurchaseNoteModal({
   const { data: existingNotes = [] } = usePurchaseNotes(organizationId);
   const { data: orgEmployees = [] } =
     useFetchOrganizationEmployees(organizationId);
+  const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   const { data: allObjectDescriptions = [] } =
     useOrganizationObjectDescriptions(organizationId);
   const objectDescriptions = allObjectDescriptions.filter(
@@ -423,6 +429,16 @@ export default function PurchaseNoteModal({
   const watchedDeliveryMode = watch("deliveryTermMode") ?? "relative";
   const watchedAcceptanceMode = watch("acceptanceTermMode") ?? "event";
   const watchedStatus = (watch("status") ?? "draft") as PurchaseNoteStatus;
+  const watchedPlacingWay = watch("placingWayCode") || "OKP20";
+  const watchedItems = (watch("items") ?? []) as PurchaseNoteObjectItem[];
+  const auctionValidation = validatePlacingWayAgainstAuctionList(
+    watchedPlacingWay,
+    watchedItems.map((item) => ({
+      code: item.okpd2Code,
+      name: item.name,
+    })),
+    okpd2Refs,
+  );
 
   const watchedAdvantageSmp = Boolean(watch("advantageSmpPart3Art30"));
   const watchedSmpSubcontracting = Boolean(watch("requiresSmpSubcontracting"));
@@ -1088,6 +1104,14 @@ export default function PurchaseNoteModal({
                           );
                         }}
                       />
+                      {itemOkpd2 &&
+                        checkOkpd2AuctionList(itemOkpd2, okpd2Refs)
+                          .inAuctionList && (
+                          <span className={block("hint")}>
+                            Код входит в аукционный перечень (РП РФ № 471-р) —
+                            обязателен электронный аукцион.
+                          </span>
+                        )}
                     </div>
 
                     <div className={block("field")}>
@@ -1232,12 +1256,33 @@ export default function PurchaseNoteModal({
               className={block("select")}
               {...register("placingWayCode")}
             >
-              {PLACING_WAYS_CONTEST.map((way) => (
+              {PLACING_WAYS_ALL.map((way) => (
                 <option key={way.code} value={way.code}>
                   {way.label}
                 </option>
               ))}
             </select>
+            {auctionValidation.hasViolation &&
+              auctionValidation.warningMessage && (
+                <div className={block("alert-warning")} role="alert">
+                  <div>{auctionValidation.warningMessage}</div>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className={block("link-btn")}
+                      onClick={() => setValue("placingWayCode", "EA20")}
+                    >
+                      Установить электронный аукцион (EA20)
+                    </button>
+                  )}
+                </div>
+              )}
+            {!auctionValidation.hasViolation &&
+              auctionValidation.infoMessage && (
+                <span className={block("hint")}>
+                  {auctionValidation.infoMessage}
+                </span>
+              )}
           </div>
 
           <div className={block("field")}>
