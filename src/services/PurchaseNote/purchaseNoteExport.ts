@@ -20,10 +20,12 @@ import {
   PLACING_WAYS_ALL,
 } from "../../services/Procurements/noticeInfo.config";
 import {
+  COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_SHORT,
   NMCK_METHOD_LABELS,
 } from "../Nmck/nmck.schema";
 import {
+  calculateCostNmck,
   calculateMarketNmck,
   formatNmckMoney,
 } from "../Nmck/marketNmck";
@@ -259,6 +261,38 @@ export const buildPurchaseNoteExportModel = ({
       ]
         .filter(Boolean)
         .join("\n");
+    } else if (calc.method === "tariff") {
+      const validityStr =
+        calc.tariffValidFrom || calc.tariffValidTo
+          ? `Период действия: с ${formatIsoToRu(calc.tariffValidFrom)} по ${formatIsoToRu(calc.tariffValidTo)}${calc.tariffExpired ? " (СРОК ДЕЙСТВИЯ ИСТЁК)" : ""}`
+          : "";
+      nmckCalcSummary = [
+        `${NMCK_METHOD_LABELS[calc.method]} от ${formatIsoToRu(calc.calculationDate || calc.calculatedAt)}`,
+        calc.tariffName ? `Регулируемый объект: ${calc.tariffName}` : "",
+        `Источник: ${calc.tariffSourceName || "—"}${calc.tariffDocument ? ` (${calc.tariffDocument})` : ""}`,
+        validityStr,
+        `Тариф: ${formatNmckMoney(calc.tariffUnitPrice ?? calc.meanUnitPrice)} ₽/${calc.unit} × ${calc.quantity} ${calc.unit} = ${formatNmckMoney(calc.nmckTotal)} ₽`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    } else if (calc.method === "cost") {
+      const costEval = calculateCostNmck({
+        quantity: calc.quantity,
+        costInputScope: calc.costInputScope,
+        items: calc.costItems ?? [],
+        profitCoeff: calc.costProfitCoeff ?? 1,
+      });
+      const costLines = costEval.evaluatedItems
+        .filter((row) => row.isValidAmount)
+        .map(
+          (row, idx) =>
+            `${idx + 1}) [${COST_ITEM_CATEGORY_LABELS[row.item.category ?? "other"]}] ${row.item.name || "—"}: ${formatNmckMoney(row.numericAmount)} ₽${row.item.basis ? ` (${row.item.basis})` : ""}`,
+        );
+      nmckCalcSummary = [
+        `${NMCK_METHOD_LABELS[calc.method]} от ${formatIsoToRu(calc.calculationDate || calc.calculatedAt)}`,
+        `Сумма затрат: ${formatNmckMoney(calc.costSubtotal ?? costEval.costSubtotal)} ₽; коэф. прибыли k=${(calc.costProfitCoeff ?? costEval.profitCoeff).toFixed(2)} (+${formatNmckMoney(calc.costProfitAmount ?? costEval.profitAmount)} ₽); цена ед.: ${formatNmckMoney(calc.costUnitPrice ?? costEval.unitPrice)} ₽; Итого НМЦК: ${formatNmckMoney(calc.nmckTotal)} ₽`,
+        ...costLines,
+      ].join("\n");
     } else {
       const evaluated = calculateMarketNmck({
         quantity: calc.quantity,
