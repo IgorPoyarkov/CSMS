@@ -221,9 +221,7 @@ export default function MarketNmckCalculator({
   );
 
   // 3. Поля тарифного метода (ч. 8 ст. 22 44-ФЗ, официальные источники)
-  const [tariffId, setTariffId] = useState(
-    () => initialRecord?.tariffId || "",
-  );
+  const [tariffId, setTariffId] = useState(() => initialRecord?.tariffId || "");
   const [tariffName, setTariffName] = useState(
     () => initialRecord?.tariffName || "",
   );
@@ -476,6 +474,7 @@ export default function MarketNmckCalculator({
         id: `offer-eis-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
         sourceType: "eis_contract",
         supplierName: found.supplierName,
+        supplierInn: found.supplierInn,
         sourceDocument: `Контракт № ${found.contractNumber} (${found.contractName})`,
         offerDate: found.contractDate || calculationDate || todayIso,
         unitPrice: String(found.contractPrice),
@@ -731,10 +730,7 @@ export default function MarketNmckCalculator({
             role="tab"
             aria-selected={method === m}
             disabled={disabled}
-            className={block(
-              "method-tab",
-              method === m ? ["active"] : [],
-            )}
+            className={block("method-tab", method === m ? ["active"] : [])}
             onClick={() => handleSwitchMethod(m)}
           >
             {renderMethodIcon(m)}
@@ -1016,9 +1012,7 @@ export default function MarketNmckCalculator({
                           <select
                             className={block("select")}
                             disabled={disabled}
-                            value={
-                              item.offer.sourceType ?? "commercial_offer"
-                            }
+                            value={item.offer.sourceType ?? "commercial_offer"}
                             onChange={(e) =>
                               updateOffer(item.index, {
                                 sourceType: e.target
@@ -1042,6 +1036,18 @@ export default function MarketNmckCalculator({
                               })
                             }
                             placeholder="Поставщик / реестровая запись"
+                          />
+                          <input
+                            className={block("input")}
+                            disabled={disabled}
+                            value={item.offer.supplierInn ?? ""}
+                            onChange={(e) =>
+                              updateOffer(item.index, {
+                                supplierInn: e.target.value,
+                              })
+                            }
+                            placeholder="ИНН поставщика (для проверки в реестре МСП)"
+                            inputMode="numeric"
                           />
                           <input
                             className={block("input")}
@@ -1292,8 +1298,8 @@ export default function MarketNmckCalculator({
               <span>
                 <AlertTriangle size={14} aria-hidden="true" /> Учтено{" "}
                 {marketResult.activeCount} ценовых источника(ов). По п. 3.19
-                Методических рекомендаций МЭР № 567 рекомендуется использовать не
-                менее 3 источников ценовой информации.
+                Методических рекомендаций МЭР № 567 рекомендуется использовать
+                не менее 3 источников ценовой информации.
               </span>
             </div>
           )}
@@ -1865,16 +1871,13 @@ export default function MarketNmckCalculator({
                       costResult.rawItemsSum > 0 && (
                         <span>
                           {" "}
-                          · На весь объём ({costResult.quantity}{" "}
-                          {unit || "ед."}):{" "}
-                          {formatNmckMoney(costResult.costSubtotal)} ₽
+                          · На весь объём ({costResult.quantity} {unit || "ед."}
+                          ): {formatNmckMoney(costResult.costSubtotal)} ₽
                         </span>
                       )}
                   </td>
                   <td className={block("computed-cell")}>
-                    <strong>
-                      {formatNmckMoney(costResult.rawItemsSum)} ₽
-                    </strong>
+                    <strong>{formatNmckMoney(costResult.rawItemsSum)} ₽</strong>
                   </td>
                   <td className={block("computed-cell")}>
                     {costResult.rawItemsSum > 0 ? "100.0%" : "—"}
@@ -1975,8 +1978,8 @@ export default function MarketNmckCalculator({
                 className={block("label")}
                 htmlFor="nmck-cost-profit-basis"
               >
-                Обоснование обычной для данной сферы деятельности прибыли (ч.
-                10 ст. 22)
+                Обоснование обычной для данной сферы деятельности прибыли (ч. 10
+                ст. 22)
               </label>
               <input
                 id="nmck-cost-profit-basis"
@@ -1992,9 +1995,7 @@ export default function MarketNmckCalculator({
           {/* Сводные показатели затратного метода */}
           <div className={block("metrics")}>
             <div className={block("metric")}>
-              <span className={block("metric-label")}>
-                Сумма статей затрат
-              </span>
+              <span className={block("metric-label")}>Сумма статей затрат</span>
               <span className={block("metric-value")}>
                 {formatNmckMoney(costResult.costSubtotal)} ₽
               </span>
@@ -2189,8 +2190,8 @@ export default function MarketNmckCalculator({
               style={{ verticalAlign: "text-bottom", marginRight: 4 }}
               aria-hidden="true"
             />
-            Расчёт нормативным методом сформирован (ч. 7 ст. 22, ст. 19 Закона
-            № 44-ФЗ).
+            Расчёт нормативным методом сформирован (ч. 7 ст. 22, ст. 19 Закона №
+            44-ФЗ).
           </p>
         )}
 

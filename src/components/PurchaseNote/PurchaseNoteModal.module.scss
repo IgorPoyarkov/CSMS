@@ -621,6 +621,68 @@
     }
   }
 
+  // Проверка КП по реестру МСП: отдельный блок, чтобы рекомендация по СМП
+  // не терялась среди реквизитов подписи и запроса файла
+  &__smp-check {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-panel);
+  }
+
+  &__smp-recommendation {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent-soft);
+  }
+
+  &__smp-recommendation-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    strong {
+      color: var(--accent-emphasis);
+    }
+  }
+
+  &__smp-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &--ok {
+      border-color: var(--state-success);
+      background: var(--state-success-soft);
+      color: var(--state-success);
+    }
+
+    &--no {
+      border-color: var(--state-danger);
+      background: var(--state-danger-soft);
+      color: var(--state-danger);
+    }
+
+    &--unknown {
+      border-color: var(--state-warning);
+      background: var(--state-warning-soft);
+      color: var(--state-warning);
+    }
+  }
+
   &__nmck-workspace {
     display: flex;
     flex-direction: column;

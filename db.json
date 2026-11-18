@@ -29,6 +29,11 @@
       "email": "zakupki@kurskavtodor.ru",
       "password": "qwerty12",
       "organizationId": 6
+    },
+    {
+      "email": "belov@belgorod.test",
+      "password": "qwerty12",
+      "id": 6
     }
   ],
   "employees": [
@@ -1920,6 +1925,26 @@
       "Организатор совместной закупки": "",
       "КБК": "20013000000000000000",
       "id": "0SDcOqA"
+    },
+    {
+      "Идентификационный код закупки": "267701234567770101001100010022120000",
+      "Наименование закупки": "Поставка расходных материалов для лабораторной диагностики",
+      "Начальная (максимальная) цена контракта, руб": 1240000,
+      "Тип закупки": "Прочее",
+      "Уполномоченный орган (учреждение)": "Департамент здравоохранения города Москвы",
+      "Организатор совместной закупки": "ГБУ «Клинико-диагностический центр ДЗМ»",
+      "КБК": "20012000000000000000",
+      "id": "jASElAx"
+    },
+    {
+      "Идентификационный код закупки": "267701234567770101001100010022120000",
+      "Наименование закупки": "Поставка расходных материалов для лабораторной диагностики",
+      "Начальная (максимальная) цена контракта, руб": 1240000,
+      "Тип закупки": "Прочее",
+      "Уполномоченный орган (учреждение)": "Департамент здравоохранения города Москвы",
+      "Организатор совместной закупки": "ГБУ «Клинико-диагностический центр ДЗМ»",
+      "КБК": "20012000000000000000",
+      "id": "HSe22Z_"
     }
   ],
   "notices": [],
@@ -2400,6 +2425,66 @@
       "orderDate": "2026-11-10",
       "comment": "Отпуск без сохранения ЗП по семейным обстоятельствам",
       "createdAt": "2026-11-10"
+    },
+    {
+      "id": 7,
+      "organizationId": 1,
+      "employeeId": 6,
+      "employeeName": "Иванова Анна Сергеевна",
+      "type": "sick_leave",
+      "startDate": "2027-06-10",
+      "endDate": "2027-06-20",
+      "status": "scheduled",
+      "daysCount": 10,
+      "orderNumber": "ЛН-2027/001",
+      "orderDate": "2027-06-10",
+      "comment": "Пересечение с ежегодным отпуском 01.06–14.06",
+      "createdAt": "2027-06-09"
+    },
+    {
+      "id": 8,
+      "organizationId": 1,
+      "employeeId": 7,
+      "employeeName": "Петров Сергей Николаевич",
+      "type": "sick_leave",
+      "startDate": "2027-07-10",
+      "endDate": "2027-07-25",
+      "status": "scheduled",
+      "daysCount": 14,
+      "orderNumber": "ЛН-2027/002",
+      "orderDate": "2027-07-10",
+      "comment": "Пересечение с ежегодным отпуском 01.07–30.07",
+      "createdAt": "2027-07-09"
+    },
+    {
+      "id": 9,
+      "organizationId": 1,
+      "employeeId": 16,
+      "employeeName": "Фомин Игорь Николаевич",
+      "type": "business_trip",
+      "startDate": "2027-10-05",
+      "endDate": "2027-10-20",
+      "status": "scheduled",
+      "daysCount": 2,
+      "orderNumber": "Ком-2027/003",
+      "orderDate": "2027-10-01",
+      "comment": "Командировка в Москву — пересечение с отпуском 01.10–14.10",
+      "createdAt": "2027-10-01"
+    },
+    {
+      "id": 10,
+      "organizationId": 1,
+      "employeeId": 36,
+      "employeeName": "Козлова Мария Дмитриевна",
+      "type": "vacation",
+      "startDate": "2027-03-14",
+      "endDate": "2027-03-25",
+      "status": "approved",
+      "daysCount": 10,
+      "orderNumber": "Отп-2027/004",
+      "orderDate": "2027-03-10",
+      "comment": "Отпуск без графика: план на июль, факт в марте",
+      "createdAt": "2027-03-10"
     }
   ],
   "contractProjects": [
@@ -4451,6 +4536,31 @@
   ],
   "legalActs": [
     {
+      "id": "tk-rf",
+      "shortName": "ТК РФ",
+      "fullName": "Трудовой кодекс Российской Федерации от 30.12.2001 № 197-ФЗ",
+      "actType": "federal-law",
+      "adoptedBy": "Государственная Дума",
+      "actNumber": "197-ФЗ",
+      "adoptedDate": "2001-12-30",
+      "effectiveDate": "2002-02-01",
+      "status": "active",
+      "scope": "",
+      "components": [
+        "VacationSchedule",
+        "DefectList",
+        "ContractService",
+        "PurchasePlan",
+        "ProcurementProcessing",
+        "ContractRegistry",
+        "BidEvaluation"
+      ],
+      "sourceUrl": "http://www.consultant.ru/document/cons_doc_LAW_34683/",
+      "lastCheckedDate": "2026-11-18",
+      "isVerified": true,
+      "notes": ""
+    },
+    {
       "id": "law-44fz",
       "shortName": "44-ФЗ",
       "fullName": "Федеральный закон от 05.04.2013 N 44-ФЗ \"О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд\"",
@@ -4973,6 +5083,50 @@
           "isSupplyDuringWorks": false
         }
       ],
+      "nmckOffers": [
+        {
+          "id": "offer-note1-1",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «МедТехСнаб»",
+          "supplierInn": "3128001111",
+          "sourceDocument": "КП № 14/2026",
+          "offerDate": "2026-08-20",
+          "unitPrice": "3100000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-note1-2",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «МедПрибор»",
+          "supplierInn": "3128002222",
+          "sourceDocument": "КП № 21/2026",
+          "offerDate": "2026-08-21",
+          "unitPrice": "3150000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-note1-3",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «Диагностика Плюс»",
+          "supplierInn": "3128003333",
+          "sourceDocument": "КП № 8/2026",
+          "offerDate": "2026-08-22",
+          "unitPrice": "3200000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        }
+      ],
       "okpd2Code": "41.20.40.900",
       "okpd2Name": "Работы строительные специализированные прочие, не включённые в другие группировки",
       "unit": "",
@@ -5084,11 +5238,157 @@
       "basis": "Бюджетная смета на 2026 год, строка 0011",
       "smpRequiredPercent": 25,
       "subject": "Поставка медицинского оборудования (аппарат ультразвуковой диагностики экспертного класса)",
-      "initialMaxPrice": "4850000.00",
+      "initialMaxPrice": "175.50",
       "status": "approved",
       "comment": "",
       "createdAt": "2026-08-05",
-      "ikz": "267701234567770101001100010013250000"
+      "ikz": "267701234567770101001100010013250000",
+      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ и Приказом МЭР России № 567. Учтено источников: 4 (ООО «МедТехСнаб» от 2026-11-18: 123,00 ₽; АО «ГлобалМед» от 2026-11-18: 223,00 ₽; ООО «Медимпорт» от 2026-11-18: 223,00 ₽; АО «ФармДиагностика» от 2026-11-18: 133,00 ₽). Расчёт по средней приведённой цене (175,50 ₽/ед.) × 1 шт. СКО: 55,00 ₽, коэффициент вариации V: 31.34% (выборка однородна <= 33%). Итоговая НМЦК: 175,50 ₽. По реестру МСП: 1 из 4 поставщиков — субъект малого предпринимательства.",
+      "nmckOffers": [
+        {
+          "id": "offer-1795006305240-1-mubz",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «МедТехСнаб»",
+          "supplierInn": "3128001111",
+          "sourceDocument": "",
+          "offerDate": "2026-11-18",
+          "unitPrice": "123",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-1795006305240-2-mou9",
+          "sourceType": "commercial_offer",
+          "supplierName": "АО «ГлобалМед»",
+          "supplierInn": "7701234567",
+          "sourceDocument": "",
+          "offerDate": "2026-11-18",
+          "unitPrice": "223",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-1795006305240-3-1iwk",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «Медимпорт»",
+          "supplierInn": "7702345678",
+          "sourceDocument": "",
+          "offerDate": "2026-11-18",
+          "unitPrice": "223",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-1795006312123-4-4qyu",
+          "sourceType": "public_price",
+          "supplierName": "АО «ФармДиагностика»",
+          "supplierInn": "7703456789",
+          "sourceDocument": "",
+          "offerDate": "2026-11-18",
+          "unitPrice": "133",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        }
+      ],
+      "nmckCalculation": {
+        "method": "market_analysis",
+        "calculatedAt": "2026-11-18",
+        "calculationDate": "2026-11-18",
+        "calculatorName": "Иванова Анна Сергеевна",
+        "subject": "Поставка медицинского оборудования (аппарат ультразвуковой диагностики экспертного класса)",
+        "okpd2Code": "32.50.13.190",
+        "okpd2Name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
+        "quantity": "1",
+        "unit": "шт",
+        "applyAutoInflation": false,
+        "annualInflationPercent": "7.5",
+        "selectedBasis": "mean",
+        "offers": [
+          {
+            "id": "offer-1795006305240-1-mubz",
+            "sourceType": "commercial_offer",
+            "supplierName": "ООО «МедТехСнаб»",
+            "supplierInn": "3128001111",
+            "sourceDocument": "",
+            "offerDate": "2026-11-18",
+            "unitPrice": "123",
+            "vatMode": "with_vat",
+            "inflationCoeff": "1",
+            "commercialCoeff": "1",
+            "adjustmentComment": "",
+            "included": true
+          },
+          {
+            "id": "offer-1795006305240-2-mou9",
+            "sourceType": "commercial_offer",
+            "supplierName": "АО «ГлобалМед»",
+            "supplierInn": "7701234567",
+            "sourceDocument": "",
+            "offerDate": "2026-11-18",
+            "unitPrice": "223",
+            "vatMode": "with_vat",
+            "inflationCoeff": "1",
+            "commercialCoeff": "1",
+            "adjustmentComment": "",
+            "included": true
+          },
+          {
+            "id": "offer-1795006305240-3-1iwk",
+            "sourceType": "commercial_offer",
+            "supplierName": "ООО «Медимпорт»",
+            "supplierInn": "7702345678",
+            "sourceDocument": "",
+            "offerDate": "2026-11-18",
+            "unitPrice": "223",
+            "vatMode": "with_vat",
+            "inflationCoeff": "1",
+            "commercialCoeff": "1",
+            "adjustmentComment": "",
+            "included": true
+          },
+          {
+            "id": "offer-1795006312123-4-4qyu",
+            "sourceType": "public_price",
+            "supplierName": "АО «ФармДиагностика»",
+            "supplierInn": "7703456789",
+            "sourceDocument": "",
+            "offerDate": "2026-11-18",
+            "unitPrice": "133",
+            "vatMode": "with_vat",
+            "inflationCoeff": "1",
+            "commercialCoeff": "1",
+            "adjustmentComment": "",
+            "included": true
+          }
+        ],
+        "activeCount": 4,
+        "meanUnitPrice": 175.5,
+        "minUnitPrice": 123,
+        "maxUnitPrice": 223,
+        "stdDev": 55,
+        "cvPercent": 31.34,
+        "isHomogeneous": true,
+        "nmckTotal": 175.5,
+        "nmckMinTotal": 123,
+        "exceedsNormLimit": false
+      },
+      "okpd2Code": "32.50.13.190",
+      "okpd2Name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
+      "unit": "шт",
+      "quantity": "1",
+      "nmckFileUpdatedAt": "2026-11-18"
     },
     {
       "id": 3,
@@ -5105,7 +5405,65 @@
       "smpRequiredPercent": 5,
       "subject": "Оказание услуг по техническому обслуживанию систем кондиционирования здания",
       "initialMaxPrice": "480000.00",
-      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка): три коммерческих предложения, средняя цена единицы принята по расчёту НМЦК",
+      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка): четыре коммерческих предложения, средняя цена принята по расчёту НМЦК. По реестру МСП: 1 из 4 поставщиков — субъект малого предпринимательства.",
+      "nmckOffers": [
+        {
+          "id": "offer-note3-1",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «БелМедСервис»",
+          "supplierInn": "3128005555",
+          "sourceDocument": "КП № 33/2026",
+          "offerDate": "2026-09-10",
+          "unitPrice": "470000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-note3-2",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «КлиматСервис»",
+          "supplierInn": "3101001111",
+          "sourceDocument": "КП № 12/2026",
+          "offerDate": "2026-09-11",
+          "unitPrice": "480000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-note3-3",
+          "sourceType": "commercial_offer",
+          "supplierName": "ООО «ТехноКлимат»",
+          "supplierInn": "3101002222",
+          "sourceDocument": "КП № 7/2026",
+          "offerDate": "2026-09-12",
+          "unitPrice": "490000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        },
+        {
+          "id": "offer-note3-4",
+          "sourceType": "commercial_offer",
+          "supplierName": "АО «ПромКлимат»",
+          "supplierInn": "3101003333",
+          "sourceDocument": "КП № 21/2026",
+          "offerDate": "2026-09-13",
+          "unitPrice": "485000",
+          "vatMode": "with_vat",
+          "inflationCoeff": "1",
+          "commercialCoeff": "1",
+          "adjustmentComment": "",
+          "included": true
+        }
+      ],
       "nmckFileName": "Обоснование_НМЦК_СЗ_1.docx",
       "nmckFileUpdatedAt": "2026-09-22",
       "nmckSignature": {
@@ -5144,6 +5502,305 @@
       "status": "approved",
       "comment": "Минимальный процент по п. 1 ПП РФ N 1466 — 10%",
       "createdAt": "2026-09-01"
+    },
+    {
+      "organizationId": 1,
+      "purchasePlanId": 1,
+      "purchasePlanNumber": "202603770123450001",
+      "positionId": 102,
+      "positionSerialNumber": "2",
+      "positionUniqueNumber": "202603770123450001000002",
+      "ikz": "267701234567770101001100010022120000",
+      "objectDescriptionId": "1",
+      "authorizedBodyName": "Департамент здравоохранения города Москвы",
+      "jointOrganizerName": "ГБУ «Клинико-диагностический центр ДЗМ»",
+      "kbk": "20012000000000000000",
+      "kbkDisagreement": false,
+      "kbkSuggested": "",
+      "kbkDisagreementComment": "",
+      "kbkDisagreementAuthor": "",
+      "budgetLevel": "Бюджет субъекта Российской Федерации",
+      "fundingSource": "Бюджет субъекта Российской Федерации",
+      "noteNumber": "3",
+      "noteDate": "2026-11-18",
+      "initiatorName": "Иванова Анна Сергеевна",
+      "basis": "",
+      "subject": "Поставка расходных материалов для лабораторной диагностики",
+      "isIndeterminateVolume": false,
+      "items": [
+        {
+          "id": "item-1",
+          "objectDescriptionId": "1",
+          "name": "Кровать медицинская функциональная для палат интенсивной терапии",
+          "okpd2Code": "32.50.14.110",
+          "okpd2Name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
+          "unit": "шт",
+          "quantity": "4",
+          "unitPrice": "1233",
+          "totalPrice": "1240000.00",
+          "nationalRegimeType": "advantage",
+          "isSupplyDuringWorks": true
+        }
+      ],
+      "okpd2Code": "32.50.14.110",
+      "okpd2Name": "Мебель медицинская (хирургическая, для больниц, зубоврачебная)",
+      "unit": "шт",
+      "quantity": "4",
+      "initialMaxPrice": "1240000.00",
+      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
+      "nmckRequestStatus": "received",
+      "nmckRequestComment": "",
+      "nmckRequestAssignee": "",
+      "nmckRequestDate": "",
+      "placingWayCode": "EA20",
+      "procurementType": "Прочее",
+      "hasAdvance": false,
+      "advancePercent": "",
+      "requiresTreasurySupport": true,
+      "treasurySupportType": "advance_only",
+      "requiresBankSupport": false,
+      "deliveryTermMode": "absolute",
+      "deliveryStartOffsetDays": 0,
+      "desiredStartDate": "2026-11-27",
+      "desiredEndDate": "2026-12-05",
+      "executionTermDays": 30,
+      "acceptanceTermMode": "date",
+      "acceptanceEventBase": "с даты поступления заказчику документа о приёмке в ЕИС",
+      "acceptanceTermDays": 10,
+      "acceptanceDate": "2026-12-05",
+      "deliveryPlaces": [
+        {
+          "id": "1",
+          "country": "Российская Федерация",
+          "region": "Курская обл",
+          "municipality": "г.о. город Щигры",
+          "settlement": "Курск",
+          "address": "305005, г. Курск, пр-т Вячеслава Клыкова, д. 15, кв. 116",
+          "additionalInfo": "305005, г. Курск, пр-т Вячеслава Клыкова, д. 15, кв. 116"
+        }
+      ],
+      "deliveryPlace": "Российская Федерация, Курская обл, г.о. город Щигры, Курск, 305005, г. Курск, пр-т Вячеслава Клыкова, д. 15, кв. 116, 305005, г. Курск, пр-т Вячеслава Клыкова, д. 15, кв. 116",
+      "nationalRegimeType": "advantage",
+      "advantageSmpPart3Art30": false,
+      "requiresSmpSubcontracting": true,
+      "unifiedRequirementsPart1Art31": true,
+      "unifiedRequirementsPart1Art31Text": "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
+      "requirementP1Part1Art31": false,
+      "requirementP1Part1Art31Text": "Наличие действующей лицензии / членства в СРО / свидетельства о допуске к видам работ, установленных законодательством Российской Федерации (п. 1 ч. 1 ст. 31 Закона № 44-ФЗ).",
+      "requirementsPart1_1Art31": true,
+      "pp1482ProductionFacilities": false,
+      "pp1482ProductionFacilitiesText": "",
+      "pp1482FinancialStability": false,
+      "pp1482FinancialStabilityText": "",
+      "pp1482Specialists": false,
+      "pp1482SpecialistsText": "",
+      "additionalRequirementsPart2Art31": true,
+      "additionalRequirementsPart2Art31Text": "",
+      "pp2571Positions": [],
+      "requirementsPart2_1Art31": true,
+      "requirementsPart2_1Art31Text": "Наличие опыта исполнения контракта (договора) стоимостью не менее 20 процентов НМЦК за последние 3 года до даты подачи заявки при НМЦК 20 млн рублей и более (ч. 2.1 ст. 31 Закона № 44-ФЗ).",
+      "pp2571Point4Requirement": true,
+      "pp2571Point4RequirementText": "Участник закупки подтверждает соответствие требованиям, предусмотренным пунктом 4 Постановления Правительства РФ от 29.12.2021 № 2571 (порядок оценки опыта исполнения контракта, в том числе с учетом правопреемства и без учёта штрафов/пеней, не превышающих установленный порог, либо подтверждение документами о приёмке по ЕИС / контрактам № 44-ФЗ и № 223-ФЗ).",
+      "sanctionsRnpRequirement": false,
+      "evaluationProcedureKind": "auction",
+      "evaluationObjectCategory": "goods",
+      "evaluationOkpd2Codes": [
+        "32.50.14.110"
+      ],
+      "evaluationCriteria": [
+        {
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 100,
+          "indicators": [],
+          "note": "",
+          "id": "crit-price-0"
+        },
+        {
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": "",
+          "id": "crit-expenses-1"
+        },
+        {
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": "",
+          "id": "crit-characteristics-2"
+        },
+        {
+          "type": "qualification",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": "",
+          "id": "crit-qualification-3"
+        }
+      ],
+      "requiresApplicationSecurity": true,
+      "applicationSecurityPercent": "1",
+      "applicationSecurityOrder": "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+      "applicationSecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "applicationSecurityBudgetRequisites": {
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001",
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»"
+      },
+      "requiresContractSecurity": true,
+      "contractSecurityPercent": "5",
+      "contractSecurityOrder": "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+      "contractSecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "requiresQualityWarranty": false,
+      "warrantyMaintenanceInfo": "",
+      "manufacturerWarrantyInfo": "",
+      "warrantyTermAndVolume": "",
+      "requiresWarrantySecurity": false,
+      "warrantySecurityPercent": "",
+      "warrantySecurityOrder": "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+      "warrantySecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "warrantyTermMonths": 12,
+      "allowUnilateralRefusalArt95": true,
+      "otherRequirements": "Наличие действующего регистрационного удостоверения Росздравнадзора.",
+      "status": "draft",
+      "approvalUpdatedAt": "2026-11-18",
+      "approvalUpdatedBy": "Иванова Анна Сергеевна",
+      "approvalComment": "",
+      "comment": "",
+      "createdAt": "2026-11-18",
+      "id": 5,
+      "smpRequiredPercent": 12
+    }
+  ],
+  "smpRegistry": [
+    {
+      "id": 1,
+      "inn": "3128001111",
+      "name": "ООО «МедТехСнаб»",
+      "category": "micro",
+      "registryNumber": "2312-2026-3128001111",
+      "region": "Белгородская область",
+      "includedAt": "2022-07-01",
+      "isActive": true,
+      "note": "Поставка медицинского оборудования и расходных материалов"
+    },
+    {
+      "id": 2,
+      "inn": "3128002222",
+      "name": "ООО «МедПрибор»",
+      "category": "small",
+      "registryNumber": "2312-2026-3128002222",
+      "region": "Белгородская область",
+      "includedAt": "2021-03-15",
+      "isActive": true,
+      "note": "Медицинская техника, сервисное обслуживание"
+    },
+    {
+      "id": 3,
+      "inn": "3128003333",
+      "name": "ООО «Диагностика Плюс»",
+      "category": "small",
+      "registryNumber": "2312-2026-3128003333",
+      "region": "Курская область",
+      "includedAt": "2023-11-20",
+      "isActive": true,
+      "note": "Диагностическое оборудование"
+    },
+    {
+      "id": 4,
+      "inn": "3128004444",
+      "name": "ИП Поярков Игорь Николаевич",
+      "category": "micro",
+      "registryNumber": "2312-2026-3128004444",
+      "region": "Белгородская область",
+      "includedAt": "2020-05-12",
+      "isActive": true
+    },
+    {
+      "id": 5,
+      "inn": "3128005555",
+      "name": "ООО «БелМедСервис»",
+      "category": "small",
+      "registryNumber": "2312-2026-3128005555",
+      "region": "Белгородская область",
+      "includedAt": "2019-09-03",
+      "isActive": true
+    },
+    {
+      "id": 6,
+      "inn": "3128006666",
+      "name": "ООО «КурскМедТорг»",
+      "category": "medium",
+      "registryNumber": "2346-2026-3128006666",
+      "region": "Курская область",
+      "includedAt": "2018-02-19",
+      "isActive": true
+    },
+    {
+      "id": 7,
+      "inn": "3128007777",
+      "name": "ООО «ТехноМед»",
+      "category": "micro",
+      "registryNumber": "2312-2026-3128007777",
+      "region": "Белгородская область",
+      "includedAt": "2024-01-25",
+      "isActive": true
+    },
+    {
+      "id": 8,
+      "inn": "3128008888",
+      "name": "ООО «СнабКомплект»",
+      "category": "small",
+      "registryNumber": "2312-2026-3128008888",
+      "region": "Орловская область",
+      "includedAt": "2022-10-11",
+      "isActive": true
+    },
+    {
+      "id": 9,
+      "inn": "3128009999",
+      "name": "ООО «МедСнаб-Белгород»",
+      "category": "small",
+      "registryNumber": "2312-2026-3128009999",
+      "region": "Белгородская область",
+      "includedAt": "2021-06-30",
+      "isActive": true
+    },
+    {
+      "id": 10,
+      "inn": "3128010000",
+      "name": "ООО «ПрофитМед»",
+      "category": "small",
+      "registryNumber": "2312-2023-3128010000",
+      "region": "Белгородская область",
+      "includedAt": "2020-08-14",
+      "isActive": false,
+      "note": "Исключено из реестра МСП 01.07.2026 — поставщик больше не субъект МСП"
+    },
+    {
+      "id": 11,
+      "inn": "462302564694",
+      "name": "ИП Поярков Игорь Николаевич",
+      "category": "micro",
+      "registryNumber": "2346-2026-462302564694",
+      "region": "Курская область",
+      "includedAt": "2023-04-07",
+      "isActive": true
     }
   ],
   "contractSmpRecords": [
@@ -7366,6 +8023,47 @@
       "comment": "Обоснование НМЦК по СЗ № 1 подписано, файл Обоснование_НМЦК_СЗ_1.docx приложен к служебной записке",
       "createdAt": "2026-09-22T11:20",
       "id": 30
+    },
+    {
+      "organizationId": 2,
+      "userId": 2,
+      "userLabel": "test2@test.test",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 2,
+      "documentLabel": "Вход по ЭП · Депимущество Белгородской области · без проверки подписи",
+      "certificateId": 4,
+      "certificateOwner": "Пояркова София Игоревна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "AB12CD34EF567890",
+      "certificateFingerprint": "F1:E2:D3:C4:B5:A6:97:88",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-01-10",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
+      "createdAt": "2026-11-18T15:24",
+      "id": 31
+    },
+    {
+      "organizationId": 1,
+      "action": "nmck_confirm",
+      "entityType": "nmck",
+      "entityId": 2,
+      "documentLabel": "Обоснование НМЦК по СЗ № 2 от 2026-08-05",
+      "certificateOwner": "Пояркова Наталья Юрьевна",
+      "certificateInn": "4617024463",
+      "certificateSerial": "1EBD2F5E89F0CAFB34997EE257D3DA61",
+      "certificateFingerprint": "D56AB57E969C08FD9D8E15BF2B3953FF21BEEDF1",
+      "certificateAlgorithm": "",
+      "certificateValidTo": "2027-05-13",
+      "innMatched": false,
+      "certificateSource": "plugin",
+      "result": "rejected_certificate",
+      "comment": "",
+      "createdAt": "2026-11-18T15:37",
+      "id": 32
     }
   ],
   "objectDescriptions": [
@@ -8360,6 +9058,450 @@
       "basis": "Акт начала работ от 20.09.2026",
       "comment": "",
       "createdAt": "2026-09-20"
+    }
+  ],
+  "vacationSchedules": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "year": 2027,
+      "status": "draft",
+      "rows": [
+        {
+          "id": 1,
+          "employeeId": 6,
+          "employeeName": "Иванова Анна Сергеевна",
+          "position": "Начальник отдела закупок",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-06-01",
+              "endDate": "2027-06-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2027-09-01",
+              "endDate": "2027-09-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 2,
+          "employeeId": 7,
+          "employeeName": "Петров Сергей Николаевич",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-07-01",
+              "endDate": "2027-07-30",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 3,
+          "employeeId": 8,
+          "employeeName": "Сидорова Мария Ивановна",
+          "position": "Юрисконсульт",
+          "structuralUnitName": "Правовое управление",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-06-01",
+              "endDate": "2027-06-10",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 4,
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-06-01",
+              "endDate": "2027-06-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2027-12-01",
+              "endDate": "2027-12-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 5,
+          "employeeId": 14,
+          "employeeName": "Пояркова София Игоревна",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-08-01",
+              "endDate": "2027-08-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2027-08-15",
+              "endDate": "2027-08-28",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 6,
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-05-01",
+              "endDate": "2027-05-05",
+              "kind": "unpaid"
+            }
+          ],
+          "unpaidLeaveDays": 5,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 7,
+          "employeeId": 16,
+          "employeeName": "Фомин Игорь Николаевич",
+          "position": "Экономист по планированию закупок",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-10-01",
+              "endDate": "2027-10-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 8,
+          "employeeId": 17,
+          "employeeName": "Егорова Мария Петровна",
+          "position": "Заведующий хозяйством",
+          "structuralUnitName": "Хозяйственный отдел",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-06-01",
+              "endDate": "2027-06-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2027-11-01",
+              "endDate": "2027-11-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-15"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "year": 2026,
+      "status": "approved",
+      "rows": [
+        {
+          "id": 1,
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2026-06-01",
+              "endDate": "2026-06-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2026-12-01",
+              "endDate": "2026-12-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 2,
+          "employeeId": 14,
+          "employeeName": "Пояркова София Игоревна",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2026-07-01",
+              "endDate": "2026-07-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2026-12-15",
+              "endDate": "2026-12-28",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        },
+        {
+          "id": 3,
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2026-08-01",
+              "endDate": "2026-08-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2026-12-21",
+              "endDate": "2026-12-31",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        }
+      ],
+      "orderNumber": "Отп-001",
+      "orderDate": "2026-01-15",
+      "approvedByName": "Эпинцев Виталий Александрович",
+      "approvedAt": "2026-01-15",
+      "note": "",
+      "createdAt": "2025-12-20"
+    },
+    {
+      "id": 3,
+      "organizationId": 6,
+      "year": 2027,
+      "status": "draft",
+      "rows": [
+        {
+          "id": 1,
+          "employeeId": 41,
+          "employeeName": "Говоров Андрей Николаевич",
+          "position": "Начальник управления государственных закупок",
+          "structuralUnitName": "Управление государственных закупок",
+          "adoptionDate": "",
+          "parts": [
+            {
+              "id": 1,
+              "startDate": "2027-06-01",
+              "endDate": "2027-06-14",
+              "kind": "annual_main"
+            },
+            {
+              "id": 2,
+              "startDate": "2027-12-01",
+              "endDate": "2027-12-14",
+              "kind": "annual_main"
+            }
+          ],
+          "unpaidLeaveDays": 0,
+          "notifiedAt": "",
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-16"
+    },
+    {
+      "organizationId": 1,
+      "year": 2027,
+      "status": "draft",
+      "rows": [
+        {
+          "id": "row-1795012682431-436",
+          "employeeId": 6,
+          "employeeName": "Иванова Анна Сергеевна",
+          "position": "Начальник отдела закупок",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-181",
+          "employeeId": 7,
+          "employeeName": "Петров Сергей Николаевич",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-8",
+          "employeeId": 8,
+          "employeeName": "Сидорова Мария Ивановна",
+          "position": "Юрисконсульт",
+          "structuralUnitName": "Правовое управление",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-532",
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-164",
+          "employeeId": 14,
+          "employeeName": "Эпинцев Виталий Александрович",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-609",
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-993",
+          "employeeId": 16,
+          "employeeName": "Фомин Игорь Николаевич",
+          "position": "Экономист по планированию закупок",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-936",
+          "employeeId": 17,
+          "employeeName": "Егорова Мария Петровна",
+          "position": "Заведующий хозяйством",
+          "structuralUnitName": "Хозяйственный отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-120",
+          "employeeId": 36,
+          "employeeName": "Козлова Мария Дмитриевна",
+          "position": "Специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795012682431-423",
+          "employeeId": 37,
+          "employeeName": "Никитин Игорь Павлович",
+          "position": "Экономист по расчёту НМЦК",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-18",
+      "id": 4
     }
   ]
 }

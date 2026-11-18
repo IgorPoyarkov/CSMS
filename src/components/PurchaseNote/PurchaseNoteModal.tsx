@@ -13,6 +13,7 @@ import {
   Layers,
   PenLine,
   Scale,
+  ShieldCheck,
   Upload,
   X,
 } from "lucide-react";
@@ -87,6 +88,11 @@ import {
   nationalRegimeExpectedLabel,
   validateNationalRegime,
 } from "../../services/NationalRegime/pp1875";
+import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
+import {
+  analyzeNmckSmpComposition,
+  smpRegistryCategoryLabels,
+} from "../../services/ContractSmp/smpRegistry.schema";
 import {
   OBJECT_CATEGORY_LIMITS,
   criterionShortLabels,
@@ -183,6 +189,8 @@ export default function PurchaseNoteModal({
   // Журнал ЭП: по нему находим уже подписанную НМЦК этой служебной записки
   const { data: signatureEvents = [] } = useSignatureEvents(organizationId);
   const logSignatureEvent = useLogSignatureEvent();
+  // Реестр МСП: по нему проверяются поставщики из коммерческих предложений
+  const { data: smpRegistry = [] } = useSmpRegistry();
   const objectDescriptions = allObjectDescriptions.filter(
     (item) => item.kind === "object_description",
   );
@@ -205,6 +213,7 @@ export default function PurchaseNoteModal({
   const [showNmckWorkspace, setShowNmckWorkspace] = useState(false);
   const [showNmckSign, setShowNmckSign] = useState(false);
   const [nmckSignMessage, setNmckSignMessage] = useState<string | null>(null);
+  const [smpApplyMessage, setSmpApplyMessage] = useState<string | null>(null);
   const [isExportingNmckDocx, setIsExportingNmckDocx] = useState(false);
   const [isExportingNmckPdf, setIsExportingNmckPdf] = useState(false);
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
@@ -614,6 +623,17 @@ export default function PurchaseNoteModal({
   const watchedNmckSignature = watch("nmckSignature") as
     | NmckSignature
     | undefined;
+
+  // Проверка поставщиков КП по реестру МСП: сколько из них субъекты малого
+  // и среднего предпринимательства и какую настройку СМП это обосновывает
+  const smpComposition = useMemo(
+    () =>
+      analyzeNmckSmpComposition(
+        rawWatchedNmckOffers ?? watchedNmckCalculation?.offers ?? [],
+        smpRegistry,
+      ),
+    [rawWatchedNmckOffers, watchedNmckCalculation, smpRegistry],
+  );
 
   const percent = Number(watch("smpRequiredPercent"));
   const price = Number.parseFloat(String(watch("initialMaxPrice") ?? ""));
@@ -1083,6 +1103,42 @@ export default function PurchaseNoteModal({
         );
       },
     });
+  };
+
+  // Применение рекомендации по СМП: либо закупка только среди СМП/СОНКО,
+  // либо привлечение субподрядчиков в объёме доли СМП в выборке КП
+  const applySmpRecommendation = () => {
+    const recommendation = smpComposition.recommendation;
+    if (!recommendation || isReadOnly) return;
+
+    if (recommendation.mode === "smp_only") {
+      setValue("advantageSmpPart3Art30", true, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("requiresSmpSubcontracting", false);
+      setValue("smpRequiredPercent", undefined);
+      setSmpApplyMessage(
+        "Установлена закупка только среди СМП/СОНКО: все поставщики из выборки КП входят в реестр МСП.",
+      );
+      return;
+    }
+
+    if (recommendation.mode === "subcontracting") {
+      const percent = recommendation.percent ?? 5;
+      setValue("advantageSmpPart3Art30", false);
+      setValue("requiresSmpSubcontracting", true, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue("smpRequiredPercent", percent, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setSmpApplyMessage(
+        `Установлено привлечение СМП/СОНКО — ${percent}%: доля субъектов МСП в выборке коммерческих предложений.`,
+      );
+    }
   };
 
   const handleExportSavedNmckDocx = async () => {
@@ -2650,6 +2706,116 @@ export default function PurchaseNoteModal({
                   <div className={block("alert-warning")} role="status">
                     {nmckSignMessage}
                   </div>
+                )}
+              </div>
+
+              {/* Проверка поставщиков КП по реестру МСП и рекомендация по СМП */}
+              <div className={block("smp-check")}>
+                <div className={block("label-row")}>
+                  <strong>
+                    Проверка поставщиков по реестру МСП (ст. 30 Закона № 44-ФЗ)
+                  </strong>
+                  <span className={block("hint")} style={{ marginTop: 0 }}>
+                    КП в выборке: {smpComposition.total}
+                  </span>
+                </div>
+
+                {smpComposition.total === 0 ? (
+                  <span className={block("hint")}>
+                    Коммерческие предложения не заполнены — проверять нечего.
+                    Сформируйте расчёт НМЦК или добавьте КП вручную.
+                  </span>
+                ) : (
+                  <>
+                    <div style={{ overflowX: "auto" }}>
+                      <table className={block("nmck-table")}>
+                        <thead>
+                          <tr>
+                            <th>№</th>
+                            <th>Поставщик</th>
+                            <th>ИНН</th>
+                            <th>Реестр МСП</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {smpComposition.rows.map((row, idx) => (
+                            <tr key={row.offer.id}>
+                              <td>{idx + 1}</td>
+                              <td>{row.offer.supplierName || "—"}</td>
+                              <td className={block("mono")}>
+                                {row.offer.supplierInn || "—"}
+                              </td>
+                              <td>
+                                {row.status === "smp" ? (
+                                  <span
+                                    className={block("smp-status", ["ok"])}
+                                  >
+                                    {row.entry?.category
+                                      ? smpRegistryCategoryLabels[
+                                          row.entry.category
+                                        ]
+                                      : "СМП"}
+                                  </span>
+                                ) : row.status === "not_smp" ? (
+                                  <span
+                                    className={block("smp-status", ["no"])}
+                                  >
+                                    не в реестре
+                                  </span>
+                                ) : (
+                                  <span
+                                    className={block("smp-status", [
+                                      "unknown",
+                                    ])}
+                                  >
+                                    нужен ИНН
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {smpComposition.recommendation && (
+                      <div className={block("smp-recommendation")}>
+                        <div className={block("smp-recommendation-head")}>
+                          <strong>
+                            {smpComposition.recommendation.title}
+                          </strong>
+                          <span
+                            className={block("hint")}
+                            style={{ marginTop: 0 }}
+                          >
+                            СМП: {smpComposition.smpCount} из{" "}
+                            {smpComposition.total} ·{" "}
+                            {smpComposition.smpSharePercent.toFixed(0)}%
+                          </span>
+                        </div>
+                        <p className={block("hint")} style={{ marginTop: 0 }}>
+                          {smpComposition.recommendation.reason}
+                        </p>
+                        {smpComposition.recommendation.mode !== "none" && (
+                          <button
+                            type="button"
+                            className={block("btn-accent")}
+                            onClick={applySmpRecommendation}
+                            disabled={isReadOnly}
+                          >
+                            <ShieldCheck size={14} aria-hidden="true" />{" "}
+                            Применить рекомендацию
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {smpApplyMessage && (
+                      <div className={block("alert-warning")} role="status">
+                        {smpApplyMessage}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 

@@ -66,24 +66,29 @@ export const MARKET_PRICE_SOURCE_TYPES = [
 
 export type MarketPriceSourceType = (typeof MARKET_PRICE_SOURCE_TYPES)[number];
 
-export const MARKET_PRICE_SOURCE_LABELS: Record<MarketPriceSourceType, string> = {
-  commercial_offer: "Коммерческое предложение (КП)",
-  eis_contract: "Реестр контрактов (ЕИС)",
-  public_price: "Общедоступная цена / прайс-лист",
-  tariff: "Тариф / статистика (Росстат)",
-};
+export const MARKET_PRICE_SOURCE_LABELS: Record<MarketPriceSourceType, string> =
+  {
+    commercial_offer: "Коммерческое предложение (КП)",
+    eis_contract: "Реестр контрактов (ЕИС)",
+    public_price: "Общедоступная цена / прайс-лист",
+    tariff: "Тариф / статистика (Росстат)",
+  };
 
-export const MARKET_PRICE_SOURCE_SHORT: Record<MarketPriceSourceType, string> = {
-  commercial_offer: "КП",
-  eis_contract: "ЕИС",
-  public_price: "Прайс",
-  tariff: "Тариф",
-};
+export const MARKET_PRICE_SOURCE_SHORT: Record<MarketPriceSourceType, string> =
+  {
+    commercial_offer: "КП",
+    eis_contract: "ЕИС",
+    public_price: "Прайс",
+    tariff: "Тариф",
+  };
 
 export const NmckMarketOfferSchema = z.object({
   id: z.string(),
   sourceType: z.enum(MARKET_PRICE_SOURCE_TYPES).optional(),
   supplierName: z.string(),
+  // ИНН поставщика: по нему КП проверяется в реестре МСП, а наименование
+  // может не совпадать с записью реестра
+  supplierInn: z.string().optional(),
   sourceDocument: z.string().optional(),
   offerDate: z.string().optional(),
   unitPrice: z.string(),
