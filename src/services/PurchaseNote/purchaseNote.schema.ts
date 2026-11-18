@@ -147,7 +147,8 @@ export const PurchaseNoteSchema = z
       .nullable()
       .optional(),
 
-    // Организаторы и КБК (КБК берётся из ПГ; правка в СЗ закрыта, возможно несогласие)
+    // Организаторы и КБК (код берётся из ПГ; правка кода в СЗ закрыта,
+    // возможно только несогласие, а суммы финансирования корректируются)
     authorizedBodyName: z.string().optional(),
     jointOrganizerName: z.string().optional(),
     kbk: z.string().optional(),
@@ -155,6 +156,17 @@ export const PurchaseNoteSchema = z
     kbkSuggested: z.string().optional(),
     kbkDisagreementComment: z.string().optional(),
     kbkDisagreementAuthor: z.string().optional(),
+    // Суммы финансирования по КБК, скорректированные в СЗ. По умолчанию
+    // берутся из плана-графика, но могут быть уменьшены под фактическую НМЦК.
+    kbkFundingAmounts: z
+      .array(
+        z.object({
+          id: z.string(),
+          kbk: z.string().optional(),
+          amount: optionalMoney(),
+        }),
+      )
+      .optional(),
 
     // Бюджет: уровень фиксирован от заказчика, источник финансирования — текст
     budgetLevel: z.string().optional(),
@@ -193,6 +205,12 @@ export const PurchaseNoteSchema = z
     // документы извещения.
     objectDescriptionFileName: z.string().optional(),
     objectDescriptionFileUpdatedAt: z.string().optional(),
+
+    // Готовность ООЗ и позиции плана-графика:
+    // - набор объектов конечный, описание позволяет определить НМЦК;
+    // - это последняя закупка по позиции плана-графика (дальнейших не будет).
+    oozSetComplete: z.boolean().optional(),
+    positionProcurementsComplete: z.boolean().optional(),
     nmckRequestStatus: z.enum(["none", "requested", "received"]).optional(),
     nmckRequestComment: z.string().optional(),
     nmckRequestAssignee: z.string().optional(),

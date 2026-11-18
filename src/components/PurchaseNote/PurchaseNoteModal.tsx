@@ -29,11 +29,10 @@ import SecurityRequisitesFields from "./SecurityRequisitesFields";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
 import MarketNmckCalculator from "../Nmck/MarketNmckCalculator";
 import {
-  PURCHASE_NOTE_STATUSES,
-  PURCHASE_NOTE_STATUS_META,
   PurchaseNoteSchema,
   emptyDeliveryPlace,
   emptyPurchaseNote,
+  getPurchaseNoteStatusMeta,
   hasSmpSubcontractingRequirement,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
@@ -353,6 +352,13 @@ export default function PurchaseNoteModal({
       return {
         ...base,
         ...note,
+        // НМЦК по умолчанию — сумма из обоснования, если расчёт уже выполнен;
+        // иначе сохранённое значение, затем объём из плана-графика
+        initialMaxPrice:
+          note.initialMaxPrice ||
+          (note.nmckCalculation
+            ? String(note.nmckCalculation.nmckTotal)
+            : String(position.amountTotal ?? "")),
         initiatorEmployeeId: note.initiatorEmployeeId ?? undefined,
         ikz: note.ikz || position.identificationCode || "",
         kbk: defaultKbk || note.kbk || "",
@@ -564,6 +570,11 @@ export default function PurchaseNoteModal({
       watchedOozId !== undefined &&
       String(desc.id) === String(watchedOozId),
   );
+  // Готовность ООЗ и полнота закупок по позиции плана-графика
+  const watchedOozSetComplete = Boolean(watch("oozSetComplete"));
+  const watchedPositionProcurementsComplete = Boolean(
+    watch("positionProcurementsComplete"),
+  );
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     watchedPlacingWay,
     watchedItems.map((item) => ({
@@ -689,6 +700,76 @@ export default function PurchaseNoteModal({
   const watchedNmckSignature = watch("nmckSignature") as
     | NmckSignature
     | undefined;
+
+  // ООЗ первично: пока набор объектов не признан конечным, задание на
+  // подготовку НМЦК и расчёт блокируются. Для тарифного и затратного методов
+  // ограничение мягче — их состав тоже может включать товары, но описание
+  // всё равно нужно, поэтому оставляем предупреждение.
+  const nmckMethod = watchedNmckCalculation?.method;
+  const nmckMethodSoft = nmckMethod === "tariff" || nmckMethod === "cost";
+  const oozReady = Boolean(selectedOoz) && watchedOozSetComplete;
+  const nmckRequestAllowed = oozReady || nmckMethodSoft;
+
+  // Суммы финансирования по КБК: по умолчанию из ПГ, но заказчик может
+  // уменьшить их под фактическую НМЦК. Итог сверяется с НМЦК.
+  const watchedKbkFunding = (watch("kbkFundingAmounts") ?? []) as {
+    id: string;
+    kbk?: string;
+    amount?: string;
+  }[];
+  const kbkFundingRows = useMemo(() => {
+    const entries =
+      kbkEntries.length > 0
+        ? kbkEntries
+        : [
+            {
+              kbk: defaultKbk,
+              amountTotal: position.amountTotal,
+              amountCurrentYear: position.amountCurrentYear,
+              amountPlanPeriodFirstYear: position.amountPlanPeriodFirstYear,
+              amountPlanPeriodSecondYear: position.amountPlanPeriodSecondYear,
+              amountSubsequentYears: position.amountSubsequentYears,
+            },
+          ];
+
+    return entries.map((entry, idx) => {
+      const id = `kbk-${idx}`;
+      const override = watchedKbkFunding.find((row) => row.id === id)?.amount;
+      const defaultAmount =
+        entry.amountTotal ??
+        (entries.length === 1 ? position.amountTotal : undefined);
+
+      return {
+        id,
+        kbk: entry.kbk ?? defaultKbk,
+        entry,
+        amount: override ?? defaultAmount,
+      };
+    });
+  }, [kbkEntries, defaultKbk, position, watchedKbkFunding]);
+
+  const kbkFundingTotal = kbkFundingRows.reduce(
+    (total, row) => total + (toNumber(row.amount) ?? 0),
+    0,
+  );
+  const nmckValue = toNumber(watch("initialMaxPrice")) ?? 0;
+  const kbkFundingDiff = Number((kbkFundingTotal - nmckValue).toFixed(2));
+
+  const setKbkFundingAmount = (id: string, kbk: string, amount: number) => {
+    const current = (getValues("kbkFundingAmounts") ?? []) as {
+      id: string;
+      kbk?: string;
+      amount?: string;
+    }[];
+    const exists = current.some((row) => row.id === id);
+    const next = exists
+      ? current.map((row) =>
+          row.id === id ? { ...row, kbk, amount: String(amount) } : row,
+        )
+      : [...current, { id, kbk, amount: String(amount) }];
+
+    setValue("kbkFundingAmounts", next, { shouldDirty: true });
+  };
 
   // Проверка поставщиков КП по реестру МСП: сколько из них субъекты малого
   // и среднего предпринимательства и какую настройку СМП это обосновывает
@@ -1534,20 +1615,17 @@ export default function PurchaseNoteModal({
           </div>
 
           <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-approval-status">
-              Статус согласования СЗ
-            </label>
-            <select
-              id="note-approval-status"
-              className={block("select")}
-              {...register("status")}
-            >
-              {PURCHASE_NOTE_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {PURCHASE_NOTE_STATUS_META[st].label}
-                </option>
-              ))}
-            </select>
+            <span className={block("label")}>Статус согласования СЗ</span>
+            {/* Статус меняется автоматически по мере прохождения СЗ в системе
+                и не редактируется вручную. Значение сохраняется скрытым полем. */}
+            <div className={block("status-readonly")}>
+              <PurchaseNoteStatusBadge status={watchedStatus} />
+              <span className={block("hint")}>
+                {getPurchaseNoteStatusMeta(watchedStatus).label} — статус
+                меняется по мере прохождения согласования
+              </span>
+            </div>
+            <input type="hidden" {...register("status")} />
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -1633,6 +1711,39 @@ export default function PurchaseNoteModal({
                 {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}
               </span>
             )}
+          </div>
+
+          {/* Готовность ООЗ: без конечного набора объектов нельзя подобрать
+              сопоставимые товары и корректно определить НМЦК */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("ooz-flags")}>
+              <CustomCheckbox
+                label="Набор объектов закупки конечный — описание готово для определения НМЦК"
+                checked={watchedOozSetComplete}
+                disabled={isReadOnly}
+                onChange={(e) =>
+                  setValue("oozSetComplete", e.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <CustomCheckbox
+                label="Это последняя закупка по позиции плана-графика (дальнейших закупок не будет)"
+                checked={watchedPositionProcurementsComplete}
+                disabled={isReadOnly}
+                onChange={(e) =>
+                  setValue("positionProcurementsComplete", e.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <span className={block("hint")}>
+                Пока набор не признан конечным, задание на подготовку НМЦК и
+                расчёт блокируются: для метода сопоставимых рыночных цен нужны
+                идентичные или сопоставимые товары. Для тарифного и затратного
+                методов ограничение мягче, но описание всё равно необходимо.
+              </span>
+            </div>
           </div>
 
           {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ, правка и удаление */}
@@ -2336,13 +2447,122 @@ export default function PurchaseNoteModal({
           4. Финансирование, НМЦК, аванс и сопровождение (ст. 22, 34)
         </legend>
         <div className={block("grid")}>
+          {/* Верхний уровень раздела: НМЦК, аванс и сопровождение. Дальше
+              идёт расшифровка — КБК, обоснование, файл и запрос. */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("finance-summary")}>
+              <div className={block("finance-summary-row")}>
+                <div className={block("field")}>
+                  <label className={block("label")} htmlFor="note-nmck">
+                    НМЦК, рублей *
+                  </label>
+                  <MoneyInput
+                    id="note-nmck"
+                    className={block("input")}
+                    value={watch("initialMaxPrice")}
+                    ariaLabel="Начальная (максимальная) цена контракта"
+                    onChange={(next) =>
+                      setValue("initialMaxPrice", next ? String(next) : "", {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                  />
+                  <span className={block("hint")}>
+                    По умолчанию — сумма из обоснования, если расчёт выполнен;
+                    иначе объём финансового обеспечения из плана-графика.
+                  </span>
+                  {errorText("initialMaxPrice") && (
+                    <span className={block("error")}>
+                      {errorText("initialMaxPrice")}
+                    </span>
+                  )}
+                </div>
+
+                <div className={block("field")}>
+                  <span className={block("label")}>Аванс</span>
+                  <label className={block("checkbox")}>
+                    <input type="checkbox" {...register("hasAdvance")} />
+                    <span>Предусмотрен аванс</span>
+                  </label>
+                  {watchedHasAdvance && (
+                    <input
+                      className={block("input")}
+                      {...register("advancePercent")}
+                      placeholder="Размер аванса, %"
+                    />
+                  )}
+                </div>
+
+                <div className={block("field")}>
+                  <span className={block("label")}>
+                    Казначейское сопровождение (ст. 242.23 БК РФ)
+                  </span>
+                  <div className={block("radio-row")}>
+                    <label className={block("radio")}>
+                      <input
+                        type="radio"
+                        checked={!watchedTreasury}
+                        onChange={() => {
+                          setValue("requiresTreasurySupport", false);
+                          setValue("treasurySupportType", "");
+                        }}
+                      />
+                      <span>Нет</span>
+                    </label>
+                    <label className={block("radio")}>
+                      <input
+                        type="radio"
+                        checked={watchedTreasury}
+                        onChange={() => {
+                          setValue("requiresTreasurySupport", true);
+                          if (!watch("treasurySupportType")) {
+                            setValue("treasurySupportType", "full");
+                          }
+                        }}
+                      />
+                      <span>Да</span>
+                    </label>
+                  </div>
+                  {watchedTreasury && (
+                    <select
+                      aria-label="Вид казначейского сопровождения"
+                      className={block("select")}
+                      {...register("treasurySupportType")}
+                    >
+                      <option value="full">
+                        Полное казначейское сопровождение
+                      </option>
+                      <option value="advance_only">
+                        Казначейское сопровождение только аванса
+                      </option>
+                    </select>
+                  )}
+                </div>
+
+                <div className={block("field")}>
+                  <span className={block("label")}>
+                    Банковское сопровождение
+                  </span>
+                  <label className={block("checkbox")}>
+                    <input
+                      type="checkbox"
+                      {...register("requiresBankSupport")}
+                    />
+                    <span>Требуется банковское сопровождение контракта</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* КБК + разбивка финансирования по годам из ПГ (справочно) + запрос на изменение КБК/КВР */}
           <div className={block("field", ["wide"])}>
             <div className={block("kbk-box")}>
               <div className={block("label-row")}>
                 <strong>
-                  КБК и разбивка финансирования по годам (из плана-графика,
-                  информационно)
+                  КБК и финансирование (суммы можно корректировать под
+                  фактическую НМЦК)
                 </strong>
               </div>
 
@@ -2351,7 +2571,7 @@ export default function PurchaseNoteModal({
                   <thead>
                     <tr>
                       <th>КБК</th>
-                      <th>Всего</th>
+                      <th>Всего, руб.</th>
                       <th>Текущий год</th>
                       <th>1-й год пл. пер.</th>
                       <th>2-й год пл. пер.</th>
@@ -2359,70 +2579,77 @@ export default function PurchaseNoteModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {kbkEntries.length > 0 ? (
-                      kbkEntries.map((entry, idx) => (
-                        <tr key={`${entry.kbk ?? "kbk"}-${idx}`}>
+                    {kbkFundingRows.map((row) => {
+                      const single = kbkFundingRows.length === 1;
+
+                      return (
+                        <tr key={row.id}>
                           <td className={block("mono")}>
-                            {entry.kbk || "не указан"}
+                            {row.kbk || "не указан"}
+                          </td>
+                          <td>
+                            <MoneyInput
+                              className={block("input")}
+                              value={row.amount ?? ""}
+                              disabled={isReadOnly}
+                              ariaLabel={`Сумма по КБК ${row.kbk || "без кода"}`}
+                              onChange={(next) =>
+                                setKbkFundingAmount(row.id, row.kbk, next)
+                              }
+                            />
                           </td>
                           <td>
                             {formatRub(
-                              entry.amountTotal ??
-                                (kbkEntries.length === 1
-                                  ? position.amountTotal
-                                  : undefined),
-                            )}
-                          </td>
-                          <td>
-                            {formatRub(
-                              entry.amountCurrentYear ??
-                                (kbkEntries.length === 1
+                              row.entry.amountCurrentYear ??
+                                (single
                                   ? position.amountCurrentYear
                                   : undefined),
                             )}
                           </td>
                           <td>
                             {formatRub(
-                              entry.amountPlanPeriodFirstYear ??
-                                (kbkEntries.length === 1
+                              row.entry.amountPlanPeriodFirstYear ??
+                                (single
                                   ? position.amountPlanPeriodFirstYear
                                   : undefined),
                             )}
                           </td>
                           <td>
                             {formatRub(
-                              entry.amountPlanPeriodSecondYear ??
-                                (kbkEntries.length === 1
+                              row.entry.amountPlanPeriodSecondYear ??
+                                (single
                                   ? position.amountPlanPeriodSecondYear
                                   : undefined),
                             )}
                           </td>
                           <td>
                             {formatRub(
-                              entry.amountSubsequentYears ??
-                                (kbkEntries.length === 1
+                              row.entry.amountSubsequentYears ??
+                                (single
                                   ? position.amountSubsequentYears
                                   : undefined),
                             )}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td className={block("mono")}>
-                          {defaultKbk || "не указан в ПГ"}
-                        </td>
-                        <td>{formatRub(position.amountTotal)}</td>
-                        <td>{formatRub(position.amountCurrentYear)}</td>
-                        <td>{formatRub(position.amountPlanPeriodFirstYear)}</td>
-                        <td>
-                          {formatRub(position.amountPlanPeriodSecondYear)}
-                        </td>
-                        <td>{formatRub(position.amountSubsequentYears)}</td>
-                      </tr>
-                    )}
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className={block("kbk-summary")}>
+                <span>
+                  Итого по КБК: <strong>{formatRub(kbkFundingTotal)}</strong>
+                </span>
+                <span>
+                  НМЦК: <strong>{formatRub(nmckValue)}</strong>
+                </span>
+                {Math.abs(kbkFundingDiff) > 0.01 && (
+                  <span className={block("warning")}>
+                    Расхождение: {formatRub(kbkFundingDiff)} — проверьте суммы
+                    по КБК
+                  </span>
+                )}
               </div>
 
               <label className={block("checkbox")}>
@@ -2502,29 +2729,6 @@ export default function PurchaseNoteModal({
             />
           </div>
 
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-nmck">
-              НМЦК, рублей
-            </label>
-            <MoneyInput
-              id="note-nmck"
-              className={block("input")}
-              value={watch("initialMaxPrice")}
-              ariaLabel="Начальная (максимальная) цена контракта"
-              onChange={(next) =>
-                setValue("initialMaxPrice", next ? String(next) : "", {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            {errorText("initialMaxPrice") && (
-              <span className={block("error")}>
-                {errorText("initialMaxPrice")}
-              </span>
-            )}
-          </div>
-
           <div className={block("field", ["wide"])}>
             <label className={block("label")} htmlFor="note-price-basis">
               Обоснование НМЦК (ст. 22 Закона № 44-ФЗ)
@@ -2555,6 +2759,12 @@ export default function PurchaseNoteModal({
                   <button
                     type="button"
                     className={block("btn-accent")}
+                    disabled={!nmckRequestAllowed}
+                    title={
+                      nmckRequestAllowed
+                        ? undefined
+                        : "Сначала сформируйте ООЗ и отметьте, что набор объектов конечный"
+                    }
                     onClick={() => setShowNmckWorkspace((prev) => !prev)}
                   >
                     <Calculator size={14} aria-hidden="true" />{" "}
@@ -2566,6 +2776,19 @@ export default function PurchaseNoteModal({
                   </button>
                 </div>
               </div>
+
+              {!oozReady && (
+                <div className={block("alert-warning")} role="status">
+                  <strong>Сначала описание объекта закупки.</strong> Пока ООЗ не
+                  сформирован и набор объектов не признан конечным, задание на
+                  подготовку НМЦК и расчёт заблокированы: для сопоставимых цен
+                  нужны идентичные или сопоставимые товары, а без описания
+                  невозможно сформулировать запрос.
+                  {nmckMethodSoft
+                    ? " Для тарифного и затратного методов ограничение мягче, но их состав тоже может включать товар — проверьте описание."
+                    : ""}
+                </div>
+              )}
 
               {watchedNmckCalculation && (
                 <div className={block("nmck-card")}>
@@ -3167,6 +3390,7 @@ export default function PurchaseNoteModal({
                   <select
                     id="note-nmck-req-status"
                     className={block("select")}
+                    disabled={!nmckRequestAllowed}
                     {...register("nmckRequestStatus")}
                   >
                     <option value="none">Не запрашивался</option>
@@ -3279,6 +3503,21 @@ export default function PurchaseNoteModal({
                     setValue("initialMaxPrice", record.nmckTotal.toFixed(2), {
                       shouldValidate: true,
                     });
+                    // Единственный КБК по умолчанию следует за НМЦК, если
+                    // заказчик ещё не корректировал сумму вручную
+                    if (kbkFundingRows.length === 1) {
+                      const onlyRow = kbkFundingRows[0];
+                      const hasOverride = watchedKbkFunding.some(
+                        (row) => row.id === onlyRow.id,
+                      );
+                      if (!hasOverride) {
+                        setKbkFundingAmount(
+                          onlyRow.id,
+                          onlyRow.kbk,
+                          record.nmckTotal,
+                        );
+                      }
+                    }
                     setValue("priceBasis", basisText);
                     setValue("nmckOffers", record.offers);
                     setValue("nmckCalculation", record);
@@ -3300,75 +3539,6 @@ export default function PurchaseNoteModal({
                 />
               )}
             </div>
-          </div>
-
-          {/* Аванс */}
-          <div className={block("field")}>
-            <label className={block("checkbox")}>
-              <input type="checkbox" {...register("hasAdvance")} />
-              <span>Предусмотрен аванс</span>
-            </label>
-            {watchedHasAdvance && (
-              <input
-                className={block("input")}
-                {...register("advancePercent")}
-                placeholder="Размер аванса, %"
-              />
-            )}
-          </div>
-
-          {/* Казначейское сопровождение — радиокнопками Да / Нет + select с двумя выборами */}
-          <div className={block("field")}>
-            <span className={block("label")}>
-              Казначейское сопровождение (ст. 242.23 БК РФ)
-            </span>
-            <div className={block("radio-row")}>
-              <label className={block("radio")}>
-                <input
-                  type="radio"
-                  checked={!watchedTreasury}
-                  onChange={() => {
-                    setValue("requiresTreasurySupport", false);
-                    setValue("treasurySupportType", "");
-                  }}
-                />
-                <span>Нет</span>
-              </label>
-              <label className={block("radio")}>
-                <input
-                  type="radio"
-                  checked={watchedTreasury}
-                  onChange={() => {
-                    setValue("requiresTreasurySupport", true);
-                    if (!watch("treasurySupportType")) {
-                      setValue("treasurySupportType", "full");
-                    }
-                  }}
-                />
-                <span>Да</span>
-              </label>
-            </div>
-            {watchedTreasury && (
-              <select
-                aria-label="Вид казначейского сопровождения"
-                className={block("select")}
-                {...register("treasurySupportType")}
-              >
-                <option value="full">Полное казначейское сопровождение</option>
-                <option value="advance_only">
-                  Казначейское сопровождение только аванса
-                </option>
-              </select>
-            )}
-          </div>
-
-          {/* Банковское сопровождение чекбоксом */}
-          <div className={block("field")}>
-            <span className={block("label")}>Банковское сопровождение</span>
-            <label className={block("checkbox")}>
-              <input type="checkbox" {...register("requiresBankSupport")} />
-              <span>Требуется банковское сопровождение контракта</span>
-            </label>
           </div>
         </div>
       </fieldset>
