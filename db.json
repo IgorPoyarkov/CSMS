@@ -1380,7 +1380,7 @@
         {
           "id": 101,
           "serialNumber": "1",
-          "identificationCode": "326037701234500010000000001П166",
+          "identificationCode": "267701234567770101001100010013250000",
           "objectOfPurchase": "Поставка медицинского оборудования (аппарат ультразвуковой диагностики экспертного класса)",
           "plannedPlacementYear": "2026",
           "amountTotal": "4850000.00",
@@ -1435,7 +1435,7 @@
         {
           "id": 102,
           "serialNumber": "2",
-          "identificationCode": "326037701234500010000000002П166",
+          "identificationCode": "267701234567770101001100010022120000",
           "objectOfPurchase": "Поставка расходных материалов для лабораторной диагностики",
           "plannedPlacementYear": "2026",
           "amountTotal": "1240000.00",
@@ -1482,7 +1482,7 @@
         {
           "id": 103,
           "serialNumber": "3",
-          "identificationCode": "326037701234500010000000003П166",
+          "identificationCode": "267701234567770101001100010034120000",
           "objectOfPurchase": "Выполнение работ по текущему ремонту пищевого блока стационара",
           "plannedPlacementYear": "2026",
           "amountTotal": "3150000.00",
@@ -1529,7 +1529,7 @@
         {
           "id": 104,
           "serialNumber": "4",
-          "identificationCode": "326037701234500010000000004П166",
+          "identificationCode": "267701234567770101001100010044120000",
           "objectOfPurchase": "Строительство (реконструкция) корпуса поликлиники с стационаром",
           "plannedPlacementYear": "2026",
           "amountTotal": "150000000.00",
@@ -1606,7 +1606,7 @@
         {
           "id": 201,
           "serialNumber": "1",
-          "identificationCode": "3260331280123450002000000001П166",
+          "identificationCode": "263128071234312801001100020012620000",
           "objectOfPurchase": "Поставка вычислительной техники (ноутбуки для специалистов отраслевых подразделений)",
           "plannedPlacementYear": "2026",
           "amountTotal": "1860000.00",
@@ -1647,7 +1647,7 @@
         {
           "id": 202,
           "serialNumber": "2",
-          "identificationCode": "3260331280123450002000000002П166",
+          "identificationCode": "263128071234312801001100020024322000",
           "objectOfPurchase": "Оказание услуг по техническому обслуживанию систем кондиционирования здания",
           "plannedPlacementYear": "2026",
           "amountTotal": "480000.00",
@@ -1710,7 +1710,7 @@
         {
           "id": 301,
           "serialNumber": "1",
-          "identificationCode": "3260331280012340003000000001П166",
+          "identificationCode": "263128001234312801001100030013101000",
           "objectOfPurchase": "Поставка учебной мебели для кабинета информатики",
           "plannedPlacementYear": "2026",
           "amountTotal": "745000.00",
@@ -1795,7 +1795,7 @@
         {
           "id": 401,
           "serialNumber": "1",
-          "identificationCode": "3250331280123450004000000001П166",
+          "identificationCode": "253128012345312801001100040011723000",
           "objectOfPurchase": "Поставка канцелярских товаров для нужд администрации",
           "plannedPlacementYear": "2025",
           "amountTotal": "185000.00",
@@ -1910,6 +1910,16 @@
       "Начальная (максимальная) цена контракта, руб": 480000,
       "Тип закупки": "Прочее",
       "id": "3YSYkRo"
+    },
+    {
+      "Идентификационный код закупки": "326037701234500010000000003П166",
+      "Наименование закупки": "Выполнение работ по текущему ремонту пищевого блока стационара",
+      "Начальная (максимальная) цена контракта, руб": 3150000,
+      "Тип закупки": "Прочее",
+      "Уполномоченный орган (учреждение)": "",
+      "Организатор совместной закупки": "",
+      "КБК": "20013000000000000000",
+      "id": "0SDcOqA"
     }
   ],
   "notices": [],
@@ -4888,35 +4898,34 @@
       "evaluationProcedureKind": "tender",
       "evaluationObjectCategory": "building_repair",
       "evaluationOkpd2Codes": [
-        "43.31.10"
+        "41.20.40.900"
       ],
       "evaluationCriteria": [
         {
-          "id": "crit-price-note1",
           "type": "price",
           "enabled": true,
           "weightPercent": 60,
           "indicators": [],
-          "note": ""
+          "note": "",
+          "id": "crit-price-note1"
         },
         {
-          "id": "crit-expenses-note1",
           "type": "expenses",
           "enabled": false,
           "weightPercent": 0,
           "indicators": [],
-          "note": ""
+          "note": "",
+          "id": "crit-expenses-note1"
         },
         {
-          "id": "crit-characteristics-note1",
           "type": "characteristics",
           "enabled": false,
           "weightPercent": 0,
           "indicators": [],
-          "note": ""
+          "note": "",
+          "id": "crit-characteristics-note1"
         },
         {
-          "id": "crit-qualification-note1",
           "type": "qualification",
           "enabled": true,
           "weightPercent": 40,
@@ -4932,12 +4941,134 @@
               "scaleText": ""
             }
           ],
-          "note": "Пункт 33 Положения: опыт работы обязателен"
+          "note": "Пункт 33 Положения: опыт работы обязателен",
+          "id": "crit-qualification-note1"
         }
       ],
       "status": "approved",
       "comment": "Требование о привлечении СМП 10% — по п. 1 ПП РФ N 1466",
-      "createdAt": "2026-09-01"
+      "createdAt": "2026-09-01",
+      "ikz": "267701234567770101001100010034120000",
+      "authorizedBodyName": "",
+      "jointOrganizerName": "",
+      "kbk": "20013000000000000000",
+      "kbkDisagreement": false,
+      "kbkSuggested": "",
+      "kbkDisagreementComment": "",
+      "kbkDisagreementAuthor": "",
+      "budgetLevel": "Бюджет субъекта Российской Федерации",
+      "fundingSource": "Бюджет субъекта Российской Федерации",
+      "isIndeterminateVolume": false,
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Выполнение работ по текущему ремонту пищевого блока стационара",
+          "okpd2Code": "41.20.40.900",
+          "okpd2Name": "Работы строительные специализированные прочие, не включённые в другие группировки",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "",
+          "totalPrice": "3150000.00",
+          "nationalRegimeType": "none",
+          "isSupplyDuringWorks": false
+        }
+      ],
+      "okpd2Code": "41.20.40.900",
+      "okpd2Name": "Работы строительные специализированные прочие, не включённые в другие группировки",
+      "unit": "",
+      "quantity": "1",
+      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
+      "nmckRequestStatus": "none",
+      "placingWayCode": "OKP20",
+      "procurementType": "Прочее",
+      "hasAdvance": false,
+      "advancePercent": "",
+      "requiresTreasurySupport": false,
+      "treasurySupportType": "",
+      "requiresBankSupport": false,
+      "deliveryTermMode": "relative",
+      "deliveryStartOffsetDays": 0,
+      "desiredStartDate": "",
+      "desiredEndDate": "",
+      "executionTermDays": 30,
+      "acceptanceTermMode": "event",
+      "acceptanceEventBase": "с даты поступления заказчику документа о приёмке в ЕИС",
+      "acceptanceTermDays": 10,
+      "acceptanceDate": "",
+      "deliveryPlaces": [
+        {
+          "id": "1",
+          "country": "Российская Федерация",
+          "region": "",
+          "municipality": "",
+          "settlement": "",
+          "address": "",
+          "additionalInfo": ""
+        }
+      ],
+      "deliveryPlace": "Российская Федерация",
+      "nationalRegimeType": "none",
+      "advantageSmpPart3Art30": false,
+      "requiresSmpSubcontracting": true,
+      "unifiedRequirementsPart1Art31": true,
+      "unifiedRequirementsPart1Art31Text": "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
+      "requirementP1Part1Art31": false,
+      "requirementP1Part1Art31Text": "Наличие действующей лицензии / членства в СРО / свидетельства о допуске к видам работ, установленных законодательством Российской Федерации (п. 1 ч. 1 ст. 31 Закона № 44-ФЗ).",
+      "requirementsPart1_1Art31": true,
+      "pp1482ProductionFacilities": false,
+      "pp1482ProductionFacilitiesText": "",
+      "pp1482FinancialStability": false,
+      "pp1482FinancialStabilityText": "",
+      "pp1482Specialists": false,
+      "pp1482SpecialistsText": "",
+      "additionalRequirementsPart2Art31": false,
+      "additionalRequirementsPart2Art31Text": "",
+      "pp2571Positions": [],
+      "requirementsPart2_1Art31": false,
+      "requirementsPart2_1Art31Text": "Наличие опыта исполнения контракта (договора) стоимостью не менее 20 процентов НМЦК за последние 3 года до даты подачи заявки при НМЦК 20 млн рублей и более (ч. 2.1 ст. 31 Закона № 44-ФЗ).",
+      "pp2571Point4Requirement": false,
+      "pp2571Point4RequirementText": "Участник закупки подтверждает соответствие требованиям, предусмотренным пунктом 4 Постановления Правительства РФ от 29.12.2021 № 2571 (порядок оценки опыта исполнения контракта, в том числе с учетом правопреемства и без учёта штрафов/пеней, не превышающих установленный порог, либо подтверждение документами о приёмке по ЕИС / контрактам № 44-ФЗ и № 223-ФЗ).",
+      "sanctionsRnpRequirement": false,
+      "requiresApplicationSecurity": true,
+      "applicationSecurityPercent": "1",
+      "applicationSecurityOrder": "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+      "applicationSecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "applicationSecurityBudgetRequisites": {
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001",
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»"
+      },
+      "requiresContractSecurity": true,
+      "contractSecurityPercent": "5",
+      "contractSecurityOrder": "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+      "contractSecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "requiresQualityWarranty": false,
+      "warrantyMaintenanceInfo": "",
+      "manufacturerWarrantyInfo": "",
+      "warrantyTermAndVolume": "",
+      "requiresWarrantySecurity": false,
+      "warrantySecurityPercent": "",
+      "warrantySecurityOrder": "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+      "warrantySecurityRequisites": {
+        "recipientName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
+        "recipientInn": "7701234567",
+        "recipientKpp": "770101001"
+      },
+      "warrantyTermMonths": 12,
+      "allowUnilateralRefusalArt95": true,
+      "otherRequirements": "",
+      "approvalUpdatedAt": "2026-11-18",
+      "approvalUpdatedBy": "Иванова Анна Сергеевна",
+      "approvalComment": "",
+      "procurementId": "0SDcOqA"
     },
     {
       "id": 2,
@@ -4956,7 +5087,8 @@
       "initialMaxPrice": "4850000.00",
       "status": "approved",
       "comment": "",
-      "createdAt": "2026-08-05"
+      "createdAt": "2026-08-05",
+      "ikz": "267701234567770101001100010013250000"
     },
     {
       "id": 3,
@@ -4975,7 +5107,8 @@
       "initialMaxPrice": "480000.00",
       "status": "approved",
       "comment": "Минимальный процент по п. 1 ПП РФ N 1466",
-      "createdAt": "2026-09-20"
+      "createdAt": "2026-09-20",
+      "ikz": "263128071234312801001100020024322000"
     },
     {
       "id": 4,
