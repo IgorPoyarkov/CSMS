@@ -218,6 +218,13 @@ const Header = ({}: HeaderProps) => {
             </div>
           </li>
 
+          {/* Выгрузка пакетов в ЕИС и работа с СМП/СОНКО */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
+              <span className={nav("link-name")}>ЕИС / СМП</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item", ["end"])}>
             {user ? (
               <div
