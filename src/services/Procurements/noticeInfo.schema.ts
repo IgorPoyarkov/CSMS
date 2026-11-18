@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BudgetPart13Art44RequisitesSchema } from "../Organization/organization.schema";
 
 export const EisPhoneSchema = z.object({
   countryCode: z.string().max(4),
@@ -9,6 +10,9 @@ export const EisPhoneSchema = z.object({
 
 export const BankRequisitesSchema = z.object({
   accountSearch: z.string().optional(),
+  recipientName: z.string().optional(),
+  recipientInn: z.string().optional(),
+  recipientKpp: z.string().optional(),
   settlementAccount: z.string().optional(),
   personalAccount: z.string().optional(),
   bik: z.string().optional(),
@@ -110,6 +114,12 @@ export const AttachedDocItemSchema = z.object({
 });
 
 export const NoticeInfoSchema = z.object({
+  id: z.union([z.string(), z.number()]).optional(),
+  procurementId: z.union([z.string(), z.number()]).nullable().optional(),
+  purchaseNoteId: z.union([z.string(), z.number()]).nullable().optional(),
+  objectDescriptionId: z.union([z.string(), z.number()]).nullable().optional(),
+  ikz: z.string().optional(),
+
   // ВКЛАДКА 1: Сведения о состоянии извещения
   noticeState: z.object({
     statusLabel: z.string(),
@@ -248,11 +258,25 @@ export const NoticeInfoSchema = z.object({
     advantagePenalSystemArt28: z.boolean(),
     advantageSmpPart3Art30: z.boolean(),
 
-    // Требования по ст. 31
+    // Требования по ст. 31 и ПП РФ № 1482 / № 2571
     unifiedRequirementsPart1Art31: z.boolean(),
+    unifiedRequirementsPart1Art31Text: z.string().optional(),
+    requirementP1Part1Art31: z.boolean().optional(),
+    requirementP1Part1Art31Text: z.string().optional(),
     requirementsPart1_1Art31: z.boolean(),
+    pp1482ProductionFacilities: z.boolean().optional(),
+    pp1482ProductionFacilitiesText: z.string().optional(),
+    pp1482FinancialStability: z.boolean().optional(),
+    pp1482FinancialStabilityText: z.string().optional(),
+    pp1482Specialists: z.boolean().optional(),
+    pp1482SpecialistsText: z.string().optional(),
     additionalRequirementsPart2Art31: z.boolean(),
+    additionalRequirementsPart2Art31Text: z.string().optional(),
     pp2571Positions: z.array(z.string()),
+    requirementsPart2_1Art31: z.boolean().optional(),
+    requirementsPart2_1Art31Text: z.string().optional(),
+    pp2571Point4Requirement: z.boolean().optional(),
+    pp2571Point4RequirementText: z.string().optional(),
     subcontractingSmpPart5Art30: z.boolean(),
     // Требование о привлечении субподрядчиков из СМП/СОНКО: процент от цены
     // контракта по п. 1 типовых условий (ПП РФ от 23.12.2016 N 1466).
@@ -277,6 +301,8 @@ export const NoticeInfoSchema = z.object({
     applicationSecurityPercent: z.number().min(0).max(5),
     applicationSecurityOrder: z.string().optional(),
     applicationSecurityRequisites: BankRequisitesSchema,
+    applicationSecurityBudgetRequisites:
+      BudgetPart13Art44RequisitesSchema.optional(),
 
     // Обеспечение исполнения контракта
     requiresContractSecurity: z.boolean(),

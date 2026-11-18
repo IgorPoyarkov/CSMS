@@ -41,6 +41,65 @@ export type OrganizationBudgetLevel = z.infer<
   typeof OrganizationBudgetLevelSchema
 >;
 
+export const ORGANIZATION_BUDGET_LEVEL_LABELS: Record<
+  OrganizationBudgetLevel,
+  string
+> = {
+  federal: "Федеральный бюджет",
+  regional: "Бюджет субъекта Российской Федерации",
+  municipal: "Местный (муниципальный) бюджет",
+};
+
+// Реквизиты счёта заказчика, куда перечисляются денежные средства в качестве
+// обеспечения заявки / исполнения контракта / гарантийных обязательств
+export const OrganizationSecurityAccountSchema = z.object({
+  recipientName: z.string().optional(),
+  recipientInn: z.string().optional(),
+  recipientKpp: z.string().optional(),
+  settlementAccount: z.string().optional(),
+  personalAccount: z.string().optional(),
+  bik: z.string().optional(),
+  bankName: z.string().optional(),
+  correspondentAccount: z.string().optional(),
+});
+
+export type OrganizationSecurityAccount = z.infer<
+  typeof OrganizationSecurityAccountSchema
+>;
+
+// Реквизиты счёта для перечисления денежных средств в случае, предусмотренном
+// ч. 13 ст. 44 Закона № 44-ФЗ (в соответствующий бюджет бюджетной системы РФ)
+export const BudgetPart13Art44RequisitesSchema = z.object({
+  recipientInn: z.string().optional(),
+  recipientKpp: z.string().optional(),
+  incomeKbk: z.string().optional(),
+  oktmo: z.string().optional(),
+  singleTreasuryAccount: z.string().optional(),
+  treasuryAccount: z.string().optional(),
+  bikTofk: z.string().optional(),
+  recipientName: z.string().optional(),
+});
+
+export type BudgetPart13Art44Requisites = z.infer<
+  typeof BudgetPart13Art44RequisitesSchema
+>;
+
+// Закреплённые за организацией реквизиты и порядки предоставления обеспечений:
+// вносит и актуализирует уполномоченный член КС, далее они предзаполняют СЗ и извещения.
+export const OrganizationProcurementRequisitesSchema = z.object({
+  securityRequisites: OrganizationSecurityAccountSchema.optional(),
+  budgetPart13Art44Requisites: BudgetPart13Art44RequisitesSchema.optional(),
+  defaultApplicationSecurityOrder: z.string().optional(),
+  defaultContractSecurityOrder: z.string().optional(),
+  defaultWarrantySecurityOrder: z.string().optional(),
+  updatedAt: z.string().optional(),
+  updatedByName: z.string().optional(),
+});
+
+export type OrganizationProcurementRequisites = z.infer<
+  typeof OrganizationProcurementRequisitesSchema
+>;
+
 export const OrganizationRequisitesSchema = z.object({
   fullName: z
     .string()
@@ -85,6 +144,7 @@ export const BaseOrganizationSchema = OrganizationRequisitesSchema.extend({
     "Укажите номер реестровой записи заказчика в ЕИС",
   ),
   isActive: z.boolean().optional(),
+  procurementRequisites: OrganizationProcurementRequisitesSchema.optional(),
 });
 
 export type BaseOrganization = z.infer<typeof BaseOrganizationSchema>;

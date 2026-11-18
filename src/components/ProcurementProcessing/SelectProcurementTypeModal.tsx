@@ -38,6 +38,10 @@ const SelectProcurementTypeModal = ({
         ikz: procurement.ikz,
         name: procurement.name,
         procurementType: selectedType,
+        nmck: procurement.nmck,
+        authorizedBodyName: procurement.authorizedBodyName ?? undefined,
+        jointOrganizerName: procurement.jointOrganizerName ?? undefined,
+        kbk: procurement.kbk ?? undefined,
       },
     });
   };

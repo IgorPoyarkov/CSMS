@@ -51,6 +51,17 @@
     gap: 28px;
   }
 
+  &__prefill-banner {
+    margin: 0 0 18px;
+    padding: 10px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent-soft);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
   &__footer {
     display: flex;
     justify-content: flex-end;
@@ -363,13 +374,16 @@
     }
   }
 
-  &__danger-warning {
+  &__danger-warning,
+  &__error-banner {
     display: flex;
     align-items: flex-start;
     gap: 8px;
     padding: 8px 10px;
     font-size: 12px;
     line-height: 1.35;
+    color: var(--state-danger);
+    font-weight: 600;
     background-color: var(--state-danger-soft);
     border: 1px solid var(--state-danger);
     border-radius: 3px;
@@ -452,7 +466,8 @@
     color: var(--text-secondary);
   }
 
-  &__input {
+  &__input,
+  &__select {
     padding: 6px 10px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;

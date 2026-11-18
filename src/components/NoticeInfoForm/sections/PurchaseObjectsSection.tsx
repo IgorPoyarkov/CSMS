@@ -2,6 +2,7 @@ import { useFieldArray, useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import Okpd2Select from "../../UI/Okpd2Select/Okpd2Select";
+import OkeiSelect from "../../UI/OkeiSelect/OkeiSelect";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -177,10 +178,18 @@ const PurchaseObjectsSection = () => {
                     </div>
                     <div>
                       <span className={block("caption")}>Ед. изм.</span>
-                      <input
-                        type="text"
-                        className={block("input")}
-                        {...register(`purchaseObjects.items.${index}.unit`)}
+                      <OkeiSelect
+                        compact
+                        value={items[index]?.unit ?? ""}
+                        valueMode="name"
+                        placeholder="Ед. по ОКЕИ…"
+                        onChange={(nextUnit) =>
+                          setValue(
+                            `purchaseObjects.items.${index}.unit`,
+                            nextUnit,
+                            { shouldDirty: true },
+                          )
+                        }
                       />
                     </div>
                     <div>

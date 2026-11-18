@@ -5,6 +5,7 @@ import { useGetProcurements } from "../../services/Procurements/procurement.api"
 import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
+import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Main.module.scss";
 
@@ -32,6 +33,7 @@ const Main = ({}: MainProps) => {
   const { data: procurements } = useGetProcurements();
   const { data: contractProjects } = useOrganizationContractProjects(orgId);
   const { data: registryContracts } = useContractRegistry(orgId);
+  const { data: purchaseNotes } = usePurchaseNotes(orgId);
 
   // Данные главной идут по цепочке закупки: план-график → позиция плана (ИКЗ)
   // → закупка (СЗ) → извещение → проект контракта → реестр контрактов.
@@ -78,9 +80,9 @@ const Main = ({}: MainProps) => {
     },
     {
       title: "СЗ на закупку",
-      hint: "Закупки по позициям плана",
-      count: orgProcurements.length,
-      to: "/procurement-processing",
+      hint: "Реестр потребностей по ПГ",
+      count: (purchaseNotes ?? []).length,
+      to: "/purchase-notes",
     },
     {
       title: "Извещение",
@@ -133,9 +135,14 @@ const Main = ({}: MainProps) => {
       hint: "44-ФЗ, планирование",
     },
     {
+      to: "/purchase-notes",
+      title: "Реестр потребностей (СЗ)",
+      hint: "статусы и выгрузка .docx / .pdf",
+    },
+    {
       to: "/procurement-processing",
       title: "Обработка информации по закупке",
-      hint: "СЗ и закупки",
+      hint: "закупки и процедуры",
     },
     {
       to: "/procurement-processing/new/notice-info",
@@ -154,8 +161,8 @@ const Main = ({}: MainProps) => {
     },
     {
       to: "/norming-requirements",
-      title: "Типовые требования (ПП 926)",
-      hint: "нормирование цен и требования к товарам",
+      title: "Описание объекта закупки (ООЗ)",
+      hint: "ст. 33 44-ФЗ, ПП 145, ПП 926",
     },
     {
       to: "/purchase-descriptions",
