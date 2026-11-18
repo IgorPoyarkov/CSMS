@@ -7,8 +7,10 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.api";
 import {
   emptyPurchasePlanPosition,
+  toNumber,
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
+import { roundMoney } from "../../services/Nmck/marketNmck";
 import useUtils from "../../hooks/useUtils";
 import styles from "./PurchasePlanPositionModal.module.scss";
 
@@ -112,10 +114,20 @@ export default function PurchasePlanPositionEditPage() {
           position && item.id === position.id ? positionToSave : item,
         );
 
+    const nextTotalAmount =
+      plan.totalAmount !== undefined && plan.totalAmount !== ""
+        ? roundMoney(
+            nextPositions.reduce(
+              (acc, item) => acc + (toNumber(item.amountTotal) ?? 0),
+              0,
+            ),
+          ).toFixed(2)
+        : plan.totalAmount;
+
     updatePlan(
       {
         id: plan.id as string | number,
-        data: { ...plan, positions: nextPositions },
+        data: { ...plan, totalAmount: nextTotalAmount, positions: nextPositions },
       },
       { onSuccess: () => navigate(`/purchase-plans/${plan.id}`) },
     );

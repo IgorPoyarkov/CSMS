@@ -23,11 +23,9 @@ import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
-import EisPackagesPage from "./components/Eis/EisPackagesPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
-import PluginDiagnosticsPage from "./components/Eds/PluginDiagnosticsPage";
-import DefectListsPage from "./components/DefectList/DefectListsPage";
+import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
 
 const router = createBrowserRouter([
   {
@@ -111,11 +109,6 @@ const router = createBrowserRouter([
         element: <EisSmpExportPage />,
       },
       {
-        // Пакеты ЕИС: подпись, отправка и статусы ФЛК вместо скачанного файла
-        path: "/eis/packages",
-        element: <EisPackagesPage />,
-      },
-      {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования
         path: "/okpd2",
         element: <Okpd2Dictionary />,
@@ -131,22 +124,14 @@ const router = createBrowserRouter([
         element: <LegalActsRegistry />,
       },
       {
-        // Дефектовки: роль «инициатор закупки» — работник подразделения-
-        // заказчика вне КС готовит объёмы работ, проект сметы контракта
-        // (421/пр) и проект календарного графика (336/пр) (Tasks 8, п. 4)
-        path: "/defect-lists",
-        element: <DefectListsPage />,
-      },
-      {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал
         path: "/eds/journal",
         element: <EdsJournalPage />,
       },
       {
-        // Диагностика рабочего места: видит ли браузер плагин и сертификаты,
-        // ставится ли подпись (Tasks 9, п. 1 — до отправки документов в ЕИС)
-        path: "/eds/diagnostics",
-        element: <PluginDiagnosticsPage />,
+        // Модуль расчёта НМЦК методом сопоставимых рыночных цен (анализ рынка)
+        path: "/nmck-calculator",
+        element: <NmckCalculatorPage />,
       },
     ],
   },

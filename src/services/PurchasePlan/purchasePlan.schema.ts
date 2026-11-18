@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { OrganizationCustomerSchema } from "../Organization/organization.schema";
+import { NmckCalculationRecordSchema } from "../Nmck/nmck.schema";
 
 /**
  * План-график закупок по 44-ФЗ.
@@ -225,6 +226,12 @@ export const PurchasePlanPositionSchema = z
     statusDate: optionalDate(
       "Неверный формат даты размещения записи (ожидается ГГГГ-ММ-ДД)",
     ),
+
+    // Сведения расчёта НМЦК (ст. 22 44-ФЗ, Приказ МЭР № 567)
+    quantity: z.union([z.string(), z.number()]).optional(),
+    unit: z.string().optional(),
+    nmck: moneySchema("Укажите НМЦК числом, например 1250000.50"),
+    nmckCalculation: NmckCalculationRecordSchema.optional(),
   })
   .refine(
     (position) =>
@@ -458,6 +465,10 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   kbkEntries: [],
   status: "planned",
   statusDate: "",
+  quantity: "",
+  unit: "",
+  nmck: "",
+  nmckCalculation: undefined,
 });
 
 export const emptyPurchasePlan = (): PurchasePlan => ({

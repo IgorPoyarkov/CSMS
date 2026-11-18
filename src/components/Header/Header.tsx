@@ -113,19 +113,6 @@ const Header = ({}: HeaderProps) => {
             </li>
           )}
 
-          {/* Инициатор закупки — работник подразделения-заказчика вне КС:
-              готовит дефектовку, проект сметы и проект графика для службы */}
-          {user && (
-            <li className={nav("item")}>
-              <NavLink
-                className={nav("link", ["logo"])}
-                to={"/defect-lists"}
-              >
-                <span className={nav("link-name")}>Дефектовки</span>
-              </NavLink>
-            </li>
-          )}
-
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/okpd2"}>
               <span className={nav("link-name")}>Справочник ОКПД2</span>
@@ -141,28 +128,20 @@ const Header = ({}: HeaderProps) => {
           </li>
 
           <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
-              <span className={nav("link-name")}>ЕИС / СМП</span>
+            <NavLink className={nav("link", ["logo"])} to={"/nmck-calculator"}>
+              <span className={nav("link-name")}>Расчёт НМЦК</span>
             </NavLink>
           </li>
 
-          {/* Пакеты ЕИС: подпись, отправка и статусы ФЛК вместо скачанного файла */}
           <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/eis/packages"}>
-              <span className={nav("link-name")}>Пакеты ЕИС</span>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
+              <span className={nav("link-name")}>ЕИС / СМП</span>
             </NavLink>
           </li>
 
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eds/journal"}>
               <span className={nav("link-name")}>Журнал ЭП</span>
-            </NavLink>
-          </li>
-
-          {/* Проверка рабочего места: плагин КриптоПро, сертификаты, подпись */}
-          <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/eds/diagnostics"}>
-              <span className={nav("link-name")}>Проверка ЭП</span>
             </NavLink>
           </li>
 

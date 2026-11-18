@@ -4637,7 +4637,9 @@
         "ContractProjectForm",
         "ContractServiceForm",
         "ContractRegistryPage",
-        "SmnpSonekPage"
+        "SmnpSonekPage",
+        "NmckCalculatorPage",
+        "PurchasePlanPositionModal"
       ],
       "sourceUrl": "http://pravo.gov.ru",
       "lastCheckedDate": "2026-11-16",
@@ -4971,6 +4973,27 @@
       ],
       "sourceUrl": "https://www.consultant.ru/document/cons_doc_LAW_195973/",
       "lastCheckedDate": "2026-11-17",
+      "isVerified": true
+    },
+    {
+      "id": "order-mer-567",
+      "shortName": "Приказ МЭР N 567",
+      "fullName": "Приказ Минэкономразвития России от 02.10.2013 N 567 \"Об утверждении Методических рекомендаций по применению методов определения начальной (максимальной) цены контракта, цены контракта, заключаемого с единственным поставщиком (подрядчиком, исполнителем)\"",
+      "actType": "ministry-order",
+      "adoptedBy": "Министерство экономического развития Российской Федерации",
+      "actNumber": "567",
+      "adoptedDate": "2013-10-02",
+      "effectiveDate": "2013-10-02",
+      "status": "active",
+      "scope": "Метод сопоставимых рыночных цен (анализ рынка), расчёт коэффициента вариации V <= 33%, приведение цен к сопоставимым условиям и индексация ИПЦ",
+      "components": [
+        "NmckCalculatorPage",
+        "MarketNmckCalculator",
+        "NmckJustificationPanel",
+        "PurchasePlanPositionModal"
+      ],
+      "sourceUrl": "http://pravo.gov.ru",
+      "lastCheckedDate": "2026-11-18",
       "isVerified": true
     }
   ],

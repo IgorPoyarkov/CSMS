@@ -4,9 +4,15 @@ import {
   PurchasePlanListSchema,
   PurchasePlanSchema,
   isPlanOfOrganization,
+  toNumber,
   type PurchasePlan,
   type PurchasePlanPosition,
 } from "./purchasePlan.schema";
+import {
+  buildPositionFinancePatch,
+  roundMoney,
+} from "../Nmck/marketNmck";
+import type { NmckCalculationRecord } from "../Nmck/nmck.schema";
 
 const ENDPOINT = "/purchasePlans";
 
@@ -114,6 +120,73 @@ const deletePurchasePlan = async ({
   return id;
 };
 
+export interface SavePositionNmckPayload {
+  planId: string | number;
+  organizationId: string | number | undefined;
+  positionId: string | number;
+  nmckCalculation: NmckCalculationRecord;
+  updatePlanAmount?: boolean;
+}
+
+const savePositionNmck = async ({
+  planId,
+  organizationId,
+  positionId,
+  nmckCalculation,
+  updatePlanAmount = false,
+}: SavePositionNmckPayload): Promise<PurchasePlan> => {
+  await fetchPurchasePlanById(planId, organizationId);
+  const stored = await api.get(`${ENDPOINT}/${planId}`);
+  const rawPlan = stored.data as PurchasePlan & Record<string, unknown>;
+  const rawPositions = Array.isArray(rawPlan.positions)
+    ? rawPlan.positions
+    : [];
+
+  let found = false;
+  const nextPositions = rawPositions.map((pos) => {
+    if (String(pos.id ?? "") !== String(positionId)) {
+      return pos;
+    }
+    found = true;
+    const financePatch = updatePlanAmount
+      ? buildPositionFinancePatch(pos, nmckCalculation.nmckTotal)
+      : {};
+    return {
+      ...pos,
+      ...financePatch,
+      quantity: nmckCalculation.quantity,
+      unit: nmckCalculation.unit,
+      nmck: nmckCalculation.nmckTotal.toFixed(2),
+      nmckCalculation,
+    };
+  });
+
+  if (!found) {
+    throw new Error("Позиция плана-графика не найдена");
+  }
+
+  let nextTotalAmount = rawPlan.totalAmount;
+  if (
+    updatePlanAmount &&
+    rawPlan.totalAmount !== undefined &&
+    rawPlan.totalAmount !== ""
+  ) {
+    const sumTotal = nextPositions.reduce(
+      (acc, pos) => acc + (toNumber(pos.amountTotal) ?? 0),
+      0,
+    );
+    nextTotalAmount = roundMoney(sumTotal).toFixed(2);
+  }
+
+  const response = await api.put(`${ENDPOINT}/${planId}`, {
+    ...rawPlan,
+    totalAmount: nextTotalAmount,
+    positions: nextPositions,
+  });
+
+  return PurchasePlanSchema.parse(response.data);
+};
+
 export const usePurchasePlans = (
   organizationId: string | number | undefined,
 ) => {
@@ -173,6 +246,17 @@ export const useDeletePurchasePlan = () => {
 
   return useMutation({
     mutationFn: deletePurchasePlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: purchasePlansQueryKey });
+    },
+  });
+};
+
+export const useSavePositionNmck = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: savePositionNmck,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchasePlansQueryKey });
     },

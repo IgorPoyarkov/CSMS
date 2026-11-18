@@ -316,12 +316,35 @@ export default function PurchasePlanCard() {
           </span>
         );
       }
-      case "amountTotal":
+      case "amountTotal": {
+        const savedNmck = position.nmckCalculation?.nmckTotal;
+        const rawNmck = Number(position.nmck);
+        const hasNmck =
+          position.nmckCalculation !== undefined ||
+          (Number.isFinite(rawNmck) && rawNmck > 0);
+        const nmckDisplay =
+          savedNmck !== undefined
+            ? formatMoney(savedNmck)
+            : Number.isFinite(rawNmck) && rawNmck > 0
+              ? formatMoneyValue(rawNmck)
+              : null;
+
         return (
-          <span className={block("amount")}>
-            {formatMoneyValue(position[key])}
-          </span>
+          <div className={block("status-stack")}>
+            <span className={block("amount")}>
+              {formatMoneyValue(position[key])}
+            </span>
+            {hasNmck && nmckDisplay && (
+              <span className={block("sub", ["compact"])}>
+                НМЦК: {nmckDisplay}
+                {position.nmckCalculation
+                  ? ` (анализ рынка, V=${position.nmckCalculation.cvPercent.toFixed(1)}%)`
+                  : ""}
+              </span>
+            )}
+          </div>
         );
+      }
       // Статус записи и дата, когда она размещена (план-график прошёл контроль).
       // Записи без статуса считаются запланированными
       case "status": {
@@ -389,6 +412,19 @@ export default function PurchasePlanCard() {
             }}
           >
             Изменить
+          </button>
+          <button
+            className={block("menu-item")}
+            type="button"
+            disabled={position.id === undefined}
+            onClick={() => {
+              setOpenActionsPositionId(null);
+              navigate(
+                `/nmck-calculator?planId=${planId}&positionId=${position.id}`,
+              );
+            }}
+          >
+            Рассчитать НМЦК (анализ рынка)
           </button>
           <button
             className={block("menu-item")}

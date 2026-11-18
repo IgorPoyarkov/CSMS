@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { Calculator, FileDown, Plus, Trash2 } from "lucide-react";
 import useUtils from "../../hooks/useUtils";
+import {
+  buildMarketNmckBasisText,
+  calculateMarketNmck,
+  createEmptyMarketOffer,
+  formatNmckMoney,
+} from "../../services/Nmck/marketNmck";
 import styles from "./PurchaseNoteModal.module.scss";
 
 export interface NmckOfferItem {
@@ -26,11 +32,7 @@ interface NmckJustificationPanelProps {
   onClose: () => void;
 }
 
-const formatMoney = (val: number) =>
-  new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(val);
+const formatMoney = formatNmckMoney;
 
 /**
  * Встроенный модуль расчёта и подготовки файла обоснования НМЦК
@@ -51,67 +53,53 @@ export default function NmckJustificationPanel({
   const { bem } = useUtils();
   const block = bem(styles, "purchase-note-modal");
   const [isExporting, setIsExporting] = useState(false);
+  const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const effectiveOffers: NmckOfferItem[] =
-    offers.length > 0
-      ? offers
-      : [
-          {
-            id: "offer-1",
-            supplierName: "Поставщик 1 (КП №1)",
-            offerDate: new Date().toISOString().slice(0, 10),
-            unitPrice: "",
-          },
-          {
-            id: "offer-2",
-            supplierName: "Поставщик 2 (КП №2)",
-            offerDate: new Date().toISOString().slice(0, 10),
-            unitPrice: "",
-          },
-          {
-            id: "offer-3",
-            supplierName: "Поставщик 3 (КП №3)",
-            offerDate: new Date().toISOString().slice(0, 10),
-            unitPrice: "",
-          },
-        ];
+  const effectiveOffers: NmckOfferItem[] = useMemo(
+    () =>
+      offers.length > 0
+        ? offers
+        : [
+            {
+              id: "offer-1",
+              supplierName: "Поставщик 1 (КП №1)",
+              offerDate: todayIso,
+              unitPrice: "",
+            },
+            {
+              id: "offer-2",
+              supplierName: "Поставщик 2 (КП №2)",
+              offerDate: todayIso,
+              unitPrice: "",
+            },
+            {
+              id: "offer-3",
+              supplierName: "Поставщик 3 (КП №3)",
+              offerDate: todayIso,
+              unitPrice: "",
+            },
+          ],
+    [offers, todayIso],
+  );
 
-  const stats = useMemo(() => {
-    const prices = effectiveOffers
-      .map((o) => Number(o.unitPrice.replace(",", ".")))
-      .filter((n) => Number.isFinite(n) && n > 0);
+  const marketResult = useMemo(
+    () =>
+      calculateMarketNmck({
+        quantity,
+        calculationDate: todayIso,
+        offers: effectiveOffers,
+      }),
+    [effectiveOffers, quantity, todayIso],
+  );
 
-    if (prices.length === 0) {
-      return {
-        count: 0,
-        mean: 0,
-        stdDev: 0,
-        cvPercent: 0,
-        isHomogeneous: true,
-        nmck: 0,
-      };
-    }
-
-    const n = prices.length;
-    const mean = prices.reduce((sum, p) => sum + p, 0) / n;
-    const variance =
-      n > 1
-        ? prices.reduce((sum, p) => sum + (p - mean) ** 2, 0) / (n - 1)
-        : 0;
-    const stdDev = Math.sqrt(variance);
-    const cvPercent = mean > 0 ? (stdDev / mean) * 100 : 0;
-    const qty = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
-    const nmck = Math.round(mean * qty * 100) / 100;
-
-    return {
-      count: n,
-      mean,
-      stdDev,
-      cvPercent,
-      isHomogeneous: cvPercent <= 33,
-      nmck,
-    };
-  }, [effectiveOffers, quantity]);
+  const stats = {
+    count: marketResult.activeCount,
+    mean: marketResult.meanUnitPrice,
+    stdDev: marketResult.stdDev,
+    cvPercent: marketResult.cvPercent,
+    isHomogeneous: marketResult.isHomogeneous,
+    nmck: marketResult.nmckTotal,
+  };
 
   const updateOffer = (
     idx: number,
@@ -124,13 +112,14 @@ export default function NmckJustificationPanel({
   };
 
   const handleAddOffer = () => {
+    const empty = createEmptyMarketOffer(effectiveOffers.length, todayIso);
     onOffersChange([
       ...effectiveOffers,
       {
-        id: `offer-${Date.now()}`,
-        supplierName: `Поставщик ${effectiveOffers.length + 1}`,
-        offerDate: new Date().toISOString().slice(0, 10),
-        unitPrice: "",
+        id: empty.id,
+        supplierName: empty.supplierName,
+        offerDate: empty.offerDate,
+        unitPrice: empty.unitPrice,
       },
     ]);
   };
@@ -140,18 +129,8 @@ export default function NmckJustificationPanel({
     onOffersChange(effectiveOffers.filter((_, i) => i !== idx));
   };
 
-  const buildBasisSummary = () => {
-    const valid = effectiveOffers.filter(
-      (o) => Number(o.unitPrice.replace(",", ".")) > 0,
-    );
-    const kpList = valid
-      .map(
-        (o) =>
-          `${o.supplierName}${o.offerDate ? ` (от ${o.offerDate})` : ""}: ${formatMoney(Number(o.unitPrice.replace(",", ".")))} ₽`,
-      )
-      .join("; ");
-    return `Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ и Приказом МЭР № 567. Исследовано КП: ${stats.count} (${kpList || "без детализации"}). Средняя цена ед.: ${formatMoney(stats.mean)} ₽, коэффициент вариации: ${stats.cvPercent.toFixed(2)}%, НМЦК: ${formatMoney(stats.nmck)} ₽.`;
-  };
+  const buildBasisSummary = () =>
+    buildMarketNmckBasisText(marketResult, unit);
 
   const generatedFileName = `Обоснование_НМЦК_СЗ_${noteNumber || "черновик"}.docx`;
 

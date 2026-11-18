@@ -1,20 +1,34 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useFieldArray, useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Calculator, ExternalLink } from "lucide-react";
 import useUtils from "../../hooks/useUtils";
 import CustomModal from "../UI/CustomModal";
 import CustomInput from "../UI/CustomInput";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
+import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
+import MarketNmckCalculator from "../Nmck/MarketNmckCalculator";
+import {
+  buildPositionFinancePatch,
+  formatNmckMoney,
+} from "../../services/Nmck/marketNmck";
+import { MARKET_PRICE_SOURCE_SHORT } from "../../services/Nmck/nmck.schema";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
+import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import { useFetchCurrentUser } from "../../services/Users/user.api";
+import { useFetchEmployeeByUserId } from "../../services/StaffingTable/StaffingTable.api";
 import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import {
   PurchasePlanPositionSchema,
   buildIdentificationCode,
   buildPositionUniqueNumber,
   nextPurchaseNumber,
+  toNumber,
   type PurchasePlan,
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -74,11 +88,17 @@ export default function PurchasePlanPositionModal({
   onSave,
   onDelete,
 }: PurchasePlanPositionModalProps) {
-  const { bem } = useUtils();
+  const { bem, fullName } = useUtils();
   const block = bem(styles, "position-modal");
   const labels = planPeriodLabels(plan.planYear);
+  const [showNmckCalculator, setShowNmckCalculator] = useState(false);
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: contractRegistryItems = [] } = useContractRegistry(
+    plan.organizationId,
+  );
+  const { data: user } = useFetchCurrentUser();
+  const { data: employee } = useFetchEmployeeByUserId(user?.id);
 
   const methods = useForm<PurchasePlanPosition>({
     resolver: zodResolver(PurchasePlanPositionSchema),
@@ -88,6 +108,9 @@ export default function PurchasePlanPositionModal({
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
       status: position.status ?? "planned",
       kbkEntries: position.kbkEntries ?? [],
+      quantity: position.quantity ?? "",
+      unit: position.unit ?? "",
+      nmck: position.nmck ?? "",
     },
   });
 
@@ -106,6 +129,10 @@ export default function PurchasePlanPositionModal({
   const okpd2Code = useWatch({ control, name: "okpd2Code" });
   const okpd2Name = useWatch({ control, name: "okpd2Name" });
   const objectOfPurchase = useWatch({ control, name: "objectOfPurchase" });
+  const watchedQuantity = useWatch({ control, name: "quantity" });
+  const watchedUnit = useWatch({ control, name: "unit" });
+  const watchedAmountTotal = useWatch({ control, name: "amountTotal" });
+  const watchedNmckCalculation = useWatch({ control, name: "nmckCalculation" });
 
   const uniqueNumber =
     getValues("uniqueNumber") ||
@@ -317,6 +344,187 @@ export default function PurchasePlanPositionModal({
             {labels.currentYear}; {labels.firstPlanYear};{" "}
             {labels.secondPlanYear}; {labels.subsequentYears}.
           </p>
+        </fieldset>
+
+        <fieldset className={block("section")}>
+          <legend>
+            Начальная (максимальная) цена контракта и расчёт (ст. 22 44-ФЗ)
+          </legend>
+          <div className={block("nmck-header")}>
+            <span className={block("hint")} style={{ margin: 0 }}>
+              Расчёт методом сопоставимых рыночных цен (анализ рынка) с
+              проверкой однородности выборки (V ≤ 33%).
+            </span>
+            <div className={block("nmck-actions")}>
+              <button
+                type="button"
+                className={block("nmck-btn")}
+                onClick={() => setShowNmckCalculator((prev) => !prev)}
+              >
+                <Calculator size={14} aria-hidden="true" />{" "}
+                {showNmckCalculator
+                  ? "Свернуть калькулятор"
+                  : "Рассчитать НМЦК (анализ рынка)"}
+              </button>
+              {!isNew && plan.id && position.id !== undefined && (
+                <Link
+                  className={block("nmck-btn")}
+                  to={`/nmck-calculator?planId=${plan.id}&positionId=${position.id}`}
+                >
+                  <ExternalLink size={14} aria-hidden="true" /> Открыть в
+                  отдельном модуле
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className={block("grid")}>
+            <CustomInput
+              configuration={{
+                label: { value: "Рассчитанная НМЦК, рублей" },
+                input: { name: "nmck", placeholder: "0.00" },
+              }}
+            />
+            <CustomInput
+              configuration={{
+                label: { value: "Количество (объём)" },
+                input: { name: "quantity", placeholder: "1" },
+              }}
+            />
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="position-unit">
+                Единица измерения (ОКЕИ)
+              </label>
+              <OkeiSelect
+                id="position-unit"
+                compact
+                value={String(watchedUnit ?? "")}
+                valueMode="symbol"
+                onChange={(val) =>
+                  setValue("unit", val, { shouldValidate: true })
+                }
+              />
+            </div>
+          </div>
+
+          {watchedNmckCalculation && (
+            <div className={block("nmck-card")}>
+              <div className={block("nmck-stats")}>
+                <span>
+                  Метод: <strong>Анализ рынка (МЭР № 567)</strong> от{" "}
+                  {watchedNmckCalculation.calculatedAt}
+                </span>
+                <span>
+                  Источников: <strong>{watchedNmckCalculation.activeCount}</strong>
+                </span>
+                <span>
+                  Средняя ед.:{" "}
+                  <strong>
+                    {formatNmckMoney(watchedNmckCalculation.meanUnitPrice)} ₽
+                  </strong>
+                </span>
+                <span>
+                  Вариация V:{" "}
+                  <strong>
+                    {watchedNmckCalculation.cvPercent.toFixed(2)}% (
+                    {watchedNmckCalculation.isHomogeneous
+                      ? "однородна"
+                      : "выше 33%"}
+                    )
+                  </strong>
+                </span>
+                <span>
+                  Итого НМЦК:{" "}
+                  <strong>
+                    {formatNmckMoney(watchedNmckCalculation.nmckTotal)} ₽
+                  </strong>
+                </span>
+              </div>
+              {watchedNmckCalculation.offers.length > 0 && (
+                <div>
+                  Источники:{" "}
+                  {watchedNmckCalculation.offers
+                    .filter((o) => o.included !== false && o.unitPrice)
+                    .map(
+                      (o) =>
+                        `${o.supplierName || MARKET_PRICE_SOURCE_SHORT[o.sourceType ?? "commercial_offer"]} (${o.unitPrice} ₽)`,
+                    )
+                    .join("; ") || "—"}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showNmckCalculator && (
+            <div className={block("nmck-inline")}>
+              <MarketNmckCalculator
+                embedded
+                initialRecord={watchedNmckCalculation ?? null}
+                defaultSubject={String(objectOfPurchase ?? "")}
+                defaultOkpd2Code={String(okpd2Code ?? "")}
+                defaultQuantity={watchedQuantity || "1"}
+                defaultUnit={String(watchedUnit || "шт")}
+                defaultIkz={String(getValues("identificationCode") ?? "")}
+                defaultCalculatorName={
+                  employee?.employee ? fullName(employee.employee) : ""
+                }
+                organizationName={
+                  plan.customer.shortName || plan.customer.fullName
+                }
+                planAmountLimit={toNumber(watchedAmountTotal)}
+                contractRegistryItems={contractRegistryItems}
+                canUpdatePlanAmount
+                defaultUpdatePlanAmount={
+                  toNumber(watchedAmountTotal) === null ||
+                  toNumber(watchedAmountTotal) === 0
+                }
+                saveButtonLabel="Применить расчёт к карточке позиции"
+                onClose={() => setShowNmckCalculator(false)}
+                onSaveToPosition={({ record, updatePlanAmount }) => {
+                  setValue("nmck", record.nmckTotal.toFixed(2), {
+                    shouldValidate: true,
+                  });
+                  setValue("quantity", record.quantity, {
+                    shouldValidate: true,
+                  });
+                  setValue("unit", record.unit, { shouldValidate: true });
+                  setValue("nmckCalculation", record, {
+                    shouldValidate: true,
+                  });
+
+                  if (updatePlanAmount) {
+                    const patch = buildPositionFinancePatch(
+                      getValues(),
+                      record.nmckTotal,
+                    );
+                    setValue("amountTotal", patch.amountTotal, {
+                      shouldValidate: true,
+                    });
+                    setValue("amountCurrentYear", patch.amountCurrentYear, {
+                      shouldValidate: true,
+                    });
+                    setValue(
+                      "amountPlanPeriodFirstYear",
+                      patch.amountPlanPeriodFirstYear,
+                      { shouldValidate: true },
+                    );
+                    setValue(
+                      "amountPlanPeriodSecondYear",
+                      patch.amountPlanPeriodSecondYear,
+                      { shouldValidate: true },
+                    );
+                    setValue(
+                      "amountSubsequentYears",
+                      patch.amountSubsequentYears,
+                      { shouldValidate: true },
+                    );
+                  }
+
+                  setShowNmckCalculator(false);
+                }}
+              />
+            </div>
+          )}
         </fieldset>
 
         <fieldset className={block("section")}>
