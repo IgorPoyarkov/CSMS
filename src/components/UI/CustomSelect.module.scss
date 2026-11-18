@@ -59,23 +59,59 @@
     }
   }
 
-  &__list {
+  // Выпадашка держит и поле поиска, и список: поиск не должен уезжать
+  // вместе с прокруткой длинного списка
+  &__dropdown {
     position: absolute;
     top: calc(100% + 4px);
     left: 0;
     right: 0;
     z-index: 20;
-    max-height: 220px;
-    margin: 0;
-    padding: 4px 0;
-    list-style-type: none;
     background-color: var(--surface-panel);
     border: 1px solid var(--border-strong);
     border-radius: 4px;
     box-shadow: 0 6px 16px var(--shadow);
+    overflow: hidden;
+  }
+
+  &__search {
+    display: block;
+    width: calc(100% - 16px);
+    margin: 8px 8px 4px;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background-color: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 4px;
+
+    &::placeholder {
+      color: var(--placeholder);
+    }
+
+    &:hover,
+    &:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+    }
+  }
+
+  &__list {
+    position: static;
+    max-height: 220px;
+    margin: 0;
+    padding: 4px 0;
+    list-style-type: none;
     overflow-y: auto;
     // Без полосы прокрутки (см. mixin): выдача уже, прокрутка сохраняется
     @include no-scrollbar;
+  }
+
+  &__empty {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
   }
 
   &__item {

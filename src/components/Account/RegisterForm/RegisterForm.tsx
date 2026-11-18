@@ -3,8 +3,7 @@ import {
   useFetchEmployeeById,
   useFetchEmployees,
 } from "../../../services/StaffingTable/StaffingTable.api";
-import { useMemo, useState, type ChangeEvent } from "react";
-import { X } from "lucide-react";
+import { useMemo, useState } from "react";
 import CustomSelect from "../../UI/CustomSelect";
 import { registerFormButtons, registerFormFields } from "./register.config";
 import CustomInput from "../../UI/CustomInput";
@@ -24,8 +23,13 @@ import styles from "./RegisterForm.module.scss";
  * Регистрация в личном кабинете заказчика.
  *
  * Учётная запись привязывается к сотруднику штатного расписания: email берётся
- * из карточки сотрудника, пароль задаёт сам пользователь. Оформление — как
- * у остальных модальных окон системы (карточка modal-frame, шапка, тело, футер).
+ * из карточки сотрудника, пароль задаёт сам пользователь. Оболочка — как
+ * у входа: компактная карточка с неоновой анимацией и крестиком, поля и
+ * кнопки — общие компоненты приложения.
+ *
+ * Список сотрудников длинный, поэтому поиск встроен в сам селект: он
+ * сокращает выдачу по фамилии, имени или табельному номеру, и не нужно
+ * прокручивать весь штат.
  */
 
 export default function RegisterForm() {
@@ -33,28 +37,16 @@ export default function RegisterForm() {
   const { fullName, bem } = useUtils();
   const block = bem(styles, "register-form");
   const { data: employees } = useFetchEmployees();
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [modif, setModif] = useState<string[]>([]);
   const [currentEmployee, setCurrentEmployee] = useState<string | number>("");
   const [formError, setFormError] = useState<string | null>(null);
   const { data: employee } = useFetchEmployeeById(currentEmployee);
-
-  function changeSearch(e: ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value;
-    setSearchQuery(value);
-
-    if (value) {
-      setModif((prev) => (prev.includes("open") ? prev : [...prev, "open"]));
-    } else {
-      setModif((prev) => prev.filter((m) => m !== "open"));
-    }
-  }
 
   function handleSelectEmployee(id: string | number) {
     setCurrentEmployee(id);
     setFormError(null);
   }
 
+  // Однофамильцев различаем табельным номером
   const nameCounts = useMemo(() => {
     const counts: Record<string, number> = {};
 
@@ -69,17 +61,16 @@ export default function RegisterForm() {
     return counts;
   }, [employees, fullName]);
 
-  const filteredEmployees = employees?.filter((empl) => {
-    if (!searchQuery.trim()) return true;
+  const employeeLabel = (empl: NonNullable<typeof employees>[number]): string => {
+    const fullNameRaw = fullName(empl.employee || {});
+    const hasDuplicates = nameCounts[fullNameRaw.toLowerCase()] > 1;
 
-    const searchLower = searchQuery.toLowerCase();
-    const name = empl.employee?.name?.toLowerCase() || "";
-    const surname = empl.employee?.surname?.toLowerCase() || "";
-    const patronymic = empl.employee?.patronymic?.toLowerCase() || "";
-    const searchData = `${surname} ${name} ${patronymic}`;
+    if (hasDuplicates && empl.employeeNumber) {
+      return `${fullNameRaw} (ТН: ${empl.employeeNumber})`;
+    }
 
-    return searchData.includes(searchLower);
-  });
+    return fullNameRaw;
+  };
 
   const methods = useForm({
     resolver: zodResolver(RegisterFormSchema),
@@ -113,100 +104,91 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className={block("window")}>
-      <header className={block("head")}>
-        <div>
-          <h2 className={block("title")}>Регистрация</h2>
-          <p className={block("subtitle")}>
-            Найдите себя в штатном расписании заказчика
-          </p>
-        </div>
-        <button
-          type="button"
-          className={block("close")}
-          onClick={() => navigate("/account/login")}
-          aria-label="Закрыть"
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
-      </header>
+    <div className={block()}>
+      <h2 className={block("title")}>Регистрация</h2>
+      <button
+        className={`${block("close")} btn`}
+        type="button"
+        onClick={() => navigate("/account/login")}
+        aria-label="Закрыть"
+      ></button>
 
-      <div className={block("body")}>
-        <div className={block("field")}>
-          <label className={block("label")} htmlFor="register-search">
-            Сотрудник
-          </label>
-          <input
-            id="register-search"
-            className={block("search")}
-            type="search"
-            placeholder="Начните вводить фамилию…"
-            value={searchQuery}
-            onChange={changeSearch}
-          />
-          <CustomSelect
-            listData={filteredEmployees || []}
-            getKey={(empl, index) => empl.id || index}
-            renderItem={(empl) => {
-              const fullNameRaw = fullName(empl.employee || {});
-              const hasDuplicates = nameCounts[fullNameRaw.toLowerCase()] > 1;
-
-              if (hasDuplicates && empl.employeeNumber) {
-                return `${fullNameRaw} (ТН: ${empl.employeeNumber})`;
+      <FormProvider {...methods}>
+        <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
+          <div className={block("field")}>
+            <span className={block("label")}>Сотрудник</span>
+            <CustomSelect
+              listData={employees || []}
+              selectedValue={currentEmployee}
+              placeholder="Найдите себя в списке…"
+              searchable
+              searchPlaceholder="Фамилия, имя или табельный номер"
+              getKey={(empl, index) => empl.id ?? index}
+              getLabel={employeeLabel}
+              getSearchText={(empl) =>
+                `${fullName(empl.employee || {})} ${empl.employeeNumber ?? ""}`
               }
+              renderItem={employeeLabel}
+              onClick={handleSelectEmployee}
+            />
+          </div>
 
-              return fullNameRaw;
-            }}
-            modifier={modif}
-            onClick={handleSelectEmployee}
-          />
-        </div>
+          {employee && (
+            <p className={block("email")}>
+              Ваш email:{" "}
+              <strong>{employee.email || "не указан в карточке"}</strong>
+            </p>
+          )}
 
-        {employee && (
-          <p className={block("email")}>
-            Ваш email: <strong>{employee.email || "не указан в карточке"}</strong>
-          </p>
-        )}
+          {registerFormFields.map((field) => (
+            <CustomInput configuration={field} key={field.input.name} />
+          ))}
 
-        <FormProvider {...methods}>
-          <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
-            {registerFormFields.map((field) => (
-              <CustomInput configuration={field} key={field.input.name} />
-            ))}
-
-            {formError && (
-              <div className={block("error")} role="alert">
-                {formError}
-              </div>
-            )}
-
-            {isError && (
-              <div className={block("error")} role="alert">
-                {String(error)}
-              </div>
-            )}
-
-            <div className={block("actions")}>
-              <CustomButton
-                configuration={{
-                  ...registerFormButtons[0],
-                  button: {
-                    ...registerFormButtons[0].button,
-                    disabled: isPending,
-                  },
-                }}
-              />
-              <CustomButton
-                configuration={registerFormButtons[1]}
-                onClick={() => {
-                  navigate("/account/login");
-                  reset();
-                }}
-              />
+          {formError && (
+            <div className={block("error")} role="alert">
+              {formError}
             </div>
-          </form>
-        </FormProvider>
-      </div>
+          )}
+
+          {isError && (
+            <div className={block("error")} role="alert">
+              {String(error)}
+            </div>
+          )}
+
+          <div className={block("actions")}>
+            <CustomButton
+              configuration={{
+                ...registerFormButtons[0],
+                button: {
+                  ...registerFormButtons[0].button,
+                  disabled: isPending,
+                },
+              }}
+            />
+            <CustomButton
+              configuration={registerFormButtons[1]}
+              onClick={() => {
+                navigate("/account/login");
+                reset();
+              }}
+            />
+          </div>
+
+          <div className={block("switch")}>
+            <button
+              type="button"
+              className={block("switch-btn")}
+              onClick={() => {
+                navigate("/account/login");
+                reset();
+              }}
+            >
+              Уже есть аккаунт? Войти
+            </button>
+          </div>
+        </form>
+      </FormProvider>
     </div>
   );
 }
