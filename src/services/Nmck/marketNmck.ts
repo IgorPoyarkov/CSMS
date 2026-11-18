@@ -1,6 +1,7 @@
 import {
   COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_LABELS,
+  NMCK_METHOD_LABELS,
   type CostItemCategory,
   type MarketPriceSourceType,
   type NmckCalculationRecord,
@@ -8,6 +9,14 @@ import {
   type NmckMarketOffer,
 } from "./nmck.schema";
 import type { Okpd2Ref } from "../Okpd2Ref/okpd2Ref.schema";
+import type {
+  BaseOrganization,
+  OrganizationCustomer,
+} from "../Organization/organization.schema";
+
+export type CustomerRequisitesForNmck =
+  | Partial<BaseOrganization>
+  | Partial<OrganizationCustomer>;
 
 /**
  * Чистый модуль расчёта и документирования НМЦК (ст. 22 Закона № 44-ФЗ,
@@ -152,6 +161,13 @@ export const formatNmckMoney = (val: number): string =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Number.isFinite(val) ? val : 0);
+
+export const formatNmckDateRu = (iso?: string): string => {
+  if (!iso) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso.trim());
+  if (!m) return iso;
+  return `${m[3]}.${m[2]}.${m[1]}`;
+};
 
 /** Парсинг положительного числа из пользовательского ввода */
 export function parseNumericInput(
@@ -901,6 +917,7 @@ export function buildPositionFinancePatch(
 export async function exportNmckCalculationToDocx(params: {
   title?: string;
   organizationName?: string;
+  organization?: CustomerRequisitesForNmck | null;
   ikz?: string;
   record: NmckCalculationRecord;
   marketResult?: MarketNmckResult;
@@ -920,6 +937,16 @@ export async function exportNmckCalculationToDocx(params: {
   } = await import("docx");
 
   const { record } = params;
+  const org = params.organization;
+  const resolvedOrgTitle =
+    org?.fullName || org?.shortName || params.organizationName || "";
+  const orgInnKpp = [
+    org?.inn ? `ИНН ${org.inn}` : "",
+    org?.kpp ? `КПП ${org.kpp}` : "",
+    org?.ogrn ? `ОГРН ${org.ogrn}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const border = {
     style: BorderStyle.SINGLE,
     size: 4,
@@ -1240,14 +1267,28 @@ export async function exportNmckCalculationToDocx(params: {
               }),
             ],
           }),
-          ...(params.organizationName
+          ...(resolvedOrgTitle
             ? [
                 new Paragraph({
                   spacing: { after: 60 },
                   children: [
                     new TextRun({
-                      text: `Заказчик: ${params.organizationName}`,
+                      text: `Заказчик: ${resolvedOrgTitle}${orgInnKpp ? ` (${orgInnKpp})` : ""}`,
                       size: 20,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+              ]
+            : []),
+          ...(org?.legalAddress
+            ? [
+                new Paragraph({
+                  spacing: { after: 60 },
+                  children: [
+                    new TextRun({
+                      text: `Адрес заказчика: ${org.legalAddress}${org.phone ? ` · Тел.: ${org.phone}` : ""}${org.email ? ` · E-mail: ${org.email}` : ""}`,
+                      size: 18,
                       font: "Times New Roman",
                     }),
                   ],
@@ -1304,7 +1345,7 @@ export async function exportNmckCalculationToDocx(params: {
             spacing: { before: 120 },
             children: [
               new TextRun({
-                text: `Расчёт выполнил: ${record.calculatorName || "____________________"}   Дата: ${record.calculationDate || "__________"}`,
+                text: `Расчёт выполнил: ${record.calculatorName || org?.responsiblePerson || "____________________"}   Дата: ${formatNmckDateRu(record.calculationDate)}`,
                 size: 20,
                 font: "Times New Roman",
               }),
@@ -1329,5 +1370,627 @@ export async function exportNmckCalculationToDocx(params: {
   a.click();
   document.body.removeChild(a);
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return fileName;
+}
+
+/**
+ * Экспорт итогового расчёта и обоснования НМЦК в PDF-документ (.pdf),
+ * оформленный по стандартам Закона № 44-ФЗ и Приказа МЭР России № 567,
+ * с автоматическим заполнением реквизитов организации-заказчика.
+ */
+export async function exportNmckCalculationToPdf(params: {
+  title?: string;
+  organizationName?: string;
+  organization?: CustomerRequisitesForNmck | null;
+  ikz?: string;
+  record: NmckCalculationRecord;
+  marketResult?: MarketNmckResult;
+  fileName?: string;
+}): Promise<string> {
+  const [pdfMakeMod, pdfFontsMod] = await Promise.all([
+    import("pdfmake/build/pdfmake"),
+    import("pdfmake/build/vfs_fonts"),
+  ]);
+
+  type PdfMakeRuntime = {
+    addVirtualFileSystem?: (vfs: Record<string, string>) => void;
+    vfs?: Record<string, string>;
+    createPdf: (docDefinition: unknown) => {
+      download: (filename?: string) => void;
+      getBlob?: () => Promise<Blob>;
+    };
+  };
+
+  const pdfMake = ((pdfMakeMod as { default?: PdfMakeRuntime }).default ??
+    pdfMakeMod) as PdfMakeRuntime;
+  const pdfFonts = ((pdfFontsMod as { default?: Record<string, string> })
+    .default ?? pdfFontsMod) as Record<string, string>;
+
+  if (typeof pdfMake.addVirtualFileSystem === "function") {
+    pdfMake.addVirtualFileSystem(pdfFonts);
+  } else {
+    pdfMake.vfs = pdfFonts;
+  }
+
+  const { record } = params;
+  const org = params.organization;
+  const fullOrgName =
+    org?.fullName || params.organizationName || "Организация-заказчик";
+  const shortOrgName =
+    org?.shortName && org.shortName !== fullOrgName
+      ? ` (${org.shortName})`
+      : "";
+  const orgIdentifiers = [
+    org?.inn ? `ИНН: ${org.inn}` : "",
+    org?.kpp ? `КПП: ${org.kpp}` : "",
+    org?.ogrn ? `ОГРН: ${org.ogrn}` : "",
+    org && "okpo" in org && org.okpo ? `ОКПО: ${org.okpo}` : "",
+    org && "registryNumber" in org && org.registryNumber
+      ? `Реестровый № в ЕИС: ${org.registryNumber}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const orgAddresses = [
+    org?.legalAddress ? `Юридический адрес: ${org.legalAddress}` : "",
+    org?.postalAddress && org.postalAddress !== org.legalAddress
+      ? `Почтовый адрес: ${org.postalAddress}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const orgContacts = [
+    org?.phone ? `Тел.: ${org.phone}` : "",
+    org?.email ? `E-mail: ${org.email}` : "",
+    org?.responsiblePerson
+      ? `Ответственное лицо КС: ${org.responsiblePerson}${org.responsiblePhone ? ` (${org.responsiblePhone})` : ""}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const okpd2Line = record.okpd2Code
+    ? `${record.okpd2Code}${record.okpd2Name ? ` — ${record.okpd2Name}` : ""}`
+    : "Не указан";
+
+  const infoRows: [string, string][] = [
+    ["Наименование заказчика", `${fullOrgName}${shortOrgName}`],
+    ...(orgIdentifiers
+      ? [["Реквизиты заказчика (ИНН / КПП / ОГРН / ЕИС)", orgIdentifiers] as [string, string]]
+      : []),
+    ...(orgAddresses
+      ? [["Место нахождения и адреса", orgAddresses] as [string, string]]
+      : []),
+    ...(orgContacts
+      ? [["Контактные данные заказчика", orgContacts] as [string, string]]
+      : []),
+    ...(params.ikz
+      ? [["Идентификационный код закупки (ИКЗ)", params.ikz] as [string, string]]
+      : []),
+    ["Наименование объекта закупки", record.subject || "—"],
+    ["Код ОКПД2", okpd2Line],
+    ["Количество (объём) и единица (ОКЕИ)", `${record.quantity} ${record.unit || "ед."}`],
+    [
+      "Метод определения и обоснования НМЦК (ст. 22 44-ФЗ)",
+      NMCK_METHOD_LABELS[record.method],
+    ],
+    [
+      "Дата определения НМЦК",
+      formatNmckDateRu(record.calculationDate || record.calculatedAt),
+    ],
+  ];
+
+  const infoTable = {
+    table: {
+      widths: ["36%", "64%"],
+      body: infoRows.map(([label, value]) => [
+        { text: label, bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+        { text: value, fontSize: 8.5 },
+      ]),
+    },
+    layout: {
+      hLineColor: () => "#CBD5E1",
+      vLineColor: () => "#CBD5E1",
+    },
+    margin: [0, 0, 0, 12] as [number, number, number, number],
+  };
+
+  const marketResult =
+    params.marketResult ??
+    calculateMarketNmck({
+      quantity: record.quantity,
+      calculationDate: record.calculationDate,
+      applyAutoInflation: record.applyAutoInflation,
+      annualInflationPercent: record.annualInflationPercent,
+      selectedBasis: record.selectedBasis,
+      offers: record.offers,
+    });
+
+  const buildMethodSectionContent = (): unknown[] => {
+    if (record.method === "normative") {
+      const unitPrice = record.normativeUnitPrice ?? record.meanUnitPrice;
+      return [
+        {
+          text: "Обоснование применения метода: ч. 7 ст. 22, ст. 19 Федерального закона № 44-ФЗ, разд. IV Методических рекомендаций (Приказ МЭР России от 02.10.2013 № 567).",
+          fontSize: 9,
+          margin: [0, 0, 0, 6],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [65, "*", 75, 70, 58, 72],
+            body: [
+              [
+                { text: "ОКПД2", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "НПА / основание нормирования", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "Предельная цена ОКПД2, ₽", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "Принятая цена ед., ₽", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "Кол-во", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "НМЦК, ₽", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+              ],
+              [
+                { text: record.okpd2Code || "—", fontSize: 8 },
+                {
+                  text: `${record.normativeAct || DEFAULT_NORMATIVE_ACT}${record.normativeDocument ? `\n${record.normativeDocument}` : ""}`,
+                  fontSize: 8,
+                },
+                {
+                  text:
+                    record.normLimitUnitPrice !== undefined
+                      ? formatNmckMoney(record.normLimitUnitPrice)
+                      : "Не задана",
+                  fontSize: 8,
+                  alignment: "right",
+                },
+                {
+                  text: formatNmckMoney(unitPrice),
+                  fontSize: 8,
+                  alignment: "right",
+                },
+                {
+                  text: `${record.quantity} ${record.unit}`,
+                  fontSize: 8,
+                  alignment: "right",
+                },
+                {
+                  text: formatNmckMoney(record.nmckTotal),
+                  fontSize: 8,
+                  bold: true,
+                  alignment: "right",
+                },
+              ],
+            ],
+          },
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: `Формула расчёта: НМЦК_норм = v × Ц_пред = ${record.quantity} ${record.unit} × ${formatNmckMoney(unitPrice)} ₽ = ${formatNmckMoney(record.nmckTotal)} ₽.`,
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: record.exceedsNormLimit
+            ? `ВНИМАНИЕ: принятая цена единицы превышает предельную цену по обязательному нормированию (${formatNmckMoney(record.normLimitUnitPrice ?? 0)} ₽).`
+            : "Контроль нормирования: предельная цена по нормативным затратам соблюдена.",
+          fontSize: 8.5,
+          bold: Boolean(record.exceedsNormLimit),
+          color: record.exceedsNormLimit ? "#B91C1C" : "#166534",
+          margin: [0, 0, 0, 8],
+        },
+      ];
+    }
+
+    if (record.method === "tariff") {
+      const rate = record.tariffUnitPrice ?? record.meanUnitPrice;
+      const validityStr =
+        record.tariffValidFrom || record.tariffValidTo
+          ? `${formatNmckDateRu(record.tariffValidFrom)} — ${formatNmckDateRu(record.tariffValidTo)}`
+          : "Не указан";
+      return [
+        {
+          text: `Обоснование применения метода: ${DEFAULT_TARIFF_ACT}.`,
+          fontSize: 9,
+          margin: [0, 0, 0, 6],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["*", 88, 95, 62, 58, 52, 68],
+            body: [
+              [
+                { text: "Регулируемый ТРУ", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+                { text: "Официальный источник", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+                { text: "Постановление / приказ", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+                { text: "Срок действия", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+                { text: "Тариф ед., ₽", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "Объём", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "НМЦК, ₽", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+              ],
+              [
+                { text: record.tariffName || record.subject || "—", fontSize: 8 },
+                { text: record.tariffSourceName || "—", fontSize: 8 },
+                { text: record.tariffDocument || "—", fontSize: 8 },
+                { text: validityStr, fontSize: 8 },
+                { text: formatNmckMoney(rate), fontSize: 8, alignment: "right" },
+                { text: `${record.quantity} ${record.unit}`, fontSize: 8, alignment: "right" },
+                { text: formatNmckMoney(record.nmckTotal), fontSize: 8, bold: true, alignment: "right" },
+              ],
+            ],
+          },
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: `Формула расчёта: НМЦК_тариф = v × Т_рег = ${record.quantity} ${record.unit} × ${formatNmckMoney(rate)} ₽ = ${formatNmckMoney(record.nmckTotal)} ₽.`,
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
+        },
+        ...(record.tariffExpired
+          ? [
+              {
+                text: `ВНИМАНИЕ: срок действия выбранного тарифа (по ${formatNmckDateRu(record.tariffValidTo)}) истёк на дату расчёта (${formatNmckDateRu(record.calculationDate)}).`,
+                fontSize: 8.5,
+                bold: true,
+                color: "#B91C1C",
+                margin: [0, 0, 0, 8],
+              },
+            ]
+          : []),
+      ];
+    }
+
+    if (record.method === "cost") {
+      const costEval = calculateCostNmck({
+        quantity: record.quantity,
+        costInputScope: record.costInputScope,
+        items: record.costItems ?? [],
+        profitCoeff: record.costProfitCoeff ?? 1,
+      });
+      const coeff = record.costProfitCoeff ?? costEval.profitCoeff;
+      const pct = record.costProfitPercent ?? costEval.profitPercent;
+      const profitAmt = record.costProfitAmount ?? costEval.profitAmount;
+      const subtotal = record.costSubtotal ?? costEval.costSubtotal;
+      const unitPrice = record.costUnitPrice ?? costEval.unitPrice;
+      return [
+        {
+          text: "Обоснование применения метода: ч. 10–11 ст. 22 Федерального закона № 44-ФЗ, разд. VI Методических рекомендаций (Приказ МЭР России от 02.10.2013 № 567).",
+          fontSize: 9,
+          margin: [0, 0, 0, 6],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [20, 88, "*", 95, 68, 38],
+            body: [
+              [
+                { text: "№", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "Категория затрат", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "Статья затрат", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "Расчёт / обоснование", bold: true, fontSize: 8, fillColor: "#EEF2F6" },
+                { text: "Стоимость, ₽", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+                { text: "Доля", bold: true, fontSize: 8, alignment: "right", fillColor: "#EEF2F6" },
+              ],
+              ...costEval.evaluatedItems.map((row, idx) => [
+                { text: String(idx + 1), fontSize: 8 },
+                {
+                  text: COST_ITEM_CATEGORY_LABELS[row.item.category ?? "other"],
+                  fontSize: 8,
+                },
+                { text: row.item.name || "—", fontSize: 8 },
+                { text: row.item.basis || "—", fontSize: 8 },
+                {
+                  text: row.isValidAmount
+                    ? formatNmckMoney(row.numericAmount)
+                    : "—",
+                  fontSize: 8,
+                  alignment: "right",
+                },
+                {
+                  text: row.isValidAmount ? `${row.sharePercent.toFixed(1)}%` : "—",
+                  fontSize: 8,
+                  alignment: "right",
+                },
+              ]),
+            ],
+          },
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: [
+            `Сумма статей затрат (${costEval.costInputScope === "unit" ? `на 1 ед.: ${formatNmckMoney(costEval.rawItemsSum)} ₽ × ${record.quantity} ${record.unit} = ` : ""}${formatNmckMoney(subtotal)} ₽) · Коэффициент прибыли k_приб = ${coeff.toFixed(2)} (норма прибыли ${pct.toFixed(2)}%, размер прибыли: ${formatNmckMoney(profitAmt)} ₽).`,
+          ].join(""),
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: `Формула расчёта: НМЦК_затр = Затраты × k_приб = ${formatNmckMoney(subtotal)} ₽ × ${coeff.toFixed(2)} = ${formatNmckMoney(record.nmckTotal)} ₽ (цена ед.: ${formatNmckMoney(unitPrice)} ₽).`,
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: `Обоснование обычной для сферы деятельности прибыли: ${record.costProfitBasis || DEFAULT_COST_PROFIT_BASIS}`,
+          fontSize: 8.5,
+          color: "#334155",
+          margin: [0, 0, 0, 8],
+        },
+      ];
+    }
+
+    const usedUnitPrice =
+      record.selectedBasis === "min"
+        ? marketResult.minUnitPrice
+        : marketResult.meanUnitPrice;
+    return [
+      {
+        text: "Обоснование применения метода: ч. 2–5 ст. 22 Федерального закона № 44-ФЗ, разд. III Методических рекомендаций (Приказ МЭР России от 02.10.2013 № 567).",
+        fontSize: 9,
+        margin: [0, 0, 0, 6],
+      },
+      {
+        table: {
+          headerRows: 1,
+          widths: [18, "*", 86, 56, 62, 62, 46],
+          body: [
+            [
+              { text: "№", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+              { text: "Источник ценовой информации / Поставщик", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+              { text: "Документ и дата", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+              { text: "Цена ед., ₽", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+              { text: "kинф × kком", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+              { text: "Привед. цена, ₽", bold: true, fontSize: 7.5, alignment: "right", fillColor: "#EEF2F6" },
+              { text: "Учтено", bold: true, fontSize: 7.5, fillColor: "#EEF2F6" },
+            ],
+            ...marketResult.evaluatedOffers.map((item, idx) => [
+              { text: String(idx + 1), fontSize: 8 },
+              {
+                text: `${item.offer.supplierName || "—"}\n(${MARKET_PRICE_SOURCE_LABELS[item.offer.sourceType ?? "commercial_offer"]})`,
+                fontSize: 8,
+              },
+              {
+                text: `${item.offer.sourceDocument || "б/н"}${item.offer.offerDate ? ` от ${formatNmckDateRu(item.offer.offerDate)}` : ""}`,
+                fontSize: 8,
+              },
+              {
+                text: item.isValidPrice
+                  ? formatNmckMoney(item.baseUnitPrice)
+                  : "—",
+                fontSize: 8,
+                alignment: "right",
+              },
+              {
+                text: `${item.effectiveInflationCoeff.toFixed(4)} × ${item.effectiveCommercialCoeff.toFixed(4)}`,
+                fontSize: 8,
+                alignment: "right",
+              },
+              {
+                text: item.isValidPrice
+                  ? formatNmckMoney(item.adjustedUnitPrice)
+                  : "—",
+                fontSize: 8,
+                bold: true,
+                alignment: "right",
+              },
+              {
+                text: item.isIncluded && item.isValidPrice ? "Да" : "Исключено",
+                fontSize: 8,
+              },
+            ]),
+          ],
+        },
+        margin: [0, 0, 0, 8],
+      },
+      {
+        text: `Статистика выборки: учтено источников — ${marketResult.activeCount}; средняя приведённая цена — ${formatNmckMoney(marketResult.meanUnitPrice)} ₽; мин. — ${formatNmckMoney(marketResult.minUnitPrice)} ₽; макс. — ${formatNmckMoney(marketResult.maxUnitPrice)} ₽.`,
+        fontSize: 8.5,
+        margin: [0, 0, 0, 3],
+      },
+      {
+        text: `СКО (σ) = ${formatNmckMoney(marketResult.stdDev)} ₽ · Коэффициент вариации V = ${marketResult.cvPercent.toFixed(2)}% (${marketResult.isHomogeneous ? "совокупность цен однородна, V ≤ 33%" : "выборка неоднородна, V > 33%"}).`,
+        fontSize: 8.5,
+        margin: [0, 0, 0, 3],
+      },
+      {
+        text: `Формула расчёта (п. 3.21 МЭР № 567): НМЦК_рын = ${record.selectedBasis === "min" ? "Ц_min" : "Ц_ср"} × v = ${formatNmckMoney(usedUnitPrice)} ₽ × ${marketResult.quantity} ${record.unit} = ${formatNmckMoney(record.nmckTotal)} ₽.`,
+        fontSize: 9,
+        margin: [0, 0, 0, 8],
+      },
+    ];
+  };
+
+  const authorName =
+    record.calculatorName || org?.responsiblePerson || "____________________";
+
+  const docDefinition = {
+    pageSize: "A4",
+    pageMargins: [34, 34, 34, 42] as [number, number, number, number],
+    defaultStyle: {
+      font: "Roboto",
+      fontSize: 9.5,
+      lineHeight: 1.25,
+    },
+    footer: (currentPage: number, pageCount: number) => ({
+      columns: [
+        {
+          text: `Обоснование НМЦК по ст. 22 Закона № 44-ФЗ и Приказу МЭР России № 567`,
+          fontSize: 7.5,
+          color: "#64748B",
+        },
+        {
+          text: `Стр. ${currentPage} из ${pageCount}`,
+          fontSize: 7.5,
+          color: "#64748B",
+          alignment: "right",
+        },
+      ],
+      margin: [34, 8, 34, 0],
+    }),
+    content: [
+      {
+        columns: [
+          {
+            width: "52%",
+            stack: [
+              { text: fullOrgName, bold: true, fontSize: 9 },
+              ...(orgIdentifiers
+                ? [{ text: orgIdentifiers, fontSize: 7.5, color: "#475569", margin: [0, 2, 0, 0] }]
+                : []),
+              ...(org?.legalAddress
+                ? [{ text: org.legalAddress, fontSize: 7.5, color: "#475569", margin: [0, 1, 0, 0] }]
+                : []),
+            ],
+          },
+          {
+            width: "48%",
+            stack: [
+              { text: "УТВЕРЖДАЮ", bold: true, fontSize: 9, alignment: "right" },
+              {
+                text: "Руководитель заказчика / уполномоченное лицо",
+                fontSize: 8,
+                alignment: "right",
+                margin: [0, 2, 0, 0],
+              },
+              {
+                text: "________________ / ____________________ /",
+                fontSize: 8.5,
+                alignment: "right",
+                margin: [0, 10, 0, 0],
+              },
+              {
+                text: "«___» ______________ 202__ г.",
+                fontSize: 8,
+                alignment: "right",
+                margin: [0, 2, 0, 0],
+              },
+            ],
+          },
+        ],
+        margin: [0, 0, 0, 14] as [number, number, number, number],
+      },
+      {
+        text:
+          params.title ||
+          "РАСЧЁТ И ОБОСНОВАНИЕ НАЧАЛЬНОЙ (МАКСИМАЛЬНОЙ) ЦЕНЫ КОНТРАКТА",
+        bold: true,
+        fontSize: 12.5,
+        alignment: "center",
+        margin: [0, 0, 0, 3] as [number, number, number, number],
+      },
+      {
+        text: "в соответствии со статьёй 22 Федерального закона от 05.04.2013 № 44-ФЗ и Методическими рекомендациями (Приказ Минэкономразвития России от 02.10.2013 № 567)",
+        fontSize: 8.5,
+        italics: true,
+        color: "#475569",
+        alignment: "center",
+        margin: [0, 0, 0, 12] as [number, number, number, number],
+      },
+      {
+        text: "1. Реквизиты заказчика и сведения об объекте закупки",
+        bold: true,
+        fontSize: 10.5,
+        margin: [0, 2, 0, 5] as [number, number, number, number],
+      },
+      infoTable,
+      {
+        text: "2. Расчёт и обоснование НМЦК",
+        bold: true,
+        fontSize: 10.5,
+        margin: [0, 2, 0, 5] as [number, number, number, number],
+      },
+      ...buildMethodSectionContent(),
+      {
+        table: {
+          widths: ["*"],
+          body: [
+            [
+              {
+                stack: [
+                  {
+                    text: `3. ИТОГОВАЯ НАЧАЛЬНАЯ (МАКСИМАЛЬНАЯ) ЦЕНА КОНТРАКТА: ${formatNmckMoney(record.nmckTotal)} ₽`,
+                    bold: true,
+                    fontSize: 11,
+                  },
+                  {
+                    text: `Объём: ${record.quantity} ${record.unit || "ед."} · Расчётная цена за единицу: ${formatNmckMoney(record.costUnitPrice ?? record.tariffUnitPrice ?? record.normativeUnitPrice ?? (record.selectedBasis === "min" ? record.minUnitPrice : record.meanUnitPrice))} ₽`,
+                    fontSize: 8.5,
+                    color: "#334155",
+                    margin: [0, 3, 0, 0],
+                  },
+                  ...(record.notes
+                    ? [
+                        {
+                          text: `Примечание: ${record.notes}`,
+                          fontSize: 8.5,
+                          margin: [0, 4, 0, 0],
+                        },
+                      ]
+                    : []),
+                ],
+                fillColor: "#F0FDF4",
+                margin: [6, 6, 6, 6],
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineColor: () => "#16A34A",
+          vLineColor: () => "#16A34A",
+        },
+        margin: [0, 4, 0, 14] as [number, number, number, number],
+      },
+      {
+        table: {
+          headerRows: 1,
+          widths: ["36%", "34%", "30%"],
+          body: [
+            [
+              { text: "Исполнитель / Роль", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+              { text: "ФИО", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+              { text: "Подпись / Дата", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+            ],
+            [
+              {
+                text: "Работник контрактной службы / контрактный управляющий",
+                fontSize: 8.5,
+              },
+              { text: authorName, fontSize: 8.5 },
+              {
+                text: `_______________ / ${formatNmckDateRu(record.calculationDate || record.calculatedAt)}`,
+                fontSize: 8.5,
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineColor: () => "#CBD5E1",
+          vLineColor: () => "#CBD5E1",
+        },
+      },
+    ],
+  };
+
+  const fileName =
+    params.fileName ||
+    `Обоснование_НМЦК_44ФЗ_${(params.ikz || record.subject || "расчёт").replace(/[^\wа-яА-ЯёЁ-]+/g, "_").slice(0, 40)}.pdf`;
+
+  const pdfDoc = pdfMake.createPdf(docDefinition);
+  const triggerDownload = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  if (typeof pdfDoc.getBlob === "function") {
+    const blob = await pdfDoc.getBlob();
+    triggerDownload(blob);
+  } else {
+    pdfDoc.download(fileName);
+  }
   return fileName;
 }

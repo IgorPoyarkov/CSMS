@@ -644,6 +644,7 @@ export default function NmckCalculatorPage() {
         }
         defaultCalculatorName={calculatorName}
         organizationName={organization?.shortName || organization?.fullName || ""}
+        organization={organization ?? selectedPlan?.customer ?? null}
         planAmountLimit={existingPosAmountTotal}
         contractRegistryItems={contractRegistryItems}
         canUpdatePlanAmount={Boolean(

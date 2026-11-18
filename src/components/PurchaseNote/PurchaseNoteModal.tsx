@@ -66,6 +66,7 @@ import {
   calculateCostNmck,
   calculateMarketNmck,
   exportNmckCalculationToDocx,
+  exportNmckCalculationToPdf,
   formatNmckMoney,
 } from "../../services/Nmck/marketNmck";
 import {
@@ -191,6 +192,7 @@ export default function PurchaseNoteModal({
   >(null);
   const [showNmckWorkspace, setShowNmckWorkspace] = useState(false);
   const [isExportingNmckDocx, setIsExportingNmckDocx] = useState(false);
+  const [isExportingNmckPdf, setIsExportingNmckPdf] = useState(false);
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const proceedAfterSaveRef = useRef(false);
@@ -977,6 +979,7 @@ export default function PurchaseNoteModal({
         title: `ОБОСНОВАНИЕ НМЦК К СЗ № ${watch("noteNumber") || "б/н"}`,
         organizationName:
           organization?.shortName || organization?.fullName || "",
+        organization: organization ?? plan.customer ?? null,
         ikz: watch("ikz") || position.identificationCode || "",
         record: watchedNmckCalculation,
         marketResult: savedMarketEvaluation ?? undefined,
@@ -984,6 +987,25 @@ export default function PurchaseNoteModal({
       });
     } finally {
       setIsExportingNmckDocx(false);
+    }
+  };
+
+  const handleExportSavedNmckPdf = async () => {
+    if (!watchedNmckCalculation) return;
+    setIsExportingNmckPdf(true);
+    try {
+      await exportNmckCalculationToPdf({
+        title: `ОБОСНОВАНИЕ НМЦК К СЗ № ${watch("noteNumber") || "б/н"}`,
+        organizationName:
+          organization?.shortName || organization?.fullName || "",
+        organization: organization ?? plan.customer ?? null,
+        ikz: watch("ikz") || position.identificationCode || "",
+        record: watchedNmckCalculation,
+        marketResult: savedMarketEvaluation ?? undefined,
+        fileName: `Обоснование_НМЦК_44ФЗ_СЗ_${watch("noteNumber") || "черновик"}.pdf`,
+      });
+    } finally {
+      setIsExportingNmckPdf(false);
     }
   };
 
@@ -2067,17 +2089,31 @@ export default function PurchaseNoteModal({
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      className={block("mode-btn")}
-                      disabled={isExportingNmckDocx}
-                      onClick={handleExportSavedNmckDocx}
-                    >
-                      <FileDown size={13} aria-hidden="true" />{" "}
-                      {isExportingNmckDocx
-                        ? "Формирование…"
-                        : "Выгрузить обоснование (.docx)"}
-                    </button>
+                    <div className={block("header-actions")}>
+                      <button
+                        type="button"
+                        className={block("mode-btn")}
+                        disabled={isExportingNmckDocx || isExportingNmckPdf}
+                        onClick={handleExportSavedNmckDocx}
+                      >
+                        <FileDown size={13} aria-hidden="true" />{" "}
+                        {isExportingNmckDocx
+                          ? "Формирование…"
+                          : "Выгрузить (.docx)"}
+                      </button>
+                      <button
+                        type="button"
+                        className={block("mode-btn")}
+                        disabled={isExportingNmckDocx || isExportingNmckPdf}
+                        onClick={handleExportSavedNmckPdf}
+                        title="Сформировать PDF-документ по стандартам 44-ФЗ с реквизитами заказчика"
+                      >
+                        <FileText size={13} aria-hidden="true" />{" "}
+                        {isExportingNmckPdf
+                          ? "Формирование…"
+                          : "PDF (44-ФЗ)"}
+                      </button>
+                    </div>
                   </div>
 
                   {watchedNmckCalculation.method === "market_analysis" ? (
@@ -2540,6 +2576,7 @@ export default function PurchaseNoteModal({
                   organizationName={
                     organization?.shortName || organization?.fullName || ""
                   }
+                  organization={organization ?? plan.customer ?? null}
                   planAmountLimit={toNumber(position.amountTotal)}
                   contractRegistryItems={contractRegistryItems}
                   canUpdatePlanAmount={false}

@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Database,
   FileDown,
+  FileText,
   Landmark,
   Layers,
   Plus,
@@ -48,9 +49,12 @@ import {
   createEmptyCostItem,
   createEmptyMarketOffer,
   exportNmckCalculationToDocx,
+  exportNmckCalculationToPdf,
   formatNmckMoney,
   parseNumericInput,
+  type CustomerRequisitesForNmck,
 } from "../../services/Nmck/marketNmck";
+import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
   DEFAULT_COST_ITEM_TEMPLATES,
   OFFICIAL_REGULATED_TARIFFS,
@@ -79,6 +83,8 @@ export interface MarketNmckCalculatorProps {
   defaultIkz?: string;
   defaultCalculatorName?: string;
   organizationName?: string;
+  /** Полные реквизиты организации-заказчика для автозаполнения PDF/DOCX по 44-ФЗ */
+  organization?: CustomerRequisitesForNmck | null;
   /** Текущий лимит финансового обеспечения по позиции ПГ (₽) */
   planAmountLimit?: number | null;
   /** Контракты организации для подстановки в качестве ценового источника ЕИС */
@@ -125,6 +131,7 @@ export default function MarketNmckCalculator({
   defaultIkz = "",
   defaultCalculatorName = "",
   organizationName = "",
+  organization = null,
   planAmountLimit = null,
   contractRegistryItems = [],
   canUpdatePlanAmount = true,
@@ -139,6 +146,8 @@ export default function MarketNmckCalculator({
   const { bem } = useUtils();
   const block = bem(styles, "market-nmck");
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: currentOrg } = useCurrentOrganization();
+  const resolvedOrganization = organization ?? currentOrg ?? null;
 
   const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
 
@@ -266,6 +275,7 @@ export default function MarketNmckCalculator({
   );
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const matchedOkpd2 = useMemo(
     () => findOkpd2ByCode(okpd2Refs, okpd2Code),
@@ -650,12 +660,29 @@ export default function MarketNmckCalculator({
       const { record } = buildCurrentRecordAndBasis();
       await exportNmckCalculationToDocx({
         organizationName,
+        organization: resolvedOrganization,
         ikz: defaultIkz,
         record,
         marketResult: method === "market_analysis" ? marketResult : undefined,
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const { record } = buildCurrentRecordAndBasis();
+      await exportNmckCalculationToPdf({
+        organizationName,
+        organization: resolvedOrganization,
+        ikz: defaultIkz,
+        record,
+        marketResult: method === "market_analysis" ? marketResult : undefined,
+      });
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -2099,11 +2126,24 @@ export default function MarketNmckCalculator({
           <button
             type="button"
             className={block("btn")}
-            disabled={isExporting || !canSaveOrExport}
+            disabled={isExporting || isExportingPdf || !canSaveOrExport}
             onClick={handleDownloadDocx}
           >
             <FileDown size={14} aria-hidden="true" />{" "}
             {isExporting ? "Формирование…" : "Выгрузить обоснование (.docx)"}
+          </button>
+
+          <button
+            type="button"
+            className={block("btn")}
+            disabled={isExporting || isExportingPdf || !canSaveOrExport}
+            onClick={handleDownloadPdf}
+            title="Сформировать PDF-документ по ст. 22 Закона № 44-ФЗ и Приказу МЭР № 567 с реквизитами заказчика"
+          >
+            <FileText size={14} aria-hidden="true" />{" "}
+            {isExportingPdf
+              ? "Формирование PDF…"
+              : "Выгрузить расчёт в PDF (44-ФЗ)"}
           </button>
 
           {onSaveToPosition && (
