@@ -118,6 +118,7 @@ export const SIGNATURE_EVENT_ACTIONS = [
   "smp_reject",
   "smp_eis_export",
   "penalty_accrue",
+  "nmck_confirm",
   "eds_login",
 ] as const;
 
@@ -130,6 +131,7 @@ export const signatureEventActionLabels: Record<SignatureEventAction, string> =
     smp_reject: "Отклонение сведений",
     smp_eis_export: "Выгрузка сведений в ЕИС",
     penalty_accrue: "Начисление неустойки подрядчику",
+    nmck_confirm: "Подписание обоснования НМЦК",
     eds_login: "Вход в систему по ЭП",
   };
 
@@ -152,6 +154,8 @@ export const SIGNATURE_EVENT_ENTITY_TYPES = [
   "contractSmpRecord",
   "contract",
   "contractPenalty",
+  "purchaseNote",
+  "nmck",
   "session",
 ] as const;
 
@@ -165,6 +169,8 @@ export const signatureEventEntityTypeLabels: Record<
   contractSmpRecord: "Сведения о привлечении СМП",
   contract: "Контракт",
   contractPenalty: "Неустойка",
+  purchaseNote: "Служебная записка (потребность)",
+  nmck: "Обоснование НМЦК",
   session: "Сеанс входа",
 };
 

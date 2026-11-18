@@ -871,13 +871,32 @@ const NoticeInfoForm = () => {
           matchedNote.sanctionsRnpRequirement,
         );
       }
-      if (matchedNote.nmckFileName && getValues("attachedDocs").length === 0) {
+      // Подписанная в СЗ НМЦК притягивается в извещение вместе с реквизитами
+      // подписи: файл берём из карточки, а если там пусто — из снимка подписи
+      const noticeNmckFileName =
+        matchedNote.nmckFileName || matchedNote.nmckSignature?.fileName;
+      if (noticeNmckFileName && getValues("attachedDocs").length === 0) {
+        const nmckSignature = matchedNote.nmckSignature;
+        const signatureNote = nmckSignature
+          ? [
+              "подписано ЭП",
+              nmckSignature.signedBy ? `(${nmckSignature.signedBy})` : "",
+              nmckSignature.signedAt || "",
+            ]
+              .filter(Boolean)
+              .join(" ")
+          : "";
         setValue("attachedDocs", [
           {
             id: "sz-nmck-doc",
             category: "nmck_justification",
-            fileName: matchedNote.nmckFileName,
-            description: matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
+            fileName: noticeNmckFileName,
+            description: [
+              matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
+              signatureNote,
+            ]
+              .filter(Boolean)
+              .join(" · "),
           },
         ]);
       }

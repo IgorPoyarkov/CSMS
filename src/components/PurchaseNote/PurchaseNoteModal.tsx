@@ -5,9 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Calculator,
   ExternalLink,
+  FileCheck2,
   FileDown,
   FileSpreadsheet,
   FileText,
+  PenLine,
   Scale,
   Upload,
   X,
@@ -30,10 +32,17 @@ import {
   hasSmpSubcontractingRequirement,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
+  type NmckSignature,
   type PurchaseNote,
   type PurchaseNoteObjectItem,
   type PurchaseNoteStatus,
 } from "../../services/PurchaseNote/purchaseNote.schema";
+import EdsSignModal from "../Eds/EdsSignModal";
+import {
+  useLogSignatureEvent,
+  useSignatureEvents,
+  type SignatureEvent,
+} from "../../services/Eds/eds.api";
 import {
   useCreatePurchaseNote,
   usePurchaseNotes,
@@ -166,6 +175,9 @@ export default function PurchaseNoteModal({
     useOrganizationObjectDescriptions(organizationId);
   const { data: contractRegistryItems = [] } =
     useContractRegistry(organizationId);
+  // Журнал ЭП: по нему находим уже подписанную НМЦК этой служебной записки
+  const { data: signatureEvents = [] } = useSignatureEvents(organizationId);
+  const logSignatureEvent = useLogSignatureEvent();
   const objectDescriptions = allObjectDescriptions.filter(
     (item) => item.kind === "object_description",
   );
@@ -186,6 +198,8 @@ export default function PurchaseNoteModal({
     string | null
   >(null);
   const [showNmckWorkspace, setShowNmckWorkspace] = useState(false);
+  const [showNmckSign, setShowNmckSign] = useState(false);
+  const [nmckSignMessage, setNmckSignMessage] = useState<string | null>(null);
   const [isExportingNmckDocx, setIsExportingNmckDocx] = useState(false);
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -591,6 +605,9 @@ export default function PurchaseNoteModal({
   const watchedNmckCalculation = watch("nmckCalculation") as
     | NmckCalculationRecord
     | undefined;
+  const watchedNmckSignature = watch("nmckSignature") as
+    | NmckSignature
+    | undefined;
 
   const percent = Number(watch("smpRequiredPercent"));
   const price = Number.parseFloat(String(watch("initialMaxPrice") ?? ""));
@@ -964,6 +981,103 @@ export default function PurchaseNoteModal({
     todayIso,
     watch,
   ]);
+
+  // ─── Подписанная НМЦК (журнал ЭП) ─────────────────────────────────────────
+
+  // Последнее успешное подписание обоснования НМЦК по этой служебной записке
+  const signedNmckEvent = useMemo(() => {
+    if (editingNoteId === undefined || editingNoteId === "") return null;
+    const matched = signatureEvents.filter(
+      (event) =>
+        event.entityType === "nmck" &&
+        String(event.entityId) === String(editingNoteId) &&
+        event.result === "signed",
+    );
+    return (
+      [...matched].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ??
+      null
+    );
+  }, [signatureEvents, editingNoteId]);
+
+  // Перенос реквизитов подписи и файла обоснования в карточку СЗ
+  const applyNmckSignature = (event: SignatureEvent) => {
+    if (isReadOnly) return;
+    const fallbackFileName = `Обоснование_НМЦК_СЗ_${watch("noteNumber") || "черновик"}.docx`;
+    const fileName = watchedNmckFileName || fallbackFileName;
+    const fileUpdatedAt =
+      watchedNmckFileUpdatedAt || event.createdAt.slice(0, 10);
+
+    const signature: NmckSignature = {
+      signedAt: event.createdAt,
+      signedBy: event.userLabel || event.certificateOwner || "",
+      certificateOwner: event.certificateOwner || "",
+      certificateSerial: event.certificateSerial || "",
+      certificateInn: event.certificateInn || "",
+      fileName,
+      fileUpdatedAt,
+      nmckTotal: String(watch("initialMaxPrice") ?? ""),
+      method: watchedNmckCalculation?.method,
+      eventId: event.id,
+      documentLabel: event.documentLabel,
+    };
+
+    setValue("nmckSignature", signature);
+    if (!watchedNmckFileName) setValue("nmckFileName", fileName);
+    if (!watchedNmckFileUpdatedAt) setValue("nmckFileUpdatedAt", fileUpdatedAt);
+    setNmckSignMessage(
+      "Подписанная НМЦК притянута в служебную записку. Сохраните СЗ, чтобы зафиксировать её в карточке.",
+    );
+  };
+
+  // НМЦК уже подписана и сохранена в системе, а в карточке подписи нет —
+  // подтягиваем автоматически. Ручной файл в СЗ не перетираем: его заменит
+  // только явная кнопка «Притянуть подписанную НМЦК».
+  useEffect(() => {
+    if (isReadOnly || !signedNmckEvent) return;
+    if (getValues("nmckSignature")) return;
+    if (getValues("nmckFileName")) return;
+    applyNmckSignature(signedNmckEvent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedNmckEvent, isReadOnly]);
+
+  const canSignNmck =
+    !isReadOnly &&
+    editingNoteId !== undefined &&
+    editingNoteId !== "" &&
+    Boolean(watchedNmckCalculation || watchedNmckFileName);
+
+  const nmckSignHint = !editingNoteId
+    ? "Сначала сохраните служебную записку: подписывается сохранённый документ."
+    : !watchedNmckCalculation && !watchedNmckFileName
+      ? "Сначала сформируйте или приложите обоснование НМЦК."
+      : "Подписать обоснование НМЦК сертификатом заказчика";
+
+  const handleNmckSigned = (event: SignatureEvent) => {
+    setShowNmckSign(false);
+
+    if (event.result !== "signed") {
+      logSignatureEvent.mutate(event);
+      setNmckSignMessage(
+        "Подпись не принята: сертификат не принадлежит заказчику. Попытка записана в журнал ЭП.",
+      );
+      return;
+    }
+
+    logSignatureEvent.mutate(event, {
+      onSuccess: (saved) => {
+        applyNmckSignature({ ...event, id: saved.id ?? event.id });
+        setNmckSignMessage(
+          "НМЦК подписана, событие записано в журнал ЭП. Сохраните служебную записку, чтобы подпись осталась в карточке.",
+        );
+      },
+      onError: () => {
+        applyNmckSignature(event);
+        setNmckSignMessage(
+          "Подпись сформирована, но журнал ЭП недоступен. Сохраните СЗ — реквизиты подписи останутся в карточке.",
+        );
+      },
+    });
+  };
 
   const handleExportSavedNmckDocx = async () => {
     if (!watchedNmckCalculation) return;
@@ -1803,9 +1917,6 @@ export default function PurchaseNoteModal({
                   КБК и разбивка финансирования по годам (из плана-графика,
                   информационно)
                 </strong>
-                <span className={block("mono")}>
-                  Основной КБК: {defaultKbk || watch("kbk") || "не указан в ПГ"}
-                </span>
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -2268,6 +2379,86 @@ export default function PurchaseNoteModal({
                   <span className={block("hint")}>
                     Файл обоснования НМЦК пока не приложен
                   </span>
+                )}
+              </div>
+
+              {/* Подписанная НМЦК: подпись в системе и притягивание в карточку */}
+              <div className={block("signature-box")}>
+                <div className={block("label-row")}>
+                  <strong>
+                    Подписанная НМЦК (электронная подпись заказчика)
+                  </strong>
+                  <div className={block("header-actions")}>
+                    {signedNmckEvent && (
+                      <button
+                        type="button"
+                        className={block("mode-btn")}
+                        onClick={() => applyNmckSignature(signedNmckEvent)}
+                        disabled={isReadOnly}
+                      >
+                        <FileCheck2 size={13} aria-hidden="true" /> Притянуть
+                        подписанную НМЦК
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className={block("btn-accent")}
+                      onClick={() => setShowNmckSign(true)}
+                      disabled={!canSignNmck}
+                      title={canSignNmck ? undefined : nmckSignHint}
+                    >
+                      <PenLine size={14} aria-hidden="true" /> Подписать НМЦК
+                    </button>
+                  </div>
+                </div>
+
+                {watchedNmckSignature ? (
+                  <div className={block("signature-meta")}>
+                    <span>
+                      <strong>Подписано:</strong>{" "}
+                      {watchedNmckSignature.signedAt || "—"}
+                      {watchedNmckSignature.signedBy
+                        ? ` · ${watchedNmckSignature.signedBy}`
+                        : ""}
+                    </span>
+                    <span>
+                      <strong>Сертификат:</strong>{" "}
+                      {watchedNmckSignature.certificateOwner || "—"}
+                      {watchedNmckSignature.certificateSerial
+                        ? ` · ${watchedNmckSignature.certificateSerial}`
+                        : ""}
+                      {watchedNmckSignature.certificateInn
+                        ? ` · ИНН ${watchedNmckSignature.certificateInn}`
+                        : ""}
+                    </span>
+                    <span>
+                      <strong>Файл:</strong>{" "}
+                      {watchedNmckSignature.fileName ||
+                        watchedNmckFileName ||
+                        "не указан"}
+                      {watchedNmckSignature.fileUpdatedAt
+                        ? ` (от ${watchedNmckSignature.fileUpdatedAt})`
+                        : ""}
+                    </span>
+                  </div>
+                ) : signedNmckEvent ? (
+                  <span className={block("hint")}>
+                    В журнале ЭП найдена подписанная НМЦК от{" "}
+                    {signedNmckEvent.createdAt}
+                    {signedNmckEvent.certificateOwner
+                      ? ` (${signedNmckEvent.certificateOwner})`
+                      : ""}
+                    . Нажмите «Притянуть подписанную НМЦК», чтобы подставить её
+                    в служебную записку.
+                  </span>
+                ) : (
+                  <span className={block("hint")}>{nmckSignHint}</span>
+                )}
+
+                {nmckSignMessage && (
+                  <div className={block("alert-warning")} role="status">
+                    {nmckSignMessage}
+                  </div>
                 )}
               </div>
 
@@ -3286,6 +3477,17 @@ export default function PurchaseNoteModal({
           </div>
         </div>
       </fieldset>
+
+      {showNmckSign && editingNoteId !== undefined && editingNoteId !== "" && (
+        <EdsSignModal
+          action="nmck_confirm"
+          entityType="nmck"
+          entityId={editingNoteId}
+          documentLabel={`Обоснование НМЦК по СЗ № ${watch("noteNumber") || editingNoteId} от ${watch("noteDate") || "б/н"}`}
+          onClose={() => setShowNmckSign(false)}
+          onSigned={handleNmckSigned}
+        />
+      )}
 
       <footer className={block("footer")}>
         {errorText("root") && (

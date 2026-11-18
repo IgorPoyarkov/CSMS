@@ -39,10 +39,21 @@ const router = createBrowserRouter([
         path: "/account",
         element: <AccountPage />,
         children: [
-          { path: "login", element: <CustomModal children={<LoginForm />} /> },
+          {
+            path: "login",
+            element: (
+              <CustomModal>
+                <LoginForm />
+              </CustomModal>
+            ),
+          },
           {
             path: "register",
-            element: <CustomModal children={<RegisterForm />} />,
+            element: (
+              <CustomModal>
+                <RegisterForm />
+              </CustomModal>
+            ),
           },
           { path: "profile", element: <PersonalAccount /> },
         ],

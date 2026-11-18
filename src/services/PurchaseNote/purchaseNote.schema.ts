@@ -6,6 +6,7 @@ import {
 import { DeliveryPlaceSchema } from "../Procurements/noticeInfo.schema";
 import { RUSSIA } from "../AddressRef/addressRef.schema";
 import {
+  NMCK_METHODS,
   NmckCalculationRecordSchema,
   NmckMarketOfferSchema,
 } from "../Nmck/nmck.schema";
@@ -100,6 +101,30 @@ export type PurchaseNoteObjectItem = z.infer<
   typeof PurchaseNoteObjectItemSchema
 >;
 
+/**
+ * Подпись обоснования НМЦК электронной подписью заказчика.
+ *
+ * Снимок события журнала ЭП хранится копией: журнал отвечает на вопрос
+ * «кто и чем подписал», а карточка СЗ должна показывать подписанную НМЦК
+ * даже если запись журнала отфильтрована или недоступна. Подписанная НМЦК
+ * подтягивается в СЗ и в извещение, чтобы обоснование не собиралось заново.
+ */
+export const NmckSignatureSchema = z.object({
+  signedAt: z.string().optional(),
+  signedBy: z.string().optional(),
+  certificateOwner: z.string().optional(),
+  certificateSerial: z.string().optional(),
+  certificateInn: z.string().optional(),
+  fileName: z.string().optional(),
+  fileUpdatedAt: z.string().optional(),
+  nmckTotal: z.string().optional(),
+  method: z.enum(NMCK_METHODS).optional(),
+  eventId: z.union([z.string(), z.number()]).optional(),
+  documentLabel: z.string().optional(),
+});
+
+export type NmckSignature = z.infer<typeof NmckSignatureSchema>;
+
 export const PurchaseNoteSchema = z
   .object({
     id: z.union([z.string(), z.number()]).optional(),
@@ -164,6 +189,8 @@ export const PurchaseNoteSchema = z
     nmckRequestDate: z.string().optional(),
     nmckOffers: z.array(NmckMarketOfferSchema).optional(),
     nmckCalculation: NmckCalculationRecordSchema.optional(),
+    // Подписанная ЭП заказчика НМЦК: реквизиты подписи и файла обоснования
+    nmckSignature: NmckSignatureSchema.optional(),
 
     // Способ определения поставщика и отраслевой тип закупки
     placingWayCode: z.string().optional(),

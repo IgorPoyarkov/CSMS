@@ -1,115 +1,153 @@
 @import "variables";
+@import "modal-frame";
 
-@keyframes neon {
-  0% {
-    box-shadow:
-      0 0 12px var(--glow),
-      0 0 0px var(--accent);
-  }
-  50% {
-    box-shadow:
-      0 0 48px var(--glow),
-      0 0 12px var(--accent);
-  }
-  100% {
-    box-shadow:
-      0 0 12px var(--glow),
-      0 0 0px var(--accent);
-  }
-}
-
+// Карточка входа оформлена как остальные модальные окна системы: рамка
+// modal-frame с бегущей точкой, шапка с заголовком, тело с полями и футер
+// с действиями. Неоновая анимация прежней версии убрана — она выбивала форму
+// из общего интерфейса и мешала читать поля.
 .login-form {
   display: flex;
   flex-direction: column;
-  position: relative;
-  padding: 10px 30px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background-color: var(--surface-panel);
-  box-shadow:
-    0 0 12px var(--glow),
-    0 0 0px var(--accent);
+  width: min(460px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  border: 1px solid var(--modal-border);
+  border-radius: 16px;
+  background: var(--surface-panel);
+  box-shadow: 0 20px 60px var(--shadow);
+  overflow: hidden;
+  @include modal-frame;
 
-  animation: neon $transition-300 infinite;
-  animation-duration: 3s;
-
-  &__form {
-    gap: 20px;
+  &__head {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-raised);
   }
 
   &__title {
     margin: 0;
-    padding: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 24px;
+    color: var(--text-primary);
+  }
+
+  &__subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--text-secondary);
   }
 
   &__close {
-    background-color: transparent;
-    border: none;
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 40px;
-    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
     padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+      color $transition-300,
+      border-color $transition-300,
+      background-color $transition-300;
 
-    &::before,
-    &::after {
-      position: absolute;
-      content: "";
-      border: 1px solid var(--accent);
-      width: 50%;
-      transform: translate(-50%, 0) rotate(45deg);
-      transition: transform $transition-300;
+    &:hover,
+    &:focus-visible {
+      border-color: var(--border-strong);
+      background: var(--surface-accent);
+      color: var(--text-primary);
     }
+  }
 
-    &::after {
-      transform: translate(-50%, 0) rotate(-45deg);
-    }
+  &__body {
+    padding: 20px 22px 22px;
+    overflow-y: auto;
+  }
 
-    &:hover {
-      background-color: transparent;
-
-      &::before,
-      &::after {
-        border-color: var(--accent-emphasis);
-      }
-
-      &::before {
-        transform: translate(-50%, 0) rotate(270deg);
-      }
-
-      &::after {
-        transform: translate(-50%, 0) rotate(180deg);
-      }
-    }
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   &__list {
-    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
     margin: 0;
     padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    margin: 0;
+  }
+
+  &__error {
+    padding: 10px 12px;
+    border-left: 4px solid var(--state-danger);
+    background: var(--state-danger-soft);
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--state-danger);
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    :global(.custom-button) {
+      flex: 1 1 160px;
+    }
+
+    :global(.custom-button__button) {
+      width: 100%;
+      padding: 12px 18px;
+      font-size: 13px;
+    }
+
+    // Вторая кнопка — второстепенное действие: контур вместо заливки
+    :global(.custom-button:last-child .custom-button__button) {
+      background: transparent;
+      border-color: var(--accent);
+      color: var(--accent);
+
+      &:hover,
+      &:focus-visible {
+        background: var(--surface-accent);
+        border-color: var(--accent-emphasis);
+        color: var(--accent-emphasis);
+      }
+    }
   }
 
   &__switch {
-    text-align: center;
-    padding-top: 0.5rem;
+    padding-top: 14px;
     border-top: 1px solid var(--border);
+    text-align: center;
   }
 
   &__switch-btn {
-    background: none;
+    padding: 4px 8px;
     border: none;
+    background: none;
     color: var(--accent);
-    cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 13px;
     text-decoration: underline;
-    padding: 0.25rem 0.5rem;
+    cursor: pointer;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       color: var(--accent-emphasis);
     }
   }
