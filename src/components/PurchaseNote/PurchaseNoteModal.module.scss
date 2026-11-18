@@ -121,6 +121,12 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px 16px;
+
+    // Поля с подписями разной высоты (например, сроки поставки) выравниваем
+    // по нижнему краю — сами input'ы оказываются на одной линии
+    &--aligned {
+      align-items: end;
+    }
   }
 
   &__field {
@@ -152,19 +158,12 @@
     color: var(--text-secondary);
   }
 
-  // Строка «инициатор закупки + статус согласования»
+  // Строка «инициатор закупки» на всю ширину (статус — только в шапке)
   &__initiator-row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 16px;
-  }
-
-  &__status-inline {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 0 0 auto;
   }
 
   &__input,
@@ -177,6 +176,12 @@
     background: var(--surface-field);
     border: 1px solid var(--border-strong);
     border-radius: 6px;
+
+    // Денежные поля (MoneyInput, inputMode="decimal") — по правому краю
+    &[inputmode="decimal"] {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
 
     &:focus-visible {
       outline: 1px solid var(--accent);
@@ -313,6 +318,18 @@
       font-weight: 700;
       white-space: nowrap;
       background: var(--surface-raised);
+    }
+
+    // Кол-во, цена и сумма — по правому краю
+    th:nth-child(5),
+    td:nth-child(5),
+    th:nth-child(6),
+    td:nth-child(6),
+    th:nth-child(7),
+    td:nth-child(7) {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
     tr:last-child td {
@@ -712,6 +729,10 @@
     align-items: stretch;
     min-width: 130px;
 
+    input {
+      text-align: right;
+    }
+
     &--over {
       input {
         border-color: var(--state-danger);
@@ -787,7 +808,10 @@
 
   &__indicator-row {
     display: grid;
-    grid-template-columns: minmax(200px, 2fr) 90px minmax(150px, 1fr) minmax(150px, 1fr) auto;
+    grid-template-columns: minmax(200px, 2fr) 90px minmax(150px, 1fr) minmax(
+        150px,
+        1fr
+      ) auto;
     gap: 8px;
     align-items: center;
   }
@@ -1047,6 +1071,7 @@
       color: var(--text-primary);
       font-size: 13px;
       font-variant-numeric: tabular-nums;
+      text-align: right;
     }
   }
 
@@ -1061,6 +1086,14 @@
       border-bottom: 1px solid var(--border);
       text-align: left;
       vertical-align: top;
+    }
+
+    // Суммовые колонки (цена, отклонение, итог) — по правому краю
+    th:not(:first-child),
+    td:not(:first-child) {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
     th {

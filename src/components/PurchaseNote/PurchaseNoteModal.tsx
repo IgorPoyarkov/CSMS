@@ -1838,7 +1838,8 @@ export default function PurchaseNoteModal({
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>1. Реквизиты потребности и согласование</legend>
         <div className={block("grid")}>
-          {/* Инициатор — первым, на всю ширину; статус — рядом с ним */}
+          {/* Инициатор — первым, на всю ширину. Статус согласования
+              показывается один раз — в шапке СЗ. */}
           <div className={block("field", ["wide"])}>
             <div className={block("initiator-row")}>
               <div className={block("field", ["grow"])}>
@@ -1876,15 +1877,10 @@ export default function PurchaseNoteModal({
                   </span>
                 )}
               </div>
-
-              <div className={block("status-inline")}>
-                <span className={block("label")}>Статус согласования СЗ</span>
-                {/* Статус меняется автоматически по мере прохождения СЗ
-                    и не редактируется вручную. */}
-                <PurchaseNoteStatusBadge status={watchedStatus} />
-                <input type="hidden" {...register("status")} />
-              </div>
             </div>
+            {/* Статус меняется автоматически по мере прохождения СЗ
+                и не редактируется вручную; показывается в шапке. */}
+            <input type="hidden" {...register("status")} />
           </div>
 
           <div className={block("field")}>
@@ -2012,39 +2008,6 @@ export default function PurchaseNoteModal({
                 характеристики не редактируются.
               </span>
             )}
-          </div>
-
-          {/* Готовность ООЗ: без конечного набора объектов нельзя подобрать
-              сопоставимые товары и корректно определить НМЦК */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("ooz-flags")}>
-              <CustomCheckbox
-                label="Набор объектов закупки конечный — описание готово для определения НМЦК"
-                checked={watchedOozSetComplete}
-                disabled={isReadOnly}
-                onChange={(e) =>
-                  setValue("oozSetComplete", e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <CustomCheckbox
-                label="Это последняя закупка по позиции плана-графика (дальнейших закупок не будет)"
-                checked={watchedPositionProcurementsComplete}
-                disabled={isReadOnly}
-                onChange={(e) =>
-                  setValue("positionProcurementsComplete", e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <span className={block("hint")}>
-                Пока набор не признан конечным, задание на подготовку НМЦК и
-                расчёт блокируются: для метода сопоставимых рыночных цен нужны
-                идентичные или сопоставимые товары. Для тарифного и затратного
-                методов ограничение мягче, но описание всё равно необходимо.
-              </span>
-            </div>
           </div>
 
           {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ, правка и удаление */}
@@ -2518,6 +2481,40 @@ export default function PurchaseNoteModal({
               </div>
             )}
           </div>
+
+          {/* Готовность ООЗ — в конце блока ООЗ, после описания объектов:
+              без конечного набора нельзя подобрать сопоставимые товары
+              и корректно определить НМЦК */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("ooz-flags")}>
+              <CustomCheckbox
+                label="Набор объектов закупки конечный — описание готово для определения НМЦК"
+                checked={watchedOozSetComplete}
+                disabled={isReadOnly}
+                onChange={(e) =>
+                  setValue("oozSetComplete", e.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <CustomCheckbox
+                label="Это последняя закупка по позиции плана-графика (дальнейших закупок не будет)"
+                checked={watchedPositionProcurementsComplete}
+                disabled={isReadOnly}
+                onChange={(e) =>
+                  setValue("positionProcurementsComplete", e.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <span className={block("hint")}>
+                Пока набор не признан конечным, задание на подготовку НМЦК и
+                расчёт блокируются: для метода сопоставимых рыночных цен нужны
+                идентичные или сопоставимые товары. Для тарифного и затратного
+                методов ограничение мягче, но описание всё равно необходимо.
+              </span>
+            </div>
+          </div>
         </div>
       </fieldset>
 
@@ -2807,7 +2804,7 @@ export default function PurchaseNoteModal({
               </div>
 
               {watchedDeliveryMode === "relative" ? (
-                <div className={block("grid")}>
+                <div className={block("grid", ["aligned"])}>
                   <div className={block("field", ["wide"])}>
                     <label className={block("checkbox")}>
                       <input
@@ -2848,7 +2845,7 @@ export default function PurchaseNoteModal({
                   </div>
                 </div>
               ) : (
-                <div className={block("grid")}>
+                <div className={block("grid", ["aligned"])}>
                   <div className={block("field")}>
                     <label className={block("label")} htmlFor="note-start-date">
                       Дата начала исполнения
