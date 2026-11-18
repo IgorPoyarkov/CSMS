@@ -163,6 +163,70 @@ const formatRub = (value: string | number | undefined): string => {
   }).format(num)} ₽`;
 };
 
+// Годовые суммы финансирования по КБК: в СЗ правятся по годам, «всего»
+// считается как их сумма. Объёмы плана-графика выступают лимитом.
+type KbkYearField =
+  | "amountCurrentYear"
+  | "amountPlanPeriodFirstYear"
+  | "amountPlanPeriodSecondYear"
+  | "amountSubsequentYears";
+
+type KbkLimitField =
+  | "limitCurrentYear"
+  | "limitPlanPeriodFirstYear"
+  | "limitPlanPeriodSecondYear"
+  | "limitSubsequentYears";
+
+interface KbkFundingEntry {
+  id: string;
+  kbk?: string;
+  amountCurrentYear?: string;
+  amountPlanPeriodFirstYear?: string;
+  amountPlanPeriodSecondYear?: string;
+  amountSubsequentYears?: string;
+}
+
+interface KbkFundingRow {
+  id: string;
+  kbk: string;
+  limitCurrentYear: number | null;
+  limitPlanPeriodFirstYear: number | null;
+  limitPlanPeriodSecondYear: number | null;
+  limitSubsequentYears: number | null;
+  amountCurrentYear: number | null;
+  amountPlanPeriodFirstYear: number | null;
+  amountPlanPeriodSecondYear: number | null;
+  amountSubsequentYears: number | null;
+  total: number;
+}
+
+const KBK_YEAR_COLUMNS: {
+  field: KbkYearField;
+  limitField: KbkLimitField;
+  label: string;
+}[] = [
+  {
+    field: "amountCurrentYear",
+    limitField: "limitCurrentYear",
+    label: "текущий год",
+  },
+  {
+    field: "amountPlanPeriodFirstYear",
+    limitField: "limitPlanPeriodFirstYear",
+    label: "1-й год планового периода",
+  },
+  {
+    field: "amountPlanPeriodSecondYear",
+    limitField: "limitPlanPeriodSecondYear",
+    label: "2-й год планового периода",
+  },
+  {
+    field: "amountSubsequentYears",
+    limitField: "limitSubsequentYears",
+    label: "последующие годы",
+  },
+];
+
 export default function PurchaseNoteModal({
   organizationId,
   plan,
@@ -301,14 +365,23 @@ export default function PurchaseNoteModal({
       (position.identificationCode && desc.ikz === position.identificationCode),
   );
 
+  // Инициатор закупки — сотрудник из штатного расписания организации.
+  // В справочнике это запись BaseEmployee: ФИО лежит во вложенном employee
+  // (BaseHuman), а должность — в самой записи. Поэтому ФИО берём из
+  // вложенного человека, иначе в списке остаются пустые варианты.
   const formatEmployeeInitiator = (emp: {
     position?: string;
+    employee?: { surname?: string; name?: string; patronymic?: string };
     surname?: string;
     name?: string;
     patronymic?: string;
-  }) => `${emp.position ? `${emp.position} — ` : ""}${fullName(emp)}`;
+  }) => {
+    const person = emp.employee ?? emp;
+    const fio = fullName(person) || "ФИО не указано";
+    return `${emp.position ? `${emp.position} — ` : ""}${fio}`;
+  };
 
-  const defaultInitiatorEmployee = employee?.employee;
+  const defaultInitiatorEmployee = employee;
   const defaultInitiatorText = defaultInitiatorEmployee
     ? formatEmployeeInitiator(defaultInitiatorEmployee)
     : "";
@@ -536,14 +609,15 @@ export default function PurchaseNoteModal({
     }
   }, [organization, initialNote, setValue, getValues]);
 
-  // Автоподстановка текущего пользователя как инициатора закупки при создании новой СЗ
+  // Автоподстановка текущего пользователя как инициатора закупки при создании
+  // новой СЗ: id берётся из штатной записи, а не из вложенного ФИО
   useEffect(() => {
     if (editingNoteId !== undefined) return;
-    if (!employee?.employee) return;
+    if (!employee) return;
     const currentName = getValues("initiatorName");
     if (currentName && currentName.trim()) return;
-    setValue("initiatorEmployeeId", employee.employee.id);
-    setValue("initiatorName", formatEmployeeInitiator(employee.employee));
+    setValue("initiatorEmployeeId", employee.id);
+    setValue("initiatorName", formatEmployeeInitiator(employee));
   }, [employee, editingNoteId, setValue, getValues]);
 
   const isEditMode = editingNoteId !== undefined && editingNoteId !== "";
@@ -710,14 +784,11 @@ export default function PurchaseNoteModal({
   const oozReady = Boolean(selectedOoz) && watchedOozSetComplete;
   const nmckRequestAllowed = oozReady || nmckMethodSoft;
 
-  // Суммы финансирования по КБК: по умолчанию из ПГ, но заказчик может
-  // уменьшить их под фактическую НМЦК. Итог сверяется с НМЦК.
-  const watchedKbkFunding = (watch("kbkFundingAmounts") ?? []) as {
-    id: string;
-    kbk?: string;
-    amount?: string;
-  }[];
-  const kbkFundingRows = useMemo(() => {
+  // Суммы финансирования по КБК правятся по годам: «всего» — расчётная
+  // величина. Объёмы плана-графика служат лимитом, превышать их нельзя.
+  const watchedKbkFunding = (watch("kbkFundingAmounts") ??
+    []) as KbkFundingEntry[];
+  const kbkFundingRows = useMemo<KbkFundingRow[]>(() => {
     const entries =
       kbkEntries.length > 0
         ? kbkEntries
@@ -731,44 +802,150 @@ export default function PurchaseNoteModal({
               amountSubsequentYears: position.amountSubsequentYears,
             },
           ];
+    const single = entries.length === 1;
+
+    // Для одной записи в ПГ годовые суммы могут лежать только на позиции —
+    // тогда берём их оттуда как лимит
+    const limitOf = (
+      entryValue: string | number | undefined,
+      positionValue: string | number | undefined,
+    ) => toNumber(entryValue ?? (single ? positionValue : undefined));
 
     return entries.map((entry, idx) => {
       const id = `kbk-${idx}`;
-      const override = watchedKbkFunding.find((row) => row.id === id)?.amount;
-      const defaultAmount =
-        entry.amountTotal ??
-        (entries.length === 1 ? position.amountTotal : undefined);
+      const override = watchedKbkFunding.find((row) => row.id === id);
+
+      const limitCurrentYear = limitOf(
+        entry.amountCurrentYear,
+        position.amountCurrentYear,
+      );
+      const limitPlanPeriodFirstYear = limitOf(
+        entry.amountPlanPeriodFirstYear,
+        position.amountPlanPeriodFirstYear,
+      );
+      const limitPlanPeriodSecondYear = limitOf(
+        entry.amountPlanPeriodSecondYear,
+        position.amountPlanPeriodSecondYear,
+      );
+      const limitSubsequentYears = limitOf(
+        entry.amountSubsequentYears,
+        position.amountSubsequentYears,
+      );
+
+      const amountCurrentYear =
+        toNumber(override?.amountCurrentYear) ?? limitCurrentYear;
+      const amountPlanPeriodFirstYear =
+        toNumber(override?.amountPlanPeriodFirstYear) ??
+        limitPlanPeriodFirstYear;
+      const amountPlanPeriodSecondYear =
+        toNumber(override?.amountPlanPeriodSecondYear) ??
+        limitPlanPeriodSecondYear;
+      const amountSubsequentYears =
+        toNumber(override?.amountSubsequentYears) ?? limitSubsequentYears;
 
       return {
         id,
         kbk: entry.kbk ?? defaultKbk,
-        entry,
-        amount: override ?? defaultAmount,
+        limitCurrentYear,
+        limitPlanPeriodFirstYear,
+        limitPlanPeriodSecondYear,
+        limitSubsequentYears,
+        amountCurrentYear,
+        amountPlanPeriodFirstYear,
+        amountPlanPeriodSecondYear,
+        amountSubsequentYears,
+        total:
+          (amountCurrentYear ?? 0) +
+          (amountPlanPeriodFirstYear ?? 0) +
+          (amountPlanPeriodSecondYear ?? 0) +
+          (amountSubsequentYears ?? 0),
       };
     });
   }, [kbkEntries, defaultKbk, position, watchedKbkFunding]);
 
   const kbkFundingTotal = kbkFundingRows.reduce(
-    (total, row) => total + (toNumber(row.amount) ?? 0),
+    (total, row) => total + row.total,
     0,
   );
   const nmckValue = toNumber(watch("initialMaxPrice")) ?? 0;
   const kbkFundingDiff = Number((kbkFundingTotal - nmckValue).toFixed(2));
 
-  const setKbkFundingAmount = (id: string, kbk: string, amount: number) => {
-    const current = (getValues("kbkFundingAmounts") ?? []) as {
-      id: string;
-      kbk?: string;
-      amount?: string;
-    }[];
+  // Превышения объёмов плана-графика по годам — блокируют сохранение
+  const kbkLimitViolations = useMemo(() => {
+    const issues: {
+      kbk: string;
+      label: string;
+      amount: number;
+      limit: number;
+    }[] = [];
+
+    kbkFundingRows.forEach((row) => {
+      KBK_YEAR_COLUMNS.forEach((column) => {
+        const amount = row[column.field] ?? 0;
+        const limit = row[column.limitField];
+        if (limit !== null && amount - limit > 0.005) {
+          issues.push({
+            kbk: row.kbk,
+            label: column.label,
+            amount,
+            limit,
+          });
+        }
+      });
+    });
+
+    return issues;
+  }, [kbkFundingRows]);
+
+  const setKbkFundingYears = (
+    id: string,
+    kbk: string,
+    amounts: Partial<Record<KbkYearField, number>>,
+  ) => {
+    const current = (getValues("kbkFundingAmounts") ?? []) as KbkFundingEntry[];
+    const patch: Partial<KbkFundingEntry> = { kbk };
+    KBK_YEAR_COLUMNS.forEach((column) => {
+      const value = amounts[column.field];
+      if (value !== undefined) patch[column.field] = String(value);
+    });
+
     const exists = current.some((row) => row.id === id);
     const next = exists
-      ? current.map((row) =>
-          row.id === id ? { ...row, kbk, amount: String(amount) } : row,
-        )
-      : [...current, { id, kbk, amount: String(amount) }];
+      ? current.map((row) => (row.id === id ? { ...row, ...patch } : row))
+      : [...current, { id, ...patch } as KbkFundingEntry];
 
     setValue("kbkFundingAmounts", next, { shouldDirty: true });
+  };
+
+  const setKbkFundingYear = (
+    row: KbkFundingRow,
+    field: KbkYearField,
+    amount: number,
+  ) => setKbkFundingYears(row.id, row.kbk, { [field]: amount });
+
+  // Фактическая НМЦК раскладывается по годам пропорционально объёмам ПГ:
+  // суммы остаются в пределах лимитов, а «всего» равно НМЦК
+  const distributeNmckAcrossYears = (row: KbkFundingRow, total: number) => {
+    const limits = KBK_YEAR_COLUMNS.map(
+      (column) => row[column.limitField] ?? 0,
+    );
+    const limitSum = limits.reduce((sum, value) => sum + value, 0);
+    const weights = limitSum > 0 ? limits : [1, 0, 0, 0];
+    const weightSum = weights.reduce((sum, value) => sum + value, 0) || 1;
+
+    const amounts: Partial<Record<KbkYearField, number>> = {};
+    let distributed = 0;
+
+    KBK_YEAR_COLUMNS.forEach((column, index) => {
+      const isLast = index === KBK_YEAR_COLUMNS.length - 1;
+      const value = isLast
+        ? Number((total - distributed).toFixed(2))
+        : Number(((total * weights[index]) / weightSum).toFixed(2));
+      if (!isLast) distributed += value;
+      amounts[column.field] = Math.max(0, value);
+    });
+
+    setKbkFundingYears(row.id, row.kbk, amounts);
   };
 
   // Проверка поставщиков КП по реестру МСП: сколько из них субъекты малого
@@ -1101,6 +1278,19 @@ export default function PurchaseNoteModal({
       return;
     }
 
+    // Суммы по КБК не могут превышать объёмы финансирования из плана-графика
+    if (kbkLimitViolations.length > 0) {
+      setError("root", {
+        message: `Суммы по КБК превышают объёмы плана-графика: ${kbkLimitViolations
+          .map(
+            (issue) =>
+              `${issue.kbk || "без кода"} (${issue.label}) — ${formatRub(issue.amount)} при лимите ${formatRub(issue.limit)}`,
+          )
+          .join("; ")}`,
+      });
+      return;
+    }
+
     const shouldProceed = proceedAfterSaveRef.current;
     proceedAfterSaveRef.current = false;
 
@@ -1208,9 +1398,7 @@ export default function PurchaseNoteModal({
           (emp) => String(emp.id) === String(watchedInitiatorEmployeeId),
         )
       : orgEmployees.find(
-          (emp) =>
-            formatEmployeeInitiator(emp) === watchedInitiatorName ||
-            fullName(emp) === watchedInitiatorName,
+          (emp) => formatEmployeeInitiator(emp) === watchedInitiatorName,
         );
   const initiatorSelectValue = matchedInitiatorByText
     ? String(matchedInitiatorByText.id)
@@ -1870,161 +2058,209 @@ export default function PurchaseNoteModal({
 
                     return (
                       <Fragment key={item.id}>
+                        {/* Редактор позиции: наименование на всю ширину,
+                            остальные свойства — сеткой под ним. Так поля и
+                            кнопки не выходят за форму. */}
                         <tr>
-                          <td className={block("positions-index")}>
-                            {idx + 1}
-                          </td>
-                          <td className={block("positions-code-cell")}>
-                            <Okpd2Select
-                              code={itemOkpd2}
-                              allowedCodes={allowedOkpd2Codes}
-                              disabled={isReadOnly}
-                              onSelect={(selected) =>
-                                handleSelectItemOkpd2(idx, selected)
-                              }
-                            />
-                            <KtruSelect
-                              className={block("select")}
-                              okpd2Code={itemOkpd2}
-                              ktruCode={itemKtru}
-                              disabled={isReadOnly}
-                              onSelect={(ktru) =>
-                                handleSelectItemKtru(idx, ktru)
-                              }
-                            />
-                            {ktruIssue && (
-                              <span
-                                className={block(
-                                  ktruIssue.level === "error"
-                                    ? "error"
-                                    : "hint",
-                                )}
-                              >
-                                {ktruIssue.message}
-                              </span>
-                            )}
-                            {auctionCheck.inAuctionList && (
-                              <span className={block("hint")}>
-                                Аукционный перечень (РП РФ № 471-р) — обязателен
-                                электронный аукцион.
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <input
-                              className={block("input")}
-                              placeholder="Наименование"
-                              {...register(`items.${idx}.name`)}
-                            />
-                          </td>
-                          <td>
-                            <OkeiSelect
-                              value={itemUnit}
-                              disabled={isReadOnly}
-                              onChange={(val) =>
-                                setValue(`items.${idx}.unit`, val)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <input
-                              className={block("input")}
-                              disabled={isReadOnly || watchedIndeterminate}
-                              value={watchedIndeterminate ? "1" : itemQuantity}
-                              onChange={(e) =>
-                                setValue(
-                                  `items.${idx}.quantity`,
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="1"
-                            />
-                          </td>
-                          <td>
-                            <MoneyInput
-                              className={block("input")}
-                              value={itemUnitPrice}
-                              onChange={(next) =>
-                                setValue(
-                                  `items.${idx}.unitPrice`,
-                                  next ? String(next) : "",
-                                  { shouldDirty: true },
-                                )
-                              }
-                            />
-                          </td>
-                          <td>
-                            <MoneyInput
-                              className={block("input")}
-                              value={itemTotalPrice}
-                              onChange={(next) =>
-                                setValue(
-                                  `items.${idx}.totalPrice`,
-                                  next ? String(next) : "",
-                                  { shouldDirty: true },
-                                )
-                              }
-                            />
-                          </td>
-                          <td>
-                            <select
-                              className={block("select")}
-                              {...register(`items.${idx}.nationalRegimeType`)}
-                            >
-                              {NATIONAL_REGIME_OPTIONS.map((opt) => (
-                                <option key={opt.id} value={opt.id}>
-                                  {opt.label}
-                                </option>
-                              ))}
-                            </select>
-                            {itemRegime.regime && (
-                              <span className={block("hint")}>
-                                ПП РФ № 1875:{" "}
-                                {itemRegime.regime === "ban"
-                                  ? "запрет"
-                                  : "ограничение"}
-                                {itemRegime.groupLabel
-                                  ? ` — ${itemRegime.groupLabel}`
-                                  : ""}
-                              </span>
-                            )}
-                            {itemRegimeIssue && (
-                              <span
-                                className={block(
-                                  itemRegimeIssue.level === "error"
-                                    ? "error"
-                                    : "warning",
-                                )}
-                              >
-                                {itemRegimeIssue.message}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <CustomCheckbox
-                              compact
-                              aria-label={`Товар поставляется при выполнении работ, позиция ${idx + 1}`}
-                              {...register(`items.${idx}.isSupplyDuringWorks`)}
-                            />
-                          </td>
-                          <td>
-                            <div className={block("row-actions")}>
-                              <button
-                                type="button"
-                                className={block("link-btn")}
-                                disabled={isReadOnly}
-                                onClick={() => collapseItem(rowId)}
-                              >
-                                Сохранить
-                              </button>
-                              <button
-                                type="button"
-                                className={block("danger-btn")}
-                                disabled={isReadOnly}
-                                onClick={() => removeItem(idx)}
-                              >
-                                Удалить
-                              </button>
+                          <td colSpan={10}>
+                            <div className={block("item-editor")}>
+                              <div className={block("field", ["wide"])}>
+                                <label
+                                  className={block("label")}
+                                  htmlFor={`note-item-name-${idx}`}
+                                >
+                                  Наименование объекта закупки *
+                                </label>
+                                <input
+                                  id={`note-item-name-${idx}`}
+                                  className={block("input")}
+                                  placeholder="Наименование"
+                                  {...register(`items.${idx}.name`)}
+                                />
+                              </div>
+
+                              <div className={block("item-editor-grid")}>
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    ОКПД2 / КТРУ
+                                  </span>
+                                  <Okpd2Select
+                                    code={itemOkpd2}
+                                    allowedCodes={allowedOkpd2Codes}
+                                    disabled={isReadOnly}
+                                    onSelect={(selected) =>
+                                      handleSelectItemOkpd2(idx, selected)
+                                    }
+                                  />
+                                  <KtruSelect
+                                    className={block("select")}
+                                    okpd2Code={itemOkpd2}
+                                    ktruCode={itemKtru}
+                                    disabled={isReadOnly}
+                                    onSelect={(ktru) =>
+                                      handleSelectItemKtru(idx, ktru)
+                                    }
+                                  />
+                                  {ktruIssue && (
+                                    <span
+                                      className={block(
+                                        ktruIssue.level === "error"
+                                          ? "error"
+                                          : "hint",
+                                      )}
+                                    >
+                                      {ktruIssue.message}
+                                    </span>
+                                  )}
+                                  {auctionCheck.inAuctionList && (
+                                    <span className={block("hint")}>
+                                      Аукционный перечень (РП РФ № 471-р) —
+                                      обязателен электронный аукцион.
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Единица измерения
+                                  </span>
+                                  <OkeiSelect
+                                    value={itemUnit}
+                                    disabled={isReadOnly}
+                                    onChange={(val) =>
+                                      setValue(`items.${idx}.unit`, val)
+                                    }
+                                  />
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Количество
+                                  </span>
+                                  <input
+                                    className={block("input")}
+                                    disabled={
+                                      isReadOnly || watchedIndeterminate
+                                    }
+                                    value={
+                                      watchedIndeterminate ? "1" : itemQuantity
+                                    }
+                                    onChange={(e) =>
+                                      setValue(
+                                        `items.${idx}.quantity`,
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="1"
+                                  />
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Цена за ед., руб.
+                                  </span>
+                                  <MoneyInput
+                                    className={block("input")}
+                                    value={itemUnitPrice}
+                                    onChange={(next) =>
+                                      setValue(
+                                        `items.${idx}.unitPrice`,
+                                        next ? String(next) : "",
+                                        { shouldDirty: true },
+                                      )
+                                    }
+                                  />
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Стоимость, руб.
+                                  </span>
+                                  <MoneyInput
+                                    className={block("input")}
+                                    value={itemTotalPrice}
+                                    onChange={(next) =>
+                                      setValue(
+                                        `items.${idx}.totalPrice`,
+                                        next ? String(next) : "",
+                                        { shouldDirty: true },
+                                      )
+                                    }
+                                  />
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Национальный режим
+                                  </span>
+                                  <select
+                                    className={block("select")}
+                                    {...register(
+                                      `items.${idx}.nationalRegimeType`,
+                                    )}
+                                  >
+                                    {NATIONAL_REGIME_OPTIONS.map((opt) => (
+                                      <option key={opt.id} value={opt.id}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {itemRegime.regime && (
+                                    <span className={block("hint")}>
+                                      ПП РФ № 1875:{" "}
+                                      {itemRegime.regime === "ban"
+                                        ? "запрет"
+                                        : "ограничение"}
+                                      {itemRegime.groupLabel
+                                        ? ` — ${itemRegime.groupLabel}`
+                                        : ""}
+                                    </span>
+                                  )}
+                                  {itemRegimeIssue && (
+                                    <span
+                                      className={block(
+                                        itemRegimeIssue.level === "error"
+                                          ? "error"
+                                          : "warning",
+                                      )}
+                                    >
+                                      {itemRegimeIssue.message}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className={block("field")}>
+                                  <span className={block("label")}>
+                                    Товар при выполнении работ
+                                  </span>
+                                  <CustomCheckbox
+                                    compact
+                                    aria-label={`Товар поставляется при выполнении работ, позиция ${idx + 1}`}
+                                    {...register(
+                                      `items.${idx}.isSupplyDuringWorks`,
+                                    )}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className={block("item-editor-actions")}>
+                                <button
+                                  type="button"
+                                  className={block("link-btn")}
+                                  disabled={isReadOnly}
+                                  onClick={() => collapseItem(rowId)}
+                                >
+                                  Сохранить
+                                </button>
+                                <button
+                                  type="button"
+                                  className={block("danger-btn")}
+                                  disabled={isReadOnly}
+                                  onClick={() => removeItem(idx)}
+                                >
+                                  Удалить
+                                </button>
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -2493,77 +2729,88 @@ export default function PurchaseNoteModal({
                     />
                   )}
                 </div>
-
-                <div className={block("field")}>
-                  <span className={block("label")}>
-                    Казначейское сопровождение (ст. 242.23 БК РФ)
-                  </span>
-                  <div className={block("radio-row")}>
-                    <label className={block("radio")}>
-                      <input
-                        type="radio"
-                        checked={!watchedTreasury}
-                        onChange={() => {
-                          setValue("requiresTreasurySupport", false);
-                          setValue("treasurySupportType", "");
-                        }}
-                      />
-                      <span>Нет</span>
-                    </label>
-                    <label className={block("radio")}>
-                      <input
-                        type="radio"
-                        checked={watchedTreasury}
-                        onChange={() => {
-                          setValue("requiresTreasurySupport", true);
-                          if (!watch("treasurySupportType")) {
-                            setValue("treasurySupportType", "full");
-                          }
-                        }}
-                      />
-                      <span>Да</span>
-                    </label>
-                  </div>
-                  {watchedTreasury && (
-                    <select
-                      aria-label="Вид казначейского сопровождения"
-                      className={block("select")}
-                      {...register("treasurySupportType")}
-                    >
-                      <option value="full">
-                        Полное казначейское сопровождение
-                      </option>
-                      <option value="advance_only">
-                        Казначейское сопровождение только аванса
-                      </option>
-                    </select>
-                  )}
-                </div>
-
-                <div className={block("field")}>
-                  <span className={block("label")}>
-                    Банковское сопровождение
-                  </span>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      {...register("requiresBankSupport")}
-                    />
-                    <span>Требуется банковское сопровождение контракта</span>
-                  </label>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* КБК + разбивка финансирования по годам из ПГ (справочно) + запрос на изменение КБК/КВР */}
+          {/* Казначейское сопровождение — отдельный блок */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("support-block")}>
+              <span className={block("label")}>
+                Казначейское сопровождение (ст. 242.23 БК РФ)
+              </span>
+              <div className={block("radio-row")}>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    checked={!watchedTreasury}
+                    onChange={() => {
+                      setValue("requiresTreasurySupport", false);
+                      setValue("treasurySupportType", "");
+                    }}
+                  />
+                  <span>Не требуется</span>
+                </label>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    checked={watchedTreasury}
+                    onChange={() => {
+                      setValue("requiresTreasurySupport", true);
+                      if (!watch("treasurySupportType")) {
+                        setValue("treasurySupportType", "full");
+                      }
+                    }}
+                  />
+                  <span>Требуется</span>
+                </label>
+              </div>
+              {watchedTreasury && (
+                <select
+                  aria-label="Вид казначейского сопровождения"
+                  className={block("select")}
+                  {...register("treasurySupportType")}
+                >
+                  <option value="full">
+                    Полное казначейское сопровождение
+                  </option>
+                  <option value="advance_only">
+                    Казначейское сопровождение только аванса
+                  </option>
+                </select>
+              )}
+              <span className={block("hint")}>
+                Казначейское сопровождение расчётов по контракту ведётся
+                территориальным органом Федерального казначейства.
+              </span>
+            </div>
+          </div>
+
+          {/* Банковское сопровождение — отдельный блок */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("support-block")}>
+              <span className={block("label")}>Банковское сопровождение</span>
+              <label className={block("checkbox")}>
+                <input type="checkbox" {...register("requiresBankSupport")} />
+                <span>Требуется банковское сопровождение контракта</span>
+              </label>
+              <span className={block("hint")}>
+                Банковское сопровождение устанавливается отдельно от
+                казначейского — по решению заказчика.
+              </span>
+            </div>
+          </div>
+
+          {/* КБК: суммы правятся по годам, «всего» считается; превышать
+              объёмы плана-графика нельзя + запрос на изменение КБК/КВР */}
           <div className={block("field", ["wide"])}>
             <div className={block("kbk-box")}>
               <div className={block("label-row")}>
-                <strong>
-                  КБК и финансирование (суммы можно корректировать под
-                  фактическую НМЦК)
-                </strong>
+                <strong>КБК и финансирование по годам</strong>
+                <span className={block("hint")}>
+                  Годовые суммы правятся в пределах объёмов плана-графика,
+                  «Всего» рассчитывается автоматически
+                </span>
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -2571,71 +2818,73 @@ export default function PurchaseNoteModal({
                   <thead>
                     <tr>
                       <th>КБК</th>
+                      {KBK_YEAR_COLUMNS.map((column) => (
+                        <th key={column.field}>{column.label}</th>
+                      ))}
                       <th>Всего, руб.</th>
-                      <th>Текущий год</th>
-                      <th>1-й год пл. пер.</th>
-                      <th>2-й год пл. пер.</th>
-                      <th>Последующие</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {kbkFundingRows.map((row) => {
-                      const single = kbkFundingRows.length === 1;
+                    {kbkFundingRows.map((row) => (
+                      <tr key={row.id}>
+                        <td className={block("mono")}>
+                          {row.kbk || "не указан"}
+                        </td>
+                        {KBK_YEAR_COLUMNS.map((column) => {
+                          const amount = row[column.field] ?? 0;
+                          const limit = row[column.limitField];
+                          const overLimit =
+                            limit !== null && amount - limit > 0.005;
 
-                      return (
-                        <tr key={row.id}>
-                          <td className={block("mono")}>
-                            {row.kbk || "не указан"}
-                          </td>
-                          <td>
-                            <MoneyInput
-                              className={block("input")}
-                              value={row.amount ?? ""}
-                              disabled={isReadOnly}
-                              ariaLabel={`Сумма по КБК ${row.kbk || "без кода"}`}
-                              onChange={(next) =>
-                                setKbkFundingAmount(row.id, row.kbk, next)
-                              }
-                            />
-                          </td>
-                          <td>
-                            {formatRub(
-                              row.entry.amountCurrentYear ??
-                                (single
-                                  ? position.amountCurrentYear
-                                  : undefined),
-                            )}
-                          </td>
-                          <td>
-                            {formatRub(
-                              row.entry.amountPlanPeriodFirstYear ??
-                                (single
-                                  ? position.amountPlanPeriodFirstYear
-                                  : undefined),
-                            )}
-                          </td>
-                          <td>
-                            {formatRub(
-                              row.entry.amountPlanPeriodSecondYear ??
-                                (single
-                                  ? position.amountPlanPeriodSecondYear
-                                  : undefined),
-                            )}
-                          </td>
-                          <td>
-                            {formatRub(
-                              row.entry.amountSubsequentYears ??
-                                (single
-                                  ? position.amountSubsequentYears
-                                  : undefined),
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                          return (
+                            <td key={column.field}>
+                              <div
+                                className={block("kbk-cell", [
+                                  overLimit ? "over" : "",
+                                ])}
+                              >
+                                <MoneyInput
+                                  className={block("input")}
+                                  value={row[column.field] ?? ""}
+                                  disabled={isReadOnly}
+                                  ariaLabel={`${column.label} по КБК ${row.kbk || "без кода"}`}
+                                  onChange={(next) =>
+                                    setKbkFundingYear(row, column.field, next)
+                                  }
+                                />
+                                {limit !== null && (
+                                  <span
+                                    className={block(
+                                      overLimit ? "error" : "hint",
+                                    )}
+                                  >
+                                    лимит ПГ: {formatRub(limit)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td>
+                          <strong>{formatRub(row.total)}</strong>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
+
+              {kbkLimitViolations.length > 0 && (
+                <div className={block("warning")}>
+                  Превышение объёмов плана-графика:{" "}
+                  {kbkLimitViolations
+                    .map(
+                      (issue) =>
+                        `${issue.kbk || "без кода"} (${issue.label}) — ${formatRub(issue.amount)} при лимите ${formatRub(issue.limit)}`,
+                    )
+                    .join("; ")}
+                </div>
+              )}
 
               <div className={block("kbk-summary")}>
                 <span>
@@ -3504,18 +3753,15 @@ export default function PurchaseNoteModal({
                       shouldValidate: true,
                     });
                     // Единственный КБК по умолчанию следует за НМЦК, если
-                    // заказчик ещё не корректировал сумму вручную
+                    // заказчик ещё не корректировал суммы по годам: раскладываем
+                    // НМЦК пропорционально объёмам ПГ, не превышая лимиты
                     if (kbkFundingRows.length === 1) {
                       const onlyRow = kbkFundingRows[0];
                       const hasOverride = watchedKbkFunding.some(
                         (row) => row.id === onlyRow.id,
                       );
                       if (!hasOverride) {
-                        setKbkFundingAmount(
-                          onlyRow.id,
-                          onlyRow.kbk,
-                          record.nmckTotal,
-                        );
+                        distributeNmckAcrossYears(onlyRow, record.nmckTotal);
                       }
                     }
                     setValue("priceBasis", basisText);

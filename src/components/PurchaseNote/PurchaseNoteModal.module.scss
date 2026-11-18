@@ -275,7 +275,6 @@
 
   &__positions-table {
     width: 100%;
-    min-width: 1120px;
     border-collapse: collapse;
     font-size: 12px;
 
@@ -299,10 +298,6 @@
     tr:last-child td {
       border-bottom: none;
     }
-
-    td {
-      min-width: 90px;
-    }
   }
 
   &__positions-index {
@@ -312,8 +307,6 @@
   }
 
   &__positions-code-cell {
-    min-width: 250px;
-
     > * {
       display: block;
     }
@@ -333,6 +326,32 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+
+  // Редактор позиции закупки: наименование на всю ширину, остальные
+  // свойства — сеткой, действия внутри рамки (не выходят за форму)
+  &__item-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface-raised);
+  }
+
+  &__item-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px 16px;
+    align-items: start;
+  }
+
+  &__item-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   // ООЗ и характеристики под раскрытым объектом закупки
@@ -665,6 +684,21 @@
     font-size: 12px;
   }
 
+  // Ячейка годовой суммы по КБК: поле ввода и подпись лимита ПГ
+  &__kbk-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: stretch;
+    min-width: 130px;
+
+    &--over {
+      input {
+        border-color: var(--state-danger);
+      }
+    }
+  }
+
   // Верхний уровень раздела 4: НМЦК, аванс и сопровождение
   &__finance-summary {
     padding: 12px;
@@ -678,6 +712,17 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 16px;
     align-items: start;
+  }
+
+  // Отдельные блоки сопровождения контракта (казначейское, банковское)
+  &__support-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-raised);
   }
 
   // Статус СЗ: бейдж и пояснение вместо редактируемого select

@@ -158,12 +158,17 @@ export const PurchaseNoteSchema = z
     kbkDisagreementAuthor: z.string().optional(),
     // Суммы финансирования по КБК, скорректированные в СЗ. По умолчанию
     // берутся из плана-графика, но могут быть уменьшены под фактическую НМЦК.
+    // Правятся именно годовые суммы: «всего» по КБК считается как их сумма,
+    // а непревышение объёмов плана-графика проверяется в форме.
     kbkFundingAmounts: z
       .array(
         z.object({
           id: z.string(),
           kbk: z.string().optional(),
-          amount: optionalMoney(),
+          amountCurrentYear: optionalMoney(),
+          amountPlanPeriodFirstYear: optionalMoney(),
+          amountPlanPeriodSecondYear: optionalMoney(),
+          amountSubsequentYears: optionalMoney(),
         }),
       )
       .optional(),
