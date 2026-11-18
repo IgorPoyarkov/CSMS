@@ -2,7 +2,8 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-17 (после добавления реестра потребностей /purchase-notes, статусов согласования, выгрузки DOCX/PDF, калькулятора НМЦК и уточнения полей СЗ).
+> Дата последнего обновления: 2026-11-18 (дефектовки + проект сметы 421/пр +
+> проект графика 336/пр; после удалённого коммита восстановлены сиды).
 
 ## 0. Откуда брать задачи
 
@@ -432,4 +433,16 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   - `PurchaseNoteSchema` дополнена `nmckCalculation` (`NmckCalculationRecordSchema`) и `nmckOffers` (`NmckMarketOfferSchema[]`);
   - `/nmck-calculator` (`NmckCalculatorPage.tsx`) сохраняет обоснование в выбранную или новую СЗ (черновик), опционально обновляя только `amountTotal` в ПГ (`useUpdatePositionPlanAmount`);
   - `PurchaseNoteModal.tsx` (раздел 4) отображает карточку обоснования (показатели, таблица источников или реквизиты норматива ОКПД2, экспорт `.docx`, встроенный пересчёт через `MarketNmckCalculator`), а `purchaseNoteExport.ts` включает детализацию расчёта в `.docx`/`.pdf` СЗ.
+
+## 11. Дефектовки, проект сметы контракта и проект календарного графика (`defectLists`)
+
+- **Роль «инициатор закупки»:** `isContractServiceMember` / `isPurchaseInitiator` в `src/hooks/useMyContractRole.ts` — работник штатки, не входящий в КС (учитывается и способ «структурное подразделение»).
+- **Файлы:** `src/services/DefectList/defectList.schema.ts` + `.api.ts`; экран `/defect-lists` — `src/components/DefectList/DefectListsPage.tsx` + `DefectListModal.tsx` (+ два `.module.scss`); ссылки в `Header.tsx` и `Main.tsx`, роут в `App.tsx`.
+- **Позиции дефектовки:** `section` (раздел работ), `normCode` (шифр ГЭСН/ФЕР), `name`, `unit`, `quantity`, `unitPrice`. Наименование объекта и ОКПД2 не дублируются: связь `objectDescriptionId` (ООЗ), `objectName` — снимок для печати, `basis` — дефектный акт.
+- **`estimate` — проект сметы контракта:** метод `resource|index|analog`, база `FER|TER|GESN`, `priceLevel`, `legalActId` → 421/пр, накладные/сметная прибыль/НДС; итоги считает `computeEstimateTotals` (прямые → накладные → прибыль → НДС).
+- **`schedule` — проект календарного графика:** `plannedStart`/`plannedEnd`, этапы (`name`, `startDate`, `endDate`, `amount`), `legalActId` → 336/пр; `buildScheduleStages` строит этапы по разделам (суммы пропорциональны прямым затратам, остаток забирает последний этап, сроки делятся по периоду), `scheduleDifference` сверяет итог графика со сметой.
+- **Нормы в `legalActs`:** `minstroy-421pr` — приказ Минстроя России от 04.08.2020 № 421/пр (методика определения сметной стоимости); `minstroy-336pr` — приказ Минстроя России от 05.06.2018 № 336/пр (методика графика выполнения СМР и графика оплаты). Оба `isVerified: true`.
+- **Статусы:** `draft | submitted | accepted | returned`; «Направить в КС» создаёт задачу (`origin: system`, `functionCode: purchase_description`, исполнитель — руководитель КС/КУ, срок +5 дней) и ставит `submitted` + `taskId`.
+- **Сиды:** `defectLists` 5 (org1: submitted/draft/returned, org6: accepted, org2: submitted), задачи 13–14.
+- ⚠️ **Восстановление после удалённого коммита `5cdeb7c`:** он вернул `db.json` к более старой базе и вычистил `defectLists`, акты 421/пр и 336/пр, задачи 13–14. Данные восстановлены скриптом; заодно снова удалена пустая `"contracts": []` — мина json-server (см. §1), из-за которой любой `DELETE` чистит связанные записи.
 
