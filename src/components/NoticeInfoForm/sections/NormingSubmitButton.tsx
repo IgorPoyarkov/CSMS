@@ -3,6 +3,7 @@ import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import { useOkpd2Dictionary } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../../services/Okpd2Ref/normingControl";
+import { validateNationalRegime } from "../../../services/NationalRegime/pp1875";
 import CustomButton from "../../UI/CustomButton";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -34,6 +35,16 @@ const NormingSubmitButton = ({ isSaving }: NormingSubmitButtonProps) => {
         okpd2Refs,
       );
 
+  // ПП РФ N 1875: запрет/ограничение по ОКПД2 должны быть установлены
+  const regimeValidation = validateNationalRegime(
+    items.map((item) => ({
+      code: item.okpd2OrKtruCode,
+      name: item.name,
+      declaredMode: item.nationalRegimeType,
+    })),
+    okpd2Refs,
+  );
+
   return (
     <>
       {violations.length > 0 && (
@@ -43,6 +54,12 @@ const NormingSubmitButton = ({ isSaving }: NormingSubmitButtonProps) => {
           «Контроль нормирования».
         </span>
       )}
+      {regimeValidation.blocksSave && (
+        <span className={block("red-note")}>
+          {regimeValidation.summary} Исправьте национальный режим в разделе
+          «Объект закупки» (ПП РФ N 1875).
+        </span>
+      )}
       <CustomButton
         configuration={{
           button: {
@@ -50,7 +67,8 @@ const NormingSubmitButton = ({ isSaving }: NormingSubmitButtonProps) => {
             type: "submit",
             value: isSaving ? "Сохранение..." : "Сохранить извещение",
             modifier: ["primary"],
-            disabled: isSaving || violations.length > 0,
+            disabled:
+              isSaving || violations.length > 0 || regimeValidation.blocksSave,
           },
         }}
       />

@@ -3381,7 +3381,9 @@
       "code": "32.50.13.190",
       "name": "Оборудование медицинское для диагностики прочее, не включённое в другие группировки",
       "isNormed": false,
-      "isAuctionRequired": true
+      "isAuctionRequired": true,
+      "nationalRegime": "ban",
+      "nationalRegimeNote": "Приложение N 1 к ПП РФ N 1875: код 32.50.13.190 включён в перечень запрета"
     },
     {
       "id": 7,
@@ -3591,7 +3593,9 @@
       "name": "Компьютеры общего назначения портативные массой менее 10 кг",
       "isNormed": true,
       "normLimit": 85000,
-      "isAuctionRequired": true
+      "isAuctionRequired": true,
+      "nationalRegime": "restriction",
+      "nationalRegimeNote": "Приложение N 2 к ПП РФ N 1875: ограничение допуска иностранных товаров (группа 26.20)"
     },
     {
       "id": 34,
@@ -3599,7 +3603,9 @@
       "name": "Компьютеры общего назначения настольные",
       "isNormed": true,
       "normLimit": 75000,
-      "isAuctionRequired": true
+      "isAuctionRequired": true,
+      "nationalRegime": "restriction",
+      "nationalRegimeNote": "Приложение N 2 к ПП РФ N 1875: ограничение допуска иностранных товаров (группа 26.20)"
     },
     {
       "id": 35,
@@ -3607,7 +3613,9 @@
       "name": "Устройства печатающие (принтеры) вычислительных машин",
       "isNormed": true,
       "normLimit": 40000,
-      "isAuctionRequired": true
+      "isAuctionRequired": true,
+      "nationalRegime": "restriction",
+      "nationalRegimeNote": "Приложение N 2 к ПП РФ N 1875: ограничение допуска иностранных товаров (группа 26.20)"
     },
     {
       "id": 36,
@@ -3623,7 +3631,9 @@
       "name": "Мониторы, отображающие информацию на жидких кристаллах",
       "isNormed": true,
       "normLimit": 45000,
-      "isAuctionRequired": true
+      "isAuctionRequired": true,
+      "nationalRegime": "restriction",
+      "nationalRegimeNote": "Приложение N 2 к ПП РФ N 1875: ограничение допуска иностранных товаров (группа 26.20)"
     },
     {
       "id": 38,
@@ -4836,6 +4846,27 @@
       "lastCheckedDate": "2026-11-18",
       "isVerified": true,
       "notes": "Формулы п. 9, 10, 14 и 20 Положения; предельные величины значимости — приложение N 2 (ред. от 31.10.2022)"
+    },
+    {
+      "id": "pp-1875",
+      "shortName": "ПП РФ N 1875",
+      "fullName": "Постановление Правительства РФ от 23.12.2024 N 1875 \"О мерах по предоставлению национального режима при осуществлении закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд\"",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "1875",
+      "adoptedDate": "2024-12-23",
+      "effectiveDate": "2025-01-01",
+      "status": "active",
+      "scope": "Национальный режим (ст. 14 Закона N 44-ФЗ): приложение N 1 — запрет допуска иностранных товаров (работ, услуг), приложение N 2 — ограничение допуска; преимущество для российских товаров",
+      "components": [
+        "pp1875",
+        "PurchaseNoteModal",
+        "PurchaseObjectsSection"
+      ],
+      "sourceUrl": "http://publication.pravo.gov.ru/document/0001202412240015",
+      "lastCheckedDate": "2026-11-18",
+      "isVerified": true,
+      "notes": "Правила префиксов ОКПД2 в src/services/NationalRegime/pp1875.ts; приложение N 2 восстановлено не полностью — недостающие позиции закрываются полями nationalRegime/nationalRegimeNote справочника ОКПД2 (ред. от 17.10.2026)"
     }
   ],
   "purchaseNotes": [

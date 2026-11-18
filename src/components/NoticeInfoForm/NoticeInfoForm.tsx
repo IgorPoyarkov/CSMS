@@ -15,6 +15,7 @@ import {
 } from "../../services/Procurements/noticeInfo.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../services/Okpd2Ref/normingControl";
+import { validateNationalRegime } from "../../services/NationalRegime/pp1875";
 import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
@@ -1078,6 +1079,27 @@ const NoticeInfoForm = () => {
     if (violations.length > 0) {
       setError("normingControl.breachConfirmedByName", {
         message: `Превышены предельные цены единиц (${violations.length} поз.). Сохранение возможно только после подписи главного подписанта`,
+      });
+
+      return;
+    }
+
+    // Национальный режим (ПП РФ N 1875): если код ОКПД2 входит в перечень
+    // запрета или ограничения, соответствующий режим обязателен
+    const regimeValidation = validateNationalRegime(
+      formData.purchaseObjects.items.map((item) => ({
+        code: item.okpd2OrKtruCode,
+        name: item.name,
+        declaredMode: item.nationalRegimeType,
+      })),
+      okpd2Refs,
+    );
+
+    if (regimeValidation.blocksSave) {
+      setError("purchaseObjects.items.0.nationalRegimeType", {
+        message:
+          regimeValidation.summary ??
+          "Национальный режим не соответствует перечням ПП РФ N 1875",
       });
 
       return;

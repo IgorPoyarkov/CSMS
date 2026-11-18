@@ -12,6 +12,11 @@ import {
   normingViolation,
 } from "../../../services/Okpd2Ref/normingControl";
 import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
+import {
+  checkOkpd2NationalRegime,
+  nationalRegimeExpectedLabel,
+  validateNationalRegime,
+} from "../../../services/NationalRegime/pp1875";
 import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
 import styles from "../NoticeInfoForm.module.scss";
@@ -35,6 +40,17 @@ const PurchaseObjectsSection = () => {
     control,
     name: "purchaseObjects.items",
   });
+
+  // Национальный режим (ПП РФ N 1875): ожидаемый режим по ОКПД2 сверяется
+  // с выбранным в каждой позиции
+  const nationalRegimeValidation = validateNationalRegime(
+    items.map((item) => ({
+      code: item.okpd2OrKtruCode,
+      name: item.name,
+      declaredMode: item.nationalRegimeType,
+    })),
+    okpd2Refs,
+  );
 
   const totalSum = items.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
 
@@ -129,6 +145,13 @@ const PurchaseObjectsSection = () => {
                 items[index]?.okpd2OrKtruCode,
                 okpd2Refs,
               );
+              const regimeCheck = checkOkpd2NationalRegime(
+                items[index]?.okpd2OrKtruCode,
+                okpd2Refs,
+              );
+              const regimeIssue = nationalRegimeValidation.issues.find(
+                (issue) => issue.code === regimeCheck.code,
+              );
 
               return (
                 <div key={field.id} className={block("sub-box")}>
@@ -175,6 +198,21 @@ const PurchaseObjectsSection = () => {
                             Аукционный перечень (РП РФ № 471-р): для кода{" "}
                             {auctionCheck.code} обязателен электронный аукцион
                             (кроме котировок / ед. поставщика).
+                          </span>
+                        </span>
+                      )}
+                      {regimeCheck.regime && (
+                        <span className={block("yellow-warning")}>
+                          <span className={block("warning-badge")}>!</span>
+                          <span>
+                            ПП РФ № 1875:{" "}
+                            {regimeCheck.regime === "ban"
+                              ? "запрет (приложение № 1)"
+                              : "ограничение (приложение № 2)"}
+                            {regimeCheck.groupLabel
+                              ? ` — ${regimeCheck.groupLabel}`
+                              : ""}
+                            .
                           </span>
                         </span>
                       )}
@@ -318,6 +356,20 @@ const PurchaseObjectsSection = () => {
                     </button>
                   </div>
 
+                  {regimeIssue && (
+                    <span
+                      className={block(
+                        regimeIssue.level === "error"
+                          ? "red-note"
+                          : regimeIssue.level === "warning"
+                            ? "yellow-warning"
+                            : "muted",
+                      )}
+                    >
+                      {regimeIssue.message}
+                    </span>
+                  )}
+
                   {/* Типовые требования по п. 7 ПП 926 для нормируемых позиций */}
                   <NormingRequirementsBlock
                     index={index}
@@ -326,6 +378,34 @@ const PurchaseObjectsSection = () => {
                 </div>
               );
             })}
+
+            {/* Сводка по национальному режиму (ПП РФ N 1875) */}
+            {nationalRegimeValidation.expectedMode && (
+              <div className={block("field-col")}>
+                <span className={block("muted")}>
+                  Национальный режим по ПП РФ № 1875: по объектам закупки
+                  ожидается «
+                  {nationalRegimeExpectedLabel(
+                    nationalRegimeValidation.expectedMode,
+                  )}
+                  ».
+                </span>
+                {nationalRegimeValidation.issues.map((issue, issueIndex) => (
+                  <span
+                    key={`regime-${issue.code}-${issueIndex}`}
+                    className={block(
+                      issue.level === "error"
+                        ? "red-note"
+                        : issue.level === "warning"
+                          ? "yellow-warning"
+                          : "muted",
+                    )}
+                  >
+                    {issue.message}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -68,6 +68,11 @@ import {
   validatePlacingWayAgainstAuctionList,
 } from "../../services/Okpd2Ref/auctionListControl";
 import {
+  checkOkpd2NationalRegime,
+  nationalRegimeExpectedLabel,
+  validateNationalRegime,
+} from "../../services/NationalRegime/pp1875";
+import {
   OBJECT_CATEGORY_LIMITS,
   criterionShortLabels,
   defaultCriteria,
@@ -379,6 +384,7 @@ export default function PurchaseNoteModal({
     handleSubmit,
     watch,
     setValue,
+    setError,
     getValues,
     reset,
     formState: { errors },
@@ -463,6 +469,17 @@ export default function PurchaseNoteModal({
     watchedItems.map((item) => ({
       code: item.okpd2Code,
       name: item.name,
+    })),
+    okpd2Refs,
+  );
+
+  // Национальный режим (ПП РФ N 1875): объявленный по каждой позиции режим
+  // сверяется с перечнями запрета (приложение N 1) и ограничения (приложение N 2)
+  const nationalRegimeValidation = validateNationalRegime(
+    watchedItems.map((item) => ({
+      code: item.okpd2Code,
+      name: item.name,
+      declaredMode: item.nationalRegimeType,
     })),
     okpd2Refs,
   );
@@ -775,6 +792,17 @@ export default function PurchaseNoteModal({
   function onSubmit(data: PurchaseNote) {
     if (isReadOnly) {
       proceedAfterSaveRef.current = false;
+      return;
+    }
+
+    // ПП РФ N 1875: запрет/ограничение обязательны, но не установлены —
+    // потребность не сохраняется (обход по Enter недопустим)
+    if (nationalRegimeValidation.blocksSave) {
+      setError("root", {
+        message:
+          nationalRegimeValidation.summary ??
+          "Национальный режим не соответствует перечням ПП РФ N 1875",
+      });
       return;
     }
 
@@ -1192,6 +1220,13 @@ export default function PurchaseNoteModal({
               const itemDescId = watch(`items.${idx}.objectDescriptionId`);
               const itemOkpd2 = watch(`items.${idx}.okpd2Code`) || "";
               const itemUnit = watch(`items.${idx}.unit`) || "";
+              const itemRegime = checkOkpd2NationalRegime(
+                itemOkpd2,
+                okpd2Refs,
+              );
+              const itemRegimeIssue = nationalRegimeValidation.issues.find(
+                (issue) => issue.code === itemRegime.code,
+              );
 
               return (
                 <div key={item.id} className={block("item-card")}>
@@ -1289,6 +1324,18 @@ export default function PurchaseNoteModal({
                             обязателен электронный аукцион.
                           </span>
                         )}
+                      {itemRegime.regime && (
+                        <span className={block("hint")}>
+                          ПП РФ № 1875:{" "}
+                          {itemRegime.regime === "ban"
+                            ? "запрет (приложение № 1)"
+                            : "ограничение (приложение № 2)"}
+                          {itemRegime.groupLabel
+                            ? ` — ${itemRegime.groupLabel}`
+                            : ""}
+                          .
+                        </span>
+                      )}
                     </div>
 
                     <div className={block("field")}>
@@ -1373,6 +1420,17 @@ export default function PurchaseNoteModal({
                           </option>
                         ))}
                       </select>
+                      {itemRegimeIssue && (
+                        <span
+                          className={block(
+                            itemRegimeIssue.level === "error"
+                              ? "error"
+                              : "warning",
+                          )}
+                        >
+                          {itemRegimeIssue.message}
+                        </span>
+                      )}
                     </div>
 
                     <div className={block("field", ["wide"])}>
@@ -1414,6 +1472,31 @@ export default function PurchaseNoteModal({
             >
               + Добавить объект закупки
             </button>
+
+            {/* Сводка по национальному режиму (ПП РФ N 1875): ожидаемый режим
+                по перечням приложений N 1 и N 2 против выбранного в позициях */}
+            {nationalRegimeValidation.expectedMode && (
+              <div className={block("field", ["wide"])}>
+                <span className={block("hint")}>
+                  Национальный режим по ПП РФ № 1875: по объектам закупки
+                  ожидается «
+                  {nationalRegimeExpectedLabel(
+                    nationalRegimeValidation.expectedMode,
+                  )}
+                  ».
+                </span>
+                {nationalRegimeValidation.issues.map((issue, issueIndex) => (
+                  <span
+                    key={`regime-${issue.code}-${issueIndex}`}
+                    className={block(
+                      issue.level === "error" ? "error" : "warning",
+                    )}
+                  >
+                    {issue.message}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </fieldset>
@@ -3189,6 +3272,14 @@ export default function PurchaseNoteModal({
       </fieldset>
 
       <footer className={block("footer")}>
+        {errorText("root") && (
+          <span className={block("error")}>{errorText("root")}</span>
+        )}
+        {nationalRegimeValidation.hasErrors && (
+          <span className={block("error")}>
+            {nationalRegimeValidation.summary}
+          </span>
+        )}
         {(createNote.isError || updateNote.isError) && (
           <span className={block("error")}>
             Потребность не сохранена:{" "}
@@ -3202,7 +3293,9 @@ export default function PurchaseNoteModal({
           <button
             type="submit"
             className={block("btn-primary")}
-            disabled={isBusy || isReadOnly}
+            disabled={
+              isBusy || isReadOnly || nationalRegimeValidation.blocksSave
+            }
             onClick={() => {
               proceedAfterSaveRef.current = false;
             }}
@@ -3213,7 +3306,9 @@ export default function PurchaseNoteModal({
             <button
               type="submit"
               className={block("btn-accent")}
-              disabled={isBusy || isReadOnly}
+              disabled={
+                isBusy || isReadOnly || nationalRegimeValidation.blocksSave
+              }
               onClick={() => {
                 proceedAfterSaveRef.current = true;
               }}
