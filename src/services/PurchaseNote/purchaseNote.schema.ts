@@ -243,8 +243,11 @@ export const PurchaseNoteSchema = z
     paymentProcedure: z.enum(["postpayment", "advance", "staged"]).optional(),
     paymentTermDays: optionalNonNegativeInt(),
 
-    // Сроки поставки (относительные / абсолютные) и приёмки (от события / датой)
+    // Сроки поставки (относительные / абсолютные) и приёмки (от события / датой).
+    // Для относительного срока — опциональный признак «отсчёт с даты
+    // заключения контракта» (иначе от иной даты, указанной в закупке).
     deliveryTermMode: z.enum(["relative", "absolute"]).optional(),
+    deliveryTermFromContractDate: z.boolean().optional(),
     deliveryStartOffsetDays: optionalNonNegativeInt(),
     desiredStartDate: isoDate(),
     desiredEndDate: isoDate(),
@@ -557,6 +560,7 @@ export const emptyPurchaseNote = (
   treasurySupportType: "",
   requiresBankSupport: false,
   deliveryTermMode: "relative",
+  deliveryTermFromContractDate: true,
   deliveryStartOffsetDays: 0,
   desiredStartDate: "",
   desiredEndDate: "",

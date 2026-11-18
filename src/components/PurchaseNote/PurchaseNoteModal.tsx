@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Calculator,
@@ -32,7 +32,6 @@ import {
   PurchaseNoteSchema,
   emptyDeliveryPlace,
   emptyPurchaseNote,
-  getPurchaseNoteStatusMeta,
   hasSmpSubcontractingRequirement,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
@@ -96,15 +95,22 @@ import {
   smpRegistryCategoryLabels,
 } from "../../services/ContractSmp/smpRegistry.schema";
 import {
+  BEST_DIRECTIONS,
   OBJECT_CATEGORY_LIMITS,
+  SCORING_MODES,
+  bestDirectionLabels,
+  criterionFormulaText,
   criterionShortLabels,
   defaultCriteria,
   detectObjectCategory,
+  indicatorFormulaHint,
+  indicatorKindsByCriterion,
   normalizeCriteria,
   objectCategoryLimits,
   pp2604Applies,
   procedureApplicabilityHint,
   procedureKindFromPlacingWay,
+  scoringModeLabels,
   validateBidEvaluation,
   type Criterion,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
@@ -118,7 +124,6 @@ import {
   PLACING_WAYS_ALL,
   PP2571_POSITIONS,
 } from "../../services/Procurements/noticeInfo.config";
-import { DEFAULT_PROCUREMENT_TYPES } from "../ProcurementProcessing/procurement.config";
 import { formatDeliveryAddress } from "../../services/AddressRef/addressRef.schema";
 import { formatCharacteristicValue } from "../../services/ObjectDescription/objectDescription.schema";
 import {
@@ -425,6 +430,13 @@ export default function PurchaseNoteModal({
       return {
         ...base,
         ...note,
+        // Критерии ПП РФ N 2604 всегда держим полным набором из четырёх
+        // критериев: так значимость и показатели редактируются стабильно
+        evaluationCriteria: normalizeCriteria(
+          note.evaluationCriteria && note.evaluationCriteria.length > 0
+            ? note.evaluationCriteria
+            : defaultCriteria(),
+        ),
         // НМЦК по умолчанию — сумма из обоснования, если расчёт уже выполнен;
         // иначе сохранённое значение, затем объём из плана-графика
         initialMaxPrice:
@@ -476,6 +488,7 @@ export default function PurchaseNoteModal({
 
     return {
       ...base,
+      evaluationCriteria: defaultCriteria(),
       noteNumber: nextPurchaseNoteNumber(existingNotes),
       purchasePlanId: plan.id,
       purchasePlanNumber: plan.planNumber,
@@ -631,6 +644,10 @@ export default function PurchaseNoteModal({
   const watchedHasAdvance = Boolean(watch("hasAdvance"));
   const watchedTreasury = Boolean(watch("requiresTreasurySupport"));
   const watchedDeliveryMode = watch("deliveryTermMode") ?? "relative";
+  // Отсчёт относительного срока: по умолчанию с даты заключения контракта
+  const watchedDeliveryFromContract = Boolean(
+    watch("deliveryTermFromContractDate") ?? true,
+  );
   const watchedAcceptanceMode = watch("acceptanceTermMode") ?? "event";
   const watchedStatus = (watch("status") ?? "draft") as PurchaseNoteStatus;
   // Способ определения поставщика по умолчанию не подставляется: пока
@@ -687,8 +704,14 @@ export default function PurchaseNoteModal({
   const evaluationCategory =
     watchedEvaluationCategory || detectedCategory.category || "works_services";
   const evaluationLimits = objectCategoryLimits(evaluationCategory);
+  // useWatch следит за вложенными полями критериев (значимость, показатели),
+  // поэтому чекбокс и редактор показателей перерисовываются сразу
+  const watchedEvaluationCriteria = useWatch({
+    control,
+    name: "evaluationCriteria",
+  });
   const evaluationCriteria = normalizeCriteria(
-    (watch("evaluationCriteria") ?? []) as Criterion[],
+    (watchedEvaluationCriteria ?? []) as Criterion[],
   );
   const evaluationIssues = evaluationApplies
     ? validateBidEvaluation(
@@ -969,6 +992,28 @@ export default function PurchaseNoteModal({
     percent > 0
       ? Math.round(price * percent) / 100
       : null;
+
+  // Стоимость объекта закупки = цена × количество. Пересчитываем её при
+  // изменении цены или количества; ручная правка стоимости сохраняется.
+  const recalcItemTotal = (
+    index: number,
+    overrides?: { quantity?: string; unitPrice?: string },
+  ) => {
+    if (isReadOnly) return;
+    const qtyRaw =
+      overrides?.quantity ?? getValues(`items.${index}.quantity`) ?? "";
+    const priceRaw =
+      overrides?.unitPrice ?? getValues(`items.${index}.unitPrice`) ?? "";
+    const quantity = Number.parseFloat(String(qtyRaw).replace(",", "."));
+    const unitPrice = Number.parseFloat(String(priceRaw).replace(",", "."));
+
+    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) return;
+
+    setValue(`items.${index}.totalPrice`, (quantity * unitPrice).toFixed(2), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
 
   // Единый переключатель «невозможно определить количество» синхронизирует quantity = "1" у всех объектов
   const handleToggleIndeterminate = (checked: boolean) => {
@@ -1564,6 +1609,62 @@ export default function PurchaseNoteModal({
   };
 
   // Применение рекомендации по СМП: либо закупка только среди СМП/СОНКО,
+  // Детализирующие показатели критерия: добавляем и удаляем прямо в СЗ.
+  // Сумма значимости показателей критерия должна давать 100% (п. 7).
+  const addCriterionIndicator = (criterionIndex: number) => {
+    if (isReadOnly) return;
+    const current = normalizeCriteria(
+      (getValues("evaluationCriteria") ?? []) as Criterion[],
+    );
+    const next = current.map((criterion, index) =>
+      index === criterionIndex
+        ? {
+            ...criterion,
+            indicators: [
+              ...criterion.indicators,
+              {
+                name: "",
+                kind: indicatorKindsByCriterion[criterion.type][0] ?? "quality",
+                weightPercent: 0,
+                unit: "",
+                best: "max" as const,
+                scoring: "formula" as const,
+                scaleText: "",
+              },
+            ],
+          }
+        : criterion,
+    );
+    setValue("evaluationCriteria", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const removeCriterionIndicator = (
+    criterionIndex: number,
+    indicatorIndex: number,
+  ) => {
+    if (isReadOnly) return;
+    const current = normalizeCriteria(
+      (getValues("evaluationCriteria") ?? []) as Criterion[],
+    );
+    const next = current.map((criterion, index) =>
+      index === criterionIndex
+        ? {
+            ...criterion,
+            indicators: criterion.indicators.filter(
+              (_, i) => i !== indicatorIndex,
+            ),
+          }
+        : criterion,
+    );
+    setValue("evaluationCriteria", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
   // либо привлечение субподрядчиков в объёме доли СМП в выборке КП
   const applySmpRecommendation = () => {
     const recommendation = smpComposition.recommendation;
@@ -1737,6 +1838,55 @@ export default function PurchaseNoteModal({
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>1. Реквизиты потребности и согласование</legend>
         <div className={block("grid")}>
+          {/* Инициатор — первым, на всю ширину; статус — рядом с ним */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("initiator-row")}>
+              <div className={block("field", ["grow"])}>
+                <label className={block("label")} htmlFor="note-initiator">
+                  Инициатор закупки (из списка сотрудников организации) *
+                </label>
+                <select
+                  id="note-initiator"
+                  className={block("select")}
+                  value={initiatorSelectValue}
+                  onChange={(e) => handleSelectInitiator(e.target.value)}
+                >
+                  <option value="">— Выберите сотрудника-инициатора —</option>
+                  {orgEmployees.map((emp) => {
+                    const label = formatEmployeeInitiator(emp);
+                    const isMe =
+                      defaultInitiatorEmployee &&
+                      String(emp.id) === String(defaultInitiatorEmployee.id);
+                    return (
+                      <option key={String(emp.id)} value={String(emp.id)}>
+                        {label}
+                        {isMe ? " (текущий пользователь)" : ""}
+                      </option>
+                    );
+                  })}
+                  {!matchedInitiatorByText && watchedInitiatorName && (
+                    <option value={watchedInitiatorName}>
+                      {watchedInitiatorName} (введено ранее)
+                    </option>
+                  )}
+                </select>
+                {errorText("initiatorName") && (
+                  <span className={block("error")}>
+                    {errorText("initiatorName")}
+                  </span>
+                )}
+              </div>
+
+              <div className={block("status-inline")}>
+                <span className={block("label")}>Статус согласования СЗ</span>
+                {/* Статус меняется автоматически по мере прохождения СЗ
+                    и не редактируется вручную. */}
+                <PurchaseNoteStatusBadge status={watchedStatus} />
+                <input type="hidden" {...register("status")} />
+              </div>
+            </div>
+          </div>
+
           <div className={block("field")}>
             <label className={block("label")} htmlFor="note-number">
               Номер СЗ *
@@ -1764,56 +1914,6 @@ export default function PurchaseNoteModal({
             {errorText("noteDate") && (
               <span className={block("error")}>{errorText("noteDate")}</span>
             )}
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-initiator">
-              Инициатор закупки (из списка сотрудников организации) *
-            </label>
-            <select
-              id="note-initiator"
-              className={block("select")}
-              value={initiatorSelectValue}
-              onChange={(e) => handleSelectInitiator(e.target.value)}
-            >
-              <option value="">— Выберите сотрудника-инициатора —</option>
-              {orgEmployees.map((emp) => {
-                const label = formatEmployeeInitiator(emp);
-                const isMe =
-                  defaultInitiatorEmployee &&
-                  String(emp.id) === String(defaultInitiatorEmployee.id);
-                return (
-                  <option key={String(emp.id)} value={String(emp.id)}>
-                    {label}
-                    {isMe ? " (текущий пользователь)" : ""}
-                  </option>
-                );
-              })}
-              {!matchedInitiatorByText && watchedInitiatorName && (
-                <option value={watchedInitiatorName}>
-                  {watchedInitiatorName} (введено ранее)
-                </option>
-              )}
-            </select>
-            {errorText("initiatorName") && (
-              <span className={block("error")}>
-                {errorText("initiatorName")}
-              </span>
-            )}
-          </div>
-
-          <div className={block("field")}>
-            <span className={block("label")}>Статус согласования СЗ</span>
-            {/* Статус меняется автоматически по мере прохождения СЗ в системе
-                и не редактируется вручную. Значение сохраняется скрытым полем. */}
-            <div className={block("status-readonly")}>
-              <PurchaseNoteStatusBadge status={watchedStatus} />
-              <span className={block("hint")}>
-                {getPurchaseNoteStatusMeta(watchedStatus).label} — статус
-                меняется по мере прохождения согласования
-              </span>
-            </div>
-            <input type="hidden" {...register("status")} />
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -1868,7 +1968,7 @@ export default function PurchaseNoteModal({
                 /norming-requirements)
               </label>
               <Link to="/norming-requirements" className={block("inline-link")}>
-                Открыть конструктор ООЗ
+                Редактировать в конструкторе ООЗ
                 <ExternalLink size={12} aria-hidden="true" />
               </Link>
             </div>
@@ -1893,10 +1993,23 @@ export default function PurchaseNoteModal({
                 </option>
               ))}
             </select>
-            {selectedOoz && (
+            {selectedOoz ? (
               <span className={block("hint")}>
-                Характеристик в ООЗ: {selectedOoz.characteristics.length}
-                {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}
+                Источник:{" "}
+                {autoMatchedDesc &&
+                String(autoMatchedDesc.id) === String(selectedOoz.id)
+                  ? "подобрано автоматически по позиции плана-графика / ИКЗ"
+                  : "выбрано вручную"}
+                . Характеристик в ООЗ: {selectedOoz.characteristics.length}
+                {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}.
+                Состав характеристик ведётся в конструкторе ООЗ, в СЗ он только
+                выбирается.
+              </span>
+            ) : (
+              <span className={block("hint")}>
+                ООЗ подбирается по позиции плана-графика автоматически. Если
+                описание не найдено, его заводят в конструкторе ООЗ — в СЗ
+                характеристики не редактируются.
               </span>
             )}
           </div>
@@ -2145,12 +2258,16 @@ export default function PurchaseNoteModal({
                                     value={
                                       watchedIndeterminate ? "1" : itemQuantity
                                     }
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const nextQuantity = e.target.value;
                                       setValue(
                                         `items.${idx}.quantity`,
-                                        e.target.value,
-                                      )
-                                    }
+                                        nextQuantity,
+                                      );
+                                      recalcItemTotal(idx, {
+                                        quantity: nextQuantity,
+                                      });
+                                    }}
                                     placeholder="1"
                                   />
                                 </div>
@@ -2162,13 +2279,19 @@ export default function PurchaseNoteModal({
                                   <MoneyInput
                                     className={block("input")}
                                     value={itemUnitPrice}
-                                    onChange={(next) =>
+                                    onChange={(next) => {
+                                      const nextPrice = next
+                                        ? String(next)
+                                        : "";
                                       setValue(
                                         `items.${idx}.unitPrice`,
-                                        next ? String(next) : "",
+                                        nextPrice,
                                         { shouldDirty: true },
-                                      )
-                                    }
+                                      );
+                                      recalcItemTotal(idx, {
+                                        unitPrice: nextPrice,
+                                      });
+                                    }}
                                   />
                                 </div>
 
@@ -2443,22 +2566,220 @@ export default function PurchaseNoteModal({
               )}
           </div>
 
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-proc-type">
-              Направление / тип закупки
-            </label>
-            <select
-              id="note-proc-type"
-              className={block("select")}
-              {...register("procurementType")}
-            >
-              {DEFAULT_PROCUREMENT_TYPES.map((typeLabel) => (
-                <option key={typeLabel} value={typeLabel}>
-                  {typeLabel}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Критерии оценки заявок — рядом со способом закупки, чтобы было
+              видно, за что и как оцениваются заявки */}
+          {evaluationApplies && (
+            <div className={block("field", ["wide"])}>
+              <div className={block("evaluation-box")}>
+                <div className={block("label-row")}>
+                  <strong>Критерии оценки заявок (ПП РФ № 2604)</strong>
+                  <span className={block("hint")}>
+                    Сумма значимости критериев — 100%
+                  </span>
+                </div>
+                <p className={block("hint")}>
+                  {procedureApplicabilityHint[evaluationKind]}
+                </p>
+
+                <div className={block("grid")}>
+                  <div className={block("field")}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-eval-category"
+                    >
+                      Категория объекта закупки (приложение N 2)
+                    </label>
+                    <select
+                      id="note-eval-category"
+                      className={block("select")}
+                      {...register("evaluationObjectCategory")}
+                    >
+                      {OBJECT_CATEGORY_LIMITS.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={block("hint")}>
+                      Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
+                      {evaluationLimits.maxExpenses === null
+                        ? "не применяются"
+                        : `не более ${evaluationLimits.maxExpenses}%`}
+                      , характеристики и квалификация — не более{" "}
+                      {evaluationLimits.maxNonCost}%.
+                    </span>
+                  </div>
+
+                  <div className={block("field")}>
+                    <span className={block("label")}>
+                      Связь с ОКПД2 позиции плана-графика
+                    </span>
+                    {detectedCategory.matches.length === 0 ? (
+                      <span className={block("hint")}>
+                        Коды ОКПД2 в объектах закупки не указаны — категория
+                        выбрана вручную.
+                      </span>
+                    ) : (
+                      <span className={block("hint")}>
+                        {detectedCategory.matches
+                          .map(
+                            (match) =>
+                              `${match.code} → ${
+                                match.category
+                                  ? objectCategoryLimits(match.category).label
+                                  : "правило не найдено"
+                              }`,
+                          )
+                          .join("; ")}
+                        {detectedCategory.conflict
+                          ? ". Объекты попали в разные категории — выберите категорию вручную."
+                          : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={block("evaluation-criteria")}>
+                  {evaluationCriteria.map((criterion, index) => (
+                    <div
+                      className={block("evaluation-criterion")}
+                      key={criterion.type}
+                    >
+                      <label className={block("checkbox")}>
+                        <input
+                          type="checkbox"
+                          {...register(`evaluationCriteria.${index}.enabled`)}
+                        />
+                        <span>{criterionShortLabels[criterion.type]}</span>
+                      </label>
+
+                      {criterion.enabled && (
+                        <>
+                          <div className={block("evaluation-criterion-head")}>
+                            <label className={block("label")}>
+                              Значимость критерия, %
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              className={block("input", ["code"])}
+                              {...register(
+                                `evaluationCriteria.${index}.weightPercent`,
+                              )}
+                            />
+                          </div>
+                          <p className={block("hint")}>
+                            {criterionFormulaText[criterion.type]}
+                          </p>
+
+                          {criterion.type !== "price" && (
+                            <div className={block("indicator-list")}>
+                              <span className={block("label")}>
+                                Детализирующие показатели критерия (сумма
+                                значимости — 100%)
+                              </span>
+                              {criterion.indicators.map((_, indicatorIndex) => (
+                                <div
+                                  className={block("indicator-row")}
+                                  key={indicatorIndex}
+                                >
+                                  <input
+                                    className={block("input")}
+                                    placeholder="Наименование показателя"
+                                    aria-label={`Показатель ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.name`,
+                                    )}
+                                  />
+                                  <input
+                                    className={block("input", ["code"])}
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step="0.01"
+                                    placeholder="%"
+                                    aria-label={`Значимость показателя ${indicatorIndex + 1}, %`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.weightPercent`,
+                                    )}
+                                  />
+                                  <select
+                                    className={block("select")}
+                                    aria-label={`Направление оценки показателя ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.best`,
+                                    )}
+                                  >
+                                    {BEST_DIRECTIONS.map((direction) => (
+                                      <option key={direction} value={direction}>
+                                        {bestDirectionLabels[direction]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <select
+                                    className={block("select")}
+                                    aria-label={`Способ оценки показателя ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.scoring`,
+                                    )}
+                                  >
+                                    {SCORING_MODES.map((mode) => (
+                                      <option key={mode} value={mode}>
+                                        {scoringModeLabels[mode]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className={block("danger-btn")}
+                                    onClick={() =>
+                                      removeCriterionIndicator(
+                                        index,
+                                        indicatorIndex,
+                                      )
+                                    }
+                                  >
+                                    Удалить
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                className={block("link-btn")}
+                                onClick={() => addCriterionIndicator(index)}
+                              >
+                                + Добавить показатель
+                              </button>
+                              <span className={block("hint")}>
+                                {indicatorFormulaHint}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {evaluationIssues.length > 0 && (
+                  <div className={block("evaluation-issues")}>
+                    {evaluationIssues.map((issue, index) => (
+                      <div
+                        key={`${issue.level}-${index}`}
+                        className={block("alert-warning")}
+                        role="alert"
+                      >
+                        {issue.level === "error" ? "Ошибка: " : "Внимание: "}
+                        {issue.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Сроки поставки: относительные или абсолютные */}
           <div className={block("field", ["wide"])}>
@@ -2487,12 +2808,23 @@ export default function PurchaseNoteModal({
 
               {watchedDeliveryMode === "relative" ? (
                 <div className={block("grid")}>
+                  <div className={block("field", ["wide"])}>
+                    <label className={block("checkbox")}>
+                      <input
+                        type="checkbox"
+                        {...register("deliveryTermFromContractDate")}
+                      />
+                      <span>С даты заключения контракта</span>
+                    </label>
+                  </div>
                   <div className={block("field")}>
                     <label
                       className={block("label")}
                       htmlFor="note-start-offset"
                     >
-                      Начало через (дней с даты заключения контракта)
+                      {watchedDeliveryFromContract
+                        ? "Начало через (дней с даты заключения контракта)"
+                        : "Начало через (дней с даты, указанной в закупке)"}
                     </label>
                     <input
                       id="note-start-offset"
@@ -2687,7 +3019,7 @@ export default function PurchaseNoteModal({
               идёт расшифровка — КБК, обоснование, файл и запрос. */}
           <div className={block("field", ["wide"])}>
             <div className={block("finance-summary")}>
-              <div className={block("finance-summary-row")}>
+              <div className={block("finance-summary-col")}>
                 <div className={block("field")}>
                   <label className={block("label")} htmlFor="note-nmck">
                     НМЦК, рублей *
@@ -2821,7 +3153,9 @@ export default function PurchaseNoteModal({
                       {KBK_YEAR_COLUMNS.map((column) => (
                         <th key={column.field}>{column.label}</th>
                       ))}
-                      <th>Всего, руб.</th>
+                      <th title="Итог по КБК рассчитывается по годовым суммам и не редактируется">
+                        Всего (расчёт), руб.
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3789,146 +4123,10 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
-      {/* 5. Критерии оценки заявок по ПП РФ N 2604 — открываются только при
-          выбранном конкурсе. Для аукциона, котировок и невыбранного способа
-          раздела в служебной записке нет. */}
-      {evaluationApplies && (
-        <fieldset className={block("section")} disabled={isReadOnly}>
-          <legend>5. Критерии оценки заявок (ПП РФ N 2604)</legend>
-          <div className={block("grid")}>
-            <div className={block("field", ["wide"])}>
-              <span className={block("label")}>
-                Применение Положения к выбранной процедуре
-              </span>
-              <p className={block("hint")}>
-                {procedureApplicabilityHint[evaluationKind]}
-              </p>
-            </div>
-
-            <div className={block("field")}>
-              <label className={block("label")} htmlFor="note-eval-category">
-                Категория объекта закупки (приложение N 2)
-              </label>
-              <select
-                id="note-eval-category"
-                className={block("select")}
-                {...register("evaluationObjectCategory")}
-              >
-                {OBJECT_CATEGORY_LIMITS.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </select>
-              <span className={block("hint")}>
-                Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
-                {evaluationLimits.maxExpenses === null
-                  ? "не применяются"
-                  : `не более ${evaluationLimits.maxExpenses}%`}
-                , характеристики и квалификация — не более{" "}
-                {evaluationLimits.maxNonCost}%.
-              </span>
-            </div>
-
-            <div className={block("field", ["wide"])}>
-              <span className={block("label")}>
-                Связь с ОКПД2 позиции плана-графика
-              </span>
-              {detectedCategory.matches.length === 0 ? (
-                <span className={block("hint")}>
-                  Коды ОКПД2 в объектах закупки не указаны — категория выбрана
-                  вручную.
-                </span>
-              ) : (
-                <span className={block("hint")}>
-                  {detectedCategory.matches
-                    .map(
-                      (match) =>
-                        `${match.code} → ${
-                          match.category
-                            ? objectCategoryLimits(match.category).label
-                            : "правило не найдено"
-                        }`,
-                    )
-                    .join("; ")}
-                  {detectedCategory.conflict
-                    ? ". Объекты попали в разные категории — выберите категорию вручную."
-                    : ""}
-                </span>
-              )}
-            </div>
-
-            <div className={block("field", ["wide"])}>
-              <span className={block("label")}>
-                Критерии и значимость (сумма — 100%)
-              </span>
-              <div className={block("pp2571-list")}>
-                {evaluationCriteria.map((criterion, index) => (
-                  <div className={block("req-item")} key={criterion.type}>
-                    <label className={block("checkbox")}>
-                      <input
-                        type="checkbox"
-                        disabled={
-                          !evaluationApplies && criterion.type !== "price"
-                        }
-                        {...register(`evaluationCriteria.${index}.enabled`)}
-                      />
-                      <span>{criterionShortLabels[criterion.type]}</span>
-                    </label>
-
-                    {criterion.enabled && (
-                      <div className={block("req-desc")}>
-                        <label className={block("label")}>
-                          Значимость критерия, %
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step="0.01"
-                          className={block("input", ["code"])}
-                          disabled={
-                            !evaluationApplies && criterion.type !== "price"
-                          }
-                          {...register(
-                            `evaluationCriteria.${index}.weightPercent`,
-                          )}
-                        />
-                        {criterion.type !== "price" && (
-                          <span className={block("hint")}>
-                            Показатели оценки (опыт, характеристики и т. п.)
-                            настраиваются на экране «Оценка заявок».
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {evaluationIssues.length > 0 && (
-              <div className={block("field", ["wide"])}>
-                {evaluationIssues.map((issue, index) => (
-                  <div
-                    key={`${issue.level}-${index}`}
-                    className={block("alert-warning")}
-                    role="alert"
-                  >
-                    {issue.level === "error" ? "Ошибка: " : "Внимание: "}
-                    {issue.message}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </fieldset>
-      )}
-
-      {/* 6. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
+      {/* 5. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>
-          6. СМП/СОНКО (ст. 30) и требования к участникам (ст. 31, ПП 1482, ПП
+          5. СМП/СОНКО (ст. 30) и требования к участникам (ст. 31, ПП 1482, ПП
           2571)
         </legend>
         <div className={block("grid")}>
@@ -4241,10 +4439,10 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
-      {/* 7. Обеспечение заявки, контракта, гарантия качества и обеспечение гарантий */}
+      {/* 6. Обеспечение заявки, контракта, гарантия качества и обеспечение гарантий */}
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>
-          7. Обеспечение заявки, контракта, гарантия качества и реквизиты
+          6. Обеспечение заявки, контракта, гарантия качества и реквизиты
         </legend>
 
         <div className={block("toolbar-row")}>

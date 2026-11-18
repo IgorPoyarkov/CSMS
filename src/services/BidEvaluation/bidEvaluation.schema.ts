@@ -567,6 +567,24 @@ export const scoringModeLabels: Record<ScoringMode, string> = {
   scale: "Шкала оценки (п. 22 Положения)",
 };
 
+/**
+ * Тексты формул Положения N 2604 для формы: пользователь видит, по какой
+ * зависимости считается балл, не открывая отдельный экран оценки.
+ */
+export const criterionFormulaText: Record<CriterionType, string> = {
+  price:
+    "БЦi = (Цнач − Цi) / Цнач × 100 (п. 9); при предложении ниже нуля — (Цнач + |Цi|) / Цнач × 100",
+  expenses:
+    "БРi = (Рнач − Рi) / Рнач × 100 (п. 10), где Рнач — начальная сумма расходов",
+  characteristics:
+    "Бij = (Xij − Xmin) / (Xmax − Xmin) × 100 при «лучше большее»; (Xmax − Xij) / (Xmax − Xmin) × 100 при «лучше меньшее» (п. 20)",
+  qualification:
+    "Бij = (Xij − Xmin) / (Xmax − Xmin) × 100 при «лучше большее»; (Xmax − Xij) / (Xmax − Xmin) × 100 при «лучше меньшее» (п. 20)",
+};
+
+export const indicatorFormulaHint =
+  "Итог по критерию: БКi = Σ(Бij × Зij) / 100, где Зij — значимость показателя (сумма 100%). Итог по заявке: Бi = Σ(БКi × Зк) / 100, где Зк — значимость критерия (сумма 100%).";
+
 export const IndicatorSchema = z.object({
   id: idSchema(),
   name: z.string().trim().min(1, "Укажите показатель оценки"),
