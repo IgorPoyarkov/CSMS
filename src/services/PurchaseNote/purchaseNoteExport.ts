@@ -17,8 +17,8 @@ import {
 } from "./purchaseNote.schema";
 import {
   NATIONAL_REGIME_OPTIONS,
-  PLACING_WAYS_CONTEST,
-} from "../../components/NoticeInfoForm/noticeInfo.config";
+  PLACING_WAYS_ALL,
+} from "../../services/Procurements/noticeInfo.config";
 
 export interface PurchaseNoteExportContext {
   note: PurchaseNote;
@@ -67,7 +67,7 @@ const formatMoneyText = (raw?: string | number): string => {
 
 const placingWayLabel = (code?: string): string => {
   if (!code) return "—";
-  const found = PLACING_WAYS_CONTEST.find((w) => w.code === code);
+  const found = PLACING_WAYS_ALL.find((w) => w.code === code);
   return found ? `${found.label} (${found.code})` : code;
 };
 

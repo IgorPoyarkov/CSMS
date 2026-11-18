@@ -1,16 +1,28 @@
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
+import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
+import { useOkpd2Dictionary } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import CustomSelect from "../../UI/CustomSelect";
-import { ETP_OPTIONS, PLACING_WAYS_CONTEST } from "../noticeInfo.config";
+import { ETP_OPTIONS, PLACING_WAYS_ALL } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
 
 const GeneralInfoSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
   const generalInfo = watch("generalInfo");
+  const purchaseObjects = watch("purchaseObjects.items") ?? [];
+  const auctionValidation = validatePlacingWayAgainstAuctionList(
+    generalInfo.placingWayCode,
+    purchaseObjects.map((item) => ({
+      code: item?.okpd2OrKtruCode,
+      name: item?.name,
+    })),
+    okpd2Refs,
+  );
 
   const handleSelectEtp = (etpName: string) => {
     setValue("generalInfo.etpName", etpName);
@@ -41,7 +53,7 @@ const GeneralInfoSection = () => {
             </span>
             <div className={block("field-col")}>
               <div className={block("radio-group")}>
-                {PLACING_WAYS_CONTEST.map((way) => (
+                {PLACING_WAYS_ALL.map((way) => (
                   <label key={way.code} className={block("radio")}>
                     <input
                       type="radio"
@@ -55,6 +67,31 @@ const GeneralInfoSection = () => {
                   </label>
                 ))}
               </div>
+
+              {auctionValidation.hasViolation && auctionValidation.warningMessage && (
+                <div className={block("danger-warning")} role="alert">
+                  <span className={block("danger-badge")}>!</span>
+                  <div>
+                    <div>{auctionValidation.warningMessage}</div>
+                    <button
+                      type="button"
+                      className={block("link-btn")}
+                      onClick={() =>
+                        setValue("generalInfo.placingWayCode", "EA20")
+                      }
+                    >
+                      Переключить способ на электронный аукцион (EA20)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!auctionValidation.hasViolation && auctionValidation.infoMessage && (
+                <div className={block("yellow-warning")}>
+                  <span className={block("warning-badge")}>i</span>
+                  <span>{auctionValidation.infoMessage}</span>
+                </div>
+              )}
 
               <p className={block("red-note")}>
                 В случае проведения открытого конкурса с учетом особенностей,

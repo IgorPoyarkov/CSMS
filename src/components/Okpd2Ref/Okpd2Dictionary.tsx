@@ -2,14 +2,18 @@ import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker from "../UI/PageSizePicker";
 import {
+  AUCTION_LIST_ACT_TITLE,
+  checkOkpd2AuctionList,
+} from "../../services/Okpd2Ref/auctionListControl";
+import {
   findOkpd2ByCode,
   searchOkpd2,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import styles from "./Okpd2Dictionary.module.scss";
 
-// Просмотр справочника: поиск по коду и наименованию, отбор нормируемых
-// позиций и порционный вывод — кодов ОКПД2 много, выводить их целиком нельзя
+// Просмотр справочника: поиск по коду и наименованию, отбор нормируемых и
+// аукционных позиций (РП № 471-р) и порционный вывод
 const PAGE_SIZES = [25, 50, 100, "all"] as const;
 type PageSize = (typeof PAGE_SIZES)[number];
 
@@ -30,19 +34,35 @@ export default function Okpd2Dictionary() {
 
   const [query, setQuery] = useState("");
   const [onlyNormed, setOnlyNormed] = useState(false);
+  const [onlyAuction, setOnlyAuction] = useState(false);
   const [pageSize, setPageSize] = useState<PageSize>(25);
   const [page, setPage] = useState(1);
 
   const found = useMemo(() => {
     // Поиск не ограничиваем выдачей 30 строк: здесь нужен весь результат,
     // чтобы работала пагинация
-    const matched = searchOkpd2(dictionary, query, Number.MAX_SAFE_INTEGER);
-
-    return onlyNormed ? matched.filter((item) => item.isNormed) : matched;
-  }, [dictionary, query, onlyNormed]);
+    let matched = searchOkpd2(dictionary, query, Number.MAX_SAFE_INTEGER);
+    if (onlyNormed) {
+      matched = matched.filter((item) => item.isNormed);
+    }
+    if (onlyAuction) {
+      matched = matched.filter(
+        (item) => checkOkpd2AuctionList(item.code, dictionary).inAuctionList,
+      );
+    }
+    return matched;
+  }, [dictionary, query, onlyNormed, onlyAuction]);
 
   const normedCount = useMemo(
     () => dictionary.filter((item) => item.isNormed).length,
+    [dictionary],
+  );
+
+  const auctionCount = useMemo(
+    () =>
+      dictionary.filter(
+        (item) => checkOkpd2AuctionList(item.code, dictionary).inAuctionList,
+      ).length,
     [dictionary],
   );
 
@@ -60,14 +80,18 @@ export default function Okpd2Dictionary() {
           <h1 className={block("title")}>Справочник ОКПД2</h1>
           <p className={block("summary")}>
             Позиций в справочнике: {dictionary.length} · подлежит обязательному
-            нормированию: {normedCount}
+            нормированию: {normedCount} · в аукционном перечне (РП № 471-р):{" "}
+            {auctionCount}
           </p>
           <p className={block("note")}>
-            Код и наименование подставляются в запись плана-графика, извещение и
-            проект контракта выбором из списка. Признак нормирования означает,
-            что для позиции установлены общие правила определения требований и
-            предельные цены (ПП РФ от 02.09.2015 N 926, ПП РФ от 13.10.2014 N
-            1047).
+            Код и наименование подставляются в запись плана-графика, СЗ,
+            извещение и проект контракта выбором из списка. Признак нормирования
+            означает требования по ПП РФ от 02.09.2015 N 926 и ПП РФ от
+            13.10.2014 N 1047. Позиции с признаком{" "}
+            <strong>«Электронный аукцион»</strong> входят в перечень по{" "}
+            {AUCTION_LIST_ACT_TITLE}: по ч. 6 ст. 24 Закона № 44-ФЗ проведение
+            конкурса по ним неправомерно (за исключением запроса котировок и
+            закупки у ед. поставщика).
           </p>
         </div>
       </header>
@@ -94,6 +118,18 @@ export default function Okpd2Dictionary() {
             }}
           />
           Только подлежащие нормированию
+        </label>
+
+        <label className={block("toggle")}>
+          <input
+            type="checkbox"
+            checked={onlyAuction}
+            onChange={(event) => {
+              setOnlyAuction(event.target.checked);
+              setPage(1);
+            }}
+          />
+          Только из аукционного перечня (471-р)
         </label>
 
         <PageSizePicker
@@ -129,28 +165,59 @@ export default function Okpd2Dictionary() {
                   <th>№</th>
                   <th>Код ОКПД2</th>
                   <th>Наименование товара, работы, услуги</th>
+                  <th>Аукционный перечень (471-р)</th>
                   <th>Обязательное нормирование</th>
                   <th>Предельная цена единицы, ₽</th>
                 </tr>
               </thead>
               <tbody>
-                {pageRows.map((item, index) => (
-                  <tr key={String(item.id ?? item.code)}>
-                    <td>{start + index + 1}</td>
-                    <td className={block("code")}>{item.code}</td>
-                    <td>{item.name}</td>
-                    <td>
-                      {item.isNormed ? (
-                        <span className={block("tag", ["normed"])}>Да</span>
-                      ) : (
-                        <span className={block("tag")}>Нет</span>
-                      )}
-                    </td>
-                    <td>
-                      {item.normLimit ? money.format(item.normLimit) : "—"}
-                    </td>
-                  </tr>
-                ))}
+                {pageRows.map((item, index) => {
+                  const auctionCheck = checkOkpd2AuctionList(
+                    item.code,
+                    dictionary,
+                  );
+                  return (
+                    <tr key={String(item.id ?? item.code)}>
+                      <td>{start + index + 1}</td>
+                      <td className={block("code")}>{item.code}</td>
+                      <td>{item.name}</td>
+                      <td>
+                        {auctionCheck.inAuctionList ? (
+                          <span
+                            className={block("tag", ["auction"])}
+                            title={auctionCheck.note ?? AUCTION_LIST_ACT_TITLE}
+                          >
+                            Электронный аукцион
+                          </span>
+                        ) : auctionCheck.excludedByException ? (
+                          <span
+                            className={block("tag", ["exception"])}
+                            title={auctionCheck.note}
+                          >
+                            Исключение (допустим конкурс)
+                          </span>
+                        ) : (
+                          <span
+                            className={block("tag")}
+                            title={auctionCheck.note}
+                          >
+                            Не входит
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {item.isNormed ? (
+                          <span className={block("tag", ["normed"])}>Да</span>
+                        ) : (
+                          <span className={block("tag")}>Нет</span>
+                        )}
+                      </td>
+                      <td>
+                        {item.normLimit ? money.format(item.normLimit) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -184,14 +251,14 @@ export default function Okpd2Dictionary() {
         </>
       )}
 
-      {/* Проверка кода: подпадает ли конкретный код под нормирование */}
+      {/* Проверка кода: нормирование и вхождение в аукционный перечень № 471-р */}
       <Okpd2CodeCheck dictionary={dictionary} />
     </section>
   );
 }
 
 // Мини-проверка кода: позволяет убедиться, что позиция подпадает под
-// обязательное нормирование, до внесения её в план-график
+// обязательное нормирование и/или аукционный перечень № 471-р
 function Okpd2CodeCheck({
   dictionary,
 }: {
@@ -202,47 +269,79 @@ function Okpd2CodeCheck({
   const [code, setCode] = useState("");
 
   const matched = findOkpd2ByCode(dictionary ?? [], code);
+  const auctionCheck = checkOkpd2AuctionList(code, dictionary ?? []);
   const showResult = code.trim().length >= 2;
 
   return (
     <div className={block("check")}>
       <label className={block("control")}>
         <span className={block("control-caption")}>
-          Проверка кода на нормирование
+          Проверка кода на нормирование и аукционный перечень (РП № 471-р)
         </span>
         <input
           className={block("search")}
           type="text"
-          placeholder="Например, 31.01.11.130"
+          placeholder="Например, 31.01.11.130 или 62.01"
           value={code}
           onChange={(event) => setCode(event.target.value)}
         />
       </label>
 
       {showResult && (
-        <p
-          className={block(
-            "status",
-            matched?.isNormed ? ["warning"] : matched ? [] : ["error"],
-          )}
-        >
-          {!matched && `Код «${code}» в справочнике не найден.`}
-          {matched && !matched.isNormed && (
-            <>
-              {matched.code} — {matched.name}. Обязательное нормирование не
-              установлено.
-            </>
-          )}
-          {matched?.isNormed && (
-            <>
-              {matched.code} — {matched.name}. Позиция подлежит обязательному
-              нормированию
-              {matched.normLimit
-                ? `, предельная цена единицы — ${money.format(matched.normLimit)} ₽.`
-                : "."}
-            </>
-          )}
-        </p>
+        <>
+          <p
+            className={block(
+              "status",
+              matched?.isNormed ? ["warning"] : matched ? [] : ["error"],
+            )}
+          >
+            {!matched &&
+              `Код «${code}» отсутствует в локальном справочнике (проверка 471-р выполнена по группировке ОКПД2).`}
+            {matched && !matched.isNormed && (
+              <>
+                {matched.code} — {matched.name}. Обязательное нормирование не
+                установлено.
+              </>
+            )}
+            {matched?.isNormed && (
+              <>
+                {matched.code} — {matched.name}. Позиция подлежит обязательному
+                нормированию
+                {matched.normLimit
+                  ? `, предельная цена единицы — ${money.format(matched.normLimit)} ₽.`
+                  : "."}
+              </>
+            )}
+          </p>
+
+          <p
+            className={block(
+              "status",
+              auctionCheck.inAuctionList ? ["warning"] : [],
+            )}
+          >
+            {auctionCheck.inAuctionList ? (
+              <>
+                <strong>Аукционный перечень ({AUCTION_LIST_ACT_TITLE}):</strong>{" "}
+                код {auctionCheck.code} включён в перечень —{" "}
+                <strong>обязателен электронный аукцион</strong> (проведение
+                конкурса запрещено по ч. 6 ст. 24 Закона № 44-ФЗ, кроме запроса
+                котировок и закупки у ед. поставщика).
+              </>
+            ) : auctionCheck.excludedByException ? (
+              <>
+                <strong>Аукционный перечень ({AUCTION_LIST_ACT_TITLE}):</strong>{" "}
+                {auctionCheck.note}
+              </>
+            ) : (
+              <>
+                <strong>Аукционный перечень ({AUCTION_LIST_ACT_TITLE}):</strong>{" "}
+                код {auctionCheck.code} не включён в перечень — допускается
+                проведение как конкурса, так и электронного аукциона.
+              </>
+            )}
+          </p>
+        </>
       )}
     </div>
   );

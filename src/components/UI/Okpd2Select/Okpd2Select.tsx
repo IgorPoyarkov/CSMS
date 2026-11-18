@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useUtils from "../../../hooks/useUtils";
+import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import {
   searchOkpd2,
   useOkpd2Dictionary,
@@ -117,7 +118,15 @@ export default function Okpd2Select({
       return;
     }
 
-    onSelect({ id: undefined, code: typed, name: name ?? "", isNormed: false });
+    const auctionCheck = checkOkpd2AuctionList(typed, dictionary);
+    onSelect({
+      id: undefined,
+      code: typed,
+      name: name ?? "",
+      isNormed: false,
+      isAuctionRequired: auctionCheck.inAuctionList,
+      auctionNote: auctionCheck.note,
+    });
     setIsOpen(false);
     setQuery("");
   }
@@ -202,47 +211,58 @@ export default function Okpd2Select({
           )}
 
           {!isLoading &&
-            items.map((item, index) => (
-              <li
-                key={String(item.id ?? item.code)}
-                role="option"
-                aria-selected={index === highlighted}
-                className={block(
-                  "item",
-                  index === highlighted ? ["active"] : [],
-                )}
-                // Полное наименование отдаём нативному тултипу: в выдаче оно
-                // обрезано, а прочитать нужно целиком
-                title={`${item.code} — ${item.name}`}
-                onMouseEnter={() => setHighlighted(index)}
-                onMouseDown={(event) => {
-                  // mousedown, а не click: клик по списку не должен
-                  // успеть закрыть его через обработчик «вне компонента»
-                  event.preventDefault();
-                  pick(item);
-                }}
-              >
-                <span className={block("code")}>{item.code}</span>
-                <span className={block("name")}>{item.name}</span>
-                {item.isNormed && (
-                  <span
-                    className={block(
-                      "badge",
-                      item.normLimit ? ["limit"] : ["normed"],
-                    )}
-                    title={
-                      item.normLimit
-                        ? `Обязательное нормирование, предельная цена единицы ${formatMoney.format(item.normLimit)} ₽`
-                        : "Обязательное нормирование"
-                    }
-                  >
-                    {item.normLimit
-                      ? `норм. ≤ ${formatMoney.format(item.normLimit)} ₽`
-                      : "нормирование"}
-                  </span>
-                )}
-              </li>
-            ))}
+            items.map((item, index) => {
+              const auctionRes = checkOkpd2AuctionList(item.code, dictionary);
+              return (
+                <li
+                  key={String(item.id ?? item.code)}
+                  role="option"
+                  aria-selected={index === highlighted}
+                  className={block(
+                    "item",
+                    index === highlighted ? ["active"] : [],
+                  )}
+                  // Полное наименование отдаём нативному тултипу: в выдаче оно
+                  // обрезано, а прочитать нужно целиком
+                  title={`${item.code} — ${item.name}`}
+                  onMouseEnter={() => setHighlighted(index)}
+                  onMouseDown={(event) => {
+                    // mousedown, а не click: клик по списку не должен
+                    // успеть закрыть его через обработчик «вне компонента»
+                    event.preventDefault();
+                    pick(item);
+                  }}
+                >
+                  <span className={block("code")}>{item.code}</span>
+                  <span className={block("name")}>{item.name}</span>
+                  {auctionRes.inAuctionList && (
+                    <span
+                      className={block("badge", ["auction"])}
+                      title="Код входит в аукционный перечень (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022) — обязателен электронный аукцион"
+                    >
+                      аукц. 471-р
+                    </span>
+                  )}
+                  {item.isNormed && (
+                    <span
+                      className={block(
+                        "badge",
+                        item.normLimit ? ["limit"] : ["normed"],
+                      )}
+                      title={
+                        item.normLimit
+                          ? `Обязательное нормирование, предельная цена единицы ${formatMoney.format(item.normLimit)} ₽`
+                          : "Обязательное нормирование"
+                      }
+                    >
+                      {item.normLimit
+                        ? `норм. ≤ ${formatMoney.format(item.normLimit)} ₽`
+                        : "нормирование"}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
 
           {canUseTypedCode && (
             <li

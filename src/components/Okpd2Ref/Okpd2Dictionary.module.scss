@@ -149,6 +149,17 @@
       background: var(--state-warning-soft);
       color: var(--text-primary);
     }
+
+    &--auction {
+      background: var(--accent-soft);
+      color: var(--accent-emphasis);
+      border: 1px solid var(--accent);
+    }
+
+    &--exception {
+      background: var(--state-success-soft, rgba(22, 163, 74, 0.12));
+      color: var(--text-primary);
+    }
   }
 
   &__pager {

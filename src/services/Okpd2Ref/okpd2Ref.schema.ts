@@ -7,6 +7,9 @@ import { z } from "zod";
  * `isNormed` — помечает позиции, подпадающие под обязательное нормирование
  * (ПП 926 «Общие правила определения требований…», ПП 1047 «Нормативные затраты»).
  * `normLimit` — предельная цена (руб.) для нормируемых позиций, если установлена.
+ * `isAuctionRequired` — помечает позиции из «аукционного перечня»
+ * (Распоряжение Правительства РФ от 21.03.2016 N 471-р, ред. от 31.10.2022).
+ * `auctionNote` — оговорка / исключение по РП РФ N 471-р (при наличии).
  */
 
 export const Okpd2RefSchema = z.object({
@@ -17,6 +20,8 @@ export const Okpd2RefSchema = z.object({
   name: z.string().min(2, "Укажите наименование товара, работы, услуги по ОКПД2"),
   isNormed: z.boolean().default(false),
   normLimit: z.coerce.number().min(0).optional(),
+  isAuctionRequired: z.boolean().optional(),
+  auctionNote: z.string().optional(),
 });
 
 export type Okpd2Ref = z.infer<typeof Okpd2RefSchema>;

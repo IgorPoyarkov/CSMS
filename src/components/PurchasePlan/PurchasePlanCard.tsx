@@ -18,6 +18,7 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { purchaseNotesForPosition } from "../../services/PurchaseNote/purchaseNote.schema";
+import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -272,11 +273,18 @@ export default function PurchasePlanCard() {
         // Наименование по ОКПД2, выбранное пользователем, и сам код мелкой
         // строкой под ним; у нормируемых позиций рядом стоит знак «i»
         const normedRef = findOkpd2ByCode(okpd2Refs, position.okpd2Code);
+        const auctionCheck = checkOkpd2AuctionList(
+          position.okpd2Code,
+          okpd2Refs,
+        );
         const okpd2Name = position.okpd2Name || normedRef?.name;
         const normTip = normedRef?.isNormed
           ? normedRef.normLimit !== undefined
             ? `Обязательное нормирование: цена единицы не выше ${formatMoney(normedRef.normLimit)} (ПП РФ N 926)`
             : "Обязательное нормирование: предельная цена единицы устанавливается правовым актом (ПП РФ N 926)"
+          : undefined;
+        const auctionTip = auctionCheck.inAuctionList
+          ? `Аукционный перечень (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022): при конкурентной закупке обязателен электронный аукцион`
           : undefined;
 
         return (
@@ -293,6 +301,15 @@ export default function PurchasePlanCard() {
                   aria-label={normTip}
                 >
                   i
+                </span>
+              )}
+              {auctionTip && (
+                <span
+                  className={block("info")}
+                  title={auctionTip}
+                  aria-label={auctionTip}
+                >
+                  А
                 </span>
               )}
             </span>

@@ -4,6 +4,7 @@ import useUtils from "../../hooks/useUtils";
 import CustomModal from "../UI/CustomModal";
 import CustomInput from "../UI/CustomInput";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
+import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -112,6 +113,7 @@ export default function PurchasePlanPositionModal({
 
   // Предельная цена единицы по ПП РФ N 926: предупреждаем прямо в записи ПГ
   const normedRef = findOkpd2ByCode(okpd2Refs, okpd2Code);
+  const auctionCheck = checkOkpd2AuctionList(okpd2Code, okpd2Refs);
 
   function handleOkpd2Select(item: Okpd2Ref | null) {
     setValue("okpd2Code", item?.code ?? "", { shouldValidate: true });
@@ -265,6 +267,13 @@ export default function PurchasePlanPositionModal({
                   {normedRef.normLimit !== undefined
                     ? ` Предельная цена единицы — ${formatMoney(normedRef.normLimit)}.`
                     : ""}
+                </span>
+              )}
+              {auctionCheck.inAuctionList && (
+                <span className={block("hint", ["norm"])}>
+                  Код {auctionCheck.code} включён в аукционный перечень (РП РФ
+                  № 471-р): при конкурентной закупке обязателен электронный
+                  аукцион (проведение конкурса неправомерно по ч. 6 ст. 24 44-ФЗ).
                 </span>
               )}
             </div>

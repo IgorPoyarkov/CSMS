@@ -154,5 +154,11 @@
       background: var(--state-danger);
       color: var(--text-on-accent);
     }
+
+    &--auction {
+      background: var(--accent-soft);
+      color: var(--accent-emphasis);
+      border: 1px solid var(--accent);
+    }
   }
 }
