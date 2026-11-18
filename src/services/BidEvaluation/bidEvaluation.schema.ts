@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkOkpd2AuctionList } from "../Okpd2Ref/auctionListControl";
 
 /**
  * Оценка заявок на участие в закупке по Положению, утверждённому
@@ -83,12 +84,7 @@ const today = (): string => new Date().toISOString().slice(0, 10);
 
 // === Виды процедур (п. 4, 5 Положения) ===
 
-export const PROCEDURE_KINDS = [
-  "tender",
-  "auction",
-  "quotation",
-  "request_proposals",
-] as const;
+export const PROCEDURE_KINDS = ["tender", "auction", "quotation"] as const;
 
 export type ProcedureKind = (typeof PROCEDURE_KINDS)[number];
 
@@ -96,7 +92,50 @@ export const procedureKindLabels: Record<ProcedureKind, string> = {
   tender: "Конкурс (в электронной форме)",
   auction: "Аукцион",
   quotation: "Запрос котировок",
-  request_proposals: "Запрос предложений",
+};
+
+/**
+ * Применяется ли Положение N 2604 к процедуре.
+ *
+ * Пункт 4: при аукционе используется только критерий цены, а заявкам
+ * присваивается порядковый номер — раздел II Положения не применяется.
+ * Запрос котировок оценивается по цене контракта, критерии и баллы не
+ * рассчитываются. Запрос предложений в 44-ФЗ с 2022 года отсутствует.
+ */
+export const PP_2604_APPLIES: Record<ProcedureKind, boolean> = {
+  tender: true,
+  auction: false,
+  quotation: false,
+};
+
+export const procedureApplicabilityHint: Record<ProcedureKind, string> = {
+  tender:
+    "Положение применяется: не менее двух критериев, одним из которых должна быть цена (п. 5).",
+  auction:
+    "Положение не применяется: при аукционе заявки оцениваются только по цене, им присваивается порядковый номер (п. 4 Положения).",
+  quotation:
+    "Положение не применяется: в запросе котировок оценивается только цена контракта.",
+};
+
+export const pp2604Applies = (kind: ProcedureKind | undefined): boolean =>
+  kind === undefined ? true : PP_2604_APPLIES[kind];
+
+/** Способ определения поставщика из извещения/СЗ → вид процедуры */
+export const procedureKindFromPlacingWay = (
+  placingWayCode: string | undefined,
+): ProcedureKind => {
+  const code = String(placingWayCode ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (code.startsWith("EA")) {
+    return "auction";
+  }
+  if (code.startsWith("ZK")) {
+    return "quotation";
+  }
+
+  return "tender";
 };
 
 // === Категории объекта закупки (приложение N 2) ===
@@ -275,6 +314,161 @@ export const objectCategoryLimits = (
   OBJECT_CATEGORY_LIMITS.find((item) => item.id === category) ??
   OBJECT_CATEGORY_LIMITS[1];
 
+// === Связь категории объекта закупки с ОКПД2 (приложение N 2) ===
+
+interface CategoryRule {
+  prefix: string;
+  category: string;
+}
+
+/**
+ * Правила отнесения ОКПД2 к категориям приложения N 2. Порядок важен:
+ * частные правила (автодороги, текущий ремонт, отдых детей, пищевые продукты)
+ * стоят выше общих разделов. Категория нужна, чтобы проверить предельные
+ * величины значимости и понять, применим ли конкурс вообще.
+ */
+const CATEGORY_RULES: CategoryRule[] = [
+  // Строительство и ремонт
+  { prefix: "42.11", category: "road" },
+  { prefix: "43.3", category: "building_repair" },
+  { prefix: "41", category: "construction" },
+  { prefix: "42", category: "construction" },
+  { prefix: "43", category: "construction" },
+  // Здравоохранение, образование, отдых детей
+  { prefix: "86", category: "medical" },
+  { prefix: "85.4", category: "children_recreation" },
+  { prefix: "85", category: "education" },
+  // Услуги с отдельными правилами
+  { prefix: "69.1", category: "legal" },
+  { prefix: "69.2", category: "audit" },
+  { prefix: "71.2", category: "expertise" },
+  { prefix: "72", category: "research" },
+  { prefix: "62", category: "it_systems" },
+  { prefix: "63", category: "it_systems" },
+  { prefix: "80", category: "security" },
+  { prefix: "91.02", category: "museum_restoration" },
+  { prefix: "91.01", category: "archive_restoration" },
+  { prefix: "91.03", category: "archive_restoration" },
+  { prefix: "90", category: "literature_art" },
+  { prefix: "59.1", category: "film" },
+  { prefix: "56", category: "food_catering" },
+  { prefix: "10", category: "food_catering" },
+  { prefix: "11", category: "food_catering" },
+  // Товары (01–33, кроме перечисленного выше)
+  ...[
+    "01",
+    "02",
+    "03",
+    "04",
+    "05",
+    "06",
+    "07",
+    "08",
+    "09",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "21",
+    "22",
+    "23",
+    "24",
+    "25",
+    "26",
+    "27",
+    "28",
+    "29",
+    "30",
+    "31",
+    "32",
+    "33",
+  ].map((prefix) => ({ prefix, category: "goods" })),
+];
+
+const stripCodeDots = (code: string): string => code.replace(/\./g, "");
+
+export const normalizeOkpd2Code = (code: string | undefined): string =>
+  String(code ?? "")
+    .trim()
+    .replace(/,/g, ".")
+    .replace(/\s+/g, "");
+
+/** Категория приложения N 2 по коду ОКПД2 (undefined — правило не найдено) */
+export const categoryFromOkpd2 = (
+  code: string | undefined,
+): string | undefined => {
+  const clean = stripCodeDots(normalizeOkpd2Code(code));
+
+  if (!clean) {
+    return undefined;
+  }
+
+  const rule = CATEGORY_RULES.find((item) =>
+    clean.startsWith(stripCodeDots(item.prefix)),
+  );
+
+  return rule?.category;
+};
+
+export interface Okpd2CategoryMatch {
+  code: string;
+  category?: string;
+}
+
+export interface Okpd2CategoryDetection {
+  // Категория, если все коды дали одно значение; иначе undefined
+  category?: string;
+  matches: Okpd2CategoryMatch[];
+  // Коды, для которых правило не нашлось
+  unmatched: string[];
+  // Объекты закупки попали в разные категории приложения N 2
+  conflict: boolean;
+}
+
+/**
+ * Определяет категорию объекта закупки по кодам ОКПД2 позиций СЗ/плана-графика.
+ * Если коды расходятся по категориям, категорию нужно выбрать вручную —
+ * `conflict: true`.
+ */
+export const detectObjectCategory = (
+  codes: (string | undefined)[],
+): Okpd2CategoryDetection => {
+  const matches: Okpd2CategoryMatch[] = [];
+  const unmatched: string[] = [];
+
+  codes.forEach((rawCode) => {
+    const code = normalizeOkpd2Code(rawCode);
+
+    if (!code) {
+      return;
+    }
+
+    const category = categoryFromOkpd2(code);
+
+    matches.push({ code, category });
+
+    if (!category) {
+      unmatched.push(code);
+    }
+  });
+
+  const categories = new Set(
+    matches.map((item) => item.category).filter(Boolean) as string[],
+  );
+
+  return {
+    category: categories.size === 1 ? [...categories][0] : undefined,
+    matches,
+    unmatched,
+    conflict: categories.size > 1,
+  };
+};
+
 // === Критерии оценки (п. 3 Положения) ===
 
 export const CRITERION_TYPES = [
@@ -301,6 +495,17 @@ export const criterionShortLabels: Record<CriterionType, string> = {
   expenses: "Расходы",
   characteristics: "Характеристики объекта",
   qualification: "Квалификация",
+};
+
+/**
+ * Критерий Положения N 2604 → тип критерия в извещении
+ * (`noticeInfo.schema`, `EvaluationCriterionSchema`).
+ */
+export const criterionToNoticeType: Record<CriterionType, string> = {
+  price: "price",
+  expenses: "exploitation_expenses",
+  characteristics: "qualitative_characteristics",
+  qualification: "qualification",
 };
 
 // === Показатели оценки (п. 7, 8 Положения) ===
@@ -477,6 +682,9 @@ export const BidEvaluationSchema = z.object({
   noticeInfoId: idSchema(),
   objectName: optionalText(3, "Укажите объект закупки"),
   objectCategory: z.enum(OBJECT_CATEGORY_IDS).default("works_services"),
+  // Коды ОКПД2 объектов закупки: по ним определяется категория приложения N 2
+  // и проверяется аукционный перечень (РП РФ N 471-р)
+  okpd2Codes: z.array(z.string()).default([]),
   procedureKind: z.enum(PROCEDURE_KINDS).default("tender"),
   // Начальная (максимальная) цена контракта — база для формул п. 9 и 10
   nmck: optionalMoney(),
@@ -559,6 +767,7 @@ export const emptyBidEvaluation = (
   organizationId,
   objectName: "",
   objectCategory: "works_services",
+  okpd2Codes: [],
   procedureKind: "tender",
   nmck: "",
   criteria: defaultCriteria(),
@@ -876,16 +1085,35 @@ const EXPERIENCE_REQUIRED_CATEGORIES = [
   "security",
 ];
 
+export interface ValidationOptions {
+  // Проверять показатели критериев: в СЗ они настраиваются на отдельном экране
+  checkIndicators?: boolean;
+  // Проверять состав заявок: в СЗ заявок ещё нет
+  checkBids?: boolean;
+}
+
 /**
  * Проверки перед сохранением/публикацией: то, что в Положении сформулировано
  * императивно. Ошибки блокируют публикацию, предупреждения — нет.
+ *
+ * Связь с планом-графиком: по кодам ОКПД2 объектов проверяется категория
+ * приложения N 2 и аукционный перечень (РП РФ N 471-р, ч. 6 ст. 24 44-ФЗ).
  */
 export const validateBidEvaluation = (
   config: Pick<
     BidEvaluation,
-    "procedureKind" | "objectCategory" | "criteria" | "bids" | "status" | "nmck"
+    | "procedureKind"
+    | "objectCategory"
+    | "criteria"
+    | "bids"
+    | "status"
+    | "nmck"
+    | "okpd2Codes"
   >,
+  options: ValidationOptions = {},
 ): ValidationIssue[] => {
+  const checkIndicators = options.checkIndicators ?? true;
+  const checkBids = options.checkBids ?? true;
   const issues: ValidationIssue[] = [];
   const enabled = config.criteria.filter((criterion) => criterion.enabled);
   const error = (message: string) => issues.push({ level: "error", message });
@@ -898,19 +1126,24 @@ export const validateBidEvaluation = (
     return issues;
   }
 
-  // Пункт 4: при проведении аукциона применяется только цена
-  if (config.procedureKind === "auction") {
-    if (enabled.length !== 1 || enabled[0].type !== "price") {
+  // Аукцион и запрос котировок: Положение N 2604 не применяется
+  if (!pp2604Applies(config.procedureKind)) {
+    const nonPrice = enabled.filter((criterion) => criterion.type !== "price");
+
+    if (nonPrice.length > 0) {
       error(
-        "При проведении аукциона применяется только критерий «цена контракта, сумма цен единиц товара, работы, услуги» (п. 4 Положения).",
+        `${procedureApplicabilityHint[config.procedureKind]} Отключите критерии: ${nonPrice
+          .map((criterion) => criterionShortLabels[criterion.type])
+          .join(", ")}.`,
       );
     }
 
-    if (Math.abs(parseNumber(enabled[0]?.weightPercent) - 100) > 0.01) {
-      warning("Для аукциона значимость цены принимается равной 100%.");
-    }
-
-    if (enabled.some((criterion) => criterion.indicators.length > 0)) {
+    if (
+      enabled.some(
+        (criterion) =>
+          criterion.type === "price" && criterion.indicators.length > 0,
+      )
+    ) {
       error(
         "По критерию «цена» показатели оценки не применяются (п. 11 Положения).",
       );
@@ -984,97 +1217,140 @@ export const validateBidEvaluation = (
     );
   }
 
+  // Связь с ОКПД2 позиций плана-графика/СЗ
+  const codes = (config.okpd2Codes ?? [])
+    .map((code) => normalizeOkpd2Code(code))
+    .filter(Boolean);
+
+  if (codes.length > 0) {
+    const detection = detectObjectCategory(codes);
+
+    if (detection.conflict) {
+      warning(
+        "Коды ОКПД2 объектов закупки относятся к разным категориям приложения N 2 — выберите категорию вручную.",
+      );
+    } else if (
+      detection.category &&
+      detection.category !== config.objectCategory
+    ) {
+      error(
+        `Категория «${limits.label}» не соответствует ОКПД2 ${codes.join(
+          ", ",
+        )}: по приложению N 2 ожидается «${
+          objectCategoryLimits(detection.category).label
+        }».`,
+      );
+    }
+
+    if (config.procedureKind === "tender") {
+      const auctionRequired = codes.filter(
+        (code) => checkOkpd2AuctionList(code).inAuctionList,
+      );
+
+      if (auctionRequired.length > 0) {
+        error(
+          `Код ОКПД2 ${auctionRequired.join(
+            ", ",
+          )} входит в аукционный перечень (РП РФ N 471-р): проведение конкурса запрещено (ч. 6 ст. 24 44-ФЗ), выберите электронный аукцион.`,
+        );
+      }
+    }
+  }
+
   // Показатели: суммы значимости и обязательность
-  enabled
-    .filter((criterion) => criterion.type !== "price")
-    .forEach((criterion) => {
-      const indicators = criterion.indicators;
+  if (checkIndicators) {
+    enabled
+      .filter((criterion) => criterion.type !== "price")
+      .forEach((criterion) => {
+        const indicators = criterion.indicators;
 
-      if (indicators.length === 0) {
-        error(
-          `По критерию «${criterionShortLabels[criterion.type]}» укажите показатели оценки (п. 7 Положения).`,
-        );
-
-        return;
-      }
-
-      const indicatorsSum = sumWeights(indicators);
-
-      if (Math.abs(indicatorsSum - 100) > 0.01) {
-        error(
-          `Сумма значимости показателей по критерию «${criterionShortLabels[criterion.type]}» — ${indicatorsSum}%, должна составлять 100% (п. 7, подп. «б» Положения).`,
-        );
-      }
-
-      indicators.forEach((indicator) => {
-        const allowed = indicatorKindsByCriterion[criterion.type];
-
-        if (!allowed.includes(indicator.kind)) {
+        if (indicators.length === 0) {
           error(
-            `Показатель «${indicator.name}» не относится к критерию «${criterionShortLabels[criterion.type]}».`,
+            `По критерию «${criterionShortLabels[criterion.type]}» укажите показатели оценки (п. 7 Положения).`,
+          );
+
+          return;
+        }
+
+        const indicatorsSum = sumWeights(indicators);
+
+        if (Math.abs(indicatorsSum - 100) > 0.01) {
+          error(
+            `Сумма значимости показателей по критерию «${criterionShortLabels[criterion.type]}» — ${indicatorsSum}%, должна составлять 100% (п. 7, подп. «б» Положения).`,
           );
         }
 
-        if (
-          indicator.scoring === "scale" &&
-          parseScaleText(indicator.scaleText).length === 0
-        ) {
-          error(
-            `Показатель «${indicator.name}»: задайте шкалу оценки (п. 22 Положения).`,
-          );
-        }
+        indicators.forEach((indicator) => {
+          const allowed = indicatorKindsByCriterion[criterion.type];
+
+          if (!allowed.includes(indicator.kind)) {
+            error(
+              `Показатель «${indicator.name}» не относится к критерию «${criterionShortLabels[criterion.type]}».`,
+            );
+          }
+
+          if (
+            indicator.scoring === "scale" &&
+            parseScaleText(indicator.scaleText).length === 0
+          ) {
+            error(
+              `Показатель «${indicator.name}»: задайте шкалу оценки (п. 22 Положения).`,
+            );
+          }
+        });
       });
+
+    // Пункт 11 «в»: показатели по цене не применяются
+    if (price && price.indicators.length > 0) {
+      error(
+        "По критерию «цена» показатели оценки не применяются (п. 11 Положения).",
+      );
+    }
+
+    // Пункты 31–35: для отдельных видов закупок обязателен опыт работы
+    if (EXPERIENCE_REQUIRED_CATEGORIES.includes(config.objectCategory)) {
+      const qualification = enabled.find(
+        (criterion) => criterion.type === "qualification",
+      );
+
+      if (qualification) {
+        const experience = qualification.indicators.find(
+          (indicator) => indicator.kind === "experience",
+        );
+
+        if (!experience) {
+          error(
+            "Для этой категории закупки обязательно применяется показатель «опыт работы, связанный с предметом контракта» (п. 31–35 Положения).",
+          );
+        } else if (parseNumber(experience.weightPercent) < 60) {
+          error(
+            "Значимость показателя «опыт работы» должна составлять не менее 60% (п. 31–35 Положения).",
+          );
+        }
+      }
+    }
+  }
+
+  if (checkBids) {
+    // Заявки появляются после вскрытия конвертов: требование относится только
+    // к подведению итогов, а не к публикации порядка оценки
+    if (config.bids.length < 2 && config.status === "evaluated") {
+      error("Для оценки заявок нужно не менее двух заявок.");
+    }
+
+    config.bids.forEach((bid, index) => {
+      if (price && String(bid.price ?? "").trim() === "") {
+        warning(
+          `Заявка № ${index + 1} («${bid.participantName}»): не указана цена контракта.`,
+        );
+      }
     });
 
-  // Пункт 11 «в»: показатели по цене не применяются
-  if (price && price.indicators.length > 0) {
-    error(
-      "По критерию «цена» показатели оценки не применяются (п. 11 Положения).",
-    );
-  }
-
-  // Пункты 31–35: для отдельных видов закупок обязателен опыт работы
-  if (EXPERIENCE_REQUIRED_CATEGORIES.includes(config.objectCategory)) {
-    const qualification = enabled.find(
-      (criterion) => criterion.type === "qualification",
-    );
-
-    if (qualification) {
-      const experience = qualification.indicators.find(
-        (indicator) => indicator.kind === "experience",
-      );
-
-      if (!experience) {
-        error(
-          "Для этой категории закупки обязательно применяется показатель «опыт работы, связанный с предметом контракта» (п. 31–35 Положения).",
-        );
-      } else if (parseNumber(experience.weightPercent) < 60) {
-        error(
-          "Значимость показателя «опыт работы» должна составлять не менее 60% (п. 31–35 Положения).",
-        );
-      }
-    }
-  }
-
-  // Заявки: цена и значения показателей
-  // Заявки появляются после вскрытия конвертов: требование относится только
-  // к подведению итогов, а не к публикации порядка оценки
-  if (config.bids.length < 2 && config.status === "evaluated") {
-    error("Для оценки заявок нужно не менее двух заявок.");
-  }
-
-  config.bids.forEach((bid, index) => {
-    if (price && String(bid.price ?? "").trim() === "") {
+    if (parseNumber(config.nmck) <= 0 && price) {
       warning(
-        `Заявка № ${index + 1} («${bid.participantName}»): не указана цена контракта.`,
+        "Не указана начальная (максимальная) цена контракта: формула п. 9 «б» и п. 10 Положения не применится.",
       );
     }
-  });
-
-  if (parseNumber(config.nmck) <= 0 && price) {
-    warning(
-      "Не указана начальная (максимальная) цена контракта: формула п. 9 «б» и п. 10 Положения не применится.",
-    );
   }
 
   return issues;
@@ -1133,6 +1409,7 @@ export const normalizeEvaluation = (
     ...base,
     ...value,
     organizationId: value?.organizationId ?? base.organizationId,
+    okpd2Codes: value?.okpd2Codes ?? base.okpd2Codes,
     criteria: normalizeCriteria(value?.criteria),
     bids: (value?.bids ?? []).map((bid, index) => ({
       ...bid,

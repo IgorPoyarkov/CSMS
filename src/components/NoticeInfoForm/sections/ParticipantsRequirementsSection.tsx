@@ -1,6 +1,13 @@
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
+import {
+  detectObjectCategory,
+  objectCategoryLimits,
+  pp2604Applies,
+  procedureApplicabilityHint,
+  procedureKindFromPlacingWay,
+} from "../../../services/BidEvaluation/bidEvaluation.schema";
 import { CRITERION_LABELS, PP2571_POSITIONS } from "../noticeInfo.config";
 import SecurityRequisitesFields from "../../PurchaseNote/SecurityRequisitesFields";
 import styles from "../NoticeInfoForm.module.scss";
@@ -12,7 +19,30 @@ const ParticipantsRequirementsSection = () => {
 
   const placingWayCode = watch("generalInfo.placingWayCode");
   const reqs = watch("participantsRequirements");
-  const isContest = placingWayCode.startsWith("OK");
+  const procedureKind = procedureKindFromPlacingWay(placingWayCode);
+  const isContest = pp2604Applies(procedureKind);
+
+  // Категория объекта и ОКПД2 пришли из служебной записки: по ним проверяем
+  // предельные величины значимости приложения N 2 к ПП РФ N 2604
+  const evaluationLimits = objectCategoryLimits(reqs.evaluationObjectCategory);
+  const detection = detectObjectCategory(reqs.evaluationOkpd2Codes ?? []);
+  const enabledCriteria = reqs.evaluationCriteria.filter(
+    (criterion) => criterion.enabled,
+  );
+  const weightSum = enabledCriteria.reduce(
+    (total, criterion) => total + Number(criterion.weightPercent ?? 0),
+    0,
+  );
+  const nonCostSum = enabledCriteria
+    .filter(
+      (criterion) =>
+        criterion.type === "qualitative_characteristics" ||
+        criterion.type === "qualification",
+    )
+    .reduce(
+      (total, criterion) => total + Number(criterion.weightPercent ?? 0),
+      0,
+    );
 
   const smpConflictWarning =
     Boolean(reqs.advantageSmpPart3Art30) &&
@@ -36,6 +66,70 @@ const ParticipantsRequirementsSection = () => {
       </h2>
 
       <div className={block("form-grid")}>
+        {/* Категория объекта по ОКПД2 и предельные значимости (ПП РФ N 2604) */}
+        <div className={block("row")}>
+          <span className={block("label")}>
+            Категория объекта закупки (приложение N 2 к ПП РФ N 2604)
+          </span>
+          <div className={block("field-col")}>
+            <span>{evaluationLimits.label}</span>
+            {detection.matches.length > 0 ? (
+              <span className={block("hint")}>
+                ОКПД2:{" "}
+                {detection.matches
+                  .map(
+                    (match) =>
+                      `${match.code} → ${
+                        match.category
+                          ? objectCategoryLimits(match.category).label
+                          : "правило не найдено"
+                      }`,
+                  )
+                  .join("; ")}
+              </span>
+            ) : (
+              <span className={block("hint")}>
+                Коды ОКПД2 не переданы из служебной записки — категория
+                определена вручную.
+              </span>
+            )}
+            <span className={block("hint")}>
+              Цена — не менее {evaluationLimits.minPrice}%, характеристики и
+              квалификация — не более {evaluationLimits.maxNonCost}%, расходы —{" "}
+              {evaluationLimits.maxExpenses === null
+                ? "не применяются"
+                : `не более ${evaluationLimits.maxExpenses}%`}
+              .
+            </span>
+
+            {!isContest && (
+              <span className={block("hint")}>
+                {procedureApplicabilityHint[procedureKind]}
+              </span>
+            )}
+
+            {isContest && Math.abs(weightSum - 100) > 0.01 && (
+              <div className={block("yellow-warning")} role="alert">
+                <span className={block("warning-badge")}>!</span>
+                <span>
+                  Сумма значимости критериев — {weightSum.toFixed(2)}%, должна
+                  составлять 100% (п. 5, подп. «д» Положения).
+                </span>
+              </div>
+            )}
+
+            {isContest && nonCostSum > evaluationLimits.maxNonCost && (
+              <div className={block("yellow-warning")} role="alert">
+                <span className={block("warning-badge")}>!</span>
+                <span>
+                  Сумма значимости характеристик и квалификации —{" "}
+                  {nonCostSum.toFixed(2)}%, максимум{" "}
+                  {evaluationLimits.maxNonCost}% (приложение N 2).
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
         {/* Критерии оценки (отображаются для конкурса) */}
         {isContest && (
           <div className={block("row")}>
@@ -203,7 +297,9 @@ const ParticipantsRequirementsSection = () => {
             <label className={block("checkbox")}>
               <input
                 type="checkbox"
-                {...register("participantsRequirements.requirementP1Part1Art31")}
+                {...register(
+                  "participantsRequirements.requirementP1Part1Art31",
+                )}
               />
               <span>
                 Требование к участникам закупок в соответствии с п. 1 ч. 1 ст.
@@ -608,7 +704,9 @@ const ParticipantsRequirementsSection = () => {
           <span className={block("label")}>Сопровождение контракта</span>
           <div className={block("field-col")}>
             <div className={block("radio-group")}>
-              <span>Казначейское сопровождение контракта (ст. 242.23 БК РФ):</span>
+              <span>
+                Казначейское сопровождение контракта (ст. 242.23 БК РФ):
+              </span>
               <label className={block("radio")}>
                 <input
                   type="radio"
@@ -618,7 +716,10 @@ const ParticipantsRequirementsSection = () => {
                       "participantsRequirements.requiresTreasurySupport",
                       false,
                     );
-                    setValue("participantsRequirements.treasurySupportType", "");
+                    setValue(
+                      "participantsRequirements.treasurySupportType",
+                      "",
+                    );
                   }}
                 />
                 <span>Нет</span>

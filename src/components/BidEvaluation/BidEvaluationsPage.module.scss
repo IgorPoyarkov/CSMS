@@ -258,6 +258,12 @@
     }
   }
 
+  &__task-note {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
   &__card-actions {
     display: flex;
     flex-wrap: wrap;

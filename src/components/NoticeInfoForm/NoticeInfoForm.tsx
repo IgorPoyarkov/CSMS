@@ -19,6 +19,10 @@ import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { hasSmpSubcontractingRequirement } from "../../services/PurchaseNote/purchaseNote.schema";
+import {
+  criterionToNoticeType,
+  normalizeCriteria,
+} from "../../services/BidEvaluation/bidEvaluation.schema";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import {
   formatCharacteristicValue,
@@ -110,7 +114,8 @@ const NoticeInfoForm = () => {
   }, [purchaseNotes, state.purchaseNoteId, state.ikz, id]);
 
   const matchedDesc = useMemo(() => {
-    const descId = state.objectDescriptionId ?? matchedNote?.objectDescriptionId;
+    const descId =
+      state.objectDescriptionId ?? matchedNote?.objectDescriptionId;
     const onlyOoz = objectDescriptions.filter(
       (d) => d.kind === "object_description",
     );
@@ -435,6 +440,41 @@ const NoticeInfoForm = () => {
       if (matchedNote.placingWayCode) {
         setValue("generalInfo.placingWayCode", matchedNote.placingWayCode);
       }
+
+      // Критерии оценки по ПП РФ N 2604 приходят из служебной записки:
+      // в СЗ они уже сверены с ОКПД2 позиции плана-графика
+      const noteCriteria = normalizeCriteria(
+        matchedNote.evaluationCriteria,
+      ).filter((criterion) => criterion.enabled);
+
+      if (noteCriteria.length > 0) {
+        setValue(
+          "participantsRequirements.evaluationCriteria",
+          noteCriteria.map((criterion) => ({
+            id: criterion.type,
+            type: criterionToNoticeType[
+              criterion.type
+            ] as NoticeInfoFormValues["participantsRequirements"]["evaluationCriteria"][number]["type"],
+            enabled: true,
+            weightPercent: Number(criterion.weightPercent),
+            additionalInfo: criterion.note ?? "",
+          })),
+        );
+      }
+
+      if (matchedNote.evaluationObjectCategory) {
+        setValue(
+          "participantsRequirements.evaluationObjectCategory",
+          matchedNote.evaluationObjectCategory,
+        );
+      }
+
+      if (matchedNote.evaluationOkpd2Codes) {
+        setValue(
+          "participantsRequirements.evaluationOkpd2Codes",
+          matchedNote.evaluationOkpd2Codes,
+        );
+      }
       if (matchedNote.subject) {
         setValue("generalInfo.orderName", matchedNote.subject);
       }
@@ -530,7 +570,10 @@ const NoticeInfoForm = () => {
         );
       }
       if (matchedNote.deliveryPlaces && matchedNote.deliveryPlaces.length > 0) {
-        setValue("contractConditions.deliveryPlaces", matchedNote.deliveryPlaces);
+        setValue(
+          "contractConditions.deliveryPlaces",
+          matchedNote.deliveryPlaces,
+        );
       } else if (matchedNote.deliveryPlace) {
         const currentPlaces = getValues("contractConditions.deliveryPlaces");
         if (currentPlaces.length > 0 && !currentPlaces[0].address) {
@@ -620,7 +663,10 @@ const NoticeInfoForm = () => {
           matchedNote.additionalRequirementsPart2Art31Text,
         );
       }
-      if (matchedNote.pp2571Positions && matchedNote.pp2571Positions.length > 0) {
+      if (
+        matchedNote.pp2571Positions &&
+        matchedNote.pp2571Positions.length > 0
+      ) {
         setValue(
           "participantsRequirements.additionalRequirementsPart2Art31",
           true,
@@ -660,17 +706,13 @@ const NoticeInfoForm = () => {
           matchedNote.sanctionsRnpRequirement,
         );
       }
-      if (
-        matchedNote.nmckFileName &&
-        getValues("attachedDocs").length === 0
-      ) {
+      if (matchedNote.nmckFileName && getValues("attachedDocs").length === 0) {
         setValue("attachedDocs", [
           {
             id: "sz-nmck-doc",
             category: "nmck_justification",
             fileName: matchedNote.nmckFileName,
-            description:
-              matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
+            description: matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
           },
         ]);
       }
@@ -705,7 +747,9 @@ const NoticeInfoForm = () => {
         );
       }
       if (matchedNote.applicationSecurityPercent) {
-        const appPct = Number.parseFloat(matchedNote.applicationSecurityPercent);
+        const appPct = Number.parseFloat(
+          matchedNote.applicationSecurityPercent,
+        );
         if (Number.isFinite(appPct)) {
           setValue(
             "participantsRequirements.applicationSecurityPercent",
@@ -765,7 +809,8 @@ const NoticeInfoForm = () => {
 
       // Гарантия качества (3 поля) и обеспечение гарантийных обязательств
       const hasQuality = Boolean(
-        matchedNote.requiresQualityWarranty || matchedNote.warrantyTermAndVolume,
+        matchedNote.requiresQualityWarranty ||
+        matchedNote.warrantyTermAndVolume,
       );
       setValue("participantsRequirements.requiresQualityWarranty", hasQuality);
       if (matchedNote.warrantyMaintenanceInfo) {
@@ -851,7 +896,10 @@ const NoticeInfoForm = () => {
     // Подстановка структурированного ООЗ
     if (matchedDesc) {
       setValue("objectDescriptionId", matchedDesc.id);
-      setValue("objectDescription", toNoticeObjectDescriptionFields(matchedDesc));
+      setValue(
+        "objectDescription",
+        toNoticeObjectDescriptionFields(matchedDesc),
+      );
       if (
         matchedDesc.warrantyTermMonths &&
         !getValues("participantsRequirements.warrantyTermAndVolume")
@@ -934,10 +982,7 @@ const NoticeInfoForm = () => {
           return {
             id: item.id || `sz-item-${idx + 1}`,
             okpd2OrKtruCode:
-              itemDesc?.ktruCode ||
-              item.okpd2Code ||
-              itemDesc?.okpd2Code ||
-              "",
+              itemDesc?.ktruCode || item.okpd2Code || itemDesc?.okpd2Code || "",
             name: item.name || matchedNote.subject || itemDesc?.title || "",
             unit: item.unit || itemDesc?.unit || "шт",
             quantity,
@@ -1041,9 +1086,12 @@ const NoticeInfoForm = () => {
     const payload: NoticeInfoFormValues = {
       ...formData,
       procurementId: id ?? formData.procurementId,
-      purchaseNoteId: matchedNote?.id ?? state.purchaseNoteId ?? formData.purchaseNoteId,
+      purchaseNoteId:
+        matchedNote?.id ?? state.purchaseNoteId ?? formData.purchaseNoteId,
       objectDescriptionId:
-        matchedDesc?.id ?? state.objectDescriptionId ?? formData.objectDescriptionId,
+        matchedDesc?.id ??
+        state.objectDescriptionId ??
+        formData.objectDescriptionId,
       ikz: formData.generalInfo.ikz,
     };
 
@@ -1071,10 +1119,12 @@ const NoticeInfoForm = () => {
       {(matchedNote || matchedDesc) && (
         <div className={bannerClass}>
           <strong>Предзаполнение из потребности:</strong>{" "}
-          {matchedNote ? `СЗ № ${matchedNote.noteNumber} от ${matchedNote.noteDate}` : ""}
+          {matchedNote
+            ? `СЗ № ${matchedNote.noteNumber} от ${matchedNote.noteDate}`
+            : ""}
           {matchedNote && matchedDesc ? " · " : ""}
-          {matchedDesc ? `ООЗ «${matchedDesc.title}»` : ""}
-          . Все подставленные поля можно откорректировать перед публикацией.
+          {matchedDesc ? `ООЗ «${matchedDesc.title}»` : ""}. Все подставленные
+          поля можно откорректировать перед публикацией.
         </div>
       )}
 

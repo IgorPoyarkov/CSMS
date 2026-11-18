@@ -11,6 +11,8 @@ import {
   hasValidationErrors,
   objectCategoryLimits,
   parseNumber,
+  pp2604Applies,
+  procedureApplicabilityHint,
   procedureKindLabels,
   sortBidEvaluations,
   validateBidEvaluation,
@@ -226,6 +228,7 @@ export default function BidEvaluationsPage() {
       ) : (
         <ul className={block("list")}>
           {filtered.map((evaluation) => {
+            const applies = pp2604Applies(evaluation.procedureKind);
             const result = evaluateBids(evaluation);
             const winnerIndex = result.bids.findIndex((bid) => bid.rank === 1);
             const winner =
@@ -253,6 +256,7 @@ export default function BidEvaluationsPage() {
                     <p className={block("card-subtitle")}>
                       {procedureKindLabels[evaluation.procedureKind]} ·{" "}
                       {limits.label}
+                      {!applies ? " · Положение N 2604 не применяется" : ""}
                     </p>
                   </div>
                   <span className={block("status", [evaluation.status])}>
@@ -285,11 +289,13 @@ export default function BidEvaluationsPage() {
                     <dd>
                       {evaluation.bids.length === 0
                         ? "не введены"
-                        : evaluation.status === "evaluated"
-                          ? `${evaluation.bids.length} · лидер: ${
-                              winner?.participantName || "—"
-                            } (${money(result.bids[winnerIndex]?.totalScore ?? 0)} баллов)`
-                          : `${evaluation.bids.length} · итоги не подведены`}
+                        : !applies
+                          ? `${evaluation.bids.length} · оцениваются по цене`
+                          : evaluation.status === "evaluated"
+                            ? `${evaluation.bids.length} · лидер: ${
+                                winner?.participantName || "—"
+                              } (${money(result.bids[winnerIndex]?.totalScore ?? 0)} баллов)`
+                            : `${evaluation.bids.length} · итоги не подведены`}
                     </dd>
                   </div>
                   <div className={block("meta-row")}>
@@ -345,7 +351,7 @@ export default function BidEvaluationsPage() {
                     </button>
                   )}
 
-                  {evaluation.status === "published" && (
+                  {applies && evaluation.status === "published" && (
                     <button
                       type="button"
                       className={block("action", ["primary"])}
@@ -356,7 +362,7 @@ export default function BidEvaluationsPage() {
                     </button>
                   )}
 
-                  {evaluation.status === "evaluated" && (
+                  {applies && evaluation.status === "evaluated" && (
                     <button
                       type="button"
                       className={block("action", ["primary"])}
@@ -365,6 +371,12 @@ export default function BidEvaluationsPage() {
                     >
                       Пересчитать баллы
                     </button>
+                  )}
+
+                  {!applies && (
+                    <span className={block("task-note")}>
+                      {procedureApplicabilityHint[evaluation.procedureKind]}
+                    </span>
                   )}
 
                   <button

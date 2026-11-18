@@ -252,6 +252,10 @@ export const NoticeInfoSchema = z.object({
   participantsRequirements: z.object({
     isNiokrOrConsulting: z.boolean(),
     evaluationCriteria: z.array(EvaluationCriterionSchema),
+    // Категория объекта по приложению N 2 к ПП РФ N 2604 и коды ОКПД2,
+    // по которым она определена в служебной записке (план-график)
+    evaluationObjectCategory: z.string().optional(),
+    evaluationOkpd2Codes: z.array(z.string()).optional(),
 
     // Преимущества
     advantageDisabledArt29: z.boolean(),

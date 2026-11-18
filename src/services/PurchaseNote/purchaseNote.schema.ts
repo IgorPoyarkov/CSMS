@@ -9,6 +9,11 @@ import {
   NmckCalculationRecordSchema,
   NmckMarketOfferSchema,
 } from "../Nmck/nmck.schema";
+import {
+  CriterionSchema,
+  OBJECT_CATEGORY_IDS,
+  PROCEDURE_KINDS,
+} from "../BidEvaluation/bidEvaluation.schema";
 
 /**
  * Потребность / служебная записка по позиции плана-графика.
@@ -225,6 +230,14 @@ export const PurchaseNoteSchema = z
     pp2571Point4Requirement: z.boolean().optional(),
     pp2571Point4RequirementText: z.string().optional(),
     sanctionsRnpRequirement: z.boolean().optional(),
+
+    // Критерии оценки по ПП РФ N 2604 (для извещения). Категория объекта и
+    // коды ОКПД2 связывают СЗ с позицией плана-графика: по ним проверяются
+    // предельные величины значимости и аукционный перечень N 471-р.
+    evaluationProcedureKind: z.enum(PROCEDURE_KINDS).optional(),
+    evaluationObjectCategory: z.enum(OBJECT_CATEGORY_IDS).optional(),
+    evaluationOkpd2Codes: z.array(z.string()).optional(),
+    evaluationCriteria: z.array(CriterionSchema).optional(),
 
     // Устаревшие поля критериев (оставлены optional для старых записей)
     priceWeightPercent: optionalPercent(),

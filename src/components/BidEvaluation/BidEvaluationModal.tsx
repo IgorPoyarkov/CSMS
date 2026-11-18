@@ -13,14 +13,18 @@ import {
   SCORING_MODES,
   bestDirectionLabels,
   criterionShortLabels,
+  detectObjectCategory,
   emptyBidEvaluation,
   evaluateBids,
   indicatorKindLabels,
   indicatorKindsByCriterion,
   normalizeEvaluation,
+  normalizeOkpd2Code,
   objectCategoryLimits,
   parseNumber,
   parseScaleText,
+  pp2604Applies,
+  procedureApplicabilityHint,
   procedureKindLabels,
   scoringModeLabels,
   validateBidEvaluation,
@@ -28,6 +32,7 @@ import {
   type BidEvaluation,
   type Criterion,
   type Indicator,
+  type ProcedureKind,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
 import {
   useCreateBidEvaluation,
@@ -130,9 +135,12 @@ export default function BidEvaluationModal({
   } as Partial<BidEvaluation>);
 
   const issues = validateBidEvaluation(evaluation);
-  const result = evaluateBids(evaluation);
+  const applies = pp2604Applies(evaluation.procedureKind);
+  // Аукцион и запрос котировок Положением N 2604 не оцениваются
+  const result = applies ? evaluateBids(evaluation) : null;
 
   const limits = objectCategoryLimits(evaluation.objectCategory);
+  const categoryDetection = detectObjectCategory(evaluation.okpd2Codes);
   const legalActs = acts.filter(
     (act) =>
       String(act.id) === BID_EVALUATION_LEGAL_ACT_ID ||
@@ -144,16 +152,17 @@ export default function BidEvaluationModal({
   );
 
   // Колонки заявок: по показателю на каждый включённый нестоимостной критерий
-  const bidColumns = evaluation.criteria.flatMap((criterion, criterionIndex) =>
-    criterion.enabled && criterion.type !== "price"
-      ? criterion.indicators
-          .filter((indicator) => parseNumber(indicator.weightPercent) > 0)
-          .map((indicator) => ({
-            criterionIndex,
-            indicator,
-            indicatorId: String(indicator.id ?? indicator.name),
-          }))
-      : [],
+  const bidColumns = (applies ? evaluation.criteria : []).flatMap(
+    (criterion, criterionIndex) =>
+      criterion.enabled && criterion.type !== "price"
+        ? criterion.indicators
+            .filter((indicator) => parseNumber(indicator.weightPercent) > 0)
+            .map((indicator) => ({
+              criterionIndex,
+              indicator,
+              indicatorId: String(indicator.id ?? indicator.name),
+            }))
+        : [],
   );
 
   const bidGridStyle = {
@@ -448,6 +457,32 @@ export default function BidEvaluationModal({
               )}
             </div>
 
+            <div className={block("field", ["wide"])}>
+              <label className={block("label")} htmlFor="evaluation-okpd2">
+                Коды ОКПД2 объектов закупки (через запятую)
+              </label>
+              <input
+                id="evaluation-okpd2"
+                className={block("input")}
+                defaultValue={evaluation.okpd2Codes.join(", ")}
+                placeholder="41.20.40, 43.31.10"
+                onChange={(event) =>
+                  setValue(
+                    "okpd2Codes",
+                    event.target.value
+                      .split(/[,;\s]+/)
+                      .map((code) => normalizeOkpd2Code(code))
+                      .filter(Boolean),
+                    { shouldDirty: true },
+                  )
+                }
+              />
+              <span className={block("hint")}>
+                По кодам определяется категория приложения N 2 и проверяется
+                аукционный перечень (РП РФ N 471-р).
+              </span>
+            </div>
+
             <div className={block("field")}>
               <label className={block("label")} htmlFor="evaluation-category">
                 Категория объекта (приложение № 2)
@@ -470,6 +505,36 @@ export default function BidEvaluationModal({
                   : `не более ${limits.maxExpenses}%`}
                 , характеристики и квалификация — не более {limits.maxNonCost}%.
               </span>
+              {categoryDetection.matches.length > 0 && (
+                <span className={block("hint")}>
+                  По ОКПД2:{" "}
+                  {categoryDetection.matches
+                    .map(
+                      (match) =>
+                        `${match.code} → ${
+                          match.category
+                            ? objectCategoryLimits(match.category).label
+                            : "правило не найдено"
+                        }`,
+                    )
+                    .join("; ")}
+                </span>
+              )}
+              {categoryDetection.category &&
+                categoryDetection.category !== evaluation.objectCategory && (
+                  <button
+                    type="button"
+                    className={block("add")}
+                    onClick={() =>
+                      setValue(
+                        "objectCategory",
+                        categoryDetection.category as never,
+                      )
+                    }
+                  >
+                    Применить категорию по ОКПД2
+                  </button>
+                )}
             </div>
 
             <div className={block("field")}>
@@ -481,11 +546,14 @@ export default function BidEvaluationModal({
                 className={block("input")}
                 {...register("procedureKind", {
                   onChange: (event) => {
-                    if (event.target.value !== "auction") {
+                    const kind = event.target.value as ProcedureKind;
+
+                    if (pp2604Applies(kind)) {
                       return;
                     }
 
-                    // Пункт 4: в аукционе применяется только цена
+                    // Аукцион и запрос котировок: Положение не применяется,
+                    // оценивается только цена
                     setValue("criteria.0.enabled", true);
                     setValue("criteria.0.weightPercent", 100);
                     setValue("criteria.1.enabled", false);
@@ -540,68 +608,85 @@ export default function BidEvaluationModal({
         <fieldset className={block("section")}>
           <legend>Критерии и показатели оценки</legend>
 
-          {evaluation.criteria.map((criterion, criterionIndex) => (
-            <div className={block("criterion")} key={criterion.type}>
-              <div className={block("criterion-head")}>
-                <label className={block("criterion-toggle")}>
-                  <input
-                    type="checkbox"
-                    {...register(`criteria.${criterionIndex}.enabled`)}
-                  />
-                  <span>{criterionShortLabels[criterion.type]}</span>
-                </label>
+          {!applies && (
+            <p className={block("hint")}>
+              {procedureApplicabilityHint[evaluation.procedureKind]}
+            </p>
+          )}
 
-                <div className={block("criterion-weight")}>
-                  <label
-                    className={block("label")}
-                    htmlFor={`criterion-weight-${criterionIndex}`}
-                  >
-                    Значимость, %
+          {evaluation.criteria.map((criterion, criterionIndex) => {
+            if (!applies && criterion.type !== "price") {
+              return null;
+            }
+
+            return (
+              <div className={block("criterion")} key={criterion.type}>
+                <div className={block("criterion-head")}>
+                  <label className={block("criterion-toggle")}>
+                    <input
+                      type="checkbox"
+                      disabled={!applies}
+                      {...register(`criteria.${criterionIndex}.enabled`)}
+                    />
+                    <span>{criterionShortLabels[criterion.type]}</span>
                   </label>
-                  <input
-                    id={`criterion-weight-${criterionIndex}`}
-                    className={block("input", ["narrow"])}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="0.01"
-                    {...register(`criteria.${criterionIndex}.weightPercent`)}
-                  />
+
+                  <div className={block("criterion-weight")}>
+                    <label
+                      className={block("label")}
+                      htmlFor={`criterion-weight-${criterionIndex}`}
+                    >
+                      Значимость, %
+                    </label>
+                    <input
+                      id={`criterion-weight-${criterionIndex}`}
+                      className={block("input", ["narrow"])}
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.01"
+                      disabled={!applies}
+                      {...register(`criteria.${criterionIndex}.weightPercent`)}
+                    />
+                  </div>
+
+                  {criterion.enabled && (
+                    <span className={block("criterion-note")}>
+                      {criterionLabelsHint(criterion.type)}
+                    </span>
+                  )}
                 </div>
 
-                {criterion.enabled && (
-                  <span className={block("criterion-note")}>
-                    {criterionLabelsHint(criterion.type)}
+                {criterionError(criterionIndex, "weightPercent") && (
+                  <span className={block("error")}>
+                    {criterionError(criterionIndex, "weightPercent")}
                   </span>
                 )}
+
+                {criterion.enabled &&
+                  renderIndicators(criterion, criterionIndex)}
               </div>
+            );
+          })}
 
-              {criterionError(criterionIndex, "weightPercent") && (
-                <span className={block("error")}>
-                  {criterionError(criterionIndex, "weightPercent")}
-                </span>
-              )}
-
-              {criterion.enabled && renderIndicators(criterion, criterionIndex)}
+          {applies && (
+            <div className={block("weights")}>
+              <span>
+                Сумма значимости критериев:{" "}
+                <strong>
+                  {enabledCriteria
+                    .reduce(
+                      (total, criterion) =>
+                        total + parseNumber(criterion.weightPercent),
+                      0,
+                    )
+                    .toFixed(2)}
+                  %
+                </strong>{" "}
+                — должна быть 100% (п. 5, подп. «д» Положения)
+              </span>
             </div>
-          ))}
-
-          <div className={block("weights")}>
-            <span>
-              Сумма значимости критериев:{" "}
-              <strong>
-                {enabledCriteria
-                  .reduce(
-                    (total, criterion) =>
-                      total + parseNumber(criterion.weightPercent),
-                    0,
-                  )
-                  .toFixed(2)}
-                %
-              </strong>{" "}
-              — должна быть 100% (п. 5, подп. «д» Положения)
-            </span>
-          </div>
+          )}
         </fieldset>
 
         <fieldset className={block("section")}>
@@ -694,10 +779,12 @@ export default function BidEvaluationModal({
                   })}
 
                   <span className={block("score")}>
-                    {money(result.bids[bidIndex]?.totalScore ?? 0)}
+                    {result
+                      ? money(result.bids[bidIndex]?.totalScore ?? 0)
+                      : "—"}
                   </span>
                   <span className={block("rank")}>
-                    {result.bids[bidIndex]?.rank ?? "—"}
+                    {result?.bids[bidIndex]?.rank ?? "—"}
                   </span>
 
                   <button

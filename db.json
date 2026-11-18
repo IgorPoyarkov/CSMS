@@ -1109,8 +1109,29 @@
             "contract_execution"
           ],
           "remarks": ""
+        },
+        {
+          "employeeId": "6",
+          "employeeFullName": "Иванова Анна Сергеевна",
+          "employeeNumber": "101",
+          "position": "Начальник отдела закупок",
+          "structuralUnitId": "1",
+          "structuralUnitName": "Отдел закупок",
+          "functions": [
+            "planning",
+            "purchase_description",
+            "supplier_determination",
+            "contract_conclusion",
+            "contract_execution"
+          ],
+          "remarks": ""
         }
       ],
+      "contractManager": {
+        "employeeId": "",
+        "structuralUnitId": "",
+        "functions": []
+      },
       "head": {
         "id": 1,
         "employeeId": "14",
@@ -4833,6 +4854,56 @@
       "smpRequiredPercent": 10,
       "subject": "Выполнение работ по текущему ремонту пищевого блока стационара",
       "initialMaxPrice": "3150000.00",
+      "evaluationProcedureKind": "tender",
+      "evaluationObjectCategory": "building_repair",
+      "evaluationOkpd2Codes": [
+        "43.31.10"
+      ],
+      "evaluationCriteria": [
+        {
+          "id": "crit-price-note1",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-expenses-note1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-characteristics-note1",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-qualification-note1",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "indicators": [
+            {
+              "id": "ind-experience-note1",
+              "name": "Общая цена исполненных договоров, сопоставимых с предметом контракта",
+              "kind": "experience",
+              "weightPercent": 100,
+              "unit": "руб.",
+              "best": "max",
+              "scoring": "formula",
+              "scaleText": ""
+            }
+          ],
+          "note": "Пункт 33 Положения: опыт работы обязателен"
+        }
+      ],
       "status": "approved",
       "comment": "Требование о привлечении СМП 10% — по п. 1 ПП РФ N 1466",
       "createdAt": "2026-09-01"
@@ -7051,6 +7122,26 @@
       "comment": "Владелец сертификата «Иванов Алексей Сергеевич» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
       "createdAt": "2026-11-18T07:08",
       "id": 27
+    },
+    {
+      "organizationId": 1,
+      "contractId": 1,
+      "action": "smp_eis_export",
+      "entityType": "contractSmpRecord",
+      "entityId": 1,
+      "documentLabel": "Сведения о привлечении СМП: строк 9, контрактов 1, от 2026-11-18",
+      "certificateOwner": "SN=ПОЯРКОВ, G=ИГОРЬ НИКОЛАЕВИЧ, CN=ПОЯРКОВ ИГОРЬ НИКОЛАЕВИЧ, C=RU, E=Poyarkov_ip@mail.ru, ИНН=462302564694, СНИЛС=14405171222, ОГРНИП=326460000019109",
+      "certificateInn": "4623025646",
+      "certificateSerial": "036E7F820033B4D2804893BBC98BCC0C70",
+      "certificateFingerprint": "08A26ABA98738FEE6BB29A103D1909A251C5D20F",
+      "certificateAlgorithm": "",
+      "certificateValidTo": "2027-07-21",
+      "innMatched": false,
+      "certificateSource": "plugin",
+      "result": "rejected_certificate",
+      "comment": "Пакет smp_svedeniya_2026-11-18_0729.csv, подпись smp_svedeniya_2026-11-18_0729.csv.sig, SHA-256 ed11d4fed3ba176bb0dea29b2192c07576babb911745bfabd0599460587431cf. Подпись поставлена на рабочем месте, сервером не проверялась.",
+      "createdAt": "2026-11-18T07:29",
+      "id": 28
     }
   ],
   "objectDescriptions": [
@@ -7566,6 +7657,9 @@
       "organizationId": 1,
       "objectName": "Капитальный ремонт кровли административного здания (литера А)",
       "objectCategory": "construction",
+      "okpd2Codes": [
+        "41.20.40"
+      ],
       "procedureKind": "tender",
       "nmck": "8450000.00",
       "criteria": [
@@ -7663,6 +7757,9 @@
       "organizationId": 1,
       "objectName": "Поставка расходных материалов для клинико-диагностической лаборатории",
       "objectCategory": "goods",
+      "okpd2Codes": [
+        "21.20.10"
+      ],
       "procedureKind": "tender",
       "nmck": "2400000.00",
       "criteria": [
@@ -7760,6 +7857,9 @@
       "organizationId": 1,
       "objectName": "Текущий ремонт помещений поликлинического отделения",
       "objectCategory": "building_repair",
+      "okpd2Codes": [
+        "43.31.10"
+      ],
       "procedureKind": "auction",
       "nmck": "980000.00",
       "criteria": [
