@@ -89,6 +89,29 @@
   max-width: 100%;
 }
 
+/* Значение пришло из карточки контракта: менять его здесь нельзя */
+.eis-packages__input--readonly {
+  background: var(--surface-field);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.eis-packages__source {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.eis-packages__link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .eis-packages__form-actions {
   display: flex;
   align-items: center;

@@ -118,8 +118,14 @@ export const signatureTaskSchema = z.object({
 
 export type SignatureTask = z.infer<typeof signatureTaskSchema>;
 
-/** Реестровый номер контракта в ЕИС — 19 цифр, как проверяет шлюз. */
-export const EIS_CONTRACT_NUMBER_LENGTH = 19;
-
-export const isEisContractNumber = (value: string): boolean =>
-  new RegExp(`^\\d{${EIS_CONTRACT_NUMBER_LENGTH}}$`).test(value.trim());
+/**
+ * Проверки идентификаторов живут отдельно: те же правила нужны карточке
+ * контракта, поэтому здесь только реэкспорт, без второй копии регулярки.
+ */
+export {
+  EIS_CONTRACT_NUMBER_LENGTH,
+  IKZ_LENGTH,
+  digitsOnly,
+  isEisContractNumber,
+  isIkz,
+} from "./eisIdentifiers";

@@ -1,4 +1,8 @@
 import z from "zod";
+import {
+  EIS_CONTRACT_NUMBER_LENGTH,
+  isEisContractNumber,
+} from "../Eis/eisIdentifiers";
 
 /**
  * Реестр контрактов (ст. 82, 83, 94, 103 ФЗ-44).
@@ -240,7 +244,20 @@ export const ContractRegistryItemSchema = z.object({
   // Ссылка на закупку
   procurementId: z.union([z.string(), z.number()]).optional(),
   // ИКЗ
+  // Проверка на чтении мягкая: в уже заведённых записях встречаются неполные
+  // коды (35 разрядов), и жёсткий разбор сломал бы карточку вместо того, чтобы
+  // показать, что номер надо исправить. Строгая проверка — при вводе, в блоке
+  // реквизитов ЕИС и в форме пакета.
   ikz: optionalText(10, "Укажите ИКЗ"),
+  // Реестровый номер контракта в ЕИС (19 цифр). Присваивает портал, когда
+  // сведения о контракте внесены; без него пакет сведений не отправить
+  eisRegistryNumber: z
+    .string()
+    .refine(
+      (v) => v === "" || isEisContractNumber(v),
+      `Реестровый номер контракта в ЕИС — ${EIS_CONTRACT_NUMBER_LENGTH} цифр`,
+    )
+    .optional(),
   // Номер контракта
   contractNumber: requiredText(3, "Укажите номер контракта"),
   // Дата заключения контракта (ст. 51 ч. 4)
@@ -354,6 +371,8 @@ export const emptyContract = (
 ): ContractRegistryItem => ({
   organizationId,
   contractNumber: "",
+  ikz: "",
+  eisRegistryNumber: "",
   contractDate: "",
   contractName: "",
   supplierName: "",

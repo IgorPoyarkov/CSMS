@@ -11,8 +11,11 @@ import {
 import {
   EIS_CONTRACT_NUMBER_LENGTH,
   EIS_DOCUMENT_TYPES,
+  IKZ_LENGTH,
+  digitsOnly,
   eisDocumentTypeLabels,
   isEisContractNumber,
+  isIkz,
   type EisDocumentType,
 } from "../../services/Eis/eisPackages.schema";
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
@@ -50,6 +53,10 @@ export default function EisPackagesPage() {
     useState<EisDocumentType>("SmpAttraction");
   const [contractEisNumber, setContractEisNumber] = useState("");
   const [ikz, setIkz] = useState("");
+  // Выбранная карточка контракта: из неё берутся оба номера. Ручной ввод —
+  // исключение (контракт ещё не заведён), поэтому он включается отдельно
+  const [pickedContractId, setPickedContractId] = useState("");
+  const [manualInput, setManualInput] = useState(false);
   const [formError, setFormError] = useState("");
 
   const summary = useMemo(() => {
@@ -66,17 +73,25 @@ export default function EisPackagesPage() {
     return { accepted, rejected, inWork };
   }, [packages]);
 
+  const pickedContract =
+    contracts.find((item) => String(item.id) === pickedContractId) ?? null;
+  // Пока номера взяты из карточки, поля только для чтения: править их надо
+  // там, где они живут, иначе по системе разъедутся две версии одного номера
+  const numbersFromContract = pickedContract !== null && !manualInput;
+
   const pickContract = (contractId: string) => {
     const contract = contracts.find(
       (item) => String(item.id) === String(contractId),
     );
 
-    if (!contract) return;
+    setPickedContractId(contractId);
+    setManualInput(false);
+    setFormError("");
 
-    // ИКЗ берём из карточки контракта, чтобы не вбивать вручную.
-    // Реестровый номер ЕИС при этом остаётся ручным: у нас его нет —
-    // это отдельная задача, записанная в docs/eis-open-questions.md
-    setIkz(contract.ikz ?? "");
+    // Оба номера — свойства контракта, а не пакета: человек не должен
+    // вводить их заново на каждое сведение
+    setContractEisNumber(contract?.eisRegistryNumber ?? "");
+    setIkz(contract?.ikz ?? "");
   };
 
   async function create() {
@@ -86,7 +101,23 @@ export default function EisPackagesPage() {
       setFormError(
         `Реестровый номер контракта в ЕИС — ${EIS_CONTRACT_NUMBER_LENGTH} цифр ` +
           `(например, 0373100000123000001). Сейчас введено «${contractEisNumber}». ` +
-          "Без него ЕИС не поймёт, к какому контракту относятся сведения.",
+          "Без него ЕИС не поймёт, к какому контракту относятся сведения. " +
+          (pickedContract
+            ? "Заполните его в карточке контракта, блок «Реквизиты для ЕИС»."
+            : ""),
+      );
+
+      return;
+    }
+
+    if (!isIkz(ikz)) {
+      setFormError(
+        `ИКЗ — ${IKZ_LENGTH} разрядов, сейчас ${ikz.trim().length}. ` +
+          "Код берут из карточки закупки; в ЕИС без него не поймут, к какой " +
+          "закупке относятся сведения." +
+          (pickedContract
+            ? " Исправьте ИКЗ в карточке контракта, блок «Реквизиты для ЕИС»."
+            : ""),
       );
 
       return;
@@ -100,6 +131,9 @@ export default function EisPackagesPage() {
       });
 
       setContractEisNumber("");
+      setIkz("");
+      setPickedContractId("");
+      setManualInput(false);
     } catch (caught) {
       setFormError(describeEisError(caught));
     }
@@ -164,17 +198,20 @@ export default function EisPackagesPage() {
 
           <label className={block("field")}>
             <span className={block("label")}>
-              Контракт в системе (подскажет ИКЗ)
+              Контракт (номер ЕИС и ИКЗ подставятся из карточки)
             </span>
             <select
               className={block("select")}
-              defaultValue=""
+              value={pickedContractId}
               onChange={(event) => pickContract(event.target.value)}
             >
               <option value="">— не выбран —</option>
               {contracts.map((contract) => (
                 <option key={contract.id} value={String(contract.id)}>
                   {contract.contractNumber} · {contract.supplierName}
+                  {contract.eisRegistryNumber
+                    ? ` · ЕИС ${contract.eisRegistryNumber}`
+                    : ""}
                 </option>
               ))}
             </select>
@@ -187,9 +224,17 @@ export default function EisPackagesPage() {
               Реестровый номер контракта в ЕИС
             </span>
             <input
-              className={block("input")}
+              className={block("input", numbersFromContract ? ["readonly"] : [])}
               value={contractEisNumber}
-              onChange={(event) => setContractEisNumber(event.target.value)}
+              onChange={(event) =>
+                setContractEisNumber(
+                  digitsOnly(event.target.value).slice(
+                    0,
+                    EIS_CONTRACT_NUMBER_LENGTH,
+                  ),
+                )
+              }
+              readOnly={numbersFromContract}
               placeholder="19 цифр, например 0373100000123000001"
               inputMode="numeric"
               maxLength={EIS_CONTRACT_NUMBER_LENGTH}
@@ -199,13 +244,39 @@ export default function EisPackagesPage() {
           <label className={block("field")}>
             <span className={block("label")}>ИКЗ</span>
             <input
-              className={block("input")}
+              className={block("input", numbersFromContract ? ["readonly"] : [])}
               value={ikz}
-              onChange={(event) => setIkz(event.target.value)}
-              placeholder="Идентификатор закупки"
+              onChange={(event) =>
+                setIkz(digitsOnly(event.target.value).slice(0, IKZ_LENGTH))
+              }
+              readOnly={numbersFromContract}
+              placeholder={`${IKZ_LENGTH} разрядов`}
+              inputMode="numeric"
+              maxLength={IKZ_LENGTH}
             />
           </label>
         </div>
+
+        {numbersFromContract && (
+          <div className={block("source")}>
+            Номера взяты из карточки контракта — исправлять их надо там, чтобы в
+            системе не появилось двух версий одного номера.{" "}
+            <button
+              type="button"
+              className={block("link-button")}
+              onClick={() => setManualInput(true)}
+            >
+              Ввести вручную
+            </button>
+          </div>
+        )}
+
+        {manualInput && (
+          <div className={block("source")}>
+            Номера введены вручную и не связаны с карточкой контракта: если там
+            их исправят, пакет об этом не узнает.
+          </div>
+        )}
 
         {formError && <div className={block("error")}>{formError}</div>}
 
@@ -234,8 +305,8 @@ export default function EisPackagesPage() {
 
       {!isPending && !isError && packages.length === 0 && (
         <div className={block("empty")}>
-          Пакетов пока нет. Создайте первый — номер контракта ЕИС можно взять в
-          личном кабинете.
+          Пакетов пока нет. Создайте первый: выберите контракт — реестровый номер
+          ЕИС и ИКЗ подставятся из его карточки.
         </div>
       )}
 

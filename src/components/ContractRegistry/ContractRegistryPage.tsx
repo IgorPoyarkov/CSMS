@@ -25,6 +25,7 @@ import { useCurrentOrganization } from "../../services/Organization/organization
 import useUtils from "../../hooks/useUtils";
 import SmpSection from "./ContractSmpSection";
 import ContractEventsSection from "./ContractEventsSection";
+import ContractEisSection from "./ContractEisSection";
 import styles from "./ContractRegistry.module.scss";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -399,6 +400,7 @@ function ContractCard({
 
       {expanded && (
         <div className={styles.cardBody}>
+          <ContractEisSection contract={contract} />
           <PaymentSummary contract={contract} />
           <ContractEventsSection contractId={contract.id ?? ""} />
           <StagesSection contractId={contract.id} />

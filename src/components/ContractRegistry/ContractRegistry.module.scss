@@ -1262,3 +1262,139 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ===== Реквизиты для ЕИС: реестровый номер контракта и ИКЗ ===== */
+
+.eis-section {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eis-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eis-section__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.eis-section__btnEdit {
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.eis-section__rows {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+}
+
+.eis-section__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eis-section__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-section__value {
+  margin: 0;
+  font-size: 13px;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.eis-section__warn {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-warning);
+}
+
+.eis-section__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eis-section__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eis-section__input {
+  padding: 6px 10px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.eis-section__error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-danger);
+}
+
+.eis-section__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.eis-section__btnPrimary {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.eis-section__btnCancel {
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
