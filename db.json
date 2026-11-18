@@ -2833,8 +2833,7 @@
       "comment": "Пилотный контракт заказчика с ЭП — для демонстрации журнала подписаний",
       "createdAt": "2026-09-15",
       "updatedAt": "2026-11-16"
-    }
-  ,
+    },
     {
       "id": 6,
       "organizationId": 6,
@@ -2995,8 +2994,7 @@
       "acceptanceActNumber": "АС-52/2026",
       "acceptanceActDate": "2026-10-24",
       "comment": ""
-    }
-  ,
+    },
     {
       "id": 10,
       "contractId": 6,
@@ -3152,8 +3150,7 @@
       "bankDocumentNumber": "323000078",
       "treasuryExecution": true,
       "comment": "Окончательный расчёт"
-    }
-  ,
+    },
     {
       "id": 10,
       "contractId": 6,
@@ -4795,6 +4792,29 @@
       "lastCheckedDate": "2026-11-18",
       "isVerified": true,
       "notes": "Реквизиты сверены с публикацией на pravo.gov.ru. Применяется в проекте календарного графика (DefectList)."
+    },
+    {
+      "id": "pp-2604",
+      "shortName": "ПП РФ N 2604",
+      "fullName": "Постановление Правительства РФ от 31.12.2021 N 2604 \"Об оценке заявок на участие в закупке товаров, работ, услуг для обеспечения государственных и муниципальных нужд, внесении изменений в пункт 4 постановления Правительства Российской Федерации от 20 декабря 2021 г. N 2369 и признании утратившими силу некоторых актов и отдельных положений некоторых актов Правительства Российской Федерации\"",
+      "actType": "government-decree",
+      "adoptedBy": "Правительство Российской Федерации",
+      "actNumber": "2604",
+      "adoptedDate": "2021-12-31",
+      "effectiveDate": "2022-01-01",
+      "status": "active",
+      "scope": "Порядок оценки заявок, критерии и показатели оценки, предельные величины значимости критериев (приложение N 2) и форма документа об оценке (приложение N 1)",
+      "components": [
+        "bidEvaluation.schema",
+        "bidEvaluation.api",
+        "BidEvaluationsPage",
+        "BidEvaluationModal",
+        "noticeInfo.schema"
+      ],
+      "sourceUrl": "http://publication.pravo.gov.ru/Document/View/0001202201040005",
+      "lastCheckedDate": "2026-11-18",
+      "isVerified": true,
+      "notes": "Формулы п. 9, 10, 14 и 20 Положения; предельные величины значимости — приложение N 2 (ред. от 31.10.2022)"
     }
   ],
   "purchaseNotes": [
@@ -5505,8 +5525,7 @@
       "eisRecordNumber": "1-СМП",
       "comment": "Принята и выгружена в ЕИС",
       "createdAt": "2026-10-21T11:00"
-    }
-  ,
+    },
     {
       "id": 23,
       "organizationId": 6,
@@ -6558,8 +6577,7 @@
       "comment": "Вход по ЭП: Пояркова София Игоревна, Депимущество Белгородской области. · наборт не подписан",
       "createdAt": "2026-11-18T06:34",
       "id": 5
-    }
-  ,
+    },
     {
       "organizationId": 6,
       "userLabel": "Колесникова Ольга Николаевна",
@@ -6969,6 +6987,70 @@
       "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
       "createdAt": "2026-11-18T05:19",
       "id": 24
+    },
+    {
+      "organizationId": 6,
+      "userId": 5,
+      "userLabel": "zakupki@kurskavtodor.ru",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": 5,
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 1,
+      "certificateOwner": "Говоров Андрей Николаевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "3A1B2C4D5E6F7890",
+      "certificateFingerprint": "A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2:C3:D4:E5:F6:A1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2027-03-14",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "signed",
+      "comment": "Вход по ЭП: Говоров Андрей Николаевич, ОКУ \"Курскавтодор\". · наборт не подписан",
+      "createdAt": "2026-11-18T07:02",
+      "id": 25
+    },
+    {
+      "organizationId": 6,
+      "userLabel": "Колесникова Ольга Николаевна",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": "DEADBEEF00001111",
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 3,
+      "certificateOwner": "Колесникова Ольга Николаевна",
+      "certificateInn": "3128071234",
+      "certificateSerial": "DEADBEEF00001111",
+      "certificateFingerprint": "C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2:D3:D4:E5:F6:C1:C2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2028-05-31",
+      "innMatched": false,
+      "certificateSource": "manual",
+      "result": "failed",
+      "comment": "Владелец сертификата «Колесникова Ольга Николаевна» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
+      "createdAt": "2026-11-18T07:08",
+      "id": 26
+    },
+    {
+      "organizationId": 6,
+      "userLabel": "Иванов Алексей Сергеевич",
+      "action": "eds_login",
+      "entityType": "session",
+      "entityId": "FF00112233445566",
+      "documentLabel": "Вход по ЭП · ОКУ \"Курскавтодор\" · без проверки подписи",
+      "certificateId": 2,
+      "certificateOwner": "Иванов Алексей Сергеевич",
+      "certificateInn": "4629040439",
+      "certificateSerial": "FF00112233445566",
+      "certificateFingerprint": "B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2:C3:D4:E5:F6:B1:B2",
+      "certificateAlgorithm": "ГОСТ Р 34.10-2012 256",
+      "certificateValidTo": "2026-12-01",
+      "innMatched": true,
+      "certificateSource": "manual",
+      "result": "failed",
+      "comment": "Владелец сертификата «Иванов Алексей Сергеевич» не найден в штатном расписании организации «ОКУ \"Курскавтодор\"» (1 сотр.). Вход по ЭП разрешён только работникам заказчика. · наборт не подписан",
+      "createdAt": "2026-11-18T07:08",
+      "id": 27
     }
   ],
   "objectDescriptions": [
@@ -7476,6 +7558,251 @@
       "taskId": 14,
       "createdAt": "2026-11-14",
       "updatedAt": "2026-11-14"
+    }
+  ],
+  "bidEvaluations": [
+    {
+      "id": 1,
+      "organizationId": 1,
+      "objectName": "Капитальный ремонт кровли административного здания (литера А)",
+      "objectCategory": "construction",
+      "procedureKind": "tender",
+      "nmck": "8450000.00",
+      "criteria": [
+        {
+          "id": "crit-price-1",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-expenses-1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-characteristics-1",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-qualification-1",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "indicators": [
+            {
+              "id": "ind-experience-1",
+              "name": "Общая цена исполненных договоров, сопоставимых с предметом контракта",
+              "kind": "experience",
+              "weightPercent": 100,
+              "unit": "руб.",
+              "best": "max",
+              "scoring": "formula",
+              "scaleText": ""
+            }
+          ],
+          "note": "Пункт 31 Положения: опыт работы обязателен для строительства"
+        }
+      ],
+      "bids": [
+        {
+          "id": 1,
+          "participantName": "ООО «СтройМонтаж»",
+          "price": "7950000.00",
+          "values": {
+            "ind-experience-1": {
+              "value": "42000000"
+            }
+          },
+          "totalScore": 75.82,
+          "rank": 2
+        },
+        {
+          "id": 2,
+          "participantName": "ООО «КапРемонтСервис»",
+          "price": "8100000.00",
+          "values": {
+            "ind-experience-1": {
+              "value": "58500000"
+            }
+          },
+          "totalScore": 98.89,
+          "rank": 1
+        },
+        {
+          "id": 3,
+          "participantName": "АО «ГлавСтройИнвест»",
+          "price": "8300000.00",
+          "values": {
+            "ind-experience-1": {
+              "value": "31200000"
+            }
+          },
+          "totalScore": 57.47,
+          "rank": 3
+        }
+      ],
+      "legalActId": "pp-2604",
+      "status": "evaluated",
+      "publishedAt": "2026-11-10",
+      "evaluatedAt": "2026-11-18",
+      "createdAt": "2026-11-09",
+      "updatedAt": "2026-11-18"
+    },
+    {
+      "id": 2,
+      "organizationId": 1,
+      "objectName": "Поставка расходных материалов для клинико-диагностической лаборатории",
+      "objectCategory": "goods",
+      "procedureKind": "tender",
+      "nmck": "2400000.00",
+      "criteria": [
+        {
+          "id": "crit-price-2",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 70,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-expenses-2",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-characteristics-2",
+          "type": "characteristics",
+          "enabled": true,
+          "weightPercent": 30,
+          "indicators": [
+            {
+              "id": "ind-shelf-life-2",
+              "name": "Остаточный срок хранения расходных материалов",
+              "kind": "quality",
+              "weightPercent": 100,
+              "unit": "мес.",
+              "best": "max",
+              "scoring": "scale",
+              "scaleText": "более 24 месяцев = 100\nот 12 до 24 месяцев = 50\nменее 12 месяцев = 0"
+            }
+          ],
+          "note": "Шкала оценки по п. 22 Положения"
+        },
+        {
+          "id": "crit-qualification-2",
+          "type": "qualification",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        }
+      ],
+      "bids": [
+        {
+          "id": 1,
+          "participantName": "ООО «МедТехника»",
+          "price": "2280000.00",
+          "values": {
+            "ind-shelf-life-2": {
+              "optionId": "более 24 месяцев"
+            }
+          },
+          "totalScore": 0,
+          "rank": 0
+        },
+        {
+          "id": 2,
+          "participantName": "ООО «ФармСнаб»",
+          "price": "2190000.00",
+          "values": {
+            "ind-shelf-life-2": {
+              "optionId": "от 12 до 24 месяцев"
+            }
+          },
+          "totalScore": 0,
+          "rank": 0
+        },
+        {
+          "id": 3,
+          "participantName": "ИП Сергеев А.В.",
+          "price": "2350000.00",
+          "values": {
+            "ind-shelf-life-2": {
+              "optionId": "более 24 месяцев"
+            }
+          },
+          "totalScore": 0,
+          "rank": 0
+        }
+      ],
+      "legalActId": "pp-2604",
+      "status": "published",
+      "publishedAt": "2026-11-15",
+      "evaluatedAt": "",
+      "createdAt": "2026-11-13",
+      "updatedAt": "2026-11-15"
+    },
+    {
+      "id": 3,
+      "organizationId": 1,
+      "objectName": "Текущий ремонт помещений поликлинического отделения",
+      "objectCategory": "building_repair",
+      "procedureKind": "auction",
+      "nmck": "980000.00",
+      "criteria": [
+        {
+          "id": "crit-price-3",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 100,
+          "indicators": [],
+          "note": "Пункт 4 Положения: в аукционе применяется только цена"
+        },
+        {
+          "id": "crit-expenses-3",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-characteristics-3",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-qualification-3",
+          "type": "qualification",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        }
+      ],
+      "bids": [],
+      "legalActId": "pp-2604",
+      "status": "draft",
+      "publishedAt": "",
+      "evaluatedAt": "",
+      "createdAt": "2026-11-18",
+      "updatedAt": "2026-11-18"
     }
   ],
   "contractEvents": [

@@ -143,6 +143,18 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Оценка заявок: критерии и баллы по ПП РФ N 2604 */}
+          {user && (
+            <li className={nav("item")}>
+              <NavLink
+                className={nav("link", ["logo"])}
+                to={"/bid-evaluations"}
+              >
+                <span className={nav("link-name")}>Оценка заявок</span>
+              </NavLink>
+            </li>
+          )}
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
               <span className={nav("link-name")}>ЕИС / СМП</span>

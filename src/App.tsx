@@ -27,6 +27,7 @@ import NormingRequirementsPage from "./components/NormingRequirements/NormingReq
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
 import DefectListsPage from "./components/DefectList/DefectListsPage";
+import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
 
 const router = createBrowserRouter([
   {
@@ -139,6 +140,11 @@ const router = createBrowserRouter([
         // контракта (421/пр) и проект календарного графика (336/пр)
         path: "/defect-lists",
         element: <DefectListsPage />,
+      },
+      {
+        // Оценка заявок: критерии, значимость и баллы по ПП РФ N 2604
+        path: "/bid-evaluations",
+        element: <BidEvaluationsPage />,
       },
     ],
   },
