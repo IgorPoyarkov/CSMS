@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useFetchCurrentUser, useLogout } from "../../services/Users/user.api";
 import { useFetchEmployeeByUserId } from "../../services/StaffingTable/StaffingTable.api";
 import type { BaseHuman } from "../../services/StaffingTable/StaffingTable.schema";
@@ -28,6 +28,9 @@ const Header = ({}: HeaderProps) => {
   const { data: employee } = useFetchEmployeeByUserId(user?.id);
   const { mutate: logout } = useLogout();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Пункт «Реестр контрактов» остаётся активным и на подстраницах с ?group=
+  const isRegistryActive = location.pathname.startsWith("/contract-registry");
   const { bem, fullName } = useUtils();
   const [theme, toggleTheme] = useTheme();
   const header = bem(styles, "header");
@@ -42,6 +45,11 @@ const Header = ({}: HeaderProps) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isHoverDisabled, setIsHoverDisabled] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  // Подменю «Реестр контрактов»: конкурентные способы и закупки у ЕП.
+  // Открывается наведением и кликом, закрывается кликом вне и Escape
+  const [isRegistryOpen, setIsRegistryOpen] = useState(false);
+  const registryRef = useRef<HTMLDivElement>(null);
 
   const openProfile = () => {
     if (isHoverDisabled) return;
@@ -87,6 +95,28 @@ const Header = ({}: HeaderProps) => {
     };
   }, [isProfileOpen]);
 
+  useEffect(() => {
+    if (!isRegistryOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!registryRef.current?.contains(event.target as Node)) {
+        setIsRegistryOpen(false);
+      }
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsRegistryOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isRegistryOpen]);
+
   const handleLogout = () => {
     setIsProfileOpen(false);
     logout(undefined, { onSuccess: () => navigate("/") });
@@ -96,86 +126,96 @@ const Header = ({}: HeaderProps) => {
     <header className={header()}>
       <nav className={nav()}>
         <ul className={nav("list")}>
+          {/* В шапке — только сквозной контур закупки: главная, план-график,
+              потребность, извещения, контракты и реестр контрактов. */}
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/"}>
               <span className={nav("link-name")}>Главная</span>
-              {/* <svg className={nav("icon")}>
-                <use href="/sprite.svg#logo-icon" />
-              </svg> */}
-            </NavLink>
-          </li>
-
-          {user && (
-            <li className={nav("item")}>
-              <NavLink className={nav("link", ["logo"])} to={"/tasks"}>
-                <span className={nav("link-name")}>Задачи организации</span>
-              </NavLink>
-            </li>
-          )}
-
-          {/* Инициатор закупки — работник подразделения-заказчика вне КС:
-              дефектовка, проект сметы и проект графика для службы */}
-          {user && (
-            <li className={nav("item")}>
-              <NavLink className={nav("link", ["logo"])} to={"/defect-lists"}>
-                <span className={nav("link-name")}>Дефектовки</span>
-              </NavLink>
-            </li>
-          )}
-
-          <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/okpd2"}>
-              <span className={nav("link-name")}>Справочник ОКПД2</span>
-            </NavLink>
-          </li>
-
-          {/* Реестр норм, на которые опирается система: видно, какие экраны
-              менять при правке акта (Tasks 6, п. 3) */}
-          <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/legal-acts"}>
-              <span className={nav("link-name")}>Законодательные акты</span>
             </NavLink>
           </li>
 
           <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/nmck-calculator"}>
-              <span className={nav("link-name")}>Расчёт НМЦК</span>
+            <NavLink className={nav("link", ["logo"])} to={"/purchase-plans"}>
+              <span className={nav("link-name")}>План-график</span>
             </NavLink>
           </li>
 
-          {/* Оценка заявок: критерии и баллы по ПП РФ N 2604 */}
-          {user && (
-            <li className={nav("item")}>
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/purchase-notes"}>
+              <span className={nav("link-name")}>Потребность</span>
+            </NavLink>
+          </li>
+
+          <li className={nav("item")}>
+            <NavLink
+              className={nav("link", ["logo"])}
+              to={"/procurement-processing"}
+            >
+              <span className={nav("link-name")}>Извещения</span>
+            </NavLink>
+          </li>
+
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/contract-service"}>
+              <span className={nav("link-name")}>Контракты</span>
+            </NavLink>
+          </li>
+
+          {/* Реестр контрактов с разбивкой по виду способа закупки:
+              конкурентные процедуры и закупки у единственного поставщика */}
+          <li className={nav("item")}>
+            <div
+              ref={registryRef}
+              className={nav("submenu-wrap", isRegistryOpen ? ["open"] : [])}
+              onMouseEnter={() => setIsRegistryOpen(true)}
+              onMouseLeave={() => setIsRegistryOpen(false)}
+            >
               <NavLink
-                className={nav("link", ["logo"])}
-                to={"/bid-evaluations"}
+                className={nav("link", [
+                  "logo",
+                  ...(isRegistryActive ? ["active"] : []),
+                ])}
+                to={"/contract-registry"}
+                aria-haspopup="menu"
+                aria-expanded={isRegistryOpen}
+                onClick={() => setIsRegistryOpen(false)}
               >
-                <span className={nav("link-name")}>Оценка заявок</span>
+                <span className={nav("link-name")}>Реестр контрактов</span>
+                <span className={nav("submenu-arrow")}>▼</span>
               </NavLink>
-            </li>
-          )}
-
-          {user && (
-            <li className={nav("item")}>
-              <NavLink
-                className={nav("link", ["logo"])}
-                to={"/vacation-schedule"}
-              >
-                <span className={nav("link-name")}>График отпусков</span>
-              </NavLink>
-            </li>
-          )}
-
-          <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/eis/smp-export"}>
-              <span className={nav("link-name")}>ЕИС / СМП</span>
-            </NavLink>
-          </li>
-
-          <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/eds/journal"}>
-              <span className={nav("link-name")}>Журнал ЭП</span>
-            </NavLink>
+              {isRegistryOpen && (
+                <ul className={nav("submenu")}>
+                  <li>
+                    <NavLink
+                      className={nav("submenu-link")}
+                      to={"/contract-registry"}
+                      end
+                      onClick={() => setIsRegistryOpen(false)}
+                    >
+                      Все контракты
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      className={nav("submenu-link")}
+                      to={"/contract-registry?group=competitive"}
+                      onClick={() => setIsRegistryOpen(false)}
+                    >
+                      Контракты по конкурентным способам
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink
+                      className={nav("submenu-link")}
+                      to={"/contract-registry?group=single"}
+                      onClick={() => setIsRegistryOpen(false)}
+                    >
+                      Контракты у ЕП
+                    </NavLink>
+                  </li>
+                </ul>
+              )}
+            </div>
           </li>
 
           <li className={nav("item", ["end"])}>

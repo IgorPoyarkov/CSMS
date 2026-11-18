@@ -78,11 +78,81 @@
     }
 
     // Текущий раздел помечаем не только цветом текста
-    &__link:global(.active) {
+    &__link:global(.active),
+    &__link--active {
       background: var(--accent-soft);
       border-color: var(--accent);
       color: var(--accent-emphasis);
       font-weight: 600;
+    }
+
+    // Выпадающий список «Реестр контрактов»: конкурентные способы и ЕП
+    &__submenu-wrap {
+      position: relative;
+      display: flex;
+    }
+
+    &__submenu-arrow {
+      font-size: 10px;
+      color: var(--text-secondary);
+      transition: transform $transition-300;
+    }
+
+    &__submenu-wrap--open &__submenu-arrow {
+      transform: rotate(180deg);
+    }
+
+    &__submenu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 30;
+      width: max-content;
+      min-width: 100%;
+      margin: 0;
+      padding: 4px 0;
+      list-style-type: none;
+      background-color: var(--surface-panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      box-shadow: 0 6px 16px var(--shadow);
+
+      // Невидимый «мостик» над списком, чтобы курсор не терял наведение
+      &::before {
+        content: "";
+        position: absolute;
+        top: -10px;
+        left: 0;
+        right: 0;
+        height: 10px;
+      }
+    }
+
+    &__submenu-link {
+      display: block;
+      width: 100%;
+      padding: 9px 14px;
+      background: none;
+      text-align: left;
+      font-size: 14px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      transition:
+        background-color $transition-300,
+        color $transition-300;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        outline: none;
+      }
+
+      &:global(.active) {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        font-weight: 600;
+      }
     }
 
     &__item {

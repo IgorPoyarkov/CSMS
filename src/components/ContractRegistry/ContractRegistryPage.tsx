@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   totalPaid,
   paymentPercent,
@@ -22,6 +23,8 @@ import {
   MIN_CONTRACT_NUMBER_LENGTH,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
+import { useGetProcurements } from "../../services/Procurements/procurement.api";
+import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import useUtils from "../../hooks/useUtils";
 import SmpSection from "./ContractSmpSection";
 import ContractEventsSection from "./ContractEventsSection";
@@ -88,6 +91,23 @@ const formatMoney = (value: string | number | undefined | null): string => {
 /** id DOM-узла карточки — чтобы прокрутить страницу к подгруженному контракту. */
 const contractCardDomId = (id: string | number) => `contract-card-${id}`;
 
+/**
+ * Группа реестра по виду способа закупки. Способ берётся из извещения,
+ * привязанного к контракту (`procurementId`), а если извещения в системе
+ * нет — из загруженной закупки ЕИС (поле «Тип закупки»).
+ */
+type ContractGroup = "all" | "competitive" | "single";
+
+const CONTRACT_GROUP_TITLES: Record<ContractGroup, string> = {
+  all: "Реестр контрактов (ст. 82, 103 ФЗ-44)",
+  competitive: "Контракты по конкурентным способам",
+  single: "Контракты у единственного поставщика (ст. 93)",
+};
+
+/** Закупка у единственного поставщика: код EP93 или текст способа. */
+const isSingleSupplierWay = (way: string): boolean =>
+  /EP93/i.test(way) || /единственн/i.test(way);
+
 type LookupNoticeTone = "pending" | "success" | "warning" | "danger";
 
 interface LookupNotice {
@@ -102,6 +122,48 @@ export default function ContractRegistryPage() {
 
   const { data: contracts, isLoading } = useContractRegistry(orgId);
   const { mutate: deleteContract } = useDeleteContract();
+
+  // Группа приходит из подменю шапки: ?group=competitive | ?group=single
+  const [searchParams] = useSearchParams();
+  const groupParam = searchParams.get("group");
+  const group: ContractGroup =
+    groupParam === "competitive" || groupParam === "single"
+      ? groupParam
+      : "all";
+
+  const { data: procurements } = useGetProcurements();
+  const { data: notices } = useNotices();
+
+  // Способ закупки по id закупки: сначала извещение системы, затем запись ЕИС
+  const placingWayByProcurement = useMemo(() => {
+    const map = new Map<string, string>();
+    (procurements ?? []).forEach((procurement) => {
+      if (procurement.id !== undefined && procurement.id !== null) {
+        map.set(String(procurement.id), procurement.procurementType ?? "");
+      }
+    });
+    (notices ?? []).forEach((notice) => {
+      const id = notice.procurementId;
+      if (id !== undefined && id !== null && id !== "") {
+        map.set(String(id), notice.generalInfo?.placingWayCode ?? "");
+      }
+    });
+    return map;
+  }, [procurements, notices]);
+
+  const visibleContracts = useMemo(() => {
+    const list = contracts ?? [];
+    if (group === "all") return list;
+    return list.filter((contract) => {
+      const way = placingWayByProcurement.get(
+        String(contract.procurementId ?? ""),
+      );
+      if (!way) return false;
+      return group === "single"
+        ? isSingleSupplierWay(way)
+        : !isSingleSupplierWay(way);
+    });
+  }, [contracts, group, placingWayByProcurement]);
 
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
@@ -212,7 +274,13 @@ export default function ContractRegistryPage() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Реестр контрактов (ст. 82, 103 ФЗ-44)</h2>
+      <h2 className={styles.title}>{CONTRACT_GROUP_TITLES[group]}</h2>
+      {group !== "all" && (
+        <p className={styles.lookupHint}>
+          Группа определяется по способу закупки из извещения, привязанного к
+          контракту. Контракты без привязки к извещению в группу не попадают.
+        </p>
+      )}
 
       <section className={styles.lookup}>
         <h3 className={styles.lookupTitle}>
@@ -291,11 +359,15 @@ export default function ContractRegistryPage() {
         )}
       </section>
 
-      {!contracts || contracts.length === 0 ? (
-        <div className={styles.empty}>Контрактов нет</div>
+      {visibleContracts.length === 0 ? (
+        <div className={styles.empty}>
+          {group === "all"
+            ? "Контрактов нет"
+            : "В этой группе контрактов нет — способ закупки определяется по извещению, привязанному к контракту"}
+        </div>
       ) : (
         <div className={styles.list}>
-          {contracts.map((contract) => (
+          {visibleContracts.map((contract) => (
             <ContractCard
               key={contract.id}
               contract={contract}
