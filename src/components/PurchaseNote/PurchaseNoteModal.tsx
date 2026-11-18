@@ -5,8 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Calculator,
   ExternalLink,
+  FileDown,
   FileSpreadsheet,
   FileText,
+  Scale,
   Upload,
   X,
 } from "lucide-react";
@@ -17,9 +19,7 @@ import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import AddressCascade from "../UI/AddressCascade/AddressCascade";
 import SecurityRequisitesFields from "./SecurityRequisitesFields";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
-import NmckJustificationPanel, {
-  type NmckOfferItem,
-} from "./NmckJustificationPanel";
+import MarketNmckCalculator from "../Nmck/MarketNmckCalculator";
 import {
   PURCHASE_NOTE_STATUSES,
   PURCHASE_NOTE_STATUS_META,
@@ -51,6 +51,18 @@ import {
 } from "../../services/Organization/organization.schema";
 import { useUpdateOrganization } from "../../services/Organization/organization.api";
 import { MINIMUM_SMP_REQUIRED_PERCENT } from "../../services/ContractSmp/pp1466";
+import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import {
+  MARKET_PRICE_SOURCE_SHORT,
+  NMCK_METHOD_LABELS,
+  type NmckCalculationRecord,
+  type NmckMarketOffer,
+} from "../../services/Nmck/nmck.schema";
+import {
+  calculateMarketNmck,
+  exportNmckCalculationToDocx,
+  formatNmckMoney,
+} from "../../services/Nmck/marketNmck";
 import {
   checkOkpd2AuctionList,
   validatePlacingWayAgainstAuctionList,
@@ -133,6 +145,8 @@ export default function PurchaseNoteModal({
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   const { data: allObjectDescriptions = [] } =
     useOrganizationObjectDescriptions(organizationId);
+  const { data: contractRegistryItems = [] } =
+    useContractRegistry(organizationId);
   const objectDescriptions = allObjectDescriptions.filter(
     (item) => item.kind === "object_description",
   );
@@ -153,6 +167,7 @@ export default function PurchaseNoteModal({
     string | null
   >(null);
   const [showNmckWorkspace, setShowNmckWorkspace] = useState(false);
+  const [isExportingNmckDocx, setIsExportingNmckDocx] = useState(false);
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const proceedAfterSaveRef = useRef(false);
@@ -468,7 +483,12 @@ export default function PurchaseNoteModal({
   const watchedNmckFileName = watch("nmckFileName") || "";
   const watchedNmckFileUpdatedAt = watch("nmckFileUpdatedAt") || "";
   const watchedNmckRequestStatus = watch("nmckRequestStatus") ?? "none";
-  const watchedNmckOffers = (watch("nmckOffers") ?? []) as NmckOfferItem[];
+  const rawWatchedNmckOffers = watch("nmckOffers") as
+    | NmckMarketOffer[]
+    | undefined;
+  const watchedNmckCalculation = watch("nmckCalculation") as
+    | NmckCalculationRecord
+    | undefined;
 
   const percent = Number(watch("smpRequiredPercent"));
   const price = Number.parseFloat(String(watch("initialMaxPrice") ?? ""));
@@ -770,6 +790,73 @@ export default function PurchaseNoteModal({
     watchedIndeterminate ? "1" : watch("items.0.quantity") || "1",
   );
   const firstItemUnit = watch("items.0.unit") || "ед.";
+
+  const savedMarketEvaluation = useMemo(() => {
+    if (
+      !watchedNmckCalculation ||
+      watchedNmckCalculation.method !== "market_analysis"
+    ) {
+      return null;
+    }
+    return calculateMarketNmck({
+      quantity: watchedNmckCalculation.quantity,
+      calculationDate: watchedNmckCalculation.calculationDate,
+      applyAutoInflation: watchedNmckCalculation.applyAutoInflation,
+      annualInflationPercent: watchedNmckCalculation.annualInflationPercent,
+      selectedBasis: watchedNmckCalculation.selectedBasis,
+      offers: watchedNmckCalculation.offers,
+    });
+  }, [watchedNmckCalculation]);
+
+  const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const inlineInitialNmckRecord: NmckCalculationRecord | null = useMemo(() => {
+    if (watchedNmckCalculation) return watchedNmckCalculation;
+    if (!rawWatchedNmckOffers || rawWatchedNmckOffers.length === 0) return null;
+    const legacyResult = calculateMarketNmck({
+      quantity: firstItemQty > 0 ? firstItemQty : 1,
+      calculationDate: todayIso,
+      offers: rawWatchedNmckOffers,
+    });
+    return {
+      method: "market_analysis",
+      calculatedAt: todayIso,
+      calculationDate: todayIso,
+      subject: watch("subject") || position.objectOfPurchase || "",
+      okpd2Code: watch("items.0.okpd2Code") || position.okpd2Code || "",
+      okpd2Name: watch("items.0.okpd2Name") || position.okpd2Name || "",
+      quantity: String(firstItemQty > 0 ? firstItemQty : 1),
+      unit: firstItemUnit,
+      offers: rawWatchedNmckOffers,
+      activeCount: legacyResult.activeCount,
+      meanUnitPrice: legacyResult.meanUnitPrice,
+      minUnitPrice: legacyResult.minUnitPrice,
+      maxUnitPrice: legacyResult.maxUnitPrice,
+      stdDev: legacyResult.stdDev,
+      cvPercent: legacyResult.cvPercent,
+      isHomogeneous: legacyResult.isHomogeneous,
+      nmckMinTotal: legacyResult.nmckMinTotal,
+      nmckTotal: legacyResult.nmckTotal,
+    };
+  }, [watchedNmckCalculation, rawWatchedNmckOffers, firstItemQty, firstItemUnit, position, todayIso, watch]);
+
+  const handleExportSavedNmckDocx = async () => {
+    if (!watchedNmckCalculation) return;
+    setIsExportingNmckDocx(true);
+    try {
+      await exportNmckCalculationToDocx({
+        title: `ОБОСНОВАНИЕ НМЦК К СЗ № ${watch("noteNumber") || "б/н"}`,
+        organizationName:
+          organization?.shortName || organization?.fullName || "",
+        ikz: watch("ikz") || position.identificationCode || "",
+        record: watchedNmckCalculation,
+        marketResult: savedMarketEvaluation ?? undefined,
+        fileName: `Обоснование_НМЦК_СЗ_${watch("noteNumber") || "черновик"}.docx`,
+      });
+    } finally {
+      setIsExportingNmckDocx(false);
+    }
+  };
 
   return (
     <form className={block()} onSubmit={handleSubmit(onSubmit)}>
@@ -1729,19 +1816,226 @@ export default function PurchaseNoteModal({
             <div className={block("nmck-box")}>
               <div className={block("label-row")}>
                 <strong>
-                  Файл обоснования НМЦК и запрос на его подготовку
+                  Обоснование НМЦК (ст. 22 Закона № 44-ФЗ), файл и запрос
                 </strong>
-                <button
-                  type="button"
-                  className={block("btn-accent")}
-                  onClick={() => setShowNmckWorkspace((prev) => !prev)}
-                >
-                  <Calculator size={14} aria-hidden="true" />{" "}
-                  {showNmckWorkspace
-                    ? "Скрыть расчёт НМЦК"
-                    : "Провалиться и начать делать расчёт НМЦК"}
-                </button>
+                <div className={block("header-actions")}>
+                  <Link
+                    to={`/nmck-calculator?planId=${plan.id}&positionId=${position.id}${editingNoteId ? `&noteId=${editingNoteId}` : ""}`}
+                    className={block("inline-link")}
+                  >
+                    Открыть модуль расчёта НМЦК
+                    <ExternalLink size={12} aria-hidden="true" />
+                  </Link>
+                  <button
+                    type="button"
+                    className={block("btn-accent")}
+                    onClick={() => setShowNmckWorkspace((prev) => !prev)}
+                  >
+                    <Calculator size={14} aria-hidden="true" />{" "}
+                    {showNmckWorkspace
+                      ? "Скрыть расчёт НМЦК"
+                      : watchedNmckCalculation
+                        ? "Пересчитать / изменить обоснование"
+                        : "Рассчитать НМЦК здесь"}
+                  </button>
+                </div>
               </div>
+
+              {watchedNmckCalculation && (
+                <div className={block("nmck-card")}>
+                  <div className={block("nmck-card-head")}>
+                    <div className={block("card-title-inline")}>
+                      {watchedNmckCalculation.method === "normative" ? (
+                        <Scale size={15} aria-hidden="true" />
+                      ) : (
+                        <Calculator size={15} aria-hidden="true" />
+                      )}
+                      <span
+                        className={block(
+                          "nmck-badge",
+                          watchedNmckCalculation.exceedsNormLimit
+                            ? ["danger"]
+                            : [],
+                        )}
+                      >
+                        {NMCK_METHOD_LABELS[watchedNmckCalculation.method]}
+                      </span>
+                      <span className={block("hint")} style={{ marginTop: 0 }}>
+                        от {watchedNmckCalculation.calculationDate || watchedNmckCalculation.calculatedAt}
+                        {watchedNmckCalculation.calculatorName
+                          ? ` · ${watchedNmckCalculation.calculatorName}`
+                          : ""}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={block("mode-btn")}
+                      disabled={isExportingNmckDocx}
+                      onClick={handleExportSavedNmckDocx}
+                    >
+                      <FileDown size={13} aria-hidden="true" />{" "}
+                      {isExportingNmckDocx
+                        ? "Формирование…"
+                        : "Выгрузить обоснование (.docx)"}
+                    </button>
+                  </div>
+
+                  {watchedNmckCalculation.method === "market_analysis" ? (
+                    <>
+                      <div className={block("nmck-kpis")}>
+                        <div className={block("nmck-kpi")}>
+                          <span>Итоговая НМЦК</span>
+                          <strong>
+                            {formatNmckMoney(watchedNmckCalculation.nmckTotal)} ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Средняя цена ед.</span>
+                          <strong>
+                            {formatNmckMoney(
+                              watchedNmckCalculation.meanUnitPrice,
+                            )}{" "}
+                            ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Учтено источников</span>
+                          <strong>
+                            {watchedNmckCalculation.activeCount} из{" "}
+                            {watchedNmckCalculation.offers.length}
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Вариация V / СКО</span>
+                          <strong>
+                            {watchedNmckCalculation.cvPercent.toFixed(2)}%{" "}
+                            {watchedNmckCalculation.isHomogeneous
+                              ? "(однородна ≤33%)"
+                              : "(> 33%)"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {savedMarketEvaluation &&
+                        savedMarketEvaluation.evaluatedOffers.length > 0 && (
+                          <div style={{ overflowX: "auto" }}>
+                            <table className={block("nmck-table")}>
+                              <thead>
+                                <tr>
+                                  <th>№</th>
+                                  <th>Источник / Поставщик</th>
+                                  <th>Документ / Дата</th>
+                                  <th>Цена ед., ₽</th>
+                                  <th>Привед. цена, ₽</th>
+                                  <th>Статус</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {savedMarketEvaluation.evaluatedOffers.map(
+                                  (ev, idx) => (
+                                    <tr key={ev.offer.id}>
+                                      <td>{idx + 1}</td>
+                                      <td>
+                                        [
+                                        {
+                                          MARKET_PRICE_SOURCE_SHORT[
+                                            ev.offer.sourceType ??
+                                              "commercial_offer"
+                                          ]
+                                        }
+                                        ] {ev.offer.supplierName || "—"}
+                                      </td>
+                                      <td>
+                                        {ev.offer.sourceDocument || "б/н"}
+                                        {ev.offer.offerDate
+                                          ? ` от ${ev.offer.offerDate}`
+                                          : ""}
+                                      </td>
+                                      <td>
+                                        {ev.isValidPrice
+                                          ? formatNmckMoney(ev.baseUnitPrice)
+                                          : "—"}
+                                      </td>
+                                      <td>
+                                        <strong>
+                                          {ev.isValidPrice
+                                            ? formatNmckMoney(
+                                                ev.adjustedUnitPrice,
+                                              )
+                                            : "—"}
+                                        </strong>
+                                      </td>
+                                      <td>
+                                        {ev.isIncluded && ev.isValidPrice
+                                          ? "Учтён"
+                                          : "Исключён"}
+                                      </td>
+                                    </tr>
+                                  ),
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                    </>
+                  ) : (
+                    <>
+                      <div className={block("nmck-kpis")}>
+                        <div className={block("nmck-kpi")}>
+                          <span>Итоговая НМЦК</span>
+                          <strong>
+                            {formatNmckMoney(watchedNmckCalculation.nmckTotal)} ₽
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Код ОКПД2</span>
+                          <strong>
+                            {watchedNmckCalculation.okpd2Code || "не указан"}
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Предельная цена по ОКПД2</span>
+                          <strong>
+                            {watchedNmckCalculation.normLimitUnitPrice !==
+                            undefined
+                              ? `${formatNmckMoney(watchedNmckCalculation.normLimitUnitPrice)} ₽`
+                              : "Не задана в ОКПД2"}
+                          </strong>
+                        </div>
+                        <div className={block("nmck-kpi")}>
+                          <span>Принятая цена ед. × объём</span>
+                          <strong>
+                            {formatNmckMoney(
+                              watchedNmckCalculation.normativeUnitPrice ??
+                                watchedNmckCalculation.meanUnitPrice,
+                            )}{" "}
+                            ₽ × {watchedNmckCalculation.quantity}{" "}
+                            {watchedNmckCalculation.unit}
+                          </strong>
+                        </div>
+                      </div>
+                      <p className={block("hint")} style={{ marginTop: 0 }}>
+                        <strong>НПА:</strong>{" "}
+                        {watchedNmckCalculation.normativeAct || "—"}
+                        {watchedNmckCalculation.normativeDocument
+                          ? ` · Документ / пункт: ${watchedNmckCalculation.normativeDocument}`
+                          : ""}
+                      </p>
+                      {watchedNmckCalculation.exceedsNormLimit && (
+                        <div className={block("alert-warning")} role="alert">
+                          Внимание: принятая цена единицы превышает предел
+                          обязательного нормирования по ОКПД2 (
+                          {formatNmckMoney(
+                            watchedNmckCalculation.normLimitUnitPrice ?? 0,
+                          )}{" "}
+                          ₽).
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className={block("file-row")}>
                 <label className={block("mode-btn")}>
@@ -1866,36 +2160,63 @@ export default function PurchaseNoteModal({
               </div>
 
               {showNmckWorkspace && (
-                <NmckJustificationPanel
-                  noteNumber={watch("noteNumber") || "б/н"}
-                  subject={watch("subject") || position.objectOfPurchase || ""}
-                  quantity={
-                    Number.isFinite(firstItemQty) && firstItemQty > 0
-                      ? firstItemQty
-                      : 1
+                <MarketNmckCalculator
+                  embedded
+                  initialRecord={inlineInitialNmckRecord}
+                  defaultSubject={
+                    watch("subject") || position.objectOfPurchase || ""
                   }
-                  unit={firstItemUnit}
-                  offers={watchedNmckOffers}
+                  defaultOkpd2Code={
+                    watch("items.0.okpd2Code") ||
+                    watch("okpd2Code") ||
+                    position.okpd2Code ||
+                    ""
+                  }
+                  defaultOkpd2Name={
+                    watch("items.0.okpd2Name") ||
+                    watch("okpd2Name") ||
+                    position.okpd2Name ||
+                    ""
+                  }
+                  defaultQuantity={
+                    Number.isFinite(firstItemQty) && firstItemQty > 0
+                      ? String(firstItemQty)
+                      : "1"
+                  }
+                  defaultUnit={firstItemUnit}
+                  defaultIkz={watch("ikz") || position.identificationCode || ""}
+                  defaultCalculatorName={
+                    employee?.employee ? fullName(employee.employee) : ""
+                  }
+                  organizationName={
+                    organization?.shortName || organization?.fullName || ""
+                  }
+                  planAmountLimit={toNumber(position.amountTotal)}
+                  contractRegistryItems={contractRegistryItems}
+                  canUpdatePlanAmount={false}
                   disabled={isReadOnly}
-                  onOffersChange={(next) => setValue("nmckOffers", next)}
-                  onApplyCalculation={({
-                    nmckValue,
-                    priceBasisText,
-                    fileName,
-                  }) => {
+                  saveButtonLabel="Подставить расчёт и обоснование в СЗ"
+                  onSaveToPosition={({ record, basisText }) => {
                     if (isReadOnly) return;
-                    setValue("initialMaxPrice", nmckValue, {
+                    setValue("initialMaxPrice", record.nmckTotal.toFixed(2), {
                       shouldValidate: true,
                     });
-                    setValue("priceBasis", priceBasisText);
-                    setValue("nmckFileName", fileName);
+                    setValue("priceBasis", basisText);
+                    setValue("nmckOffers", record.offers);
+                    setValue("nmckCalculation", record);
                     setValue(
-                      "nmckFileUpdatedAt",
-                      new Date().toISOString().slice(0, 10),
+                      "nmckFileName",
+                      `Обоснование_НМЦК_СЗ_${watch("noteNumber") || "черновик"}.docx`,
                     );
+                    setValue("nmckFileUpdatedAt", record.calculatedAt);
+                    if (record.okpd2Code && !watch("items.0.okpd2Code")) {
+                      setValue("items.0.okpd2Code", record.okpd2Code);
+                      setValue("items.0.okpd2Name", record.okpd2Name || "");
+                    }
                     if (watch("nmckRequestStatus") === "requested") {
                       setValue("nmckRequestStatus", "received");
                     }
+                    setShowNmckWorkspace(false);
                   }}
                   onClose={() => setShowNmckWorkspace(false)}
                 />

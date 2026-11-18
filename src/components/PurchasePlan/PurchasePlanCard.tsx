@@ -23,6 +23,7 @@ import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
+import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import styles from "./PurchasePlanCard.module.scss";
@@ -315,35 +316,12 @@ export default function PurchasePlanCard() {
           </span>
         );
       }
-      case "amountTotal": {
-        const savedNmck = position.nmckCalculation?.nmckTotal;
-        const rawNmck = Number(position.nmck);
-        const hasNmck =
-          position.nmckCalculation !== undefined ||
-          (Number.isFinite(rawNmck) && rawNmck > 0);
-        const nmckDisplay =
-          savedNmck !== undefined
-            ? formatMoney(savedNmck)
-            : Number.isFinite(rawNmck) && rawNmck > 0
-              ? formatMoneyValue(rawNmck)
-              : null;
-
+      case "amountTotal":
         return (
-          <div className={block("status-stack")}>
-            <span className={block("amount")}>
-              {formatMoneyValue(position[key])}
-            </span>
-            {hasNmck && nmckDisplay && (
-              <span className={block("sub", ["compact"])}>
-                НМЦК: {nmckDisplay}
-                {position.nmckCalculation
-                  ? ` (анализ рынка, V=${position.nmckCalculation.cvPercent.toFixed(1)}%)`
-                  : ""}
-              </span>
-            )}
-          </div>
+          <span className={block("amount")}>
+            {formatMoneyValue(position[key])}
+          </span>
         );
-      }
       // Статус записи и дата, когда она размещена (план-график прошёл контроль).
       // Записи без статуса считаются запланированными
       case "status": {
@@ -361,10 +339,7 @@ export default function PurchasePlanCard() {
               </span>
             )}
             {posNotes.map((note) => (
-              <div
-                key={String(note.id ?? note.noteNumber)}
-                className={block("note-status-line")}
-              >
+              <div key={String(note.id ?? note.noteNumber)} className={block("note-status-line")}>
                 <span className={block("sub", ["compact"])}>
                   СЗ №{note.noteNumber}:
                 </span>
@@ -382,9 +357,8 @@ export default function PurchasePlanCard() {
   }
 
   // Действия по записи плана-графика: правка позиции, единый поинт
-  // «Сформировать потребность» (СЗ) и удаление текущей позиции ПГ.
+  // «Сформировать потребность» (СЗ), расчёт НМЦК и удаление текущей позиции ПГ.
   function renderActionsCell(position: PurchasePlanPosition): React.ReactNode {
-    const positionNotes = purchaseNotesForPosition(purchaseNotes, position.id);
     const positionKey = String(position.id ?? "");
     const isConfirmingDelete = confirmDeletePositionId === positionKey;
 
@@ -426,7 +400,7 @@ export default function PurchasePlanCard() {
               );
             }}
           >
-            Рассчитать НМЦК (анализ рынка)
+            Рассчитать НМЦК
           </button>
           <button
             className={block("menu-item")}
@@ -441,36 +415,6 @@ export default function PurchasePlanCard() {
           >
             Сформировать потребность
           </button>
-          {positionNotes.length > 0 && (
-            <div className={block("menu-note")}>
-              {positionNotes.map((note) => (
-                <div
-                  key={String(note.id ?? note.noteNumber)}
-                  className={block("menu-note-item")}
-                >
-                  <span>СЗ №{note.noteNumber}</span>
-                  <PurchaseNoteStatusBadge status={note.status} compact />
-                </div>
-              ))}
-              {positionNotes.some(
-                (note) =>
-                  (note.requiresSmpSubcontracting ??
-                    (note.smpRequiredPercent !== undefined &&
-                      Number(note.smpRequiredPercent) > 0)) &&
-                  note.smpRequiredPercent !== undefined,
-              ) && (
-                <span>
-                  СМП{" "}
-                  {Math.max(
-                    ...positionNotes.map((note) =>
-                      Number(note.smpRequiredPercent ?? 0),
-                    ),
-                  )}
-                  %
-                </span>
-              )}
-            </div>
-          )}
           {!isConfirmingDelete ? (
             <button
               className={block("menu-item", ["danger"])}
@@ -573,7 +517,10 @@ export default function PurchasePlanCard() {
           </h1>
         </div>
         <div className={block("actions")}>
-          <button type="button" onClick={() => navigate("/purchase-notes")}>
+          <button
+            type="button"
+            onClick={() => navigate("/purchase-notes")}
+          >
             Реестр потребностей (СЗ)
           </button>
         </div>
@@ -621,6 +568,9 @@ export default function PurchasePlanCard() {
           {customer.inn ? ` · ИНН ${customer.inn}` : ""}
           {customer.kpp ? ` · КПП ${customer.kpp}` : ""}
         </p>
+        {/* Форма записи и состав граф берутся из актов реестра: при правке
+            нормы меняется запись реестра, а не подписи в таблице */}
+        <LegalActRefs component="PurchasePlanCard" />
       </fieldset>
 
       {/* Основная кнопка добавления записи — над таблицей записей */}
@@ -691,7 +641,10 @@ export default function PurchasePlanCard() {
                         приглашения, заключения контракта с единственным
                         поставщиком (подрядчиком, исполнителем)
                       </th>
-                      <th className={block("th", ["narrow"])} data-col="number">
+                      <th
+                        className={block("th", ["narrow"])}
+                        data-col="number"
+                      >
                         Номер закупки, включенной в план-график
                       </th>
                       <th>Наименование объекта (объектов) закупки</th>

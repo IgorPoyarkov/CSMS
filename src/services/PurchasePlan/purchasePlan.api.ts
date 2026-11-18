@@ -12,7 +12,6 @@ import {
   buildPositionFinancePatch,
   roundMoney,
 } from "../Nmck/marketNmck";
-import type { NmckCalculationRecord } from "../Nmck/nmck.schema";
 
 const ENDPOINT = "/purchasePlans";
 
@@ -120,21 +119,19 @@ const deletePurchasePlan = async ({
   return id;
 };
 
-export interface SavePositionNmckPayload {
+export interface UpdatePositionPlanAmountPayload {
   planId: string | number;
   organizationId: string | number | undefined;
   positionId: string | number;
-  nmckCalculation: NmckCalculationRecord;
-  updatePlanAmount?: boolean;
+  amountTotal: number;
 }
 
-const savePositionNmck = async ({
+const updatePositionPlanAmount = async ({
   planId,
   organizationId,
   positionId,
-  nmckCalculation,
-  updatePlanAmount = false,
-}: SavePositionNmckPayload): Promise<PurchasePlan> => {
+  amountTotal,
+}: UpdatePositionPlanAmountPayload): Promise<PurchasePlan> => {
   await fetchPurchasePlanById(planId, organizationId);
   const stored = await api.get(`${ENDPOINT}/${planId}`);
   const rawPlan = stored.data as PurchasePlan & Record<string, unknown>;
@@ -148,16 +145,10 @@ const savePositionNmck = async ({
       return pos;
     }
     found = true;
-    const financePatch = updatePlanAmount
-      ? buildPositionFinancePatch(pos, nmckCalculation.nmckTotal)
-      : {};
+    const financePatch = buildPositionFinancePatch(pos, amountTotal);
     return {
       ...pos,
       ...financePatch,
-      quantity: nmckCalculation.quantity,
-      unit: nmckCalculation.unit,
-      nmck: nmckCalculation.nmckTotal.toFixed(2),
-      nmckCalculation,
     };
   });
 
@@ -166,11 +157,7 @@ const savePositionNmck = async ({
   }
 
   let nextTotalAmount = rawPlan.totalAmount;
-  if (
-    updatePlanAmount &&
-    rawPlan.totalAmount !== undefined &&
-    rawPlan.totalAmount !== ""
-  ) {
+  if (rawPlan.totalAmount !== undefined && rawPlan.totalAmount !== "") {
     const sumTotal = nextPositions.reduce(
       (acc, pos) => acc + (toNumber(pos.amountTotal) ?? 0),
       0,
@@ -252,11 +239,11 @@ export const useDeletePurchasePlan = () => {
   });
 };
 
-export const useSavePositionNmck = () => {
+export const useUpdatePositionPlanAmount = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: savePositionNmck,
+    mutationFn: updatePositionPlanAmount,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchasePlansQueryKey });
     },

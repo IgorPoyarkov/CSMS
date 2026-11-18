@@ -2,8 +2,7 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-18 (после роли «инициатор закупки»
-> и описаний объектов закупки).
+> Дата последнего обновления: 2026-11-17 (после добавления реестра потребностей /purchase-notes, статусов согласования, выгрузки DOCX/PDF, калькулятора НМЦК и уточнения полей СЗ).
 
 ## 0. Откуда брать задачи
 
@@ -33,26 +32,12 @@
   его нужно перезапустить, иначе `GET` новой коллекции = 404, а любая мутация
   перезапишет файл старой версией. Для смоук-тестов — копия базы на свободном
   порту.
-- ⚠️ Копия нужна не только из-за кэша: **мутация пишется в тот файл, который
-  передан json-server**. `PATCH`/`DELETE` на рабочем `db.json` меняет базу
-  (проверено на смоуке правки отметок: запись пришлось откатывать вручную).
 - ⚠️ **Опасная особенность json-server 0.17.4:** при любой мутации он удаляет
   **все** записи с «битыми» внешними ссылками — поле `xxxId`, значения которого
   нет в плюрализованной коллекции (`mixins.js`, `getRemovable`; чистит и соседние
   коллекции). Пустая строка `""` — тоже битая ссылка. **Пустые `*Id` в базу не
   сохраняем**: поле либо заполнено, либо отсутствует (`omitEmptyReferences` в
   API службы, реестра и задач).
-- ⚠️ **Пустая коллекция — тоже ловушка.** `"contracts": []` делала `contractId`
-  «битой» ссылкой, и `DELETE` в любой коллекции реестра вычищал **все** связанные
-  записи (этапы, платежи, неустойки, поставки, записи СМП, события ЭП). Коллекция
-  удалена из `db.json` — её никто не запрашивал. `"notices": []` оставлена:
-  ссылок `noticeId` в данных нет, поэтому она безопасна.
-- ⚠️ `null` в поле `*Id` валит `getRemovable` (`null.toString()` → 500 на любом
-  DELETE). Убраны `organizationId: null` у приказных `contractFunctions` и
-  `purchasePlanId/positionId: null` у `purchaseNotes` id4: схемы дают
-  `default(null)`/`optional`, логика читает `isFromOrder`.
-- Проверка данных перед мутациями: `node -e` со скриптом по образцу
-  `getRemovable` из `mixins.js` — должен печатать «no removable».
 - ⚠️ `BaseEmployeeSchema.email` — `z.email()`: кириллица в адресе не проходит, а
   API парсит каждого работника, поэтому падает весь ЛК. Моки — только латиница
   (`.tmp/fix-employee-emails.mjs` транслитерировал 22 адреса).
@@ -78,17 +63,16 @@
   Реквизиты заказчика вручную не вводятся; чужие записи отклоняются на клиенте
   (`isPlanOfOrganization` и аналоги, сравнение через `String()`).
 
-## 3. Данные (`db.json`, 2026-11-17)
+## 3. Данные (`db.json`, 2026-11-16)
 
 ```
 users 5 · employees 40 · organizations 6 · structuralUnits 33 (это отделы!)
-contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts — удалена
-tasks 13 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
-contractProjects 2 · contractRegistry 6 · contractStages 11 · contractPayments 10
-contractPenalties 5 · contractDeliveries 3 · contractEvents 21 · contractFunctions 5 · legalActs 17
+contractServices 4 · purchasePlans 4 · procurements 8 · notices 0 · contracts 0
+tasks 12 · taskEvaluations 4 · employeeEducations 9 · leaves 6 · accessRequests 1
+contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments 9
+contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 16
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
-defectLists 4 · edsCertificates 4 · edsSignatureEvents 19 · okpd2Refs 143
-addressRegions/Municipalities 89/31
+objectDescriptions 5 · edsCertificates 4 · edsSignatureEvents 4 · okpd2Refs 143 · addressRegions/Municipalities 89/31
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -116,7 +100,7 @@ addressRegions/Municipalities 89/31
   отработаны сценарии СМП и ЭП. Записи СМП: id1–18 (контракты 1–3), **id23–26
   (контракт 5)**. ⚠️ При перенумерации сидов id19–22 уже использовались
   контрактом 1 — проверять занятость id перед вставкой.
-- `edsCertificates` id1 Говоров (active), id2 Иванов (`validTo` 2026-12-01 →
+- `edsCertificates` id1 Гово��ов (active), id2 Иванов (`validTo` 2026-12-01 →
   expiring, сотрудник не найден), id3 Колесникова **чужой ИНН 3128071234**
   (для ветки «отказ»), id4 Пояркова (active, org2, вход для user2).
   `edsSignatureEvents` id1–3: signed / signed (`smp_eis_export`) /
@@ -133,7 +117,7 @@ addressRegions/Municipalities 89/31
 общественное обсуждение, уполномоченный орган, совместный организатор, ОКПД2,
 наименование объекта) + доп. сведения для извещения (`ktrCode`, `nmck`,
 `purchaseMethod` из 7 способов ст. 32, `advancePaymentPercent`, даты контракта).
-Правила: не-draft ⇒ ≥1 запись; `publishDate` ≥ `approvalDate`; `amountTotal` =
+Правила: не-draft ⇒ ≥1 запис��; `publishDate` ≥ `approvalDate`; `amountTotal` =
 Σ частей ≤ `nmck`; `totalAmount` плана = Σ `amountTotal`. API полностью
 привязан к организации, `queryKey` включает `"organization", String(orgId)`.
 
@@ -151,7 +135,7 @@ addressRegions/Municipalities 89/31
 ### Задачи, оценки, образование, отсутствие
 
 - `tasks`: `organizationId`, `title`, `status` (`pending|in_progress|completed`),
-  `origin` (`head|system`), `functionCode` (функция, по которой поставлена),
+  `origin` (`head|system`), `functionCode` (функция, по которой пост��влена),
   `assigneeId` + снимок `assigneeName`, `assignedByEmployeeId`/`assignedByName`,
   `dueDate`, `result`. Хелперы: `taskDaysLeft`, `isTaskOverdue`,
   `sortTasksByDeadline` (по остатку срока, без даты — в конец), `taskSummary`,
@@ -183,131 +167,6 @@ addressRegions/Municipalities 89/31
 извещение → проект контракта → подписанный контракт → запись реестра;
 требование СМП рождается в служебке и наследуется вниз (`smpRequiredPercent`).
 
-**Подгрузка сведений из реестра по реестровому номеру контракта** (сессия
-2026-11-17): `lookupContractByNumber(contractNumber, organizationId)` в
-`contractRegistry.api.ts` → `ContractLookup { contract, matchedBy,
-anotherOrganization }`. Порядок поиска: точное совпадение среди своих → свой
-контракт по фрагменту (`contractNumber_like`, в json-server именно `_like`, а не
-`__like`; хорошо дружит с `organizationId`) → чужие контракты (только чтобы
-отличить «нет в реестре» от «контракт другого заказчика», чужие сведения не
-возвращаются). `normalizeContractNumber()` убирает пробелы, `№` и дефисы — номер
-копируют из ЕИС. На странице блок «Подгрузка сведений из реестра контрактов»:
-найденный контракт раскрывается, подсвечивается (`cardHighlighted`) и к нему
-прокрутка; сами сведения подтягивает карточка (этапы, платежи, неустойки,
-поставки, СМП). Частичное совпадение помечается в сообщении. Под подсказкой —
-пилюли с номерами своей организации (из уже загруженного `contracts`, без доп.
-запроса), клик = подставить и подгрузить. Запрос — по кнопке, через
-async-обработчик (не через `useQuery`: результат нужен один раз по действию
-пользователя, без каскадных setState). `MIN_CONTRACT_NUMBER_LENGTH` = 3 — как
-`requiredText(3, …)` в схеме номера; пустой фильтр json-server вернул бы весь
-реестр.
-
-⚠️ **Подгрузка читает локальный `contractRegistry`, а не ЕИС.** Реальные номера
-реестровых записей (вида `2462904043926000011`) в сидах отсутствуют → «не
-найдено». Прямой запрос из браузера в ЕИС невозможен (CORS + нужен
-`iservice-key`), из этой среды ещё и DNS не резолвит `api.zakupki.gov.ru`.
-Настоящий обмен — Tasks 9 п.3 (серверный прокси). Для демонстрации в сидах есть
-контракт id 6 (org6) с номером `2462904043926000011`, 2 этапа (49,6 + 74,4 млн =
-цене 124 млн) и аванс 37,2 млн.
-
-### Чекпоинты процесса по контракту (`contractEvents`)
-
-**Зачем:** ЕИС не сообщает, на каком шаге находится контракт, — по Tasks 8 п. 2 б
-это наша зона ответственности. Заказчик отмечает пройденные этапы сам, и по
-карточке видно, где контракт: `project_created` → `customer_approved` →
-`supplier_signed` → `customer_signed` → `registry_included` →
-`execution_started` → `acceptance` → `payment` → `completed` | `terminated`.
-
-**Файлы:** `ContractEventSchema`, `CONTRACT_EVENT_CHECKPOINTS`,
-`contractEventCheckpointLabels`, `CONTRACT_EVENT_ORDER`, `sortContractEvents`,
-`nextContractEvent`, `emptyContractEvent` в `contractRegistry.schema.ts`;
-CRUD и хуки `useContractEvents` / `useCreateContractEvent` /
-`useUpdateContractEvent` / `useDeleteContractEvent` в `contractRegistry.api.ts`;
-`ContractEventsSection.tsx` — секция в карточке реестра.
-
-**Поля:** `contractId`, `checkpoint`, `occurredAt` (дата события, а не дата
-ввода), снимок `employeeId`/`employeeName`, `basis` (номер и дата
-документа-основания), `comment`, `createdAt`.
-
-**Поведение:** таймлайн (дата, этап, кто отметил, основание, комментарий),
-инлайн-форма «+ Отметить этап» с подстановкой ближайшего неотмеченного шага,
-удаление отметки. Сведения из ЕИС сюда не пишутся: когда появится канал
-(Tasks 9 п. 3), часть событий можно будет подтверждать по данным ЕИС, но журнал
-остаётся нашим. Отметку можно исправить: кнопка «✎» открывает ту же форму,
-автор и дата ввода сохраняются (исправляем сведения о событии, а не подменяем
-того, кто его вёл), в записи появляется `updatedAt` — таймлайн показывает
-«Изменено: …».
-
-**Сиды:** контракт 1 — 6 событий (до «начато исполнение»), контракт 2 — 9
-(до «исполнение завершено»), контракт 5 (org6) — 6.
-
-### Дефектовки и производные документы (`defectLists`)
-
-**Зачем:** Tasks 8 п. 4 — роль «инициатор закупки», работник
-подразделения-заказчика, не входящий в контрактную службу. Он описывает
-не объект закупки целиком (наименование, ОКПД2 и требования уже живут
-в ООЗ — `objectDescriptions`), а **объёмы работ** дефектовкой. Из дефектовки
-вырастают два документа, которые раньше делались в Excel: **проект сметы
-контракта** и **проект календарного графика**. Наименование и ОКПД2 не
-дублируются — есть ссылка `objectDescriptionId`, а `objectName` — снимок
-для печати.
-
-**Роль:** отдельной записи в справочнике нет — роль выводится из состава
-службы. В `useMyContractRole` добавлены `isContractServiceMember`
-(есть строка в ростере либо работник в структурном подразделении службы)
-и `isPurchaseInitiator`. Константы роли — `DEFECT_INITIATOR_ROLE` /
-`DEFECT_INITIATOR_ROLE_HINT` в схеме.
-
-**Файлы:** `src/services/DefectList/defectList.schema.ts` + `.api.ts`;
-`src/components/DefectList/DefectListsPage.tsx` (+ `.module.scss`) и
-`DefectListModal.tsx` (+ `.module.scss`); роут `/defect-lists` в `App.tsx`,
-ссылки — «Дефектовки» в `Header.tsx` и в разделах на главной (`Main.tsx`).
-
-**Схема:** `organizationId`, снимок автора и подразделения, связь с ООЗ
-(`objectDescriptionId`) и цепочкой (`procurementId`, `purchasePlanId`,
-`positionId`), `objectName` (снимок), `basis` (дефектный акт).
-`items[]`: `section` (раздел работ), `normCode` (шифр ГЭСН/ФЕР), `name`,
-`unit`, `quantity`, `unitPrice`. Вложенный `estimate`: метод
-(`resource|index|analog`), нормативная база (`FER|TER|GESN`), `priceLevel`,
-`legalActId` (421/пр), накладные/прибыль/НДС в процентах, статус.
-Вложенный `schedule`: `plannedStart`/`plannedEnd`, `stages[]` (этап, даты,
-сумма), `legalActId` (336/пр), статус. Статус документа —
-`draft | submitted | accepted | returned`, плюс `submittedAt`, `reviewedAt`,
-`reviewComment`, `taskId`.
-
-**Расчёты:** `defectItemAmount`, `defectDirectCost`,
-`groupDefectItemsBySection` (из разделов строятся и смета, и этапы),
-`computeEstimateTotals` (прямые → накладные → сметная прибыль → НДС),
-`scheduleTotal`, `scheduleDifference`, `buildScheduleStages` (этапы =
-разделы, суммы пропорциональны прямым затратам, последний этап забирает
-округлительный остаток, сроки делятся на периоде), `normalizeEstimate` /
-`normalizeSchedule` (частичные значения формы → полный блок).
-
-**Нормы в `legalActs`:** `minstroy-421pr` — приказ Минстроя России
-от 04.08.2020 № 421/пр (методика определения сметной стоимости — смета
-контракта); `minstroy-336pr` — приказ Минстроя России от 05.06.2018
-№ 336/пр (методика графика выполнения СМР и графика оплаты). Оба сверены
-с первоисточником, `isVerified: true`.
-
-**Поведение:** инициатор видит только свои дефектовки, работник КС — все.
-Фильтр по статусу со счётчиками; карточка показывает три итога (прямые
-затраты, проект сметы, проект графика и расхождение). В модалке: выбор ООЗ
-(наименование и ОКПД2 подтягиваются), дефектовка позициями, коэффициенты
-сметы с расчётом итогов, «Сформировать из сметы» для графика.
-«Направить в КС» создаёт задачу (`origin: system`,
-`functionCode: purchase_description`, исполнитель — первая строка ростера,
-срок +5 дней) и переводит запись в `submitted`.
-
-**Сиды:** org1 — id1 `submitted` (Егорова, отопление, задача id13),
-id2 `draft` (Фомин, отделочные работы), id3 `returned` (Егорова, кровля,
-комментарий КС); org6 — id4 `accepted` (Говоров, дорожные знаки, смета
-и график утверждены). ⚠️ В org6 в сиде один работник (id41, он же
-руководитель КС), поэтому автор там — он.
-
-**Осталось:** связать принятую дефектовку с позицией ПГ
-(`purchasePlanId`/`positionId`), уведомление инициатору о возврате,
-серверные права, печатные формы сметы (по 421/пр) и графика.
-
 ### Электронная подпись (Eds)
 
 **Файлы:** `src/services/Eds/eds.schema.ts` + `.api.ts` + `cryptoPro.ts`;
@@ -337,66 +196,7 @@ expiring (≤60 дн.) / expired / revoked; `certificateBelongsToOrganization`.
 сверка сертификата ИНН с ИНН организации; при несовпадении — кнопка «Записать
 отказ в журнал». При совпадении — комментарий → `useLogSignatureEvent`
 создаёт запись EdsCertificate + событие в журнал. Штамп «ЭП · Владелец ·
-срез XXX…7890» остаётся в `comment` события.
-
-**Проверка рабочего места** (сессия 2026-11-17): `src/services/Eds/pluginSign.ts` —
-мост к CAdESCOM. Плагин выставляет `cadesplugin` (старые сборки — `cpcsp`), а не
-`cp`, поэтому детект проверяет все три имени. Экспорт: `detectPluginEnv`
-(канал/версия/что доступно), `readStoreCertificates` (хранилище «Мой»: subject,
-issuer, серийник decimal→HEX, отпечаток, даты `ДД.ММ.ГГГГ`→ISO, `HasPrivateKey`,
-ИНН/СНИЛС через `extract*FromSubject`), `signText` (открепленная
-`CAdESCOM.CadesSignedData`, `CADESCOM_CADES_BES`, содержимое в
-`CADESCOM_BASE64_TO_BINARY`), `makeSignCheckText`, `describePluginError`.
-Экран `/eds/diagnostics` (`PluginDiagnosticsPage` + `.module.scss`): строка
-«канал плагина / чтение / подпись», таблица сертификатов с подсветкой срока и
-кнопкой «Подписать тест», `<details>` «если сертификат не виден». Всё — по
-кнопке, без `useEffect` (тот же урок про `set-state-in-effect`). Ссылка
-«Проверка ЭП» в `Header.tsx`. `describeCryptoPro` теперь учитывает
-`cadesplugin`, иначе журнал на машине заказчика показывал «плагин не найден».
-
-**Главное про плагин (2026-11-17):** `window.cadesplugin` создаёт **не
-расширение**, а официальный `cadesplugin_api.js` (КриптоПро, JSModuleVersion
-2.4.5), который страница обязана подключить сама — так делают ЕИС и все ЭТП.
-Расширение через `nmcades_plugin_api.js` даёт только мост
-`window.cpcsp_chrome_nmcades`. Файл лежит в `public/cadesplugin_api.js`
-(скачан с cryptopro.ru), подключается по требованию в
-`src/services/Eds/cadesApiLoader.ts` (`loadCadesApi`,
-`awaitCadesPluginReady`). `cadesplugin` — это Promise: он отклоняется, если
-расширение не ответило, поэтому «объект объявлен» ≠ «плагин работает».
-В Яндексе API перебирает расширения Opera-ID → MV2 → MV3
-(`epebfcehmdedogndhlcacafjaacknbcm` / `iifchhfnnmpdbibifmljnfjhpififfog` /
-`pfhgbfnnjiafkhfdkmpiflachepdcjod`) — установленных копий достаточно.
-Имя расширения в списке дополнений — «Extension for CAdES Browser Plugin»
-(без слова CryptoPro), его и надо искать. Локальная ловушка машины пилота:
-msi плагина 2.0.15700 прописал native host `ru.cryptopro.nmcades` только в
-32-битной ветке реестра; ключ добавлен в HKCU для Chrome/Yandex/Edge.
-Диагностика (`/eds/diagnostics`) теперь различает три состояния по строке
-«Мост расширения» (`window.cpcsp_chrome_nmcades`): моста нет → виновато
-расширение (не включено / браузер не перезапущен); мост есть, плагин молчит →
-виноват native host (`ru.cryptopro.nmcades`) или служба плагина; плагин
-ответил → сертификаты читаются. Путь API-скрипта берётся из `BASE_URL`.
-**Важно:** мост замеряется ПОСЛЕ ожидания плагина — сразу после загрузки
-скрипта `nmcades_plugin_api.js` ещё не внедрён, и «нет» будет ложным.
-
-**Подпись пакета СМП (2026-11-17):** `/eis/smp-export` → «Подписать пакет
-(ЭП)»: `src/services/Eds/smpPackage.ts` подписывает тот же CSV, что отдаёт
-экспорт (`CAdES-BES`, detached), читает сертификаты из хранилища «Мой» через
-CAdESCOM и скачивает документ + `.sig` (DER) + `manifest.json` (отпечаток,
-серийник, SHA-256, оговорка «сервером не проверялась»). BOM входит в
-подписываемые байты — иначе подпись не сойдётся у получателя. Результат
-пишется в журнал ЭП (action `smp_eis_export`, source `plugin`).
-`readPluginCertificates` (cryptoPro.ts) сначала пробует старый `window.cp`,
-затем CAdESCOM — поэтому модалка `EdsSignModal` теперь видит сертификаты с
-токена, а не только зарегистрированные вручную.
-
-**Подпись на живой машине заработала (2026-11-17).** Ловушка API: у объектов
-плагина (`nmcades_plugin_api.js`) свойства объявлены только геттером, запись
-идёт методом `propset_<Имя>`. Прямое `signer.Certificate = cert` падает с
-«Cannot set property Certificate of #<Object> which has only a getter» —
-поэтому в `pluginSign.ts` есть `setProperty` (`propset_` → `put_` → присваивание).
-После подписания пакет проверяется тем же плагином офлайн (`VerifyCades`):
-это проверка целостности «документ + .sig», без цепочки УЦ; результат
-попадает в манифест (`locallyVerified`) и в интерфейс.
+срез XXX…7890» о��таётся в `comment` события.
 
 **Важно:** **Мы НЕ подписываем документы за заказчика.** Подписание
 (`CPSignEx`) — следующий шаг (Tasks 9 п.1). Сейчас система только:
@@ -429,10 +229,6 @@ employee)` → `employee.userId` → `users`.
   подписи (зелёный = плагин подписал, жёлтый = режим `registry` без проверки
   подписи), кнопка «Войти по ЭЦП».
 - `LoginForm.tsx`: переключатель «По email / По ЭЦП» (mode: "email" | "eds").
-- Прогон `resolveEdsAccount` на сидах: id1 Говоров → `ok` →
-  zakupki@kurskavtodor.ru; id2 Иванов и id3 Колесникова → `employee_not_found`;
-  id4 Пояркова → `ok` → test2@test.test. `personNamesMatch` — 7/7 (полное ФИО,
-  инициалы «Говоров А.Н.», «ё»↔«е», тёзка с другим отчеством → false).
 
 **Честное ограничение стенда:** json-server **не проверяет подпись** —
 верификация набора возможна только на реальном бэкенде. Режим `registry`
@@ -544,16 +340,11 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 реальным связям + переходы), `/account/login|register|profile`,
 `/tasks` (группировка по функциям раздела III), `/tasks/:id` (просмотр, правка
 и оценка для `isHead`), `/purchase-plans` (+`/new`, `/:id`, `/:id/edit`),
+`/purchase-notes` (реестр потребностей СЗ со статусами согласования и экспортом DOCX/PDF),
 `/contract-service`, `/procurement-processing` (+`:id/notice-info`,
-`:id/contract-project`), `/reports/smnp`, `/contract-registry`,
-`/defect-lists` (дефектовки: инициатор видит свои, КС — все; из дефектовки
-собираются проект сметы 421/пр и проект графика 336/пр),
-`/norming-requirements` (WIP — нормирование, чужая работа),
-`/eds/journal` (журнал действий по ЭП), `/eds/diagnostics` (проверка плагина
-КриптоПро, сертификатов и пробной подписи на рабочем месте),
-`/eis/smp-export` (выгрузка СМП: CSV и подписанный пакет),
-`/eis/packages` (пакеты ЕИС: подпись, отправка, статусы ФЛК — данные из
-отдельного шлюза `csms-api`, см. §11).
+`:id/contract-project`), `/purchase-plans/:id/positions/:positionId/requirement` (`?noteId=...`),
+`/reports/smnp`, `/contract-registry`, `/norming-requirements` (ООЗ + 158н + ПП 926),
+`/eds/journal` (журнал действий по ЭП).
 
 Хуки по доменам: `tasks.api` — `useOrganizationTasks`, `useAssigneeTasks`,
 `useTask`, `useCreateTask`, `useUpdateTask`, `useUpdateTaskProgress`,
@@ -567,169 +358,29 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `useContractSmpRecords`, `useAllContractSmpRecords`, `useCreateContractSmpRecord`,
 `useUpdateContractSmpRecord`, `useDeleteContractSmpRecord`. **Eds:**
 `useEdsCertificates`, `useCreateEdsCertificate`, `useSignatureEvents`,
-`useLogSignatureEvent`. **Чекпоинты процесса:** `useContractEvents`,
-`useCreateContractEvent`, `useUpdateContractEvent`, `useDeleteContractEvent`.
-**Общий хук роли** — `src/hooks/useMyContractRole.ts`
-(`{ user, organization, contractService, employee, myRole, isHead }`).
+`useLogSignatureEvent`. **Общий хук роли** — `src/hooks/useMyContractRole.ts`
+(`{ user, organization, contractService, employee, myRole, isHead, canEditRequirement, canDisagreeKbk, canEditCustomerRequisites }`).
 
-## 7. Результат последней проверки (2026-11-18, дефектовки)
+## 7. Сквозной контур СЗ / ООЗ / 158н / ОКЕИ и синхронизация (2026-11-16)
 
-### Проверка 2026-11-18 (дефектовки, смета 421/пр, график 336/пр)
-
-- `npx tsc -b --pretty false` — **0 ошибок** (чужой WIP нормирования закрыт
-  удалённым коммитом `6cc1ee4`).
-- `npx oxlint src` — по `DefectList/**` и `useMyContractRole.ts` замечаний
-  нет; в `App.tsx`/`Header.tsx`/`Main.tsx` остаются только прежние
-  замечания (children-проп, пустой паттерн).
-- `npx vite build` — успешно (6.00 s).
-- Смоук json-server (копия `.tmpcheck/db-smoke.json` на :3021):
-  `GET /defectLists?organizationId=1` → 3; `PATCH /defectLists/2` прошёл,
-  после мутации `defectLists` 4, `tasks` 13, `employees` 40,
-  `contractSmpRecords` 23, `purchaseNotes` 4, `contractRegistry` 6,
-  `objectDescriptions` 3, `legalActs` 17 — ничего не вычищено.
-- Миграция `db.json`: `purchaseDescriptions` удалена, вместо неё
-  `defectLists` (4 записи), добавлены акты 421/пр и 336/пр, задача id13
-  переписана под дефектовку.
-- ⚠️ `CurrentTasks.md` переписывается параллельным агентом — статус
-  Tasks 8 п. 4 зафиксирован здесь.
-
-### Проверка 2026-11-17 (правка отметок чекпоинтов)
-
-- `npx tsc -b --pretty false` — те же **10 ошибок**, все в чужом
-  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`; мои файлы чистые.
-- `npx oxlint src` — **30 warnings, 1 error** (чужой WIP, в том числе новые
-  замечания в `PersonalAccount`/`Header`); по `ContractEventsSection.tsx`,
-  `contractRegistry.schema.ts` и `ContractRegistry.module.scss` замечаний нет.
-- `npx vite build` — успешно (4.68 s).
-- Смоук `PATCH /contractEvents/1` (json-server на :3020): запись обновилась,
-  автор и `createdAt` сохранились, `updatedAt` проставлен; `contractId=1` — 6
-  событий до и после; `contractRegistry` 6, `contractStages` 11,
-  `contractSmpRecords` 23, `purchaseNotes` 4 — без изменений.
-- ⚠️ Смоук запускался на `db.json`, а не на копии: тестовая правка попала в
-  рабочую базу и была откатана вручную. Для мутаций — только копия (см. §1).
-
-### Проверка 2026-11-17 (чекпоинты процесса по контракту)
-
-- `npx tsc -b --pretty false` — те же **10 ошибок**, все в чужом
-  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx`; мои файлы чистые.
-- `npx oxlint src` — **28 warnings, 1 error** (чужой `NormingRequirementsBlock`);
-  по `ContractEventsSection.tsx`, `contractRegistry.api.ts` и
-  `contractRegistry.schema.ts` замечаний нет.
-- `npx vite build` — успешно (6.84 s).
-- Смоук json-server (копия на :3010, порт предварительно освобождён):
-  `GET /contractEvents?contractId=1` → 6, `contractId=2` → 9, `contractId=5` → 6;
-  `POST` → 7; `DELETE` → снова 6, при этом `contractRegistry` 5,
-  `contractStages` 9, `contractSmpRecords` 23, `purchaseNotes` 4 — без изменений.
-  ⚠️ `Start-Process`/`Start-Job` при падении скрипта оставляют сервер на порту —
-  перед повторным прогоном порт надо освобождать, иначе запросы уходят к старому
-  процессу со старой копией базы (на этом потерялся один прогон).
-- По пути устранены две мины json-server, из-за которых **любой `DELETE`**
-  удалял связанные записи: пустая `"contracts": []` и `null` в `*Id` (детали —
-  §1). После правки `db.json` проверка `getRemovable` даёт «no removable».
-
-### Проверка 2026-11-17 (подгрузка по реестровому номеру)
-
-- `npx tsc -b --pretty false` — **10 ошибок**, все в
-  `NoticeInfoForm/sections/ObjectDescriptionSection.tsx` (чужой WIP: TS2322
-  `string` → `never`, неисп. `control`, TS2345); **мои файлы чистые**.
-- `npx oxlint src` — **28 warnings, 1 error** (`NormingRequirementsBlock.tsx` —
-  `useFieldArray` conditionally, чужой). По `ContractRegistryPage.tsx` и
-  `contractRegistry.api.ts` замечаний нет. Урок: `set-state-in-effect` и
-  «useMemo has unnecessary dependency» раньше в проекте не срабатывали —
-  подгрузку поэтому сделали через async-обработчик кнопки, а не `useQuery` +
-  `useEffect` (иначе пришлось бы поднимать setState в эффект).
-- `npx vite build` — успешно (4.76s).
-- Смоук json-server (копия на :3014, старт ~14 с). ⚠️ `Start-Job` живёт только
-  внутри одного вызова терминала: сервер и все запросы надо делать **одной
-  командой**, иначе порт пустой. Реестр: id1/id2 org1
-  (`0344200012126000001`, `…002`), id3 org2, id4 org4, id5 org6
-  (`0346200000626000001`). `?contractNumber=…&organizationId=6` → 1 (свой);
-  тот же номер с `organizationId=1` → 0 своих, 1 в реестре → «у другого
-  заказчика»; заведомо неверный номер → 0 и 0 → «не найден».
-- Смоук подгрузки по фрагменту (:3016, после добавления контракта id 6):
-  реестр 6; `contractNumber=2462904043926000011&organizationId=6` → 1;
-  `contractNumber_like=246290404&organizationId=6` → 1; тот же номер с
-  `organizationId=1` → 0, без фильтра → 1 (ветка «другой заказчик»);
-  этапы c6 = 2 (49,6 + 74,4 = цене 124 млн), платежи c6 = 1. Проверены
-  фильтры json-server: `contractNumber_like` работает, `contractNumber__like`
-  и `contractNumber=<часть>` → 0.
-- ⚠️ Запущенный `npm run server` (:3001) держит `db.json` в памяти: новый сид
-  id 6 появится в UI только после перезапуска сервера.
-- CSS-токены новых блоков объявлены в `_themes.scss` (`--surface-panel`,
-  `--surface-field`, `--surface-raised`, `--border`, `--border-strong`,
-  `--accent`, `--accent-emphasis`, `--accent-soft`, `--state-success|warning|danger`
-  и `-soft`). ⚠️ Глобальных классов `.notice`, `.pill`, `.card`, `.btn--primary`
-  в проекте **нет** (`_btn.scss` — только `.btn`, `&--additionally`, `&--arrow`),
-  поэтому всё новое — через `.module.scss`.
-
-- **Проверка ЭП (2026-11-17):** `npx tsc -b` — те же 10 ошибок чужого WIP
-  (`ObjectDescriptionSection.tsx`), мои файлы чистые; `npx oxlint src` — по
-  `pluginSign.ts` и `PluginDiagnosticsPage.tsx` замечаний нет (остаётся 1 чужой
-  error в `NormingRequirementsBlock.tsx`); `npx vite build` — успешно (4.46 s).
-  ⚠️ Реальная подпись на стенде ещё не прогонялась: нужен токен заказчика и
-  плагин в его браузере — проверяется на `/eds/diagnostics` кнопкой
-  «Подписать тест».
-
-### Коммиты этой сессии (push на `https://github.com/IgorPoyarkov/CSMS`)
-
-`18e95fe` feat(Eds) — вход по ЭП; `ab66099` docs; `ba52fc6` feat(ContractRegistry)
-— подгрузка по реестровому номеру; `e514b71` chore(db) — события `eds_login`
-(3 → 11); `9116708` docs(state). Далее — feat(ContractRegistry) подгрузка по
-части номера + подсказки, `27146d1` chore(db) — демо-контракт id 6.
-
-⚠️ **Параллельная работа в одном рабочем дереве.** В 04:08 и 04:10 этого же дня
-коммиты `0aa2b7f` (чекпоинты процесса) и `3e740bd` (плагин КриптоПро) делались
-через `git add -A` и утащили мои незакоммиченные правки подгрузки — они попали в
-чужий `0aa2b7f`. Код цел (проверено в HEAD: `normalizeContractNumber`,
-`lookupContractByNumber`, `runLookup`, `knownNumbers` рядом с чужим
-`ContractEventsSection`), но история перемешана. Правило: коммитить сразу по
-окончании своей задачи и не делать `git add -A`, пока в `git status` чужие
-незакоммиченные файлы.
-
-### Незавершённая чужая работа (нормирование) — без изменений
-
-`src/components/NoticeInfoForm/sections/ObjectDescriptionSection.tsx` —
-10 ошибок `tsc` (`Type 'string' is not assignable to type 'never'`, неисп.
-`control`); `NormingRequirementsBlock.tsx` — 1 ошибка oxlint
-(`useFieldArray` conditionally). Статус зафиксирован в коммите `837898a`.
+- Ошибки в `ObjectDescriptionSection.tsx` и `NormingRequirementsBlock.tsx` закрыты; `tsc -b`, `oxlint src` и `vite build` проходят с **0 ошибками**.
+- **ООЗ и № 158н (`/norming-requirements`):** конструктор ООЗ по ст. 33 / ПП 145 (`objectDescriptions`), шаблоны ПП РФ № 926 и валидатор Приказа Минфина № 158н (`order158nValidator.ts`, `Order158nValidatorPanel.tsx`).
+- **ОКЕИ (`/api/okei`, `OkeiSelect`):** серверный прокси к классификатору ОКЕИ (543 единицы) с поиском по коду/наименованию/обозначению/синонимам.
+- **Потребность (СЗ) на отдельной странице (`/purchase-plans/:id/positions/:positionId/requirement`) и реестр `/purchase-notes`:** единое действие «Сформировать потребность» + удаление позиции в ПГ; визуальные индикаторы статуса согласования (`В работе`, `На согласовании`, `Согласовано`, `Отклонено`, `Аннулировано` в `PurchaseNoteStatusBadge`), смена статуса уполномоченным членом КС и выгрузка в `.docx` / `.pdf` (`purchaseNoteExport.ts` с `docx` + `pdfmake` Roboto); выбор инициатора из штата (`useFetchOrganizationEmployees`, автоподстановка текущего пользователя); множественные объекты закупки (`items`), прямая ссылка на `/norming-requirements` рядом с выбором ООЗ; в разделе 4 («Финансирование, НМЦК, аванс и сопровождение») выведен КБК с разбивкой по годам из ПГ + запрос на изменение КБК/КВР, загрузка файла НМЦК, запрос на НМЦК и кнопка «Провалиться и начать делать расчёт НМЦК» (`NmckJustificationPanel`); описания требований ст. 31 / ПП № 1482 / ПП № 2571 (кроме `ч. 1.1` = default `true` и санкционного РНП; для п. 4 ПП № 2571 — стандартный текст); визуально объединённый блок гарантии качества (3 поля) и обеспечения гарантийных обязательств; права редактирования по ролям КС.
+- **Реквизиты заказчика в КС (`CustomerProcurementRequisitesCard`):** редактирование счетов обеспечений и ч. 13 ст. 44 в карточке организации (`organization.procurementRequisites`) с подстановкой и актуализацией из СЗ.
+- **Сквозное предзаполнение `СЗ → Извещение → Проект контракта`:** наследование реквизитов, объектов, сроков, сопровождения, описаний требований ст. 31 / ПП 2571, файла НМЦК и обеспечений в `NoticeInfoForm` / `ParticipantsRequirementsSection` и `ContractProjectForm`.
+- **Аукционный перечень ОКПД2 (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022):** добавлены модуль `src/services/Okpd2Ref/auctionListControl.ts`, поля `isAuctionRequired`/`auctionNote` в `Okpd2RefSchema` и `okpd2Refs` (91 позиция из 143 + 15 исключений, `rpr-471r` в `legalActs`), фильтр/колонка/проверка кода в `/okpd2` (`Okpd2Dictionary`), бейджи в `Okpd2Select` и `PurchasePlanCard`, а также `PLACING_WAYS_ALL` (`EA20`, `ZK20`, `EP93`) с предупреждением и быстрым переключением на электронный аукцион в `PurchaseNoteModal` и `NoticeInfoForm/GeneralInfoSection` при выборе конкурса для кода из перечня № 471-р (ч. 6 ст. 24 44-ФЗ).
 
 ### Новые файлы и коллекции
 
-- **Eds:** `src/services/Eds/eds.schema.ts`, `.api.ts`, `cryptoPro.ts`,
-  `edsAuth.ts`; `src/components/Eds/EdsSignModal.tsx`, `EdsLoginForm.tsx`,
-  `EdsJournalPage.tsx` (+ `.module.scss`).
+- **Eds:** `src/services/Eds/eds.schema.ts`, `.api.ts`, `cryptoPro.ts`;
+  `src/components/Eds/EdsSignModal.tsx` + `.module.scss`;
+  `src/components/Eds/EdsJournalPage.tsx` + `.module.scss`.
 - **ContractSmp:** `src/services/ContractSmp/deadlines.ts`, `pp1466.ts`,
   `sourceFile.ts`; `src/components/Eis/EisSmpExportPage.tsx` + `.module.scss`.
-- **DefectList (2026-11-18):** `src/services/DefectList/`
-  (`defectList.schema.ts`, `.api.ts`), `src/components/DefectList/`
-  (`DefectListsPage.tsx`, `DefectListModal.tsx` + два `.module.scss`);
-  правки `useMyContractRole.ts`, `App.tsx`, `Header.tsx`, `Main.tsx`;
-  коллекция `defectLists` (4 записи), акты `minstroy-421pr` и
-  `minstroy-336pr`, задача id13 в `db.json`. Старая
-  `PurchaseDescription/**` удалена (была промежуточной версией этой же
-  задачи, от которой отказались в пользу дефектовки).
-- **Подгрузка из реестра (2026-11-17):** новых файлов нет — правки
-  `contractRegistry.api.ts` (`ContractLookup`, `lookupContractByNumber`,
-  `MIN_CONTRACT_NUMBER_LENGTH`), `ContractRegistryPage.tsx` (блок подгрузки,
-  `cardHighlighted`, прокрутка) и `ContractRegistry.module.scss`.
-- **Чекпоинты процесса (2026-11-17):** новый файл
-  `src/components/ContractRegistry/ContractEventsSection.tsx`; правки
-  `contractRegistry.schema.ts` (схема и хелперы событий),
-  `contractRegistry.api.ts` (CRUD + 4 хука), `ContractRegistryPage.tsx`,
-  `ContractRegistry.module.scss`; коллекция `contractEvents` (21 запись).
-- **Коллекции db.json:** `edsCertificates` (4), `edsSignatureEvents` (11),
+- **Коллекции db.json:** `edsCertificates` (3), `edsSignatureEvents` (3),
   `accessRequests` (1), `okpd2Refs` (143), `addressRegions/Municipalities`
-  (89/31), `contractEvents` (21).
-
-- **Служебная записка / Реестр потребностей (2026-11-17, AI Studio):**
-  - Роут `/purchase-notes` (`PurchaseNotesRegistryPage`) и `/purchase-plans/:id/positions/:positionId/requirement` (`PurchaseNotePage`).
-  - Разграничение прав редактирования СЗ через `useMyContractRole` (функции КС раздела III приказа № 158н / работники структурного подразделения КС).
-  - Визуальные статусы согласования (`PurchaseNoteStatusBadge`: `в работе`, `на согласовании`, `согласовано`, `отклонено`, `аннулировано`) в реестре потребностей, карточке ПГ и форме СЗ.
-  - Выгрузка сформированной СЗ в `.docx` (`docx`) и кириллический `.pdf` (`pdfmake` + `Roboto`) в `src/services/PurchaseNote/purchaseNoteExport.ts` с листом согласования и подписей.
-  - Доработки СЗ (`PurchaseNoteModal`): инициатор из сотрудников организации (по умолчанию текущий пользователь), ссылка/выбор ООЗ (`/norming-requirements`), КБК по годам из ПГ (read-only) + запрос на изменение КБК/КВР, файл и запрос НМЦК + встроенный расчёт НМЦК (`NmckJustificationPanel` по ст. 22 / Приказу № 567), поля описаний требований ст. 31 (кроме ч. 1.1 и санкций РНП; вложенный п. 4 ПП 2571 с типовым текстом), объединённый блок гарантии качества и ОГО, реквизиты организации из КС (`CustomerProcurementRequisitesCard`).
-- **ООЗ и ОКЕИ (2026-11-17, AI Studio):**
-  - `objectDescriptions` в `db.json`, `NormingRequirementsPage`, `ObjectDescriptionEditor`, `Order158nValidatorPanel`, `pp-145` в `legalActs`.
-  - `OkeiSelect` / `OkeiRef` (при отсутствии `/okei` на `json-server :3001` допускается ручной ввод единицы измерения).
+  (89/31).
 
 ## 8. Не реализовано
 
@@ -740,35 +391,25 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Серверная верификация подписи** — json-server не проверяет подпись набора.
   На проде: `CPSignVerifyEx` / `crypto.subtle.verify` с открытым ключом из
   сертификата.
-- Tasks 8 п.2 (а, в): исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр)
-  и чтение из ЕИС; чекпоинты `contractEvents` (п. б) сделаны.
+- Tasks 8 п.2: исходящий XML по схемам ЕИС (658/215н ПГ, 918 реестр), чекпоинты
+  `contractEvents`, чтение из ЕИС.
+- Tasks 8 п.4: роль «инициатор закупки».
 - Tasks 9 п.3: срезы ПГ/реестра контрактов/извещений (ядро, 2–3 недели).
-- Подгрузка по реестровому номеру (2026-11-17) читает **локальный** реестр
-  `contractRegistry`; получение тех же сведений из ЕИС — это Tasks 9 п.3.
 - **Не делать:** вход подрядчика по ссылке-приглашению (отложен), OCR содержимого
   PDF, годовой отчёт СМП (только напоминалка).
-- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` пуста, коллекция
-  `contracts` удалена (мешала json-server, см. §1).
-- Руководитель службы как отдельный документ (п. 2.3), положение о службе
+- Обмен с ЕИС: ссылки на zakupki.gov.ru фиктивные, `notices` и `contracts` пусты.
+- Руководитель службы как отд��льный документ (п. 2.3), положение о службе
   (п. 1.3), штатная схема соподчинения, собственные функции сверх раздела III.
 
 ## 9. Очередь следующей сессии
 
-⚠️ С 2026-11-18 очередь задаёт **§10.3** (сверка с Tasks 12). Пункты ниже —
-детали, которые в неё не вошли или остались от прошлой сессии.
-
 1. **CPSignEx** (`src/services/Eds/cryptoPro.ts`) — реальное подписание документов
    через плагин КриптоПро ЭЦП Browser plug-in (не вход, а подписание ПГ,
-   контрактов, служебок). 🟡 Начато: `pluginSign.ts` (`signText` через
-   `CAdESCOM.CadesSignedData`) и экран `/eds/diagnostics` готовы, проверены
-   сборкой; осталось подписать реальный документ и собрать пакет для выгрузки.
-2. **Tasks 8 п.2 (а, в)** — сборка XML по схеме ЕИС и чтение из ЕИС;
-   чекпоинты `contractEvents` (п. б) уже сделаны — см. §4.
-3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика
-   (туда же — замена локальной подгрузки по реестровому номеру на данные ЕИС).
-4. **Доделать дефектовки** (см. §4): связать принятую дефектовку с позицией
-   ПГ (`purchasePlanId`/`positionId`), уведомление инициатору о возврате,
-   перенос проверки прав на сервер, печатные формы сметы и графика.
+   контрактов, служебок).
+2. **Tasks 8 п.2** — сборка XML по схеме ЕИС, чекпоинты `contractEvents`,
+   чтение из ЕИС (3–6 недель).
+3. **Tasks 9 п.3** — чтение срезов ПГ/реестра/извещений по ИНН заказчика.
+4. **Tasks 8 п.4** — роль «инициатор закупки» (1–2 дня).
 
 **Не трогать:** чужую WIP нормирования (пусть второй агент доделает в GitHub).
 **Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
@@ -781,229 +422,14 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - json-server на :3001 держит в памяти старую версию `db.json` — нужен
   перезапуск (`npm run server`), иначе GET новой коллекции = 404.
 
-## 10. Tasks 12 — целевая архитектура: сверка с кодом (2026-11-18)
+## 10. Модуль расчёта и обоснования НМЦК (анализ рынка + нормативный метод по ОКПД2)
 
-Tasks 12 в `CurrentTasks.md` — не чек-лист, а архитектурный контракт (SaaS,
-модули-тарифы, C#-бэкенд, шлюз ВС ЕИС, XSD-пайплайн). Ниже — что из него уже
-закрыто, а что ложится в очередь. Прежняя §9 «Очередь» этим разделом
-переформулирована.
+- Добавлены схемы и расчётный движок `src/services/Nmck/nmck.schema.ts`, `src/services/Nmck/marketNmck.ts` (ст. 22 Закона № 44-ФЗ, Приказ МЭР № 567):
+  - **Метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22):** источники КП/ЕИС/прайс/тариф, автоиндексация ИПЦ по дате источника, коэффициент коммерческих условий `k_ком`, исключение выбросов, проверка однородности (`V <= 33%`), давности КП (>180 дн.) и предельной цены ПП № 926;
+  - **Нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, разд. IV Приказа МЭР № 567) с увязкой по ОКПД2:** через `Okpd2Select` подтягивает нормируемые позиции (`isNormed`, `normLimit`), контролирует превышение предельной цены, формирует `buildNormativeCalculationRecord` и `buildNormativeNmckBasisText`;
+  - Единый экспорт протокола/обоснования в `.docx` (`exportNmckCalculationToDocx`) для обоих методов.
+- Обоснование НМЦК **не сохраняется в плане-графике** (`PurchasePlanPositionSchema` очищена от `nmck`, `quantity`, `unit`, `nmckCalculation`; в `PurchasePlanCard.tsx` убрана подстрока НМЦК и примечание СМП из меню «Действия»), а **сохраняется и отображается в Служебной записке (`PurchaseNote`)**:
+  - `PurchaseNoteSchema` дополнена `nmckCalculation` (`NmckCalculationRecordSchema`) и `nmckOffers` (`NmckMarketOfferSchema[]`);
+  - `/nmck-calculator` (`NmckCalculatorPage.tsx`) сохраняет обоснование в выбранную или новую СЗ (черновик), опционально обновляя только `amountTotal` в ПГ (`useUpdatePositionPlanAmount`);
+  - `PurchaseNoteModal.tsx` (раздел 4) отображает карточку обоснования (показатели, таблица источников или реквизиты норматива ОКПД2, экспорт `.docx`, встроенный пересчёт через `MarketNmckCalculator`), а `purchaseNoteExport.ts` включает детализацию расчёта в `.docx`/`.pdf` СЗ.
 
-### 10.1. Уже есть — из планов убрать
-
-- **Стек §4 «Frontend» целиком:** React 19 + TS (strict, `verbatimModuleSyntax`),
-  React Router 7 (источник истины для навигации), TanStack Query 5 (серверное
-  состояние), RHF + Zod, SCSS-модули + БЭМ без Tailwind, сервисный слой изолирован
-  (компоненты не знают URL).
-- **Mock API §4:** `json-server-auth` (`npm run server`, :3001), имитация
-  авторизации и ролей (`localStorage.user_email` → `useFetchCurrentUser` →
-  `organizationId`).
-- **Криптография §4:** КриптоПро Browser plug-in — `cryptoPro.ts` (чтение
-  сертификатов, handles), `pluginSign.ts` (откреплённая подпись
-  `CAdESCOM.CadesSignedData`), `EdsFileSigner.tsx`, вход по ЭЦП, экран
-  `/eds/diagnostics`, локальная проверка подписи (`VerifyCades`, `d0ffc54`).
-- **Прообраз исходящего пакета §5.2 п.3:** `src/services/Eds/smpPackage.ts` —
-  документ + `.sig` + манифест (снимок сертификата, SHA-256 документа, оговорка
-  «подписано на рабочем месте, сервером не проверялось»). Не хватает ZIP-конверта
-  и XML по XSD.
-- **Аудит-лог подписей и чекпоинты (`CORE` §3, §2.1 «Контроль нарушений»):**
-  `edsSignatureEvents` (кто/чем/когда/по какому сертификату) + `contractEvents`
-  (таймлайн этапов контракта). **Не закрыто:** слепок данных (snapshot) на момент
-  подписи — сейчас есть только `approvalUpdatedAt/By/Comment` (одна, последняя).
-- **Внутренняя инициация §2.1 (частично):** служебка — единая композитная
-  сущность, инициатор из сотрудников, объект закупки с ОКПД2/КТРУ, ООЗ, расчёт
-  НМЦК со скачиванием обоснования (`NmckJustificationPanel`, ст. 22 / приказ 567),
-  КБК + запрос на изменение, реквизиты обеспечения заказчика, статусы
-  согласования, выгрузка `.docx`/`.pdf` (`purchaseNoteExport.ts`) — всё это
-  приехало в `6cc1ee4`.
-- **Исполнение §2.3 (частично):** реестр контрактов + этапы, платежи, поставки и
-  приёмка, неустойки (`contractPenalties`), сведения СМП с просрочками по ПП 1466
-  и прогрессом объёма, подгрузка карточки контракта по реестровому номеру.
-
-### 10.2. Главное следствие Tasks 12: канал ЕИС определён
-
-§1.4 + §5.2 задают модель **«мы — Внешняя система»**: заказчик выдаёт права нашей
-ВС в своём ЛК ЕИС, обмен идёт по SOAP/mTLS на `int44.zakupki.gov.ru`, транспортный
-конверт подписывается **сертификатом ВС (нашим)**, а содержимое пакета —
-откреплённой УКЭП сотрудника через плагин в его браузере (§4, §5.2 п.3).
-
-Это закрывает спор 17.11 «официального публичного API нет, к леваку не идём,
-значит парсинг»: SOAP-интеграция ЕИС — официальный канал, ЭП заказчика нам не
-передаётся (подтверждает и §9 п.1 Tasks 9). Значит **парсинг публичных страниц
-(Tasks 9 п.3) перестаёт быть основным каналом** и становится fallback для чтения
-срезов до подключения ВС. ⚠️ Требуется решение автора: Tasks 9 п.3 и Tasks 12
-§5.2 противоречат друг другу, в ТЗ обе позиции помечены как рабочие.
-
-### 10.3. Чего нет — путь работы
-
-**A. Фронт прямо сейчас, без бэкенда (развязывающее, дешёвое):**
-
-1. **`VITE_API_URL`** — требование §4 «переход на прод заменой `VITE_API_URL` без
-   рефакторинга компонентов» сейчас **не выполняется**: `baseURL` зашит в
-   `src/services/axios.instance.ts` (`http://localhost:3001`). 0,5 дня.
-2. **Поля асинхронного обмена §4** — `eisGuid`, `eisStatus`
-   (`DRAFT|SIGNING|SENT_TO_EIS|FLK_CHECKING|ACCEPTED_IN_LK|REJECTED_BY_FLK`),
-   `flkErrors[]` — **нет ни в одной схеме** (проверено грепом по всему `src`).
-   Заводится общий `eisExchange`-хелпер и подмешивается в документы (позиция ПГ,
-   извещение, реестровая запись, титул приёмки) + бейдж статуса и список ошибок
-   ФЛК в UI. 1–2 дня. Пока бэкенда нет, статусы живут в `db.json`.
-3. **`activeModules` и тарификация §3** — флагов нет вообще; `zustand@5` в
-   `dependencies`, но **не импортируется нигде**. Сделать store профиля
-   организации с `activeModules`, обёртку доступа к роутам/пунктам меню/блокам +
-   поле тарифа в `organization`. 2–3 дня.
-4. **Ролевые секции служебки §2.1** — форма одна общая, а нужны четыре
-   изолированных интерфейса со строгими дочерними схемами (инициатор / сметчик /
-   бухгалтер / КС) от одной базовой Zod-схемы, и **персональная подпись по каждой
-   секции со слепком данных**. 1–1,5 недели.
-5. **Финансовый блок «Бухгалтер» §2.1 и таймер оплаты §2.3** — КБК есть, нет
-   лицевых счетов, банковских реквизитов и предельного срока оплаты (7 рабочих
-   дней) с таймером.
-
-**B. Требует C#-бэкенда (§4, §5) — на фронте не делается:**
-
-- Входящий §5.1: `getDocsMis2` / `getProcessingResult` / справочники НСИ / эл. УПД
-  → Base64 → ZIP в памяти → `XmlSerializer` в классы из XSD → EF Core → JSON DTO;
-  сырой XML и `.sig` — в S3/MinIO или `jsonb`.
-- Исходящий §5.2: FluentValidation (дубль правил ФЛК до генерации XML), сборка XML
-  с порядком тегов и `XmlSerializerNamespaces`, ZIP → Base64, SOAP-конверт, mTLS
-  по ГОСТ.
-- §5.3: сгенерированные классы в изолированном неймспейсе `Eis.Schemas.V<версия>`
-  (альбом форматов), мапперы, чтобы БД и DTO фронта никогда не зависели от XSD.
-- §2.2–2.3: загрузка протоколов и пересчёт спецификации на коэффициент снижения;
-  приёмка УПД с сверкой против подписанного ТЗ и титулом заказчика; автоматический
-  расчёт пеней и генерация требований (сейчас `contractPenalties` заводятся
-  вручную).
-
-**C. Вне кода, двигает календарь снаружи:** статус ВС и подключение в ЛК ЕИС,
-выпуск сертификата ВС, доступ к контуру «ЕИС — Тест», PostgreSQL и инфраструктура,
-аттестация ИСПДн при работе с ПДн.
-
-### 10.4. Out of scope §1.3 — проверить и не раздувать
-
-Медицина (ЖНВЛП, приказы Минздрава по НМЦК), закрытые способы, узкоотраслевая
-экзотика ЕИС и 223-ФЗ — не поддерживаем. Текущая кодовая база этого не тянет
-(223-ФЗ нигде не обрабатывается) — так и держать.
-
-### 10.5. Статус синхронизации и проверок на 2026-11-18 (обновлено после pull)
-
-`origin/master` = `6cc1ee4` (реестр потребностей, статусы СЗ, выгрузка
-`.docx`/`.pdf`, права КС, расчёт НМЦК, ООЗ, ОКЕИ) — **подтянут**, merge-коммит
-`981cde9`. До этого локальная история разошлась (`804b91b` PurchaseDescription +
-`4564d35` эта заметка против `6cc1ee4`), конфликт был один —
-`src/hooks/useMyContractRole.ts`: разрешён как union (наши права + их
-`canEditPurchaseNote` / `canDisagreeKbk` / `canEditCustomerRequisites` /
-`isLoading`), проверено построчно — из нашей версии не удалено ничего.
-
-Проверки на объединённом коде: `npx tsc -b --pretty false` — **0 ошибок**,
-`npx oxlint src` — **31 warnings, 0 errors**, `npx vite build` — успешно (4,80 s).
-
-⚠️ Прежние записи §7 про «10 ошибок tsc в чужом WIP `ObjectDescriptionSection.tsx`»
-и «1 ошибку oxlint в `NormingRequirementsBlock.tsx`» — **устарели**: эти файлы
-переписаны в `6cc1ee4`, обе проблемы ушли. Ориентир по чужой WIP нормирования
-теперь — только §10.3 A.4 (ролевые секции служебки).
-
-⚠️ В рабочем дереве по-прежнему есть незакоммиченные чужие правки
-(`CurrentTasks.md`, `EisSmpExportPage.tsx`, `pluginSign.ts`, `smpPackage.ts`,
-новые `EdsFileSigner.*`) — их не трогать и не добавлять в свои коммиты.
-Правило из §7 в силе: `git add -A` не делать, пока в `git status` чужие файлы.
-
-## 11. Пакеты ЕИС: отдельный шлюз `csms-api` (2026-11-18)
-
-Решение, принятое после разбора Tasks 12: обмен с ЕИС не может быть CSV-файлом
-для ручного переноса. Настоящий путь — внешняя система (ВС): XML по Альбому
-форматов, подпись сотрудника под документом, SOAP + ГОСТ-mTLS. Бэкенд вынесен
-в **отдельный репозиторий**, потому что это другой стек, другой цикл сборки и
-другой контракт.
-
-### Расположение и запуск
-
-- Каталог: `D:\Свои проекты\CSMS\csms-api` (рядом с `csms`), .NET 9, ветка `main`.
-  Коммиты этой сессии: `e19020a`, `f4ed40d`. **Remote пока не подключён** —
-  пушить некуда, пока пользователь не создаст репозиторий на GitHub.
-- Порт по умолчанию — **5099** (`src/Csms.Api/Properties/launchSettings.json`),
-  он же в `scripts/smoke.ps1` и в адресе фронта по умолчанию.
-- Запуск: `dotnet run --project src/Csms.Api` (из `csms-api`).
-  Проверка живьём: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/smoke.ps1`.
-- CORS разрешён точечно: `http://localhost:5173` (Vite dev) и
-  `http://localhost:4173` (preview). Не «любой origin» — иначе чужой сайт смог бы
-  дёргать API пакетов от имени заказчика.
-
-### Что шлюз уже делает (проверено)
-
-- Домен `EisPackage`: переходы `Draft → Signing → Signed → SentToEis →
-  FlkChecking → AcceptedInLk / RejectedByFlk`, ветка `SendFailed`. Публичных
-  сеттеров нет — статус нельзя «нарисовать» из браузера.
-- Подпись разделена: шлюз отдаёт содержимое и SHA-256, подписывает плагин на
-  рабочем месте, шлюз **сверяет хеш подписанного** и отказывает при расхождении
-  (409 с русским текстом). Проверка реестрового номера — 19 цифр.
-- Ошибки ФЛК приходят данными (код, поле, текст, подсказка), а не в лог.
-- 20 тестов + `scripts/smoke.ps1` (создание, отказ без подписи, подпись под
-  чужим содержимым, отправка, три опроса ФЛК, отказ ФЛК, возврат в работу,
-  недоступность шлюза).
-
-### Что в шлюзе — заглушка (важно не путать)
-
-| Заглушка | Станет | Как видно |
-|---|---|---|
-| `PlaceholderXmlBuilder` | генерация по XSD из Альбома форматов | `payloadSchemaVersion = placeholder-v0`, `isPlaceholderFormat = true` |
-| `MockEisTransport` | SOAP + mTLS к `int44` | ответы зависят только от номера контракта (`…0000` — отказ ФЛК, `…9999` — недоступность) |
-| `InMemoryEisPackageRepository` | БД | пакеты исчезают при перезапуске |
-
-### Фронт
-
-- `src/services/Eis/eisPackages.schema.ts` — zod-схемы ответов шлюза, подписи
-  статусов и цветов. Ответы **проверяются схемой**: шлюз в другом репозитории,
-  и при расхождении контракта фронт падает с понятной ошибкой, а не показывает
-  `undefined`.
-- `src/services/Eis/eisPackages.api.ts` — отдельный axios (`VITE_EIS_API_URL`,
-  по умолчанию `http://localhost:5099`), хуки, `describeEisError`, `sha256Hex`.
-  Пока в списке есть пакеты в `SentToEis`/`FlkChecking`, список опрашивается
-  сам раз в 5 секунд.
-- `src/components/Eis/EisPackagesPage.tsx` — форма создания (номер ЕИС + ИКЗ,
-  ИКЗ подсказывается из карточки контракта) и список.
-- `src/components/Eis/EisPackageCard.tsx` — статус, честное предупреждение о
-  черновом формате, ошибки ФЛК, действия по статусу, подпись через
-  `readStoreCertificates` + `signText` + `verifyTextSignature` (непроверенную
-  подпись экран не отправляет), журнал и текст подписываемого документа.
-
-### Ловушки, найденные сейчас
-
-- Встроенный браузер приложения (Electron, `OpenCode/...`) — **не место для
-  подписи**: расширения CAdES там нет и быть не может. Проверка среды вынесена в
-  `src/services/Eds/edsEnvironment.ts` (`isEmbeddedBrowser`); экран пакетов
-  показывает предупреждение с адресом для Яндекс.Браузера, а в карточке вместо
-  кнопки подписи — короткое объяснение, а не диагностика плагина.
-
-- `Microsoft.AspNetCore.OpenApi` без версии ставит 11.x и **не собирается** на
-  `net9.0` — фиксировать `9.0.0`.
-- Windows PowerShell 5.1 читает `.ps1` без BOM как ANSI: русский текст в
-  `scripts/smoke.ps1` превращается в мусор. Файл сохранять **с BOM**, в скрипте
-  выставлять `[Console]::OutputEncoding`.
-- Без `.Produces<T>()` в minimal API OpenAPI не выводит схемы ответов: контракт
-  для фронта получается пустым (пути есть, `components.schemas` — нет).
-
-### Следующие шаги (в порядке зависимости)
-
-1. XSD из Альбома форматов ЕИС → заменить `PlaceholderXmlBuilder`, убрать
-   `isPlaceholderFormat` из «всегда true».
-2. Регистрация ВС в ЛК ЕИС + сертификат канала → настоящий транспорт.
-3. ГОСТ-TLS: проверить на тестовом контуре (SChannel + КриптоПро), не обещать
-   заранее.
-4. ~~Поля модели, которых нет: реестровый номер ЕИС у контракта, ИКЗ~~
-   Сделано 2026-11-18: в карточке контракта появился блок «Реквизиты для
-   ЕИС» (`eisRegistryNumber` — 19 цифр, ИКЗ — 36 разрядов), форма пакета
-   подставляет оба номера из карточки и не даёт править их на месте.
-   Осталось: объём привлечения СМП и перечень субподрядчиков — без них
-   XML будет формально валидным, но пустым по смыслу.
-5. Подключить remote для `csms-api` и запушить `e19020a`, `f4ed40d`.
-
-## Аукционный перечень ОКПД2 (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022)
-
-- Добавлен чистый модуль контроля `src/services/Okpd2Ref/auctionListControl.ts` (перечень кодов и исключений по РП РФ № 471-р, валидация способа закупки по ч. 6 ст. 24 44-ФЗ).
-- Расширена схема `Okpd2RefSchema` (`isAuctionRequired`, `auctionNote`) и база `db.json` (143 записи ОКПД2: 91 обязательная позиция для электронного аукциона, 15 исключений; добавлен НПА `rpr-471r` в `legalActs`).
-- Обновлены справочник `/okpd2` (`Okpd2Dictionary`), выпадающий список `Okpd2Select`, таблица ПГ (`PurchasePlanCard`, `PurchasePlanPositionModal`), конфигурация способов закупки `PLACING_WAYS_ALL` (`EA20`, `ZK20`, `EP93`), форма потребности (`PurchaseNoteModal`) и извещение (`GeneralInfoSection`, `PurchaseObjectsSection`) — при выборе конкурса для позиции из перечня № 471-р выводится предупреждение с кнопкой переключения на `EA20`.
-
-## Модуль расчёта НМЦК методом сопоставимых рыночных цен (анализ рынка)
-
-- Добавлены схемы и расчётный движок `src/services/Nmck/nmck.schema.ts`, `src/services/Nmck/marketNmck.ts` (ст. 22 Закона № 44-ФЗ, Приказ МЭР № 567): учёт источников КП/ЕИС/прайс/тариф, автоиндексация ИПЦ по дате источника, коэффициент коммерческих условий `k_ком`, исключение выбросов, проверка однородности (`V <= 33%`), давности КП (>180 дн.) и предельной цены ПП № 926, экспорт обоснования в `.docx`.
-- Создан переиспользуемый компонент `src/components/Nmck/MarketNmckCalculator.tsx` и полноэкранная страница `/nmck-calculator` (`src/components/Nmck/NmckCalculatorPage.tsx`) с выбором плана-графика и позиции ПГ, подстановкой контрактов из `contractRegistry` организации и сохранением результата в карточку позиции (`useSavePositionNmck` с опцией обновления `amountTotal` и `totalAmount`).
-- Расширена `PurchasePlanPositionSchema` (`quantity`, `unit`, `nmck`, `nmckCalculation`), обновлены `PurchasePlanPositionModal.tsx` (встроенный калькулятор, `OkeiSelect`, карточка сохранённого расчёта) и `PurchasePlanCard.tsx` (отображение НМЦК и пункт «Рассчитать НМЦК (анализ рынка)» в меню действий), добавлен акт `order-mer-567` в `legalActs` (`db.json`).

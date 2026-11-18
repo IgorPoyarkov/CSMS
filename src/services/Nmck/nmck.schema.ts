@@ -1,6 +1,19 @@
 import { z } from "zod";
 
 /**
+ * Методы определения НМЦК (ч. 1 ст. 22 Закона № 44-ФЗ):
+ * - market_analysis — метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22);
+ * - normative — нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, ПП РФ № 926 / № 1047).
+ */
+export const NMCK_METHODS = ["market_analysis", "normative"] as const;
+export type NmckMethod = (typeof NMCK_METHODS)[number];
+
+export const NMCK_METHOD_LABELS: Record<NmckMethod, string> = {
+  market_analysis: "Метод сопоставимых рыночных цен (анализ рынка)",
+  normative: "Нормативный метод (ст. 19, ч. 7 ст. 22 44-ФЗ)",
+};
+
+/**
  * Типы источников ценовой информации для метода сопоставимых рыночных цен
  * (п. 3.7 Методических рекомендаций, утв. Приказом МЭР России от 02.10.2013 № 567).
  */
@@ -29,9 +42,7 @@ export const MARKET_PRICE_SOURCE_SHORT: Record<MarketPriceSourceType, string> = 
 
 export const NmckMarketOfferSchema = z.object({
   id: z.string(),
-  sourceType: z
-    .enum(MARKET_PRICE_SOURCE_TYPES)
-    .optional(),
+  sourceType: z.enum(MARKET_PRICE_SOURCE_TYPES).optional(),
   supplierName: z.string(),
   sourceDocument: z.string().optional(),
   offerDate: z.string().optional(),
@@ -46,27 +57,39 @@ export const NmckMarketOfferSchema = z.object({
 export type NmckMarketOffer = z.infer<typeof NmckMarketOfferSchema>;
 
 export const NmckCalculationRecordSchema = z.object({
-  method: z.literal("market_analysis"),
+  method: z.enum(NMCK_METHODS),
   calculatedAt: z.string(),
   calculationDate: z.string(),
   calculatorName: z.string().optional(),
   subject: z.string(),
   okpd2Code: z.string().optional(),
+  okpd2Name: z.string().optional(),
   quantity: z.string(),
   unit: z.string(),
+
+  // Поля метода сопоставимых рыночных цен (анализ рынка)
   applyAutoInflation: z.boolean().optional(),
   annualInflationPercent: z.string().optional(),
   selectedBasis: z.enum(["mean", "min"]).optional(),
-  offers: z.array(NmckMarketOfferSchema),
-  activeCount: z.number(),
-  meanUnitPrice: z.number(),
-  minUnitPrice: z.number(),
-  maxUnitPrice: z.number(),
-  stdDev: z.number(),
-  cvPercent: z.number(),
-  isHomogeneous: z.boolean(),
+  offers: z.array(NmckMarketOfferSchema).default([]),
+  activeCount: z.number().default(0),
+  meanUnitPrice: z.number().default(0),
+  minUnitPrice: z.number().default(0),
+  maxUnitPrice: z.number().default(0),
+  stdDev: z.number().default(0),
+  cvPercent: z.number().default(0),
+  isHomogeneous: z.boolean().default(true),
+  nmckMinTotal: z.number().default(0),
+
+  // Поля нормативного метода (ч. 7 ст. 22, ст. 19 44-ФЗ, увязка с ОКПД2)
+  normativeAct: z.string().optional(),
+  normativeDocument: z.string().optional(),
+  normLimitUnitPrice: z.number().optional(),
+  normativeUnitPrice: z.number().optional(),
+  normLimitTotal: z.number().optional(),
+  exceedsNormLimit: z.boolean().optional(),
+
   nmckTotal: z.number(),
-  nmckMinTotal: z.number(),
   notes: z.string().optional(),
 });
 

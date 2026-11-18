@@ -19,6 +19,14 @@ import {
   NATIONAL_REGIME_OPTIONS,
   PLACING_WAYS_ALL,
 } from "../../services/Procurements/noticeInfo.config";
+import {
+  MARKET_PRICE_SOURCE_SHORT,
+  NMCK_METHOD_LABELS,
+} from "../Nmck/nmck.schema";
+import {
+  calculateMarketNmck,
+  formatNmckMoney,
+} from "../Nmck/marketNmck";
 
 export interface PurchaseNoteExportContext {
   note: PurchaseNote;
@@ -232,6 +240,46 @@ export const buildPurchaseNoteExportModel = ({
     approvalLineParts.push(`комментарий: ${note.approvalComment}`);
   }
 
+  let nmckCalcSummary = "";
+  if (note.nmckCalculation) {
+    const calc = note.nmckCalculation;
+    if (calc.method === "normative") {
+      const limitStr =
+        calc.normLimitUnitPrice !== undefined
+          ? `Предельная цена по ОКПД2: ${formatNmckMoney(calc.normLimitUnitPrice)} ₽.`
+          : "Предельная цена в справочнике ОКПД2 не задана.";
+      const exceedStr = calc.exceedsNormLimit
+        ? " ВНИМАНИЕ: принятая цена превышает установленный норматив."
+        : "";
+      nmckCalcSummary = [
+        `${NMCK_METHOD_LABELS[calc.method]} от ${formatIsoToRu(calc.calculationDate || calc.calculatedAt)}`,
+        `ОКПД2: ${calc.okpd2Code || "—"}; ${limitStr} Принятая цена ед.: ${formatNmckMoney(calc.normativeUnitPrice ?? calc.meanUnitPrice)} ₽ × ${calc.quantity} ${calc.unit} = ${formatNmckMoney(calc.nmckTotal)} ₽.${exceedStr}`,
+        calc.normativeAct ? `НПА: ${calc.normativeAct}` : "",
+        calc.normativeDocument ? `Документ: ${calc.normativeDocument}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    } else {
+      const evaluated = calculateMarketNmck({
+        quantity: calc.quantity,
+        calculationDate: calc.calculationDate,
+        applyAutoInflation: calc.applyAutoInflation,
+        annualInflationPercent: calc.annualInflationPercent,
+        selectedBasis: calc.selectedBasis,
+        offers: calc.offers,
+      });
+      const sourceLines = evaluated.evaluatedOffers.map(
+        (ev, idx) =>
+          `${idx + 1}) [${MARKET_PRICE_SOURCE_SHORT[ev.offer.sourceType ?? "commercial_offer"]}] ${ev.offer.supplierName || "—"} (${ev.offer.sourceDocument || "б/н"}${ev.offer.offerDate ? ` от ${formatIsoToRu(ev.offer.offerDate)}` : ""}): ${ev.isValidPrice ? `${formatNmckMoney(ev.adjustedUnitPrice)} ₽` : "—"}${ev.isIncluded ? "" : " — исключено"}`,
+      );
+      nmckCalcSummary = [
+        `${NMCK_METHOD_LABELS[calc.method]} от ${formatIsoToRu(calc.calculationDate || calc.calculatedAt)}`,
+        `Учтено источников: ${calc.activeCount}; средняя ед.: ${formatNmckMoney(calc.meanUnitPrice)} ₽; V=${calc.cvPercent.toFixed(2)}% (${calc.isHomogeneous ? "однородна ≤33%" : "> 33%"}); НМЦК: ${formatNmckMoney(calc.nmckTotal)} ₽`,
+        ...sourceLines,
+      ].join("\n");
+    }
+  }
+
   const generalRows: KeyValueRow[] = [
     { label: "Основание (План-график)", value: `ПГ № ${planNumber}, позиция № ${posSerial} (уник. № ${posUnique})` },
     { label: "Идентификационный код закупки (ИКЗ)", value: ikz },
@@ -245,6 +293,9 @@ export const buildPurchaseNoteExportModel = ({
     },
     { label: "НМЦК / максимальное значение цены контракта", value: formatMoneyText(note.initialMaxPrice) },
     { label: "Метод обоснования цены (ст. 22)", value: note.priceBasis || "—" },
+    ...(nmckCalcSummary
+      ? [{ label: "Детализация расчёта и источников НМЦК", value: nmckCalcSummary }]
+      : []),
     { label: "Файл и запрос на обоснование НМЦК", value: nmckFileText },
     { label: "КБК и разбивка по годам (из ПГ)", value: kbkBlock },
     { label: "Уровень бюджета", value: budgetLevelText },

@@ -4,16 +4,22 @@ import {
   type NmckCalculationRecord,
   type NmckMarketOffer,
 } from "./nmck.schema";
+import type { Okpd2Ref } from "../Okpd2Ref/okpd2Ref.schema";
 
 /**
- * Чистый модуль расчёта и документирования НМЦК методом сопоставимых рыночных
- * цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ и Методическими
- * рекомендациями Минэкономразвития России от 02.10.2013 № 567.
+ * Чистый модуль расчёта и документирования НМЦК (ст. 22 Закона № 44-ФЗ,
+ * Приказ Минэкономразвития России от 02.10.2013 № 567):
+ * 1) метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22);
+ * 2) нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, ПП РФ № 926 и № 1047)
+ *    с автоматической увязкой с нормируемыми позициями ОКПД2.
  */
 
 export const MAX_RECOMMENDED_CV_PERCENT = 33;
 export const MIN_RECOMMENDED_SOURCES = 3;
 export const MAX_OFFER_AGE_DAYS = 180; // ~6 месяцев (п. 3.16 № 567)
+
+export const DEFAULT_NORMATIVE_ACT =
+  "Ст. 19, ч. 7 ст. 22 Закона № 44-ФЗ; ПП РФ от 02.09.2015 № 926; ПП РФ от 13.10.2014 № 1047";
 
 export interface MarketNmckInput {
   quantity: number | string;
@@ -55,6 +61,25 @@ export interface MarketNmckResult {
   maxDeviationOfferIndex: number | null;
   nmckMeanTotal: number;
   nmckMinTotal: number;
+  nmckTotal: number;
+}
+
+export interface NormativeNmckInput {
+  quantity: number | string;
+  unitPrice: number | string;
+  okpd2Ref?: Okpd2Ref;
+}
+
+export interface NormativeNmckResult {
+  quantity: number;
+  unitPrice: number;
+  isValidUnitPrice: boolean;
+  isNormedOkpd2: boolean;
+  normLimitUnitPrice: number | null;
+  normLimitTotal: number | null;
+  exceedsNormLimit: boolean;
+  excessUnit: number;
+  excessTotal: number;
   nmckTotal: number;
 }
 
@@ -152,7 +177,7 @@ export function createEmptyMarketOffer(
 }
 
 /**
- * Основной расчёт НМЦК методом сопоставимых рыночных цен (анализ рынка).
+ * Расчёт НМЦК методом сопоставимых рыночных цен (анализ рынка).
  */
 export function calculateMarketNmck(input: MarketNmckInput): MarketNmckResult {
   const parsedQty = parseNumericInput(input.quantity);
@@ -235,7 +260,6 @@ export function calculateMarketNmck(input: MarketNmckInput): MarketNmckResult {
   const minUnitPrice = Math.min(...prices);
   const maxUnitPrice = Math.max(...prices);
 
-  // Среднее квадратическое отклонение по п. 3.20.1 Приказа МЭР № 567
   const variance =
     activeCount > 1
       ? prices.reduce((acc, p) => acc + (p - meanUnitPrice) ** 2, 0) /
@@ -288,10 +312,64 @@ export function calculateMarketNmck(input: MarketNmckInput): MarketNmckResult {
   };
 }
 
-/** Формирует снимок расчёта для сохранения в карточку позиции плана закупок */
+/**
+ * Расчёт НМЦК нормативным методом (ч. 7 ст. 22, ст. 19 Закона № 44-ФЗ,
+ * разд. IV Приказа МЭР № 567): НМЦК = v × Ц_пред.
+ */
+export function calculateNormativeNmck(
+  input: NormativeNmckInput,
+): NormativeNmckResult {
+  const parsedQty = parseNumericInput(input.quantity);
+  const quantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
+
+  const normLimitUnitPrice =
+    input.okpd2Ref?.isNormed && input.okpd2Ref.normLimit !== undefined
+      ? roundMoney(input.okpd2Ref.normLimit)
+      : null;
+
+  const parsedPrice = parseNumericInput(input.unitPrice);
+  const isValidUnitPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
+  const unitPrice = isValidUnitPrice ? roundMoney(parsedPrice) : 0;
+
+  const normLimitTotal =
+    normLimitUnitPrice !== null
+      ? roundMoney(normLimitUnitPrice * quantity)
+      : null;
+  const nmckTotal = isValidUnitPrice ? roundMoney(unitPrice * quantity) : 0;
+
+  const exceedsNormLimit =
+    normLimitUnitPrice !== null &&
+    isValidUnitPrice &&
+    unitPrice > normLimitUnitPrice;
+
+  const excessUnit =
+    exceedsNormLimit && normLimitUnitPrice !== null
+      ? roundMoney(unitPrice - normLimitUnitPrice)
+      : 0;
+  const excessTotal =
+    exceedsNormLimit && normLimitTotal !== null
+      ? roundMoney(nmckTotal - normLimitTotal)
+      : 0;
+
+  return {
+    quantity,
+    unitPrice,
+    isValidUnitPrice,
+    isNormedOkpd2: Boolean(input.okpd2Ref?.isNormed),
+    normLimitUnitPrice,
+    normLimitTotal,
+    exceedsNormLimit,
+    excessUnit,
+    excessTotal,
+    nmckTotal,
+  };
+}
+
+/** Снимок расчёта (анализ рынка) для сохранения в СЗ */
 export function buildNmckCalculationRecord(params: {
   subject: string;
   okpd2Code?: string;
+  okpd2Name?: string;
   quantity: number | string;
   unit: string;
   calculationDate: string;
@@ -302,7 +380,18 @@ export function buildNmckCalculationRecord(params: {
   offers: NmckMarketOffer[];
   notes?: string;
   result: MarketNmckResult;
+  normLimitUnitPrice?: number | null;
 }): NmckCalculationRecord {
+  const effectiveUnitPrice =
+    params.selectedBasis === "min"
+      ? params.result.minUnitPrice
+      : params.result.meanUnitPrice;
+  const exceedsNormLimit =
+    params.normLimitUnitPrice !== undefined &&
+    params.normLimitUnitPrice !== null &&
+    params.result.activeCount > 0 &&
+    effectiveUnitPrice > params.normLimitUnitPrice;
+
   return {
     method: "market_analysis",
     calculatedAt: new Date().toISOString().slice(0, 10),
@@ -310,6 +399,7 @@ export function buildNmckCalculationRecord(params: {
     calculatorName: params.calculatorName?.trim() || undefined,
     subject: params.subject.trim() || "Объект закупки",
     okpd2Code: params.okpd2Code?.trim() || undefined,
+    okpd2Name: params.okpd2Name?.trim() || undefined,
     quantity: String(params.result.quantity),
     unit: params.unit.trim() || "ед.",
     applyAutoInflation: params.applyAutoInflation,
@@ -325,11 +415,57 @@ export function buildNmckCalculationRecord(params: {
     isHomogeneous: params.result.isHomogeneous,
     nmckTotal: params.result.nmckTotal,
     nmckMinTotal: params.result.nmckMinTotal,
+    normLimitUnitPrice: params.normLimitUnitPrice ?? undefined,
+    exceedsNormLimit,
     notes: params.notes?.trim() || undefined,
   };
 }
 
-/** Текстовое обоснование НМЦК для СЗ и протокола */
+/** Снимок расчёта (нормативный метод) для сохранения в СЗ */
+export function buildNormativeCalculationRecord(params: {
+  subject: string;
+  okpd2Code?: string;
+  okpd2Name?: string;
+  quantity: number | string;
+  unit: string;
+  calculationDate: string;
+  calculatorName?: string;
+  normativeAct: string;
+  normativeDocument?: string;
+  notes?: string;
+  result: NormativeNmckResult;
+}): NmckCalculationRecord {
+  return {
+    method: "normative",
+    calculatedAt: new Date().toISOString().slice(0, 10),
+    calculationDate: params.calculationDate,
+    calculatorName: params.calculatorName?.trim() || undefined,
+    subject: params.subject.trim() || "Объект закупки",
+    okpd2Code: params.okpd2Code?.trim() || undefined,
+    okpd2Name: params.okpd2Name?.trim() || undefined,
+    quantity: String(params.result.quantity),
+    unit: params.unit.trim() || "ед.",
+    offers: [],
+    activeCount: 0,
+    meanUnitPrice: params.result.unitPrice,
+    minUnitPrice: params.result.unitPrice,
+    maxUnitPrice: params.result.unitPrice,
+    stdDev: 0,
+    cvPercent: 0,
+    isHomogeneous: true,
+    nmckMinTotal: params.result.nmckTotal,
+    normativeAct: params.normativeAct.trim() || DEFAULT_NORMATIVE_ACT,
+    normativeDocument: params.normativeDocument?.trim() || undefined,
+    normLimitUnitPrice: params.result.normLimitUnitPrice ?? undefined,
+    normativeUnitPrice: params.result.unitPrice,
+    normLimitTotal: params.result.normLimitTotal ?? undefined,
+    exceedsNormLimit: params.result.exceedsNormLimit,
+    nmckTotal: params.result.nmckTotal,
+    notes: params.notes?.trim() || undefined,
+  };
+}
+
+/** Текстовое обоснование НМЦК (анализ рынка) */
 export function buildMarketNmckBasisText(
   result: MarketNmckResult,
   unit: string,
@@ -362,10 +498,30 @@ export function buildMarketNmckBasisText(
   return `Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ и Приказом МЭР России № 567. Учтено источников: ${result.activeCount} (${details || "без детализации"}). Расчёт ${basisLabel} × ${result.quantity} ${unit || "ед."}. СКО: ${formatNmckMoney(result.stdDev)} ₽, коэффициент вариации V: ${result.cvPercent.toFixed(2)}% (${result.isHomogeneous ? "выборка однородна <= 33%" : "превышает 33%"}). Итоговая НМЦК: ${formatNmckMoney(result.nmckTotal)} ₽.`;
 }
 
+/** Текстовое обоснование НМЦК (нормативный метод) */
+export function buildNormativeNmckBasisText(params: {
+  result: NormativeNmckResult;
+  unit: string;
+  okpd2Code?: string;
+  normativeAct: string;
+  normativeDocument?: string;
+}): string {
+  const okpdPart = params.okpd2Code
+    ? ` по коду ОКПД2 ${params.okpd2Code}`
+    : "";
+  const limitPart =
+    params.result.normLimitUnitPrice !== null
+      ? ` Предельная цена единицы по справочнику нормирования: ${formatNmckMoney(params.result.normLimitUnitPrice)} ₽ (итого по лимиту: ${formatNmckMoney(params.result.normLimitTotal ?? 0)} ₽).`
+      : "";
+  const docPart = params.normativeDocument
+    ? ` Документ / пункт перечня: ${params.normativeDocument}.`
+    : "";
+  return `Нормативный метод определения НМЦК (ст. 19, ч. 7 ст. 22 Закона № 44-ФЗ, разд. IV Приказа МЭР № 567)${okpdPart}. Правовое основание: ${params.normativeAct || DEFAULT_NORMATIVE_ACT}.${docPart}${limitPart} Расчёт: ${formatNmckMoney(params.result.unitPrice)} ₽/ед. × ${params.result.quantity} ${params.unit || "ед."} = ${formatNmckMoney(params.result.nmckTotal)} ₽.`;
+}
+
 /**
  * Пересчитывает поля финансового обеспечения позиции плана-графика при
- * обновлении суммы из НМЦК, гарантируя совпадение `amountTotal` и суммы по годам
- * (требование refine в PurchasePlanPositionSchema).
+ * обновлении суммы из НМЦК (гарантирует прохождение refine amountTotal === sumOf(parts)).
  */
 export function buildPositionFinancePatch(
   position: {
@@ -415,21 +571,15 @@ export function buildPositionFinancePatch(
 }
 
 /**
- * Экспорт обоснования НМЦК в Microsoft Word (.docx) по форме Приложения № 1
- * к Методическим рекомендациям Минэкономразвития № 567.
+ * Экспорт обоснования НМЦК в Microsoft Word (.docx) для обоих методов
+ * (анализ рынка и нормативный метод по Приказу МЭР № 567).
  */
-export async function exportMarketNmckToDocx(params: {
+export async function exportNmckCalculationToDocx(params: {
   title?: string;
   organizationName?: string;
   ikz?: string;
-  subject: string;
-  okpd2Code?: string;
-  quantity: number;
-  unit: string;
-  calculationDate: string;
-  calculatorName?: string;
-  result: MarketNmckResult;
-  notes?: string;
+  record: NmckCalculationRecord;
+  marketResult?: MarketNmckResult;
   fileName?: string;
 }): Promise<string> {
   const {
@@ -445,6 +595,7 @@ export async function exportMarketNmckToDocx(params: {
     WidthType,
   } = await import("docx");
 
+  const { record } = params;
   const border = {
     style: BorderStyle.SINGLE,
     size: 4,
@@ -476,33 +627,135 @@ export async function exportMarketNmckToDocx(params: {
       ],
     });
 
-  const rows = [
-    new TableRow({
-      tableHeader: true,
-      children: [
-        "№",
-        "Источник ценовой информации / Поставщик",
-        "Документ и дата",
-        "Цена ед., ₽",
-        "kинф × kком",
-        "Привед. цена, ₽",
-        "Учтено",
-      ].map((h) => makeCell(h, true)),
-    }),
-    ...params.result.evaluatedOffers.map((item, idx) =>
-      new TableRow({
-        children: [
-          String(idx + 1),
-          `${item.offer.supplierName || "—"}\n(${MARKET_PRICE_SOURCE_LABELS[item.offer.sourceType ?? "commercial_offer"]})`,
-          `${item.offer.sourceDocument || "б/н"}${item.offer.offerDate ? ` от ${item.offer.offerDate}` : ""}`,
-          item.isValidPrice ? formatNmckMoney(item.baseUnitPrice) : "—",
-          `${item.effectiveInflationCoeff.toFixed(4)} × ${item.effectiveCommercialCoeff.toFixed(4)}`,
-          item.isValidPrice ? formatNmckMoney(item.adjustedUnitPrice) : "—",
-          item.isIncluded && item.isValidPrice ? "Да" : "Исключено",
-        ].map((v) => makeCell(v)),
-      }),
-    ),
-  ];
+  const marketResult =
+    params.marketResult ??
+    calculateMarketNmck({
+      quantity: record.quantity,
+      calculationDate: record.calculationDate,
+      applyAutoInflation: record.applyAutoInflation,
+      annualInflationPercent: record.annualInflationPercent,
+      selectedBasis: record.selectedBasis,
+      offers: record.offers,
+    });
+
+  const bodyBlocks =
+    record.method === "normative"
+      ? [
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: "Метод определения НМЦК: нормативный метод (ст. 19, ч. 7 ст. 22 Федерального закона № 44-ФЗ, разд. IV Приказа МЭР России № 567).",
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders,
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: [
+                  "Код ОКПД2",
+                  "НПА / основание нормирования",
+                  "Предельная цена по нормативу, ₽/ед.",
+                  "Принятая цена ед., ₽",
+                  "Количество",
+                  "Итого НМЦК, ₽",
+                ].map((h) => makeCell(h, true)),
+              }),
+              new TableRow({
+                children: [
+                  record.okpd2Code || "—",
+                  `${record.normativeAct || DEFAULT_NORMATIVE_ACT}${record.normativeDocument ? `\n(${record.normativeDocument})` : ""}`,
+                  record.normLimitUnitPrice !== undefined
+                    ? formatNmckMoney(record.normLimitUnitPrice)
+                    : "Не установлена в ОКПД2",
+                  formatNmckMoney(record.normativeUnitPrice ?? record.meanUnitPrice),
+                  `${record.quantity} ${record.unit}`,
+                  formatNmckMoney(record.nmckTotal),
+                ].map((v) => makeCell(v)),
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 120, after: 80 },
+            children: [
+              new TextRun({
+                text: record.exceedsNormLimit
+                  ? `ВНИМАНИЕ: принятая цена единицы превышает нормативный предел (${formatNmckMoney(record.normLimitUnitPrice ?? 0)} ₽). Требуется специальное обоснование.`
+                  : "Предельная цена нормирования соблюдена.",
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+        ]
+      : [
+          new Paragraph({
+            spacing: { after: 120 },
+            children: [
+              new TextRun({
+                text: "Метод определения НМЦК: метод сопоставимых рыночных цен (анализ рынка), ч. 2–5 ст. 22 Федерального закона № 44-ФЗ, Приказ Минэкономразвития России от 02.10.2013 № 567.",
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders,
+            rows: [
+              new TableRow({
+                tableHeader: true,
+                children: [
+                  "№",
+                  "Источник ценовой информации / Поставщик",
+                  "Документ и дата",
+                  "Цена ед., ₽",
+                  "kинф × kком",
+                  "Привед. цена, ₽",
+                  "Учтено",
+                ].map((h) => makeCell(h, true)),
+              }),
+              ...marketResult.evaluatedOffers.map((item, idx) =>
+                new TableRow({
+                  children: [
+                    String(idx + 1),
+                    `${item.offer.supplierName || "—"}\n(${MARKET_PRICE_SOURCE_LABELS[item.offer.sourceType ?? "commercial_offer"]})`,
+                    `${item.offer.sourceDocument || "б/н"}${item.offer.offerDate ? ` от ${item.offer.offerDate}` : ""}`,
+                    item.isValidPrice ? formatNmckMoney(item.baseUnitPrice) : "—",
+                    `${item.effectiveInflationCoeff.toFixed(4)} × ${item.effectiveCommercialCoeff.toFixed(4)}`,
+                    item.isValidPrice ? formatNmckMoney(item.adjustedUnitPrice) : "—",
+                    item.isIncluded && item.isValidPrice ? "Да" : "Исключено",
+                  ].map((v) => makeCell(v)),
+                }),
+              ),
+            ],
+          }),
+          new Paragraph({
+            spacing: { before: 140, after: 60 },
+            children: [
+              new TextRun({
+                text: `Средняя приведённая цена единицы: ${formatNmckMoney(marketResult.meanUnitPrice)} ₽ · Мин.: ${formatNmckMoney(marketResult.minUnitPrice)} ₽ · Макс.: ${formatNmckMoney(marketResult.maxUnitPrice)} ₽`,
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 60 },
+            children: [
+              new TextRun({
+                text: `Среднее квадратическое отклонение (σ): ${formatNmckMoney(marketResult.stdDev)} ₽ · Коэффициент вариации (V): ${marketResult.cvPercent.toFixed(2)}% (${marketResult.isHomogeneous ? "выборка однородна <= 33%" : "превышает 33%, требуется уточнение выборки"})`,
+                size: 20,
+                font: "Times New Roman",
+              }),
+            ],
+          }),
+        ];
 
   const doc = new Document({
     sections: [
@@ -540,7 +793,7 @@ export async function exportMarketNmckToDocx(params: {
             spacing: { after: 60 },
             children: [
               new TextRun({
-                text: `Объект закупки: ${params.subject || "—"}${params.okpd2Code ? ` · ОКПД2: ${params.okpd2Code}` : ""}${params.ikz ? ` · ИКЗ: ${params.ikz}` : ""}`,
+                text: `Объект закупки: ${record.subject || "—"}${record.okpd2Code ? ` · ОКПД2: ${record.okpd2Code}` : ""}${params.ikz ? ` · ИКЗ: ${params.ikz}` : ""}`,
                 size: 20,
                 font: "Times New Roman",
               }),
@@ -550,65 +803,31 @@ export async function exportMarketNmckToDocx(params: {
             spacing: { after: 60 },
             children: [
               new TextRun({
-                text: `Количество (объём): ${params.quantity} ${params.unit || "ед."} · Дата расчёта: ${params.calculationDate || "—"}`,
+                text: `Количество (объём): ${record.quantity} ${record.unit || "ед."} · Дата расчёта: ${record.calculationDate || "—"}`,
                 size: 20,
                 font: "Times New Roman",
               }),
             ],
           }),
-          new Paragraph({
-            spacing: { after: 120 },
-            children: [
-              new TextRun({
-                text: "Метод определения НМЦК: метод сопоставимых рыночных цен (анализ рынка), ст. 22 Федерального закона № 44-ФЗ, Приказ Минэкономразвития России от 02.10.2013 № 567.",
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            borders,
-            rows,
-          }),
-          new Paragraph({
-            spacing: { before: 140, after: 60 },
-            children: [
-              new TextRun({
-                text: `Средняя приведённая цена единицы: ${formatNmckMoney(params.result.meanUnitPrice)} ₽ · Мин.: ${formatNmckMoney(params.result.minUnitPrice)} ₽ · Макс.: ${formatNmckMoney(params.result.maxUnitPrice)} ₽`,
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
-          new Paragraph({
-            spacing: { after: 60 },
-            children: [
-              new TextRun({
-                text: `Среднее квадратическое отклонение (σ): ${formatNmckMoney(params.result.stdDev)} ₽ · Коэффициент вариации (V): ${params.result.cvPercent.toFixed(2)}% (${params.result.isHomogeneous ? "выборка однородна <= 33%" : "превышает 33%, требуется уточнение выборки"})`,
-                size: 20,
-                font: "Times New Roman",
-              }),
-            ],
-          }),
+          ...bodyBlocks,
           new Paragraph({
             spacing: { after: 80 },
             children: [
               new TextRun({
-                text: `Итоговая НМЦК (${params.result.selectedBasis === "min" ? "по минимальной цене выборки" : "по средней цене выборки"}): ${formatNmckMoney(params.result.nmckTotal)} ₽`,
+                text: `Итоговая НМЦК: ${formatNmckMoney(record.nmckTotal)} ₽`,
                 bold: true,
                 size: 22,
                 font: "Times New Roman",
               }),
             ],
           }),
-          ...(params.notes
+          ...(record.notes
             ? [
                 new Paragraph({
                   spacing: { after: 80 },
                   children: [
                     new TextRun({
-                      text: `Примечание: ${params.notes}`,
+                      text: `Примечание: ${record.notes}`,
                       size: 19,
                       font: "Times New Roman",
                     }),
@@ -620,7 +839,7 @@ export async function exportMarketNmckToDocx(params: {
             spacing: { before: 120 },
             children: [
               new TextRun({
-                text: `Расчёт выполнил: ${params.calculatorName || "____________________"}   Дата: ${params.calculationDate || "__________"}`,
+                text: `Расчёт выполнил: ${record.calculatorName || "____________________"}   Дата: ${record.calculationDate || "__________"}`,
                 size: 20,
                 font: "Times New Roman",
               }),
@@ -633,7 +852,7 @@ export async function exportMarketNmckToDocx(params: {
 
   const fileName =
     params.fileName ||
-    `Обоснование_НМЦК_${(params.ikz || params.subject || "расчёт").replace(/[^\wа-яА-ЯёЁ-]+/g, "_").slice(0, 40)}.docx`;
+    `Обоснование_НМЦК_${(params.ikz || record.subject || "расчёт").replace(/[^\wа-яА-ЯёЁ-]+/g, "_").slice(0, 40)}.docx`;
 
   const blob = await Packer.toBlob(doc);
   const url = URL.createObjectURL(blob);

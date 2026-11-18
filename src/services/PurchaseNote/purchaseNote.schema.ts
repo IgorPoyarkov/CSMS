@@ -5,6 +5,10 @@ import {
 } from "../Organization/organization.schema";
 import { DeliveryPlaceSchema } from "../Procurements/noticeInfo.schema";
 import { RUSSIA } from "../AddressRef/addressRef.schema";
+import {
+  NmckCalculationRecordSchema,
+  NmckMarketOfferSchema,
+} from "../Nmck/nmck.schema";
 
 /**
  * Потребность / служебная записка по позиции плана-графика.
@@ -153,16 +157,8 @@ export const PurchaseNoteSchema = z
     nmckRequestComment: z.string().optional(),
     nmckRequestAssignee: z.string().optional(),
     nmckRequestDate: z.string().optional(),
-    nmckOffers: z
-      .array(
-        z.object({
-          id: z.string(),
-          supplierName: z.string(),
-          offerDate: z.string().optional(),
-          unitPrice: z.string(),
-        }),
-      )
-      .optional(),
+    nmckOffers: z.array(NmckMarketOfferSchema).optional(),
+    nmckCalculation: NmckCalculationRecordSchema.optional(),
 
     // Способ определения поставщика и отраслевой тип закупки
     placingWayCode: z.string().optional(),
