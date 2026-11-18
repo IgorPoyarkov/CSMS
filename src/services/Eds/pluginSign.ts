@@ -518,10 +518,20 @@ export interface SignatureResult {
   contentBytes: number;
 }
 
-const utf8ToBase64 = (text: string): string => {
-  const bytes = new TextEncoder().encode(text);
+const utf8ToBase64 = (text: string): string =>
+  bytesToBase64(new TextEncoder().encode(text));
+
+/**
+ * Байты в base64. Большие файлы (скан договора — это мегабайты) собираем
+ * кусками: посимвольная склейка всей строки на них заметно тормозит.
+ */
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  const CHUNK = 0x8000;
   let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
+
+  for (let offset = 0; offset < bytes.length; offset += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + CHUNK));
+  }
 
   return btoa(binary);
 };
@@ -535,6 +545,27 @@ const base64Bytes = (base64: string): number => {
   return Math.max(0, Math.floor((clean.length * 3) / 4) - padding);
 };
 
+/**
+ * base64 (в том числе PEM с заголовками) в байты.
+ *
+ * Нужно для файлов: ЕИС принимает `.sig` бинарным файлом, а плагин отдаёт
+ * подпись строкой base64.
+ */
+export const base64ToBytes = (base64: string): ArrayBuffer => {
+  const clean = base64
+    .replace(/-----(BEGIN|END)[^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const binary = atob(clean);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return buffer;
+};
+
 export interface SignOptions {
   /** true — открепленная подпись (файл + .sig), false — содержимое внутри CMS. */
   detached?: boolean;
@@ -545,12 +576,34 @@ export interface SignOptions {
  *
  * `CAdESCOM.CadesSignedData` ждёт содержимое в base64 при
  * `ContentEncoding = CADESCOM_BASE64_TO_BINARY`, поэтому строку переводим
- * в UTF-8 и base64. Открепленная подпись — то, что нужно для отправки в ЕИС:
- * документ и `.sig` уезжают файлами.
+ * в UTF-8 и base64. Открепленная подпись — то, что уходит в ЕИС: подпись
+ * лежит рядом с документом, а сам документ не заворачивается внутрь CMS.
  */
-export const signText = async (
+export const signText = (
   certificate: PluginCertificateInfo,
   text: string,
+  options: SignOptions = {},
+): Promise<SignatureResult> =>
+  signBase64Content(utf8ToBase64(text), certificate, options);
+
+/**
+ * Подписать файл как есть.
+ *
+ * В карточку контракта ЕИС прикрепляют настоящий документ — скан договора или
+ * PDF акта, — поэтому важно подписать его байты, а не текст: любое
+ * перекодирование сделает подпись недействительной.
+ */
+export const signBytes = (
+  certificate: PluginCertificateInfo,
+  bytes: Uint8Array,
+  options: SignOptions = {},
+): Promise<SignatureResult> =>
+  signBase64Content(bytesToBase64(bytes), certificate, options);
+
+/** Общая часть подписи: на входе уже готовое base64 содержимого. */
+const signBase64Content = async (
+  content: string,
+  certificate: PluginCertificateInfo,
   options: SignOptions = {},
 ): Promise<SignatureResult> => {
   await loadCadesApi().catch(() => undefined);
@@ -564,7 +617,6 @@ export const signText = async (
   if (unready) throw new Error(unready);
 
   const detached = options.detached ?? true;
-  const content = utf8ToBase64(text);
 
   const signer = await createObject<CadesSigner>(api, "CAdESCOM.CPSigner");
   await setProperty(signer, "Certificate", certificate.raw);
@@ -617,8 +669,21 @@ export interface VerifyResult {
  * пары «документ + .sig», а не подтверждение полномочий: цепочку УЦ и статус
  * сертификата она не смотрит.
  */
-export const verifyTextSignature = async (
+export const verifyTextSignature = (
   text: string,
+  signatureBase64: string,
+): Promise<VerifyResult> =>
+  verifyBase64Content(utf8ToBase64(text), signatureBase64);
+
+/** Проверка подписи под файлом: содержимое берётся байтами, без перекодирования. */
+export const verifyBytesSignature = (
+  bytes: Uint8Array,
+  signatureBase64: string,
+): Promise<VerifyResult> =>
+  verifyBase64Content(bytesToBase64(bytes), signatureBase64);
+
+const verifyBase64Content = async (
+  content: string,
   signatureBase64: string,
 ): Promise<VerifyResult> => {
   await loadCadesApi().catch(() => undefined);
@@ -642,7 +707,7 @@ export const verifyTextSignature = async (
     };
 
     await setProperty(signedData, "ContentEncoding", CADESCOM_BASE64_TO_BINARY);
-    await setProperty(signedData, "Content", utf8ToBase64(text));
+    await setProperty(signedData, "Content", content);
 
     const verify = signedData.VerifyCades;
     if (typeof verify !== "function") {

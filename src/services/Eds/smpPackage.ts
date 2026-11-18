@@ -1,5 +1,10 @@
 import { downloadBlob, downloadText } from "../Eis/eisExport";
-import { signText, verifyTextSignature, type PluginCertificateInfo } from "./pluginSign";
+import {
+  base64ToBytes,
+  signText,
+  verifyTextSignature,
+  type PluginCertificateInfo,
+} from "./pluginSign";
 
 /**
  * Подписанный пакет сведений о привлечении СМП.
@@ -48,21 +53,6 @@ export interface SignedSmpPackage {
  * перестанет сходиться у получателя.
  */
 const CSV_BOM = "\uFEFF";
-
-const base64ToBytes = (base64: string): ArrayBuffer => {
-  const clean = base64
-    .replace(/-----(BEGIN|END)[^-]+-----/g, "")
-    .replace(/\s+/g, "");
-  const binary = atob(clean);
-  const buffer = new ArrayBuffer(binary.length);
-  const bytes = new Uint8Array(buffer);
-
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return buffer;
-};
 
 const sha256Hex = async (text: string): Promise<string> => {
   const bytes = new TextEncoder().encode(text);
