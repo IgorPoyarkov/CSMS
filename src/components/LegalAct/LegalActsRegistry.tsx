@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
@@ -8,6 +8,7 @@ import {
 import {
   formatActDate,
   formatActPeriod,
+  formatLegalAct,
   legalActStatusLabels,
   legalActTypeLabels,
   LEGAL_ACT_TYPES,
@@ -209,8 +210,13 @@ export default function LegalActsRegistry() {
           <div className={block("table-wrapper")}>
             <table className={block("table")}>
               <thead>
+                {/* Акт вынесен отдельной строкой: под ней — текущие графы */}
                 <tr>
-                  <th>Акт</th>
+                  <th className={block("act-header")} colSpan={7}>
+                    Акт
+                  </th>
+                </tr>
+                <tr>
                   <th>Кем принят</th>
                   <th>Номер</th>
                   <th>Принят</th>
@@ -222,65 +228,73 @@ export default function LegalActsRegistry() {
               </thead>
               <tbody>
                 {pageActs.map((act) => (
-                  <tr key={String(act.id)}>
-                    <td className={block("cell")}>
-                      <span className={block("name")}>{act.shortName}</span>
-                      <span className={block("sub")}>{act.fullName}</span>
-                      {act.scope && (
-                        <span className={block("scope")}>{act.scope}</span>
-                      )}
-                    </td>
-                    <td className={block("cell")}>{act.adoptedBy}</td>
-                    <td className={block("code")}>{act.actNumber}</td>
-                    <td className={block("cell")}>
-                      {formatActDate(act.adoptedDate) || "—"}
-                    </td>
-                    <td className={block("cell")}>
-                      {formatActPeriod(act) || "—"}
-                    </td>
-                    <td className={block("cell")}>
-                      <span className={block("tag", [act.status])}>
-                        {legalActStatusLabels[act.status]}
-                      </span>
-                      {act.supersededBy && (
-                        <span className={block("sub")}>{act.supersededBy}</span>
-                      )}
-                    </td>
-                    <td className={block("cell")}>
-                      {(act.components ?? []).length === 0 ? (
-                        <span className={block("sub")}>связи не указаны</span>
-                      ) : (
-                        <span className={block("components")}>
-                          {(act.components ?? []).map((component) => (
-                            <span
-                              key={component}
-                              className={block("component")}
-                              title={`Компонент системы: ${component}`}
-                            >
-                              {component}
-                            </span>
-                          ))}
+                  <Fragment key={String(act.id)}>
+                    <tr className={block("act-row")}>
+                      <td colSpan={7}>
+                        <span className={block("act-name")}>
+                          {formatLegalAct(act)}
                         </span>
-                      )}
-                    </td>
-                    <td className={block("cell")}>
-                      {act.isVerified ? (
-                        <span className={block("check", ["done"])}>
-                          Сверен
-                          {act.lastCheckedDate
-                            ? ` ${formatActDate(act.lastCheckedDate)}`
-                            : ""}
+                        <span className={block("sub")}>{act.fullName}</span>
+                        {act.scope && (
+                          <span className={block("scope")}>{act.scope}</span>
+                        )}
+                      </td>
+                    </tr>
+                    <tr className={block("details-row")}>
+                      <td className={block("cell")}>{act.adoptedBy}</td>
+                      <td className={block("code")}>{act.actNumber}</td>
+                      <td className={block("cell")}>
+                        {formatActDate(act.adoptedDate) || "—"}
+                      </td>
+                      <td className={block("cell")}>
+                        {formatActPeriod(act) || "—"}
+                      </td>
+                      <td className={block("cell")}>
+                        <span className={block("tag", [act.status])}>
+                          {legalActStatusLabels[act.status]}
                         </span>
-                      ) : (
-                        <span className={block("check", ["pending"])}>
-                          Не сверен
-                        </span>
-                      )}
-                      {act.notes && (
-                        <span className={block("sub")}>{act.notes}</span>
-                      )}
-                    </td>
-                  </tr>
+                        {act.supersededBy && (
+                          <span className={block("sub")}>
+                            {act.supersededBy}
+                          </span>
+                        )}
+                      </td>
+                      <td className={block("cell")}>
+                        {(act.components ?? []).length === 0 ? (
+                          <span className={block("sub")}>связи не указаны</span>
+                        ) : (
+                          <span className={block("components")}>
+                            {(act.components ?? []).map((component) => (
+                              <span
+                                key={component}
+                                className={block("component")}
+                                title={`Компонент системы: ${component}`}
+                              >
+                                {component}
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </td>
+                      <td className={block("cell")}>
+                        {act.isVerified ? (
+                          <span className={block("check", ["done"])}>
+                            Сверен
+                            {act.lastCheckedDate
+                              ? ` ${formatActDate(act.lastCheckedDate)}`
+                              : ""}
+                          </span>
+                        ) : (
+                          <span className={block("check", ["pending"])}>
+                            Не сверен
+                          </span>
+                        )}
+                        {act.notes && (
+                          <span className={block("sub")}>{act.notes}</span>
+                        )}
+                      </td>
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -142,6 +142,36 @@
     }
   }
 
+  // Строка «Акт» над текущими графами: заголовок-строка и подпись акта
+  &__act-header {
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
+
+  &__act-row {
+    td {
+      padding-bottom: 6px;
+      background: var(--surface-raised);
+      border-bottom: none;
+    }
+  }
+
+  &__act-name {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__details-row {
+    td {
+      border-bottom: 1px solid var(--border);
+    }
+  }
+
   &__cell {
     min-width: 90px;
     max-width: 320px;
