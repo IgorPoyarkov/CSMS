@@ -15,6 +15,7 @@ const ContractConditionsSection = () => {
 
   const conditions = watch("contractConditions");
   const nmck = watch("generalInfo.nmck");
+  const generalIkz = watch("generalInfo.ikz");
 
   const {
     fields: placeFields,
@@ -132,79 +133,19 @@ const ContractConditionsSection = () => {
           </div>
         </div>
 
-        {/* Составные части ИКЗ */}
+        {/* ИКЗ — одной строкой. Расшифровка разрядов живёт в форме позиции
+            плана-графика, в извещении она только мешает читать номер. */}
         <div className={block("row")}>
           <span className={block("label")}>
-            Сведения для формирования ИКЗ<sup>*</sup>
+            Идентификационный код закупки (ИКЗ)<sup>*</sup>
           </span>
-          <div className={block("ikz-grid")}>
-            <div>
-              <span className={block("caption")}>Год размещения</span>
-              <input
-                type="text"
-                maxLength={4}
-                className={block("input")}
-                {...register("contractConditions.ikzYear")}
-              />
-            </div>
-            <div>
-              <span className={block("caption")}>
-                Код заказчика (ИНН + КПП + вид)
-              </span>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={20}
-                placeholder="20 знаков"
-                className={block("input")}
-                {...register("contractConditions.ikzCustomerCode")}
-              />
-              {conditions.ikzCustomerCode &&
-                conditions.ikzCustomerCode.replace(/\D/g, "").length !== 20 && (
-                  <span className={block("caption")}>
-                    {conditions.ikzCustomerCode.replace(/\D/g, "").length}{" "}
-                    знаков: добавьте код вида организации (ИНН и КПП уже
-                    перенесены).
-                  </span>
-                )}
-            </div>
-            <div>
-              <span className={block("caption")}>№ в плане-графике</span>
-              <input
-                type="text"
-                maxLength={4}
-                className={block("input")}
-                {...register("contractConditions.ikzPlanNumber")}
-              />
-            </div>
-            <div>
-              <span className={block("caption")}>Порядковый №</span>
-              <input
-                type="text"
-                maxLength={3}
-                className={block("input")}
-                {...register("contractConditions.ikzOrderNumber")}
-              />
-            </div>
-            <div>
-              <span className={block("caption")}>Код ОКПД2 (4 знака)</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={4}
-                className={block("input")}
-                {...register("contractConditions.ikzOkpd2")}
-              />
-            </div>
-            <div>
-              <span className={block("caption")}>Код КВР</span>
-              <input
-                type="text"
-                maxLength={3}
-                className={block("input")}
-                {...register("contractConditions.ikzKvr")}
-              />
-            </div>
+          <div className={block("field-col")}>
+            <span className={block("value", ["ikz-value"])}>
+              {generalIkz || "—"}
+            </span>
+            <span className={block("caption")}>
+              Формируется из позиции плана-графика автоматически.
+            </span>
           </div>
         </div>
 

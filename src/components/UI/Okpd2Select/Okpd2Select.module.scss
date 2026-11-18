@@ -114,6 +114,26 @@
       color: var(--text-on-accent);
       background-color: var(--accent);
     }
+
+    // Строка-отказ: код ввели, но его нет в плане-графике
+    &--disabled {
+      cursor: not-allowed;
+      color: var(--state-danger);
+
+      &:hover {
+        color: var(--state-danger);
+        background-color: transparent;
+      }
+    }
+  }
+
+  // Подсказка под полем (код вне плана-графика)
+  &__hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--state-danger);
   }
 
   // Код ОКПД2 в списке

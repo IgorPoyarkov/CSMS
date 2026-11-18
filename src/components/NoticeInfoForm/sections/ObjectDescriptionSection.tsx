@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useFieldArray, useFormContext } from "react-hook-form";
-import { ExternalLink, FileText, Upload } from "lucide-react";
+import { useFormContext } from "react-hook-form";
+import { ExternalLink, FileText } from "lucide-react";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
 import { useOrganizationObjectDescriptions } from "../../../services/ObjectDescription/objectDescription.api";
@@ -63,9 +62,9 @@ const DESCRIPTION_FIELDS: {
  * Структурированное описание объекта закупки (ПП РФ от 08.02.2017 № 145).
  *
  * Описание формируется с ранних этапов (конструктор ООЗ) и переносится в
- * извещение. Здесь же выбирается позиция КТРУ (если код ОКПД2 есть в каталоге)
- * и прикладывается отдельный файл описания — он крепится к извещению
- * в разделе «Прилагаемые документы».
+ * извещение. Здесь же выбирается позиция КТРУ (если код ОКПД2 есть в каталоге).
+ * Файл ООЗ отдельно здесь не формируется: он создаётся в служебной записке и
+ * после её согласования автоматически попадает в раздел «Прилагаемые документы».
  */
 const ObjectDescriptionSection = () => {
   const { bem } = useUtils();
@@ -76,33 +75,14 @@ const ObjectDescriptionSection = () => {
     organization?.id,
   );
   const { data: ktruRefs = [] } = useKtruDictionary();
-  const { register, watch, setValue, control } =
-    useFormContext<NoticeInfoFormValues>();
+  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
 
   const objectDescription = watch("objectDescription");
   // Код ОКПД2 описания может быть ещё не заполнен вручную, но уже выбран
-  // в таблице объектов закупки — используем его для КТРУ и имени файла
+  // в таблице объектов закупки — используем его для КТРУ
   const firstItemCode = watch("purchaseObjects.items.0.okpd2OrKtruCode") || "";
   const templates = savedDescriptions.filter(
     (item) => item.kind === "object_description",
-  );
-
-  const {
-    fields: attachedFields,
-    append,
-    remove,
-  } = useFieldArray({
-    control,
-    name: "attachedDocs",
-  });
-  const [draftFileName, setDraftFileName] = useState("");
-
-  const oozDocs = useMemo(
-    () =>
-      attachedFields
-        .map((field, index) => ({ field, index }))
-        .filter(({ field }) => field.category === "object_description"),
-    [attachedFields],
   );
 
   if (!objectDescription) {
@@ -126,41 +106,6 @@ const ObjectDescriptionSection = () => {
     });
   };
 
-  const attachFile = (fileName: string, description: string) => {
-    const trimmed = fileName.trim();
-    if (!trimmed) return;
-    append({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      category: "object_description",
-      fileName: trimmed,
-      description:
-        description.trim() ||
-        "Структурированное описание объекта закупки (ст. 33 44-ФЗ, ПП РФ № 145)",
-    });
-  };
-
-  // Файл формируется из текущего описания: в системе хранится имя и описание,
-  // сам документ выгружается из конструктора ООЗ / печатной формы
-  const handleGenerateFile = () => {
-    const code = effectiveOkpd2 || "ООЗ";
-    const ktru = objectDescription.ktruCode
-      ? `_КТРУ_${objectDescription.ktruCode}`
-      : "";
-    const date = new Date().toISOString().slice(0, 10);
-    attachFile(
-      `Описание_объекта_закупки_${code}${ktru}_${date}.docx`,
-      `Структурированное описание объекта закупки${
-        objectDescription.objectName ? `: ${objectDescription.objectName}` : ""
-      }${objectDescription.ktruCode ? ` (КТРУ ${objectDescription.ktruCode})` : ""}`,
-    );
-  };
-
-  const handleFilePick = (fileList: FileList | null) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    setDraftFileName(file.name);
-  };
-
   return (
     <section className={block("section")}>
       <h2 className={block("section-title")}>
@@ -169,8 +114,8 @@ const ObjectDescriptionSection = () => {
       <p className={block("hint")}>
         Структурированное описание в соответствии с Постановлением Правительства
         РФ от 08.02.2017 N 145. Можно выбрать готовую заготовку из конструктора
-        ООЗ или заполнить поля вручную. Отдельный файл описания прикладывается к
-        извещению и уходит в раздел «Прилагаемые документы».
+        ООЗ или заполнить поля вручную. Файл описания готовится в служебной
+        записке и после согласования приходит в раздел «Прилагаемые документы».
       </p>
       <LegalActRefs component="ObjectDescriptionSection" />
 
@@ -269,60 +214,17 @@ const ObjectDescriptionSection = () => {
         </div>
       </div>
 
-      {/* Файл описания объекта закупки, который крепится к извещению */}
+      {/* Файл ООЗ живёт в прилагаемых документах и не дублируется здесь */}
       <div className={block("preview")}>
         <h3 className={block("preview-title")}>
           <FileText size={14} aria-hidden="true" /> Файл описания объекта
           закупки
         </h3>
-        <div className={eis("inline-group")}>
-          <button
-            type="button"
-            className={eis("small-btn")}
-            onClick={handleGenerateFile}
-          >
-            Сформировать файл ООЗ и приложить
-          </button>
-          <input type="file" onChange={(e) => handleFilePick(e.target.files)} />
-          <button
-            type="button"
-            className={eis("small-btn")}
-            disabled={!draftFileName}
-            onClick={() => {
-              attachFile(
-                draftFileName,
-                "Описание объекта закупки (файл заказчика)",
-              );
-              setDraftFileName("");
-            }}
-          >
-            <Upload size={12} aria-hidden="true" /> Прикрепить выбранный файл
-          </button>
-        </div>
-
-        {oozDocs.length === 0 ? (
-          <span className={eis("muted")}>
-            Файл описания пока не приложен — извещение можно сохранить, но ООЗ в
-            составе документов будет отсутствовать.
-          </span>
-        ) : (
-          <ul className={eis("doc-list")}>
-            {oozDocs.map(({ field, index }) => (
-              <li key={field.id} className={eis("doc-item")}>
-                <span>
-                  <strong>{field.fileName}</strong> — {field.description}
-                </span>
-                <button
-                  type="button"
-                  className={eis("small-btn", ["danger"])}
-                  onClick={() => remove(index)}
-                >
-                  Удалить
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <span className={eis("muted")}>
+          Файл ООЗ формируется и прикрепляется в служебной записке. После её
+          согласования он автоматически попадает в раздел «Прилагаемые
+          документы» — отдельно прикреплять его к извещению не нужно.
+        </span>
       </div>
 
       <div className={block("preview")}>

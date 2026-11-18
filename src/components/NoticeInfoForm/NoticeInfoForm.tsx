@@ -221,6 +221,31 @@ const NoticeInfoForm = () => {
     id,
   ]);
 
+  // Коды ОКПД2 из позиций плана-графика, к которому относится служебная
+  // записка. Извещение не может выйти за пределы плана: иначе теряется связь
+  // позиции закупки с позицией плана-графика.
+  const allowedOkpd2Codes = useMemo(() => {
+    if (!matchedNote) return undefined;
+    const plan =
+      matchedNote.purchasePlanId !== undefined &&
+      matchedNote.purchasePlanId !== null
+        ? purchasePlans.find(
+            (item) => String(item.id) === String(matchedNote.purchasePlanId),
+          )
+        : undefined;
+    if (!plan) return undefined;
+
+    const codes = Array.from(
+      new Set(
+        plan.positions
+          .map((position) => position.okpd2Code?.trim())
+          .filter((code): code is string => Boolean(code)),
+      ),
+    );
+
+    return codes.length > 0 ? codes : undefined;
+  }, [matchedNote, purchasePlans]);
+
   const [szLast = "", szFirst = "", szMiddle = ""] = (
     state.responsibleFio ?? ""
   ).split(" ");
@@ -877,11 +902,26 @@ const NoticeInfoForm = () => {
           matchedNote.sanctionsRnpRequirement,
         );
       }
-      // Подписанная в СЗ НМЦК притягивается в извещение вместе с реквизитами
-      // подписи: файл берём из карточки, а если там пусто — из снимка подписи
+      // Файлы утверждённой СЗ (НМЦК и ООЗ) переносятся в прилагаемые
+      // документы извещения. Уже приложенные файлы не затираются: добавляем
+      // только те категории, которых в списке ещё нет.
+      const isNoteApproved = matchedNote.status === "approved";
       const noticeNmckFileName =
         matchedNote.nmckFileName || matchedNote.nmckSignature?.fileName;
-      if (noticeNmckFileName && getValues("attachedDocs").length === 0) {
+      const noticeOozFileName =
+        matchedNote.objectDescriptionFileName ||
+        (isNoteApproved && matchedDesc
+          ? `Описание_объекта_закупки_${matchedDesc.title}.docx`
+          : undefined);
+
+      const existingDocs = getValues("attachedDocs") ?? [];
+      const additions: NoticeInfoFormValues["attachedDocs"] = [];
+
+      if (
+        noticeNmckFileName &&
+        (isNoteApproved || existingDocs.length === 0) &&
+        !existingDocs.some((doc) => doc.category === "nmck_justification")
+      ) {
         const nmckSignature = matchedNote.nmckSignature;
         const signatureNote = nmckSignature
           ? [
@@ -892,19 +932,47 @@ const NoticeInfoForm = () => {
               .filter(Boolean)
               .join(" ")
           : "";
-        setValue("attachedDocs", [
-          {
-            id: "sz-nmck-doc",
-            category: "nmck_justification",
-            fileName: noticeNmckFileName,
-            description: [
-              matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
-              signatureNote,
+        additions.push({
+          id: "sz-nmck-doc",
+          category: "nmck_justification",
+          fileName: noticeNmckFileName,
+          description: [
+            matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
+            signatureNote,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        });
+      }
+
+      if (
+        noticeOozFileName &&
+        !existingDocs.some((doc) => doc.category === "object_description")
+      ) {
+        const positionInfo = matchedDesc
+          ? [
+              matchedDesc.title,
+              matchedDesc.okpd2Code ? `ОКПД2 ${matchedDesc.okpd2Code}` : "",
+              matchedDesc.ktruCode ? `КТРУ ${matchedDesc.ktruCode}` : "",
             ]
               .filter(Boolean)
-              .join(" · "),
-          },
-        ]);
+              .join(", ")
+          : matchedNote.subject;
+        additions.push({
+          id: "sz-ooz-doc",
+          category: "object_description",
+          fileName: noticeOozFileName,
+          description: [
+            "Структурированное описание объекта закупки (из утверждённой СЗ)",
+            positionInfo,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        });
+      }
+
+      if (additions.length > 0) {
+        setValue("attachedDocs", [...existingDocs, ...additions]);
       }
 
       if (matchedNote.advantageSmpPart3Art30 !== undefined) {
@@ -1261,24 +1329,18 @@ const NoticeInfoForm = () => {
       }
     }
 
-    // Единый набор характеристик: собираем характеристики всех позиций ООЗ
-    // без повторов. Позиции хранят набор только для совместимости старых
-    // записей, в форме он живёт на уровне purchaseObjects.
-    const currentNorming =
+    // Характеристики живут в позициях. Старые извещения хранили единый набор
+    // на уровне purchaseObjects — переносим его в первую позицию, чтобы
+    // данные не потерялись.
+    const legacyNorming =
       getValues("purchaseObjects.normingRequirements") ?? [];
-    if (currentNorming.length === 0) {
-      const collected = (getValues("purchaseObjects.items") ?? []).flatMap(
-        (item) => item.normingRequirements ?? [],
+    if (legacyNorming.length > 0) {
+      const currentItems = getValues("purchaseObjects.items") ?? [];
+      const hasPerItem = currentItems.some(
+        (item) => (item.normingRequirements ?? []).length > 0,
       );
-      const seen = new Set<string>();
-      const unique = collected.filter((requirement) => {
-        const key = requirement.requirementText.trim().toLowerCase();
-        if (!key || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      if (unique.length > 0) {
-        setValue("purchaseObjects.normingRequirements", unique, {
+      if (!hasPerItem && currentItems.length > 0) {
+        setValue("purchaseObjects.items.0.normingRequirements", legacyNorming, {
           shouldDirty: false,
         });
       }
@@ -1298,6 +1360,35 @@ const NoticeInfoForm = () => {
   ]);
 
   const onSubmit = (formData: NoticeInfoFormValues) => {
+    // Связь с планом-графиком: коды ОКПД2 вне позиций плана не допускаются
+    if (allowedOkpd2Codes && allowedOkpd2Codes.length > 0) {
+      const allowedSet = new Set(allowedOkpd2Codes);
+      const foreignCodes = Array.from(
+        new Set(
+          formData.purchaseObjects.items
+            .map((item) => item.okpd2OrKtruCode)
+            .filter((code) => Boolean(code) && !allowedSet.has(code)),
+        ),
+      );
+
+      if (foreignCodes.length > 0) {
+        setError("purchaseObjects.items.0.okpd2OrKtruCode", {
+          message: `Коды ОКПД2 вне плана-графика: ${foreignCodes.join(", ")}. Укажите позиции из плана-графика заказчика`,
+        });
+
+        return;
+      }
+
+      const descCode = formData.objectDescription?.okpd2Code;
+      if (descCode && !allowedSet.has(descCode)) {
+        setError("objectDescription.okpd2Code", {
+          message: `Код ОКПД2 ${descCode} отсутствует в плане-графике заказчика`,
+        });
+
+        return;
+      }
+    }
+
     // Контроль нормирования (ПП РФ N 926): превышение предельной цены единицы
     // нормируемой позиции не сохраняется, пока его не подписал главный
     // подписант. Проверка дублирует блокировку кнопки — отправка по Enter
@@ -1400,7 +1491,7 @@ const NoticeInfoForm = () => {
           <ContactInfoSection />
           <ProcedureDatesSection />
           <ContractConditionsSection />
-          <PurchaseObjectsSection />
+          <PurchaseObjectsSection allowedCodes={allowedOkpd2Codes} />
           <ObjectDescriptionSection />
           <NormingControlSection />
           <ParticipantsRequirementsSection />

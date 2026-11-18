@@ -15,6 +15,12 @@ interface Okpd2SelectProps {
   name?: string;
   /** Вызов при выборе позиции справочника; null — выбор сброшен */
   onSelect: (item: Okpd2Ref | null) => void;
+  /**
+   * Коды ОКПД2, доступные для выбора — позиции плана-графика заказчика.
+   * Если массив передан и не пуст, остальные коды справочника скрываются,
+   * а ввод кода вручную вне списка запрещается.
+   */
+  allowedCodes?: string[];
   placeholder?: string;
   disabled?: boolean;
   id?: string;
@@ -37,6 +43,7 @@ export default function Okpd2Select({
   code,
   name,
   onSelect,
+  allowedCodes,
   placeholder = "Код или наименование ОКПД2…",
   disabled = false,
   id,
@@ -53,19 +60,49 @@ export default function Okpd2Select({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
+  // Ограничение по плану-графику: если коды заданы, справочник фильтруется
+  const allowedSet = useMemo(
+    () =>
+      allowedCodes && allowedCodes.length > 0
+        ? new Set(allowedCodes)
+        : undefined,
+    [allowedCodes],
+  );
+  const availableDictionary = useMemo(
+    () =>
+      allowedSet
+        ? (dictionary ?? []).filter((item) => allowedSet.has(item.code))
+        : (dictionary ?? []),
+    [dictionary, allowedSet],
+  );
+
   // Текст выбранной позиции, когда список закрыт
   const selectedLabel = code ? `${code}${name ? ` — ${name}` : ""}` : "";
   const items = useMemo(
-    () => searchOkpd2(dictionary ?? [], query),
-    [dictionary, query],
+    () => searchOkpd2(availableDictionary, query),
+    [availableDictionary, query],
   );
 
+  const typed = query.trim();
+  const typedAllowed = !allowedSet || allowedSet.has(typed);
+
   // Справочник пополняется выгрузкой из ЕИС и может не содержать нужного кода,
-  // поэтому введённый вручную код оставляем доступным для выбора
+  // поэтому введённый вручную код оставляем доступным для выбора. Но только
+  // если он есть в плане-графике — иначе связь с позицией плана теряется.
   const canUseTypedCode =
     isOpen &&
-    query.trim().length >= 2 &&
-    !items.some((item) => item.code === query.trim());
+    typed.length >= 2 &&
+    typedAllowed &&
+    !items.some((item) => item.code === typed);
+
+  // Введён код, которого нет в плане-графике: показываем отказ
+  const typedNotAllowed =
+    isOpen && typed.length >= 2 && Boolean(allowedSet) && !typedAllowed;
+
+  // Сохранённый код вне плана-графика (старые записи) — предупреждаем
+  const selectedNotAllowed = Boolean(
+    code && allowedSet && !allowedSet.has(code),
+  );
 
   // Закрытие по клику вне компонента
   useEffect(() => {
@@ -109,12 +146,14 @@ export default function Okpd2Select({
 
   // Строка «ввести код вручную» стоит в выдаче последней
   const typedCodeIndex = items.length;
-  const optionCount = items.length + (canUseTypedCode ? 1 : 0);
+  const optionCount =
+    items.length + (canUseTypedCode ? 1 : 0) + (typedNotAllowed ? 1 : 0);
 
   function applyTypedCode() {
     const typed = query.trim();
 
-    if (!typed) {
+    // Ручной ввод разрешён только для кодов из плана-графика
+    if (!typed || (allowedSet && !allowedSet.has(typed))) {
       return;
     }
 
@@ -196,17 +235,40 @@ export default function Okpd2Select({
         <span className={block("arrow")}>▼</span>
       </div>
 
+      {selectedNotAllowed && (
+        <span className={block("hint")}>
+          Код {code} отсутствует в плане-графике заказчика — выберите позицию из
+          плана.
+        </span>
+      )}
+
       {isOpen && (
         <ul ref={listRef} className={block("list")} role="listbox">
           {isLoading && (
             <li className={block("item")}>Загрузка справочника ОКПД2...</li>
           )}
 
-          {!isLoading && items.length === 0 && !canUseTypedCode && (
-            <li className={block("item")}>
-              {query
-                ? `Позиций ОКПД2 по запросу «${query}» не найдено`
-                : "Справочник ОКПД2 пуст"}
+          {!isLoading &&
+            items.length === 0 &&
+            !canUseTypedCode &&
+            !typedNotAllowed && (
+              <li className={block("item")}>
+                {query
+                  ? allowedSet
+                    ? `Код «${query}» отсутствует в плане-графике заказчика`
+                    : `Позиций ОКПД2 по запросу «${query}» не найдено`
+                  : allowedSet
+                    ? "В позициях плана-графика не заполнены коды ОКПД2"
+                    : "Справочник ОКПД2 пуст"}
+              </li>
+            )}
+
+          {typedNotAllowed && (
+            <li className={block("item", ["disabled"])}>
+              <span className={block("name")}>
+                Код «{typed}» отсутствует в плане-графике заказчика — выбрать
+                его нельзя.
+              </span>
             </li>
           )}
 

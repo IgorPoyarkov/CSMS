@@ -187,6 +187,12 @@ export const PurchaseNoteSchema = z
     // Файл обоснования НМЦК, запрос на него и рабочие коммерческие предложения (ст. 22 44-ФЗ)
     nmckFileName: z.string().optional(),
     nmckFileUpdatedAt: z.string().optional(),
+
+    // Файл структурированного описания объекта закупки (ООЗ). Готовится
+    // в служебной записке; после согласования переносится в прилагаемые
+    // документы извещения.
+    objectDescriptionFileName: z.string().optional(),
+    objectDescriptionFileUpdatedAt: z.string().optional(),
     nmckRequestStatus: z.enum(["none", "requested", "received"]).optional(),
     nmckRequestComment: z.string().optional(),
     nmckRequestAssignee: z.string().optional(),

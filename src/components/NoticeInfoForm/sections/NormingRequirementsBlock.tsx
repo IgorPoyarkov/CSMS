@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { FieldArrayPath, Path } from "react-hook-form";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
@@ -36,16 +37,25 @@ const mapCategoryToRequirementType = (
   return "other";
 };
 
+interface NormingRequirementsBlockProps {
+  /** Индекс позиции в purchaseObjects.items */
+  index: number;
+  /** Порядковый номер позиции для заголовка */
+  positionNumber?: number;
+}
+
 /**
- * Единый набор характеристик объекта закупки.
+ * Набор характеристик конкретной позиции объекта закупки.
  *
- * Раньше блок повторялся в каждой позиции, и заказчик заполнял характеристики
- * отдельно для каждой строки. Теперь набор один на закупку (п. 7 ПП РФ № 926):
- * он подставляется из шаблонов нормирования, из позиций КТРУ или
- * редактируется вручную. Позиции объекта закупки живут в сводной таблице
- * выше и на набор характеристик не влияют.
+ * Характеристики привязаны к выбранному объекту: у каждой позиции ОКПД2 / КТРУ
+ * свой набор (п. 7 ПП РФ № 926, ПП РФ № 145). Набор подставляется из КТРУ или
+ * шаблона нормирования этой позиции и редактируется вручную. Позиции без
+ * характеристик остаются с пустым набором.
  */
-const NormingRequirementsBlock = () => {
+const NormingRequirementsBlock = ({
+  index,
+  positionNumber,
+}: NormingRequirementsBlockProps) => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { organization } = useMyContractRole();
@@ -55,33 +65,30 @@ const NormingRequirementsBlock = () => {
   const { data: ktruRefs = [] } = useKtruDictionary();
   const { byCode: templatesByCode } = useNormingTemplates(organization?.id);
 
+  const requirementsName =
+    `purchaseObjects.items.${index}.normingRequirements` as FieldArrayPath<NoticeInfoFormValues>;
+  const requirementsPath = requirementsName as Path<NoticeInfoFormValues>;
+
   const { fields, append, remove, replace } = useFieldArray({
     control,
-    name: "purchaseObjects.normingRequirements",
+    name: requirementsName,
   });
 
   // useFieldArray требует массив; старые извещения приходят без него
   useEffect(() => {
-    if (!Array.isArray(getValues("purchaseObjects.normingRequirements"))) {
-      setValue("purchaseObjects.normingRequirements", [], {
-        shouldDirty: false,
-      });
+    if (!Array.isArray(getValues(requirementsPath))) {
+      setValue(requirementsPath, [], { shouldDirty: false });
     }
-  }, [getValues, setValue]);
+  }, [getValues, requirementsPath, setValue]);
 
-  const items = watch("purchaseObjects.items") ?? [];
-  const ktruCodes = items
-    .map((item) => item.ktruCode)
-    .filter((code): code is string => Boolean(code));
-  const firstNormedCode = items
-    .map((item) => item.okpd2OrKtruCode)
-    .find((code) => Boolean(findOkpd2ByCode(okpd2Refs, code)?.isNormed));
-  const savedTemplate = firstNormedCode
-    ? templatesByCode[firstNormedCode]
-    : undefined;
+  const itemOkpd2 = watch(`purchaseObjects.items.${index}.okpd2OrKtruCode`);
+  const itemKtru = watch(`purchaseObjects.items.${index}.ktruCode`);
+  const normedRef = findOkpd2ByCode(okpd2Refs, itemOkpd2);
+  const savedTemplate =
+    normedRef?.isNormed && itemOkpd2 ? templatesByCode[itemOkpd2] : undefined;
 
   const handleLoadKtru = () => {
-    const requirements = ktruRequirements(ktruRefs, ktruCodes);
+    const requirements = ktruRequirements(ktruRefs, itemKtru ? [itemKtru] : []);
     if (requirements.length === 0) return;
     replace(requirements);
   };
@@ -100,24 +107,25 @@ const NormingRequirementsBlock = () => {
   };
 
   return (
-    <div className={block("norming-req-block")}>
-      <h3 className={block("norming-req-title")}>
-        Набор характеристик объекта закупки (п. 7 ПП РФ N 926, КТРУ)
-      </h3>
+    <div className={block("norming-req-block", ["position"])}>
+      <h4 className={block("norming-req-title")}>
+        Характеристики позиции
+        {positionNumber !== undefined ? ` № ${positionNumber}` : ""} (п. 7 ПП РФ
+        N 926, КТРУ)
+      </h4>
       <span className={block("norming-req-hint")}>
-        Один набор характеристик на всю закупку. Позиции ОКПД2 / КТРУ выбираются
-        в сводной таблице выше; характеристики КТРУ и шаблоны нормирования
-        подставляются кнопками.
+        Набор характеристик относится только к этой позиции. Источник —
+        выбранное КТРУ или шаблон нормирования по ОКПД2.
       </span>
 
       <div className={block("inline-group")}>
-        {ktruCodes.length > 0 && (
+        {itemKtru && (
           <button
             type="button"
             className={block("small-btn")}
             onClick={handleLoadKtru}
           >
-            Подставить характеристики КТРУ ({ktruCodes.length})
+            Подставить характеристики КТРУ {itemKtru}
           </button>
         )}
         {savedTemplate && savedTemplate.characteristics.length > 0 && (
@@ -135,8 +143,8 @@ const NormingRequirementsBlock = () => {
       <div className={block("norming-req-list")}>
         {fields.length === 0 && (
           <span className={block("muted")}>
-            Набор характеристик пока пуст. Добавьте требование вручную или
-            подставьте характеристики КТРУ.
+            Характеристики позиции пока не заданы. Добавьте требование вручную
+            или подставьте характеристики КТРУ.
           </span>
         )}
         {fields.map((field, i) => (
@@ -144,7 +152,7 @@ const NormingRequirementsBlock = () => {
             <select
               className={block("select")}
               {...register(
-                `purchaseObjects.normingRequirements.${i}.requirementType`,
+                `${requirementsName}.${i}.requirementType` as Path<NoticeInfoFormValues>,
               )}
             >
               {REQUIREMENT_TYPES.map((t) => (
@@ -158,7 +166,7 @@ const NormingRequirementsBlock = () => {
               className={block("input")}
               placeholder="Текст требования"
               {...register(
-                `purchaseObjects.normingRequirements.${i}.requirementText`,
+                `${requirementsName}.${i}.requirementText` as Path<NoticeInfoFormValues>,
               )}
             />
             <button

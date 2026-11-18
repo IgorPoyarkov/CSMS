@@ -323,6 +323,37 @@
     }
   }
 
+  &__positions-code {
+    font-family: "Courier New", monospace;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  &__row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  // ООЗ и характеристики под раскрытым объектом закупки
+  &__item-ooz {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  &__item-ooz-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
   &__radio-row {
     display: flex;
     flex-wrap: wrap;
