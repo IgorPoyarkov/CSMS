@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
@@ -7,13 +8,38 @@ import CustomSelect from "../../UI/CustomSelect";
 import { ETP_OPTIONS, PLACING_WAYS_ALL } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
 
-const GeneralInfoSection = () => {
+interface GeneralInfoSectionProps {
+  /**
+   * Способ определения поставщика, зафиксированный служебной запиской.
+   * Если он известен, в извещении не показываем выбор по всем способам —
+   * способ выводится строкой с возможностью осознанно его изменить.
+   */
+  lockedPlacingWayCode?: string;
+}
+
+// Конкурсные способы: только для них применяется ч. 19 ст. 48 Закона N 44-ФЗ
+const isContestCode = (code?: string): boolean => {
+  const normalized = (code ?? "").trim().toUpperCase();
+  return normalized.startsWith("OK") || normalized.startsWith("EOK");
+};
+
+const GeneralInfoSection = ({
+  lockedPlacingWayCode,
+}: GeneralInfoSectionProps) => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
+  // Способ уже определён служебной запиской — по умолчанию показываем его
+  // зафиксированным; выбор по всем способам раскрывается по кнопке
+  const [isPlacingWayEditing, setIsPlacingWayEditing] = useState(false);
+  const lockedWay = PLACING_WAYS_ALL.find(
+    (way) => way.code === lockedPlacingWayCode,
+  );
+
   const generalInfo = watch("generalInfo");
+  const isContestWay = isContestCode(generalInfo.placingWayCode);
   const purchaseObjects = watch("purchaseObjects.items") ?? [];
   const auctionValidation = validatePlacingWayAgainstAuctionList(
     generalInfo.placingWayCode,
@@ -52,64 +78,106 @@ const GeneralInfoSection = () => {
               <sup>*</sup>
             </span>
             <div className={block("field-col")}>
-              <div className={block("radio-group")}>
-                {PLACING_WAYS_ALL.map((way) => (
-                  <label key={way.code} className={block("radio")}>
-                    <input
-                      type="radio"
-                      value={way.code}
-                      checked={generalInfo.placingWayCode === way.code}
-                      onChange={() =>
-                        setValue("generalInfo.placingWayCode", way.code)
-                      }
-                    />
-                    <span>{way.label}</span>
-                  </label>
-                ))}
-              </div>
-
-              {auctionValidation.hasViolation && auctionValidation.warningMessage && (
-                <div className={block("danger-warning")} role="alert">
-                  <span className={block("danger-badge")}>!</span>
-                  <div>
-                    <div>{auctionValidation.warningMessage}</div>
+              {lockedWay && !isPlacingWayEditing ? (
+                <div className={block("field-col")}>
+                  <span className={block("value")}>
+                    {lockedWay.label} ({lockedWay.code})
+                  </span>
+                  <span className={block("muted")}>
+                    Способ определения поставщика зафиксирован служебной записью
+                    и позицией плана-графика — выбирать его заново в извещении
+                    не требуется.
+                  </span>
+                  <button
+                    type="button"
+                    className={block("link-btn")}
+                    onClick={() => setIsPlacingWayEditing(true)}
+                  >
+                    Изменить способ (если служебная записка пересмотрена)
+                  </button>
+                </div>
+              ) : (
+                <div className={block("radio-group")}>
+                  {PLACING_WAYS_ALL.map((way) => (
+                    <label key={way.code} className={block("radio")}>
+                      <input
+                        type="radio"
+                        value={way.code}
+                        checked={generalInfo.placingWayCode === way.code}
+                        onChange={() => {
+                          setValue("generalInfo.placingWayCode", way.code);
+                          // Признак ч. 19 ст. 48 относится только к конкурсу
+                          if (!isContestCode(way.code)) {
+                            setValue("generalInfo.isPart19Art48", false);
+                          }
+                        }}
+                      />
+                      <span>{way.label}</span>
+                    </label>
+                  ))}
+                  {lockedWay && (
                     <button
                       type="button"
                       className={block("link-btn")}
-                      onClick={() =>
-                        setValue("generalInfo.placingWayCode", "EA20")
-                      }
+                      onClick={() => {
+                        setValue("generalInfo.placingWayCode", lockedWay.code);
+                        setIsPlacingWayEditing(false);
+                      }}
                     >
-                      Переключить способ на электронный аукцион (EA20)
+                      Вернуть способ из служебной записки ({lockedWay.code})
                     </button>
+                  )}
+                </div>
+              )}
+
+              {auctionValidation.hasViolation &&
+                auctionValidation.warningMessage && (
+                  <div className={block("danger-warning")} role="alert">
+                    <span className={block("danger-badge")}>!</span>
+                    <div>
+                      <div>{auctionValidation.warningMessage}</div>
+                      <button
+                        type="button"
+                        className={block("link-btn")}
+                        onClick={() =>
+                          setValue("generalInfo.placingWayCode", "EA20")
+                        }
+                      >
+                        Переключить способ на электронный аукцион (EA20)
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+              {!auctionValidation.hasViolation &&
+                auctionValidation.infoMessage && (
+                  <div className={block("yellow-warning")}>
+                    <span className={block("warning-badge")}>i</span>
+                    <span>{auctionValidation.infoMessage}</span>
+                  </div>
+                )}
+
+              {isContestWay && (
+                <>
+                  <p className={block("red-note")}>
+                    В случае проведения открытого конкурса с учетом
+                    особенностей, предусмотренных ч. 19 ст. 48 Закона № 44-ФЗ
+                    должен быть проставлен признак «Конкурс проводится в
+                    соответствии с ч. 19 ст. 48 Закона № 44-ФЗ»
+                  </p>
+
+                  <label className={block("checkbox")}>
+                    <input
+                      type="checkbox"
+                      {...register("generalInfo.isPart19Art48")}
+                    />
+                    <span>
+                      Конкурс проводится в соответствии с ч. 19 ст. 48 Закона №
+                      44-ФЗ
+                    </span>
+                  </label>
+                </>
               )}
-
-              {!auctionValidation.hasViolation && auctionValidation.infoMessage && (
-                <div className={block("yellow-warning")}>
-                  <span className={block("warning-badge")}>i</span>
-                  <span>{auctionValidation.infoMessage}</span>
-                </div>
-              )}
-
-              <p className={block("red-note")}>
-                В случае проведения открытого конкурса с учетом особенностей,
-                предусмотренных ч. 19 ст. 48 Закона № 44-ФЗ должен быть
-                проставлен признак «Конкурс проводится в соответствии с ч. 19
-                ст. 48 Закона № 44-ФЗ»
-              </p>
-
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  {...register("generalInfo.isPart19Art48")}
-                />
-                <span>
-                  Конкурс проводится в соответствии с ч. 19 ст. 48 Закона №
-                  44-ФЗ
-                </span>
-              </label>
             </div>
           </div>
 
@@ -164,7 +232,7 @@ const GeneralInfoSection = () => {
                   onChange={() =>
                     setValue(
                       "generalInfo.placementOrganizerType",
-                      "joint_organizer"
+                      "joint_organizer",
                     )
                   }
                 />
@@ -219,17 +287,14 @@ const GeneralInfoSection = () => {
 
       <section className={block("section")}>
         <h2 className={block("section-title")}>
-          Информация о заключении контракта на поставку товара, необходимого
-          для обеспечения нормального жизнеобеспечения
+          Информация о заключении контракта на поставку товара, необходимого для
+          обеспечения нормального жизнеобеспечения
         </h2>
 
         <div className={block("form-grid")}>
           <div className={block("row", ["single"])}>
             <label className={block("checkbox")}>
-              <input
-                type="checkbox"
-                {...register("purchaseObjectsCh9St37")}
-              />
+              <input type="checkbox" {...register("purchaseObjectsCh9St37")} />
               <span>
                 Предметом контракта является поставка товара, необходимого для
                 нормального жизнеобеспечения в случаях, указанных в ч. 9 ст. 37

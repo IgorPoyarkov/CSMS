@@ -19,6 +19,7 @@ import { validateNationalRegime } from "../../services/NationalRegime/pp1875";
 import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { hasSmpSubcontractingRequirement } from "../../services/PurchaseNote/purchaseNote.schema";
 import {
   criterionToNoticeType,
@@ -89,6 +90,11 @@ const NoticeInfoForm = () => {
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   // Потребности (СЗ) и структурированные ООЗ организации для предзаполнения извещения
   const { data: purchaseNotes = [] } = usePurchaseNotes(
+    currentUser?.organizationId,
+  );
+  // План-график нужен для сведений уровня планирования (общественное
+  // обсуждение по ст. 20 44-ФЗ), которых нет в служебной записке
+  const { data: purchasePlans = [] } = usePurchasePlans(
     currentUser?.organizationId,
   );
   const { data: objectDescriptions = [] } = useOrganizationObjectDescriptions(
@@ -522,6 +528,28 @@ const NoticeInfoForm = () => {
       }
       if (matchedNote.kbk) {
         setValue("generalInfo.kbk", matchedNote.kbk);
+      }
+
+      // Обязательное общественное обсуждение (ст. 20 Закона N 44-ФЗ)
+      // планируется в позиции плана-графика — переносим в условия контракта
+      if (
+        matchedNote.purchasePlanId !== undefined &&
+        matchedNote.purchasePlanId !== null &&
+        matchedNote.positionId !== undefined &&
+        matchedNote.positionId !== null
+      ) {
+        const plan = purchasePlans.find(
+          (item) => String(item.id) === String(matchedNote.purchasePlanId),
+        );
+        const planPosition = plan?.positions.find(
+          (item) => String(item.id) === String(matchedNote.positionId),
+        );
+        if (planPosition?.isPublicDiscussionRequired !== undefined) {
+          setValue(
+            "contractConditions.requiresPublicDiscussionArt20",
+            Boolean(planPosition.isPublicDiscussionRequired),
+          );
+        }
       }
 
       // Условия контракта
@@ -1052,6 +1080,7 @@ const NoticeInfoForm = () => {
     matchedNote,
     matchedDesc,
     objectDescriptions,
+    purchasePlans,
     methods.formState.isDirty,
     setValue,
     getValues,
@@ -1153,7 +1182,11 @@ const NoticeInfoForm = () => {
       <FormProvider {...methods}>
         <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
           <NoticeStateSection />
-          <GeneralInfoSection />
+          {/* Способ определения поставщика приходит из служебной записки —
+              в извещении он показывается зафиксированным */}
+          <GeneralInfoSection
+            lockedPlacingWayCode={matchedNote?.placingWayCode}
+          />
           <ContactInfoSection />
           <ProcedureDatesSection />
           <ContractConditionsSection />
