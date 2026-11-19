@@ -420,10 +420,10 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       { field: "positions", xsd: "positions/position", status: "mapped" },
       {
         field: "specialPurchases",
-        xsd: "specialPurchases/specialPurchase",
-        status: "missing",
+        xsd: "specialPurchasePositions/specialPurchasePosition",
+        status: "partial",
         required: false,
-        note: "Особые закупки — отдельная задача (Tasks 5).",
+        note: "Позиции особых закупок ведутся в отдельной вкладке плана-графика (тип, ИКЗ/ИКУ, год, номер закупки, КВР/КБК, КОКС, суммы по годам). Устаревший блок specialPurchases ЕИС 17.0 игнорирует.",
       },
       {
         field: "totalAmount",

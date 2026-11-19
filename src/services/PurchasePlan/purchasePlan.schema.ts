@@ -119,6 +119,15 @@ export const PurchasePlanKbkEntrySchema = z.object({
     /^\d{20}$/,
     "КБК состоит из 20 цифр (разряды кода соединяются без пробелов)",
   ),
+  // Разбивка КБК на разряды для формы: глава (3), раздел/подраздел (4),
+  // целевая статья (10), вид расходов (3). Итоговый код остаётся в kbk.
+  chapter: optionalPattern(/^\d{3}$/, "Глава КБК состоит из 3 цифр"),
+  section: optionalPattern(/^\d{4}$/, "Раздел и подраздел КБК — 4 цифры"),
+  targetArticle: optionalPattern(
+    /^[0-9A-ZА-Я]{10}$/,
+    "Целевая статья КБК — 10 символов",
+  ),
+  expenseType: optionalPattern(/^\d{3}$/, "Вид расходов КБК — 3 цифры"),
   amountTotal: moneySchema("Укажите объём финансового обеспечения по КБК"),
   amountCurrentYear: moneySchema(),
   amountPlanPeriodFirstYear: moneySchema(),
@@ -153,15 +162,33 @@ export const PurchasePlanKoksEntrySchema = z.object({
 
 export type PurchasePlanKoksEntry = z.infer<typeof PurchasePlanKoksEntrySchema>;
 
-// Особые закупки плана-графика (tenderPlan2020SpecialPurchaseType)
+// Особые закупки плана-графика (tenderPlan2020SpecialPurchasePositionType,
+// IntegrationTPTypes.xsd): в ЕИС 17.0 особые закупки передаются блоком
+// specialPurchasePositions. Устаревший блок specialPurchases игнорируется.
 export const PurchasePlanSpecialPurchaseSchema = z.object({
   id: idSchema(),
   typeCode: z.string().min(1, "Укажите код особой закупки"),
   typeName: z.string().optional(),
   ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
+  iku: optionalPattern(
+    /^\d{20}$/,
+    "ИКУ организации-владельца версии плана-графика состоит из 20 цифр",
+  ),
+  // Реестровый номер позиции особой закупки в плане-графике
+  positionNumber: optionalPattern(
+    /^\d{1,6}$/,
+    "Реестровый номер позиции особой закупки — до 6 цифр",
+  ),
+  extNumber: optionalText(1, "Укажите внешний номер позиции"),
   kvr: optionalPattern(/^\d{3}$/, "КВР состоит из 3 цифр"),
+  kbk: optionalPattern(
+    /^\d{20}$/,
+    "КБК состоит из 20 цифр (разряды кода соединяются без пробелов)",
+  ),
+  koksCode: z.string().optional(),
   publishYear: z.union([z.string(), z.number()]).optional(),
   purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
+  modificationStatus: z.enum(["N", "E"]).optional(),
   amountTotal: moneySchema(),
   amountCurrentYear: moneySchema(),
   amountPlanPeriodFirstYear: moneySchema(),
@@ -172,6 +199,31 @@ export const PurchasePlanSpecialPurchaseSchema = z.object({
 export type PurchasePlanSpecialPurchase = z.infer<
   typeof PurchasePlanSpecialPurchaseSchema
 >;
+
+// Новая позиция особой закупки: год размещения по умолчанию — год ПГ,
+// суммы пустые — заполняются заказчиком
+export const emptyPurchasePlanSpecialPurchase = (
+  planYear: string | number,
+): PurchasePlanSpecialPurchase => ({
+  id: `special-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  typeCode: "",
+  typeName: "",
+  ikz: "",
+  iku: "",
+  positionNumber: "",
+  extNumber: "",
+  kvr: "",
+  kbk: "",
+  koksCode: "",
+  publishYear: String(planYear),
+  purchaseNumber: "",
+  modificationStatus: "N",
+  amountTotal: "",
+  amountCurrentYear: "",
+  amountPlanPeriodFirstYear: "",
+  amountPlanPeriodSecondYear: "",
+  amountSubsequentYears: "",
+});
 
 export const PurchasePlanOkpd2ItemSchema = z.object({
   okpd2Code: z.string(),
@@ -241,6 +293,10 @@ export const PurchasePlanPositionSchema = z
       "Укажите объём финансового обеспечения на последующие годы",
     ),
     isPublicDiscussionRequired: z.boolean().optional(),
+    // Чекбоксы-переключатели блоков уполномоченного органа и организатора
+    // совместной закупки: храним отдельно, чтобы использовать в выборках.
+    hasAuthorizedBody: z.boolean().optional(),
+    hasJointOrganizer: z.boolean().optional(),
     authorizedBodyName: optionalText(
       2,
       "Укажите наименование уполномоченного органа (учреждения)",
@@ -452,6 +508,71 @@ export const nextPurchaseNumber = (
   return String(next).padStart(4, "0");
 };
 
+/**
+ * Занятые номера закупок в плане: по ним селект не даёт выбрать повтор.
+ * `exceptNumber` — номер самой редактируемой позиции: он не считается занятым.
+ */
+export const purchaseNumbersUsed = (
+  positions: Pick<PurchasePlanPosition, "purchaseNumber">[],
+  exceptNumber?: string | number,
+): number[] => {
+  const except = toNumber(exceptNumber);
+
+  return positions
+    .map((position) => toNumber(position.purchaseNumber))
+    .filter((value): value is number => value !== null && value !== except);
+};
+
+/** Проверка, что номер закупки не повторяет уже занятые в плане. */
+export const isPurchaseNumberTaken = (
+  positions: Pick<PurchasePlanPosition, "purchaseNumber">[],
+  number: string | number | undefined,
+  exceptNumber?: string | number,
+): boolean => {
+  const value = toNumber(number);
+
+  return value !== null && purchaseNumbersUsed(positions, exceptNumber).includes(value);
+};
+
+// Разбивка КБК на разряды формы: глава 3, раздел/подраздел 4,
+// целевая статья 10, вид расходов 3
+export interface KbkParts {
+  chapter: string;
+  section: string;
+  targetArticle: string;
+  expenseType: string;
+}
+
+export const splitKbk = (kbk?: string): KbkParts => {
+  const digits = String(kbk ?? "").replace(/[^0-9A-Za-zА-Яа-я]/g, "");
+
+  return {
+    chapter: digits.slice(0, 3),
+    section: digits.slice(3, 7),
+    targetArticle: digits.slice(7, 17),
+    expenseType: digits.slice(17, 20),
+  };
+};
+
+/** Сборка 20-значного КБК из разрядов; пустая строка, если разряды неполные. */
+export const buildKbk = (parts: Partial<KbkParts>): string => {
+  const chapter = String(parts.chapter ?? "").trim();
+  const section = String(parts.section ?? "").trim();
+  const targetArticle = String(parts.targetArticle ?? "").trim();
+  const expenseType = String(parts.expenseType ?? "").trim();
+
+  if (
+    chapter.length !== 3 ||
+    section.length !== 4 ||
+    targetArticle.length !== 10 ||
+    expenseType.length !== 3
+  ) {
+    return "";
+  }
+
+  return `${chapter}${section}${targetArticle}${expenseType}`;
+};
+
 // Уникальный номер позиции плана-графика: номер плана-графика и шестизначный
 // порядковый номер записи. Номер выдаёт система, заказчиком не заполняется
 export const buildPositionUniqueNumber = (
@@ -587,6 +708,8 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   amountPlanPeriodSecondYear: "",
   amountSubsequentYears: "",
   isPublicDiscussionRequired: false,
+  hasAuthorizedBody: false,
+  hasJointOrganizer: false,
   authorizedBodyName: "",
   jointOrganizerName: "",
   okpd2Code: "",

@@ -179,6 +179,45 @@ export const planPeriodLabels = (planYear: string | number) => {
   };
 };
 
+/**
+ * Годы для селекта «Планируемый год размещения извещения»: текущий и
+ * следующие 10 лет — как в карточке позиции ПГ личного кабинета ЕИС.
+ */
+export const placementYearOptions = (
+  fromYear: number = new Date().getFullYear(),
+  span = 10,
+): Option<string>[] =>
+  Array.from({ length: span + 1 }, (_, index) => {
+    const year = fromYear + index;
+
+    return { value: String(year), label: String(year) };
+  });
+
+// Обязательное общественное обсуждение (ст. 20 44-ФЗ) — селект, а не чекбокс:
+// в форме ЕИС это графа «Да/Нет»
+export const publicDiscussionOptions: Option<"false" | "true">[] = [
+  { value: "false", label: "Не требуется" },
+  { value: "true", label: "Требуется (ст. 20 44-ФЗ)" },
+];
+
+// Типовые коды видов расходов (приказ Минфина России № 82н) для селекта КВР
+export const kvrOptions: Option<string>[] = [
+  { value: "241", label: "241 — НИОКР" },
+  { value: "242", label: "242 — Закупка товаров, работ, услуг в сфере ИКТ" },
+  { value: "243", label: "243 — Капитальный ремонт" },
+  { value: "244", label: "244 — Прочая закупка товаров, работ и услуг" },
+  { value: "245", label: "245 — Оборона" },
+  { value: "246", label: "246 — Безопасность" },
+  { value: "247", label: "247 — Правосудие" },
+  { value: "248", label: "248 — Органы государственной власти" },
+  { value: "249", label: "249 — Органы местного самоуправления" },
+  { value: "250", label: "250 — Учреждения" },
+  { value: "251", label: "251 — Внебюджетные фонды" },
+  { value: "252", label: "252 — Международные организации" },
+  { value: "253", label: "253 — Иные организации" },
+  { value: "290", label: "290 — Прочие расходы" },
+];
+
 export const planHeaderFields: ConfigurationInput<PurchasePlan>[] = [
   {
     label: { value: "Номер плана-графика" },

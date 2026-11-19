@@ -660,6 +660,37 @@
     }
   }
 
+  // Вкладки просмотра плана-графика: записи ПГ и особые закупки
+  &__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  &__tab {
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: transparent;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent);
+    }
+
+    &--active {
+      border-color: var(--border-strong);
+      background: var(--surface-raised);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+  }
+
   // Новая запись плана-графика из панели над таблицей
   // Основная кнопка добавления записи в шапку конкретного плана-графика
   &__add-btn {

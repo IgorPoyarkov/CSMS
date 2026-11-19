@@ -215,9 +215,16 @@ export interface EisTenderPlan2020SpecialPurchase {
   typeCode: string;
   typeName?: string;
   ikz?: string;
+  iku?: string;
+  // Реестровый номер позиции особой закупки в плане-графике
+  positionNumber?: string;
+  extNumber?: string;
   kvr?: string;
+  kbk?: string;
+  koksCode?: string;
   publishYear?: number;
   purchaseNumber?: string;
+  modificationStatus?: "N" | "E";
   financeInfo: EisTenderPlan2020FinanceResources;
 }
 
@@ -681,9 +688,15 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
     typeCode: sp.typeCode,
     typeName: sp.typeName,
     ikz: sp.ikz,
+    iku: sp.iku,
+    positionNumber: sp.positionNumber,
+    extNumber: sp.extNumber,
     kvr: sp.kvr,
+    kbk: sp.kbk,
+    koksCode: sp.koksCode,
     publishYear: Number(sp.publishYear) || planYearNum,
     purchaseNumber: sp.purchaseNumber,
+    modificationStatus: sp.modificationStatus,
     financeInfo: positionFinance(sp),
   }));
 

@@ -15,6 +15,7 @@ import {
 import {
   positionKbkCodes,
   type PurchasePlanPosition,
+  type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { purchaseNotesForPosition } from "../../services/PurchaseNote/purchaseNote.schema";
@@ -27,6 +28,7 @@ import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
+import PurchasePlanSpecialPurchases from "./PurchasePlanSpecialPurchases";
 import { usePurchasePlanVersions } from "../../services/PurchasePlan/purchasePlanVersion.api";
 import {
   buildTenderPlan2020XmlPreview,
@@ -111,6 +113,10 @@ export default function PurchasePlanCard() {
   >(null);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [showEisXml, setShowEisXml] = useState(false);
+  // Вкладки просмотра плана-графика: записи ПГ и особые закупки
+  const [activeTab, setActiveTab] = useState<"positions" | "special">(
+    "positions",
+  );
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "purchase-plan-card");
 
@@ -141,6 +147,18 @@ export default function PurchasePlanCard() {
     document.addEventListener("click", closeMenus);
     return () => document.removeEventListener("click", closeMenus);
   }, []);
+
+  // Сохранение особых закупок (блок specialPurchasePositions ЕИС 17.0)
+  function handleSaveSpecialPurchases(items: PurchasePlanSpecialPurchase[]) {
+    if (!plan?.id) return;
+    updatePlan({
+      id: plan.id,
+      data: {
+        ...plan,
+        specialPurchases: items,
+      },
+    });
+  }
 
   function handleDeletePosition(positionId: string | number | undefined) {
     if (!plan || !plan.id || positionId === undefined) return;
@@ -653,6 +671,26 @@ export default function PurchasePlanCard() {
         <LegalActRefs component="PurchasePlanCard" />
       </fieldset>
 
+      {/* Вкладки: записи плана-графика и особые закупки */}
+      <div className={block("tabs")}>
+        <button
+          type="button"
+          className={block("tab", activeTab === "positions" ? ["active"] : [])}
+          onClick={() => setActiveTab("positions")}
+        >
+          Записи плана-графика ({positions.length})
+        </button>
+        <button
+          type="button"
+          className={block("tab", activeTab === "special" ? ["active"] : [])}
+          onClick={() => setActiveTab("special")}
+        >
+          Особые закупки ({(plan.specialPurchases ?? []).length})
+        </button>
+      </div>
+
+      {activeTab === "positions" && (
+        <>
       {/* Основная кнопка добавления записи — над таблицей записей */}
       <button
         type="button"
@@ -781,6 +819,16 @@ export default function PurchasePlanCard() {
           </>
         )}
       </fieldset>
+        </>
+      )}
+
+      {activeTab === "special" && (
+        <PurchasePlanSpecialPurchases
+          plan={plan}
+          isSaving={isUpdatingPlan}
+          onSave={handleSaveSpecialPurchases}
+        />
+      )}
 
       {isVersionsOpen && (
         <PurchasePlanVersionsModal
