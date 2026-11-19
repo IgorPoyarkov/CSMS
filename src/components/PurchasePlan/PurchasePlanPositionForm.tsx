@@ -16,6 +16,7 @@ import {
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import {
+  IKZ_ORDER_REFERENCE,
   PurchasePlanPositionSchema,
   buildIdentificationCode,
   buildKbk,
@@ -535,6 +536,11 @@ export default function PurchasePlanPositionForm({
                 {ikzBuildError && (
                   <span className={block("error")}>{ikzBuildError}</span>
                 )}
+                <p className={block("hint")}>
+                  Разряды ИКЗ формируются по Порядку, утверждённому{" "}
+                  {IKZ_ORDER_REFERENCE}; формат 36 цифр закреплён XSD ЕИС 17.0
+                  (ikzCodeType).
+                </p>
               </div>
               <div className={block("cell", ["wide"])}>
                 <CustomInput

@@ -1039,13 +1039,13 @@ export const validatePurchasePlanEis17 = (
       issues.push({
         severity: "error",
         field: `positions[${idx}].identificationCode`,
-        message: `${label}: отсутствует ИКЗ (ikzCodeType требует 36 цифр).`,
+        message: `${label}: отсутствует ИКЗ (по приказу Минфина России от 10.04.2019 № 55н — 36 цифр).`,
       });
     } else if (!EIS_IKZ_PATTERN.test(ikz)) {
       issues.push({
         severity: "error",
         field: `positions[${idx}].identificationCode`,
-        message: `${label}: ИКЗ «${ikz}» содержит ${ikz.length} симв. вместо 36 цифр формата ikzCodeType.`,
+        message: `${label}: ИКЗ «${ikz}» содержит ${ikz.length} симв. вместо 36 цифр по приказу Минфина России от 10.04.2019 № 55н.`,
       });
     }
 
@@ -1097,7 +1097,8 @@ export const validateNoticeInfoEis17 = (
     issues.push({
       severity: "error",
       field: "generalInfo.ikz",
-      message: "ИКЗ извещения должен состоять ровно из 36 цифр (ikzCodeType).",
+      message:
+        "ИКЗ извещения должен состоять ровно из 36 цифр (приказ Минфина России от 10.04.2019 № 55н).",
     });
   }
 
