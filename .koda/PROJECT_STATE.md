@@ -953,11 +953,12 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   сами значения: `nsiOKPD2List`, `nsiOKPD2RequirementList`, `nsiKTRUs`,
   `nsiKLADRList`, `nsiOKTMOList` в `fcsExport.xsd`; типы `zfcs_nsiOKPD2Type`,
   `zfcs_nsiKTRUType`, `zfcs_nsiKLADRType`, `zfcs_nsiOKPD2RequirementType` в
-  `IntegrationTypes.xsd`. Сами значения приходят через `getNsiRequest`
-  (`getDocsMIS-ws-api.xsd`: `nsiAllList` → `nsiCode`, `nsiKind=all|inc`,
-  `nsiArchiveInfo/archiveUrl`) или FTP-каталоги ЕИС (`fcs_nsi/nsiKTRUNew`).
+  `IntegrationTypes.xsd`. Сами значения приходят архивами через `getNsiRequest`
+  (`getDocsIP-ws-api.xsd` line 687+: `index{id,createDateTime,mode=PROD|TEST}`,
+  `selectionParams{nsiCode44 из nsiAllList, nsiKind=all|inc}`, ответ
+  `nsiArchiveInfo/archiveUrl`). Шаблон по XSD — `csms-api/docs/eis-nsi-soap.md`.
   Парсер официальных документов (ОК 034-2014, КТРУ, КЛАДР/ГАР/ФИАС, ПП № 1875) —
-  fallback, пока живой SOAP закрыт TLS/IP-allowlist (§26).
+  fallback. FTP закрыт с 01.01.2025, SOAP требует токен (см. границу ниже).
 - **Хранилище.** `ref.datasets` (код, версия, источник, URL, SHA-256, даты
   публикации/импорта, счётчик, хеш, `isActive`) и `ref.items` (код, родитель,
   имя, `actual`, полный `jsonb` исходного объекта). Старые версии остаются;
@@ -1000,8 +1001,20 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   перезагрузки страницы. Стили: `ReferenceDataBadge.module.scss`.
   Проверки: `npx oxlint src` — новых предупреждений нет; `npx vite build` —
   успешно; `npx tsc -b` — красный только на чужой WIP `GeneralInfoSection.tsx`.
-- 🟡 **Граница.** КТРУ и адреса ещё не загружены: публичного дерева КТРУ на
-  сайте ЕИС нет, `ftp.zakupki.gov.ru` не резолвится, а KLADR через дерево ЕИС —
-  сотни тысяч узлов и отдельная потоковая выгрузка ФИАС/ГАР. `db.json` (143/6)
-  остаётся источником для фронта, пока не появятся эти выгрузки. Автообновление
-  мапперов и pp1875 — запрещено, только diff и вопрос человеку.
+- 🟡 **Граница.** КТРУ и адреса ещё не загружены. Открытый FTP
+  `ftp.zakupki.gov.ru` **закрыт с 01.01.2025**: КТРУ отдаёт SOAP `getDocsIP`
+  (`getNsiRequest`), но нужен персональный токен `individualPerson_token` из
+  личного кабинета ЕИС через ЕСИА; анонимный `free` больше не работает. Токен
+  идёт и в SOAP-запросе, и в заголовке при скачивании архива; нужны корневые
+  сертификаты Минцифры, точный `nsiCode` из `nsiAllList` и уточнение,
+  продуктивен ли `int44.zakupki.gov.ru`. Полную выгрузку `all` — не чаще раза в
+  сутки, обновления — `inc`. KLADR через дерево ЕИС — сотни тысяч узлов,
+  отдельная потоковая выгрузка ФИАС/ГАР. `db.json` (143/6) остаётся источником
+  для фронта, пока не появятся эти выгрузки. Автообновление мапперов и pp1875 —
+  запрещено, только diff и вопрос человеку.
+- **Уточнение способа получения (2026-11-19, от пользователя).** Заменены
+  устаревшие формулировки про «SOAP закрыт» и FTP в `docs/eis-open-questions.md`
+  и `docs/tasks/reference-data.md`; добавлен `docs/eis-nsi-soap.md` с шаблоном
+  запроса и тегами КТРУ по XSD 17.0. Импортер по-прежнему поддерживает только
+  ОКПД2 (`SupportedDatasets = ["nsiOKPD2"]`): старый ОКПД после замечания
+  пользователя убран, API поднят на `http://localhost:5099`.
