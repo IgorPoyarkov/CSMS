@@ -341,6 +341,366 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       "Поля нашего отчёта (`smnpReports`) ещё не сверены с XSD — это следующая задача маппера.",
     ],
   },
+  {
+    domain: "PurchasePlanPosition",
+    xsdType: "zfcs_purchasePlanPositionType",
+    xsdFile: "IntegrationTypes.xsd",
+    xsdLine: 63862,
+    status: "partial",
+    fields: [
+      {
+        field: "purchaseNumber",
+        xsd: "commonInfo/purchaseNumber",
+        status: "mapped",
+      },
+      {
+        field: "identificationCode",
+        xsd: "commonInfo/IKZ",
+        status: "mapped",
+      },
+      {
+        field: "uniqueNumber",
+        xsd: "commonInfo/positionNumber",
+        status: "partial",
+        note: "В XSD это реестровый номер позиции, а не склейка номера плана и порядка.",
+      },
+      {
+        field: "serialNumber",
+        xsd: "commonInfo/positionNumber",
+        status: "partial",
+        note: "Отдельного порядкового номера в XSD нет — только реестровый.",
+      },
+      {
+        field: "objectOfPurchase",
+        xsd: "commonInfo/purchaseObjectInfo",
+        status: "mapped",
+      },
+      {
+        field: "objectName",
+        xsd: "commonInfo/purchaseObjectInfo",
+        status: "partial",
+        note: "У нас два поля об объекте; в XSD одно — нужно выбрать основное.",
+      },
+      {
+        field: "plannedPlacementYear",
+        xsd: "commonInfo/publishYear",
+        status: "mapped",
+      },
+      {
+        field: "amountTotal",
+        xsd: "financeInfo/total",
+        status: "mapped",
+        note: "ЕИС игнорирует при приёме и пересчитывает как сумму по годам.",
+      },
+      {
+        field: "amountCurrentYear",
+        xsd: "financeInfo/currentYear",
+        status: "mapped",
+      },
+      {
+        field: "amountPlanPeriodFirstYear",
+        xsd: "financeInfo/firstYear",
+        status: "mapped",
+      },
+      {
+        field: "amountPlanPeriodSecondYear",
+        xsd: "financeInfo/secondYear",
+        status: "mapped",
+      },
+      {
+        field: "amountSubsequentYears",
+        xsd: "financeInfo/subsecYears",
+        status: "mapped",
+      },
+      {
+        field: "isPublicDiscussionRequired",
+        xsd: "commonInfo/publicDiscussion",
+        status: "mapped",
+      },
+      {
+        field: "okpd2Code / okpd2Name",
+        xsd: "commonInfo/OKPD2Info",
+        status: "partial",
+        note: "В XSD выбор: ОКПД2, КТРУ, укрупнённая КТРУ или набор из нескольких.",
+      },
+      {
+        field: "kbk / kbkEntries",
+        xsd: "financeInfo/KBKsInfo",
+        status: "partial",
+        note: "Детализация по КБК в XSD — отдельная структура с суммами по годам.",
+      },
+      {
+        field: "status",
+        xsd: "commonInfo/positionModificationStatus",
+        status: "partial",
+        note: "В XSD N/E (без изменений/отредактирована) и отдельный флаг отмены.",
+      },
+      { field: "statusDate", xsd: null, status: "missing" },
+      {
+        field: "authorizedBodyName / jointOrganizerName",
+        xsd: "localInfo",
+        status: "partial",
+        note: "Прямого поля в позиции нет; уточнить по commonInfo плана.",
+      },
+      {
+        field: "КТРУ",
+        xsd: "commonInfo/KTRUInfo / templateKTRUInfo / undefined",
+        status: "missing",
+        note: "У нас только ОКПД2; для КТРУ-позиций нужен отдельный код и характеристики.",
+      },
+      {
+        field: "срок осуществления закупки",
+        xsd: "commonInfo/execution/term",
+        status: "missing",
+        note: "startDate/endDate в позиции ПГ у нас не хранятся.",
+      },
+      {
+        field: "периодичность",
+        xsd: "commonInfo/execution/periodicity",
+        status: "missing",
+      },
+      {
+        field: "цель закупки",
+        xsd: "purposeInfo",
+        status: "missing",
+        note: "programStateName, eventName, expectedResultName.",
+      },
+      {
+        field: "обоснование закупки",
+        xsd: "basementInfo",
+        status: "missing",
+        note: "basement и legalActs/noLegalAct.",
+      },
+      {
+        field: "закупки на последующие годы",
+        xsd: "purchasesSubsecYearsInfo",
+        status: "missing",
+      },
+      {
+        field: "энергосервисный контракт",
+        xsd: "isEnergyServiceContract",
+        status: "missing",
+      },
+    ],
+    notes: [
+      "Финансовый контур, ИКЗ, номер закупки, ОКПД2 и год размещения совпадают.",
+      "Для полной выгрузки ПГ не хватает КТРУ, срока/периодичности, цели и обоснования закупки.",
+      "`total` — дублирующее поле: ЕИС считает его само.",
+    ],
+  },
+  {
+    domain: "NoticeInfoFormValues",
+    xsdType: "zfcs_purchaseNotificationType + zfcs_notificationEFType",
+    xsdFile: "IntegrationTypes.xsd",
+    xsdLine: 43525,
+    status: "partial",
+    fields: [
+      {
+        field: "generalInfo.noticeNumber",
+        xsd: "docNumber",
+        status: "partial",
+        note: "В XSD отдельно purchaseNumber (номер закупки) и docNumber (номер документа).",
+      },
+      {
+        field: "generalInfo.placingWayCode",
+        xsd: "placingWay",
+        status: "mapped",
+      },
+      {
+        field: "generalInfo.orderName",
+        xsd: "purchaseObjectInfo",
+        status: "mapped",
+      },
+      {
+        field: "generalInfo.ikz",
+        xsd: "customerRequirement/purchaseCode",
+        status: "partial",
+        note: "При наличии позиции ПГ ЕИС заполняет из неё; иначе обязателен.",
+      },
+      {
+        field: "generalInfo.nmck",
+        xsd: "lot/maxPrice",
+        status: "mapped",
+      },
+      {
+        field: "generalInfo.etpName / etpUrl",
+        xsd: "ETP",
+        status: "mapped",
+        note: "Для электронных процедур (ЭА и др.).",
+      },
+      {
+        field: "generalInfo.positionUniqueNumber",
+        xsd: "customerRequirement/tenderPlan2020Info",
+        status: "partial",
+      },
+      {
+        field: "generalInfo.planPositionNumber",
+        xsd: "customerRequirement/tenderPlanInfo",
+        status: "partial",
+      },
+      {
+        field: "generalInfo.kbk",
+        xsd: "contractExecutionPaymentPlan/budgetFinancings",
+        status: "partial",
+        note: "План оплаты обязателен после версии ЕИС 10.0.",
+      },
+      {
+        field: "generalInfo.authorizedBodyName / jointOrganizerName",
+        xsd: "purchaseResponsible/responsibleOrg + responsibleRole",
+        status: "partial",
+        note: "Роль кодируется: CU, RA, AI, OCU, ORA, OAI и т.п.",
+      },
+      {
+        field: "contactInfo.*",
+        xsd: "purchaseResponsible/responsibleInfo",
+        status: "mapped",
+      },
+      {
+        field: "procedureInfo.plannedPublishDate",
+        xsd: "docPublishDate",
+        status: "mapped",
+      },
+      {
+        field: "procedureInfo.submissionEndDate / submissionEndTime",
+        xsd: "procedureInfo/collecting",
+        status: "mapped",
+      },
+      {
+        field: "procedureInfo.secondPartsReviewEndDate",
+        xsd: "procedureInfo/scoring/date",
+        status: "partial",
+      },
+      {
+        field: "procedureInfo.summingUpDate",
+        xsd: "procedureInfo/bidding/date",
+        status: "partial",
+      },
+      {
+        field: "contractConditions.currency",
+        xsd: "lot/currency",
+        status: "mapped",
+      },
+      {
+        field: "contractConditions.usePriceFormulaPP19 / priceFormulaText",
+        xsd: "lot/isContractPriceFormula / lot/priceFormula",
+        status: "mapped",
+      },
+      {
+        field: "contractConditions.hasAdvance / advancePercent",
+        xsd: "customerRequirement/advancePaymentSum",
+        status: "mapped",
+      },
+      {
+        field: "contractConditions.requiresPublicDiscussionArt20",
+        xsd: "customerRequirement/mustPublicDiscussion",
+        status: "mapped",
+      },
+      {
+        field: "contractConditions.ikz*",
+        xsd: "customerRequirement/IKZInfo",
+        status: "partial",
+        note: "Год, ОКПД2, КВР, ИКУ ЕИС заполняет из purchaseCode.",
+      },
+      {
+        field: "contractConditions.deliveryPlaces",
+        xsd: "customerRequirement/deliveryPlace / kladrPlaces",
+        status: "partial",
+      },
+      {
+        field: "contractConditions.typicalConditionsNumber",
+        xsd: "lot/standardContractNumber",
+        status: "mapped",
+      },
+      {
+        field: "contractConditions.isLifecycleContract / lifecycleCasesPP1087",
+        xsd: "lot/contractLifeCycleInfo",
+        status: "mapped",
+      },
+      {
+        field:
+          "contractConditions.isRelativeTerms / startOffsetDays / durationDays",
+        xsd: "customerRequirement/deliveryTerm",
+        status: "partial",
+        note: "В XSD срок — текстом, а не структурой из дней.",
+      },
+      {
+        field: "contractConditions.stages",
+        xsd: null,
+        status: "missing",
+        note: "Структурированных этапов в извещении не нашли: этапы живут в контракте.",
+      },
+      {
+        field:
+          "contractConditions.isBudgetFunds / budgetName / budgetLevel / oktmoCode",
+        xsd: "contractExecutionPaymentPlan/budgetFinancings",
+        status: "partial",
+      },
+      {
+        field: "purchaseObjects.isIndeterminateVolume",
+        xsd: "lot/quantityUndefined",
+        status: "mapped",
+      },
+      {
+        field: "purchaseObjects.items",
+        xsd: "customerRequirement/purchaseObjects/purchaseObject",
+        status: "mapped",
+      },
+      {
+        field: "purchaseObjects.normingRequirements",
+        xsd: "purchaseObject/OKPD2/characteristics",
+        status: "partial",
+        note: "Набор характеристик зависит от ОКПД2 или КТРУ.",
+      },
+      {
+        field: "objectDescription",
+        xsd: "purchaseObjectInfo + OKPD2/addCharacteristics + KTRU/characteristics",
+        status: "partial",
+      },
+      {
+        field: "participantsRequirements.requiresApplicationSecurity / percent",
+        xsd: "customerRequirement/applicationGuarantee",
+        status: "mapped",
+      },
+      {
+        field: "participantsRequirements.requiresContractSecurity / percent",
+        xsd: "customerRequirement/contractGuarantee",
+        status: "mapped",
+      },
+      {
+        field: "participantsRequirements.requiresWarrantySecurity / percent",
+        xsd: "customerRequirement/provisionWarranty",
+        status: "mapped",
+      },
+      {
+        field: "participantsRequirements.advantage*",
+        xsd: null,
+        status: "partial",
+        note: "Преимущества и требования ст. 31 в XSD разложены по отдельным блокам — сверять при маппинге.",
+      },
+      {
+        field: "participantsRequirements.unifiedRequirements*",
+        xsd: null,
+        status: "partial",
+        note: "Требования к участникам в XSD идут отдельными блоками, не одним текстом.",
+      },
+      {
+        field: "attachedDocs",
+        xsd: "attachments",
+        status: "mapped",
+      },
+      {
+        field: "noticeState",
+        xsd: "docPublishDate / href / printForm",
+        status: "derived",
+        note: "Дату, ссылку и печатную форму заполняет ЕИС.",
+      },
+    ],
+    notes: [
+      "Базовый контур извещения совпадает: предмет, НМЦК, способ, ЭТП, контакты, сроки подачи, валюта, аванс, обеспечения, документы.",
+      "Главные пробелы: purchaseNumber отдельно от noticeNumber, структурированные этапы/сроки, требования к участникам и нацрежим.",
+      "Технические поля (docPublishDate, href, printForm, extPrintForm, isGOZ, isBBST) заполняет ЕИС или они вне нашего scope.",
+    ],
+  },
 ];
 
 /** Найти карту по имени нашей модели. */

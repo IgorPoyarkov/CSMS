@@ -894,7 +894,14 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `zfcs_contract2015SubContractInfoType`, `ContractPayment` ↔ `payDocumentInfo`
   (IntegrationCETypes.xsd:76), `ContractDelivery` ↔ `docAcceptanceInfo`,
   `ContractStage` ↔ `stagetInfoType`, `SmnpReport` ↔
-  `zfcs_customerReportSmallScaleBusinessType`. Статусы полей:
+  `zfcs_customerReportSmallScaleBusinessType`, `PurchasePlanPosition` ↔
+  `zfcs_purchasePlanPositionType` (IntegrationTypes.xsd:63862),
+  `NoticeInfoFormValues` ↔ `zfcs_purchaseNotificationType` +
+  `zfcs_notificationEFType` (IntegrationTypes.xsd:43525). По ПГ и извещению
+  совпадает базовый контур (ИКЗ, номер закупки, НМЦК, ОКПД2, суммы по годам,
+  способ, ЭТП, сроки подачи, обеспечения), но не хватает КТРУ, срока и
+  периодичности закупки, цели/обоснования, структурированных этапов и
+  отдельных блоков требований к участникам. Статусы полей:
   `mapped` / `partial` / `missing` / `derived`; номера строк — подсказка, при
   обновлении Альбома сдвинутся.
 - **Граница:** это не генератор XML и не замена C#-мапперу. `import type` из
