@@ -6,6 +6,7 @@ import type { BaseHuman } from "../../services/StaffingTable/StaffingTable.schem
 import useUtils from "../../hooks/useUtils";
 import useTheme from "../../hooks/useTheme";
 import EisCoverageModal from "../Eis/EisCoverageModal";
+import ReferenceDataBadge from "../Eis/ReferenceDataBadge";
 import styles from "./Header.module.scss";
 
 interface HeaderProps {}
@@ -263,6 +264,11 @@ const Header = ({}: HeaderProps) => {
             >
               <span className={nav("link-name")}>Покрытие XSD</span>
             </button>
+          </li>
+
+          {/* Реальные выгрузки НСИ: версия, объём и источник из csms-api */}
+          <li className={nav("item")}>
+            <ReferenceDataBadge />
           </li>
 
           <li className={nav("item", ["end"])}>

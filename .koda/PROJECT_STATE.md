@@ -943,7 +943,8 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
 
 Работа в **`D:\Свои проекты\CSMS\csms-api`**. Задача для фронта зафиксирована в
 `CurrentTasks.md` (Tasks 16), подробный контракт для агента-парсера —
-`csms-api/docs/tasks/reference-data.md`. Код фронтенда в этой задаче **не тронут**.
+`csms-api/docs/tasks/reference-data.md`. Фронт затронут только индикатором в
+шапке (см. ниже); сами справочники и хуки не переключались.
 
 - **Ответ на вопрос про XSD.** В Альбоме 17.0 есть только структуры НСИ, но не
   сами значения: `nsiOKPD2List`, `nsiOKPD2RequirementList`, `nsiKTRUs`,
@@ -986,6 +987,16 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   источник `https://zakupki.gov.ru/epz/nsi/okpd2/`. Демо `smoke-1` осталась в
   истории как неактивная. Поиск `Компьютер` и `parentCode=01` отдают реальные
   коды/имена. Повторный импорт той же версии → 400. Коммит бэка `1abbdf4`.
+- **Индикатор в шапке (2026-11-19, по просьбе пользователя).** В
+  `Header.tsx` добавлен `ReferenceDataBadge`: чип «Справочники ЕИС» тянет
+  `GET /api/references/datasets`, показывает только активные снимки с URL
+  источника и SHA-256 из 64 hex (демо `smoke-1`/`sse-*` скрыты). Клик открывает
+  панель с кодом, версией, числом записей, датами, источником и префиксом хеша.
+  Клиент: `src/services/Eis/referenceData.api.ts`; подписка на
+  `/api/references/events` (`ready` + `references-updated`) обновляет список без
+  перезагрузки страницы. Стили: `ReferenceDataBadge.module.scss`.
+  Проверки: `npx oxlint src` — новых предупреждений нет; `npx vite build` —
+  успешно; `npx tsc -b` — красный только на чужой WIP `GeneralInfoSection.tsx`.
 - 🟡 **Граница.** КТРУ и адреса ещё не загружены: публичного дерева КТРУ на
   сайте ЕИС нет, `ftp.zakupki.gov.ru` не резолвится, а KLADR через дерево ЕИС —
   сотни тысяч узлов и отдельная потоковая выгрузка ФИАС/ГАР. `db.json` (143/6)
