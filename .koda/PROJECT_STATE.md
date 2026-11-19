@@ -2,9 +2,10 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-19 (парсер ЕИС 44-FZ `getDocsIP` —
-> отдельное решение .NET 9 в `eis-parser/`, Tasks 14; исходящий шлюз ЕИС —
-> Tasks 12, §27). Предыдущее обновление
+> Дата последнего обновления: 2026-11-19 (доменные типы сквозной цепочки
+> ПГ → извещение → контракт → СМП и карта соответствия XSD ЕИС, §31; парсер
+> ЕИС 44-FZ `getDocsIP` — отдельное решение .NET 9 в `eis-parser/`, Tasks 14;
+> исходящий шлюз ЕИС — Tasks 12, §27). Предыдущее обновление
 > 2026-11-18: КТРУ, сводная таблица объектов закупки, единый набор характеристик,
 > автонацрежим в СЗ, файл ООЗ в извещении, кастомные чекбоксы/радио).
 
@@ -860,3 +861,46 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
 - 🟡 **Граница:** обозреватель показывает формат, но не собирает XML. Для
   исполнения контракта и СМП нужен альбом ТФФ по 658/215н и 918; `PlaceholderXmlBuilder`
   остаётся `placeholder-v0`. Живой SOAP-обмен по-прежнему заблокирован TLS (§26).
+
+## 31. Доменные типы сквозной цепочки и карта XSD ЕИС (2026-11-19)
+
+Продолжение §30, по договорённости с основным агентом: наши модели цепочки
+**ПГ → извещение → контракт → СМП** лежат отдельно от сгенерированных
+ЕИС-типов. `src/services/Eis/generated/**` и `public/eis-schemas/catalog.json`
+не редактируются вручную — их создаёт
+`csms-api/scripts/generate-schema-docs.ps1`.
+
+- **Файлы:** `src/services/Eis/types/eisChain.ts` (модели),
+  `eisChainBuilder.ts` (сборка, проверки, сохранение номеров),
+  `eisXsdCoverage.ts` (карта соответствия XSD), `index.ts` (реэкспорт).
+- **Ключи связи:** `purchaseNumber` (номер закупки в ПГ, до 4 цифр), `ikz`
+  (36 разрядов), `localId` (id нашей записи). Номера ЕИС
+  (`noticeNumber`, `contractRegistryNumber`) — nullable: их присваивает портал
+  после размещения. `applyEisIdentifiers(chain, stage, patch)` записывает
+  полученные номера в звенья и пересчитывает проверки/прогресс, не мутируя
+  входную цепочку.
+- **Сборка:** `buildEisChains({ plans, notices, contracts, smpRecords })` идёт
+  по позициям ПГ, затем добавляет «сирот» — извещение без позиции ПГ, контракт
+  без извещения, сведения СМП без контракта. Сироты не теряются молча: в
+  цепочке остаётся разрыв с предупреждением. Поиск — `findEisChain` по любому
+  из идентификаторов.
+- **Проверки:** `eisChainIssues` — нет ИКЗ (error), ИКЗ не 36 цифр, нет номера
+  закупки, извещение не создано/не размещено, контракт не заключён/не в
+  реестре, требование СМП не закрыто, недобор объёма, записи не приняты, нет
+  ИНН или ОКПД2. `eisChainProgress` — 4 шага (план, извещение, контракт, СМП).
+- **Карта XSD:** `EIS_XSD_COVERAGE` (снимок 17.0) — `ContractRegistryItem` ↔
+  `zfcs_contract2015Type` (IntegrationTypes.xsd:15708), `ContractSmpRecord` ↔
+  `subContractorsnfo` (IntegrationCETypes.xsd:1356) +
+  `zfcs_contract2015SubContractInfoType`, `ContractPayment` ↔ `payDocumentInfo`
+  (IntegrationCETypes.xsd:76), `ContractDelivery` ↔ `docAcceptanceInfo`,
+  `ContractStage` ↔ `stagetInfoType`, `SmnpReport` ↔
+  `zfcs_customerReportSmallScaleBusinessType`. Статусы полей:
+  `mapped` / `partial` / `missing` / `derived`; номера строк — подсказка, при
+  обновлении Альбома сдвинутся.
+- **Граница:** это не генератор XML и не замена C#-мапперу. `import type` из
+  `../generated` допустим только в адаптерах; наши DTO остаются источником
+  истины. Для исполнения контракта и СМП по-прежнему нужен альбом ТФФ
+  (658/215н и 918).
+- **Проверки:** `npx tsc -b` — наших ошибок нет (падает только чужой WIP
+  `PurchasePlanPositionModal.new.tsx`; `GeneralInfoSection.tsx` — тоже WIP);
+  `npx oxlint src/services/Eis/types` — 0/0; `npx vite build` — успешно.
