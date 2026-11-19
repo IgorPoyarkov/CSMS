@@ -33,6 +33,8 @@ export interface EisFieldCoverage {
   /** Путь в XSD или null, если соответствия нет. */
   xsd: string | null;
   status: EisCoverageStatus;
+  /** Поле обязательно по XSD (minOccurs не равен 0). */
+  required?: boolean;
   note?: string;
 }
 
@@ -352,6 +354,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "purchaseNumber",
         xsd: "commonInfo/purchaseNumber",
         status: "mapped",
+        required: true,
       },
       {
         field: "identificationCode",
@@ -374,6 +377,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "objectOfPurchase",
         xsd: "commonInfo/purchaseObjectInfo",
         status: "mapped",
+        required: true,
       },
       {
         field: "objectName",
@@ -416,6 +420,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "isPublicDiscussionRequired",
         xsd: "commonInfo/publicDiscussion",
         status: "mapped",
+        required: true,
       },
       {
         field: "okpd2Code / okpd2Name",
@@ -452,6 +457,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "срок осуществления закупки",
         xsd: "commonInfo/execution/term",
         status: "missing",
+        required: true,
         note: "startDate/endDate в позиции ПГ у нас не хранятся.",
       },
       {
@@ -463,13 +469,15 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "цель закупки",
         xsd: "purposeInfo",
         status: "missing",
-        note: "programStateName, eventName, expectedResultName.",
+        required: false,
+        note: "Блок необязательный (minOccurs=0): мероприятие (eventName) в современном ПГ можно не заполнять.",
       },
       {
         field: "обоснование закупки",
         xsd: "basementInfo",
         status: "missing",
-        note: "basement и legalActs/noLegalAct.",
+        required: true,
+        note: "basement и legalActs/noLegalAct — блок обязателен по XSD.",
       },
       {
         field: "закупки на последующие годы",
@@ -505,11 +513,13 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "generalInfo.placingWayCode",
         xsd: "placingWay",
         status: "mapped",
+        required: true,
       },
       {
         field: "generalInfo.orderName",
         xsd: "purchaseObjectInfo",
         status: "mapped",
+        required: true,
       },
       {
         field: "generalInfo.ikz",
@@ -521,6 +531,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "generalInfo.nmck",
         xsd: "lot/maxPrice",
         status: "mapped",
+        required: true,
       },
       {
         field: "generalInfo.etpName / etpUrl",
@@ -554,11 +565,13 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "contactInfo.*",
         xsd: "purchaseResponsible/responsibleInfo",
         status: "mapped",
+        required: true,
       },
       {
         field: "procedureInfo.plannedPublishDate",
         xsd: "docPublishDate",
         status: "mapped",
+        required: true,
       },
       {
         field: "procedureInfo.submissionEndDate / submissionEndTime",
@@ -621,6 +634,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
           "contractConditions.isRelativeTerms / startOffsetDays / durationDays",
         xsd: "customerRequirement/deliveryTerm",
         status: "partial",
+        required: true,
         note: "В XSD срок — текстом, а не структурой из дней.",
       },
       {
@@ -639,6 +653,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "purchaseObjects.isIndeterminateVolume",
         xsd: "lot/quantityUndefined",
         status: "mapped",
+        required: true,
       },
       {
         field: "purchaseObjects.items",

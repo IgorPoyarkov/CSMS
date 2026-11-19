@@ -5,6 +5,7 @@ import { useFetchEmployeeByUserId } from "../../services/StaffingTable/StaffingT
 import type { BaseHuman } from "../../services/StaffingTable/StaffingTable.schema";
 import useUtils from "../../hooks/useUtils";
 import useTheme from "../../hooks/useTheme";
+import EisCoverageModal from "../Eis/EisCoverageModal";
 import styles from "./Header.module.scss";
 
 interface HeaderProps {}
@@ -50,6 +51,10 @@ const Header = ({}: HeaderProps) => {
   // Открывается наведением и кликом, закрывается кликом вне и Escape
   const [isRegistryOpen, setIsRegistryOpen] = useState(false);
   const registryRef = useRef<HTMLDivElement>(null);
+
+  // Быстрый чек-лист покрытия XSD: открывается модалкой, чтобы не уводить
+  // пользователя со страницы, на которой он смотрит план-график или извещение
+  const [isCoverageOpen, setIsCoverageOpen] = useState(false);
 
   const openProfile = () => {
     if (isHoverDisabled) return;
@@ -249,6 +254,17 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Чек-лист покрытия: какие наши поля уже переносятся в XSD */}
+          <li className={nav("item")}>
+            <button
+              type="button"
+              className={nav("link", ["logo", "button"])}
+              onClick={() => setIsCoverageOpen(true)}
+            >
+              <span className={nav("link-name")}>Покрытие XSD</span>
+            </button>
+          </li>
+
           <li className={nav("item", ["end"])}>
             {user ? (
               <div
@@ -333,6 +349,10 @@ const Header = ({}: HeaderProps) => {
           </li>
         </ul>
       </nav>
+
+      {isCoverageOpen && (
+        <EisCoverageModal onClose={() => setIsCoverageOpen(false)} />
+      )}
     </header>
   );
 };
