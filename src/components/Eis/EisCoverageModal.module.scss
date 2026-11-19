@@ -191,19 +191,23 @@
       color: var(--text-secondary);
 
       &:nth-child(1) {
-        width: 24%;
+        width: 18%;
       }
 
       &:nth-child(2) {
-        width: 30%;
+        width: 20%;
       }
 
       &:nth-child(3) {
-        width: 16%;
+        width: 26%;
       }
 
       &:nth-child(4) {
-        width: 30%;
+        width: 12%;
+      }
+
+      &:nth-child(5) {
+        width: 24%;
       }
     }
 
@@ -269,6 +273,12 @@
       background: var(--surface-raised);
       color: var(--text-secondary);
     }
+  }
+
+  &__doc {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
   }
 
   &__note {

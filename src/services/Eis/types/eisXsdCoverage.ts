@@ -35,6 +35,9 @@ export interface EisFieldCoverage {
   status: EisCoverageStatus;
   /** Поле обязательно по XSD (minOccurs не равен 0). */
   required?: boolean;
+  /** Что написано рядом с элементом в XSD (цитата описания). */
+  xsdDoc?: string;
+  /** Что это значит для нас. */
   note?: string;
 }
 
@@ -502,10 +505,11 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "kvrCode",
-        xsd: "commonInfo/KVRInfo/code",
+        xsd: "commonInfo/KVRInfo",
         status: "missing",
         required: true,
-        note: "Классификация по КВР; можно вычислять из последних трёх разрядов КБК.",
+        xsdDoc: "Классификация по КВР",
+        note: "Отдельный код вида расходов. У нас есть kbk на 20 цифр, КВР — его последние 3 разряда. Можно вычислять, но лучше хранить kvrCode явно.",
       },
       {
         field: "uniqueNumber",
@@ -578,10 +582,12 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "kbk / kbkEntries",
-        xsd: "financeInfo/KBKsInfo/KBKInfo",
+        xsd: "financeInfo/KBKsInfo",
         status: "partial",
         required: false,
-        note: "KBK + KBKYearsInfo: суммы по КБК должны совпадать с financeInfo; обязателен для бюджетных организаций по условиям XSD.",
+        xsdDoc:
+          "Детализация по кодам бюджетной классификации. При приёме контролируется, что суммы по всем КБК в полях currentYear, firstYear, secondYear, subsecYears равны значениям в financeInfo",
+        note: "Наши kbkEntries есть, но структура другая: в XSD это KBK + KBKYearsInfo с суммами по годам.",
       },
       {
         field: "status",
@@ -635,14 +641,17 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         xsd: "commonInfo/execution/term",
         status: "missing",
         required: true,
-        note: "startDate/endDate в позиции ПГ у нас не хранятся.",
+        xsdDoc:
+          "Осуществление закупки. В рамках блока должен быть заполнен блок term и/или periodicity",
+        note: "Обязательный блок. Внутри term/startDate, term/endDate или periodicity. У нас в позиции ПГ срока осуществления закупки нет.",
       },
       {
         field: "периодичность",
         xsd: "commonInfo/execution/periodicity",
         status: "missing",
         required: false,
-        note: "periodicityType W/B/M/Q/S/Y или otherPeriodicityText; в блоке execution должен быть заполнен term и/или periodicity.",
+        xsdDoc: "Периодичность осуществления закупки",
+        note: "periodicityType W/B/M/Q/S/Y или otherPeriodicityText. Заполняется вместе с term внутри блока execution.",
       },
       {
         field: "цель закупки",

@@ -180,8 +180,9 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
                   <tr>
                     <th>Наше поле</th>
                     <th>XSD</th>
+                    <th>Что написано рядом</th>
                     <th>Статус</th>
-                    <th>Примечание</th>
+                    <th>Что это значит</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -204,6 +205,7 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
                           {field.xsd ?? "—"}
                         </code>
                       </td>
+                      <td className={modal("doc")}>{field.xsdDoc ?? ""}</td>
                       <td>
                         <span
                           className={modal("status", [
