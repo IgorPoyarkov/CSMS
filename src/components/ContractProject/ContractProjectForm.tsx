@@ -1,20 +1,50 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import {
-  useForm,
-  useFieldArray,
   FormProvider,
-  type FieldErrors,
+  useFieldArray,
+  useForm,
+  type FieldPath,
   type Resolver,
 } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  CONTRACT_APPENDIX_KINDS,
+  CONTRACT_APPENDIX_LABELS,
+  CONTRACT_KIND_LABELS,
+  CONTRACT_KINDS,
   ContractProjectSchema,
-  emptyContractProject,
-  sectionCompletion,
   MANDATORY_TERMS,
-  conclusionDeadline,
+  sectionCompletion,
+  type ContractAppendixKind,
+  type ContractKind,
   type ContractProject,
 } from "../../services/ContractProject/contractProject.schema";
+import {
+  buildDefaultAppendices,
+  contractKindTerms,
+  contractSectionOverrideText,
+  contractSectionsForKind,
+  detectContractKind,
+  isContractSectionIncluded,
+  nextAppendixNumber,
+  type ContractFieldDef,
+  type ContractSectionDef,
+} from "../../services/ContractProject/contractStructure";
+import {
+  buildContractProjectDraft,
+  contractPrefillSourceLabels,
+} from "../../services/ContractProject/contractProjectPrefill";
+import {
+  buildContractDocument,
+  contractDocumentToText,
+  contractTimelineText,
+  formatContractDate,
+} from "../../services/ContractProject/contractDocument";
+import {
+  contractIssueCounts,
+  validateContractProject,
+} from "../../services/ContractProject/contractValidation";
 import {
   useCreateContractProject,
   useOrganizationContractProjects,
@@ -23,16 +53,8 @@ import {
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
-import { hasSmpSubcontractingRequirement } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
-import {
-  buildObjectDescriptionSummaryText,
-  formatCharacteristicValue,
-} from "../../services/ObjectDescription/objectDescription.schema";
-import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import styles from "./ContractProject.module.scss";
-
-// ─── Типы полей формы (плоские) ────────────────────────────────────────────
 
 interface ContractLocationState {
   ikz?: string;
@@ -43,234 +65,13 @@ interface ContractLocationState {
   kbk?: string;
 }
 
-interface FlatForm {
-  procurementId: string;
-  contractName: string;
-  ikz: string;
-  noticeNumber: string;
-  smpRequiredPercent: string;
-  subcontractingSmpNoteNumber: string;
-  customerName: string;
-  supplierName: string;
-  projectDate: string;
-  conclusionDate: string;
-  protocolOfDisagreements: boolean;
-  // subject
-  objectName: string;
-  description: string;
-  okpd2Code: string;
-  kved2Code: string;
-  quantity: string;
-  deliveryPlace: string;
-  // price
-  initialMaxPrice: string;
-  finalPrice: string;
-  priceBasis: string;
-  priceIncludesExpenses: boolean;
-  paymentProcedure: string;
-  advancePercent: string;
-  paymentTermDays: string;
-  // term
-  startDate: string;
-  endDate: string;
-  validUntil: string;
-  acceptanceProcedure: string;
-  acceptanceTermDays: string;
-  // quality
-  qualityRequirements: string;
-  warrantyPeriodMonths: string;
-  serviceLifeMonths: string;
-  specifications: string;
-  // security
-  bidSecurityRequired: boolean;
-  bidSecurityPercent: string;
-  performanceSecurityRequired: boolean;
-  performanceSecurityPercent: string;
-  warrantySecurityRequired: boolean;
-  securityAmount: string;
-  penaltyFormula: string;
-  fixedPenaltyAmount: string;
-  interimPenaltyEnabled: boolean;
-  // change
-  changeConditions: string;
-  allowQuantityChange: boolean;
-  allowPriceChange: boolean;
-  terminationConditions: string;
-  securityReturnDays: string;
-  // stages
-  stages: { name: string; endDate: string; amount: string }[];
-}
+const PREVIEW_SECTION = "preview";
+const CHECKS_SECTION = "checks";
 
-const fromProject = (p: ContractProject): FlatForm => ({
-  procurementId: p.procurementId !== undefined ? String(p.procurementId) : "",
-  contractName: p.contractName ?? "",
-  ikz: p.ikz ?? "",
-  noticeNumber: p.noticeNumber ?? "",
-  smpRequiredPercent: p.smpRequiredPercent ?? "",
-  subcontractingSmpNoteNumber: p.subcontractingSmpNoteNumber ?? "",
-  customerName: p.customerName ?? "",
-  supplierName: p.supplierName ?? "",
-  projectDate: p.projectDate ?? "",
-  conclusionDate: p.conclusionDate ?? "",
-  protocolOfDisagreements: p.protocolOfDisagreements ?? false,
-  objectName: p.subject.objectName,
-  description: p.subject.description ?? "",
-  okpd2Code: p.subject.okpd2Code ?? "",
-  kved2Code: p.subject.kved2Code ?? "",
-  quantity: p.subject.quantity ?? "",
-  deliveryPlace: p.subject.deliveryPlace ?? "",
-  initialMaxPrice: p.price.initialMaxPrice ?? "",
-  finalPrice: p.price.finalPrice ?? "",
-  priceBasis: p.price.priceBasis ?? "",
-  priceIncludesExpenses: p.price.priceIncludesExpenses ?? true,
-  paymentProcedure: p.price.paymentProcedure ?? "postpayment",
-  advancePercent: p.price.advancePercent ?? "",
-  paymentTermDays: String(p.price.paymentTermDays ?? 7),
-  startDate: p.term.startDate ?? "",
-  endDate: p.term.endDate ?? "",
-  validUntil: p.term.validUntil ?? "",
-  acceptanceProcedure: p.term.acceptanceProcedure ?? "",
-  acceptanceTermDays: String(p.term.acceptanceTermDays ?? 10),
-  qualityRequirements: p.quality.qualityRequirements ?? "",
-  warrantyPeriodMonths:
-    p.quality.warrantyPeriodMonths !== undefined
-      ? String(p.quality.warrantyPeriodMonths)
-      : "",
-  serviceLifeMonths:
-    p.quality.serviceLifeMonths !== undefined
-      ? String(p.quality.serviceLifeMonths)
-      : "",
-  specifications: p.quality.specifications ?? "",
-  bidSecurityRequired: p.security.bidSecurityRequired ?? false,
-  bidSecurityPercent: p.security.bidSecurityPercent ?? "",
-  performanceSecurityRequired: p.security.performanceSecurityRequired ?? true,
-  performanceSecurityPercent: p.security.performanceSecurityPercent ?? "5",
-  warrantySecurityRequired: p.security.warrantySecurityRequired ?? false,
-  securityAmount: p.security.securityAmount ?? "",
-  penaltyFormula: p.security.penaltyFormula ?? "",
-  fixedPenaltyAmount: p.security.fixedPenaltyAmount ?? "",
-  interimPenaltyEnabled: p.security.interimPenaltyEnabled ?? true,
-  changeConditions: p.change.changeConditions ?? "",
-  allowQuantityChange: p.change.allowQuantityChange ?? false,
-  allowPriceChange: p.change.allowPriceChange ?? false,
-  terminationConditions: p.change.terminationConditions ?? "",
-  securityReturnDays:
-    p.change.securityReturnDays !== undefined
-      ? String(p.change.securityReturnDays)
-      : "30",
-  stages: (p.term.stages ?? []).map((s) => ({
-    name: s.name,
-    endDate: s.endDate ?? "",
-    amount: s.amount ?? "",
-  })),
-});
-
-const toProject = (f: FlatForm, orgId: string | number): ContractProject => ({
-  organizationId: orgId,
-  procurementId: f.procurementId || undefined,
-  ikz: f.ikz,
-  noticeNumber: f.noticeNumber,
-  smpRequiredPercent: f.smpRequiredPercent || undefined,
-  subcontractingSmpNoteNumber: f.subcontractingSmpNoteNumber || undefined,
-  contractName: f.contractName,
-  customerName: f.customerName,
-  supplierName: f.supplierName,
-  projectDate: f.projectDate,
-  conclusionDate: f.conclusionDate,
-  protocolOfDisagreements: f.protocolOfDisagreements,
-  subject: {
-    objectName: f.objectName,
-    description: f.description,
-    okpd2Code: f.okpd2Code,
-    kved2Code: f.kved2Code,
-    quantity: f.quantity,
-    deliveryPlace: f.deliveryPlace,
-  },
-  price: {
-    initialMaxPrice: f.initialMaxPrice,
-    finalPrice: f.finalPrice,
-    priceBasis: f.priceBasis,
-    priceIncludesExpenses: f.priceIncludesExpenses,
-    paymentProcedure:
-      (f.paymentProcedure as "advance" | "postpayment" | "staged") ||
-      "postpayment",
-    advancePercent: f.advancePercent,
-    paymentTermDays: f.paymentTermDays ? Number(f.paymentTermDays) : undefined,
-  },
-  term: {
-    startDate: f.startDate,
-    endDate: f.endDate,
-    validUntil: f.validUntil,
-    stages: f.stages.filter((s) => s.name),
-    acceptanceProcedure: f.acceptanceProcedure,
-    acceptanceTermDays: f.acceptanceTermDays
-      ? Number(f.acceptanceTermDays)
-      : undefined,
-  },
-  quality: {
-    qualityRequirements: f.qualityRequirements,
-    warrantyPeriodMonths: f.warrantyPeriodMonths
-      ? Number(f.warrantyPeriodMonths)
-      : undefined,
-    serviceLifeMonths: f.serviceLifeMonths
-      ? Number(f.serviceLifeMonths)
-      : undefined,
-    specifications: f.specifications,
-  },
-  security: {
-    bidSecurityRequired: f.bidSecurityRequired,
-    bidSecurityPercent: f.bidSecurityPercent,
-    performanceSecurityRequired: f.performanceSecurityRequired,
-    performanceSecurityPercent: f.performanceSecurityPercent,
-    warrantySecurityRequired: f.warrantySecurityRequired,
-    securityAmount: f.securityAmount,
-    penaltyFormula: f.penaltyFormula,
-    fixedPenaltyAmount: f.fixedPenaltyAmount,
-    interimPenaltyEnabled: f.interimPenaltyEnabled,
-  },
-  change: {
-    changeConditions: f.changeConditions,
-    allowQuantityChange: f.allowQuantityChange,
-    allowPriceChange: f.allowPriceChange,
-    terminationConditions: f.terminationConditions,
-    securityReturnDays: f.securityReturnDays
-      ? Number(f.securityReturnDays)
-      : undefined,
-  },
-  status: "draft",
-  createdAt: f.projectDate,
-  updatedAt: new Date().toISOString().slice(0, 10),
-});
-
-// Маппинг ошибок вложенной ContractProjectSchema обратно на плоские поля формы
-const createFlatResolver =
-  (getOrgId: () => string | number): Resolver<FlatForm> =>
-  async (values) => {
-    const candidate = toProject(values, getOrgId());
-    const parsed = ContractProjectSchema.safeParse(candidate);
-    if (parsed.success) {
-      return { values, errors: {} };
-    }
-
-    const flatErrors: FieldErrors<FlatForm> = {};
-    for (const issue of parsed.error.issues) {
-      const leaf = issue.path[issue.path.length - 1];
-      const fieldKey =
-        typeof leaf === "string" && leaf in values
-          ? (leaf as keyof FlatForm)
-          : (String(issue.path[0] ?? "contractName") as keyof FlatForm);
-      if (!flatErrors[fieldKey]) {
-        flatErrors[fieldKey] = {
-          type: issue.code,
-          message: issue.message,
-        };
-      }
-    }
-
-    return { values: {}, errors: flatErrors };
-  };
-
-// ─── Компонент ─────────────────────────────────────────────────────────────
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
 
 export default function ContractProjectForm() {
   const { id } = useParams();
@@ -292,563 +93,890 @@ export default function ContractProjectForm() {
   const { mutate: updateProject, isPending: isUpdating } =
     useUpdateContractProject();
 
-  const [activeSection, setActiveSection] = useState("general");
+  const [activeSection, setActiveSection] = useState("preamble");
   const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Существующий проект контракта именно этой закупки (по procurementId или ИКЗ)
   const existing = useMemo(() => {
     if (id) {
       const byProc = orgProjects.find(
-        (p) => String(p.procurementId ?? "") === String(id),
+        (project) => String(project.procurementId ?? "") === String(id),
       );
       if (byProc) return byProc;
     }
     if (stateData?.ikz) {
-      return orgProjects.find((p) => p.ikz === stateData.ikz);
+      return orgProjects.find((project) => project.ikz === stateData.ikz);
     }
     return undefined;
   }, [orgProjects, id, stateData?.ikz]);
 
-  // Извещение для текущей закупки (из /notices)
+  // Извещение для текущей закупки — источник структуры проекта контракта
   const matchedNotice = useMemo(() => {
     if (id) {
       const byProc = notices
-        .filter((n) => String(n.procurementId ?? "") === String(id))
+        .filter((notice) => String(notice.procurementId ?? "") === String(id))
         .slice(-1)[0];
       if (byProc) return byProc;
     }
-    const targetIkz = stateData?.ikz;
-    if (targetIkz) {
+    if (stateData?.ikz) {
       return notices
-        .filter((n) => n.ikz === targetIkz || n.generalInfo?.ikz === targetIkz)
+        .filter(
+          (notice) =>
+            notice.ikz === stateData.ikz ||
+            notice.generalInfo?.ikz === stateData.ikz,
+        )
         .slice(-1)[0];
     }
     return undefined;
   }, [notices, id, stateData?.ikz]);
 
-  // Потребность (СЗ) для текущей закупки
+  // Служебная записка по позиции ПГ
   const matchedNote = useMemo(() => {
     const noteId = matchedNotice?.purchaseNoteId;
     if (noteId !== undefined && noteId !== null && noteId !== "") {
-      const byId = purchaseNotes.find((n) => String(n.id) === String(noteId));
+      const byId = purchaseNotes.find(
+        (note) => String(note.id) === String(noteId),
+      );
       if (byId) return byId;
     }
     if (id) {
       const byProc = purchaseNotes
-        .filter((n) => String(n.procurementId ?? "") === String(id))
+        .filter((note) => String(note.procurementId ?? "") === String(id))
         .slice(-1)[0];
       if (byProc) return byProc;
     }
     const targetIkz =
       matchedNotice?.generalInfo?.ikz || stateData?.ikz || undefined;
     if (targetIkz) {
-      return purchaseNotes.filter((n) => n.ikz === targetIkz).slice(-1)[0];
+      return purchaseNotes
+        .filter((note) => note.ikz === targetIkz)
+        .slice(-1)[0];
     }
     return undefined;
   }, [purchaseNotes, matchedNotice, id, stateData?.ikz]);
 
-  // Структурированное ООЗ (если привязано к извещению или СЗ)
+  // Структурированное ООЗ
   const matchedDesc = useMemo(() => {
     const onlyOoz = objectDescriptions.filter(
-      (d) => d.kind === "object_description",
+      (description) => description.kind === "object_description",
     );
     const descId =
       matchedNotice?.objectDescriptionId ?? matchedNote?.objectDescriptionId;
     if (descId !== undefined && descId !== null && descId !== "") {
-      const byId = onlyOoz.find((d) => String(d.id) === String(descId));
+      const byId = onlyOoz.find(
+        (description) => String(description.id) === String(descId),
+      );
       if (byId) return byId;
     }
     if (id) {
       const byProc = onlyOoz.find(
-        (d) => String(d.procurementId ?? "") === String(id),
+        (description) => String(description.procurementId ?? "") === String(id),
       );
       if (byProc) return byProc;
     }
     const targetIkz =
       matchedNotice?.generalInfo?.ikz || matchedNote?.ikz || stateData?.ikz;
     if (targetIkz) {
-      return onlyOoz.find((d) => d.ikz === targetIkz);
+      return onlyOoz.find((description) => description.ikz === targetIkz);
     }
     return undefined;
   }, [objectDescriptions, matchedNotice, matchedNote, id, stateData?.ikz]);
 
-  const initialForm = useMemo(() => {
-    const base = fromProject(existing ?? emptyContractProject(orgId));
-    if (!existing && stateData?.ikz && !base.ikz) {
-      base.procurementId = id ?? "";
-      base.ikz = stateData.ikz;
-      base.noticeNumber = stateData.noticeNumber ?? "";
-      base.contractName = `Контракт: ${stateData.name ?? ""}`;
-      base.objectName = stateData.name ?? "";
-      if (stateData.nmck !== undefined && stateData.nmck > 0) {
-        base.initialMaxPrice = stateData.nmck.toFixed(2);
-      }
-      base.projectDate = new Date().toISOString().slice(0, 10);
-    }
-    return base;
-  }, [existing, orgId, stateData, id]);
+  const procurementType =
+    matchedNote?.procurementType ||
+    matchedNotice?.generalInfo?.orderName ||
+    stateData?.procurementType;
 
-  const orgIdRef = useRef(orgId);
-  orgIdRef.current = orgId;
+  // Черновик, собранный по цепочке: извещение → СЗ → ООЗ → карточка заказчика
+  const draft = useMemo(
+    () =>
+      existing ??
+      buildContractProjectDraft({
+        organizationId: orgId,
+        notice: matchedNotice ?? null,
+        note: matchedNote ?? null,
+        objectDescription: matchedDesc ?? null,
+        organization: organization ?? null,
+        procurementType,
+        supplierName: "",
+        ikz: stateData?.ikz,
+        noticeNumber: stateData?.noticeNumber,
+        nmck: stateData?.nmck,
+        contractName: stateData?.name
+          ? `Контракт: ${stateData.name}`
+          : undefined,
+      }),
+    [
+      existing,
+      orgId,
+      matchedNotice,
+      matchedNote,
+      matchedDesc,
+      organization,
+      procurementType,
+      stateData?.ikz,
+      stateData?.noticeNumber,
+      stateData?.nmck,
+      stateData?.name,
+    ],
+  );
 
-  const methods = useForm<FlatForm>({
-    resolver: createFlatResolver(() => orgIdRef.current),
-    defaultValues: initialForm,
+  const methods = useForm<ContractProject>({
+    resolver: zodResolver(ContractProjectSchema) as Resolver<ContractProject>,
+    defaultValues: draft,
+    mode: "onSubmit",
   });
 
-  const appliedKeyRef = useRef<string>("");
+  const appliedKeyRef = useRef("");
 
-  // Асинхронная подгрузка существующего проекта ИЛИ предзаполнение из Извещения + СЗ + ООЗ
   useEffect(() => {
     if (methods.formState.isDirty) return;
-
-    if (existing) {
-      const key = `existing:${existing.id}`;
-      if (appliedKeyRef.current === key) return;
-      appliedKeyRef.current = key;
-      methods.reset(fromProject(existing));
-      return;
-    }
-
-    if (!matchedNotice && !matchedNote && !matchedDesc && !organization) {
-      return;
-    }
-
-    const key = `prefill:${id ?? ""}:${matchedNotice?.id ?? "n"}:${matchedNote?.id ?? "p"}:${matchedDesc?.id ?? "d"}:${organization?.id ?? "o"}`;
+    const key = existing
+      ? `existing:${existing.id}`
+      : `prefill:${id ?? ""}:${matchedNotice?.id ?? "n"}:${matchedNote?.id ?? "p"}:${matchedDesc?.id ?? "d"}:${organization?.id ?? "o"}`;
     if (appliedKeyRef.current === key) return;
     appliedKeyRef.current = key;
-
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const noticeObj = matchedNotice?.objectDescription;
-    const noticeCond = matchedNotice?.contractConditions;
-    const noticeReq = matchedNotice?.participantsRequirements;
-    const noticeItems = matchedNotice?.purchaseObjects?.items ?? [];
-
-    const objectTitle =
-      noticeObj?.objectName ||
-      matchedNotice?.generalInfo.orderName ||
-      matchedNote?.subject ||
-      stateData?.name ||
-      "";
-
-    const descriptionParts: string[] = [];
-    if (matchedDesc) {
-      descriptionParts.push(buildObjectDescriptionSummaryText(matchedDesc));
-    } else if (noticeObj) {
-      if (noticeObj.consumerProperties) {
-        descriptionParts.push(
-          `Потребительские свойства: ${noticeObj.consumerProperties}`,
-        );
-      }
-      if (noticeObj.qualityCharacteristics) {
-        descriptionParts.push(
-          `Качественные характеристики: ${noticeObj.qualityCharacteristics}`,
-        );
-      }
-      if (noticeObj.functionalProperties) {
-        descriptionParts.push(
-          `Функциональные характеристики: ${noticeObj.functionalProperties}`,
-        );
-      }
-      if (noticeObj.environmentalCharacteristics) {
-        descriptionParts.push(
-          `Экологические характеристики: ${noticeObj.environmentalCharacteristics}`,
-        );
-      }
-      if (noticeObj.otherRequirements) {
-        descriptionParts.push(noticeObj.otherRequirements);
-      }
-    } else if (matchedNote) {
-      descriptionParts.push(matchedNote.subject);
-      if (matchedNote.otherRequirements) {
-        descriptionParts.push(matchedNote.otherRequirements);
-      }
-    }
-
-    const quantityStr =
-      matchedNotice?.purchaseObjects?.isIndeterminateVolume ||
-      matchedNote?.isIndeterminateVolume
-        ? "Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)"
-        : noticeItems.length > 0
-          ? noticeItems
-              .map((it) => `${it.quantity} ${it.unit}`.trim())
-              .join("; ")
-          : matchedNote?.quantity
-            ? `${matchedNote.quantity} ${matchedNote.unit ?? ""}`.trim()
-            : "";
-
-    const deliveryPlacesList = noticeCond?.deliveryPlaces?.length
-      ? noticeCond.deliveryPlaces
-      : (matchedNote?.deliveryPlaces ?? []);
-    const deliveryPlaceFromCascade = deliveryPlacesList
-      .map((pl) =>
-        [pl.region, pl.municipality, pl.settlement, pl.address, pl.additionalInfo]
-          .filter(Boolean)
-          .join(", "),
-      )
-      .filter(Boolean)
-      .join("; ");
-
-    const nmckValue =
-      matchedNotice?.generalInfo?.nmck && matchedNotice.generalInfo.nmck > 0
-        ? matchedNotice.generalInfo.nmck.toFixed(2)
-        : matchedNote?.initialMaxPrice
-          ? matchedNote.initialMaxPrice
-          : stateData?.nmck !== undefined && stateData.nmck > 0
-            ? stateData.nmck.toFixed(2)
-            : "";
-
-    const perfRequired =
-      noticeReq?.requiresContractSecurity ??
-      matchedNote?.requiresContractSecurity ??
-      true;
-    const perfPercentStr =
-      noticeReq?.contractSecurityPercent !== undefined
-        ? String(noticeReq.contractSecurityPercent)
-        : (matchedNote?.contractSecurityPercent ?? "5");
-
-    const nmckNum = Number.parseFloat(nmckValue);
-    const perfNum = Number.parseFloat(perfPercentStr);
-    const computedSecurityAmount =
-      perfRequired &&
-      Number.isFinite(nmckNum) &&
-      nmckNum > 0 &&
-      Number.isFinite(perfNum) &&
-      perfNum > 0
-        ? ((nmckNum * perfNum) / 100).toFixed(2)
-        : "";
-
-    const specLines = noticeItems.map(
-      (it, idx) =>
-        `${idx + 1}. ${it.name} (ОКПД2/КТРУ: ${it.okpd2OrKtruCode || "—"}) — ${it.quantity} ${it.unit} × ${it.unitPrice.toFixed(2)} руб = ${it.totalPrice.toFixed(2)} руб`,
-    );
-    if (specLines.length === 0 && matchedDesc?.characteristics?.length) {
-      matchedDesc.characteristics.forEach((c, idx) => {
-        specLines.push(
-          `${idx + 1}. ${c.name}: ${formatCharacteristicValue(c)}`,
-        );
-      });
-    }
-
-    const warrantyMonths =
-      matchedNote?.warrantyTermMonths !== undefined
-        ? String(matchedNote.warrantyTermMonths)
-        : (matchedDesc?.warrantyTermMonths ?? "");
-
-    const qualityDetails = [
-      matchedNote?.warrantyMaintenanceInfo &&
-        `Гарантийное обслуживание: ${matchedNote.warrantyMaintenanceInfo}`,
-      matchedNote?.manufacturerWarrantyInfo &&
-        `Гарантия производителя: ${matchedNote.manufacturerWarrantyInfo}`,
-      matchedNote?.warrantyTermAndVolume &&
-        `Срок и объём гарантии: ${matchedNote.warrantyTermAndVolume}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    const qualityText =
-      qualityDetails ||
-      noticeObj?.qualityCharacteristics ||
-      matchedDesc?.standards
-        .map((s) => `${s.code}${s.title ? ` (${s.title})` : ""}`)
-        .join(", ") ||
-      matchedNote?.otherRequirements ||
-      (objectTitle
-        ? `Товар (работа, услуга) должен соответствовать требованиям ст. 33 Закона № 44-ФЗ, ГОСТ и техническим регламентам для объекта «${objectTitle}»`
-        : "");
-
-    const allowUnilateral =
-      noticeCond?.allowUnilateralRefusalArt95 ??
-      matchedNote?.allowUnilateralRefusalArt95 ??
-      true;
-
-    // Срок оплаты зависит от казначейского сопровождения (расчёт на этапе проекта контракта)
-    const hasTreasury = Boolean(
-      noticeReq?.requiresTreasurySupport ?? matchedNote?.requiresTreasurySupport,
-    );
-    const computedPaymentTermDays = matchedNote?.paymentTermDays
-      ? String(matchedNote.paymentTermDays)
-      : hasTreasury
-        ? "10"
-        : "7";
-
-    const hasAdvanceFlag = Boolean(
-      noticeCond?.hasAdvance ?? matchedNote?.hasAdvance,
-    );
-
-    const smpEnabled = matchedNote
-      ? hasSmpSubcontractingRequirement(matchedNote)
-      : Boolean(noticeReq?.subcontractingSmpPart5Art30);
-
-    const acceptanceText =
-      matchedNote?.acceptanceTermMode === "date" && matchedNote.acceptanceDate
-        ? `Приёмка и экспертиза результатов исполнения контракта по ст. 94 Закона № 44-ФЗ в срок до ${matchedNote.acceptanceDate}`
-        : `Приёмка и экспертиза результатов исполнения контракта по ст. 94 Закона № 44-ФЗ в течение ${matchedNote?.acceptanceTermDays ?? 10} рабочих дней ${matchedNote?.acceptanceEventBase || "со дня предоставления документа о приёмке"}`;
-
-    methods.reset({
-      ...initialForm,
-      procurementId: id ?? "",
-      contractName: objectTitle ? `Контракт: ${objectTitle}` : initialForm.contractName,
-      ikz:
-        matchedNotice?.generalInfo?.ikz ||
-        matchedNote?.ikz ||
-        stateData?.ikz ||
-        initialForm.ikz,
-      noticeNumber:
-        matchedNotice?.generalInfo?.noticeNumber ||
-        stateData?.noticeNumber ||
-        initialForm.noticeNumber,
-      smpRequiredPercent: smpEnabled
-        ? noticeReq?.subcontractingSmpRequiredPercent ||
-          (matchedNote?.smpRequiredPercent !== undefined
-            ? String(matchedNote.smpRequiredPercent)
-            : "")
-        : "",
-      subcontractingSmpNoteNumber:
-        noticeReq?.subcontractingSmpNoteNumber ||
-        (matchedNote?.noteNumber ? String(matchedNote.noteNumber) : ""),
-      customerName:
-        matchedNotice?.contactInfo?.organizationName ||
-        organization?.fullName ||
-        initialForm.customerName,
-      projectDate: initialForm.projectDate || todayIso,
-      objectName: objectTitle || initialForm.objectName,
-      description: descriptionParts.join("\n") || initialForm.description,
-      okpd2Code:
-        noticeObj?.okpd2Code ||
-        matchedDesc?.okpd2Code ||
-        matchedNote?.okpd2Code ||
-        initialForm.okpd2Code,
-      quantity: quantityStr || initialForm.quantity,
-      deliveryPlace:
-        deliveryPlaceFromCascade ||
-        matchedNote?.deliveryPlace ||
-        initialForm.deliveryPlace,
-      initialMaxPrice: nmckValue || initialForm.initialMaxPrice,
-      priceBasis:
-        matchedNote?.priceBasis ||
-        "Обоснование НМЦК в соответствии со ст. 22 Закона № 44-ФЗ",
-      paymentProcedure: hasAdvanceFlag
-        ? "advance"
-        : noticeCond?.hasMultipleStages
-          ? "staged"
-          : "postpayment",
-      advancePercent: noticeCond?.hasAdvance
-        ? String(noticeCond.advancePercent)
-        : (matchedNote?.advancePercent ?? ""),
-      paymentTermDays: computedPaymentTermDays,
-      startDate:
-        matchedNote?.deliveryTermMode === "absolute"
-          ? (matchedNote?.desiredStartDate ?? "")
-          : "",
-      endDate:
-        matchedNote?.deliveryTermMode === "absolute"
-          ? (matchedNote?.desiredEndDate ?? "")
-          : "",
-      acceptanceTermDays: String(matchedNote?.acceptanceTermDays ?? 10),
-      acceptanceProcedure: acceptanceText,
-      qualityRequirements: qualityText,
-      warrantyPeriodMonths: warrantyMonths,
-      specifications: specLines.join("\n"),
-      bidSecurityRequired:
-        noticeReq?.requiresApplicationSecurity ??
-        matchedNote?.requiresApplicationSecurity ??
-        initialForm.bidSecurityRequired,
-      bidSecurityPercent:
-        noticeReq?.requiresApplicationSecurity &&
-        noticeReq.applicationSecurityPercent !== undefined
-          ? String(noticeReq.applicationSecurityPercent)
-          : (matchedNote?.applicationSecurityPercent ??
-            initialForm.bidSecurityPercent),
-      performanceSecurityRequired: perfRequired,
-      performanceSecurityPercent: perfPercentStr,
-      warrantySecurityRequired:
-        noticeReq?.requiresWarrantySecurity ??
-        matchedNote?.requiresWarrantySecurity ??
-        false,
-      securityAmount: computedSecurityAmount,
-      terminationConditions: allowUnilateral
-        ? "Заказчик и поставщик вправе принять решение об одностороннем отказе от исполнения контракта по основаниям, предусмотренным ГК РФ (ч. 8, 9, 19 ст. 95 Закона № 44-ФЗ)"
-        : "",
-    });
+    methods.reset(draft);
   }, [
+    draft,
     existing,
-    matchedNotice,
-    matchedNote,
-    matchedDesc,
-    organization,
-    id,
-    stateData,
-    initialForm,
     methods,
+    id,
+    matchedNotice?.id,
+    matchedNote?.id,
+    matchedDesc?.id,
+    organization?.id,
   ]);
 
-  const { fields, append, remove } = useFieldArray({
+  const project = methods.watch() as ContractProject;
+  const sections = useMemo(
+    () => contractSectionsForKind(project.kind),
+    [project.kind],
+  );
+  const completion = sectionCompletion(project);
+  const issues = validateContractProject(project);
+  const issueCounts = contractIssueCounts(issues);
+  const document = useMemo(() => buildContractDocument(project), [project]);
+
+  const stageArray = useFieldArray({
     control: methods.control,
-    name: "stages",
+    name: "term.stages",
+  });
+  const appendixArray = useFieldArray({
+    control: methods.control,
+    name: "appendices",
   });
 
-  const watched = methods.watch();
-  const completion = sectionCompletion(toProject(watched, orgId));
-  const deadline = conclusionDeadline(watched.conclusionDate);
+  useEffect(() => {
+    if (
+      activeSection === PREVIEW_SECTION ||
+      activeSection === CHECKS_SECTION ||
+      sections.some((section) => section.id === activeSection)
+    ) {
+      return;
+    }
+    setActiveSection("preamble");
+  }, [activeSection, sections]);
 
-  const onSubmit = (data: FlatForm) => {
-    const project = toProject(data, orgId);
+  const getValue = (path: string): unknown => {
+    let current: unknown = project;
+    for (const key of path.split(".")) {
+      const record = asRecord(current);
+      if (!record) return undefined;
+      current = record[key];
+    }
+    return current;
+  };
+
+  const getError = (path: string): string | undefined => {
+    let current: unknown = methods.formState.errors;
+    for (const key of path.split(".")) {
+      const record = asRecord(current);
+      if (!record) return undefined;
+      current = record[key];
+    }
+    const message = asRecord(current)?.message;
+    return typeof message === "string" ? message : undefined;
+  };
+
+  const shouldShow = (field: ContractFieldDef): boolean => {
+    if (!field.when) return true;
+    const value = getValue(field.when.path);
+    if (field.when.truthy !== undefined) {
+      return Boolean(value) === field.when.truthy;
+    }
+    if (field.when.equals !== undefined) {
+      return String(value ?? "") === String(field.when.equals);
+    }
+    return true;
+  };
+
+  const registerOptions = (field: ContractFieldDef) =>
+    field.kind === "number"
+      ? {
+          setValueAs: (value: unknown) =>
+            value === "" || value === null || value === undefined
+              ? undefined
+              : Number(value),
+        }
+      : undefined;
+
+  const changeKind = (kind: ContractKind) => {
+    const terms = contractKindTerms(kind);
+    methods.setValue("kind", kind, { shouldDirty: true, shouldValidate: true });
+    methods.setValue("preamble.contractorRole", terms.contractorRole, {
+      shouldDirty: true,
+    });
+    const currentWorksType = String(getValue("subject.worksType") ?? "");
+    const previousTerms = contractKindTerms(project.kind);
+    if (
+      !currentWorksType ||
+      currentWorksType === previousTerms.defaultWorksType
+    ) {
+      methods.setValue("subject.worksType", terms.defaultWorksType, {
+        shouldDirty: true,
+      });
+    }
+  };
+
+  const detectKindFromNotice = () => {
+    const kind = detectContractKind({
+      procurementType,
+      okpd2Code:
+        matchedNotice?.objectDescription?.okpd2Code ||
+        matchedNotice?.purchaseObjects?.items?.[0]?.okpd2OrKtruCode ||
+        matchedNote?.okpd2Code,
+      objectName:
+        matchedNotice?.objectDescription?.objectName ||
+        matchedNotice?.generalInfo?.orderName,
+      description: matchedNote?.subject,
+      placingWayCode: matchedNotice?.generalInfo?.placingWayCode,
+    });
+    changeKind(kind);
+  };
+
+  const refillFromChain = () => {
+    const next = buildContractProjectDraft({
+      organizationId: orgId,
+      notice: matchedNotice ?? null,
+      note: matchedNote ?? null,
+      objectDescription: matchedDesc ?? null,
+      organization: organization ?? null,
+      procurementType,
+      supplierName: project.supplierName,
+      ikz: stateData?.ikz,
+      noticeNumber: stateData?.noticeNumber,
+      nmck: stateData?.nmck,
+    });
+    methods.reset({
+      ...next,
+      id: existing?.id,
+      contractNumber: project.contractNumber,
+      status: existing?.status ?? "draft",
+      createdAt: existing?.createdAt || next.createdAt,
+    });
+  };
+
+  const toggleSection = (sectionId: string, included: boolean) => {
+    const current = methods.getValues("sectionOverrides") ?? [];
+    const rest = current.filter((override) => override.id !== sectionId);
+    methods.setValue(
+      "sectionOverrides",
+      included ? rest : [...rest, { id: sectionId, included: false }],
+      { shouldDirty: true },
+    );
+  };
+
+  const applyDefaultAppendices = () => {
+    methods.setValue(
+      "appendices",
+      buildDefaultAppendices(project.kind, {
+        smpRequired: Boolean(project.smp?.required),
+        stagedPayment: project.price.paymentProcedure === "staged",
+        hasAdvance: project.price.paymentProcedure === "advance",
+      }),
+      { shouldDirty: true, shouldValidate: true },
+    );
+  };
+
+  const addAppendix = () => {
+    const appendices = methods.getValues("appendices") ?? [];
+    appendixArray.append({
+      id: `appendix-${Date.now()}`,
+      number: nextAppendixNumber(appendices),
+      title: "Новое приложение",
+      kind: "other",
+      included: true,
+      required: false,
+      note: "",
+    });
+  };
+
+  const renumberAppendices = () => {
+    const appendices = methods.getValues("appendices") ?? [];
+    methods.setValue(
+      "appendices",
+      appendices.map((item, index) => ({ ...item, number: index + 1 })),
+      { shouldDirty: true },
+    );
+  };
+
+  const copyDocument = async () => {
+    try {
+      await navigator.clipboard.writeText(contractDocumentToText(document));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const onSubmit = (data: ContractProject) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const payload: ContractProject = {
+      ...data,
+      organizationId: orgId,
+      appendices: (data.appendices ?? []).map((item, index) => ({
+        ...item,
+        number: index + 1,
+      })),
+      createdAt: existing?.createdAt || data.createdAt || today,
+      updatedAt: today,
+    };
     const markSaved = () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     };
 
     if (existing?.id !== undefined) {
-      updateProject(
-        { id: existing.id, ...project },
-        { onSuccess: markSaved },
-      );
+      updateProject({ id: existing.id, ...payload }, { onSuccess: markSaved });
     } else {
-      createProject(project, { onSuccess: markSaved });
+      createProject(payload, { onSuccess: markSaved });
     }
   };
 
   if (loadingProjects) return <div className={styles.loader}>Загрузка...</div>;
 
-  const sections = [
-    { id: "general", label: "Общие сведения" },
-    { id: "subject", label: "1. Предмет (ст. 33)" },
-    { id: "price", label: "2. Цена и оплата (ст. 33, 34)" },
-    { id: "term", label: "3. Срок и приёмка (ст. 33, 94)" },
-    { id: "quality", label: "4. Качество и гарантия (ст. 33)" },
-    { id: "security", label: "5. Обеспечение и неустойка (ст. 34)" },
-    { id: "change", label: "6. Изменение (ст. 95)" },
-  ];
+  const prefillSources = contractPrefillSourceLabels({
+    notice: matchedNotice,
+    note: matchedNote,
+    objectDescription: matchedDesc,
+    organization,
+  });
 
-  const renderField = (
-    name: keyof FlatForm,
-    label: string,
-    type = "text",
-    placeholder = "",
-    hint = "",
-  ) => {
-    const error = methods.formState.errors[name]?.message;
-    return (
-      <div className={styles.field}>
-        <label className={styles.label}>
-          {label}
-          {hint && <span className={styles.hint}> {hint}</span>}
+  const renderField = (field: ContractFieldDef) => {
+    if (!shouldShow(field)) return null;
+    const error = getError(field.path);
+    const fieldId = `contract-${field.path.replace(/\./g, "-")}`;
+    const path = field.path as FieldPath<ContractProject>;
+
+    if (field.kind === "checkbox") {
+      return (
+        <label
+          key={field.path}
+          className={`${styles.checkbox} ${styles.fieldWide}`}
+          htmlFor={fieldId}
+        >
+          <input id={fieldId} type="checkbox" {...methods.register(path)} />
+          <span>
+            {field.label}
+            {field.hint && <span className={styles.hint}> {field.hint}</span>}
+          </span>
         </label>
-        <input
-          className={`${styles.input} ${error ? styles.inputError : ""}`}
-          type={type}
-          placeholder={placeholder}
-          {...methods.register(name)}
-        />
-        {error && <span className={styles.error}>{String(error)}</span>}
+      );
+    }
+
+    return (
+      <div
+        key={field.path}
+        className={`${styles.field} ${
+          field.kind === "textarea" || field.kind === "stages"
+            ? styles.fieldWide
+            : ""
+        }`}
+      >
+        <label className={styles.label} htmlFor={fieldId}>
+          {field.label}
+          {field.article && (
+            <span className={styles.articleRef}> {field.article}</span>
+          )}
+          {field.hint && <span className={styles.hint}> {field.hint}</span>}
+        </label>
+
+        {field.kind === "textarea" ? (
+          <textarea
+            id={fieldId}
+            rows={field.rows ?? 3}
+            className={`${styles.textarea} ${error ? styles.inputError : ""}`}
+            placeholder={field.placeholder}
+            {...methods.register(path)}
+          />
+        ) : field.kind === "select" ? (
+          <select
+            id={fieldId}
+            className={`${styles.input} ${error ? styles.inputError : ""}`}
+            {...methods.register(path)}
+          >
+            {(field.options ?? []).map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            id={fieldId}
+            type={
+              field.kind === "date"
+                ? "date"
+                : field.kind === "number"
+                  ? "number"
+                  : "text"
+            }
+            inputMode={
+              field.kind === "money" || field.kind === "percent"
+                ? "decimal"
+                : undefined
+            }
+            step={field.kind === "number" ? 1 : undefined}
+            min={field.kind === "number" ? 0 : undefined}
+            className={`${styles.input} ${error ? styles.inputError : ""}`}
+            placeholder={field.placeholder}
+            {...methods.register(path, registerOptions(field))}
+          />
+        )}
+
+        {error && <span className={styles.error}>{error}</span>}
       </div>
     );
   };
 
-  // ОКПД2 проекта контракта выбирается из справочника (поиск по коду и
-  // наименованию), как и в плане-графике
-  const renderOkpd2Field = () => {
-    const error = methods.formState.errors.okpd2Code?.message;
-
-    return (
-      <div className={styles.field}>
-        <label className={styles.label}>Код ОКПД2</label>
-        <Okpd2Select
-          code={watched.okpd2Code}
-          onSelect={(item) =>
-            methods.setValue("okpd2Code", item?.code ?? "", {
-              shouldValidate: true,
+  const renderStages = () => (
+    <div className={styles.stages}>
+      <div className={styles.stagesHead}>
+        <h4 className={styles.stagesTitle}>Этапы исполнения</h4>
+        <button
+          type="button"
+          className={styles.stageAdd}
+          onClick={() =>
+            stageArray.append({
+              name: "",
+              startDate: "",
+              endDate: "",
+              amount: "",
             })
           }
-        />
-        {error && <span className={styles.error}>{String(error)}</span>}
+        >
+          + Добавить этап
+        </button>
       </div>
-    );
-  };
-
-  const renderCheckbox = (name: keyof FlatForm, label: string) => (
-    <label className={styles.checkbox}>
-      <input type="checkbox" {...methods.register(name)} />
-      <span>{label}</span>
-    </label>
+      {stageArray.fields.length === 0 && (
+        <p className={styles.muted}>
+          Этапы не заданы. Если контракт одноэтапный — оставьте пустым.
+        </p>
+      )}
+      {stageArray.fields.map((stage, index) => (
+        <div key={stage.id} className={styles.stageRow}>
+          <input
+            className={styles.input}
+            placeholder="Название этапа"
+            {...methods.register(`term.stages.${index}.name`)}
+          />
+          <input
+            className={styles.input}
+            type="date"
+            {...methods.register(`term.stages.${index}.startDate`)}
+          />
+          <input
+            className={styles.input}
+            type="date"
+            {...methods.register(`term.stages.${index}.endDate`)}
+          />
+          <input
+            className={styles.input}
+            inputMode="decimal"
+            placeholder="Сумма, руб."
+            {...methods.register(`term.stages.${index}.amount`)}
+          />
+          <button
+            type="button"
+            className={styles.stageRemove}
+            onClick={() => stageArray.remove(index)}
+            aria-label="Удалить этап"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
   );
 
-  const renderTextarea = (
-    name: keyof FlatForm,
-    label: string,
-    placeholder = "",
-    hint = "",
-  ) => {
-    const error = methods.formState.errors[name]?.message;
-    return (
-      <div className={styles.field}>
-        <label className={styles.label}>
-          {label}
-          {hint && <span className={styles.hint}> {hint}</span>}
-        </label>
-        <textarea
-          className={`${styles.textarea} ${error ? styles.inputError : ""}`}
-          placeholder={placeholder}
-          rows={3}
-          {...methods.register(name)}
-        />
-        {error && <span className={styles.error}>{String(error)}</span>}
-      </div>
-    );
-  };
-
-  const renderSelect = (
-    name: keyof FlatForm,
-    label: string,
-    options: { value: string; label: string }[],
-    hint = "",
-  ) => {
-    const error = methods.formState.errors[name]?.message;
-    return (
-      <div className={styles.field}>
-        <label className={styles.label}>
-          {label}
-          {hint && <span className={styles.hint}> {hint}</span>}
-        </label>
-        <select
-          className={`${styles.input} ${error ? styles.inputError : ""}`}
-          {...methods.register(name)}
+  const renderAppendices = () => (
+    <div className={styles.appendices}>
+      <div className={styles.appendixToolbar}>
+        <button
+          type="button"
+          className={styles.btnSecondary}
+          onClick={applyDefaultAppendices}
         >
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {error && <span className={styles.error}>{String(error)}</span>}
+          Сформировать приложения по виду контракта
+        </button>
+        <button
+          type="button"
+          className={styles.btnSecondary}
+          onClick={addAppendix}
+        >
+          + Приложение
+        </button>
+        <button
+          type="button"
+          className={styles.btnGhost}
+          onClick={renumberAppendices}
+        >
+          Перенумеровать
+        </button>
       </div>
+
+      {appendixArray.fields.length === 0 ? (
+        <p className={styles.muted}>
+          Приложения не заданы. Нажмите «Сформировать приложения по виду
+          контракта» — набор подставится по ст. 33, 34 и виду работ.
+        </p>
+      ) : (
+        <div className={styles.appendixList}>
+          {appendixArray.fields.map((item, index) => (
+            <div key={item.id} className={styles.appendixRow}>
+              <span className={styles.appendixNumber}>{index + 1}</span>
+              <input
+                className={styles.input}
+                placeholder="Название приложения"
+                {...methods.register(`appendices.${index}.title`)}
+              />
+              <select
+                className={styles.input}
+                {...methods.register(`appendices.${index}.kind`)}
+              >
+                {CONTRACT_APPENDIX_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {CONTRACT_APPENDIX_LABELS[kind as ContractAppendixKind]}
+                  </option>
+                ))}
+              </select>
+              <label className={styles.appendixCheck}>
+                <input
+                  type="checkbox"
+                  {...methods.register(`appendices.${index}.included`)}
+                />
+                <span>Включено</span>
+              </label>
+              <label className={styles.appendixCheck}>
+                <input
+                  type="checkbox"
+                  {...methods.register(`appendices.${index}.required`)}
+                />
+                <span>Обязательное</span>
+              </label>
+              <button
+                type="button"
+                className={styles.stageRemove}
+                onClick={() => appendixArray.remove(index)}
+                aria-label="Удалить приложение"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderSection = (section: ContractSectionDef, index: number) => {
+    const included = isContractSectionIncluded(project, section.id);
+    const overrideText = contractSectionOverrideText(project, section.id);
+    const completionItem = completion.sections.find(
+      (item) => item.id === section.id,
+    );
+
+    return (
+      <section key={section.id} className={styles.section}>
+        <div className={styles.sectionHead}>
+          <div>
+            <h3 className={styles.sectionTitle}>
+              {index + 1}. {section.title}
+              <span className={styles.articleRef}> {section.article}</span>
+              {completionItem?.applicable && (
+                <span
+                  className={`${styles.sectionDot} ${
+                    completionItem.complete
+                      ? styles.sectionDotComplete
+                      : styles.sectionDotIncomplete
+                  }`}
+                  title={
+                    completionItem.complete
+                      ? "Обязательное условие заполнено"
+                      : "Обязательное условие не заполнено"
+                  }
+                />
+              )}
+            </h3>
+            <p className={styles.sectionPurpose}>{section.purpose}</p>
+          </div>
+          {section.id !== "appendices" && (
+            <label className={styles.includeToggle}>
+              <input
+                type="checkbox"
+                checked={included}
+                onChange={(event) =>
+                  toggleSection(section.id, event.target.checked)
+                }
+              />
+              <span>Включить раздел</span>
+            </label>
+          )}
+        </div>
+
+        {!included ? (
+          <p className={styles.muted}>
+            Раздел исключён из проекта контракта. Включите его, если условие
+            должно остаться в тексте.
+          </p>
+        ) : section.special === "appendices" ? (
+          renderAppendices()
+        ) : (
+          <>
+            <div className={styles.fields}>
+              {section.fields.map((field) =>
+                field.kind === "stages" ? (
+                  <div key={field.path} className={styles.fieldWide}>
+                    {renderStages()}
+                  </div>
+                ) : (
+                  renderField(field)
+                ),
+              )}
+            </div>
+            {overrideText && (
+              <p className={styles.muted}>
+                Раздел переопределён вручную — текст в предпросмотре берётся из
+                переопределения.
+              </p>
+            )}
+          </>
+        )}
+      </section>
     );
   };
 
-  const prefillSources = [
-    matchedNotice ? "Извещение (44-ФЗ)" : null,
-    matchedNote ? `СЗ № ${matchedNote.noteNumber}` : null,
-    matchedDesc ? `ООЗ «${matchedDesc.title}»` : null,
-  ].filter(Boolean);
+  const renderPreview = () => (
+    <section className={`${styles.section} ${styles.previewSection}`}>
+      <div className={styles.previewToolbar}>
+        <div>
+          <h3 className={styles.sectionTitle}>Предпросмотр текста контракта</h3>
+          <p className={styles.sectionPurpose}>
+            Текст собран из заполненных полей. Окончательная юридическая
+            редакция — за контрактной службой заказчика.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={styles.btnSecondary}
+          onClick={copyDocument}
+        >
+          {copied ? "Текст скопирован" : "Скопировать текст"}
+        </button>
+      </div>
+
+      <article className={styles.preview}>
+        <h2 className={styles.previewTitle}>{document.title}</h2>
+        <p className={styles.previewPreamble}>{document.preamble}</p>
+
+        {document.sections.map((section) => (
+          <div key={section.id} className={styles.previewBlock}>
+            <h4 className={styles.previewHeading}>
+              {section.number}. {section.title}
+            </h4>
+            {section.paragraphs.map((paragraph, index) => (
+              <p key={index} className={styles.previewParagraph}>
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ))}
+
+        {document.appendices.length > 0 && (
+          <div className={styles.previewBlock}>
+            <h4 className={styles.previewHeading}>Приложения</h4>
+            {document.appendices.map((appendix) => (
+              <p key={appendix.number} className={styles.previewParagraph}>
+                {appendix.number}. {appendix.title}
+                {appendix.note ? ` — ${appendix.note}` : ""}
+              </p>
+            ))}
+          </div>
+        )}
+
+        <div className={styles.previewSignature}>
+          {document.signature.map((line, index) => (
+            <p key={index} className={styles.previewParagraph}>
+              {line}
+            </p>
+          ))}
+        </div>
+      </article>
+    </section>
+  );
+
+  const renderChecks = () => (
+    <section className={styles.section}>
+      <h3 className={styles.sectionTitle}>Проверки проекта контракта</h3>
+      <p className={styles.sectionPurpose}>
+        Блокирующие ошибки — не выполнены обязательные условия ст. 34 или
+        нарушены пределы, установленные законом. Предупреждения требуют
+        осознанного решения заказчика.
+      </p>
+
+      <div className={styles.issueSummary}>
+        <span className={`${styles.issueBadge} ${styles.issueError}`}>
+          Ошибки: {issueCounts.errors}
+        </span>
+        <span className={`${styles.issueBadge} ${styles.issueWarning}`}>
+          Предупреждения: {issueCounts.warnings}
+        </span>
+        <span className={`${styles.issueBadge} ${styles.issueOk}`}>
+          Заполнено: {completion.completed}/{completion.total}
+        </span>
+      </div>
+
+      {issues.length === 0 ? (
+        <p className={styles.issueEmpty}>
+          Проверки пройдены: обязательные условия заполнены.
+        </p>
+      ) : (
+        <ul className={styles.issueList}>
+          {issues.map((issue, index) => (
+            <li
+              key={`${issue.sectionId}-${issue.field}-${index}`}
+              className={`${styles.issueItem} ${
+                issue.severity === "error"
+                  ? styles.issueError
+                  : styles.issueWarning
+              }`}
+            >
+              <div className={styles.issueText}>
+                <strong>{issue.message}</strong>
+                <span className={styles.issueArticle}>{issue.article}</span>
+              </div>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setActiveSection(issue.sectionId)}
+              >
+                Перейти
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className={styles.timeline}>
+        <h4 className={styles.stagesTitle}>Сроки заключения по ст. 51</h4>
+        <p className={styles.muted}>{contractTimelineText()}</p>
+        {project.projectDate && (
+          <p className={styles.muted}>
+            Проект составлен {formatContractDate(project.projectDate)}.
+            Ориентировочный срок подписания победителем —{" "}
+            {formatContractDate(
+              new Date(
+                new Date(`${project.projectDate}T00:00:00`).getTime() +
+                  5 * 86_400_000,
+              )
+                .toISOString()
+                .slice(0, 10),
+            )}
+            .
+          </p>
+        )}
+      </div>
+    </section>
+  );
+
+  const activeIndex = sections.findIndex(
+    (section) => section.id === activeSection,
+  );
+  const activeSectionDef = activeIndex >= 0 ? sections[activeIndex] : undefined;
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>
-        Проект контракта {existing ? `#${existing.id}` : ""}
-      </h2>
-
-      {!existing && prefillSources.length > 0 && (
-        <div className={styles.prefillBanner}>
-          <strong>Предзаполнено по цепочке:</strong> {prefillSources.join(" + ")}.
-          Проверьте обязательные условия ст. 33 и ст. 34 перед сохранением.
+      <header className={styles.header}>
+        <div>
+          <h2 className={styles.title}>
+            Конструктор проекта контракта
+            {existing ? ` #${existing.id}` : ""}
+          </h2>
+          <p className={styles.subtitle}>
+            Цепочка: план-график → служебная записка → извещение →{" "}
+            <strong>проект контракта</strong> → подписанный контракт → реестр.
+            Структура — по ст. 34 и 51 Закона № 44-ФЗ.
+          </p>
         </div>
-      )}
 
-      {/* Прогресс заполнения */}
+        <div className={styles.kindBar}>
+          <label className={styles.kindLabel} htmlFor="contract-kind">
+            Вид контракта
+          </label>
+          <select
+            id="contract-kind"
+            className={styles.kindSelect}
+            value={project.kind}
+            onChange={(event) => changeKind(event.target.value as ContractKind)}
+          >
+            {CONTRACT_KINDS.map((kind) => (
+              <option key={kind} value={kind}>
+                {CONTRACT_KIND_LABELS[kind]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={detectKindFromNotice}
+          >
+            Определить по извещению
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.banner}>
+        <div>
+          <strong>Предзаполнено по цепочке:</strong>{" "}
+          {prefillSources.length > 0
+            ? prefillSources.join(" + ")
+            : "источники ещё не загружены"}
+          . Проверьте обязательные условия ст. 34 перед сохранением.
+        </div>
+        <div className={styles.bannerActions}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={refillFromChain}
+          >
+            Заполнить из извещения
+          </button>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={() => setActiveSection(CHECKS_SECTION)}
+          >
+            Проверки: {issueCounts.errors} / {issueCounts.warnings}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.progress}>
         <div className={styles.progressLabel}>
-          Обязательные условия ст. 33:{" "}
+          Обязательные условия ст. 34:{" "}
           <strong>
             {completion.completed}/{completion.total}
           </strong>{" "}
@@ -861,326 +989,127 @@ export default function ContractProjectForm() {
           />
         </div>
         <div className={styles.progressTerms}>
-          {MANDATORY_TERMS.map((t) => {
-            const section = completion.sections.find((s) => s.id === t.id);
+          {MANDATORY_TERMS.map((term) => {
+            const item = completion.sections.find(
+              (section) => section.id === term.id,
+            );
+            const complete = item?.complete ?? false;
+            const applicable = item?.applicable ?? true;
             return (
               <span
-                key={t.id}
+                key={term.id}
                 className={`${styles.termChip} ${
-                  section?.complete
-                    ? styles.termChipComplete
-                    : styles.termChipIncomplete
+                  !applicable
+                    ? styles.termChipMuted
+                    : complete
+                      ? styles.termChipComplete
+                      : styles.termChipIncomplete
                 }`}
-                title={t.article}
+                title={term.article}
               >
-                {t.label}
+                {term.label}
               </span>
             );
           })}
         </div>
       </div>
 
-      {/* Подсказка по сроку заключения */}
-      {deadline && (
-        <div className={styles.deadlineHint}>
-          Срок заключения контракта по ст. 51 ч. 4:{" "}
-          <strong>не ранее {deadline}</strong> (10 дней с даты протокола)
-        </div>
-      )}
-
-      {/* Навигация по разделам */}
-      <nav className={styles.nav}>
-        {sections.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`${styles.navBtn} ${
-              activeSection === s.id ? styles.navBtnActive : ""
-            }`}
-            onClick={() => setActiveSection(s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Форма */}
-      <FormProvider {...methods}>
-        <form onSubmit={methods.handleSubmit(onSubmit)} className={styles.form}>
-          {/* === Общие сведения === */}
-          {activeSection === "general" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>Общие сведения</h3>
-              {renderField("contractName", "Наименование контракта")}
-              <div className={styles.row}>
-                {renderField("ikz", "ИКЗ", "text", "0123456789012345678901234")}
-                {renderField("noticeNumber", "Номер извещения")}
-              </div>
-              <div className={styles.row}>
-                {renderField(
-                  "smpRequiredPercent",
-                  "Привлечение СМП/СОНКО, %",
-                  "text",
-                  "5",
-                  "ПП РФ № 1466 (из СЗ и извещения)",
-                )}
-                {renderField(
-                  "subcontractingSmpNoteNumber",
-                  "Номер СЗ (основание СМП)",
-                )}
-              </div>
-              {renderField("customerName", "Заказчик")}
-              {renderField("supplierName", "Поставщик (победитель)")}
-              <div className={styles.row}>
-                {renderField("projectDate", "Дата проекта", "date")}
-                {renderField("conclusionDate", "Дата заключения", "date")}
-              </div>
-              {renderCheckbox(
-                "protocolOfDisagreements",
-                "Протокол разногласий (ст. 51 ч. 4: проект размещается в течение 4 дней)",
-              )}
-            </div>
-          )}
-
-          {/* === 1. Предмет контракта === */}
-          {activeSection === "subject" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Предмет контракта{" "}
-                <span className={styles.articleRef}>ст. 33 ч. 1 п. 1</span>
-              </h3>
-              {renderField("objectName", "Наименование объекта закупки")}
-              {renderTextarea("description", "Описание объекта закупки")}
-              <div className={styles.row}>
-                {renderOkpd2Field()}
-                {renderField("kved2Code", "Код КВЕД2")}
-              </div>
-              {renderField("quantity", "Количество / объём")}
-              {renderField("deliveryPlace", "Место поставки")}
-            </div>
-          )}
-
-          {/* === 2. Цена и оплата === */}
-          {activeSection === "price" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Цена контракта и порядок оплаты{" "}
-                <span className={styles.articleRef}>
-                  ст. 33 ч. 1 п. 1, ст. 34 ч. 12
-                </span>
-              </h3>
-              <div className={styles.row}>
-                {renderField("initialMaxPrice", "НМЦК, руб")}
-                {renderField("finalPrice", "Цена контракта, руб")}
-              </div>
-              {renderTextarea(
-                "priceBasis",
-                "Обоснование цены",
-                "",
-                "ст. 22 ФЗ-44",
-              )}
-              {renderCheckbox(
-                "priceIncludesExpenses",
-                "Включены расходы на перевозку, страхование, уплату пошлин, налогов и обязательные платежи (ст. 33 ч. 1 п. 1)",
-              )}
-              {renderSelect(
-                "paymentProcedure",
-                "Порядок оплаты (ст. 34 ч. 12)",
-                [
-                  { value: "postpayment", label: "Постоплата" },
-                  { value: "advance", label: "Аванс" },
-                  { value: "staged", label: "Поэтапная оплата" },
-                ],
-              )}
-              <div className={styles.row}>
-                {renderField("advancePercent", "Аванс, %")}
-                {renderField("paymentTermDays", "Срок оплаты, раб. дней")}
-              </div>
-              {watched.paymentProcedure === "staged" && (
-                <div className={styles.stages}>
-                  <h4 className={styles.stagesTitle}>Этапы исполнения</h4>
-                  {fields.map((field, index) => (
-                    <div key={field.id} className={styles.stageRow}>
-                      <input
-                        className={styles.input}
-                        placeholder="Название этапа"
-                        {...methods.register(`stages.${index}.name`)}
-                      />
-                      <input
-                        className={styles.input}
-                        type="date"
-                        {...methods.register(`stages.${index}.endDate`)}
-                      />
-                      <input
-                        className={styles.input}
-                        placeholder="Сумма, руб"
-                        {...methods.register(`stages.${index}.amount`)}
-                      />
-                      <button
-                        type="button"
-                        className={styles.stageRemove}
-                        onClick={() => remove(index)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    className={styles.stageAdd}
-                    onClick={() =>
-                      append({ name: "", endDate: "", amount: "" })
-                    }
-                  >
-                    + Добавить этап
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* === 3. Срок и приёмка === */}
-          {activeSection === "term" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Срок исполнения и приёмка{" "}
-                <span className={styles.articleRef}>
-                  ст. 33 ч. 1 п. 1, ст. 94
-                </span>
-              </h3>
-              <div className={styles.row}>
-                {renderField("startDate", "Дата начала", "date")}
-                {renderField("endDate", "Дата окончания", "date")}
-              </div>
-              {renderField("validUntil", "Срок действия контракта", "date")}
-              {renderTextarea("acceptanceProcedure", "Порядок приёмки")}
-              {renderField("acceptanceTermDays", "Срок приёмки, дней")}
-            </div>
-          )}
-
-          {/* === 4. Качество и гарантия === */}
-          {activeSection === "quality" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Качество и гарантия{" "}
-                <span className={styles.articleRef}>ст. 33 ч. 1 п. 2, 6</span>
-              </h3>
-              {renderTextarea(
-                "qualityRequirements",
-                "Требования к качеству",
-                "",
-                "обязательное условие",
-              )}
-              <div className={styles.row}>
-                {renderField("warrantyPeriodMonths", "Гарантия, мес.")}
-                {renderField("serviceLifeMonths", "Срок службы, мес.")}
-              </div>
-              {renderTextarea("specifications", "Спецификация (по позициям)")}
-            </div>
-          )}
-
-          {/* === 5. Обеспечение и неустойка === */}
-          {activeSection === "security" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Обеспечение и неустойка{" "}
-                <span className={styles.articleRef}>ст. 34 ч. 5-7</span>
-              </h3>
-              {renderCheckbox("bidSecurityRequired", "Обеспечение заявки")}
-              {watched.bidSecurityRequired &&
-                renderField(
-                  "bidSecurityPercent",
-                  "Обеспечение заявки, %",
-                  "text",
-                  "0.5–5",
-                  "ст. 34 ч. 4",
-                )}
-              {renderCheckbox(
-                "performanceSecurityRequired",
-                "Обеспечение исполнения контракта",
-              )}
-              {watched.performanceSecurityRequired && (
-                <div className={styles.row}>
-                  {renderField(
-                    "performanceSecurityPercent",
-                    "Обеспечение, %",
-                    "text",
-                    "0.5–30",
-                    "ст. 34 ч. 6",
+      <div className={styles.layout}>
+        <aside className={styles.sidebar}>
+          <nav className={styles.nav} aria-label="Разделы проекта контракта">
+            {sections.map((section, index) => {
+              const item = completion.sections.find(
+                (completionItem) => completionItem.id === section.id,
+              );
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={`${styles.navBtn} ${
+                    activeSection === section.id ? styles.navBtnActive : ""
+                  }`}
+                  onClick={() => setActiveSection(section.id)}
+                >
+                  <span className={styles.navIndex}>{index + 1}</span>
+                  <span className={styles.navText}>{section.title}</span>
+                  {item?.applicable && (
+                    <span
+                      className={`${styles.navDot} ${
+                        item.complete
+                          ? styles.navDotComplete
+                          : styles.navDotIncomplete
+                      }`}
+                    />
                   )}
-                  {renderField("securityAmount", "Сумма обеспечения, руб")}
-                </div>
-              )}
-              {renderCheckbox(
-                "warrantySecurityRequired",
-                "Обеспечение гарантийных обязательств",
-              )}
-              <div className={styles.divider} />
-              {renderField(
-                "penaltyFormula",
-                "Пени",
-                "text",
-                "",
-                "ст. 34 ч. 5 п. 1",
-              )}
-              {renderField("fixedPenaltyAmount", "Фиксированный штраф, руб")}
-              {renderCheckbox(
-                "interimPenaltyEnabled",
-                "Неустойка за нарушение промежуточных обязательств",
-              )}
-            </div>
-          )}
+                </button>
+              );
+            })}
 
-          {/* === 6. Изменение и расторжение === */}
-          {activeSection === "change" && (
-            <div className={styles.section}>
-              <h3 className={styles.sectionTitle}>
-                Изменение и расторжение контракта{" "}
-                <span className={styles.articleRef}>ст. 95</span>
-              </h3>
-              {renderTextarea(
-                "changeConditions",
-                "Условия изменения контракта",
-              )}
-              {renderCheckbox(
-                "allowQuantityChange",
-                "Допускается изменение количества (объёма) поставок",
-              )}
-              {renderCheckbox(
-                "allowPriceChange",
-                "Допускается изменение цены контракта",
-              )}
-              {renderTextarea(
-                "terminationConditions",
-                "Условия одностороннего отказа (ст. 95 ч. 8-9)",
-              )}
-              {renderField(
-                "securityReturnDays",
-                "Срок возврата обеспечения, дней",
-                "text",
-                "",
-                "ст. 34 ч. 27",
-              )}
-            </div>
-          )}
+            <div className={styles.navDivider} />
 
-          {/* Кнопки */}
-          <div className={styles.actions}>
             <button
-              type="submit"
-              className={styles.btnPrimary}
-              disabled={isCreating || isUpdating}
+              type="button"
+              className={`${styles.navBtn} ${
+                activeSection === PREVIEW_SECTION ? styles.navBtnActive : ""
+              }`}
+              onClick={() => setActiveSection(PREVIEW_SECTION)}
             >
-              {existing
-                ? "Сохранить изменения"
-                : "Создать проект контракта"}
+              <span className={styles.navIndex}>◉</span>
+              <span className={styles.navText}>Предпросмотр</span>
             </button>
-            {saved && (
-              <span className={styles.savedMessage}>Проект сохранён</span>
-            )}
-          </div>
-        </form>
-      </FormProvider>
+            <button
+              type="button"
+              className={`${styles.navBtn} ${
+                activeSection === CHECKS_SECTION ? styles.navBtnActive : ""
+              }`}
+              onClick={() => setActiveSection(CHECKS_SECTION)}
+            >
+              <span className={styles.navIndex}>!</span>
+              <span className={styles.navText}>Проверки</span>
+              {issueCounts.errors > 0 && (
+                <span className={styles.navErrorCount}>
+                  {issueCounts.errors}
+                </span>
+              )}
+            </button>
+          </nav>
+        </aside>
+
+        <main className={styles.content}>
+          <FormProvider {...methods}>
+            <form
+              onSubmit={methods.handleSubmit(onSubmit)}
+              className={styles.form}
+            >
+              {activeSection === PREVIEW_SECTION
+                ? renderPreview()
+                : activeSection === CHECKS_SECTION
+                  ? renderChecks()
+                  : activeSectionDef
+                    ? renderSection(activeSectionDef, activeIndex)
+                    : null}
+
+              <div className={styles.actions}>
+                <button
+                  type="submit"
+                  className={styles.btnPrimary}
+                  disabled={isCreating || isUpdating}
+                >
+                  {existing
+                    ? "Сохранить изменения"
+                    : "Создать проект контракта"}
+                </button>
+                <span className={styles.statusBadge}>
+                  Статус: {existing?.status ?? "черновик"}
+                </span>
+                {saved && (
+                  <span className={styles.savedMessage}>Проект сохранён</span>
+                )}
+              </div>
+            </form>
+          </FormProvider>
+        </main>
+      </div>
     </div>
   );
 }
