@@ -27,6 +27,38 @@ accept = 127.0.0.1:8080
 connect = int44.zakupki.gov.ru:443
 ```
 
+Готовый шаблон лежит в `eis-parser/stunnel.conf`:
+
+```powershell
+cd eis-parser
+stunnel.exe stunnel.conf
+```
+
+Что нужно от вас на машине:
+
+1. **Сборка stunnel с поддержкой ГОСТ-шифров** — обычный OpenSSL-стunnel
+   не понимает `GOST2012-GOST8912-GOST8912`. Нужна ГОСТ-ветка stunnel или
+   сборка от вендора КриптоПро. Установить её надо отдельно (например,
+   распаковать portable-сборку в `C:\Tools\stunnel` и добавить в PATH).
+2. **КриптоПро CSP** с установленным сертификатом и приватным ключом —
+   на этой машине реестр `HKCU:\SOFTWARE\Crypto Pro` есть, но сам stunnel
+   ещё не установлен.
+3. **Доступ к `int44.zakupki.gov.ru:443`** — при необходимости пробросить
+   через файрвол/прокси.
+
+Если ваша сборка требует явного задания ГОСТ-шифров, раскомментируйте в
+`stunnel.conf` строки `sslVersion`, `ciphers`, `options`; для отладки — `debug`/`output`.
+
+Проверить готовность после запуска stunnel:
+
+```powershell
+dotnet run --project src/Eis44Parser.Worker -- --check
+```
+
+Команда печатает состояние токена и результатов TCP-пинга до `127.0.0.1:8080`
+и возвращает код 1, если туннель не поднят. Перед каждым запросом к ЕИС та же
+проверка делается внутри клиента — ошибка будет читаемой, а не «таймаутом».
+
 Адрес сервиса внутри туннеля: `http://127.0.0.1:8080/eis-integration/services/getDocsIP`.
 WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 Актуальные XSD берутся из Альбома ТФФ на портале ЕИС (раздел «Документы» →
@@ -54,6 +86,10 @@ dotnet test
 
 # Проверить конфигурацию и создать БД без обращения к ЕИС:
 dotnet run --project src/Eis44Parser.Worker -- --validate
+
+# Поднять stunnel (в отдельном окне), затем проверить готовность:
+stunnel.exe stunnel.conf
+dotnet run --project src/Eis44Parser.Worker -- --check
 
 # Один проход (например, из планировщика):
 dotnet run --project src/Eis44Parser.Worker -- --once

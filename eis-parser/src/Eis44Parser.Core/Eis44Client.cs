@@ -89,6 +89,9 @@ public sealed class Eis44Client : IEis44Client
             throw new ArgumentException($"Некорректная ссылка на архив ЕИС: {archiveUrl}", nameof(archiveUrl));
         }
 
+        await TunnelProbe.EnsureAvailableAsync(_options.BaseTunnelUrl, cancellationToken)
+            .ConfigureAwait(false);
+
         // Домен ЕИС подменяем на локальный туннель: ГОСТ-шифрование делает Stunnel.
         var localUrl = $"{_options.BaseTunnelUrl.TrimEnd('/')}{archiveUri.PathAndQuery}";
 
@@ -149,6 +152,9 @@ public sealed class Eis44Client : IEis44Client
         string soapXml,
         CancellationToken cancellationToken)
     {
+        await TunnelProbe.EnsureAvailableAsync(_options.BaseTunnelUrl, cancellationToken)
+            .ConfigureAwait(false);
+
         var endpoint = $"{_options.BaseTunnelUrl.TrimEnd('/')}/{_options.ServicePath.TrimStart('/')}";
         using var content = new StringContent(soapXml, Encoding.UTF8, "text/xml");
 

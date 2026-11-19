@@ -10,9 +10,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 // Режимы: без аргументов — постоянный опрос, --once — один проход,
-// --validate — проверить конфигурацию и создать БД без обращения к ЕИС.
+// --validate — проверить конфигурацию и создать БД без обращения к ЕИС,
+// --check — проверить токен и доступность локального ГОСТ-туннеля.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase);
+var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 
 // ContentRoot привязан к каталогу исполняемого файла: туда копируется
 // appsettings.json. Иначе при запуске из корня репозитория (dotnet run
@@ -25,6 +27,30 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 // Секрет хранится вне репозитория — в User Secrets (.NET), а не в appsettings.json.
 // Подключаем явно, чтобы токен читался и вне окружения Development.
 builder.Configuration.AddUserSecrets<Program>();
+
+if (checkOnly)
+{
+    var checkOptions = builder.Configuration
+        .GetSection(EisClientOptions.SectionName)
+        .Get<EisClientOptions>() ?? new EisClientOptions();
+
+    Console.WriteLine($"Туннель: {checkOptions.BaseTunnelUrl}");
+    Console.WriteLine(checkOptions.HasPlaceholderToken
+        ? "Токен: НЕ задан (User Secrets или Eis44__IndividualPersonToken)"
+        : "Токен: задан");
+
+    try
+    {
+        await TunnelProbe.EnsureAvailableAsync(checkOptions.BaseTunnelUrl);
+        Console.WriteLine("Туннель: доступен — можно запускать --once.");
+        return checkOptions.HasPlaceholderToken ? 1 : 0;
+    }
+    catch (InvalidOperationException exception)
+    {
+        Console.Error.WriteLine(exception.Message);
+        return 1;
+    }
+}
 
 builder.Services.AddHttpClient();
 
