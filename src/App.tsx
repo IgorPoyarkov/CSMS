@@ -17,6 +17,7 @@ import ProcurementProcessing from "./components/ProcurementProcessing/Procuremen
 import NoticeInfoForm from "./components/NoticeInfoForm/NoticeInfoForm";
 import ContractServicePage from "./components/ContractService/ContractServicePage";
 import ContractProjectForm from "./components/ContractProject/ContractProjectForm";
+import ContractProjectsPage from "./components/ContractProject/ContractProjectsPage";
 import SmnpSonekPage from "./components/Reports/SmnpSonekPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
 import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
@@ -24,6 +25,7 @@ import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import EisPackagesPage from "./components/Eis/EisPackagesPage";
+import EisSchemaExplorerPage from "./components/Eis/EisSchemaExplorerPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
@@ -112,6 +114,11 @@ const router = createBrowserRouter([
         ],
       },
       {
+        // Реестр проектов контрактов — точка входа в конструктор из шапки
+        path: "/contract-projects",
+        element: <ContractProjectsPage />,
+      },
+      {
         path: "/reports/smnp",
         element: <SmnpSonekPage />,
       },
@@ -127,6 +134,11 @@ const router = createBrowserRouter([
         // Исходящие пакеты в ЕИС: подпись, статусы и ошибки ФЛК
         path: "/eis/packages",
         element: <EisPackagesPage />,
+      },
+      {
+        // Обозреватель XSD Альбома ЕИС: версии, пространства имён, типы и поля
+        path: "/eis/schemas",
+        element: <EisSchemaExplorerPage />,
       },
       {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования

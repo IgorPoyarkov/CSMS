@@ -155,6 +155,16 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Следующий этап цепочки после извещения — проект контракта */}
+          <li className={nav("item")}>
+            <NavLink
+              className={nav("link", ["logo"])}
+              to={"/contract-projects"}
+            >
+              <span className={nav("link-name")}>Проект контракта</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/contract-service"}>
               <span className={nav("link-name")}>Контракты</span>
@@ -229,6 +239,13 @@ const Header = ({}: HeaderProps) => {
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eis/packages"}>
               <span className={nav("link-name")}>Пакеты ЕИС</span>
+            </NavLink>
+          </li>
+
+          {/* Обозреватель официальных XSD ЕИС */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/schemas"}>
+              <span className={nav("link-name")}>Схемы ЕИС</span>
             </NavLink>
           </li>
 
