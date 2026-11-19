@@ -434,9 +434,10 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 по пути. `tsc -b` падает на `GeneralInfoSection.tsx` (`PLACING_WAYS_ALL`) и
 `smpControl.ts` (`dictionary`) — это чужая незавершённая работа.
 **Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
-**Готово, но ждёт живой проверки:** Tasks 14 — клиент ЕИС `getDocsIP` (`eis-parser/`):
-сборка и 5/5 тестов зелёные, но живой обмен требует запущенного Stunnel с
-КриптоПро/msspi и тестового контура ЕИС; XSD в `schemas/Schemas44/` не загружены.
+**Готово, живой обмен заблокирован сервером ЕИС:** Tasks 14 — клиент ЕИС `getDocsIP` (`eis-parser/`):
+сборка и 5/5 тестов зелёные, stunnel-msspi установлен и проверен на Google,
+но ЕИС сбрасывает TLS-handshake до прикладных данных (см. §26); XSD в
+`schemas/Schemas44/` не загружены.
 
 ⚠️ **Известные проблемы:**
 
@@ -651,14 +652,32 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   не делался: нужен Stunnel с ГОСТ-TLS и доступ к тестовому контуру ЕИС
   (токен вынесен в User Secrets, но его старая копия осталась в истории
   публичного репозитория — подлежит перевыпуску).
-- **Готовность к live (2026-11-19):** добавлен `eis-parser/stunnel.conf` (шаблон
-  с `accept=127.0.0.1:8080`, `connect=int44.zakupki.gov.ru:443`, закомментированные
-  ГОСТ-шифры) и CLI `--check`: печатает состояние токена и TCP-пинг туннеля,
-  код 1 при недоступности. `TunnelProbe` вызывается и перед каждым SOAP/GET,
-  чтобы ошибка туннеля не маскировалась таймаутом HttpClient. На текущей машине
-  stunnel **не установлен**, порт 8080 закрыт — ждём действий пользователя
-  (установить stunnel с ГОСТ-шифрами + запустить его); КриптоПро в реестре есть
-  (`HKCU:\SOFTWARE\Crypto Pro`).
+- **Готовность к live (2026-11-19):** CLI `--check` печатает состояние токена и
+  TCP-пинг туннеля, код 1 при недоступности; `TunnelProbe` вызывается и перед
+  каждым SOAP/GET, чтобы ошибка туннеля не маскировалась таймаутом HttpClient.
+  Установлен **stunnel-msspi 0.84** (`C:\Tools\stunnel-cpro\stunnel-msspi.exe`),
+  конфиг `eis-parser/stunnel.conf` обновлён: `sni`, `sslVersion=TLSv1.2`,
+  `cert=<отпечаток>`, `ciphers=ff85` (в msspi cipher-лист — 16-ричные коды,
+  не имена OpenSSL). PIN хранится только вне репозитория: скрипт
+  `eis-parser/scripts/start-stunnel.ps1` запрашивает его и пишет рабочий конфиг
+  в `%TEMP%\eis44-stunnel.conf`; `eis-parser/stunnel.local.conf` добавлен в
+  `.gitignore`. Отпечаток сертификата ИП на Рутокене:
+  `08A26ABA98738FEE6BB29A103D1909A251C5D20F` (контейнер
+  `SCARD\pkcs11_rutoken_ecp_475b44db\FNS_SBER_IP_POYARKOV_2462970_21.04.2026_1054`,
+  провайдер Crypto-Pro GOST 2012, действует до 21.07.2027).
+- 🔴 **Живой обмен заблокирован на уровне TLS (2026-11-19).** ЕИС
+  `int44.zakupki.gov.ru:443` (94.25.27.252) сбрасывает соединение `10054`
+  сразу после `SSL_connect`: в логе stunnel `Connection reset: 0 byte(s) sent
+  to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
+  `Error 10054 reading data from server` / `0x80090304`. «Сырой» ClientHello
+  с suite `ff85` и SNI тоже получает сброс, хотя тот же самый байтовый набор
+  против `www.google.com:443` возвращает корректный TLS alert — значит
+  пользовательский стек и конфиг исправны. Тот же stunnel-msspi успешно
+  делает TLS 1.2 handshake с Google. VPN включался и отключался — без эффекта;
+  `www.zakupki.gov.ru` и `zakupki.gov.ru` отвечают 200, только `int44` рвётся.
+  Дальше без пользователя: подтвердить доступ/белый список IP, рабочий контур
+  ЕИС или актуальность сертификата на стороне сервера. SSL Labs тоже пишет
+  `Unable to connect to the server` (для GOST-хоста не доказательно).
 - ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
   `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
   экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`

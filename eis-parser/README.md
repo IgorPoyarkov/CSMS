@@ -25,39 +25,49 @@ XML-данных из ЕИС через SOAP-сервис `getDocsIP`. Поль�
 client = yes
 accept = 127.0.0.1:8080
 connect = int44.zakupki.gov.ru:443
+sni = int44.zakupki.gov.ru
+sslVersion = TLSv1.2
+cert = 08A26ABA98738FEE6BB29A103D1909A251C5D20F
+ciphers = ff85
 ```
 
-Готовый шаблон лежит в `eis-parser/stunnel.conf`:
+Шаблон — `eis-parser/stunnel.conf`. В сборке stunnel-msspi от КриптоПро
+(cipher-лист передаётся в MSSPI) шифры задаются **16-ричными кодами**, а не
+именами OpenSSL: `ff85` = `GOST2012-GOST8912-GOST8912`. Именно этот suite
+ЕИС выбирает в дампе `gost-engine/engine#464`.
+
+Что нужно на машине:
+
+1. **stunnel-msspi.exe сборки CryptoPro** (проверенная:
+   `stunnel-5.78-msspi-0.84-amd64-windows.zip`, лежит в `C:\Tools\stunnel-cpro`).
+   Обычный OpenSSL-стunnel ГОСТ не понимает.
+2. **КриптоПро CSP** и сертификат ИП с приватным ключом на Рутокене.
+   Отпечаток сертификата указан в конфиге; PIN — секрет, в репозиторий не идёт.
+3. **Доступ к `int44.zakupki.gov.ru:443`** по TCP (VPN/файрвол/белый список IP).
+
+Запуск туннеля с запросом PIN (рекомендуемый способ):
 
 ```powershell
 cd eis-parser
-stunnel.exe stunnel.conf
+$env:EIS44_CERT_PIN = '...'  # либо оставьте пустым — скрипт спросит сам
+powershell -ExecutionPolicy Bypass -File scripts\start-stunnel.ps1
 ```
 
-Что нужно от вас на машине:
+Скрипт пишет рабочий конфиг с PIN в `%TEMP%\eis44-stunnel.conf`, то есть вне
+репозитория. Ручной вариант — скопировать `stunnel.conf` в
+`stunnel.local.conf` (он в `.gitignore`), вписать `pin = ...` и запустить
+`stunnel-msspi.exe stunnel.local.conf`.
 
-1. **Сборка stunnel с поддержкой ГОСТ-шифров** — обычный OpenSSL-стunnel
-   не понимает `GOST2012-GOST8912-GOST8912`. Нужна ГОСТ-ветка stunnel или
-   сборка от вендора КриптоПро. Установить её надо отдельно (например,
-   распаковать portable-сборку в `C:\Tools\stunnel` и добавить в PATH).
-2. **КриптоПро CSP** с установленным сертификатом и приватным ключом —
-   на этой машине реестр `HKCU:\SOFTWARE\Crypto Pro` есть, но сам stunnel
-   ещё не установлен.
-3. **Доступ к `int44.zakupki.gov.ru:443`** — при необходимости пробросить
-   через файрвол/прокси.
-
-Если ваша сборка требует явного задания ГОСТ-шифров, раскомментируйте в
-`stunnel.conf` строки `sslVersion`, `ciphers`, `options`; для отладки — `debug`/`output`.
-
-Проверить готовность после запуска stunnel:
+Проверить готовность после запуска:
 
 ```powershell
 dotnet run --project src/Eis44Parser.Worker -- --check
 ```
 
-Команда печатает состояние токена и результатов TCP-пинга до `127.0.0.1:8080`
-и возвращает код 1, если туннель не поднят. Перед каждым запросом к ЕИС та же
-проверка делается внутри клиента — ошибка будет читаемой, а не «таймаутом».
+Команда печатает состояние токена и результат TCP-пинга до `127.0.0.1:8080`
+и возвращает код 1, если туннель не поднят. Сама проверка TCP не гарантирует
+ГОСТ-handshake: если ЕИС рвёт соединение на уровне TLS, `--once` упадёт с
+`SocketException 10054` — смотрите лог stunnel (`output` в конфиге).
 
 Адрес сервиса внутри туннеля: `http://127.0.0.1:8080/eis-integration/services/getDocsIP`.
 WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
@@ -88,7 +98,7 @@ dotnet test
 dotnet run --project src/Eis44Parser.Worker -- --validate
 
 # Поднять stunnel (в отдельном окне), затем проверить готовность:
-stunnel.exe stunnel.conf
+powershell -ExecutionPolicy Bypass -File scripts\start-stunnel.ps1
 dotnet run --project src/Eis44Parser.Worker -- --check
 
 # Один проход (например, из планировщика):
@@ -145,3 +155,10 @@ $env:ConnectionStrings__EisDb = "Data Source=eis44.db"
 - `RawXml` хранится в БД как текст; для реальных объёмов вынести его в S3/MinIO,
   оставив ссылку и хэш.
 - Реальная проверка подписи/верификация ответов ЕИС на этом этапе не требуется.
+- Состояние на 2026-11-19: код, тесты и `--validate` зелёные, но живой обмен
+  заблокирован на уровне TLS: сервер `int44.zakupki.gov.ru:443` сбрасывает
+  соединение (`10054`) до прикладных данных — и из stunnel-msspi, и из
+  `csptest`, и при отправке «сырого» ClientHello с suite `ff85`. Локальный
+  туннель при этом исправен (тот же stunnel успешно делает handshake с
+  `www.google.com:443`). Для продолжения нужен доступ к рабочему контуру ЕИС
+  или подтверждение, что хост/сертификат доступны с этого IP.
