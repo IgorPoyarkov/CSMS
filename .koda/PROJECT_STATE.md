@@ -2,9 +2,10 @@
 
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
-> Дата последнего обновления: 2026-11-18 (КТРУ, сводная таблица объектов закупки,
-> единый набор характеристик, автонацрежим в СЗ, файл ООЗ в извещении,
-> кастомные чекбоксы/радио).
+> Дата последнего обновления: 2026-11-19 (парсер ЕИС 44-FZ `getDocsIP` —
+> отдельное решение .NET 9 в `eis-parser/`, Tasks 14). Предыдущее обновление
+> 2026-11-18: КТРУ, сводная таблица объектов закупки, единый набор характеристик,
+> автонацрежим в СЗ, файл ООЗ в извещении, кастомные чекбоксы/радио).
 
 ## 0. Откуда брать задачи
 
@@ -23,6 +24,13 @@
 - `npm start` — Vite (:5173) + `json-server-auth db.json` (:3001). `npm run build`
   = `tsc -b && vite build`. Линт: `npx oxlint src` (в проекте oxlint; `npm run lint`
   — осколок eslint). Типы: `npx tsc -b --pretty false`.
+  - ⚠️ В PowerShell этого агента `npx` заблокирован политикой выполнения
+    (`npx.ps1`, PSSecurityException) — использовать `npx.cmd tsc -b ...`,
+    `npx.cmd oxlint src`, `npx.cmd vite build`.
+- **C#/ЕИС:** `dotnet build eis-parser/Eis44Parser.sln`,
+  `dotnet test eis-parser/Eis44Parser.sln`,
+  `dotnet run --project eis-parser/src/Eis44Parser.Worker -- --validate`.
+  Токен задаётся `Eis44__IndividualPersonToken` (в `appsettings.json` — заглушка).
 - Прогон схем и моков без сервера:
   1. **json-server-копия** на свободном порту: `Start-Job { node node_modules/json-server/lib/cli/bin.js db.json --port 3010 }` — 6 секунд старта, затем `GET`/`PATCH` на порт 3010.
   2. **tsc --ignoreConfig** — `npx tsc --project tsconfig.json --noEmit --skipLibCheck --ignoreConfig <список schema-файлов> --module esnext --target es2022 --moduleResolution bundler --outDir .tmpcheck` + патч относительных импортов `.ts` → `.js` (`[regex]::Replace` с MatchEvaluator, не `ForEach-Object`).
@@ -414,7 +422,16 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 4. **Tasks 8 п.4** — роль «инициатор закупки» (1–2 дня).
 
 **Не трогать:** чужую WIP нормирования (пусть второй агент доделает в GitHub).
+На 2026-11-19 в рабочем дереве снова чужая WIP: `db.json`,
+`src/components/NoticeInfoForm/**`, `src/components/ProcurementProcessing/**`,
+`src/components/PurchaseNote/PurchaseNoteModal.tsx`,
+`src/services/Okpd2Ref/smpControl.ts`, `screenshots/` — не коммитить и не «чинить»
+по пути. `tsc -b` падает на `GeneralInfoSection.tsx` (`PLACING_WAYS_ALL`) и
+`smpControl.ts` (`dictionary`) — это чужая незавершённая работа.
 **Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
+**Готово, но ждёт живой проверки:** Tasks 14 — клиент ЕИС `getDocsIP` (`eis-parser/`):
+сборка и 5/5 тестов зелёные, но живой обмен требует токена ИП, Stunnel с
+КриптоПро/msspi и тестового контура ЕИС; XSD в `schemas/Schemas44/` не загружены.
 
 ⚠️ **Известные проблемы:**
 
@@ -597,3 +614,38 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Строка извещения:** [`ProcurementRow`](src/components/ProcurementProcessing/ProcurementRow.tsx:1) — ИКЗ, наименование, тип, номер извещения (или «Не размещено»), бейдж статуса с цветом по стадии, НМЦК справа. Действия одной колонкой: «Просмотр / редактирование» и «Внести изменения» (обе ведут в форму извещения), «Бюджетное обязательство», «Отмена извещения» (статус `cancelled` с подтверждением), «Удалить». Прежние кнопки подготовки документов, приказа и замечаний убраны.
 - **Бюджетное обязательство:** [`BudgetObligationModal`](src/components/ProcurementProcessing/BudgetObligationModal.tsx:1) — номер формируется как `БО-<номер извещения|id>-<год>`, дата по умолчанию — сегодня, КБК и сумма предзаполняются из закупки. Запись сохраняется в новую коллекцию `budgetObligations` (`useCreateBudgetObligation`), после успеха в списке появляется сообщение с номером и суммой.
 - **Проверки:** `npx tsc -b --pretty false` — падает на чужой незакоммиченной правке `GeneralInfoSection.tsx` (`PLACING_WAYS_ALL` объявлен, но не используется); в файлах этой задачи ошибок нет. `npx oxlint src` — 0 ошибок (24 предупреждения, новых в файлах задачи нет); `npx vite build` — успешно (8,46 с). Смоук: 14 текущих извещений, фильтр «На подготовке» оставляет 11, «Размещено» — 3, бейджи и кнопки на месте, модалка БО открывается с предзаполненными номером, датой и суммой, «Просмотр / редактирование» ведёт в форму извещения.
+
+## 26. Парсер ЕИС 44-FZ `getDocsIP` — Tasks 14 (2026-11-19)
+
+Отдельное решение **.NET 9** в `eis-parser/` (в `.sln` четыре проекта). Задача
+была удалена из `CurrentTasks.md` кем-то из агентов — восстановлена секцией
+`Tasks 14` сверху файла по тексту спецификации, которую прислал пользователь.
+
+- **`Eis44Parser.Core`**: `SoapRequestBuilder` (жёсткий `xs:sequence`, токен в
+  `<soapenv:Header>`), `Eis44Client` (SOAP POST + GET ZIP через локальный Stunnel
+  `http://127.0.0.1:8080`, заголовок `individualPerson_token`, Polly-повторы
+  429/5xx/сетевых ошибок), `TenderXmlParser` (`XDocument` + `Name.LocalName`,
+  устойчив к префиксам и разным `schemeVersion`), модели `TenderDto`,
+  `EisClientOptions`, коды подсистем `PRIZ`/`RPEC`/`RPGZ`/`NSI`.
+- **`Eis44Parser.Data`**: EF Core (`TenderRecord`, SQLite/PostgreSQL), дедупликация
+  по `PurchaseNumber` + версии: повтор пропускается, изменившаяся версия обновляется.
+- **`Eis44Parser.Worker`**: `PollingWorker` (последовательный опрос по регионам,
+  типам документов, подсистемам и датам, без превышения лимита ~8 RPS),
+  CLI `--once` и `--validate`. Всё в `appsettings.json`, токен —
+  через `Eis44__IndividualPersonToken`.
+- **`Eis44Parser.Tests`**: 5 xUnit-тестов (порядок SOAP-тегов и экранирование,
+  парсинг XML с разными схемами и десятичными разделителями, дедупликация).
+- **Документация:** `eis-parser/README.md`, `eis-parser/schemas/README.md`,
+  `eis-parser/schemas/generate-models.ps1` (генерация строгих моделей из XSD
+  Альбома ТФФ через `dotnet-xscgen`, не `xsd.exe`). Папка `Schemas44/` пока
+  пустая (`.gitkeep`) — схемы пользователь должен положить сам.
+- **Проверки:** `dotnet build` — 0 ошибок/0 предупреждений; `dotnet test` —
+  5/5 зелёных; `--validate` создаёт SQLite-БД и печатает конфигурацию. Live-прогон
+  не делался: нужен токен ИП, Stunnel с ГОСТ-TLS и доступ к тестовому контуру ЕИС.
+- ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
+  `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
+  экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`
+  в Polly 8 принимает `Func<CancellationToken, ValueTask<T>>`, а не
+  `Func<CancellationToken, Task<T>>` — нужна обёртка `new(...)`.
+- `.gitignore`: добавлены игноры `eis-parser/**/bin|obj`, `*.db`, `eis44.db`,
+  но `!eis-parser/Eis44Parser.sln` (общий игнор `*.sln` в корне).

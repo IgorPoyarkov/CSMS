@@ -37,3 +37,10 @@ opencode.json
 *.njsproj
 *.sln
 *.sw?
+
+# Парсер ЕИС на .NET (артефакты сборки и локальные базы)
+eis-parser/**/bin/
+eis-parser/**/obj/
+eis-parser/**/*.db
+eis44.db
+!eis-parser/Eis44Parser.sln

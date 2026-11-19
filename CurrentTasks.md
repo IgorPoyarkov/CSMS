@@ -20,6 +20,22 @@
 
 **🔴 Не начиналось:** Tasks 9 п.3 (срезы ПГ/реестра/извещений), Tasks 8 п.2 (в) чтение из ЕИС, Tasks 3 11:16 п.6–п.7 (модуль нагрузки, автопринятие задач, составные задачи), Tasks 7 п.5 (особые закупки), Tasks 9 п.2 (реквизиты по ИНН — ждёт реального бэкенда).
 
+-# Tasks 14
+
+-## 1. Парсер/интеграционный клиент ЕИС 44-FZ — SOAP-сервис `getDocsIP` 🟢 Реализовано (2026-11-19).
+
+Отдельное решение **.NET 9** в `eis-parser/` (не смешивается с фронтендом): `Eis44Parser.Core` (SOAP-клиент, сборщик запросов, парсер XML, модели), `Eis44Parser.Data` (EF Core: SQLite/PostgreSQL, таблица `Tenders`, ключ по номеру закупки), `Eis44Parser.Worker` (фоновая служба опроса + CLI `--once` / `--validate`), `Eis44Parser.Tests` (5 xUnit-тестов). Подробности и инструкции — `eis-parser/README.md`.
+
+Что сделать по спецификации:
+
+1. **Туннель ГОСТ-TLS.** `HttpClient` идёт не напрямую в `int44.zakupki.gov.ru:443`, а в локальный Stunnel `http://127.0.0.1:8080` (`[eis-44] client=yes / accept=127.0.0.1:8080 / connect=int44.zakupki.gov.ru:443`). WSDL `https://zakupki.gov.ru?wsdl`, XSD `?xsd=getDocsIP-ws-api.xsd`.
+2. **SOAP-конверт.** В `<soapenv:Header>` обязателен `<individualPerson_token>` (токен ИП из ЕСИА/Госуслуг, личный кабинет участника закупок). Теги идут строго по `xs:sequence` — порядок зафиксирован в `SoapRequestBuilder`, покрыт тестами. Коды подсистем: `PRIZ` (извещения/протоколы), `RPEC` (реестр контрактов), `RPGZ` (планы-графики), `NSI` (справочники).
+3. **Двухэтапное получение.** Этап 1 — `getDocsByOrgRegionRequest` (по региону и дате) или `getDocsByReestrNumberRequest` (по 19-значному номеру) → `archiveUrl`. Этап 2 — `HTTP GET` ZIP через тот же туннель с заголовком `individualPerson_token`, XML внутри разбирается через `XDocument` по `Name.LocalName` (не ломается от префиксов и разных `schemeVersion`).
+4. **Надёжность.** Лимит ЕИС ~8 RPS — запросы последовательные; повторы 429/5xx/сетевых ошибок через Polly с экспоненциальной задержкой. Дедупликация по `PurchaseNumber` и версии документа: повтор пропускается, изменённая версия обновляет запись.
+5. **Конфигурация.** Токен, адрес туннеля, регионы, типы документов и подсистемы вынесены в `appsettings.json` с переопределением через переменные окружения (`Eis44__IndividualPersonToken`). Скрипт `schemas/generate-models.ps1` генерирует строгие модели из XSD Альбома ТФФ через `dotnet-xscgen` (не `xsd.exe`).
+
+Проверки: `dotnet build eis-parser/Eis44Parser.sln` и `dotnet test eis-parser/Eis44Parser.sln` — зелёные (5/5); `dotnet run --project src/Eis44Parser.Worker -- --validate` создаёт БД и печатает конфигурацию без обращения к ЕИС. 🔴 Живой обмен с ЕИС не проверялся: нужен реальный токен ИП, запущенный Stunnel с КриптоПро/msspi и доступ к тестовому контуру; XSD в `schemas/Schemas44/` ещё не загружены (папка с `.gitkeep`).
+
 -# Tasks 12
 
 -## 1.
