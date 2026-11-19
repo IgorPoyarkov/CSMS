@@ -1031,6 +1031,20 @@ export const validatePurchasePlanEis17 = (
     });
   }
 
+  // Реестровый номер плана-графика — 18 цифр: год (4), код заказчика по СПЗ
+  // (11), порядковый номер плана (3). От него зависит уникальный номер позиции
+  const planDigits = String(plan.planNumber ?? "").replace(/\D/g, "");
+  if (planDigits.length !== 18) {
+    issues.push({
+      severity: "error",
+      field: "planNumber",
+      message:
+        `Реестровый номер плана-графика содержит ${planDigits.length} цифр вместо 18: ` +
+        `год (4) + код заказчика по СПЗ (11) + порядковый номер плана (3). ` +
+        `Без него уникальный номер позиции не собирается в 24 знака.`,
+    });
+  }
+
   plan.positions.forEach((pos, idx) => {
     const label = `Позиция № ${pos.serialNumber || idx + 1}`;
     const ikz = (pos.identificationCode ?? "").trim();
@@ -1054,6 +1068,18 @@ export const validatePurchasePlanEis17 = (
         severity: "warning",
         field: `positions[${idx}].extNumber`,
         message: `${label}: отсутствуют positionNumber и extNumber (требуются для связки tenderPlan2020Info в извещении).`,
+      });
+    }
+
+    // tenderPlan2020PositonNumberType — xs:length 24: 18 цифр номера
+    // плана-графика + 6 цифр внутреннего номера позиции
+    if (pos.uniqueNumber && !/^\d{24}$/.test(String(pos.uniqueNumber))) {
+      issues.push({
+        severity: "error",
+        field: `positions[${idx}].uniqueNumber`,
+        message:
+          `${label}: уникальный номер позиции «${pos.uniqueNumber}» содержит ` +
+          `${String(pos.uniqueNumber).length} симв. вместо 24 (18 цифр номера плана-графика + 6 цифр номера позиции).`,
       });
     }
 

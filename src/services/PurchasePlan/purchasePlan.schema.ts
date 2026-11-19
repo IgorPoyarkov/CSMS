@@ -252,7 +252,7 @@ export const PurchasePlanPositionSchema = z
     // «202601442000018001000127»). Формируется системой, а не заказчиком
     uniqueNumber: optionalPattern(
       /^\d{6,30}$/,
-      "Уникальный номер позиции — номер плана-графика и шестизначный номер записи",
+      "Уникальный номер позиции — 24 цифры: 18 цифр реестрового номера плана-графика и 6 цифр номера позиции",
     ),
     // Номер закупки, включенной в план-график закупок: четырёхзначный,
     // следующий по порядку среди записей плана
@@ -392,9 +392,15 @@ export const PurchasePlanSchema = z
         (value) => value !== "" && value !== null && value !== undefined,
         "План-график должен быть привязан к организации заказчика",
       ),
+    // Реестровый номер плана-графика — 18 цифр: год формирования (4),
+    // уникальный учётный номер заказчика в сводном реестре (11) и порядковый
+    // номер плана-графика этого заказчика на указанный год (3)
     planNumber: z
       .string()
-      .min(4, "Укажите номер плана-графика, например 202603770123450001"),
+      .min(
+        4,
+        "Укажите номер плана-графика: 18 цифр — год (4), код заказчика по СПЗ (11), порядковый номер плана (3), например 202603770123450001",
+      ),
     customer: PurchasePlanCustomerSchema,
     planYear: z.union([z.string(), z.number()]).refine((value) => {
       const year = Number(value);
@@ -575,8 +581,47 @@ export const buildKbk = (parts: Partial<KbkParts>): string => {
   return `${chapter}${section}${targetArticle}${expenseType}`;
 };
 
-// Уникальный номер позиции плана-графика: номер плана-графика и шестизначный
-// порядковый номер записи. Номер выдаёт система, заказчиком не заполняется
+// Реестровый номер плана-графика — 18 цифр: год формирования (4),
+// уникальный учётный номер заказчика в сводном реестре (11) и порядковый
+// номер плана-графика этого заказчика на указанный год (3)
+export const PLAN_REGISTRY_NUMBER_LENGTH = 18;
+// Уникальный номер позиции — 24 цифры: 18 цифр номера плана-графика и 6 цифр
+// внутреннего номера позиции, который ЕИС присваивает при создании строки
+// и не меняет при редактировании
+export const POSITION_UNIQUE_NUMBER_LENGTH = 24;
+
+export interface PlanRegistryNumberParts {
+  year: string;
+  customerCode: string;
+  planOrder: string;
+}
+
+// Разбор 18-значного реестрового номера плана-графика; null — формат нарушен
+export const splitPlanRegistryNumber = (
+  planNumber: string | number | undefined,
+): PlanRegistryNumberParts | null => {
+  const digits = String(planNumber ?? "").replace(/\D/g, "");
+
+  if (digits.length !== PLAN_REGISTRY_NUMBER_LENGTH) {
+    return null;
+  }
+
+  return {
+    year: digits.slice(0, 4),
+    customerCode: digits.slice(4, 15),
+    planOrder: digits.slice(15, 18),
+  };
+};
+
+export const isPlanRegistryNumber = (
+  planNumber: string | number | undefined,
+): boolean => splitPlanRegistryNumber(planNumber) !== null;
+
+/**
+ * Уникальный номер позиции плана-графика: 18-значный реестровый номер самого
+ * плана-графика и 6-значный внутренний номер позиции. Номер присваивает ЕИС
+ * автоматически, заказчик его не заполняет и при редактировании он не меняется.
+ */
 export const buildPositionUniqueNumber = (
   planNumber: string | number | undefined,
   serialNumber: string | number | undefined,
@@ -588,8 +633,15 @@ export const buildPositionUniqueNumber = (
     return "";
   }
 
-  return `${planDigits}${String(Math.trunc(order)).padStart(6, "0")}`;
+  const orderDigits = String(Math.trunc(order)).padStart(6, "0").slice(-6);
+
+  return `${planDigits}${orderDigits}`;
 };
+
+// Проверка формата уникального номера позиции: ровно 24 цифры
+export const isPositionUniqueNumber = (
+  value: string | number | undefined,
+): boolean => /^\d{24}$/.test(String(value ?? ""));
 
 /**
  * Нормативная основа ИКЗ: Порядок формирования идентификационного кода

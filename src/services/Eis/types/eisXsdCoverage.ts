@@ -514,8 +514,8 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       {
         field: "uniqueNumber",
         xsd: "commonInfo/positionNumber",
-        status: "partial",
-        note: "В XSD это реестровый номер позиции, а не склейка номера плана и порядка.",
+        status: "mapped",
+        note: "Реестровый номер позиции — 24 цифры (xs:length=24): 18 цифр номера плана-графика (год 4 + код заказчика по СПЗ 11 + порядковый номер плана 3) и 6 цифр номера позиции, который присваивает ЕИС.",
       },
       {
         field: "serialNumber",

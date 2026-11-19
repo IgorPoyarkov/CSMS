@@ -388,6 +388,12 @@ export default function PurchasePlanPositionForm({
                   value={uniqueNumber || "сформируется при сохранении"}
                   readOnly
                 />
+                <p className={block("hint")}>
+                  24 цифры: 18 цифр реестрового номера плана-графика (год — 4,
+                  код заказчика по СПЗ — 11, порядковый номер плана — 3) и 6
+                  цифр номера позиции, который ЕИС присваивает автоматически и
+                  не меняет при редактировании.
+                </p>
               </div>
               <div className={block("cell")}>
                 <label
