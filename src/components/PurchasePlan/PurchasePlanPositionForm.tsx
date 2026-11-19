@@ -19,6 +19,7 @@ import {
   IKZ_ORDER_REFERENCE,
   PurchasePlanPositionSchema,
   buildIdentificationCode,
+  buildIkzParts,
   buildKbk,
   buildPositionUniqueNumber,
   isPurchaseNumberTaken,
@@ -90,7 +91,12 @@ type AmountKey = (typeof AMOUNT_FIELDS)[number]["key"];
 // Разряды КБК: глава 3, раздел/подраздел 4, целевая статья 10, вид расходов 3
 const KBK_PART_FIELDS = [
   { key: "chapter", label: "Глава", placeholder: "200", length: 3 },
-  { key: "section", label: "Раздел (подраздел)", placeholder: "1101", length: 4 },
+  {
+    key: "section",
+    label: "Раздел (подраздел)",
+    placeholder: "1101",
+    length: 4,
+  },
   {
     key: "targetArticle",
     label: "Целевая статья",
@@ -118,7 +124,6 @@ export default function PurchasePlanPositionForm({
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
-  const [ikzBuildError, setIkzBuildError] = useState<string | null>(null);
   // Индекс строки КОКС, для которой открыт справочник nsiKOKS
   const [koksPickerIndex, setKoksPickerIndex] = useState<number | null>(null);
 
@@ -129,7 +134,8 @@ export default function PurchasePlanPositionForm({
       serialNumber: position.serialNumber || String(index + 1),
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
       // Год по умолчанию — текущий; селект предлагает текущий и +10 лет
-      plannedPlacementYear: position.plannedPlacementYear || String(CURRENT_YEAR),
+      plannedPlacementYear:
+        position.plannedPlacementYear || String(CURRENT_YEAR),
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
       modificationStatus: position.modificationStatus ?? (isNew ? "N" : "E"),
@@ -185,6 +191,9 @@ export default function PurchasePlanPositionForm({
   const authorizedBodyName = useWatch({ control, name: "authorizedBodyName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
   const koksEntriesValues = useWatch({ control, name: "koksEntries" });
+  const iku = useWatch({ control, name: "iku" });
+  const kvr = useWatch({ control, name: "kvr" });
+  const kbk = useWatch({ control, name: "kbk" });
 
   const uniqueNumber =
     getValues("uniqueNumber") ||
@@ -214,6 +223,69 @@ export default function PurchasePlanPositionForm({
     positions,
     purchaseNumber,
     position.purchaseNumber,
+  );
+
+  // Порядковый номер закупки в ИКЗ: «000», если номер закупки в плане
+  // единственный; иначе инкремент по позициям с этим же номером закупки
+  const resolvedOrderNumber = useMemo(() => {
+    const normalized = String(purchaseNumber ?? "").replace(/\D/g, "");
+
+    if (!normalized) {
+      return "000";
+    }
+
+    const samePurchase = positions.filter(
+      (item) =>
+        String(item.purchaseNumber ?? "").replace(/\D/g, "") === normalized,
+    );
+
+    if (samePurchase.length <= 1) {
+      return "000";
+    }
+
+    const selfIndex = samePurchase.findIndex(
+      (item) => String(item.id) === String(position.id),
+    );
+    const order = selfIndex >= 0 ? selfIndex + 1 : samePurchase.length + 1;
+
+    return String(order).padStart(3, "0").slice(-3);
+  }, [positions, purchaseNumber, position.id]);
+
+  // КВР берётся из КБК (последние 3 разряда); отдельное значение — резерв
+  const resolvedKbk = kbk || kbkEntriesValues?.[0]?.kbk || "";
+  const resolvedKvr =
+    resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : kvr || "";
+
+  // Разряды ИКЗ: предзаполненные значения для таблицы и итоговый код
+  const ikzParts = useMemo(
+    () =>
+      buildIkzParts({
+        planYear: plannedPlacementYear || plan.planYear,
+        inn: plan.customer.inn,
+        kpp: plan.customer.kpp,
+        iku,
+        purchaseNumber,
+        purchaseOrderNumber: resolvedOrderNumber,
+        serialNumber,
+        okpd2Code,
+        hasMultipleOkpd2: Boolean(hasMultipleOkpd2),
+        kvr: resolvedKvr,
+        kbk: resolvedKbk,
+      }),
+    [
+      plannedPlacementYear,
+      plan.planYear,
+      plan.customer.inn,
+      plan.customer.kpp,
+      iku,
+      purchaseNumber,
+      resolvedOrderNumber,
+      serialNumber,
+      okpd2Code,
+      hasMultipleOkpd2,
+      resolvedKvr,
+      resolvedKbk,
+    ],
   );
 
   // Заголовки граф финансового обеспечения — как в форме ЕИС
@@ -297,43 +369,30 @@ export default function PurchasePlanPositionForm({
     }
   }
 
-  function fillIdentificationCode() {
-    setIkzBuildError(null);
-    const kbkVal = getValues("kbk") || getValues("kbkEntries.0.kbk");
-    const kvrVal = getValues("kvr");
-    const code = buildIdentificationCode({
-      planYear: getValues("plannedPlacementYear") || plan.planYear,
-      inn: plan.customer.inn,
-      kpp: plan.customer.kpp,
-      iku: getValues("iku"),
-      purchaseNumber,
-      purchaseOrderNumber: getValues("purchaseOrderNumber") || "000",
-      serialNumber,
-      okpd2Code: getValues("okpd2Code"),
-      hasMultipleOkpd2: Boolean(getValues("hasMultipleOkpd2")),
-      kvr: kvrVal,
-      kbk: kbkVal,
-    });
-
-    if (!code) {
-      setIkzBuildError(
-        "Для формирования 36-значного ИКЗ укажите ИНН/КПП заказчика (или 20-значный ИКУ), номер закупки, КВР (3 цифры) или 20-значный КБК.",
-      );
-      return;
-    }
-
-    setValue("identificationCode", code, { shouldValidate: true });
-  }
-
   function onSubmit(data: PurchasePlanPosition) {
     // КБК может быть собран из разрядов формы
     const kbkEntriesData = (data.kbkEntries ?? []).map((entry) => ({
       ...entry,
       kbk: entry.kbk || buildKbk(entry),
     }));
-    const resolvedKbk = data.kbk || kbkEntriesData[0]?.kbk || "";
-    const resolvedKvr =
-      data.kvr || (resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : "");
+    const saveKbk = data.kbk || kbkEntriesData[0]?.kbk || "";
+    // КВР — из КБК (последние 3 разряда), отдельное значение только резерв
+    const saveKvr = saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "";
+
+    // ИКЗ собираем сами по 55н и отправляем в XSD: заказчик его не вводит
+    const identificationCode = buildIdentificationCode({
+      planYear: data.plannedPlacementYear || plan.planYear,
+      inn: plan.customer.inn,
+      kpp: plan.customer.kpp,
+      iku: data.iku,
+      purchaseNumber: data.purchaseNumber,
+      purchaseOrderNumber: resolvedOrderNumber,
+      serialNumber: data.serialNumber || String(index + 1),
+      okpd2Code: data.okpd2Code,
+      hasMultipleOkpd2: Boolean(data.hasMultipleOkpd2),
+      kvr: saveKvr,
+      kbk: saveKbk,
+    });
 
     onSave({
       ...data,
@@ -342,9 +401,11 @@ export default function PurchasePlanPositionForm({
       uniqueNumber:
         data.uniqueNumber ||
         buildPositionUniqueNumber(plan.planNumber, serialNumber),
+      purchaseOrderNumber: resolvedOrderNumber,
+      identificationCode: identificationCode || data.identificationCode,
       kbkEntries: kbkEntriesData,
-      kbk: resolvedKbk,
-      kvr: resolvedKvr,
+      kbk: saveKbk,
+      kvr: saveKvr,
       // Скрытые чекбоксом блоки не должны оставлять значения в данных
       authorizedBodyName: data.hasAuthorizedBody ? data.authorizedBodyName : "",
       jointOrganizerName: data.hasJointOrganizer ? data.jointOrganizerName : "",
@@ -383,16 +444,22 @@ export default function PurchasePlanPositionForm({
                 <span className={block("label")}>
                   Уникальный номер позиции в плане-графике закупок
                 </span>
-                <input
-                  className={block("input", ["readonly"])}
-                  value={uniqueNumber || "сформируется при сохранении"}
-                  readOnly
-                />
+                {/* Номер собирает система при первом сохранении: заказчик его
+                    не вводит и не редактирует */}
+                {uniqueNumber ? (
+                  <span className={block("value", ["mono"])}>
+                    {uniqueNumber}
+                  </span>
+                ) : (
+                  <span className={block("value", ["muted"])}>
+                    Будет сформирован при первом сохранении позиции
+                  </span>
+                )}
                 <p className={block("hint")}>
                   24 цифры: 18 цифр реестрового номера плана-графика (год — 4,
                   код заказчика по СПЗ — 11, порядковый номер плана — 3) и 6
-                  цифр номера позиции, который ЕИС присваивает автоматически и
-                  не меняет при редактировании.
+                  цифр номера позиции. Собирается автоматически при сохранении и
+                  при редактировании не меняется.
                 </p>
               </div>
               <div className={block("cell")}>
@@ -473,12 +540,16 @@ export default function PurchasePlanPositionForm({
                 )}
               </div>
               <div className={block("cell")}>
-                <CustomInput
-                  configuration={{
-                    label: { value: "Порядковый номер закупки (3 знака)" },
-                    input: { name: "purchaseOrderNumber", placeholder: "000" },
-                  }}
-                />
+                <span className={block("label")}>
+                  Порядковый номер закупки (3 знака)
+                </span>
+                <span className={block("value", ["mono"])}>
+                  {resolvedOrderNumber}
+                </span>
+                <p className={block("hint")}>
+                  «000», если номер закупки в плане единственный; иначе
+                  инкрементируется по позициям с этим же номером закупки.
+                </p>
               </div>
               <div className={block("cell", ["okpd2"])}>
                 <label className={block("label")} htmlFor="position-okpd2">
@@ -513,39 +584,68 @@ export default function PurchasePlanPositionForm({
                 )}
               </div>
               <div className={block("cell")}>
-                <CustomInput
-                  configuration={{
-                    label: { value: "Код вида расходов — КВР (3 цифры)" },
-                    input: { name: "kvr", placeholder: "244" },
-                  }}
-                />
+                <span className={block("label")}>
+                  Код вида расходов — КВР (3 цифры)
+                </span>
+                <span className={block("value", ["mono"])}>
+                  {resolvedKvr || "—"}
+                </span>
+                <p className={block("hint")}>
+                  Подставляется из КБК — последние 3 разряда.
+                </p>
               </div>
               <div className={block("cell", ["wide"])}>
-                <CustomInput
-                  configuration={{
-                    label: {
-                      value: "Идентификационный код закупки (ИКЗ, 36 знаков)",
-                    },
-                    input: {
-                      name: "identificationCode",
-                      placeholder: "267701234567770101001100010003250244",
-                    },
-                  }}
-                />
-                <button
-                  type="button"
-                  className={block("link")}
-                  onClick={fillIdentificationCode}
-                >
-                  Сформировать 36-значный ИКЗ автоматически (ikzCodeType)
-                </button>
-                {ikzBuildError && (
-                  <span className={block("error")}>{ikzBuildError}</span>
+                <span className={block("label")}>
+                  Идентификационный код закупки (ИКЗ, 36 знаков)
+                </span>
+                <div className={block("table-wrap")}>
+                  <table className={block("table", ["ikz"])}>
+                    <thead>
+                      <tr>
+                        <th>Год</th>
+                        <th>Идентификационный код заказчика</th>
+                        <th>Номер закупки, включенной в план-график закупок</th>
+                        <th>Порядковый номер закупки</th>
+                        <th>Код позиции ОКПД2</th>
+                        <th>Код вида расходов</th>
+                        <th>Идентификационный код закупки</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        {[
+                          ikzParts.year,
+                          ikzParts.customerCode,
+                          ikzParts.purchaseNumber,
+                          ikzParts.orderNumber,
+                          ikzParts.okpd2,
+                          ikzParts.kvr,
+                          ikzParts.code,
+                        ].map((part, partIndex) => (
+                          <td key={partIndex}>
+                            <input
+                              className={block("input", ["readonly"])}
+                              value={part || "—"}
+                              readOnly
+                              aria-label={`Разряд ИКЗ ${partIndex + 1}`}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {!ikzParts.code && (
+                  <span className={block("error")}>
+                    ИКЗ не собран: проверьте ИКУ заказчика (ИНН/КПП), номер
+                    закупки и КВР/КБК.
+                  </span>
                 )}
                 <p className={block("hint")}>
                   Разряды ИКЗ формируются по Порядку, утверждённому{" "}
                   {IKZ_ORDER_REFERENCE}; формат 36 цифр закреплён XSD ЕИС 17.0
-                  (ikzCodeType).
+                  (ikzCodeType). Значения предзаполнены из граф позиции и не
+                  редактируются.
                 </p>
               </div>
               <div className={block("cell", ["wide"])}>
@@ -567,8 +667,7 @@ export default function PurchasePlanPositionForm({
               <CustomInput
                 configuration={{
                   label: {
-                    value:
-                      "Наименование товара, работы, услуги по ОКПД2",
+                    value: "Наименование товара, работы, услуги по ОКПД2",
                   },
                   input: { name: "okpd2Name" },
                 }}
@@ -643,14 +742,12 @@ export default function PurchasePlanPositionForm({
               </table>
             </div>
             {errorText("amountTotal") && (
-              <span className={block("error")}>
-                {errorText("amountTotal")}
-              </span>
+              <span className={block("error")}>{errorText("amountTotal")}</span>
             )}
             <p className={block("hint")}>
               «Всего» должно совпадать с суммой платежей по годам: год
-              формирования плана-графика и два следующих года планового
-              периода, остаток — последующие годы.
+              формирования плана-графика и два следующих года планового периода,
+              остаток — последующие годы.
             </p>
           </fieldset>
 
@@ -674,7 +771,9 @@ export default function PurchasePlanPositionForm({
                     <tr>
                       <th colSpan={4}>Код бюджетной классификации</th>
                       {AMOUNT_FIELDS.map((field) => (
-                        <th key={field.key}>{amountHeaders[field.key]}, рублей</th>
+                        <th key={field.key}>
+                          {amountHeaders[field.key]}, рублей
+                        </th>
                       ))}
                       <th />
                     </tr>
@@ -754,7 +853,10 @@ export default function PurchasePlanPositionForm({
                         Итого по кодам бюджетной классификации
                       </td>
                       {AMOUNT_FIELDS.map((field) => (
-                        <td key={field.key} className={block("cell", ["total"])}>
+                        <td
+                          key={field.key}
+                          className={block("cell", ["total"])}
+                        >
                           {formatMoney(kbkTotals[field.key])}
                         </td>
                       ))}
@@ -788,7 +890,8 @@ export default function PurchasePlanPositionForm({
           {(isConstructionWorks || koksEntries.fields.length > 0) && (
             <fieldset className={block("section")}>
               <legend>
-                Детализация по кодам КОКС — ОКС/ОНИ ({koksEntries.fields.length})
+                Детализация по кодам КОКС — ОКС/ОНИ ({koksEntries.fields.length}
+                )
               </legend>
               <ul className={block("kbk-list")}>
                 {koksEntries.fields.map((field, entryIndex) => (
@@ -862,9 +965,7 @@ export default function PurchasePlanPositionForm({
           )}
 
           <fieldset className={block("section")}>
-            <legend>
-              Статус записи, признаки ЕИС 17.0 и изменения
-            </legend>
+            <legend>Статус записи, признаки ЕИС 17.0 и изменения</legend>
             <div className={block("fields")}>
               <div className={block("cell")}>
                 <label className={block("label")} htmlFor="position-status">
@@ -911,8 +1012,8 @@ export default function PurchasePlanPositionForm({
                   className={block("label")}
                   htmlFor="position-public-discussion"
                 >
-                  Необходимо обязательное общественное обсуждение в
-                  соответствии со ст. 20 44-ФЗ
+                  Необходимо обязательное общественное обсуждение в соответствии
+                  со ст. 20 44-ФЗ
                 </label>
                 <select
                   id="position-public-discussion"
@@ -1029,8 +1130,8 @@ export default function PurchasePlanPositionForm({
                       )
                     }
                   />
-                  Закупка по пп. «а» п. 18 Положения № 1279 (объект
-                  капитального строительства)
+                  Закупка по пп. «а» п. 18 Положения № 1279 (объект капитального
+                  строительства)
                 </label>
                 <label className={block("checkbox")}>
                   <input

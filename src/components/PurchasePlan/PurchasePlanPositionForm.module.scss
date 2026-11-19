@@ -136,6 +136,23 @@
     }
   }
 
+  // Значение, которое выдаёт система: номер позиции показывается текстом,
+  // пока его нет — подсказка о формировании при первом сохранении
+  &__value {
+    font-size: 13px;
+    color: var(--text-primary);
+
+    &--mono {
+      font-family: "Courier New", monospace;
+      letter-spacing: 0.02em;
+    }
+
+    &--muted {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+  }
+
   &__select {
     padding: 7px 10px;
     font-family: inherit;
@@ -244,6 +261,19 @@
     &--sub {
       font-weight: 400;
       font-size: 11px;
+    }
+  }
+
+  // Таблица разрядов ИКЗ: 7 граф, значения только для чтения
+  &__table--ikz {
+    min-width: 760px;
+
+    td {
+      min-width: 80px;
+    }
+
+    input {
+      text-align: center;
     }
   }
 

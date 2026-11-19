@@ -346,7 +346,10 @@ export const PurchasePlanPositionSchema = z
       /^\d{1,3}$/,
       "Порядковый номер закупки в ИКЗ состоит из 3 цифр (в ПГ обычно 000)",
     ),
-    kvr: optionalPattern(/^\d{3}$/, "Код вида расходов (КВР) состоит из 3 цифр"),
+    kvr: optionalPattern(
+      /^\d{3}$/,
+      "Код вида расходов (КВР) состоит из 3 цифр",
+    ),
     ktruCode: optionalText(4, "Укажите код позиции по КТРУ"),
     ktruName: optionalText(2, "Укажите наименование позиции по КТРУ"),
     hasMultipleOkpd2: z.boolean().optional(),
@@ -539,7 +542,10 @@ export const isPurchaseNumberTaken = (
 ): boolean => {
   const value = toNumber(number);
 
-  return value !== null && purchaseNumbersUsed(positions, exceptNumber).includes(value);
+  return (
+    value !== null &&
+    purchaseNumbersUsed(positions, exceptNumber).includes(value)
+  );
 };
 
 // Разбивка КБК на разряды формы: глава 3, раздел/подраздел 4,
@@ -652,30 +658,24 @@ export const isPositionUniqueNumber = (
 export const IKZ_ORDER_REFERENCE =
   "приказом Минфина России от 10.04.2019 № 55н";
 
-/**
- * Формирование 36-значного ИКЗ по приказу Минфина России от 10.04.2019 № 55н
- * и в соответствии с XSD ЕИС 17.0 (`ikzCodeType`: ^\d{36}$):
- * - 1..2   (2) : последние 2 цифры года планирования;
- * - 3..22  (20): ИКУ заказчика (ИНН 10/12 + КПП 9 + код вида организации '1');
- * - 23..26 (4) : номер закупки, включённой в план-график;
- * - 27..29 (3) : порядковый номер закупки ('000' или порядковый номер в группе);
- * - 30..33 (4) : первые 4 цифры кода ОКПД2 (или '0000' при нескольких ОКПД2);
- * - 34..36 (3) : КВР (явный 3-значный код или последние 3 цифры 20-значного КБК).
- */
-export const buildIdentificationCode = ({
-  planYear,
-  inn,
-  kpp,
-  iku,
-  orgKindDigit = "1",
-  purchaseNumber,
-  purchaseOrderNumber,
-  serialNumber,
-  okpd2Code,
-  hasMultipleOkpd2 = false,
-  kvr,
-  kbk,
-}: {
+export interface IkzParts {
+  /** Год размещения извещения — 2 последние цифры */
+  year: string;
+  /** Идентификационный код заказчика (ИКУ) — 20 цифр */
+  customerCode: string;
+  /** Номер закупки, включённой в план-график — 4 цифры */
+  purchaseNumber: string;
+  /** Порядковый номер закупки — 3 цифры */
+  orderNumber: string;
+  /** Код позиции ОКПД2 — 4 цифры («0000» при нескольких кодах) */
+  okpd2: string;
+  /** Код вида расходов — 3 цифры */
+  kvr: string;
+  /** Собранный ИКЗ (36 цифр) или "", если части неполные */
+  code: string;
+}
+
+interface IkzSource {
   planYear: string | number | undefined;
   inn: string | undefined;
   kpp: string | undefined;
@@ -688,18 +688,49 @@ export const buildIdentificationCode = ({
   hasMultipleOkpd2?: boolean;
   kvr?: string | undefined;
   kbk: string | undefined;
-}): string => {
+}
+
+/**
+ * Разбор ИКЗ на разряды по приказу Минфина России от 10.04.2019 № 55н:
+ * - 1..2   (2) : последние 2 цифры года планирования;
+ * - 3..22  (20): ИКУ заказчика (ИНН 10/12 + КПП 9 + код вида организации '1');
+ * - 23..26 (4) : номер закупки, включённой в план-график;
+ * - 27..29 (3) : порядковый номер закупки ('000' или порядковый номер в группе);
+ * - 30..33 (4) : первые 4 цифры кода ОКПД2 (или '0000' при нескольких ОКПД2);
+ * - 34..36 (3) : КВР (явный 3-значный код или последние 3 цифры 20-значного КБК).
+ *
+ * Возвращает и части по отдельности (для таблицы ИКЗ в карточке позиции),
+ * и собранный код.
+ */
+export const buildIkzParts = ({
+  planYear,
+  inn,
+  kpp,
+  iku,
+  orgKindDigit = "1",
+  purchaseNumber,
+  purchaseOrderNumber,
+  serialNumber,
+  okpd2Code,
+  hasMultipleOkpd2 = false,
+  kvr,
+  kbk,
+}: IkzSource): IkzParts => {
   const year = toNumber(planYear);
   const ikuDigits = String(iku ?? "").replace(/\D/g, "");
   const innDigits = String(inn ?? "").replace(/\D/g, "");
   const kppDigits = String(kpp ?? "").replace(/\D/g, "");
-  const kind = String(orgKindDigit ?? "1").replace(/\D/g, "").slice(0, 1) || "1";
+  const kind =
+    String(orgKindDigit ?? "1")
+      .replace(/\D/g, "")
+      .slice(0, 1) || "1";
 
   let customerCode20 = "";
   if (ikuDigits.length === 20) {
     customerCode20 = ikuDigits;
   } else if (innDigits.length >= 10) {
-    const baseInn = innDigits.length === 10 ? innDigits : innDigits.slice(0, 12);
+    const baseInn =
+      innDigits.length === 10 ? innDigits : innDigits.slice(0, 12);
     const kppPart = kppDigits.padStart(9, "0").slice(0, 9);
     customerCode20 = `${baseInn}${kppPart}${kind}`.slice(0, 20).padEnd(20, "0");
   }
@@ -725,24 +756,71 @@ export const buildIdentificationCode = ({
         .slice(0, 4)
         .padEnd(4, "0");
 
-  if (
-    year === null ||
-    customerCode20.length !== 20 ||
-    purchase === null ||
-    expenditureKind.length !== 3
-  ) {
-    return "";
-  }
+  const yearPart = year === null ? "" : String(year % 100).padStart(2, "0");
+  const purchasePart =
+    purchase === null
+      ? ""
+      : String(Math.trunc(purchase)).padStart(4, "0").slice(-4);
+  const orderPart = String(Math.trunc(order)).padStart(3, "0").slice(-3);
 
-  return [
-    String(year % 100).padStart(2, "0"),
-    customerCode20,
-    String(Math.trunc(purchase)).padStart(4, "0").slice(-4),
-    String(Math.trunc(order)).padStart(3, "0").slice(-3),
-    okpdDigits,
-    expenditureKind,
-  ].join("");
+  const complete =
+    yearPart.length === 2 &&
+    customerCode20.length === 20 &&
+    purchasePart.length === 4 &&
+    expenditureKind.length === 3;
+
+  return {
+    year: yearPart,
+    customerCode: customerCode20,
+    purchaseNumber: purchasePart,
+    orderNumber: orderPart,
+    okpd2: okpdDigits,
+    kvr: expenditureKind,
+    code: complete
+      ? [
+          yearPart,
+          customerCode20,
+          purchasePart,
+          orderPart,
+          okpdDigits,
+          expenditureKind,
+        ].join("")
+      : "",
+  };
 };
+
+/**
+ * Формирование 36-значного ИКЗ по приказу Минфина России от 10.04.2019 № 55н
+ * и в соответствии с XSD ЕИС 17.0 (`ikzCodeType`: ^\d{36}$).
+ */
+export const buildIdentificationCode = ({
+  planYear,
+  inn,
+  kpp,
+  iku,
+  orgKindDigit = "1",
+  purchaseNumber,
+  purchaseOrderNumber,
+  serialNumber,
+  okpd2Code,
+  hasMultipleOkpd2 = false,
+  kvr,
+  kbk,
+}: IkzSource): string =>
+  buildIkzParts({
+    planYear,
+    inn,
+    kpp,
+    iku,
+    orgKindDigit,
+    purchaseNumber,
+    purchaseOrderNumber,
+    serialNumber,
+    okpd2Code,
+    hasMultipleOkpd2,
+    kvr,
+    kbk,
+  }).code;
 
 // json-server отдаёт organizationId числом, а из строки запроса он приходит
 // строкой, поэтому принадлежность сравниваем как строки
