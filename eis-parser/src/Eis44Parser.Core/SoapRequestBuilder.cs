@@ -11,8 +11,10 @@ namespace Eis44Parser.Core;
 /// </summary>
 public static class SoapRequestBuilder
 {
-    private const string SoapNamespace = "http://xmlsoap.org";
-    private const string EisNamespace = "http://zakupki.gov.ru";
+    // Пространства имён по официальной WSDL/XSD 17.0 getDocsIP:
+    // soap:envelope — SOAP 1.1, Body — targetNamespace сервиса.
+    private const string SoapNamespace = "http://schemas.xmlsoap.org/soap/envelope/";
+    private const string EisNamespace = "http://zakupki.gov.ru/fz44/get-docs-ip/ws";
 
     /// <summary>
     /// Запрос извещений по региону за конкретную дату.
@@ -59,9 +61,10 @@ public static class SoapRequestBuilder
 
     /// <summary>
     /// Запрос выгрузки справочника НСИ (getNsiRequest). Порядок тегов и
-    /// допустимые значения nsiKind — по getDocsIP-ws-api.xsd 17.0 (line 687+):
-    /// index, затем selectionParams{nsiCode44, nsiKind}.
-    /// Пространство имён конверта повторяет остальные методы этого сервиса.
+    /// допустимые значения nsiKind — по getDocsIP-ws-api.xsd 17.0:
+    /// index, затем selectionParams{nsiCode44, nsiKind}. Корневой элемент
+    /// живёт в targetNamespace сервиса, дочерние — без namespace
+    /// (elementFormDefault="unqualified").
     /// </summary>
     public static string BuildNsiRequest(
         string token,

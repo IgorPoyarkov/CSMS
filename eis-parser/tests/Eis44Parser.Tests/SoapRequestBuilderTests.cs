@@ -25,6 +25,13 @@ public sealed class SoapRequestBuilderTests
 
         var document = XDocument.Parse(xml);
         Assert.Equal("Envelope", document.Root?.Name.LocalName);
+        Assert.Equal("http://schemas.xmlsoap.org/soap/envelope/", document.Root?.Name.NamespaceName);
+        Assert.Equal(
+            "http://zakupki.gov.ru/fz44/get-docs-ip/ws",
+            document.Descendants().Single(e => e.Name.LocalName == "getDocsByOrgRegionRequest").Name.NamespaceName);
+        Assert.Equal(
+            string.Empty,
+            document.Descendants().Single(e => e.Name.LocalName == "index").Name.NamespaceName);
 
         var token = document.Descendants()
             .Single(element => element.Name.LocalName == "individualPerson_token")
@@ -81,8 +88,12 @@ public sealed class SoapRequestBuilderTests
 
         var document = XDocument.Parse(xml);
         Assert.Equal("Envelope", document.Root?.Name.LocalName);
-        Assert.Equal("getNsiRequest", document.Descendants()
-            .Single(element => element.Name.LocalName == "getNsiRequest").Name.LocalName);
+        Assert.Equal("http://schemas.xmlsoap.org/soap/envelope/", document.Root?.Name.NamespaceName);
+        var request = document.Descendants().Single(element => element.Name.LocalName == "getNsiRequest");
+        Assert.Equal("getNsiRequest", request.Name.LocalName);
+        Assert.Equal("http://zakupki.gov.ru/fz44/get-docs-ip/ws", request.Name.NamespaceName);
+        Assert.Equal(string.Empty, document.Descendants()
+            .Single(element => element.Name.LocalName == "index").Name.NamespaceName);
         Assert.Equal("token&1", document.Descendants()
             .Single(element => element.Name.LocalName == "individualPerson_token").Value);
 

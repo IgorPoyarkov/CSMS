@@ -47,3 +47,6 @@ eis44.db
 
 # Локальный конфиг туннеля ЕИС с PIN (никогда не коммитить)
 eis-parser/stunnel.local.conf
+
+# Модели, сгенерированные из XSD: воспроизводятся schemas/generate-models.ps1
+eis-parser/src/Eis44Parser.Core/Models/Generated/

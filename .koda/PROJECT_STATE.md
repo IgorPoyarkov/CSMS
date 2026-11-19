@@ -710,6 +710,19 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   Настройки — раздел `EisNsi` в appsettings: `NsiCode=nsiKtru` надо подтвердить
   ответом `nsiAllList`. Проверки: `dotnet build` 0 ошибок/0 предупреждений,
   `dotnet test` 12/12, `--validate` зелёный. Описание — `eis-parser/README.md`.
+- **Альбом ТФФ 17.0 прочитан и разложен по типам (2026-11-19).** Найдены архивы
+  `Альбом ТФФ 17.0.zip` (19 docx: оглавление + приложения 1–18) и
+  `Схемы 17.0 итерация 2.zip` (32 XSD + 16 WSDL). Схемы распакованы в
+  `eis-parser/schemas/Schemas44/`, каталог всех глобальных определений —
+  `TYPE_CATALOG.json` / `.md` (3548: 1674 complexType, 690 simpleType, 1177
+  element, 3 group, 4 attributeGroup), генератор — `generate-type-catalog.ps1`.
+  В `getDocsLE-ws-api.xsd` исправлена опечатка архива (`?>>` → `?>`).
+  По WSDL/XSD уточнены namespace SOAP: envelope `http://schemas.xmlsoap.org/soap/envelope/`,
+  тело `http://zakupki.gov.ru/fz44/get-docs-ip/ws`; локальные теги без ns
+  (`elementFormDefault="unqualified"`). `SoapRequestBuilder` и тесты обновлены.
+  C#-модели генерируются `schemas/generate-models.ps1` (xscgen, 32 файла,
+  ~29,8 МБ) в `Models/Generated/`, папка в `.gitignore`; сборка 0 ошибок,
+  тесты 12/12. Живой канал ЕИС по-прежнему закрыт.
 - ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
   `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
   экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`

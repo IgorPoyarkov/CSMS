@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 # Генерация строгих C#-моделей из XSD-схем ЕИС 44-ФЗ.
 # Запуск из папки schemas: ./generate-models.ps1
 
@@ -22,10 +22,11 @@ if ($xsdFiles.Count -eq 0) {
     throw "В $schemaDir нет XSD-файлов"
 }
 
+# Один префикс на все пространства имён: дублирование -n с одним и тем же
+# XML namespace падает с ArgumentException (Duplicate NamespaceKey).
 xscgen `
     -o $outputDir `
-    -n "http://zakupki.gov.ru" `
-    -n "http://zakupki.gov.ru" `
+    -p "Eis17" `
     $xsdFiles.FullName
 
 Write-Host "Модели сгенерированы в $outputDir"

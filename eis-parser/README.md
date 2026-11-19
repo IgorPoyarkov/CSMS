@@ -14,6 +14,20 @@ XML-данных из ЕИС через SOAP-сервис `getDocsIP`. Поль�
 | `Eis44Parser.Worker` | Фоновая служба опроса, конфигурация, CLI-режимы |
 | `Eis44Parser.Tests` | xUnit: порядок SOAP-тегов, парсинг разных версий схем, дедупликация |
 
+## Схемы и типы Альбома ТФФ 17.0
+
+В `schemas/Schemas44/` лежит полный официальный комплект XSD 17.0 (32 схемы
+и 16 WSDL) из архива `Схемы 17.0 итерация 2.zip`; текстовые описания форматов —
+в 19 `.docx` архива `Альбом ТФФ 17.0.zip` в корне репозитория. Каталог всех
+глобальных определений (3548): `schemas/TYPE_CATALOG.json` и `.md`, пересоздаётся
+скриптом `schemas/generate-type-catalog.ps1`.
+
+По этим схемам уточнены SOAP-_namespace в `SoapRequestBuilder`: конверт
+`http://schemas.xmlsoap.org/soap/envelope/`, тело
+`http://zakupki.gov.ru/fz44/get-docs-ip/ws`; дочерние теги не квалифицированы
+(`elementFormDefault="unqualified"`). Сгенерированные C#-модели создаются по
+запросу `schemas/generate-models.ps1` (не коммитятся, подробности — `schemas/README.md`).
+
 ## Сетевой контур
 
 ЕИС на `int44.zakupki.gov.ru` требует ГОСТ-TLS (КриптоПро CSP). Обычный
