@@ -60,6 +60,19 @@ export const contractSmpStatusLabels: Record<ContractSmpStatus, string> = {
   pushedToEis: "Выгружены в ЕИС",
 };
 
+// Вид цены в сведениях реестра контрактов ЕИС: цена контракта или цена
+// единицы товара (работы, услуги). Для договоров с субподрядчиком обычно
+// указывается цена договора, но при неопределённом объёме — цена единицы.
+export const CONTRACT_SMP_PRICE_TYPES = ["contract", "unit"] as const;
+
+export type ContractSmpPriceType = (typeof CONTRACT_SMP_PRICE_TYPES)[number];
+
+export const contractSmpPriceTypeLabels: Record<ContractSmpPriceType, string> =
+  {
+    contract: "Цена контракта (договора)",
+    unit: "Цена единицы товара (работы, услуги)",
+  };
+
 const optionalText = (max = 300) =>
   z.string().max(max).optional().or(z.literal(""));
 
@@ -128,6 +141,18 @@ export const ContractSmpRecordSchema = z.object({
       "Неверный формат даты (ГГГГ-ММ-ДД)",
     ),
   amount: optionalMoney(),
+  // Код ОКПД2 предмета договора — поле реестра контрактов ЕИС
+  okpd2Code: z
+    .string()
+    .refine(
+      (v) => v === "" || /^\d{2}(\.\d+)*$/.test(v),
+      "ОКПД2: цифры и точки, например 43.31.10",
+    )
+    .optional(),
+  // Вид цены контракта для карточки реестра
+  priceType: z.enum(CONTRACT_SMP_PRICE_TYPES).default("contract"),
+  // Цена за единицу, если выбран вид цены «цена единицы»
+  unitPrice: optionalMoney(),
   subject: optionalText(500),
   // Период, к которому относятся сведения (например «2026-07» или квартал)
   period: optionalText(100),
@@ -325,6 +350,9 @@ export const emptyContractSmpRecord = (
   documentNumber: "",
   documentDate: new Date().toISOString().slice(0, 10),
   amount: "",
+  okpd2Code: "",
+  priceType: "contract",
+  unitPrice: "",
   subject: "",
   period: "",
   supplierName: "",

@@ -294,6 +294,13 @@ progress, shortfall, shortfallPercent }`,
 `SOURCE_FILE_HINT` — плашка «из имени файла прочитано: номер, дата — проверьте»
 или «не найдено — внесите вручную».
 
+**Поля реестра ЕИС в выгрузке (2026-11-19):** в `ContractSmpRecordSchema`
+добавлены `okpd2Code`, `priceType` (`contract` | `unit`) и `unitPrice`;
+в форме сведений — ОКПД2, вид цены и цена за единицу (показывается при
+`priceType = unit`); CSV (`Eis/eisExport.ts`) содержит колонки `okpd2Code`,
+`priceType`, `unitPrice`. Старые записи получают `priceType = contract`
+через `.default()`.
+
 **Сиды:** contract1: id1–8 + id19 (org1, 9 записей, недобор 1 400 000 / 56,25 %,
 неустойка 35 000); contract2: id9–12 + 15–18 (org1, 8 записей, закрыт 107,98 %);
 contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, неустойка

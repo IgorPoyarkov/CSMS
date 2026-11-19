@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import type { ContractSmpRecord } from "../ContractSmp/contractSmp.schema";
-import { ContractSmpRecordSchema } from "../ContractSmp/contractSmp.schema";
+import {
+  ContractSmpRecordSchema,
+  contractSmpPriceTypeLabels,
+} from "../ContractSmp/contractSmp.schema";
 import { contractSmpQueryKey } from "../ContractSmp/contractSmp.api";
 import type { ContractRegistryItem } from "../ContractRegistry/contractRegistry.schema";
 import { contractRegistryQueryKey } from "../ContractRegistry/contractRegistry.api";
@@ -104,6 +107,9 @@ export const buildSmpExportCsv = (
         documentNumber: record.documentNumber,
         documentDate: record.documentDate,
         amount: record.amount ?? "",
+        okpd2Code: record.okpd2Code ?? "",
+        priceType: contractSmpPriceTypeLabels[record.priceType] ?? "",
+        unitPrice: record.unitPrice ?? "",
         supplierFull:
           record.supplierName +
           (record.supplierInn ? ` (ИНН ${record.supplierInn})` : ""),

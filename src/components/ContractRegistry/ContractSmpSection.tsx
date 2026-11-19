@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useContractSmpRecords,
@@ -14,6 +14,7 @@ import {
   computeSmpPenalty,
   contractSmpDocumentTypeLabels,
   contractSmpStatusLabels,
+  contractSmpPriceTypeLabels,
   type ContractSmpRecord,
 } from "../../services/ContractSmp/contractSmp.schema";
 import {
@@ -695,6 +696,8 @@ function ContractSmpRecordForm({
     formState: { errors },
   } = methods;
 
+  const priceType = useWatch({ control: methods.control, name: "priceType" });
+
   // Файл-основание: в базе остаётся только его имя, содержимое не читается
   const [sourceFile, setSourceFile] = useState<SourceFileFields | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -811,7 +814,7 @@ function ContractSmpRecordForm({
               )}
             </div>
 
-            {/* Сумма */}
+            {/* Сумма и реквизиты цены для реестра ЕИС */}
             <div className={block("field")}>
               <label className={block("label")} htmlFor="smp-amount">
                 Сумма, ₽
@@ -826,6 +829,56 @@ function ContractSmpRecordForm({
                 <span className={block("error")}>{errorText("amount")}</span>
               )}
             </div>
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="smp-okpd2">
+                ОКПД2 предмета договора
+              </label>
+              <input
+                id="smp-okpd2"
+                className={block("input")}
+                {...register("okpd2Code")}
+                placeholder="43.31.10"
+              />
+              {errorText("okpd2Code") && (
+                <span className={block("error")}>{errorText("okpd2Code")}</span>
+              )}
+            </div>
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="smp-price-type">
+                Вид цены контракта
+              </label>
+              <select
+                id="smp-price-type"
+                className={block("select")}
+                {...register("priceType")}
+              >
+                {Object.entries(contractSmpPriceTypeLabels).map(
+                  ([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+            {priceType === "unit" && (
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="smp-unit-price">
+                  Цена за единицу, ₽
+                </label>
+                <input
+                  id="smp-unit-price"
+                  className={block("input")}
+                  {...register("unitPrice")}
+                  placeholder="0.00"
+                />
+                {errorText("unitPrice") && (
+                  <span className={block("error")}>
+                    {errorText("unitPrice")}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Субподрядчик */}
             <div className={block("field", ["wide"])}>
