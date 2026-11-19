@@ -272,6 +272,23 @@ export const buildContractProjectDraft = (
   project.noticeNumber =
     notice?.generalInfo?.noticeNumber || sources.noticeNumber || "";
   project.projectDate = today;
+  // Снимок полей XSD проекта контракта (contractProjectType). Номер закупки,
+  // способ, ЭТП, формула цены и признак неопределённого объёма приходят из
+  // извещения; протокол-основание и номер заявки появляются после процедуры.
+  project.eisInfo = {
+    ...project.eisInfo,
+    purchaseNumber: project.noticeNumber,
+    etpName: notice?.generalInfo?.etpName ?? "",
+    etpUrl: notice?.generalInfo?.etpUrl ?? "",
+    placingWayCode: notice?.generalInfo?.placingWayCode ?? "",
+    placerRole: notice?.contactInfo?.responsibleRole ?? "CU",
+    isContractPriceFormula: Boolean(
+      notice?.contractConditions?.usePriceFormulaPP19,
+    ),
+    quantityUndefined: Boolean(
+      notice?.purchaseObjects?.isIndeterminateVolume,
+    ),
+  };
   project.preamble = {
     place: "",
     customerRole: "Заказчик",

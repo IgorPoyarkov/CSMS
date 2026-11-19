@@ -442,6 +442,50 @@ export const ContractRequisitesSchema = z.object({
   signerBasis: z.string().optional(),
 });
 
+// ─── Поля выгрузки в ЕИС (contractProjectType) ─────────────────────────────
+
+/**
+ * Поля проекта контракта, которые требует XSD ЕИС
+ * (IntegrationCPTypes.xsd, contractProjectCommonType + contractProjectType),
+ * но которых нет в тексте контракта. Часть приходит по цепочке
+ * ПГ → СЗ → извещение (номер закупки, способ, ЭТП, формула цены, объём),
+ * часть появляется только после процедуры (протокол-основание, номер заявки).
+ *
+ * Блок хранится отдельно от разделов контракта: он нужен мапперу в XML,
+ * а не печатной форме.
+ */
+export const ContractEisInfoSchema = z.object({
+  // foundationInfo/purchaseNumber — номер закупки в ЕИС (номер извещения)
+  purchaseNumber: optionalText(1, "Укажите номер закупки в ЕИС"),
+  // foundationInfo/protocolInfo — итоговый протокол-основание
+  protocolName: optionalText(2, "Укажите наименование протокола-основания"),
+  protocolNumber: optionalText(1, "Укажите номер протокола-основания"),
+  protocolPublishDate: optionalDate(),
+  // foundationInfo/ETP и placingWay — значения из связанного извещения
+  etpName: z.string().optional(),
+  etpUrl: z.string().optional(),
+  placingWayCode: z.string().optional(),
+  // placerInfo/responsibleRole — роль организации, размещающей проект
+  placerRole: z.string().default("CU"),
+  // contractInfo/isStructuredForm — проект формируется в структурированном виде
+  isStructuredForm: z.boolean().default(false),
+  // isContractPriceFormula — указана формула цены и максимальное значение
+  isContractPriceFormula: z.boolean().default(false),
+  // quantityUndefined — объём нельзя определить (ч. 24 ст. 22)
+  quantityUndefined: z.boolean().default(false),
+  // appNumber — номер заявки победителя в итоговом протоколе
+  appNumber: optionalText(1, "Укажите номер заявки победителя"),
+  // contractInfo/concludeContractRight — торги на право заключения контракта
+  concludeContractRight: z.boolean().default(false),
+  // contractInfo/conclusionContractSt95Ch17.1
+  conclusionContractSt95Ch17_1: z.boolean().default(false),
+  // contractInfo/changePriceInfo — цена изменена относительно предложения
+  changePrice: optionalMoney(),
+  changePriceFoundation: z.string().optional(),
+});
+
+export type ContractEisInfo = z.infer<typeof ContractEisInfoSchema>;
+
 // ─── Приложения ────────────────────────────────────────────────────────────
 
 export const CONTRACT_APPENDIX_KINDS = [
@@ -513,6 +557,25 @@ export const ContractProjectSchema = z.object({
   ikz: optionalText(10, "Укажите ИКЗ"),
   // Номер извещения
   noticeNumber: optionalText(1, "Укажите номер извещения"),
+  // Поля выгрузки в ЕИС, которых нет в тексте контракта
+  eisInfo: ContractEisInfoSchema.default(() => ({
+    purchaseNumber: "",
+    protocolName: "",
+    protocolNumber: "",
+    protocolPublishDate: "",
+    etpName: "",
+    etpUrl: "",
+    placingWayCode: "",
+    placerRole: "CU",
+    isStructuredForm: false,
+    isContractPriceFormula: false,
+    quantityUndefined: false,
+    appNumber: "",
+    concludeContractRight: false,
+    conclusionContractSt95Ch17_1: false,
+    changePrice: "",
+    changePriceFoundation: "",
+  })),
   // Номер проекта контракта
   contractNumber: z.string().optional(),
   // Процент привлечения СМП/СОНКО по ч. 5 ст. 30 — наследуется из
@@ -659,6 +722,24 @@ export const emptyContractProject = (
   procurementId: "",
   ikz: "",
   noticeNumber: "",
+  eisInfo: {
+    purchaseNumber: "",
+    protocolName: "",
+    protocolNumber: "",
+    protocolPublishDate: "",
+    etpName: "",
+    etpUrl: "",
+    placingWayCode: "",
+    placerRole: "CU",
+    isStructuredForm: false,
+    isContractPriceFormula: false,
+    quantityUndefined: false,
+    appNumber: "",
+    concludeContractRight: false,
+    conclusionContractSt95Ch17_1: false,
+    changePrice: "",
+    changePriceFoundation: "",
+  },
   contractNumber: "",
   contractName: "",
   customerName: "",

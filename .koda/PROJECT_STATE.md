@@ -957,7 +957,8 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `PurchasePlanPosition` ↔ `zfcs_purchasePlanPositionType`
   (IntegrationTypes.xsd:63862), `NoticeInfoFormValues` ↔
   `zfcs_purchaseNotificationType` + `zfcs_notificationEFType`
-  (IntegrationTypes.xsd:43525). По ПГ и извещению совпадает базовый контур
+  (IntegrationTypes.xsd:43525), `ContractProject` ↔ `contractProjectType`
+  (IntegrationCPTypes.xsd:6150, через `contractProjectCommonType`). По ПГ и извещению совпадает базовый контур
   (ИКЗ, номер закупки, НМЦК, ОКПД2, суммы по годам, способ, ЭТП, сроки подачи,
   обеспечения), но не хватает КТРУ, срока и периодичности закупки,
   цели/обоснования, структурированных этапов и отдельных блоков требований к
@@ -973,10 +974,24 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `tenderPlanPurchaseNumber` (ЕИС ставит `'000'`), `complexityInfo`,
   `publicDiscussionPhase1Num`, `positionCanceled`, `positionModification`;
   `kbkEntries` уточнён как `KBKInfo = KBK + KBKYearsInfo`.
+- **Проект контракта и выгрузка в ЕИС.** В `ContractProjectSchema` добавлен
+  блок `eisInfo` (`ContractEisInfoSchema`) — снимок полей `contractProjectType`,
+  которых нет в тексте контракта: `purchaseNumber`, протокол-основание
+  (`protocolName/Number/PublishDate`), `etpName/etpUrl`, `placingWayCode`,
+  `placerRole`, `isStructuredForm`, `isContractPriceFormula`,
+  `quantityUndefined`, `appNumber`, `concludeContractRight`,
+  `conclusionContractSt95Ch17_1`, `changePrice/changePriceFoundation`.
+  `buildContractProjectDraft` заполняет из извещения номер закупки, способ,
+  ЭТП, формулу цены, неопределённый объём и роль размещающего; протокол и
+  номер заявки остаются на этап процедуры. Блок имеет `.default()`, поэтому
+  старые записи читаются без миграции. Пробелы по цепочке ПГ → СЗ → извещение:
+  протокол-основание, номер заявки, структурированная форма, изменение цены и
+  файлы проекта контракта.
 - **Визуальный чек-лист:** модалка «Покрытие XSD» в шапке
   (`src/components/Eis/EisCoverageModal.tsx` + `.module.scss`) читает
   `EIS_XSD_COVERAGE`, показывает табы по типам (план закупок → ПГ → извещение
-  → контракт → СМП → оплата → приёмка → этапы → отчёт СМП), сводку по статусам
+  → проект контракта → контракт → СМП → оплата → приёмка → этапы → отчёт СМП),
+  сводку по статусам
   и таблицу полей с пометками «обяз./опц.». Колонки: «Наше поле», «XSD»,
   «Что написано рядом», «Статус», «Что это значит» (наш комментарий `note`).
   Отдельного маршрута нет — открывается из хэдера и не уводит со страницы;
