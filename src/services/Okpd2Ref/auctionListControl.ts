@@ -1,3 +1,5 @@
+import { NPA_DOCUMENT_CODES } from "../Npa/npa.api";
+import { isNpaIndexLoaded, resolveNpaRule } from "../Npa/npaControl";
 import type { Okpd2Ref } from "./okpd2Ref.schema";
 
 export const AUCTION_LIST_ACT_TITLE =
@@ -167,6 +169,8 @@ export interface AuctionListCheckResult {
   groupLabel?: string;
   note?: string;
   legalBasis: string;
+  /** Правило из акта неоднозначно и ждёт решения человека. */
+  needsReview?: boolean;
 }
 
 /**
@@ -186,6 +190,28 @@ export const checkOkpd2AuctionList = (
       inAuctionList: false,
       excludedByException: false,
       legalBasis: AUCTION_LIST_ACT_TITLE,
+    };
+  }
+
+  // Источник истины — правила НПА, разобранные агентом из официального текста.
+  // Пока индекс не загружен, используется исторический эталон 471-р 2022 года.
+  if (isNpaIndexLoaded(NPA_DOCUMENT_CODES.auctionList)) {
+    const npa = resolveNpaRule(NPA_DOCUMENT_CODES.auctionList, code);
+    const excluded = npa?.ruleType === "exclude";
+
+    return {
+      code,
+      inAuctionList: Boolean(npa) && !excluded,
+      excludedByException: excluded ?? false,
+      groupLabel: npa?.conditionText ?? undefined,
+      note: npa?.needsReview
+        ? "Правило 471-р требует проверки человеком (needs_review)."
+        : (npa?.conditionText ??
+          (!npa
+            ? "Код ОКПД2 не найден в аукционном перечне 471-р по данным csms-api."
+            : undefined)),
+      legalBasis: AUCTION_LIST_ACT_TITLE,
+      needsReview: npa?.needsReview,
     };
   }
 

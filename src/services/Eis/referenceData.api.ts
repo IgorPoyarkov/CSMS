@@ -71,7 +71,7 @@ export interface ReferenceItemQuery {
  * строкой `payloadJson`; форму ответа (массив или конверт с `items`) не
  * фиксируем жёстко — парсер терпим к обоим вариантам.
  */
-const readReferenceItems = (data: unknown): ReferenceItemInfo[] => {
+export const readReferenceItems = (data: unknown): ReferenceItemInfo[] => {
   const container = data as { items?: unknown } | unknown[] | null;
   const list = Array.isArray(container)
     ? container
@@ -136,6 +136,8 @@ export const useReferenceDatasetEvents = (enabled: boolean) => {
     const events = new EventSource(`${BASE_URL}/api/references/events`);
     const invalidate = () => {
       void queryClient.invalidateQueries({ queryKey: referenceDatasetsQueryKey });
+      // ОКПД2-справочник фронта строится по этому снимку НСИ.
+      void queryClient.invalidateQueries({ queryKey: ["okpd2Refs"] });
     };
 
     events.addEventListener("ready", invalidate);
