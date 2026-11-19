@@ -21,6 +21,7 @@ import styles from "./EisCoverageModal.module.scss";
  */
 
 const DOMAIN_LABELS: Record<string, string> = {
+  PurchasePlan: "План закупок",
   PurchasePlanPosition: "План-график",
   NoticeInfoFormValues: "Извещение",
   ContractRegistryItem: "Контракт",
@@ -40,6 +41,7 @@ const STATUS_ORDER: EisCoverageStatus[] = [
 
 // Порядок табов повторяет движение документа: ПГ → извещение → контракт → СМП.
 const DOMAIN_ORDER = [
+  "PurchasePlan",
   "PurchasePlanPosition",
   "NoticeInfoFormValues",
   "ContractRegistryItem",

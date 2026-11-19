@@ -901,21 +901,32 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `zfcs_contract2015SubContractInfoType`, `ContractPayment` ↔ `payDocumentInfo`
   (IntegrationCETypes.xsd:76), `ContractDelivery` ↔ `docAcceptanceInfo`,
   `ContractStage` ↔ `stagetInfoType`, `SmnpReport` ↔
-  `zfcs_customerReportSmallScaleBusinessType`, `PurchasePlanPosition` ↔
-  `zfcs_purchasePlanPositionType` (IntegrationTypes.xsd:63862),
-  `NoticeInfoFormValues` ↔ `zfcs_purchaseNotificationType` +
-  `zfcs_notificationEFType` (IntegrationTypes.xsd:43525). По ПГ и извещению
-  совпадает базовый контур (ИКЗ, номер закупки, НМЦК, ОКПД2, суммы по годам,
-  способ, ЭТП, сроки подачи, обеспечения), но не хватает КТРУ, срока и
-  периодичности закупки, цели/обоснования, структурированных этапов и
-  отдельных блоков требований к участникам. Статусы полей:
-  `mapped` / `partial` / `missing` / `derived`; номера строк — подсказка, при
-  обновлении Альбома сдвинутся.
+  `zfcs_customerReportSmallScaleBusinessType`, `PurchasePlan` ↔
+  `zfcs_purchasePlanType` (IntegrationTypes.xsd:63286),
+  `PurchasePlanPosition` ↔ `zfcs_purchasePlanPositionType`
+  (IntegrationTypes.xsd:63862), `NoticeInfoFormValues` ↔
+  `zfcs_purchaseNotificationType` + `zfcs_notificationEFType`
+  (IntegrationTypes.xsd:43525). По ПГ и извещению совпадает базовый контур
+  (ИКЗ, номер закупки, НМЦК, ОКПД2, суммы по годам, способ, ЭТП, сроки подачи,
+  обеспечения), но не хватает КТРУ, срока и периодичности закупки,
+  цели/обоснования, структурированных этапов и отдельных блоков требований к
+  участникам. Статусы полей: `mapped` / `partial` / `missing` / `derived`;
+  номера строк — подсказка, при обновлении Альбома сдвинутся.
+- **Шапка плана и поля ПГ (расширено).** В `PurchasePlan` добавлены
+  `planPeriod` (firstYear/secondYear), отдельный `approveDate` (XSD различает
+  `confirmDate` и `approveDate`), `customerInfo` с ОКОПФ/ОКФС/ОКТМО,
+  `responsibleContactInfo`, `specialPurchases` (Tasks 5), `outcomeIndicators`
+  и `versionNumber`. В `PurchasePlanPosition` отмечены обязательные по XSD, но
+  отсутствующие у нас поля: `KVRInfo/code`, блок `execution` (term и/или
+  periodicity), `basementInfo`; добавлены `IKU`, `extNumber`,
+  `tenderPlanPurchaseNumber` (ЕИС ставит `'000'`), `complexityInfo`,
+  `publicDiscussionPhase1Num`, `positionCanceled`, `positionModification`;
+  `kbkEntries` уточнён как `KBKInfo = KBK + KBKYearsInfo`.
 - **Визуальный чек-лист:** модалка «Покрытие XSD» в шапке
   (`src/components/Eis/EisCoverageModal.tsx` + `.module.scss`) читает
-  `EIS_XSD_COVERAGE`, показывает табы по типам (ПГ → извещение → контракт →
-  СМП → оплата → приёмка → этапы → отчёт СМП), сводку по статусам и таблицу
-  полей с пометками «обяз./опц.». Отдельного маршрута нет — открывается из
+  `EIS_XSD_COVERAGE`, показывает табы по типам (план закупок → ПГ → извещение
+  → контракт → СМП → оплата → приёмка → этапы → отчёт СМП), сводку по статусам
+  и таблицу полей с пометками «обяз./опц.». Отдельного маршрута нет — открывается из
   хэдера и не уводит со страницы; `/eis/schemas` остаётся обозревателем XSD.
 - **Граница:** это не генератор XML и не замена C#-мапперу. `import type` из
   `../generated` допустим только в адаптерах; наши DTO остаются источником
@@ -925,8 +936,8 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `GeneralInfoSection.tsx`); `npx oxlint` по нашим файлам — 0 ошибок
   (1 старое предупреждение `no-empty-pattern` в `Header.tsx`); `npx vite build`
   — успешно. Визуальный смоук: кнопка «Покрытие XSD» открывает модалку, табы
-  переключаются, ПГ показывает 25 полей (10/7/8/0), извещение — 37 полей
-  (19/16/1/1), консоль без ошибок.
+  переключаются; «План закупок» — 19 полей (4/5/8/2), ПГ — 33 поля (10/8/13/2),
+  извещение — 37 полей (19/16/1/1), консоль без ошибок.
 
 ## 32. Справочники НСИ на бэке: ОКПД2, КТРУ, адреса — Tasks 16 (2026-11-19)
 
