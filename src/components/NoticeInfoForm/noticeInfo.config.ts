@@ -41,11 +41,13 @@ export const PLACING_WAYS_ALL = [
   },
   {
     code: "EZT20",
-    label: "Закупка товара в электронной форме по ч. 12 ст. 93 Закона № 44-ФЗ (ЭЗТ20)",
+    label:
+      "Закупка товара в электронной форме по ч. 12 ст. 93 Закона № 44-ФЗ (ЭЗТ20)",
   },
   {
     code: "EP93",
-    label: "Закупка у единственного поставщика (подрядчика, исполнителя) по ст. 93 Закона № 44-ФЗ (EMZ2025)",
+    label:
+      "Закупка у единственного поставщика (подрядчика, исполнителя) по ст. 93 Закона № 44-ФЗ (EMZ2025)",
   },
 ];
 
@@ -135,7 +137,9 @@ export const MIN_PROCEDURE_DAYS: Record<string, number> = {
  * Семейство способа закупки для выбора минимального срока.
  * Возвращает ключ, по которому можно найти значение в MIN_PROCEDURE_DAYS.
  */
-export const placingWayFamily = (code: string): "contest" | "auction" | "quotation" | "single" => {
+export const placingWayFamily = (
+  code: string,
+): "contest" | "auction" | "quotation" | "single" => {
   if (code.startsWith("OK") || code.startsWith("EOK")) return "contest";
   if (code.startsWith("EA")) return "auction";
   if (code.startsWith("ZK")) return "quotation";
@@ -156,7 +160,9 @@ export const PLACING_WAYS_BY_FAMILY: Record<string, typeof PLACING_WAYS_ALL> = {
   contest: PLACING_WAYS_CONTEST,
   auction: [PLACING_WAYS_ALL.find((w) => w.code === "EA20")!],
   quotation: [PLACING_WAYS_ALL.find((w) => w.code === "ZK20")!],
-  single: [PLACING_WAYS_ALL.find((w) => w.code === "EP93")!],
+  single: PLACING_WAYS_ALL.filter(
+    (w) => w.code === "EP93" || w.code === "EZT20",
+  ),
 };
 
 export const ATTACHED_DOC_CATEGORIES: Array<{

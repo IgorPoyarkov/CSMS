@@ -12,7 +12,6 @@ import type { NoticeInfoFormValues } from "../../../services/Procurements/notice
 import CustomSelect from "../../UI/CustomSelect";
 import {
   ETP_OPTIONS,
-  PLACING_WAYS_ALL,
   PLACING_WAY_FAMILY_OPTIONS,
   PLACING_WAYS_BY_FAMILY,
 } from "../noticeInfo.config";
@@ -90,9 +89,7 @@ const GeneralInfoSection = ({
   const family = currentFamily ?? lockedFamily;
 
   // Подспособы только выбранного семейства
-  const availableWays = family
-    ? PLACING_WAYS_BY_FAMILY[family] ?? []
-    : [];
+  const availableWays = family ? (PLACING_WAYS_BY_FAMILY[family] ?? []) : [];
 
   // Подсказка по подспособу: строительные ОКПД2 требуют конкурса OKB20
   const buildingRecommended =
@@ -179,7 +176,10 @@ const GeneralInfoSection = ({
                           checked={false}
                           onChange={() => {
                             if (firstWay) {
-                              setValue("generalInfo.placingWayCode", firstWay.code);
+                              setValue(
+                                "generalInfo.placingWayCode",
+                                firstWay.code,
+                              );
                             }
                           }}
                         />
