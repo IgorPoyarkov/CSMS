@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useUtils from "../../../hooks/useUtils";
 import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import {
+  OKPD2_LIMIT,
   searchOkpd2,
   useOkpd2Dictionary,
 } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../../services/Okpd2Ref/okpd2Ref.schema";
+import { useReferenceItems } from "../../../services/Eis/referenceData.api";
 import styles from "./Okpd2Select.module.scss";
 
 interface Okpd2SelectProps {
@@ -86,6 +88,42 @@ export default function Okpd2Select({
   const typed = query.trim();
   const typedAllowed = !allowedSet || allowedSet.has(typed);
 
+  // Официальный снимок ОКПД2 на бэке (Tasks 16, `/api/references/nsiOKPD2`):
+  // дополняет локальный справочник, когда в нём нет нужного кода. Без сервиса
+  // выдача пустая и форма работает по `db.json` как раньше.
+  const { data: referenceItems = [], isFetching: isReferenceLoading } =
+    useReferenceItems(
+      "nsiOKPD2",
+      { search: typed, take: OKPD2_LIMIT },
+      isOpen && !allowedSet && typed.length >= 2 && items.length === 0,
+    );
+
+  // Выдача = локальные позиции + коды из снимка ЕИС (без дублей)
+  const options = useMemo<Okpd2Ref[]>(() => {
+    if (referenceItems.length === 0) {
+      return items;
+    }
+
+    const localCodes = new Set(items.map((item) => item.code));
+    const extra = referenceItems
+      .filter((item) => !localCodes.has(item.code))
+      .map<Okpd2Ref>((item) => {
+        // Признаки нормирования и нацрежима остаются за локальным
+        // справочником: снимок НСИ отдаёт только код и наименование
+        const auctionCheck = checkOkpd2AuctionList(item.code, dictionary);
+
+        return {
+          code: item.code,
+          name: item.name,
+          isNormed: false,
+          isAuctionRequired: auctionCheck.inAuctionList,
+          auctionNote: auctionCheck.note,
+        };
+      });
+
+    return [...items, ...extra];
+  }, [items, referenceItems, dictionary]);
+
   // Справочник пополняется выгрузкой из ЕИС и может не содержать нужного кода,
   // поэтому введённый вручную код оставляем доступным для выбора. Но только
   // если он есть в плане-графике — иначе связь с позицией плана теряется.
@@ -93,7 +131,7 @@ export default function Okpd2Select({
     isOpen &&
     typed.length >= 2 &&
     typedAllowed &&
-    !items.some((item) => item.code === typed);
+    !options.some((item) => item.code === typed);
 
   // Введён код, которого нет в плане-графике: показываем отказ
   const typedNotAllowed =
@@ -145,9 +183,9 @@ export default function Okpd2Select({
   }
 
   // Строка «ввести код вручную» стоит в выдаче последней
-  const typedCodeIndex = items.length;
+  const typedCodeIndex = options.length;
   const optionCount =
-    items.length + (canUseTypedCode ? 1 : 0) + (typedNotAllowed ? 1 : 0);
+    options.length + (canUseTypedCode ? 1 : 0) + (typedNotAllowed ? 1 : 0);
 
   function applyTypedCode() {
     const typed = query.trim();
@@ -197,8 +235,8 @@ export default function Okpd2Select({
 
       if (highlighted === typedCodeIndex && canUseTypedCode) {
         applyTypedCode();
-      } else if (items[highlighted]) {
-        pick(items[highlighted]);
+      } else if (options[highlighted]) {
+        pick(options[highlighted]);
       }
     } else if (event.key === "Escape") {
       setIsOpen(false);
@@ -248,8 +286,15 @@ export default function Okpd2Select({
             <li className={block("item")}>Загрузка справочника ОКПД2...</li>
           )}
 
+          {isReferenceLoading && (
+            <li className={block("item")}>
+              Поиск в справочнике ЕИС (nsiOKPD2)…
+            </li>
+          )}
+
           {!isLoading &&
-            items.length === 0 &&
+            !isReferenceLoading &&
+            options.length === 0 &&
             !canUseTypedCode &&
             !typedNotAllowed && (
               <li className={block("item")}>
@@ -273,7 +318,7 @@ export default function Okpd2Select({
           )}
 
           {!isLoading &&
-            items.map((item, index) => {
+            options.map((item, index) => {
               const auctionRes = checkOkpd2AuctionList(item.code, dictionary);
               return (
                 <li
