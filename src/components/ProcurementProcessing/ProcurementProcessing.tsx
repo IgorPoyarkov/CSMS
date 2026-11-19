@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
-  useCreateBudgetObligation,
   useDeleteProcurement,
   useGetProcurements,
   useUpdateProcurementStatus,
@@ -14,7 +13,6 @@ import {
   type NoticeStatus,
   type Procurement,
 } from "../../services/Procurements/procurement.schema";
-import { useCurrentOrganization } from "../../services/Organization/organization.api";
 
 import type { ProcurementActionType } from "./procurement.config";
 import ProcurementRow from "./ProcurementRow";
@@ -28,17 +26,14 @@ const ProcurementProcessing: React.FC = () => {
   const block = bem(styles, "procurement-processing");
   const navigate = useNavigate();
 
-  const { data: organization } = useCurrentOrganization();
   const { data: procurements = [], isLoading, isError } = useGetProcurements();
   const { mutate: deleteProcurement, isPending: isDeleting } =
     useDeleteProcurement();
   const { mutate: updateStatus, isPending: isStatusPending } =
     useUpdateProcurementStatus();
-  const { mutate: createObligation } = useCreateBudgetObligation();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
-  const [budgetMessage, setBudgetMessage] = useState<string | null>(null);
 
   // В разделе — только текущие извещения: отменённые записи скрыты
   const currentProcurements = useMemo(
@@ -87,48 +82,6 @@ const ProcurementProcessing: React.FC = () => {
         });
         break;
 
-      case "budget_obligation": {
-        // БО — направление сведений об извещении в контрольный орган.
-        // Саму отправку организует бэкенд; здесь фиксируем готовность
-        const label = item.noticeNumber || item.ikz;
-        if (
-          !window.confirm(
-            `Направить сведения об извещении ${label} в контрольный орган? Запись будет подготовлена к отправке (БО).`,
-          )
-        ) {
-          return;
-        }
-        const today = new Date().toISOString().slice(0, 10);
-        createObligation(
-          {
-            organizationId: organization?.id,
-            procurementId: item.id,
-            ikz: item.ikz,
-            noticeNumber: item.noticeNumber,
-            obligationNumber: `БО-${item.noticeNumber || item.id}-${today.slice(0, 4)}`,
-            obligationDate: today,
-            kbk: item.kbk ?? "",
-            amount: item.nmck.toFixed(2),
-            comment:
-              "Сведения об извещении подготовлены к направлению в контрольный орган; отправка — через бэкенд",
-            createdAt: new Date().toISOString(),
-          },
-          {
-            onSuccess: (created) => {
-              setBudgetMessage(
-                `Сведения по извещению ${label} подготовлены к направлению в контрольный орган (БО № ${created.obligationNumber}). Отправка будет выполнена через бэкенд.`,
-              );
-            },
-            onError: () => {
-              setBudgetMessage(
-                "Не удалось подготовить сведения для контрольного органа.",
-              );
-            },
-          },
-        );
-        break;
-      }
-
       case "cancel_notice":
         if (
           window.confirm(
@@ -169,12 +122,6 @@ const ProcurementProcessing: React.FC = () => {
       {isError && (
         <p className={block("status", ["error"])}>
           Ошибка загрузки данных с сервера
-        </p>
-      )}
-
-      {budgetMessage && (
-        <p className={block("notice", ["success"])} role="status">
-          {budgetMessage}
         </p>
       )}
 

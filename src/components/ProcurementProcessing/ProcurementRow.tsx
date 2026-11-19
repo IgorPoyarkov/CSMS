@@ -51,11 +51,6 @@ const ProcurementRow: React.FC<ProcurementRowProps> = ({
     if (action === "delete_procurement") {
       return isDeleting;
     }
-    // БО доступно после подготовки извещения: на подготовке сведения
-    // ещё нечего направлять в контрольный орган
-    if (action === "budget_obligation") {
-      return procurement.noticeStatus === "preparing";
-    }
     return false;
   };
 
