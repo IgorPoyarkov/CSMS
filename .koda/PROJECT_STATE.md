@@ -822,3 +822,37 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   `placeholder-v0`. Маппер доменной модели в XSD-классы пишется человеком:
   автообновление файлов не меняет смысл полей. Живой SOAP-обмен ЕИС по-прежнему
   заблокирован на уровне TLS (§26).
+
+## 30. Обозреватель XSD и TypeScript-типы Альбома ЕИС (2026-11-19)
+
+Продолжение §29, по просьбе пользователя «показать схемы/сущности» и сделать
+«что-то типа Swagger». Выбрано: **все 32 XSD** и **обозреватель схем**.
+
+- **Снимок в git.** 32 XSD версии 17.0 (11 МБ) скопированы из
+  `src/Csms.Api/bin/Debug/net9.0/schemas/17.0` в `csms-api/schemas/17.0/` вместе с
+  `.manifest.json`. Это не замена автообновлению, а читаемый снимок: файлы
+  доступны без запуска шлюза, новая версия добавит новую папку.
+- **Генератор.** `csms-api/tools/EisDocGenerator` (`SchemaReader`, `SchemaDoc`,
+  `Program`) читает XSD через `XmlSchemaSet`, обходит `GlobalTypes`,
+  `GlobalElements`, анонимные типы, наследование, группы, атрибуты и перечисления.
+  Имена резервируются до обхода полей — иначе ссылки расходились. Вывод: JSON
+  каталог (~9 МБ) и `.d.ts` (~6,6 МБ, 8720 определений, 33 namespace). Валидность
+  `.d.ts` проверена отдельно: `tsc --skipLibCheck false` — 0 ошибок.
+- **Скрипт.** `csms-api/scripts/generate-schema-docs.ps1` берёт версию/id/SHA из
+  `.manifest.json`, собирает генератор и пишет в `csms/public/eis-schemas/catalog.json`
+  и `csms/src/services/Eis/generated/eisSchemas.generated.d.ts`. Файл сохранён с
+  BOM (требование PowerShell 5.1 из `csms-api/AGENTS.md`).
+- **Фронтенд.** `src/services/Eis/eisSchemaCatalog.ts` (React Query, читает
+  статический каталог из `public/`), `EisSchemaExplorerPage.tsx/.module.scss`,
+  роут `/eis/schemas` в `App.tsx`, пункт меню «Схемы ЕИС» в `Header.tsx`. Есть
+  поиск по имени/полю/описанию, фильтры по namespace и виду, постраничная выдача
+  по 100 и карточка типа с полями/обязательностью. Проверено в браузере: 8720
+  типов в шапке, поиск «Contract» → 2407 совпадений, карточка с 5 полями и
+  русскими описаниями, консоль без ошибок.
+- **Проверки:** `dotnet build` генератора — 0/0; `npx tsc -b` — только чужая
+  ошибка `GeneralInfoSection.tsx:10` (`PLACING_WAYS_ALL`, WIP); `npx oxlint src`
+  — 0 ошибок; `npx vite build` — успешно. `.d.ts` в composition не бандлится,
+  но доступен для `import type` через `@/services/Eis/generated`.
+- 🟡 **Граница:** обозреватель показывает формат, но не собирает XML. Для
+  исполнения контракта и СМП нужен альбом ТФФ по 658/215н и 918; `PlaceholderXmlBuilder`
+  остаётся `placeholder-v0`. Живой SOAP-обмен по-прежнему заблокирован TLS (§26).
