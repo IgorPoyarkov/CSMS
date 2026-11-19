@@ -22,6 +22,10 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     Args = args,
     ContentRootPath = AppContext.BaseDirectory,
 });
+// Секрет хранится вне репозитория — в User Secrets (.NET), а не в appsettings.json.
+// Подключаем явно, чтобы токен читался и вне окружения Development.
+builder.Configuration.AddUserSecrets<Program>();
+
 builder.Services.AddHttpClient();
 
 builder.Services.Configure<EisClientOptions>(

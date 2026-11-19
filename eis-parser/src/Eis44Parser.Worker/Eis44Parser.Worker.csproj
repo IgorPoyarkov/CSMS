@@ -16,6 +16,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>Eis44Parser.Worker</RootNamespace>
+    <UserSecretsId>8ac6c8a4-0a64-402a-97bb-751cece49b32</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

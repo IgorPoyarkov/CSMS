@@ -62,9 +62,21 @@ dotnet run --project src/Eis44Parser.Worker -- --once
 dotnet run --project src/Eis44Parser.Worker
 ```
 
-Токен ИП записан в `appsettings.json` (поле `Eis44:IndividualPersonToken`) и
-используется по умолчанию. Переменные окружения имеют приоритет над файлом и
-позволяют переопределить токен и прочие настройки без правки конфигурации:
+Токен ИП **не хранится в репозитории**. В `appsettings.json` поле
+`Eis44:IndividualPersonToken` оставлено пустым; рабочее значение лежит в
+**User Secrets** .NET — в файле `%APPDATA%\Microsoft\UserSecrets\<UserSecretsId>\secrets.json`
+вне папки проекта. Приложение подключает это хранилище через
+`builder.Configuration.AddUserSecrets<Program>()` при любом окружении.
+
+Записать/обновить токен (один раз на машине разработчика):
+
+```powershell
+dotnet user-secrets set "Eis44:IndividualPersonToken" "GUID_ИЗ_ЛИЧНОГО_КАБИНЕТА" `
+  --project src/Eis44Parser.Worker/Eis44Parser.Worker.csproj
+```
+
+Переменные окружения имеют наивысший приоритет и позволяют переопределить
+токен и прочие настройки без правки конфигурации:
 
 ```powershell
 $env:Eis44__IndividualPersonToken = "GUID_ИЗ_ЛИЧНОГО_КАБИНЕТА"
@@ -72,10 +84,10 @@ $env:Eis44__RegionCodes__0 = "31"
 $env:ConnectionStrings__EisDb = "Data Source=eis44.db"
 ```
 
-⚠️ Токен в `appsettings.json` — действующий секрет личного кабинета ЕИС.
-Репозиторий публичный, поэтому после выкладки его следует считать
-скомпрометированным и отозвать/перевыпустить в ЛК, а рабочее значение
-передавать через переменную окружения.
+⚠️ Ранее токен был закоммичен и запушен (коммит `eecaca5`). Поскольку
+репозиторий публичный, тот экземпляр токена следует считать скомпрометированным
+и перевыпустить в личном кабинете ЕИС — удаление из последующего коммита не
+убирает его из истории git.
 
 Для PostgreSQL: `"Database": { "Provider": "PostgreSql" }` и строка
 `Host=localhost;Database=eis44;Username=...;Password=...`.

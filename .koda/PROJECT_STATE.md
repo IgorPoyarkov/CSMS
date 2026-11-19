@@ -30,9 +30,12 @@
 - **C#/ЕИС:** `dotnet build eis-parser/Eis44Parser.sln`,
   `dotnet test eis-parser/Eis44Parser.sln`,
   `dotnet run --project eis-parser/src/Eis44Parser.Worker -- --validate`.
-  Токен ИП записан в `appsettings.json` (2026-11-19, по просьбе пользователя),
-  переопределяется через `Eis44__IndividualPersonToken`. Секрет в публичном
-  репозитории — считать скомпрометированным, перевыпустить в ЛК ЕИС.
+  Токен ИП хранится **вне репозитория** — в User Secrets .NET:
+  `%APPDATA%\Microsoft\UserSecrets\8ac6c8a4-0a64-402a-97bb-751cece49b32\secrets.json`
+  (записан 2026-11-19, `UserSecretsId` добавлен в csproj воркера, подключается
+  через `AddUserSecrets<Program>()`). Переопределяется через
+  `Eis44__IndividualPersonToken`. ⚠️ Тот же токен остался в истории публичного
+  репозитория (коммит `eecaca5`) — перевыпустить в ЛК ЕИС.
 - Прогон схем и моков без сервера:
   1. **json-server-копия** на свободном порту: `Start-Job { node node_modules/json-server/lib/cli/bin.js db.json --port 3010 }` — 6 секунд старта, затем `GET`/`PATCH` на порт 3010.
   2. **tsc --ignoreConfig** — `npx tsc --project tsconfig.json --noEmit --skipLibCheck --ignoreConfig <список schema-файлов> --module esnext --target es2022 --moduleResolution bundler --outDir .tmpcheck` + патч относительных импортов `.ts` → `.js` (`[regex]::Replace` с MatchEvaluator, не `ForEach-Object`).
@@ -635,8 +638,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   по `PurchaseNumber` + версии: повтор пропускается, изменившаяся версия обновляется.
 - **`Eis44Parser.Worker`**: `PollingWorker` (последовательный опрос по регионам,
   типам документов, подсистемам и датам, без превышения лимита ~8 RPS),
-  CLI `--once` и `--validate`. Всё в `appsettings.json`, токен —
-  через `Eis44__IndividualPersonToken`.
+  CLI `--once` и `--validate`. Настройки — в `appsettings.json`, токен —
+  в User Secrets вне репозитория (или через `Eis44__IndividualPersonToken`).
 - **`Eis44Parser.Tests`**: 5 xUnit-тестов (порядок SOAP-тегов и экранирование,
   парсинг XML с разными схемами и десятичными разделителями, дедупликация).
 - **Документация:** `eis-parser/README.md`, `eis-parser/schemas/README.md`,
@@ -646,8 +649,8 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Проверки:** `dotnet build` — 0 ошибок/0 предупреждений; `dotnet test` —
   5/5 зелёных; `--validate` создаёт SQLite-БД и печатает конфигурацию. Live-прогон
   не делался: нужен Stunnel с ГОСТ-TLS и доступ к тестовому контуру ЕИС
-  (токен уже в `appsettings.json`, но как секрет в публичном репозитории
-  подлежит перевыпуску).
+  (токен вынесен в User Secrets, но его старая копия осталась в истории
+  публичного репозитория — подлежит перевыпуску).
 - ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
   `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
   экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`
