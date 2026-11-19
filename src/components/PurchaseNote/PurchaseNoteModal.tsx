@@ -4202,16 +4202,16 @@ export default function PurchaseNoteModal({
             )}
             {smpValidation.some((v) => v.smpOnlyRequired) && (
               <div className={block("alert-warning")} role="alert">
-                <strong>НМЦК ≤ 20 млн руб. (до 2026):</strong> ч. 3 ст. 30
+                <strong>НМЦК ≤ 20 млн руб. (до 2027):</strong> ч. 3 ст. 30
                 Закона № 44-ФЗ — закупка проводится только среди СМП/СОНКО. С
-                01.01.2026 лимит увеличивается до 30 млн руб.
+                01.01.2027 лимит увеличивается до 30 млн руб.
               </div>
             )}
             {smpValidation.some((v) => v.smpSubcontractingRequired) && (
               <div className={block("hint")}>
                 НМЦК ≤ 20 млн руб.: ч. 5 ст. 30 Закона № 44-ФЗ — требуется
                 привлечение СМП-субподрядчиков (не менее 5% от цены контракта).
-                С 01.01.2026 лимит увеличивается до 30 млн руб.
+                С 01.01.2027 лимит увеличивается до 30 млн руб.
               </div>
             )}
 
