@@ -86,6 +86,10 @@ import {
   validatePlacingWayAgainstAuctionList,
 } from "../../services/Okpd2Ref/auctionListControl";
 import {
+  checkSmpRequirements,
+  validateSmpMixing,
+} from "../../services/Okpd2Ref/smpControl";
+import {
   checkOkpd2NationalRegime,
   isAdvantageApplicable,
   nationalRegimeExpectedLabel,
@@ -897,6 +901,33 @@ export default function PurchaseNoteModal({
   );
   const nmckValue = toNumber(watch("initialMaxPrice")) ?? 0;
   const kbkFundingDiff = Number((kbkFundingTotal - nmckValue).toFixed(2));
+
+  // Валидация ст. 28, 29, 30 Закона № 44-ФЗ: проверка СМП-ограничений по НМЦК
+  const smpValidation = useMemo(
+    () =>
+      checkSmpRequirements(
+        nmckValue,
+        watchedItems.map((item) => ({
+          code: item.okpd2Code,
+          name: item.name,
+        })),
+        okpd2Refs,
+      ),
+    [nmckValue, watchedItems, okpd2Refs],
+  );
+
+  // Валидация на смешивание товаров из перечня ОКПД2 ст. 28/29 и без перечня
+  const smpMixingValidation = useMemo(
+    () =>
+      validateSmpMixing(
+        watchedItems.map((item) => ({
+          code: item.okpd2Code,
+          name: item.name,
+        })),
+        okpd2Refs,
+      ),
+    [watchedItems, okpd2Refs],
+  );
 
   // Превышения объёмов плана-графика по годам — блокируют сохранение
   const kbkLimitViolations = useMemo(() => {
@@ -4162,6 +4193,39 @@ export default function PurchaseNoteModal({
         <div className={block("grid")}>
           {/* СМП: только среди СМП + галочка привлечения субподрядчиков -> размер */}
           <div className={block("field", ["smp"])}>
+            {/* Предупреждения валидации ст. 28, 29, 30 */}
+            {smpMixingValidation.warningMessage && (
+              <div className={block("alert-warning")} role="alert">
+                <strong>Внимание!</strong> {smpMixingValidation.warningMessage}
+              </div>
+            )}
+            {smpValidation.some((v) => v.smpOnlyRequired) && (
+              <div className={block("alert-warning")} role="alert">
+                <strong>НМЦК ≤ 20 млн руб. (до 2026):</strong> ч. 3 ст. 30 Закона
+                № 44-ФЗ — закупка проводится только среди СМП/СОНКО.
+                С 01.01.2026 лимит увеличивается до 30 млн руб.
+              </div>
+            )}
+            {smpValidation.some((v) => v.smpSubcontractingRequired) && (
+              <div className={block("hint")}>
+                НМЦК ≤ 20 млн руб.: ч. 5 ст. 30 Закона № 44-ФЗ — требуется
+                привлечение СМП-субподрядчиков (не менее 5% от цены контракта).
+                С 01.01.2026 лимит увеличивается до 30 млн руб.
+              </div>
+            )}
+            {smpValidation.some((v) => v.disabledOrgAdvantage) && (
+              <div className={block("hint")}>
+                НМЦК ≤ 5 млн руб.: ст. 29 Закона № 44-ФЗ — применяются
+                преимущества для организаций инвалидов.
+              </div>
+            )}
+            {smpValidation.some((v) => v.penalSystemAdvantage) && (
+              <div className={block("hint")}>
+                НМЦК ≤ 5 млн руб.: ст. 28 Закона № 44-ФЗ — применяются
+                преимущества для учреждений уголовно-исполнительной системы.
+              </div>
+            )}
+
             <label className={block("checkbox")}>
               <input type="checkbox" {...register("advantageSmpPart3Art30")} />
               <span>Закупка только среди СМП и СОНКО (ч. 3 ст. 30 44-ФЗ)</span>

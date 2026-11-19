@@ -570,6 +570,20 @@
     }
   }
 
+  &__warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--state-warning);
+    font-weight: 600;
+    background-color: var(--state-warning-soft);
+    border: 1px solid var(--state-warning);
+    border-radius: 3px;
+  }
+
   &__danger-warning,
   &__error-banner {
     display: flex;

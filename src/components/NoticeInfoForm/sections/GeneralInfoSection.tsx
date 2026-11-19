@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
@@ -9,7 +10,12 @@ import {
 } from "../../../services/Eis/eis17Types";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import CustomSelect from "../../UI/CustomSelect";
-import { ETP_OPTIONS, PLACING_WAYS_ALL } from "../noticeInfo.config";
+import {
+  ETP_OPTIONS,
+  PLACING_WAYS_ALL,
+  PLACING_WAY_FAMILY_OPTIONS,
+  PLACING_WAYS_BY_FAMILY,
+} from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
 
 interface GeneralInfoSectionProps {
@@ -45,8 +51,10 @@ const placingWayFamily = (code?: string): PlacingWayFamily | null => {
 };
 
 // Конкурсные способы: только для них применяется ч. 19 ст. 48 Закона N 44-ФЗ
-const isContestCode = (code?: string): boolean =>
-  placingWayFamily(code) === "contest";
+const isContestCode = (code?: string): boolean => {
+  if (code === "contest") return true;
+  return placingWayFamily(code) === "contest";
+};
 
 // Строительство, реконструкция и капремонт: по п. 8 ч. 1 ст. 33 44-ФЗ
 // проводится открытый конкурс в электронной форме (OKB20)
@@ -64,7 +72,8 @@ const GeneralInfoSection = ({
 }: GeneralInfoSectionProps) => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
-  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { register, watch, setValue, getValues } =
+    useFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
   const generalInfo = watch("generalInfo");
@@ -74,13 +83,16 @@ const GeneralInfoSection = ({
   // Семейство способа: если СЗ его задала, выбор ограничивается подспособами
   // этого семейства; без СЗ доступен полный список
   const lockedFamily = placingWayFamily(lockedPlacingWayCode);
-  const currentFamily = placingWayFamily(generalInfo.placingWayCode);
+
+  // Определяем семейство по коду подспособа
+  const rawPlacingWay = generalInfo.placingWayCode ?? "";
+  const currentFamily = placingWayFamily(rawPlacingWay);
   const family = currentFamily ?? lockedFamily;
-  const availableWays = lockedFamily
-    ? PLACING_WAYS_ALL.filter(
-        (way) => placingWayFamily(way.code) === (currentFamily ?? lockedFamily),
-      )
-    : PLACING_WAYS_ALL;
+
+  // Подспособы только выбранного семейства
+  const availableWays = family
+    ? PLACING_WAYS_BY_FAMILY[family] ?? []
+    : [];
 
   // Подсказка по подспособу: строительные ОКПД2 требуют конкурса OKB20
   const buildingRecommended =
@@ -103,6 +115,18 @@ const GeneralInfoSection = ({
       setValue("generalInfo.etpUrl", found.url);
     }
   };
+
+  // Сброс критериев оценки и организатора при смене подспособа на не-конкурсный
+  useEffect(() => {
+    if (!isContestWay) {
+      const criteria = getValues("participantsRequirements.evaluationCriteria");
+      setValue(
+        "participantsRequirements.evaluationCriteria",
+        criteria.map((c) => ({ ...c, enabled: false })),
+      );
+      setValue("generalInfo.placementOrganizerType", "customer");
+    }
+  }, [isContestWay, setValue, getValues]);
 
   return (
     <>
@@ -129,6 +153,11 @@ const GeneralInfoSection = ({
                   Способ: {PLACING_WAY_FAMILY_LABELS[family]}
                 </span>
               )}
+              {!family && (
+                <span className={block("muted")}>
+                  Выберите семейство способов закупки
+                </span>
+              )}
               {lockedFamily && family === lockedFamily && (
                 <span className={block("muted")}>
                   Способ определения поставщика зафиксирован служебной записью и
@@ -136,7 +165,33 @@ const GeneralInfoSection = ({
                 </span>
               )}
 
-              {availableWays.length > 1 ? (
+              {/* Выбор семейства — когда не задан */}
+              {!family && !lockedFamily && (
+                <div className={block("radio-group")}>
+                  {PLACING_WAY_FAMILY_OPTIONS.map((fam) => {
+                    const ways = PLACING_WAYS_BY_FAMILY[fam.code] ?? [];
+                    const firstWay = ways[0];
+                    return (
+                      <label key={fam.code} className={block("radio")}>
+                        <input
+                          type="radio"
+                          value={firstWay?.code ?? ""}
+                          checked={false}
+                          onChange={() => {
+                            if (firstWay) {
+                              setValue("generalInfo.placingWayCode", firstWay.code);
+                            }
+                          }}
+                        />
+                        <span>{fam.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Подспособы выбранного семейства */}
+              {family && availableWays.length > 1 ? (
                 <div className={block("radio-group")}>
                   {availableWays.map((way) => (
                     <label key={way.code} className={block("radio")}>
@@ -161,6 +216,7 @@ const GeneralInfoSection = ({
                   ))}
                 </div>
               ) : (
+                family &&
                 availableWays.length === 1 && (
                   <span className={block("value")}>
                     {availableWays[0].label} ({availableWays[0].code})
@@ -266,42 +322,44 @@ const GeneralInfoSection = ({
             <span className={block("value")}>{generalInfo.etpUrl}</span>
           </div>
 
-          <div className={block("row")}>
-            <span className={block("label")}>
-              Размещение осуществляет<sup>*</sup>
-            </span>
-            <div className={block("radio-group")}>
-              <label className={block("radio")}>
-                <input
-                  type="radio"
-                  value="customer"
-                  checked={generalInfo.placementOrganizerType === "customer"}
-                  onChange={() =>
-                    setValue("generalInfo.placementOrganizerType", "customer")
-                  }
-                />
-                <span>Заказчик</span>
-              </label>
-              <label className={block("radio")}>
-                <input
-                  type="radio"
-                  value="joint_organizer"
-                  checked={
-                    generalInfo.placementOrganizerType === "joint_organizer"
-                  }
-                  onChange={() =>
-                    setValue(
-                      "generalInfo.placementOrganizerType",
-                      "joint_organizer",
-                    )
-                  }
-                />
-                <span>
-                  Заказчик в качестве Организатора совместного конкурса
-                </span>
-              </label>
+          {isContestWay && (
+            <div className={block("row")}>
+              <span className={block("label")}>
+                Размещение осуществляет<sup>*</sup>
+              </span>
+              <div className={block("radio-group")}>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="customer"
+                    checked={generalInfo.placementOrganizerType === "customer"}
+                    onChange={() =>
+                      setValue("generalInfo.placementOrganizerType", "customer")
+                    }
+                  />
+                  <span>Заказчик</span>
+                </label>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="joint_organizer"
+                    checked={
+                      generalInfo.placementOrganizerType === "joint_organizer"
+                    }
+                    onChange={() =>
+                      setValue(
+                        "generalInfo.placementOrganizerType",
+                        "joint_organizer",
+                      )
+                    }
+                  />
+                  <span>
+                    Заказчик в качестве Организатора совместного конкурса
+                  </span>
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className={block("row")}>
             <span className={block("label")}>

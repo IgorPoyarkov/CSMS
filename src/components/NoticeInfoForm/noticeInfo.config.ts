@@ -121,6 +121,44 @@ export const PP2571_POSITIONS = [
   "Позиция 34 разд. VI ПП РФ № 2571 (Услуги по обеспечению охраны объектов)",
 ];
 
+/**
+ * Минимальные сроки подачи заявок (календарные дни) по ч. 2 ст. 45 Закона
+ * № 44-ФЗ в зависимости от семейства способа определения поставщика.
+ */
+export const MIN_PROCEDURE_DAYS: Record<string, number> = {
+  contest: 25, // OKP20, EOK20, OKI20, OKB20 — конкурс (ч. 2 ст. 45)
+  auction: 20, // EA20 — аукцион (ч. 2 ст. 45)
+  quotation: 7, // ZK20 — запрос котировок (ч. 2 ст. 45)
+};
+
+/**
+ * Семейство способа закупки для выбора минимального срока.
+ * Возвращает ключ, по которому можно найти значение в MIN_PROCEDURE_DAYS.
+ */
+export const placingWayFamily = (code: string): "contest" | "auction" | "quotation" | "single" => {
+  if (code.startsWith("OK") || code.startsWith("EOK")) return "contest";
+  if (code.startsWith("EA")) return "auction";
+  if (code.startsWith("ZK")) return "quotation";
+  return "single"; // EP93 — единственный поставщик, ограничений ст. 45 нет
+};
+
+export const PLACING_WAY_FAMILY_OPTIONS = [
+  { code: "contest", label: "Открытый конкурс в электронной форме" },
+  { code: "auction", label: "Электронный аукцион" },
+  { code: "quotation", label: "Электронный запрос котировок" },
+  { code: "single", label: "Закупка у единственного поставщика" },
+];
+
+/**
+ * Подспособы для каждого семейства.
+ */
+export const PLACING_WAYS_BY_FAMILY: Record<string, typeof PLACING_WAYS_ALL> = {
+  contest: PLACING_WAYS_CONTEST,
+  auction: [PLACING_WAYS_ALL.find((w) => w.code === "EA20")!],
+  quotation: [PLACING_WAYS_ALL.find((w) => w.code === "ZK20")!],
+  single: [PLACING_WAYS_ALL.find((w) => w.code === "EP93")!],
+};
+
 export const ATTACHED_DOC_CATEGORIES: Array<{
   id:
     | "nmck_justification"

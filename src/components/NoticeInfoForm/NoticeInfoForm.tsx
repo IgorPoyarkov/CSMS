@@ -29,6 +29,10 @@ import {
   criterionToNoticeType,
   normalizeCriteria,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
+import {
+  MIN_PROCEDURE_DAYS,
+  placingWayFamily,
+} from "./noticeInfo.config";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import {
   formatCharacteristicValue,
@@ -108,6 +112,53 @@ interface IkzPartsSources {
 
 const digitsOnly = (value?: string | number): string =>
   String(value ?? "").replace(/\D/g, "");
+
+/**
+ * Считает календарные дни между двумя датами (YYYY-MM-DD).
+ */
+const calendarDaysBetween = (from: string, to: string): number => {
+  if (!from || !to) return 0;
+  const start = new Date(from);
+  const end = new Date(to);
+  const diffMs = end.getTime() - start.getTime();
+  return Math.max(0, Math.round(diffMs / 86_400_000));
+};
+
+/**
+ * Валидация минимального срока подачи заявок по ч. 2 ст. 45 44-ФЗ.
+ * Возвращает сообщение об ошибке или null, если всё в порядке.
+ */
+const validateProcedureDates = (
+  plannedPublishDate: string,
+  submissionEndDate: string,
+  summingUpDate: string,
+  placingWayCode: string,
+): string | null => {
+  // Минимальный срок подачи
+  const family = placingWayFamily(placingWayCode);
+  if (family !== "single") {
+    const minDays = MIN_PROCEDURE_DAYS[family];
+    if (minDays !== undefined) {
+      const actualDays = calendarDaysBetween(
+        plannedPublishDate,
+        submissionEndDate,
+      );
+      if (actualDays < minDays) {
+        return `Для данного способа минимальный срок подачи заявок — ${minDays} календарных дней (ч. 2 ст. 45 44-ФЗ). Текущий срок: ${actualDays} дн.`;
+      }
+    }
+  }
+
+  // Дата итогов не раньше окончания подачи
+  if (submissionEndDate && summingUpDate) {
+    const days = calendarDaysBetween(submissionEndDate, summingUpDate);
+    if (days < 0) {
+      return "Дата подведения итогов не может быть раньше даты окончания подачи заявок.";
+    }
+  }
+
+  return null;
+};
 
 /**
  * Разбирает ИКЗ на составные части. Нормативная длина ИКЗ — 36 знаков:
@@ -492,6 +543,27 @@ const NoticeInfoForm = () => {
       setValue("contactInfo.organizationId", currentUser.organizationId);
     }
   }, [currentUser, setValue]);
+
+  // Сброс чекбоксов, не применимых к способу закупки из СЗ
+  useEffect(() => {
+    if (!matchedNote?.placingWayCode) return;
+
+    const family = placingWayFamily(matchedNote.placingWayCode);
+
+    // Чекбокс ч.19 ст.48 — только для конкурса
+    if (family !== "contest") {
+      setValue("generalInfo.isPart19Art48", false);
+    }
+
+    // Критерии оценки — только для конкурса
+    if (family !== "contest") {
+      const criteria = getValues("participantsRequirements.evaluationCriteria");
+      setValue(
+        "participantsRequirements.evaluationCriteria",
+        criteria.map((c) => ({ ...c, enabled: false })),
+      );
+    }
+  }, [matchedNote?.placingWayCode, setValue, getValues]);
 
   useEffect(() => {
     if (currentEmployee?.employee) {
@@ -1434,6 +1506,20 @@ const NoticeInfoForm = () => {
   ]);
 
   const onSubmit = (formData: NoticeInfoFormValues) => {
+    // Валидация минимальных сроков процедуры (ч. 2 ст. 45 44-ФЗ)
+    const procedureError = validateProcedureDates(
+      formData.procedureInfo.plannedPublishDate,
+      formData.procedureInfo.submissionEndDate,
+      formData.procedureInfo.summingUpDate,
+      formData.generalInfo.placingWayCode,
+    );
+    if (procedureError) {
+      setError("procedureInfo.plannedPublishDate", {
+        message: procedureError,
+      });
+      return;
+    }
+
     // Связь с планом-графиком: коды ОКПД2 вне позиций плана не допускаются
     if (allowedOkpd2Codes && allowedOkpd2Codes.length > 0) {
       const allowedSet = new Set(allowedOkpd2Codes);
