@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import PurchasePlanPositionModal from "./PurchasePlanPositionModal";
+import PurchasePlanPositionForm from "./PurchasePlanPositionForm";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
   usePurchasePlan,
@@ -12,7 +12,7 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import { roundMoney } from "../../services/Nmck/marketNmck";
 import useUtils from "../../hooks/useUtils";
-import styles from "./PurchasePlanPositionModal.module.scss";
+import styles from "./PurchasePlanPositionForm.module.scss";
 
 /**
  * Редактирование / добавление конкретной позиции плана-графике — страница
@@ -25,7 +25,7 @@ export default function PurchasePlanPositionEditPage() {
   const { positionId } = useParams<{ positionId?: string }>();
   const navigate = useNavigate();
   const { bem } = useUtils();
-  const block = bem(styles, "position-modal");
+  const block = bem(styles, "position-form");
   const { data: organization, isLoading: isOrgLoading } = useCurrentOrganization();
   const organizationId = organization?.id;
   const {
@@ -159,7 +159,7 @@ export default function PurchasePlanPositionEditPage() {
   }
 
   return (
-    <PurchasePlanPositionModal
+    <PurchasePlanPositionForm
       plan={plan}
       position={currentPosition}
       index={position ? plan.positions.indexOf(position) : plan.positions.length}

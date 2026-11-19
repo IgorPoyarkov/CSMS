@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   useFieldArray,
   useForm,
@@ -7,7 +7,6 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
-import CustomModal from "../UI/CustomModal";
 import CustomInput from "../UI/CustomInput";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
@@ -25,6 +24,7 @@ import {
   nextPurchaseNumber,
   purchaseNumbersUsed,
   splitKbk,
+  toNumber,
   type PurchasePlan,
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -35,7 +35,6 @@ import {
   modificationStatusOptions,
   okpd2FieldLabels,
   placementYearOptions,
-  planPeriodLabels,
   positionStatusOptions,
   publicDiscussionOptions,
   tpChangeReasonOptions,
@@ -46,21 +45,23 @@ import {
 } from "./purchasePlan.mock";
 import KoksPickerModal from "./KoksPickerModal";
 import type { KoksRef } from "../../services/KoksRef/koksRef.api";
-import styles from "./PurchasePlanPositionModal.module.scss";
+import styles from "./PurchasePlanPositionForm.module.scss";
 
 /**
- * Правка одной записи плана-графика (Tasks 7, п. 4): состав полей повторяет
- * карточку позиции из просмотра плана-графика закупок — уникальный номер
- * позиции, планируемый год размещения извещения, номер закупки, ИКЗ,
- * наименование объекта закупки, ОКПД2, объём финансового обеспечения по годам,
- * детализация по кодам бюджетной классификации, статус и обязательное
- * общественное обсуждение.
+ * Карточка позиции плана-графика — страница, а не модалка: состав и порядок
+ * граф повторяют форму просмотра плана-графика закупок в личном кабинете ЕИС
+ * («Общие сведения позиции»): сведения о закупке, информация об объекте,
+ * объём финансового обеспечения по годам, детализация по КБК и КОКС,
+ * обязательное общественное обсуждение, статус и изменения.
  *
  * Уникальный номер позиции и ИКЗ формируются системой: заказчику остаётся
  * проверить код, а не набирать его вручную.
  */
 
-interface PurchasePlanPositionModalProps {
+// Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
+const CURRENT_YEAR = new Date().getFullYear();
+
+interface PurchasePlanPositionFormProps {
   plan: PurchasePlan;
   position: PurchasePlanPosition;
   // Номер записи в плане: нужен, когда заказчик его не указал
@@ -85,33 +86,20 @@ const AMOUNT_FIELDS = [
 
 type AmountKey = (typeof AMOUNT_FIELDS)[number]["key"];
 
-// Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
-const CURRENT_YEAR = new Date().getFullYear();
-
 // Разряды КБК: глава 3, раздел/подраздел 4, целевая статья 10, вид расходов 3
 const KBK_PART_FIELDS = [
-  { key: "chapter", label: "Глава (3 цифры)", placeholder: "200", length: 3 },
-  {
-    key: "section",
-    label: "Раздел и подраздел (4 цифры)",
-    placeholder: "1101",
-    length: 4,
-  },
+  { key: "chapter", label: "Глава", placeholder: "200", length: 3 },
+  { key: "section", label: "Раздел (подраздел)", placeholder: "1101", length: 4 },
   {
     key: "targetArticle",
-    label: "Целевая статья (10 символов)",
+    label: "Целевая статья",
     placeholder: "0000000000",
     length: 10,
   },
-  {
-    key: "expenseType",
-    label: "Вид расходов (3 цифры)",
-    placeholder: "244",
-    length: 3,
-  },
+  { key: "expenseType", label: "Вид расходов", placeholder: "244", length: 3 },
 ] as const;
 
-export default function PurchasePlanPositionModal({
+export default function PurchasePlanPositionForm({
   plan,
   position,
   index,
@@ -121,10 +109,9 @@ export default function PurchasePlanPositionModal({
   onClose,
   onSave,
   onDelete,
-}: PurchasePlanPositionModalProps) {
+}: PurchasePlanPositionFormProps) {
   const { bem } = useUtils();
-  const block = bem(styles, "position-modal");
-  const labels = planPeriodLabels(plan.planYear);
+  const block = bem(styles, "position-form");
   // Год формирования ПГ: от него считаются графы «Сумма на … год»
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
@@ -141,8 +128,7 @@ export default function PurchasePlanPositionModal({
       serialNumber: position.serialNumber || String(index + 1),
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
       // Год по умолчанию — текущий; селект предлагает текущий и +10 лет
-      plannedPlacementYear:
-        position.plannedPlacementYear || String(CURRENT_YEAR),
+      plannedPlacementYear: position.plannedPlacementYear || String(CURRENT_YEAR),
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
       modificationStatus: position.modificationStatus ?? (isNew ? "N" : "E"),
@@ -228,6 +214,29 @@ export default function PurchasePlanPositionModal({
     purchaseNumber,
     position.purchaseNumber,
   );
+
+  // Заголовки граф финансового обеспечения — как в форме ЕИС
+  const amountHeaders: Record<AmountKey, string> = {
+    amountTotal: "Всего",
+    amountCurrentYear: `Сумма на ${baseYear} год`,
+    amountPlanPeriodFirstYear: `Сумма на ${baseYear + 1} год`,
+    amountPlanPeriodSecondYear: `Сумма на ${baseYear + 2} год`,
+    amountSubsequentYears: "Сумма на последующие годы",
+  };
+
+  // Итоги по кодам бюджетной классификации — строка «Итого» под таблицей
+  const kbkTotals = useMemo(() => {
+    const totals = {} as Record<AmountKey, number>;
+
+    for (const field of AMOUNT_FIELDS) {
+      totals[field.key] = (kbkEntriesValues ?? []).reduce(
+        (sum, entry) => sum + (toNumber(entry?.[field.key]) ?? 0),
+        0,
+      );
+    }
+
+    return totals;
+  }, [kbkEntriesValues]);
 
   // Три признака ЕИС взаимоисключающие: энергосервис, кредит, ОКС.
   // «Информация, не подлежащая размещению» (notPublishedOnEIS) от них не зависит.
@@ -317,11 +326,11 @@ export default function PurchasePlanPositionModal({
 
   function onSubmit(data: PurchasePlanPosition) {
     // КБК может быть собран из разрядов формы
-    const kbkEntries = (data.kbkEntries ?? []).map((entry) => ({
+    const kbkEntriesData = (data.kbkEntries ?? []).map((entry) => ({
       ...entry,
       kbk: entry.kbk || buildKbk(entry),
     }));
-    const resolvedKbk = data.kbk || kbkEntries[0]?.kbk || "";
+    const resolvedKbk = data.kbk || kbkEntriesData[0]?.kbk || "";
     const resolvedKvr =
       data.kvr || (resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : "");
 
@@ -332,7 +341,7 @@ export default function PurchasePlanPositionModal({
       uniqueNumber:
         data.uniqueNumber ||
         buildPositionUniqueNumber(plan.planNumber, serialNumber),
-      kbkEntries,
+      kbkEntries: kbkEntriesData,
       kbk: resolvedKbk,
       kvr: resolvedKvr,
       // Скрытые чекбоксом блоки не должны оставлять значения в данных
@@ -345,25 +354,31 @@ export default function PurchasePlanPositionModal({
     (errors as Record<string, { message?: string }>)[path]?.message;
 
   return (
-    <CustomModal onClose={onClose}>
-      <FormProvider {...methods}>
-        <form className={block()} onSubmit={handleSubmit(onSubmit)}>
-          <header className={block("header")}>
-            <h2 className={block("title")}>
-              {isNew
-                ? "Новая запись плана-графика"
-                : `Запись плана-графика № ${serialNumber || index + 1}`}
-            </h2>
-            <p className={block("caption")}>
-              План-график {plan.planNumber} · изменения касаются только этой
-              записи
-            </p>
-          </header>
+    <section className={block()}>
+      <header className={block("header")}>
+        <button type="button" className={block("back")} onClick={onClose}>
+          ← К плану-графику
+        </button>
+        <h1 className={block("title")}>
+          План-график закупок № {plan.planNumber || "без номера"}
+        </h1>
+        <p className={block("caption")}>
+          Общие сведения позиции
+          {uniqueNumber ? ` · ${uniqueNumber}` : ""}
+        </p>
+        <p className={block("caption")}>
+          {plan.customer?.shortName || plan.customer?.fullName}
+          {plan.customer?.inn ? ` · ИНН ${plan.customer.inn}` : ""}
+          {plan.customer?.kpp ? ` · КПП ${plan.customer.kpp}` : ""}
+        </p>
+      </header>
 
+      <FormProvider {...methods}>
+        <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
           <fieldset className={block("section")}>
-            <legend>Общие сведения позиции</legend>
-            <div className={block("grid")}>
-              <div className={block("field")}>
+            <legend>Сведения о закупке</legend>
+            <div className={block("fields")}>
+              <div className={block("cell", ["wide"])}>
                 <span className={block("label")}>
                   Уникальный номер позиции в плане-графике закупок
                 </span>
@@ -373,12 +388,46 @@ export default function PurchasePlanPositionModal({
                   readOnly
                 />
               </div>
-              <div className={block("field")}>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-placement-year"
+                >
+                  Год (планируемый год размещения извещения)
+                </label>
+                <select
+                  id="position-placement-year"
+                  className={block("select")}
+                  value={plannedPlacementYear ?? ""}
+                  onChange={(event) =>
+                    setValue("plannedPlacementYear", event.target.value, {
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  {yearOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={block("cell")}>
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value: "Идентификационный код заказчика (ИКУ, 20 знаков)",
+                    },
+                    input: { name: "iku", placeholder: "77012345677701010011" },
+                  }}
+                />
+              </div>
+              <div className={block("cell")}>
                 <label
                   className={block("label")}
                   htmlFor="position-purchase-number"
                 >
-                  Номер закупки, включенной в план-график
+                  Номер закупки, включенной в план-график закупок
                 </label>
                 <select
                   id="position-purchase-number"
@@ -416,86 +465,15 @@ export default function PurchasePlanPositionModal({
                   </span>
                 )}
               </div>
-              <div className={block("field")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-placement-year"
-                >
-                  Планируемый год размещения извещения
-                </label>
-                <select
-                  id="position-placement-year"
-                  className={block("select")}
-                  value={plannedPlacementYear ?? ""}
-                  onChange={(event) =>
-                    setValue("plannedPlacementYear", event.target.value, {
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  {yearOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <CustomInput
-                configuration={{
-                  label: {
-                    value: "Внешний номер позиции (extNumber, ЕИС 17.0)",
-                  },
-                  input: { name: "extNumber", placeholder: "PG-2026-0001" },
-                }}
-              />
-              <CustomInput
-                configuration={{
-                  label: { value: "Порядковый № закупки в ИКЗ (3 знака)" },
-                  input: { name: "purchaseOrderNumber", placeholder: "000" },
-                }}
-              />
-              <CustomInput
-                configuration={{
-                  label: { value: "ИКУ заказчика (20 знаков, опционально)" },
-                  input: { name: "iku", placeholder: "77012345677701010011" },
-                }}
-              />
-              <CustomInput
-                configuration={{
-                  label: { value: "Код вида расходов — КВР (3 цифры)" },
-                  input: { name: "kvr", placeholder: "244" },
-                }}
-              />
-              <div className={block("field")}>
+              <div className={block("cell")}>
                 <CustomInput
                   configuration={{
-                    label: {
-                      value: "Идентификационный код закупки (ИКЗ, 36 знаков)",
-                    },
-                    input: {
-                      name: "identificationCode",
-                      placeholder: "267701234567770101001100010003250244",
-                    },
+                    label: { value: "Порядковый номер закупки (3 знака)" },
+                    input: { name: "purchaseOrderNumber", placeholder: "000" },
                   }}
                 />
-                <button
-                  type="button"
-                  className={block("link")}
-                  onClick={fillIdentificationCode}
-                >
-                  Сформировать 36-значный ИКЗ автоматически (ikzCodeType)
-                </button>
-                {ikzBuildError && (
-                  <span className={block("error")}>{ikzBuildError}</span>
-                )}
               </div>
-            </div>
-          </fieldset>
-
-          <fieldset className={block("section")}>
-            <legend>Информация об объекте закупки</legend>
-            <div className={block("grid")}>
-              <div className={block("field", ["okpd2"])}>
+              <div className={block("cell", ["okpd2"])}>
                 <label className={block("label")} htmlFor="position-okpd2">
                   {okpd2FieldLabels.code}
                 </label>
@@ -527,9 +505,65 @@ export default function PurchasePlanPositionModal({
                   </span>
                 )}
               </div>
+              <div className={block("cell")}>
+                <CustomInput
+                  configuration={{
+                    label: { value: "Код вида расходов — КВР (3 цифры)" },
+                    input: { name: "kvr", placeholder: "244" },
+                  }}
+                />
+              </div>
+              <div className={block("cell", ["wide"])}>
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value: "Идентификационный код закупки (ИКЗ, 36 знаков)",
+                    },
+                    input: {
+                      name: "identificationCode",
+                      placeholder: "267701234567770101001100010003250244",
+                    },
+                  }}
+                />
+                <button
+                  type="button"
+                  className={block("link")}
+                  onClick={fillIdentificationCode}
+                >
+                  Сформировать 36-значный ИКЗ автоматически (ikzCodeType)
+                </button>
+                {ikzBuildError && (
+                  <span className={block("error")}>{ikzBuildError}</span>
+                )}
+              </div>
+              <div className={block("cell", ["wide"])}>
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value: "Внешний номер позиции (extNumber, ЕИС 17.0)",
+                    },
+                    input: { name: "extNumber", placeholder: "PG-2026-0001" },
+                  }}
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className={block("section")}>
+            <legend>Информация об объекте закупки</legend>
+            <div className={block("fields")}>
               <CustomInput
                 configuration={{
-                  label: { value: "Тексарии" },
+                  label: {
+                    value:
+                      "Наименование товара, работы, услуги по ОКПД2",
+                  },
+                  input: { name: "okpd2Name" },
+                }}
+              />
+              <CustomInput
+                configuration={{
+                  label: { value: "Наименование объекта закупки" },
                   input: {
                     name: "objectOfPurchase",
                     placeholder: "Наименование по ОКПД2, правится заказчиком",
@@ -553,40 +587,58 @@ export default function PurchasePlanPositionModal({
                   input: { name: "objectName" },
                 }}
               />
-              <label className={block("checkbox")}>
-                <input type="checkbox" {...register("hasMultipleOkpd2")} />
-                Несколько кодов ОКПД2 (в разрядах 30–33 ИКЗ ставится «0000»)
-              </label>
-              {hasMultipleOkpd2 && (
-                <p className={block("hint")}>
-                  При наличии нескольких позиций ОКПД2 в ИКЗ по XSD 17.0
-                  автоматически проставляется значение «0000».
-                </p>
-              )}
+              <div className={block("cell", ["wide"])}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasMultipleOkpd2")} />
+                  Несколько кодов ОКПД2 (в разрядах 30–33 ИКЗ ставится «0000»)
+                </label>
+                {hasMultipleOkpd2 && (
+                  <p className={block("hint")}>
+                    При наличии нескольких позиций ОКПД2 в ИКЗ по XSD 17.0
+                    автоматически проставляется значение «0000».
+                  </p>
+                )}
+              </div>
             </div>
           </fieldset>
 
           <fieldset className={block("section")}>
             <legend>Объем финансового обеспечения закупки (рублей)</legend>
-            <div className={block("grid", ["amounts"])}>
-              {AMOUNT_FIELDS.map((field) => (
-                <CustomInput
-                  key={field.key}
-                  configuration={{
-                    label: {
-                      value:
-                        field.key === "amountTotal"
-                          ? "Всего, рублей"
-                          : `Сумма на ${labelsAmountSuffix(field.key)}`,
-                    },
-                    input: { name: field.key, placeholder: "0.00" },
-                  }}
-                />
-              ))}
+            <div className={block("table-wrap")}>
+              <table className={block("table")}>
+                <thead>
+                  <tr>
+                    <th>Планируемые платежи, рублей</th>
+                    {AMOUNT_FIELDS.map((field) => (
+                      <th key={field.key}>{amountHeaders[field.key]}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className={block("cell", ["right"])}>Сумма, рублей</td>
+                    {AMOUNT_FIELDS.map((field) => (
+                      <td key={field.key}>
+                        <CustomInput
+                          configuration={{
+                            input: { name: field.key, placeholder: "0.00" },
+                          }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </div>
+            {errorText("amountTotal") && (
+              <span className={block("error")}>
+                {errorText("amountTotal")}
+              </span>
+            )}
             <p className={block("hint")}>
-              {labels.currentYear}; {labels.firstPlanYear};{" "}
-              {labels.secondPlanYear}; {labels.subsequentYears}.
+              «Всего» должно совпадать с суммой платежей по годам: год
+              формирования плана-графика и два следующих года планового
+              периода, остаток — последующие годы.
             </p>
           </fieldset>
 
@@ -603,76 +655,103 @@ export default function PurchasePlanPositionModal({
               </p>
             )}
 
-            <ul className={block("kbk-list")}>
-              {kbkEntries.fields.map((field, entryIndex) => (
-                <li className={block("kbk-row")} key={field.id}>
-                  <div className={block("kbk-code")}>
-                    {entryIndex === 0 && (
-                      <span className={block("label")}>
-                        Код бюджетной классификации — разряды
-                      </span>
-                    )}
-                    <div className={block("kbk-parts")}>
-                      {KBK_PART_FIELDS.map((part) => {
-                        const parts = splitKbk(
-                          kbkEntriesValues?.[entryIndex]?.kbk,
-                        );
+            {kbkEntries.fields.length > 0 && (
+              <div className={block("table-wrap")}>
+                <table className={block("table")}>
+                  <thead>
+                    <tr>
+                      <th colSpan={4}>Код бюджетной классификации</th>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <th key={field.key}>{amountHeaders[field.key]}, рублей</th>
+                      ))}
+                      <th />
+                    </tr>
+                    <tr>
+                      {KBK_PART_FIELDS.map((part) => (
+                        <th key={part.key} className={block("th", ["sub"])}>
+                          {part.label}
+                        </th>
+                      ))}
+                      {AMOUNT_FIELDS.map((field) => (
+                        <th key={field.key} className={block("th", ["sub"])}>
+                          рублей
+                        </th>
+                      ))}
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kbkEntries.fields.map((field, entryIndex) => {
+                      const parts = splitKbk(
+                        kbkEntriesValues?.[entryIndex]?.kbk,
+                      );
 
-                        return (
-                          <input
-                            key={part.key}
-                            className={block("input")}
-                            value={parts[part.key]}
-                            onChange={(event) =>
-                              updateKbkPart(
-                                entryIndex,
-                                part.key,
-                                event.target.value,
-                              )
-                            }
-                            placeholder={part.placeholder}
-                            aria-label={part.label}
-                            maxLength={part.length}
-                            list={
-                              part.key === "expenseType"
-                                ? "kvr-options"
-                                : undefined
-                            }
-                          />
-                        );
-                      })}
-                    </div>
-                    <p className={block("hint")}>
-                      Итоговый КБК:{" "}
-                      {kbkEntriesValues?.[entryIndex]?.kbk || "не собран"}
-                    </p>
-                  </div>
-                  <div className={block("kbk-amounts")}>
-                    {AMOUNT_FIELDS.map((amount) => (
-                      <CustomInput
-                        key={amount.key}
-                        configuration={{
-                          label: {
-                            value: entryIndex === 0 ? amount.label : undefined,
-                          },
-                          input: {
-                            name: `kbkEntries.${entryIndex}.${amount.key}`,
-                            placeholder: "0.00",
-                          },
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    className={block("remove")}
-                    onClick={() => kbkEntries.remove(entryIndex)}
-                  >
-                    Убрать
-                  </button>
-                </li>
-              ))}
-            </ul>
+                      return (
+                        <tr key={field.id}>
+                          {KBK_PART_FIELDS.map((part) => (
+                            <td key={part.key}>
+                              <input
+                                className={block("input")}
+                                value={parts[part.key]}
+                                onChange={(event) =>
+                                  updateKbkPart(
+                                    entryIndex,
+                                    part.key,
+                                    event.target.value,
+                                  )
+                                }
+                                placeholder={part.placeholder}
+                                aria-label={part.label}
+                                maxLength={part.length}
+                                list={
+                                  part.key === "expenseType"
+                                    ? "kvr-options"
+                                    : undefined
+                                }
+                              />
+                            </td>
+                          ))}
+                          {AMOUNT_FIELDS.map((amount) => (
+                            <td key={amount.key}>
+                              <CustomInput
+                                configuration={{
+                                  input: {
+                                    name: `kbkEntries.${entryIndex}.${amount.key}`,
+                                    placeholder: "0.00",
+                                  },
+                                }}
+                              />
+                            </td>
+                          ))}
+                          <td>
+                            <button
+                              type="button"
+                              className={block("remove")}
+                              onClick={() => kbkEntries.remove(entryIndex)}
+                            >
+                              Убрать
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4} className={block("cell", ["right"])}>
+                        Итого по кодам бюджетной классификации
+                      </td>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <td key={field.key} className={block("cell", ["total"])}>
+                          {formatMoney(kbkTotals[field.key])}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
 
             <datalist id="kvr-options">
               {kvrOptions.map((option) => (
@@ -694,256 +773,10 @@ export default function PurchasePlanPositionModal({
             </p>
           </fieldset>
 
-          <fieldset className={block("section")}>
-            <legend>Статус записи, признаки ЕИС 17.0 и изменения</legend>
-            <div className={block("grid")}>
-              <div className={block("field")}>
-                <label className={block("label")} htmlFor="position-status">
-                  Статус записи плана-графика
-                </label>
-                <select
-                  id="position-status"
-                  className={block("select")}
-                  {...register("status")}
-                >
-                  {positionStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <CustomInput
-                configuration={{
-                  label: {
-                    value: "Дата размещения записи (прохождения контроля)",
-                  },
-                  input: { name: "statusDate", type: "date" },
-                }}
-              />
-              <div className={block("field")}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("hasAuthorizedBody")} />
-                  Есть уполномоченный орган (учреждение)
-                </label>
-                {hasAuthorizedBody && (
-                  <>
-                    <label
-                      className={block("label")}
-                      htmlFor="authorized-body-select"
-                    >
-                      Наименование уполномоченного органа (учреждения)
-                    </label>
-                    <select
-                      id="authorized-body-select"
-                      className={block("select")}
-                      {...register("authorizedBodyName")}
-                    >
-                      <option value="">Выберите уполномоченный орган</option>
-                      {AUTHORIZED_BODIES.map((body) => (
-                        <option key={body.id} value={body.name}>
-                          {body.name}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-              </div>
-              <div className={block("field")}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("hasJointOrganizer")} />
-                  Есть организатор совместной закупки
-                </label>
-                {hasJointOrganizer && (
-                  <>
-                    <label
-                      className={block("label")}
-                      htmlFor="joint-organizer-select"
-                    >
-                      Наименование организатора совместного конкурса или
-                      аукциона
-                    </label>
-                    <select
-                      id="joint-organizer-select"
-                      className={block("select")}
-                      {...register("jointOrganizerName")}
-                    >
-                      <option value="">Выберите организатора</option>
-                      {organizers.map((organizer) => (
-                        <option key={organizer.id} value={organizer.name}>
-                          {organizer.name}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
-              </div>
-              <div className={block("field")}>
-                <label className={block("label")} htmlFor="position-mod-status">
-                  Статус при передаче изменений (ЕИС 17.0)
-                </label>
-                <select
-                  id="position-mod-status"
-                  className={block("select")}
-                  {...register("modificationStatus")}
-                >
-                  {modificationStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={block("field")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-public-discussion"
-                >
-                  Обязательное общественное обсуждение (ст. 20 44-ФЗ)
-                </label>
-                <select
-                  id="position-public-discussion"
-                  className={block("select")}
-                  value={String(Boolean(isPublicDiscussionRequired))}
-                  onChange={(event) =>
-                    setValue(
-                      "isPublicDiscussionRequired",
-                      event.target.value === "true",
-                      { shouldValidate: true },
-                    )
-                  }
-                >
-                  {publicDiscussionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(isEnergyServiceContract)}
-                  onChange={(event) =>
-                    setExclusiveFlag(
-                      "isEnergyServiceContract",
-                      event.target.checked,
-                    )
-                  }
-                />
-                Закупка на заключение энергосервисного контракта (ст. 108 44-ФЗ)
-              </label>
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(isProvisionLendingServices)}
-                  onChange={(event) =>
-                    setExclusiveFlag(
-                      "isProvisionLendingServices",
-                      event.target.checked,
-                    )
-                  }
-                />
-                Закупка на оказание услуг по предоставлению кредита
-              </label>
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(isConstructionWorks)}
-                  onChange={(event) =>
-                    setExclusiveFlag(
-                      "isConstructionWorks",
-                      event.target.checked,
-                    )
-                  }
-                />
-                Закупка по пп. «а» п. 18 Положения № 1279 (объект капитального
-                строительства)
-              </label>
-              <label className={block("checkbox")}>
-                <input type="checkbox" {...register("isNotFederalFinancing")} />
-                ОКС / недвижимость без софинансирования из федерального бюджета
-              </label>
-              <label className={block("checkbox")}>
-                <input type="checkbox" {...register("notPublishedOnEIS")} />
-                Информация, не подлежащая размещению на официальном сайте ЕИС
-              </label>
-            </div>
-
-            {(positionStatus === "changed" ||
-              positionStatus === "cancelled" ||
-              !isNew) && (
-              <div className={block("grid")}>
-                <div className={block("field")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-change-reason"
-                  >
-                    Основание внесения изменений (positionModification)
-                  </label>
-                  <select
-                    id="position-change-reason"
-                    className={block("select")}
-                    {...register("changeReasonCode", {
-                      onChange: (e) => {
-                        const found = tpChangeReasonOptions.find(
-                          (item) => item.code === e.target.value,
-                        );
-                        setValue("changeReasonName", found?.name ?? "");
-                      },
-                    })}
-                  >
-                    <option value="">— Не выбрано —</option>
-                    {tpChangeReasonOptions.map((item) => (
-                      <option key={item.code} value={item.code}>
-                        {item.code}. {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={block("field")}>
-                  <span className={block("label")}>
-                    Вынесенное решение (decision)
-                  </span>
-                  {/* По XSD 17.0 decision — это «изменение» либо «отмена»
-                      закупки; для новой записи решение ещё не принято */}
-                  <div className={block("radio-row")}>
-                    {modificationDecisionOptions.map((option) => (
-                      <label key={option.value} className={block("radio")}>
-                        <input
-                          type="radio"
-                          value={option.value}
-                          {...register("modificationDecision")}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className={block("field", ["wide"])}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-modification-description"
-                  >
-                    Содержание изменений позиции
-                  </label>
-                  <textarea
-                    id="position-modification-description"
-                    className={block("textarea")}
-                    rows={3}
-                    placeholder="Обоснование корректировки или отмены позиции"
-                    {...register("modificationDescription")}
-                  />
-                </div>
-              </div>
-            )}
-          </fieldset>
-
           {(isConstructionWorks || koksEntries.fields.length > 0) && (
             <fieldset className={block("section")}>
               <legend>
-                Детализация по кодам КОКС — ОКС/ОНИ ({koksEntries.fields.length}
-                )
+                Детализация по кодам КОКС — ОКС/ОНИ ({koksEntries.fields.length})
               </legend>
               <ul className={block("kbk-list")}>
                 {koksEntries.fields.map((field, entryIndex) => (
@@ -1016,10 +849,262 @@ export default function PurchasePlanPositionModal({
             </fieldset>
           )}
 
-          <footer className={block("footer")}>
-            {errorText("amountTotal") && (
-              <span className={block("error")}>{errorText("amountTotal")}</span>
+          <fieldset className={block("section")}>
+            <legend>
+              Статус записи, признаки ЕИС 17.0 и изменения
+            </legend>
+            <div className={block("fields")}>
+              <div className={block("cell")}>
+                <label className={block("label")} htmlFor="position-status">
+                  Статус записи плана-графика
+                </label>
+                <select
+                  id="position-status"
+                  className={block("select")}
+                  {...register("status")}
+                >
+                  {positionStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <CustomInput
+                configuration={{
+                  label: {
+                    value: "Дата размещения записи (прохождения контроля)",
+                  },
+                  input: { name: "statusDate", type: "date" },
+                }}
+              />
+              <div className={block("cell")}>
+                <label className={block("label")} htmlFor="position-mod-status">
+                  Статус при передаче изменений (ЕИС 17.0)
+                </label>
+                <select
+                  id="position-mod-status"
+                  className={block("select")}
+                  {...register("modificationStatus")}
+                >
+                  {modificationStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-public-discussion"
+                >
+                  Необходимо обязательное общественное обсуждение в
+                  соответствии со ст. 20 44-ФЗ
+                </label>
+                <select
+                  id="position-public-discussion"
+                  className={block("select")}
+                  value={String(Boolean(isPublicDiscussionRequired))}
+                  onChange={(event) =>
+                    setValue(
+                      "isPublicDiscussionRequired",
+                      event.target.value === "true",
+                      { shouldValidate: true },
+                    )
+                  }
+                >
+                  {publicDiscussionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={block("cell")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasAuthorizedBody")} />
+                  Есть уполномоченный орган (учреждение)
+                </label>
+                {hasAuthorizedBody && (
+                  <>
+                    <label
+                      className={block("label")}
+                      htmlFor="authorized-body-select"
+                    >
+                      Наименование уполномоченного органа (учреждения)
+                    </label>
+                    <select
+                      id="authorized-body-select"
+                      className={block("select")}
+                      {...register("authorizedBodyName")}
+                    >
+                      <option value="">Выберите уполномоченный орган</option>
+                      {AUTHORIZED_BODIES.map((body) => (
+                        <option key={body.id} value={body.name}>
+                          {body.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+              <div className={block("cell")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasJointOrganizer")} />
+                  Есть организатор совместной закупки
+                </label>
+                {hasJointOrganizer && (
+                  <>
+                    <label
+                      className={block("label")}
+                      htmlFor="joint-organizer-select"
+                    >
+                      Наименование организатора совместного конкурса или
+                      аукциона
+                    </label>
+                    <select
+                      id="joint-organizer-select"
+                      className={block("select")}
+                      {...register("jointOrganizerName")}
+                    >
+                      <option value="">Выберите организатора</option>
+                      {organizers.map((organizer) => (
+                        <option key={organizer.id} value={organizer.name}>
+                          {organizer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </div>
+              <div className={block("cell", ["wide"])}>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isEnergyServiceContract)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isEnergyServiceContract",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка на заключение энергосервисного контракта (ст. 108
+                  44-ФЗ)
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isProvisionLendingServices)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isProvisionLendingServices",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка на оказание услуг по предоставлению кредита
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isConstructionWorks)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isConstructionWorks",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка по пп. «а» п. 18 Положения № 1279 (объект
+                  капитального строительства)
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("isNotFederalFinancing")}
+                  />
+                  ОКС / недвижимость без софинансирования из федерального
+                  бюджета
+                </label>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("notPublishedOnEIS")} />
+                  Информация, не подлежащая размещению на официальном сайте ЕИС
+                </label>
+              </div>
+            </div>
+
+            {(positionStatus === "changed" ||
+              positionStatus === "cancelled" ||
+              !isNew) && (
+              <div className={block("fields")}>
+                <div className={block("cell")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-change-reason"
+                  >
+                    Основание внесения изменений (positionModification)
+                  </label>
+                  <select
+                    id="position-change-reason"
+                    className={block("select")}
+                    {...register("changeReasonCode", {
+                      onChange: (e) => {
+                        const found = tpChangeReasonOptions.find(
+                          (item) => item.code === e.target.value,
+                        );
+                        setValue("changeReasonName", found?.name ?? "");
+                      },
+                    })}
+                  >
+                    <option value="">— Не выбрано —</option>
+                    {tpChangeReasonOptions.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.code}. {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={block("cell")}>
+                  <span className={block("label")}>
+                    Вынесенное решение (decision)
+                  </span>
+                  {/* По XSD 17.0 decision — это «изменение» либо «отмена»
+                      закупки; для новой записи решение ещё не принято */}
+                  <div className={block("radio-row")}>
+                    {modificationDecisionOptions.map((option) => (
+                      <label key={option.value} className={block("radio")}>
+                        <input
+                          type="radio"
+                          value={option.value}
+                          {...register("modificationDecision")}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className={block("cell", ["wide"])}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-modification-description"
+                  >
+                    Содержание изменений позиции
+                  </label>
+                  <textarea
+                    id="position-modification-description"
+                    className={block("textarea")}
+                    rows={3}
+                    placeholder="Обоснование корректировки или отмены позиции"
+                    {...register("modificationDescription")}
+                  />
+                </div>
+              </div>
             )}
+          </fieldset>
+
+          <footer className={block("footer")}>
             {errorText("objectOfPurchase") && (
               <span className={block("error")}>
                 {errorText("objectOfPurchase")}
@@ -1046,6 +1131,7 @@ export default function PurchasePlanPositionModal({
           </footer>
         </form>
       </FormProvider>
+
       {/* Справочник nsiKOKS открывается поверх формы позиции */}
       {koksPickerIndex !== null && (
         <KoksPickerModal
@@ -1053,23 +1139,6 @@ export default function PurchasePlanPositionModal({
           onSelect={handleKoksSelect}
         />
       )}
-    </CustomModal>
+    </section>
   );
-
-  // Подпись графы планируемого платежа по году планирования:
-  // год формирования ПГ, следующие два года, затем «последующие годы»
-  function labelsAmountSuffix(key: AmountKey): string {
-    switch (key) {
-      case "amountCurrentYear":
-        return `${baseYear} год`;
-      case "amountPlanPeriodFirstYear":
-        return `${baseYear + 1} год`;
-      case "amountPlanPeriodSecondYear":
-        return `${baseYear + 2} год`;
-      case "amountSubsequentYears":
-        return "последующие годы";
-      default:
-        return "последующие годы";
-    }
-  }
 }
