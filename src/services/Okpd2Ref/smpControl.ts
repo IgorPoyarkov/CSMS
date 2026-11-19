@@ -26,14 +26,12 @@ import type { Okpd2Ref } from "./okpd2Ref.schema";
  *    у единственного поставщика до 10 млн руб. (ч. 41 ст. 93).
  *    С 01.01.2026 — лимит увеличивается до 30 млн руб. включительно.
  *
- * 5. Ст. 29 (организации инвалидов, учреждения УИС):
- *    Закупки до 5 млн руб. в год на одного поставщика — преимущества
- *    для организаций инвалидов (ч. 4.1 ст. 29) и учреждений УИС (ч. 4.2 ст. 28).
+ * Преимущества по ст. 28 и 29 (учреждения УИС и организации инвалидов)
+ * определяются только перечнями товаров по ОКПД2 и не зависят от НМЦК.
  */
 
 const SMP_LIMIT = 20_000_000; // 20 млн руб. (до 2026)
 const SMP_LIMIT_2026 = 30_000_000; // 30 млн руб. (с 01.01.2026)
-const SMALL_LIMIT = 5_000_000; // 5 млн руб. (ст. 29, 28 — организации инвалидов, УИС)
 
 /**
  * Префиксы ОКПД2, при закупке которых заказчик обязан проводить аукцион
@@ -100,16 +98,6 @@ export interface SmpCheckResult {
    * false — ч. 5 ст. 30 не обязательна.
    */
   smpSubcontractingRequired: boolean;
-  /**
-   * true — преимущества для организаций инвалидов (ст. 29) применимы.
-   * false — НМЦК превышает 5 млн руб.
-   */
-  disabledOrgAdvantage: boolean;
-  /**
-   * true — преимущества для учреждений УИС (ст. 28) применимы.
-   * false — НМЦК превышает 5 млн руб.
-   */
-  penalSystemAdvantage: boolean;
   /** Подсказка для пользователя */
   hint?: string;
 }
@@ -170,8 +158,6 @@ export const checkSmpRequirements = (
   const limit = getSmpLimit(asOfDate);
   const smpOnlyRequired = nmck <= limit;
   const smpSubcontractingRequired = nmck <= limit;
-  const disabledOrgAdvantage = nmck <= SMALL_LIMIT;
-  const penalSystemAdvantage = nmck <= SMALL_LIMIT;
 
   return items.map((item) => {
     const code = (item.code ?? "").trim().replace(/,/g, ".");
@@ -192,26 +178,12 @@ export const checkSmpRequirements = (
         " руб.: ч. 3 ст. 30 Закона № 44-ФЗ — закупка только среди СМП/СОНКО";
     }
 
-    if (disabledOrgAdvantage) {
-      hint =
-        (hint ? hint + "; " : "") +
-        "НМЦК ≤ 5 млн руб.: ст. 29 Закона № 44-ФЗ — преимущества для организаций инвалидов";
-    }
-
-    if (penalSystemAdvantage) {
-      hint =
-        (hint ? hint + "; " : "") +
-        "НМЦК ≤ 5 млн руб.: ст. 28 Закона № 44-ФЗ — преимущества для учреждений УИС";
-    }
-
     return {
       code,
       name: item.name,
       isInSmpList: isInSmpListFlag,
       smpOnlyRequired,
       smpSubcontractingRequired,
-      disabledOrgAdvantage,
-      penalSystemAdvantage,
       hint,
     };
   });
@@ -275,14 +247,3 @@ export const isSmpOnlyRequired = (nmck: number, asOfDate?: Date): boolean => {
   return nmck <= limit;
 };
 
-/**
- * Проверяет, применимы ли преимущества для организаций инвалидов (ст. 29).
- */
-export const isDisabledOrgAdvantageApplicable = (nmck: number): boolean =>
-  nmck <= SMALL_LIMIT;
-
-/**
- * Проверяет, применимы ли преимущества для учреждений УИС (ст. 28).
- */
-export const isPenalSystemAdvantageApplicable = (nmck: number): boolean =>
-  nmck <= SMALL_LIMIT;

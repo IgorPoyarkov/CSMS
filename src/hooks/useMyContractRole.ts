@@ -2,8 +2,21 @@ import { useFetchCurrentUser } from "../services/Users/user.api";
 import { useFetchEmployeeByUserId } from "../services/StaffingTable/StaffingTable.api";
 import { useCurrentOrganization } from "../services/Organization/organization.api";
 import { useContractService } from "../services/ContractService/contractService.api";
-import type { ContractServiceFunction } from "../services/ContractService/contractService.schema";
-import { contractServiceRoster } from "../components/ContractService/contractService.config";
+import {
+  ContractServiceSchema,
+  type ContractServiceFunction,
+} from "../services/ContractService/contractService.schema";
+import { BaseUserSchema } from "../services/Users/user.schema";
+import { BaseOrganizationSchema } from "../services/Organization/organization.schema";
+import { BaseEmployeeSchema } from "../services/StaffingTable/StaffingTable.schema";
+import {
+  hasAccessSession,
+  useAccessProfile,
+} from "../services/Access/access.api";
+import {
+  contractServiceRoster,
+  type ContractServiceRosterRow,
+} from "../components/ContractService/contractService.config";
 
 // Функции раздела III приказа Минфина РФ № 158н, дающие право формировать
 // и изменять потребность (служебную записку по позиции плана-графика).
@@ -13,7 +26,14 @@ const PURCHASE_NOTE_ALLOWED_FUNCTIONS: ReadonlyArray<ContractServiceFunction> =
 // Роль вошедшего пользователя в контрактной службе организации. Нужна сразу
 // нескольким разделам: личный кабинет показывает роль и права руководителя,
 // список задач и форма потребности (СЗ) решают, доступно ли редактирование.
+//
+// При наличии сессии csms-api права приходят готовым профилем: сервер сам
+// собирает пользователя, организацию, сотрудника и КС из PostgreSQL. Старый
+// расчёт на данных json-server оставлен как fallback для локальной разработки.
 const useMyContractRole = () => {
+  const backendSession = hasAccessSession();
+  const accessQuery = useAccessProfile();
+
   const { data: user, isLoading: isUserLoading } = useFetchCurrentUser();
   const { data: organization, isLoading: isOrgLoading } =
     useCurrentOrganization();
@@ -24,6 +44,76 @@ const useMyContractRole = () => {
   const { data: employee, isLoading: isEmpLoading } = useFetchEmployeeByUserId(
     user?.id,
   );
+
+  if (backendSession) {
+    const profile = accessQuery.data;
+
+    if (!profile) {
+      return {
+        user: undefined,
+        organization: undefined,
+        contractService: undefined,
+        employee: undefined,
+        myRole: undefined,
+        isHead: false,
+        isLoading: accessQuery.isLoading || accessQuery.isFetching,
+        isInContractService: false,
+        myFunctions: [] as ContractServiceFunction[],
+        canEditPurchaseNote: false,
+        canDisagreeKbk: false,
+        canEditCustomerRequisites: false,
+        purchaseNoteDeniedReason: null as string | null,
+        isContractServiceMember: false,
+        isPurchaseInitiator: false,
+        roles: [] as string[],
+        permissions: [] as string[],
+      };
+    }
+
+    const parsedService = ContractServiceSchema.safeParse(
+      profile.contractService,
+    ).data;
+    const parsedEmployee = BaseEmployeeSchema.safeParse(profile.employee).data;
+    const backendRoster = parsedService ? contractServiceRoster(parsedService) : [];
+
+    // Компоненты личного кабинета читают myRole как строку таблицы состава
+    // (role, position, functions), поэтому профиль API приводим к тому же
+    // виду. Само решение о правах уже принято сервером.
+    const myFunctions = profile.myFunctions as ContractServiceFunction[];
+    const rosterRow: ContractServiceRosterRow | undefined =
+      backendRoster.find(
+        (row) => String(row.employeeId ?? "") === String(parsedEmployee?.id),
+      ) ??
+      (profile.myRole
+        ? {
+            key: `api-${String(parsedEmployee?.id ?? "")}`,
+            role: profile.myRole,
+            employeeId: parsedEmployee?.id,
+            position: parsedEmployee?.position,
+            functions: myFunctions,
+          }
+        : undefined);
+
+    return {
+      user: BaseUserSchema.safeParse(profile.user).data,
+      organization: BaseOrganizationSchema.safeParse(profile.organization).data,
+      contractService: parsedService,
+      employee: parsedEmployee,
+      myRole: rosterRow,
+      isHead: profile.isHead,
+      isLoading: false,
+      isInContractService: profile.isInContractService,
+      myFunctions,
+      canEditPurchaseNote: profile.canEditPurchaseNote,
+      canDisagreeKbk: profile.canDisagreeKbk,
+      canEditCustomerRequisites: profile.canEditCustomerRequisites,
+      purchaseNoteDeniedReason: profile.purchaseNoteDeniedReason,
+      isContractServiceMember: profile.isContractServiceMember,
+      isPurchaseInitiator: profile.isPurchaseInitiator,
+      roles: profile.roles,
+      permissions: profile.permissions,
+    };
+  }
 
   const isLoading =
     isUserLoading || isOrgLoading || isCsLoading || isEmpLoading;
@@ -135,6 +225,8 @@ const useMyContractRole = () => {
     purchaseNoteDeniedReason,
     isContractServiceMember,
     isPurchaseInitiator,
+    roles: [] as string[],
+    permissions: [] as string[],
   };
 };
 

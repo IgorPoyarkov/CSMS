@@ -5,12 +5,28 @@ import {
   type Register,
 } from "./user.schema";
 import { api } from "../axios.instance";
+import {
+  ACCESS_TOKEN_KEY,
+  fetchAccessProfile,
+  loginAccess,
+  logoutAccess,
+} from "../Access/access.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 
 export const fetchCurrentUser = async (
   email: string,
 ): Promise<BaseUser | null> => {
+  // Если есть сессия csms-api, пользователь приходит в составе профиля прав:
+  // сервер уже собрал его вместе с организацией, сотрудником и КС.
+  if (localStorage.getItem(ACCESS_TOKEN_KEY)) {
+    const profile = await fetchAccessProfile();
+    if (profile?.user) {
+      const parsed = BaseUserSchema.safeParse(profile.user);
+      if (parsed.success) return parsed.data;
+    }
+  }
+
   try {
     const response = await api.get<BaseUser[]>(`/users?email=${email}`);
 
@@ -18,12 +34,27 @@ export const fetchCurrentUser = async (
       return BaseUserSchema.parse(response.data[0]);
     }
     return null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
 
 export const loginUser = async (credentials: Login): Promise<BaseUser> => {
+  // Сначала пробуем полноценный бэкенд. Если он не поднят (старый режим
+  // json-server), остаётся прежний путь — так переход не ломает разработку.
+  try {
+    const profile = await loginAccess(
+      credentials.email ?? "",
+      credentials.password ?? "",
+    );
+    if (profile.user) {
+      const parsed = BaseUserSchema.safeParse(profile.user);
+      if (parsed.success) return parsed.data;
+    }
+  } catch {
+    // Ниже fallback на json-server.
+  }
+
   try {
     const response = await api.get<BaseUser[]>(
       `/users?email=${credentials.email}&password=${credentials.password}`,
@@ -66,17 +97,18 @@ export const registerUserApi = async (credentials: Register): Promise<void> => {
 };
 
 export const logoutUserApi = async (): Promise<void> => {
-  return Promise.resolve();
+  await logoutAccess();
 };
 
 export const useFetchCurrentUser = () => {
   const savedEmail = localStorage.getItem("user_email") || "";
+  const token = localStorage.getItem(ACCESS_TOKEN_KEY) || "";
 
   return useQuery({
-    queryKey: ["user", savedEmail],
+    queryKey: ["user", savedEmail, token],
     queryFn: () => fetchCurrentUser(savedEmail),
     retry: false,
-    enabled: Boolean(savedEmail),
+    enabled: Boolean(savedEmail || token),
   });
 };
 
@@ -86,7 +118,10 @@ export const useLogin = () => {
     mutationFn: loginUser,
     onSuccess: (validatedUser) => {
       localStorage.setItem("user_email", validatedUser.email || "");
-      queryClient.setQueryData(["user", validatedUser.email], validatedUser);
+      queryClient.setQueryData(
+        ["user", validatedUser.email, localStorage.getItem(ACCESS_TOKEN_KEY) || ""],
+        validatedUser,
+      );
     },
   });
 };
@@ -100,11 +135,15 @@ export const useRegister = () => {
 export const useLogout = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: logoutUserApi,
-    onSuccess: () => {
+    mutationFn: async () => {
+      const savedToken = localStorage.getItem(ACCESS_TOKEN_KEY) || "";
+      await logoutUserApi();
+      return savedToken;
+    },
+    onSuccess: (savedToken) => {
       const savedEmail = localStorage.getItem("user_email") || "";
       localStorage.removeItem("user_email");
-      queryClient.setQueryData(["user", savedEmail], null);
+      queryClient.setQueryData(["user", savedEmail, savedToken], null);
       queryClient.invalidateQueries();
     },
   });
