@@ -34,7 +34,7 @@
 4. **Надёжность.** Лимит ЕИС ~8 RPS — запросы последовательные; повторы 429/5xx/сетевых ошибок через Polly с экспоненциальной задержкой. Дедупликация по `PurchaseNumber` и версии документа: повтор пропускается, изменённая версия обновляет запись.
 5. **Конфигурация.** Токен, адрес туннеля, регионы, типы документов и подсистемы вынесены в `appsettings.json` с переопределением через переменные окружения (`Eis44__IndividualPersonToken`). Скрипт `schemas/generate-models.ps1` генерирует строгие модели из XSD Альбома ТФФ через `dotnet-xscgen` (не `xsd.exe`).
 
-Проверки: `dotnet build eis-parser/Eis44Parser.sln` и `dotnet test eis-parser/Eis44Parser.sln` — зелёные (5/5); `dotnet run --project src/Eis44Parser.Worker -- --validate` создаёт БД и печатает конфигурацию без обращения к ЕИС. 🔴 Живой обмен с ЕИС не проверялся: нужен реальный токен ИП, запущенный Stunnel с КриптоПро/msspi и доступ к тестовому контуру; XSD в `schemas/Schemas44/` ещё не загружены (папка с `.gitkeep`).
+Проверки: `dotnet build eis-parser/Eis44Parser.sln` и `dotnet test eis-parser/Eis44Parser.sln` — зелёные (5/5); `dotnet run --project src/Eis44Parser.Worker -- --validate` создаёт БД и печатает конфигурацию без обращения к ЕИС. 🔴 Живой обмен с ЕИС не проверялся: нужен запущенный Stunnel с КриптоПро/msspi и доступ к тестовому контуру; токен ИП записан в `appsettings.json` (2026-11-19, по просьбе пользователя; как секрет в публичном репозитории подлежит перевыпуску). XSD в `schemas/Schemas44/` ещё не загружены (папка с `.gitkeep`).
 
 -# Tasks 12
 

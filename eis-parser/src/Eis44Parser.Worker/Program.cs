@@ -14,11 +14,42 @@ using Microsoft.Extensions.Options;
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase);
 
-var builder = Host.CreateApplicationBuilder(args);
+// ContentRoot привязан к каталогу исполняемого файла: туда копируется
+// appsettings.json. Иначе при запуске из корня репозитория (dotnet run
+// --project ...) конфиг не находится и молча используются дефолты.
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 builder.Services.AddHttpClient();
 
 builder.Services.Configure<EisClientOptions>(
     builder.Configuration.GetSection(EisClientOptions.SectionName));
+
+// Биндер коллекций дописывает значения из конфига к значениям свойств-инициализаторов.
+// Убираем дубли, иначе воркер опрашивает один и тот же регион/тип по несколько раз.
+builder.Services.PostConfigure<EisClientOptions>(options =>
+{
+    options.RegionCodes = [.. options.RegionCodes.Distinct(StringComparer.OrdinalIgnoreCase)];
+    options.DocumentTypes = [.. options.DocumentTypes.Distinct(StringComparer.OrdinalIgnoreCase)];
+    options.SubsystemTypes = [.. options.SubsystemTypes.Distinct(StringComparer.OrdinalIgnoreCase)];
+
+    if (options.RegionCodes.Count == 0)
+    {
+        options.RegionCodes = ["31"];
+    }
+
+    if (options.DocumentTypes.Count == 0)
+    {
+        options.DocumentTypes = [.. EisDocumentTypes.NotificationTypes];
+    }
+
+    if (options.SubsystemTypes.Count == 0)
+    {
+        options.SubsystemTypes = [EisSubsystems.Priz];
+    }
+});
 builder.Services.AddSingleton<ITenderXmlParser, TenderXmlParser>();
 builder.Services.AddSingleton<IEis44Client, Eis44Client>();
 builder.Services.AddSingleton<ITenderRepository, TenderRepository>();

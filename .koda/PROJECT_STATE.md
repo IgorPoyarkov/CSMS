@@ -30,7 +30,9 @@
 - **C#/ЕИС:** `dotnet build eis-parser/Eis44Parser.sln`,
   `dotnet test eis-parser/Eis44Parser.sln`,
   `dotnet run --project eis-parser/src/Eis44Parser.Worker -- --validate`.
-  Токен задаётся `Eis44__IndividualPersonToken` (в `appsettings.json` — заглушка).
+  Токен ИП записан в `appsettings.json` (2026-11-19, по просьбе пользователя),
+  переопределяется через `Eis44__IndividualPersonToken`. Секрет в публичном
+  репозитории — считать скомпрометированным, перевыпустить в ЛК ЕИС.
 - Прогон схем и моков без сервера:
   1. **json-server-копия** на свободном порту: `Start-Job { node node_modules/json-server/lib/cli/bin.js db.json --port 3010 }` — 6 секунд старта, затем `GET`/`PATCH` на порт 3010.
   2. **tsc --ignoreConfig** — `npx tsc --project tsconfig.json --noEmit --skipLibCheck --ignoreConfig <список schema-файлов> --module esnext --target es2022 --moduleResolution bundler --outDir .tmpcheck` + патч относительных импортов `.ts` → `.js` (`[regex]::Replace` с MatchEvaluator, не `ForEach-Object`).
@@ -430,7 +432,7 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 `smpControl.ts` (`dictionary`) — это чужая незавершённая работа.
 **Не делать:** вход подрядчика по ссылке, OCR содержимого PDF, годовой отчёт СМП.
 **Готово, но ждёт живой проверки:** Tasks 14 — клиент ЕИС `getDocsIP` (`eis-parser/`):
-сборка и 5/5 тестов зелёные, но живой обмен требует токена ИП, Stunnel с
+сборка и 5/5 тестов зелёные, но живой обмен требует запущенного Stunnel с
 КриптоПро/msspi и тестового контура ЕИС; XSD в `schemas/Schemas44/` не загружены.
 
 ⚠️ **Известные проблемы:**
@@ -641,11 +643,19 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   пустая (`.gitkeep`) — схемы пользователь должен положить сам.
 - **Проверки:** `dotnet build` — 0 ошибок/0 предупреждений; `dotnet test` —
   5/5 зелёных; `--validate` создаёт SQLite-БД и печатает конфигурацию. Live-прогон
-  не делался: нужен токен ИП, Stunnel с ГОСТ-TLS и доступ к тестовому контуру ЕИС.
+  не делался: нужен Stunnel с ГОСТ-TLS и доступ к тестовому контуру ЕИС
+  (токен уже в `appsettings.json`, но как секрет в публичном репозитории
+  подлежит перевыпуску).
 - ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
   `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
   экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`
   в Polly 8 принимает `Func<CancellationToken, ValueTask<T>>`, а не
   `Func<CancellationToken, Task<T>>` — нужна обёртка `new(...)`.
+  Третья (исправлена 2026-11-19): `Host.CreateApplicationBuilder(args)` ищет
+  `appsettings.json` относительно cwd — при запуске `dotnet run --project ...`
+  из корня репозитория конфиг молча не читался и работали дефолты. Теперь
+  `ContentRootPath = AppContext.BaseDirectory`. Четвёртая: биндер коллекций
+  дописывает значения к инициализаторам (`31, 31`) — добавлен `PostConfigure`
+  с `Distinct()`.
 - `.gitignore`: добавлены игноры `eis-parser/**/bin|obj`, `*.db`, `eis44.db`,
   но `!eis-parser/Eis44Parser.sln` (общий игнор `*.sln` в корне).

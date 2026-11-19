@@ -62,13 +62,20 @@ dotnet run --project src/Eis44Parser.Worker -- --once
 dotnet run --project src/Eis44Parser.Worker
 ```
 
-Токен лучше задавать переменной окружения, чтобы не хранить его в репозитории:
+Токен ИП записан в `appsettings.json` (поле `Eis44:IndividualPersonToken`) и
+используется по умолчанию. Переменные окружения имеют приоритет над файлом и
+позволяют переопределить токен и прочие настройки без правки конфигурации:
 
 ```powershell
 $env:Eis44__IndividualPersonToken = "GUID_ИЗ_ЛИЧНОГО_КАБИНЕТА"
 $env:Eis44__RegionCodes__0 = "31"
 $env:ConnectionStrings__EisDb = "Data Source=eis44.db"
 ```
+
+⚠️ Токен в `appsettings.json` — действующий секрет личного кабинета ЕИС.
+Репозиторий публичный, поэтому после выкладки его следует считать
+скомпрометированным и отозвать/перевыпустить в ЛК, а рабочее значение
+передавать через переменную окружения.
 
 Для PostgreSQL: `"Database": { "Provider": "PostgreSql" }` и строка
 `Host=localhost;Database=eis44;Username=...;Password=...`.
