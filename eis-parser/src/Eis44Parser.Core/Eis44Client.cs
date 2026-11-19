@@ -18,6 +18,10 @@ namespace Eis44Parser.Core;
 /// </summary>
 public sealed class Eis44Client : IEis44Client
 {
+    // SOAPAction из официальной WSDL getDocsIP: у всех операций сервиса
+    // (в том числе getNsi) он одинаковый.
+    private const string SoapAction = "http://zakupki.gov.ru/fz44/queue/ws/get-docs-ip";
+
     private readonly HttpClient _httpClient;
     private readonly EisClientOptions _options;
     private readonly ITenderXmlParser _parser;
@@ -199,9 +203,14 @@ public sealed class Eis44Client : IEis44Client
 
         var endpoint = $"{_options.BaseTunnelUrl.TrimEnd('/')}/{_options.ServicePath.TrimStart('/')}";
         using var content = new StringContent(soapXml, Encoding.UTF8, "text/xml");
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
+        request.Headers.Add("SOAPAction", SoapAction);
+        // Токен дублируется в HTTP-заголовке: часть шлюзов ЕИС читает его
+        // оттуда, даже когда SOAP-заголовок уже заполнен.
+        request.Headers.Add("individualPerson_token", _options.IndividualPersonToken);
 
         ValueTask<HttpResponseMessage> PostWithRetry(CancellationToken token) =>
-            new(_httpClient.PostAsync(endpoint, content, token));
+            new(_httpClient.SendAsync(request, token));
 
         using var response = await _pipeline
             .ExecuteAsync(PostWithRetry, cancellationToken)
