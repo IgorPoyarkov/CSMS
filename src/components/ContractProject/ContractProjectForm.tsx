@@ -30,6 +30,7 @@ import {
   formatCharacteristicValue,
 } from "../../services/ObjectDescription/objectDescription.schema";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
+import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
 import styles from "./ContractProject.module.scss";
 
 // ─── Типы полей формы (плоские) ────────────────────────────────────────────
@@ -887,6 +888,14 @@ export default function ContractProjectForm() {
           <strong>не ранее {deadline}</strong> (10 дней с даты протокола)
         </div>
       )}
+
+      {/* Автоматическая оценка рисков проекта контракта по 44-ФЗ */}
+      <ContractRiskAssessmentPanel
+        project={toProject(watched, orgId)}
+        notice={matchedNotice}
+        purchaseNote={matchedNote}
+        onNavigateSection={(sectionId) => setActiveSection(sectionId)}
+      />
 
       {/* Навигация по разделам */}
       <nav className={styles.nav}>

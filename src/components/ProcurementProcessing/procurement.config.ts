@@ -6,6 +6,7 @@ export type ProcurementActionType =
   | "btn352_edit_notice"      // Кнопка352: Внести изменения в извещение
   | "btn305_edit_docs"        // Кнопка305: Внести изменения в документы к извещению
   | "btn353_create_order"     // Кнопка353: Приказ о проведении закупки
+  | "btn_generate_docs"       // Типовые документы (приказ о комиссии, протокол заявок)
   | "create_remarks";         // Сформировать замечания по закупке
 
 export const leftRowButtons: Array<{
@@ -69,6 +70,17 @@ export const rightColOneButtons: Array<{
         name: "btn353_create_order",
         type: "button",
         value: "Приказ о проведении закупки",
+        modifier: ["info"],
+      },
+    },
+  },
+  {
+    action: "btn_generate_docs",
+    config: {
+      button: {
+        name: "btn_generate_docs",
+        type: "button",
+        value: "Комиссия / Протокол (Документы)",
         modifier: ["info"],
       },
     },

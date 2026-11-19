@@ -64,7 +64,10 @@
 
   &__footer {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
+    gap: 12px;
     padding-top: 16px;
     border-top: 1px solid var(--border);
   }
@@ -430,6 +433,64 @@
     margin-top: 4px;
     font-size: 12px;
     color: var(--state-danger);
+  }
+
+  &__sub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  &__code-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    background-color: var(--surface-raised);
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  &__eis-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background-color: var(--surface-raised);
+  }
+
+  &__eis-preview-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  &__eis-issues {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  &__eis-xml {
+    margin: 0;
+    padding: 10px 12px;
+    max-height: 280px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background-color: var(--surface-panel);
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.4;
   }
 }
 

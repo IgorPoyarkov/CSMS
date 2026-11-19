@@ -18,6 +18,7 @@ import NoticeInfoForm from "./components/NoticeInfoForm/NoticeInfoForm";
 import ContractServicePage from "./components/ContractService/ContractServicePage";
 import ContractProjectForm from "./components/ContractProject/ContractProjectForm";
 import SmnpSonekPage from "./components/Reports/SmnpSonekPage";
+import Order158nReportsPage from "./components/Reports/Order158nReportsPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
 import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
@@ -28,6 +29,8 @@ import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
 import DefectListsPage from "./components/DefectList/DefectListsPage";
 import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
+import DeadlineNotificationsPage from "./components/Notifications/DeadlineNotificationsPage";
+import ProcurementDocumentsPage from "./components/ProcurementDocuments/ProcurementDocumentsPage";
 
 const router = createBrowserRouter([
   {
@@ -39,21 +42,10 @@ const router = createBrowserRouter([
         path: "/account",
         element: <AccountPage />,
         children: [
-          {
-            path: "login",
-            element: (
-              <CustomModal>
-                <LoginForm />
-              </CustomModal>
-            ),
-          },
+          { path: "login", element: <CustomModal children={<LoginForm />} /> },
           {
             path: "register",
-            element: (
-              <CustomModal>
-                <RegisterForm />
-              </CustomModal>
-            ),
+            element: <CustomModal children={<RegisterForm />} />,
           },
           { path: "profile", element: <PersonalAccount /> },
         ],
@@ -114,6 +106,11 @@ const router = createBrowserRouter([
         element: <SmnpSonekPage />,
       },
       {
+        // Автоматическая отчётность по Приказу Минфина России № 158н
+        path: "/reports/order-158n",
+        element: <Order158nReportsPage />,
+      },
+      {
         path: "/contract-registry",
         element: <ContractRegistryPage />,
       },
@@ -156,6 +153,16 @@ const router = createBrowserRouter([
         // Оценка заявок: критерии, значимость и баллы по ПП РФ N 2604
         path: "/bid-evaluations",
         element: <BidEvaluationsPage />,
+      },
+      {
+        // Система уведомлений о приближении сроков исполнения контрактов и этапов 44-ФЗ
+        path: "/notifications",
+        element: <DeadlineNotificationsPage />,
+      },
+      {
+        // Генерация типовых форм документов по карточкам закупок и Document Checker по реестру НПА
+        path: "/documents",
+        element: <ProcurementDocumentsPage />,
       },
     ],
   },

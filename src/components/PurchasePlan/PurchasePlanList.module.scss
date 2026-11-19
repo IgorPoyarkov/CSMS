@@ -36,6 +36,38 @@
     color: var(--text-secondary);
   }
 
+  &__header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  &__import-button {
+    padding: 12px 18px;
+    border: 2px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--surface-raised);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    &:hover:not(:disabled),
+    &:focus-visible:not(:disabled) {
+      border-color: var(--accent);
+      background: var(--surface-accent);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
   &__create-button {
     padding: 12px 22px;
     border: 2px solid var(--accent);

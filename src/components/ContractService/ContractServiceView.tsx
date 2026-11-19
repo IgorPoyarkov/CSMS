@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
 import {
@@ -88,9 +89,18 @@ export default function ContractServiceView({
           <h2 className={block("title")}>Контрактная служба</h2>
           <p className={block("lead")}>{organizationName}</p>
         </div>
-        <button type="button" className={block("edit-button")} onClick={onEdit}>
-          Изменить сведения
-        </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+          <Link
+            className={block("cancel")}
+            style={{ textDecoration: "none" }}
+            to="/reports/order-158n"
+          >
+            Отчёт по № 158н
+          </Link>
+          <button type="button" className={block("edit-button")} onClick={onEdit}>
+            Изменить сведения
+          </button>
+        </div>
       </header>
 
       <dl className={block("requisites")}>

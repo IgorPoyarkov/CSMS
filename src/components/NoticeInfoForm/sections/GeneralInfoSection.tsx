@@ -2,6 +2,11 @@ import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import { useOkpd2Dictionary } from "../../../services/Okpd2Ref/okpd2Ref.api";
+import {
+  EIS_ARTICLE15_PARTS,
+  EIS_ARTICLE15_PART_LABELS,
+  inferNotificationType,
+} from "../../../services/Eis/eis17Types";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import CustomSelect from "../../UI/CustomSelect";
 import { ETP_OPTIONS, PLACING_WAYS_ALL } from "../noticeInfo.config";
@@ -33,7 +38,9 @@ const placingWayFamily = (code?: string): PlacingWayFamily | null => {
   }
   if (normalized.startsWith("EA")) return "auction";
   if (normalized.startsWith("ZK")) return "quotation";
-  if (normalized.startsWith("EP")) return "single";
+  if (normalized.startsWith("EZT") || normalized.startsWith("EP")) {
+    return "single";
+  }
   return null;
 };
 
@@ -139,6 +146,10 @@ const GeneralInfoSection = ({
                         checked={generalInfo.placingWayCode === way.code}
                         onChange={() => {
                           setValue("generalInfo.placingWayCode", way.code);
+                          setValue(
+                            "notificationType",
+                            inferNotificationType(way.code),
+                          );
                           // Признак ч. 19 ст. 48 относится только к конкурсу
                           if (!isContestCode(way.code)) {
                             setValue("generalInfo.isPart19Art48", false);
@@ -325,15 +336,82 @@ const GeneralInfoSection = ({
 
           <div className={block("row")}>
             <span className={block("label")}>
-              Сведения о связи с позицией плана-графика
+              Сведения о связи с позицией плана-графика (tenderPlan2020Info)
             </span>
-            <span className={block("value")}>
-              Уникальный номер позиции:{" "}
-              {generalInfo.positionUniqueNumber || "—"}
-              {generalInfo.positionSerialNumber
-                ? ` · № позиции в плане-графике: ${generalInfo.positionSerialNumber}`
-                : ""}
+            <div className={block("field-col")}>
+              <span className={block("value")}>
+                № ПГ: {generalInfo.plan2020Number || "—"} · Уникальный №
+                позиции: {generalInfo.positionUniqueNumber || "—"}
+                {generalInfo.position2020ExtNumber
+                  ? ` · Внешний №: ${generalInfo.position2020ExtNumber}`
+                  : ""}
+                {generalInfo.positionSerialNumber
+                  ? ` · № п/п в ПГ: ${generalInfo.positionSerialNumber}`
+                  : ""}
+              </span>
+              <div className={block("sub-grid")}>
+                <input
+                  type="text"
+                  placeholder="Реестровый № плана-графика (plan2020Number)"
+                  className={block("input")}
+                  {...register("generalInfo.plan2020Number")}
+                />
+                <input
+                  type="text"
+                  placeholder="Внешний № позиции ПГ (position2020ExtNumber)"
+                  className={block("input")}
+                  {...register("generalInfo.position2020ExtNumber")}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className={block("row")}>
+            <span className={block("label")}>
+              Особенности commonInfo (ЕИС 17.0)
             </span>
+            <div className={block("field-col")}>
+              <select
+                className={block("select")}
+                {...register("generalInfo.article15Features")}
+              >
+                <option value="">
+                  — Без особенностей ст. 15 Закона № 44-ФЗ —
+                </option>
+                {EIS_ARTICLE15_PARTS.map((code) => (
+                  <option key={code} value={code}>
+                    {EIS_ARTICLE15_PART_LABELS[code]}
+                  </option>
+                ))}
+              </select>
+              <div className={block("inline-group")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("generalInfo.isGOZ")} />
+                  <span>Гособоронзаказ (isGOZ)</span>
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("generalInfo.notPublishedOnEIS")}
+                  />
+                  <span>Не размещать на ОС ЕИС</span>
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("generalInfo.isBudgetUnionState")}
+                  />
+                  <span>Бюджет Союзного государства</span>
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("generalInfo.is449Features")}
+                  />
+                  <span>Особенности по 449-ФЗ</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </section>

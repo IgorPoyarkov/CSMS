@@ -118,8 +118,8 @@ export const SIGNATURE_EVENT_ACTIONS = [
   "smp_reject",
   "smp_eis_export",
   "penalty_accrue",
-  "nmck_confirm",
   "eds_login",
+  "journal_pdf_export",
 ] as const;
 
 export type SignatureEventAction = (typeof SIGNATURE_EVENT_ACTIONS)[number];
@@ -131,8 +131,8 @@ export const signatureEventActionLabels: Record<SignatureEventAction, string> =
     smp_reject: "Отклонение сведений",
     smp_eis_export: "Выгрузка сведений в ЕИС",
     penalty_accrue: "Начисление неустойки подрядчику",
-    nmck_confirm: "Подписание обоснования НМЦК",
     eds_login: "Вход в систему по ЭП",
+    journal_pdf_export: "Выгрузка подписанного PDF-отчёта журнала ЭП",
   };
 
 export const SIGNATURE_EVENT_RESULTS = [
@@ -154,9 +154,8 @@ export const SIGNATURE_EVENT_ENTITY_TYPES = [
   "contractSmpRecord",
   "contract",
   "contractPenalty",
-  "purchaseNote",
-  "nmck",
   "session",
+  "edsJournalReport",
 ] as const;
 
 export type SignatureEventEntityType =
@@ -169,9 +168,8 @@ export const signatureEventEntityTypeLabels: Record<
   contractSmpRecord: "Сведения о привлечении СМП",
   contract: "Контракт",
   contractPenalty: "Неустойка",
-  purchaseNote: "Служебная записка (потребность)",
-  nmck: "Обоснование НМЦК",
   session: "Сеанс входа",
+  edsJournalReport: "Отчёт журнала ЭП для контролирующих органов",
 };
 
 export const SignatureEventSchema = z.object({

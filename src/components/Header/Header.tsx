@@ -162,10 +162,32 @@ const Header = ({}: HeaderProps) => {
           </li>
 
           <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/reports/order-158n"}>
+              <span className={nav("link-name")}>Отчёты 158н</span>
+            </NavLink>
+          </li>
+
+          <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/eds/journal"}>
               <span className={nav("link-name")}>Журнал ЭП</span>
             </NavLink>
           </li>
+
+          {user && (
+            <li className={nav("item")}>
+              <NavLink className={nav("link", ["logo"])} to={"/documents"}>
+                <span className={nav("link-name")}>Документы</span>
+              </NavLink>
+            </li>
+          )}
+
+          {user && (
+            <li className={nav("item")}>
+              <NavLink className={nav("link", ["logo"])} to={"/notifications"}>
+                <span className={nav("link-name")}>Сроки и риски</span>
+              </NavLink>
+            </li>
+          )}
 
           <li className={nav("item", ["end"])}>
             {user ? (

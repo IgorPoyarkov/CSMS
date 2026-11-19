@@ -4,6 +4,7 @@ import {
   TaskListSchema,
   TaskSchema,
   type Task,
+  type TaskExecutionStep,
   type TaskStatus,
 } from "./tasks.schema";
 
@@ -58,26 +59,83 @@ const createTask = async (task: Task): Promise<Task> => {
   return TaskSchema.parse(response.data);
 };
 
-// Сотрудник меняет только статус и результат: срок, функцию и исполнителя
-// задаёт тот, кто поставил задачу
+// Сотрудник меняет статус, результат и этапы исполнения: срок, функцию и
+// исполнителя задаёт тот, кто поставил задачу
 const updateTaskProgress = async ({
   id,
   status,
   result,
+  startedAt,
+  steps,
 }: {
   id: string | number;
   status: TaskStatus;
   result?: string;
+  startedAt?: string;
+  steps?: TaskExecutionStep[];
 }): Promise<Task> => {
+  const todayIso = new Date().toISOString().slice(0, 10);
   const changes: Record<string, unknown> = { status };
 
   if (result !== undefined) {
     changes.result = result;
   }
 
-  // Дату завершения проставляем системой, чтобы её нельзя было подправить
-  changes.completedAt =
-    status === "completed" ? new Date().toISOString().slice(0, 10) : "";
+  if (steps !== undefined) {
+    changes.steps = steps;
+  }
+
+  if (status === "in_progress") {
+    changes.startedAt = startedAt || todayIso;
+    changes.completedAt = "";
+  } else if (status === "completed") {
+    if (startedAt) changes.startedAt = startedAt;
+    // Дату завершения проставляем системой, чтобы её нельзя было подправить
+    changes.completedAt = todayIso;
+  } else {
+    changes.completedAt = "";
+  }
+
+  const response = await api.patch(`${ENDPOINT}/${id}`, changes);
+
+  return TaskSchema.parse(response.data);
+};
+
+const updateTaskSteps = async ({
+  id,
+  steps,
+  autoStartIfPending,
+  currentStatus,
+  startedAt,
+  requiredInputs,
+  completionCriteria,
+}: {
+  id: string | number;
+  steps: TaskExecutionStep[];
+  autoStartIfPending?: boolean;
+  currentStatus?: TaskStatus;
+  startedAt?: string;
+  requiredInputs?: string[];
+  completionCriteria?: string;
+}): Promise<Task> => {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const changes: Record<string, unknown> = { steps };
+
+  if (requiredInputs !== undefined) {
+    changes.requiredInputs = requiredInputs;
+  }
+  if (completionCriteria !== undefined) {
+    changes.completionCriteria = completionCriteria;
+  }
+
+  if (
+    autoStartIfPending &&
+    currentStatus === "pending" &&
+    steps.some((s) => s.isDone)
+  ) {
+    changes.status = "in_progress";
+    changes.startedAt = startedAt || todayIso;
+  }
 
   const response = await api.patch(`${ENDPOINT}/${id}`, changes);
 
@@ -146,7 +204,26 @@ export const useUpdateTaskProgress = () => {
 
   return useMutation({
     mutationFn: updateTaskProgress,
-    onSuccess: () => {
+    onSuccess: (task) => {
+      queryClient.setQueryData(
+        [...tasksQueryKey, "detail", String(task.id)],
+        task,
+      );
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+    },
+  });
+};
+
+export const useUpdateTaskSteps = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateTaskSteps,
+    onSuccess: (task) => {
+      queryClient.setQueryData(
+        [...tasksQueryKey, "detail", String(task.id)],
+        task,
+      );
       queryClient.invalidateQueries({ queryKey: tasksQueryKey });
     },
   });

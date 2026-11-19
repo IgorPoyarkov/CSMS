@@ -59,6 +59,12 @@ const deleteEvaluation = async (
   return id;
 };
 
+const fetchAllTaskEvaluations = async (): Promise<TaskEvaluation[]> => {
+  const response = await api.get(ENDPOINT);
+
+  return TaskEvaluationListSchema.parse(response.data ?? []);
+};
+
 export const useTaskEvaluations = (taskId: string | number | undefined) =>
   useQuery({
     queryKey: [...taskEvaluationsQueryKey, "task", String(taskId)],
@@ -73,6 +79,13 @@ export const useEmployeeEvaluations = (
     queryKey: [...taskEvaluationsQueryKey, "employee", String(employeeId)],
     queryFn: () => fetchEvaluationsForEmployee(employeeId as string | number),
     enabled: Boolean(employeeId),
+  });
+
+export const useAllTaskEvaluations = (enabled = true) =>
+  useQuery({
+    queryKey: [...taskEvaluationsQueryKey, "all"],
+    queryFn: fetchAllTaskEvaluations,
+    enabled,
   });
 
 export const useCreateEvaluation = () => {

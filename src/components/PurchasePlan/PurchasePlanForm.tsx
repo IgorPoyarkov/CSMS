@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   FormProvider,
@@ -16,6 +16,10 @@ import {
   useUpdatePurchasePlan,
 } from "../../services/PurchasePlan/purchasePlan.api";
 import {
+  useCreatePurchasePlanVersion,
+  usePurchasePlanVersions,
+} from "../../services/PurchasePlan/purchasePlanVersion.api";
+import {
   emptyPurchasePlan,
   emptyPurchasePlanPosition,
   PurchasePlanSchema,
@@ -32,6 +36,8 @@ import {
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import {
   okpd2FieldLabels,
+  ownerRoleOptions,
+  pfhdTypeOptions,
   planHeaderFields,
   positionFields,
   purchasePlanStatusOptions,
@@ -55,6 +61,13 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
   } = usePurchasePlan(id, organizationId);
   const createPlan = useCreatePurchasePlan();
   const updatePlan = useUpdatePurchasePlan();
+  const createVersion = useCreatePurchasePlanVersion();
+  const { data: existingVersions = [] } = usePurchasePlanVersions(
+    id,
+    organizationId,
+  );
+  const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [saveVersionSnapshot, setSaveVersionSnapshot] = useState(true);
   const { bem } = useUtils();
   const block = bem(styles, "purchase-plan-form");
 
@@ -142,17 +155,61 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
     );
   }
 
-  function onSubmit(data: PurchasePlan) {
-    const goToPlan = (plan: PurchasePlan) =>
-      navigate(`/purchase-plans/${plan.id ?? id}`);
+  async function onSubmit(data: PurchasePlan) {
+    const nextVerNum =
+      existingVersions.length > 0
+        ? Math.max(...existingVersions.map((v) => v.versionNumber)) + 1
+        : Number(data.versionNumber || 1) + (isEdit ? 1 : 0);
 
     if (isEdit && id) {
-      updatePlan.mutate({ id, data }, { onSuccess: goToPlan });
-
+      const updated = await updatePlan.mutateAsync({ id, data });
+      if (saveVersionSnapshot && updated.id !== undefined) {
+        const snapStatus =
+          updated.status === "published"
+            ? "published"
+            : updated.approvalDate
+              ? "approved"
+              : "draft";
+        await createVersion.mutateAsync({
+          purchasePlanId: updated.id,
+          organizationId: updated.organizationId,
+          versionNumber: nextVerNum,
+          versionLabel: `Редакция № ${nextVerNum} (${
+            snapStatus === "published"
+              ? "ЕИС"
+              : snapStatus === "approved"
+                ? "утверждена"
+                : "черновик"
+          })`,
+          snapshotStatus: snapStatus,
+          createdAt: todayIso,
+          createdBy:
+            updated.approvalAuthor ||
+            updated.customer.responsiblePerson ||
+            "Специалист КС",
+          comment: updated.remarks || "Сохранение через редактор плана-графика",
+          snapshot: updated,
+        });
+      }
+      navigate(`/purchase-plans/${updated.id ?? id}`);
       return;
     }
 
-    createPlan.mutate(data, { onSuccess: goToPlan });
+    const created = await createPlan.mutateAsync(data);
+    if (created.id !== undefined) {
+      await createVersion.mutateAsync({
+        purchasePlanId: created.id,
+        organizationId: created.organizationId,
+        versionNumber: 1,
+        versionLabel: "Первоначальная редакция № 1",
+        snapshotStatus: created.status === "published" ? "published" : "draft",
+        createdAt: todayIso,
+        createdBy: created.customer.responsiblePerson || "Специалист КС",
+        comment: created.remarks || "Создание нового плана-графика",
+        snapshot: created,
+      });
+    }
+    navigate(`/purchase-plans/${created.id ?? ""}`);
   }
 
   return (
@@ -208,6 +265,59 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
                   configuration={fieldConfig}
                 />
               ))}
+
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="purchase-plan-owner-role">
+                  Роль владельца версии (ЕИС 17.0)
+                </label>
+                <select
+                  id="purchase-plan-owner-role"
+                  className={block("select")}
+                  {...register("ownerRole")}
+                >
+                  {ownerRoleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="purchase-plan-pfhd">
+                  Вид ПФХД (tenderPlan2020)
+                </label>
+                <select
+                  id="purchase-plan-pfhd"
+                  className={block("select")}
+                  {...register("pfhdType")}
+                >
+                  {pfhdTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <CustomInput
+                configuration={{
+                  label: { value: "Первый год планового периода" },
+                  input: { name: "planPeriodFirstYear", placeholder: "2027" },
+                }}
+              />
+              <CustomInput
+                configuration={{
+                  label: { value: "Второй год планового периода" },
+                  input: { name: "planPeriodSecondYear", placeholder: "2028" },
+                }}
+              />
+              <CustomInput
+                configuration={{
+                  label: { value: "Дата направления на контроль (ч. 5 ст. 99)" },
+                  input: { name: "directDate", type: "date" },
+                }}
+              />
             </div>
           </fieldset>
 
@@ -279,11 +389,40 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
                         : ""}
                     </span>
                   </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Код по СПЗ / ОКТМО (ЕИС 17.0)
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.regNum || customer.consRegistryNum || "—"} /{" "}
+                      {customer.oktmo || "—"}
+                    </span>
+                  </li>
                 </ul>
+                <div className={block("grid")}>
+                  <CustomInput
+                    configuration={{
+                      label: { value: "Код организации по СПЗ (11 цифр, ЕИС 17.0)" },
+                      input: { name: "customer.regNum", placeholder: "00000000000" },
+                    }}
+                  />
+                  <CustomInput
+                    configuration={{
+                      label: { value: "Код по Сводному реестру (СвР)" },
+                      input: { name: "customer.consRegistryNum", placeholder: "001Ж0000" },
+                    }}
+                  />
+                  <CustomInput
+                    configuration={{
+                      label: { value: "Код ОКТМО организации" },
+                      input: { name: "customer.oktmo", placeholder: "38701000" },
+                    }}
+                  />
+                </div>
                 <p className={block("hint")}>
                   {isEdit
-                    ? "Заказчик зафиксирован в плане-графике при его формировании и изменению не подлежит."
-                    : "Реквизиты подтянуты из учётной записи пользователя и не редактируются в плане-графике."}
+                    ? "Основные реквизиты заказчика зафиксированы в плане-графике при формировании; коды СПЗ/СвР/ОКТМО дополняются для выгрузки в ЕИС 17.0."
+                    : "Реквизиты подтянуты из учётной записи пользователя; при необходимости дополните коды СПЗ, СвР и ОКТМО для ЕИС 17.0."}
                 </p>
               </>
             )}
@@ -408,6 +547,16 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
                 Не удалось сохранить план-график: {String(mutationError)}
               </span>
             )}
+            {isEdit && (
+              <label className={block("checkbox")}>
+                <input
+                  type="checkbox"
+                  checked={saveVersionSnapshot}
+                  onChange={(e) => setSaveVersionSnapshot(e.target.checked)}
+                />
+                Сохранить снимок текущей редакции в историю версий
+              </label>
+            )}
             <div className={block("footer-actions")}>
               <button
                 type="button"
@@ -416,7 +565,10 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
               >
                 Отмена
               </button>
-              <button type="submit" disabled={isPending || !canSave}>
+              <button
+                type="submit"
+                disabled={isPending || createVersion.isPending || !canSave}
+              >
                 {isPending ? "Сохранение..." : "Сохранить план-график"}
               </button>
             </div>

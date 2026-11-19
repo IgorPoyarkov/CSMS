@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -31,6 +31,12 @@ import {
   formatCharacteristicValue,
   toNoticeObjectDescriptionFields,
 } from "../../services/ObjectDescription/objectDescription.schema";
+import {
+  buildNotification2020XmlPreview,
+  inferNotificationType,
+  validateNoticeInfoEis17,
+} from "../../services/Eis/eis17Types";
+import { downloadText } from "../../services/Eis/eisExport";
 
 import NoticeStateSection from "./sections/NoticeStateSection";
 
@@ -148,6 +154,7 @@ const NoticeInfoForm = () => {
   const { id } = useParams();
   const location = useLocation();
   const state = (location.state as LocationState) || {};
+  const [showEisXml, setShowEisXml] = useState(false);
 
   const { data: currentUser } = useFetchCurrentUser();
   const { data: userOrganization } = useGetOrganizationById(
@@ -234,6 +241,12 @@ const NoticeInfoForm = () => {
       purchaseNoteId: state.purchaseNoteId,
       objectDescriptionId: state.objectDescriptionId,
       ikz: rawIkz,
+      notificationType: inferNotificationType(PLACING_WAYS_CONTEST[0].code),
+      versionNumber: "1",
+      serviceSigns: {
+        isIncludeKOKS: false,
+        isControlP1Ch5St99: false,
+      },
       noticeState: {
         statusLabel: "Формирование извещения (приглашения)",
         createdAt: nowFormatted,
@@ -254,13 +267,20 @@ const NoticeInfoForm = () => {
         authorizedBodyApproval: "Не требуется",
         orderName: state.name ?? "",
         planPositionNumber: state.planPositionNumber ?? String(id ?? ""),
+        plan2020Number: "",
         positionUniqueNumber: state.positionUniqueNumber ?? "",
+        position2020ExtNumber: "",
         positionSerialNumber: state.positionSerialNumber ?? "",
         ikz: rawIkz,
         nmck: state.nmck ?? 0,
         authorizedBodyName: state.authorizedBodyName ?? "",
         jointOrganizerName: state.jointOrganizerName ?? "",
         kbk: state.kbk ?? "",
+        isGOZ: false,
+        notPublishedOnEIS: false,
+        article15Features: "",
+        isBudgetUnionState: false,
+        is449Features: false,
       },
       purchaseObjectsCh9St37: false,
       contactInfo: {
@@ -268,6 +288,7 @@ const NoticeInfoForm = () => {
         organizationName: "",
         postalAddress: "",
         locationAddress: "",
+        responsibleRole: state.jointOrganizerName ? "CC" : "CU",
         placerSurname: szLast,
         placerName: szFirst,
         placerFathername: szMiddle,
@@ -288,6 +309,7 @@ const NoticeInfoForm = () => {
         usePriceFormulaPP19: false,
         priceFormulaText: "",
         isForeignCurrencyNmck: false,
+        interbudgetaryTransfer: false,
         hasAdvance: false,
         advancePercent: 0,
         requiresPublicDiscussionArt20: false,
@@ -299,7 +321,14 @@ const NoticeInfoForm = () => {
         ikzKvr: rawIkz.slice(33, 36),
         isRelativeTerms: true,
         startOffsetDays: 0,
+        startDayType: "C",
         durationDays: 0,
+        termDayType: "C",
+        startDate: "",
+        endDate: "",
+        isFromConclusionDate: false,
+        isNotEarlierConclusionDate: false,
+        isExecutionStagesTerms: false,
         hasMultipleStages: false,
         stagesCount: 1,
         stages: [],
@@ -314,6 +343,8 @@ const NoticeInfoForm = () => {
           {
             id: "1",
             country: RUSSIA,
+            oksmCode: "643",
+            garGuid: "",
             region: "",
             municipality: "",
             settlement: "",
@@ -326,6 +357,7 @@ const NoticeInfoForm = () => {
       },
       purchaseObjects: {
         isMedicines: false,
+        isStructuredForm: true,
         isIndeterminateVolume: false,
         items: [],
       },
@@ -530,6 +562,17 @@ const NoticeInfoForm = () => {
 
       if (matchedNote.placingWayCode) {
         setValue("generalInfo.placingWayCode", matchedNote.placingWayCode);
+        setValue(
+          "notificationType",
+          inferNotificationType(matchedNote.placingWayCode),
+        );
+      }
+
+      if (plan?.planNumber) {
+        setValue("generalInfo.plan2020Number", plan.planNumber);
+      }
+      if (planPosition?.extNumber) {
+        setValue("generalInfo.position2020ExtNumber", planPosition.extNumber);
       }
 
       // Критерии оценки по ПП РФ N 2604 приходят из служебной записки:
@@ -715,6 +758,12 @@ const NoticeInfoForm = () => {
         );
       }
       if (matchedNote.deliveryTermMode === "absolute") {
+        if (matchedNote.desiredStartDate) {
+          setValue("contractConditions.startDate", matchedNote.desiredStartDate);
+        }
+        if (matchedNote.desiredEndDate) {
+          setValue("contractConditions.endDate", matchedNote.desiredEndDate);
+        }
         if (matchedNote.desiredStartDate && matchedNote.desiredEndDate) {
           const ms =
             new Date(matchedNote.desiredEndDate).getTime() -
@@ -871,32 +920,13 @@ const NoticeInfoForm = () => {
           matchedNote.sanctionsRnpRequirement,
         );
       }
-      // Подписанная в СЗ НМЦК притягивается в извещение вместе с реквизитами
-      // подписи: файл берём из карточки, а если там пусто — из снимка подписи
-      const noticeNmckFileName =
-        matchedNote.nmckFileName || matchedNote.nmckSignature?.fileName;
-      if (noticeNmckFileName && getValues("attachedDocs").length === 0) {
-        const nmckSignature = matchedNote.nmckSignature;
-        const signatureNote = nmckSignature
-          ? [
-              "подписано ЭП",
-              nmckSignature.signedBy ? `(${nmckSignature.signedBy})` : "",
-              nmckSignature.signedAt || "",
-            ]
-              .filter(Boolean)
-              .join(" ")
-          : "";
+      if (matchedNote.nmckFileName && getValues("attachedDocs").length === 0) {
         setValue("attachedDocs", [
           {
             id: "sz-nmck-doc",
             category: "nmck_justification",
-            fileName: noticeNmckFileName,
-            description: [
-              matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
-              signatureNote,
-            ]
-              .filter(Boolean)
-              .join(" · "),
+            fileName: matchedNote.nmckFileName,
+            description: matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
           },
         ]);
       }
@@ -1165,19 +1195,33 @@ const NoticeInfoForm = () => {
 
           return {
             id: item.id || `sz-item-${idx + 1}`,
+            externalSid: item.id ? String(item.id) : "",
+            productType: "PRODUCT" as const,
             okpd2OrKtruCode:
               itemDesc?.ktruCode || item.okpd2Code || itemDesc?.okpd2Code || "",
+            okpd2Code: item.okpd2Code || itemDesc?.okpd2Code || "",
+            ktruCode: itemDesc?.ktruCode || "",
+            okeiCode: "",
             name: item.name || matchedNote.subject || itemDesc?.title || "",
             unit: item.unit || itemDesc?.unit || "шт",
             quantity,
             unitPrice,
             totalPrice,
+            volumeSpecifyingMethod: (isIndeterminate ? "SF" : "QF") as
+              | "QF"
+              | "SF",
+            volumeTextForm: "",
             trademarks: itemDesc?.trademarkName || "",
+            isEquivalentDeliveryAllowed: false,
+            isMedicalProduct: false,
+            isSoftware: false,
             isSupplyDuringWorks: Boolean(item.isSupplyDuringWorks),
             nationalRegimeType:
               item.nationalRegimeType ??
               matchedNote.nationalRegimeType ??
               "none",
+            imposibilityBan: false,
+            imposibilityBanReason: "",
             normingRequirements:
               normingReqs.length > 0 ? normingReqs : undefined,
           };
@@ -1212,19 +1256,31 @@ const NoticeInfoForm = () => {
         setValue("purchaseObjects.items", [
           {
             id: "sz-item-1",
+            externalSid: "",
+            productType: "PRODUCT",
             okpd2OrKtruCode:
               matchedDesc?.ktruCode ||
               matchedNote?.okpd2Code ||
               matchedDesc?.okpd2Code ||
               "",
+            okpd2Code: matchedNote?.okpd2Code || matchedDesc?.okpd2Code || "",
+            ktruCode: matchedDesc?.ktruCode || "",
+            okeiCode: "",
             name: matchedNote?.subject || matchedDesc?.title || "",
             unit: matchedNote?.unit || matchedDesc?.unit || "шт",
             quantity,
             unitPrice,
             totalPrice,
+            volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
+            volumeTextForm: "",
             trademarks: matchedDesc?.trademarkName || "",
+            isEquivalentDeliveryAllowed: false,
+            isMedicalProduct: false,
+            isSoftware: false,
             isSupplyDuringWorks: false,
             nationalRegimeType: matchedNote?.nationalRegimeType ?? "none",
+            imposibilityBan: false,
+            imposibilityBanReason: "",
             normingRequirements:
               normingReqs.length > 0 ? normingReqs : undefined,
           },
@@ -1353,7 +1409,72 @@ const NoticeInfoForm = () => {
           <ParticipantsRequirementsSection />
           <AttachedDocsSection />
 
+          {showEisXml &&
+            (() => {
+              const snapshot = methods.getValues();
+              const eisValidation = validateNoticeInfoEis17(snapshot);
+              const xmlPreview = buildNotification2020XmlPreview(snapshot);
+              const eisBlock = bem(styles, "eis-main");
+              return (
+                <div className={eisBlock("eis-preview")}>
+                  <div className={eisBlock("eis-preview-head")}>
+                    <strong>
+                      Контроль XSD ЕИС 17.0 (
+                      {snapshot.notificationType ??
+                        inferNotificationType(
+                          snapshot.generalInfo.placingWayCode,
+                        )}
+                      ):{" "}
+                      {eisValidation.valid
+                        ? "ошибок XSD нет"
+                        : `ошибок: ${eisValidation.errorsCount}`}
+                      {eisValidation.warningsCount > 0
+                        ? `, предупреждений: ${eisValidation.warningsCount}`
+                        : ""}
+                    </strong>
+                    <button
+                      type="button"
+                      className={eisBlock("small-btn")}
+                      onClick={() =>
+                        downloadText(
+                          xmlPreview,
+                          `notification_${snapshot.notificationType ?? "2020"}_${snapshot.generalInfo.ikz || "draft"}.xml`,
+                          "application/xml;charset=utf-8",
+                        )
+                      }
+                    >
+                      Скачать XML 17.0
+                    </button>
+                  </div>
+                  {eisValidation.issues.length > 0 && (
+                    <ul className={eisBlock("eis-issues")}>
+                      {eisValidation.issues.map((issue, idx) => (
+                        <li
+                          key={`${issue.field}-${idx}`}
+                          className={eisBlock(
+                            issue.severity === "error"
+                              ? "red-note"
+                              : "yellow-warning",
+                          )}
+                        >
+                          {issue.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <pre className={eisBlock("eis-xml")}>{xmlPreview}</pre>
+                </div>
+              );
+            })()}
+
           <footer className={block("footer")}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setShowEisXml((prev) => !prev)}
+            >
+              {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
+            </button>
             <NormingSubmitButton isSaving={isSaving} />
           </footer>
         </form>

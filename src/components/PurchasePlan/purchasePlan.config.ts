@@ -41,6 +41,60 @@ export const positionStatusLabel = (
   status?: PurchasePlanPositionStatus,
 ): string => findLabel(positionStatusOptions, status);
 
+// Справочники ЕИС 17.0 (IntegrationTPTypes.xsd)
+export const ownerRoleOptions: Option<"CU" | "OA">[] = [
+  { value: "CU", label: "CU — Заказчик" },
+  {
+    value: "OA",
+    label: "OA — Организация, осуществляющая полномочия заказчика",
+  },
+];
+
+export const pfhdTypeOptions: Option<"IND" | "CONS">[] = [
+  { value: "IND", label: "IND — Индивидуальный ПФХД" },
+  { value: "CONS", label: "CONS — Сводный ПФХД" },
+];
+
+export const modificationStatusOptions: Option<"N" | "E">[] = [
+  { value: "N", label: "N — Новая позиция" },
+  { value: "E", label: "E — Изменение сведений позиции" },
+];
+
+export const modificationDecisionOptions: Option<
+  "notSpecified" | "purchaseChanged" | "purchaseCanceled"
+>[] = [
+  { value: "notSpecified", label: "Не указано (новая позиция)" },
+  { value: "purchaseChanged", label: "Изменение закупки" },
+  { value: "purchaseCanceled", label: "Отмена закупки" },
+];
+
+export const tpChangeReasonOptions = [
+  {
+    code: "1",
+    name: "Изменение объёма финансового обеспечения для осуществления закупок",
+  },
+  {
+    code: "2",
+    name: "Изменение планируемых сроков, способа или требований к объекту закупки",
+  },
+  {
+    code: "3",
+    name: "Исполнение предписания органов контроля в сфере закупок",
+  },
+  {
+    code: "4",
+    name: "Признание определения поставщика (подрядчика, исполнителя) несостоявшимся",
+  },
+  {
+    code: "5",
+    name: "Расторжение контракта или отмена закупки по решению заказчика",
+  },
+  {
+    code: "6",
+    name: "Возникновение иных обстоятельств, предвидеть которые было невозможно",
+  },
+] as const;
+
 const moneyFormatter = new Intl.NumberFormat("ru-RU", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

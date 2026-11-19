@@ -17,7 +17,7 @@ export const loginFormFields: ConfigurationInput<Login>[] = [
     input: {
       name: "password",
       type: "password",
-      placeholder: "введите пароль",
+      placeholder: "пароль",
     },
   },
 ];
@@ -27,7 +27,7 @@ export const loginFormButtons: ConfigurationButton[] = [
     button: {
       name: "",
       type: "submit",
-      value: "Войти",
+      value: "Вход",
       modifier: ["main"],
     },
   },
@@ -35,7 +35,8 @@ export const loginFormButtons: ConfigurationButton[] = [
     button: {
       name: "",
       type: "button",
-      value: "Регистрация",
+      value: "Зарегистрироваться",
+      modifier: ["arrow"],
     },
   },
 ];

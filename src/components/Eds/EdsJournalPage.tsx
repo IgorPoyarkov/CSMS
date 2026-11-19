@@ -16,6 +16,7 @@ import {
 } from "../../services/Eds/eds.schema";
 import { describeCryptoPro } from "../../services/Eds/cryptoPro";
 import useUtils from "../../hooks/useUtils";
+import EdsJournalSignedExportModal from "./EdsJournalSignedExportModal";
 import styles from "./EdsJournalPage.module.scss";
 
 // Дата оценки состояния сертификатов: считается один раз на загрузку модуля
@@ -50,6 +51,7 @@ export default function EdsJournalPage() {
   );
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [showSignedPdfModal, setShowSignedPdfModal] = useState(false);
 
   const filteredEvents = useMemo(
     () =>
@@ -84,7 +86,26 @@ export default function EdsJournalPage() {
 
   return (
     <div className={block()}>
-      <h2 className={block("title")}>Журнал действий с ЭП</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
+        <h2 className={block("title")}>Журнал действий с ЭП</h2>
+        {organization && (
+          <button
+            type="button"
+            className={block("btn")}
+            onClick={() => setShowSignedPdfModal(true)}
+          >
+            Выгрузить подписанный PDF-отчёт (ФАС / Казначейство)
+          </button>
+        )}
+      </div>
 
       {organization ? (
         <div className={block("org")}>
@@ -342,6 +363,15 @@ export default function EdsJournalPage() {
           </table>
         )}
       </section>
+      {showSignedPdfModal && organization && (
+        <EdsJournalSignedExportModal
+          organization={organization}
+          certificates={certificates}
+          events={filteredEvents}
+          filters={{ action: actionFilter, dateFrom, dateTo }}
+          onClose={() => setShowSignedPdfModal(false)}
+        />
+      )}
     </div>
   );
 }

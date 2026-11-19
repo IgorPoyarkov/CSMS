@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import { Okpd2RefListSchema, type Okpd2Ref } from "./okpd2Ref.schema";
 
+export type { Okpd2Ref };
+
 /**
  * Справочник ОКПД2. Записей много, но они общие для всех заказчиков и почти
  * не меняются, поэтому справочник загружается один раз и кэшируется, а поиск

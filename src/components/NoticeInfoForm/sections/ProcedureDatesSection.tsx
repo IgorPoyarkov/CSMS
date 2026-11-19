@@ -14,15 +14,19 @@ const ProcedureDatesSection = () => {
 
   const isPart19Art48 = watch("generalInfo.isPart19Art48");
   const placingWayCode = watch("generalInfo.placingWayCode");
+  const normalizedCode = (placingWayCode ?? "").trim().toUpperCase();
+  const isContest =
+    normalizedCode.startsWith("OK") || normalizedCode.startsWith("EOK");
+  const isAuction = normalizedCode.startsWith("EA");
 
-  // Вторые части заявок отображаются только для конкурса с признаком ч. 19 ст. 48
+  // Вторые части заявок отображаются для конкурса (обязательно в EOK2020)
   const showSecondPartsDate =
-    isPart19Art48 && placingWayCode.startsWith("OK");
+    isContest || (isPart19Art48 && placingWayCode.startsWith("OK"));
 
   return (
     <section className={block("section")}>
       <h2 className={block("section-title")}>
-        Информация о процедуре закупки (сроки)
+        Информация о процедуре закупки (сроки ЕИС 17.0)
       </h2>
 
       <div className={block("form-grid")}>
@@ -46,6 +50,23 @@ const ProcedureDatesSection = () => {
 
         <div className={block("row")}>
           <span className={block("label")}>
+            Дата и время начала срока подачи заявок (collectingInfo/startDT)
+          </span>
+          <div className={block("field-col", ["narrow"])}>
+            <input
+              type="datetime-local"
+              className={block("input")}
+              {...register("procedureInfo.collectingStartDT")}
+            />
+            <span className={block("caption")}>
+              Если не заполнено, фиксируется автоматически при размещении
+              извещения в ЕИС
+            </span>
+          </div>
+        </div>
+
+        <div className={block("row")}>
+          <span className={block("label")}>
             Окончание срока подачи заявок<sup>*</sup>
           </span>
           <div className={block("field-col")}>
@@ -61,10 +82,6 @@ const ProcedureDatesSection = () => {
                 {...register("procedureInfo.submissionEndTime")}
               />
             </div>
-            <span className={block("caption")}>
-              Дата и время начала подачи заявок фиксируются автоматически при
-              размещении извещения по местному времени организации
-            </span>
             {errors.procedureInfo?.submissionEndDate && (
               <span className={block("error")}>
                 {errors.procedureInfo.submissionEndDate.message}
@@ -73,17 +90,62 @@ const ProcedureDatesSection = () => {
           </div>
         </div>
 
+        {isContest && (
+          <>
+            <div className={block("row")}>
+              <span className={block("label")}>
+                Дата рассмотрения и оценки первых частей заявок (firstPartsDate)
+              </span>
+              <div className={block("field-col", ["narrow"])}>
+                <input
+                  type="date"
+                  className={block("input")}
+                  {...register("procedureInfo.firstPartsDate")}
+                />
+              </div>
+            </div>
+
+            <div className={block("row")}>
+              <span className={block("label")}>
+                Дата процедуры подачи предложений о цене (submissionProcedureDate)
+              </span>
+              <div className={block("field-col", ["narrow"])}>
+                <input
+                  type="date"
+                  className={block("input")}
+                  {...register("procedureInfo.submissionProcedureDate")}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
         {showSecondPartsDate && (
           <div className={block("row")}>
             <span className={block("label")}>
               Дата окончания срока рассмотрения и оценки вторых частей заявок
-              <sup>*</sup>
+              {isPart19Art48 && <sup>*</sup>}
             </span>
             <div className={block("field-col", ["narrow"])}>
               <input
                 type="date"
                 className={block("input")}
                 {...register("procedureInfo.secondPartsReviewEndDate")}
+              />
+            </div>
+          </div>
+        )}
+
+        {isAuction && (
+          <div className={block("row")}>
+            <span className={block("label")}>
+              Дата проведения электронного аукциона (biddingDate)
+            </span>
+            <div className={block("field-col", ["narrow"])}>
+              <input
+                type="date"
+                className={block("input")}
+                {...register("procedureInfo.biddingDate")}
               />
             </div>
           </div>
@@ -105,6 +167,17 @@ const ProcedureDatesSection = () => {
               </span>
             )}
           </div>
+        </div>
+
+        <div className={block("row")}>
+          <span className={block("label")}>
+            Дополнительная информация о процедуре и заключении контракта
+          </span>
+          <textarea
+            rows={2}
+            className={block("textarea")}
+            {...register("procedureInfo.additionalInfo")}
+          />
         </div>
       </div>
     </section>

@@ -56,7 +56,15 @@ const ProcurementProcessing: React.FC = () => {
         break;
 
       case "btn353_create_order":
-        console.log("Кнопка353 (Приказ):", item.ikz);
+        navigate(
+          `/documents?procurementId=${item.id}&docType=procurement_launch_order`,
+        );
+        break;
+
+      case "btn_generate_docs":
+        navigate(
+          `/documents?procurementId=${item.id}&docType=commission_order`,
+        );
         break;
 
       case "create_remarks":

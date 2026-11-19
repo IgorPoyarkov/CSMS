@@ -40,6 +40,7 @@ import {
   contractServiceHeadcount,
   contractServiceOrderFields,
 } from "./contractService.config";
+import { getOrder158nTasksByFunction } from "../../services/Tasks/order158nTaskPool";
 import StaffEmployeePicker, {
   type StaffEmployeeFields,
 } from "./StaffEmployeePicker";
@@ -153,6 +154,9 @@ function FunctionPicker({
                 const option = contractServiceFunctionOptions.find(
                   (o) => o.value === code,
                 );
+                const subClauses = getOrder158nTasksByFunction(code)
+                  .map((item) => item.clause)
+                  .join(", ");
 
                 return (
                   <label key={code} className={block("checkbox")}>
@@ -163,6 +167,7 @@ function FunctionPicker({
                     />
                     <span>
                       {option?.paragraph} · {option?.label}
+                      {subClauses ? ` (${subClauses})` : ""}
                     </span>
                   </label>
                 );

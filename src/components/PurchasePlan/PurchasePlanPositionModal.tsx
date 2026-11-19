@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useFieldArray, useForm, useWatch, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
@@ -20,9 +21,12 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import {
   formatMoney,
+  modificationDecisionOptions,
+  modificationStatusOptions,
   okpd2FieldLabels,
   planPeriodLabels,
   positionStatusOptions,
+  tpChangeReasonOptions,
 } from "./purchasePlan.config";
 import styles from "./PurchasePlanPositionModal.module.scss";
 
@@ -80,14 +84,23 @@ export default function PurchasePlanPositionModal({
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
+  const [ikzBuildError, setIkzBuildError] = useState<string | null>(null);
+
   const methods = useForm<PurchasePlanPosition>({
     resolver: zodResolver(PurchasePlanPositionSchema),
     defaultValues: {
       ...position,
       serialNumber: position.serialNumber || String(index + 1),
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
+      purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
+      modificationStatus:
+        position.modificationStatus ?? (isNew ? "N" : "E"),
+      modificationDecision:
+        position.modificationDecision ?? "notSpecified",
       kbkEntries: position.kbkEntries ?? [],
+      kvrEntries: position.kvrEntries ?? [],
+      koksEntries: position.koksEntries ?? [],
     },
   });
 
@@ -100,12 +113,16 @@ export default function PurchasePlanPositionModal({
     formState: { errors },
   } = methods;
   const kbkEntries = useFieldArray({ control, name: "kbkEntries" });
+  const koksEntries = useFieldArray({ control, name: "koksEntries" });
 
   const serialNumber = useWatch({ control, name: "serialNumber" });
   const purchaseNumber = useWatch({ control, name: "purchaseNumber" });
   const okpd2Code = useWatch({ control, name: "okpd2Code" });
   const okpd2Name = useWatch({ control, name: "okpd2Name" });
   const objectOfPurchase = useWatch({ control, name: "objectOfPurchase" });
+  const positionStatus = useWatch({ control, name: "status" });
+  const isConstructionWorks = useWatch({ control, name: "isConstructionWorks" });
+  const hasMultipleOkpd2 = useWatch({ control, name: "hasMultipleOkpd2" });
 
   const uniqueNumber =
     getValues("uniqueNumber") ||
@@ -127,20 +144,27 @@ export default function PurchasePlanPositionModal({
   }
 
   function fillIdentificationCode() {
+    setIkzBuildError(null);
+    const kbkVal = getValues("kbk") || getValues("kbkEntries.0.kbk");
+    const kvrVal = getValues("kvr");
     const code = buildIdentificationCode({
-      planYear: plan.planYear,
+      planYear: getValues("plannedPlacementYear") || plan.planYear,
       inn: plan.customer.inn,
       kpp: plan.customer.kpp,
+      iku: getValues("iku"),
       purchaseNumber,
+      purchaseOrderNumber: getValues("purchaseOrderNumber") || "000",
       serialNumber,
-      kbk: getValues("kbk") || getValues("kbkEntries.0.kbk"),
+      okpd2Code: getValues("okpd2Code"),
+      hasMultipleOkpd2: Boolean(getValues("hasMultipleOkpd2")),
+      kvr: kvrVal,
+      kbk: kbkVal,
     });
 
     if (!code) {
-      window.alert(
-        "ИКЗ пока не из чего собрать: нужны ИНН и КПП заказчика, номер закупки, номер записи и КБК из детализации.",
+      setIkzBuildError(
+        "Для формирования 36-значного ИКЗ укажите ИНН/КПП заказчика (или 20-значный ИКУ), номер закупки, КВР (3 цифры) или 20-значный КБК.",
       );
-
       return;
     }
 
@@ -148,6 +172,9 @@ export default function PurchasePlanPositionModal({
   }
 
   function onSubmit(data: PurchasePlanPosition) {
+    const resolvedKbk = data.kbk || data.kbkEntries?.[0]?.kbk || "";
+    const resolvedKvr =
+      data.kvr || (resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : "");
     onSave({
       ...data,
       // Номер записи и её уникальный номер выдаёт система
@@ -155,7 +182,8 @@ export default function PurchasePlanPositionModal({
       uniqueNumber:
         data.uniqueNumber ||
         buildPositionUniqueNumber(plan.planNumber, serialNumber),
-      kbk: data.kbk || data.kbkEntries?.[0]?.kbk || "",
+      kbk: resolvedKbk,
+      kvr: resolvedKvr,
     });
   }
 
@@ -222,13 +250,39 @@ export default function PurchasePlanPositionModal({
                 input: { name: "plannedPlacementYear", placeholder: "2026" },
               }}
             />
+            <CustomInput
+              configuration={{
+                label: { value: "Внешний номер позиции (extNumber, ЕИС 17.0)" },
+                input: { name: "extNumber", placeholder: "PG-2026-0001" },
+              }}
+            />
+            <CustomInput
+              configuration={{
+                label: { value: "Порядковый № закупки в ИКЗ (3 знака)" },
+                input: { name: "purchaseOrderNumber", placeholder: "000" },
+              }}
+            />
+            <CustomInput
+              configuration={{
+                label: { value: "ИКУ заказчика (20 знаков, опционально)" },
+                input: { name: "iku", placeholder: "77012345677701010011" },
+              }}
+            />
+            <CustomInput
+              configuration={{
+                label: { value: "Код вида расходов — КВР (3 цифры)" },
+                input: { name: "kvr", placeholder: "244" },
+              }}
+            />
             <div className={block("field")}>
               <CustomInput
                 configuration={{
-                  label: { value: "Идентификационный код закупки (ИКЗ)" },
+                  label: {
+                    value: "Идентификационный код закупки (ИКЗ, 36 знаков)",
+                  },
                   input: {
                     name: "identificationCode",
-                    placeholder: "262462904043946320123000244",
+                    placeholder: "267701234567770101001100010003250244",
                   },
                 }}
               />
@@ -237,8 +291,11 @@ export default function PurchasePlanPositionModal({
                 className={block("link")}
                 onClick={fillIdentificationCode}
               >
-                Сформировать ИКЗ автоматически
+                Сформировать 36-значный ИКЗ автоматически (ikzCodeType)
               </button>
+              {ikzBuildError && (
+                <span className={block("error")}>{ikzBuildError}</span>
+              )}
             </div>
           </div>
         </fieldset>
@@ -288,10 +345,25 @@ export default function PurchasePlanPositionModal({
             />
             <CustomInput
               configuration={{
+                label: { value: "Код позиции по КТРУ (при наличии)" },
+                input: { name: "ktruCode", placeholder: "26.20.15.000-00000001" },
+              }}
+            />
+            <CustomInput
+              configuration={{
                 label: { value: "Наименование позиции по КТРУ (при наличии)" },
                 input: { name: "objectName" },
               }}
             />
+            <label className={block("checkbox")}>
+              <input type="checkbox" {...register("hasMultipleOkpd2")} />
+              Несколько кодов ОКПД2 (в разрядах 30–33 ИКЗ ставится «0000»)
+            </label>
+            {hasMultipleOkpd2 && (
+              <p className={block("hint")}>
+                При наличии нескольких позиций ОКПД2 в ИКЗ по XSD 17.0 автоматически проставляется значение «0000».
+              </p>
+            )}
           </div>
         </fieldset>
 
@@ -392,7 +464,7 @@ export default function PurchasePlanPositionModal({
         </fieldset>
 
         <fieldset className={block("section")}>
-          <legend>Статус записи и порядок проведения</legend>
+          <legend>Статус записи, признаки ЕИС 17.0 и изменения</legend>
           <div className={block("grid")}>
             <div className={block("field")}>
               <label className={block("label")} htmlFor="position-status">
@@ -430,6 +502,22 @@ export default function PurchasePlanPositionModal({
                 input: { name: "jointOrganizerName" },
               }}
             />
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="position-mod-status">
+                Статус при передаче изменений (ЕИС 17.0)
+              </label>
+              <select
+                id="position-mod-status"
+                className={block("select")}
+                {...register("modificationStatus")}
+              >
+                {modificationStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <label className={block("checkbox")}>
               <input
                 type="checkbox"
@@ -437,8 +525,150 @@ export default function PurchasePlanPositionModal({
               />
               Необходимо обязательное общественное обсуждение (ст. 20 44-ФЗ)
             </label>
+            <label className={block("checkbox")}>
+              <input type="checkbox" {...register("isEnergyServiceContract")} />
+              Планируется заключение энергосервисного контракта
+            </label>
+            <label className={block("checkbox")}>
+              <input
+                type="checkbox"
+                {...register("isProvisionLendingServices")}
+              />
+              Закупка на оказание услуг по предоставлению кредита
+            </label>
+            <label className={block("checkbox")}>
+              <input type="checkbox" {...register("isConstructionWorks")} />
+              Закупка в отношении ОКС / недвижимого имущества (КОКС)
+            </label>
+            <label className={block("checkbox")}>
+              <input type="checkbox" {...register("isNotFederalFinancing")} />
+              ОКС / недвижимость без софинансирования из федерального бюджета
+            </label>
+            <label className={block("checkbox")}>
+              <input type="checkbox" {...register("notPublishedOnEIS")} />
+              Не подлежит размещению на официальном сайте ЕИС
+            </label>
           </div>
+
+          {(positionStatus === "changed" ||
+            positionStatus === "cancelled" ||
+            !isNew) && (
+            <div className={block("grid")}>
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="position-change-reason">
+                  Основание внесения изменений (positionModification)
+                </label>
+                <select
+                  id="position-change-reason"
+                  className={block("select")}
+                  {...register("changeReasonCode", {
+                    onChange: (e) => {
+                      const found = tpChangeReasonOptions.find(
+                        (item) => item.code === e.target.value,
+                      );
+                      setValue("changeReasonName", found?.name ?? "");
+                    },
+                  })}
+                >
+                  <option value="">— Не выбрано —</option>
+                  {tpChangeReasonOptions.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.code}. {item.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={block("field")}>
+                <label className={block("label")} htmlFor="position-decision">
+                  Вынесенное решение (decision)
+                </label>
+                <select
+                  id="position-decision"
+                  className={block("select")}
+                  {...register("modificationDecision")}
+                >
+                  {modificationDecisionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <CustomInput
+                configuration={{
+                  label: { value: "Содержание изменений позиции" },
+                  input: {
+                    name: "modificationDescription",
+                    placeholder: "Обоснование корректировки или отмены позиции",
+                  },
+                }}
+              />
+            </div>
+          )}
         </fieldset>
+
+        {(isConstructionWorks || koksEntries.fields.length > 0) && (
+          <fieldset className={block("section")}>
+            <legend>
+              Детализация по кодам КОКС — ОКС/ОНИ ({koksEntries.fields.length})
+            </legend>
+            <ul className={block("kbk-list")}>
+              {koksEntries.fields.map((field, entryIndex) => (
+                <li className={block("kbk-row")} key={field.id}>
+                  <div className={block("kbk-code")}>
+                    <CustomInput
+                      configuration={{
+                        label: {
+                          value: entryIndex === 0 ? "Код КОКС" : undefined,
+                        },
+                        input: {
+                          name: `koksEntries.${entryIndex}.koksCode`,
+                          placeholder: "25000000000000000000",
+                        },
+                      }}
+                    />
+                  </div>
+                  <div className={block("kbk-amounts")}>
+                    {AMOUNT_FIELDS.map((amount) => (
+                      <CustomInput
+                        key={amount.key}
+                        configuration={{
+                          label: {
+                            value: entryIndex === 0 ? amount.label : undefined,
+                          },
+                          input: {
+                            name: `koksEntries.${entryIndex}.${amount.key}`,
+                            placeholder: "0.00",
+                          },
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className={block("remove")}
+                    onClick={() => koksEntries.remove(entryIndex)}
+                  >
+                    Убрать
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className={block("add")}
+              onClick={() =>
+                koksEntries.append({
+                  koksCode: "",
+                  koksName: "",
+                  amountTotal: "",
+                })
+              }
+            >
+              Добавить КОКС
+            </button>
+          </fieldset>
+        )}
 
         <footer className={block("footer")}>
           {errorText("amountTotal") && (

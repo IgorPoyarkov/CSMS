@@ -585,3 +585,34 @@ export const useDeleteContractEvent = () => {
       qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
   });
 };
+
+// Все этапы, платежи и неустойки (для сводных отчётов, мониторинга сроков и дашборда)
+export const useAllContractStages = (enabled = true) =>
+  useQuery({
+    queryKey: [...contractRegistryQueryKey, "stages", "all"],
+    queryFn: async (): Promise<ContractStage[]> => {
+      const response = await api.get(STAGES_ENDPOINT);
+      return ContractStageListSchema.parse(response.data ?? []);
+    },
+    enabled,
+  });
+
+export const useAllContractPayments = (enabled = true) =>
+  useQuery({
+    queryKey: [...contractRegistryQueryKey, "payments", "all"],
+    queryFn: async (): Promise<ContractPayment[]> => {
+      const response = await api.get(PAYMENTS_ENDPOINT);
+      return ContractPaymentListSchema.parse(response.data ?? []);
+    },
+    enabled,
+  });
+
+export const useAllContractPenalties = (enabled = true) =>
+  useQuery({
+    queryKey: [...contractRegistryQueryKey, "penalties", "all"],
+    queryFn: async (): Promise<ContractPenalty[]> => {
+      const response = await api.get(PENALTIES_ENDPOINT);
+      return ContractPenaltyListSchema.parse(response.data ?? []);
+    },
+    enabled,
+  });

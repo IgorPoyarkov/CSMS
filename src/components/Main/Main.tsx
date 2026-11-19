@@ -1,11 +1,26 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
 import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
-import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import {
+  useAllContractPayments,
+  useAllContractPenalties,
+  useAllContractStages,
+  useContractRegistry,
+} from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { useOrganizationTasks } from "../../services/Tasks/tasks.api";
+import { useNotificationStates } from "../../services/Notifications/notifications.api";
+import {
+  buildProcurementNotifications,
+  summarizeNotifications,
+} from "../../services/Notifications/deadlineNotifications";
+import { buildDashboardAnalytics } from "../../services/Dashboard/dashboardAnalytics";
+import ProcurementChartsDashboard from "../Dashboard/ProcurementChartsDashboard";
+import BudgetExecutionMonitorD3 from "../Dashboard/BudgetExecutionMonitorD3";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Main.module.scss";
 
@@ -20,6 +35,11 @@ const budgetLevelLabels: Record<string, string> = {
 const Main = ({}: MainProps) => {
   const { bem } = useUtils();
   const main = bem(styles, "main");
+  const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [selectedYear, setSelectedYear] = useState(() =>
+    new Date().getFullYear(),
+  );
+
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
   // П. 2.1 приказа Минфина России от 31.07.2020 N 158н: способ создания
@@ -34,12 +54,17 @@ const Main = ({}: MainProps) => {
   const { data: contractProjects } = useOrganizationContractProjects(orgId);
   const { data: registryContracts } = useContractRegistry(orgId);
   const { data: purchaseNotes } = usePurchaseNotes(orgId);
+  const { data: allStages = [] } = useAllContractStages(Boolean(orgId));
+  const { data: allPayments = [] } = useAllContractPayments(Boolean(orgId));
+  const { data: allPenalties = [] } = useAllContractPenalties(Boolean(orgId));
+  const { data: orgTasks = [] } = useOrganizationTasks(orgId);
+  const { data: ackStates = [] } = useNotificationStates(orgId);
 
   // Данные главной идут по цепочке закупки: план-график → позиция плана (ИКЗ)
   // → закупка (СЗ) → извещение → проект контракта → реестр контрактов.
   // Закупка относится к организации, если её ИКЗ есть в позициях планов этого
   // заказчика либо на неё ссылается проект контракта или контракт реестра.
-  const planList = plans ?? [];
+  const planList = useMemo(() => plans ?? [], [plans]);
   const planPositions = planList.flatMap((plan) => plan.positions ?? []);
   const planIkz = new Set(
     planPositions
@@ -56,13 +81,68 @@ const Main = ({}: MainProps) => {
       ),
     ].filter(Boolean),
   );
-  const orgProcurements = (procurements ?? []).filter(
-    (procurement) =>
-      planIkz.has(procurement.ikz) ||
-      linkedProcurementIds.has(String(procurement.id)),
+  const orgProcurements = useMemo(
+    () =>
+      (procurements ?? []).filter(
+        (procurement) =>
+          planIkz.has(procurement.ikz) ||
+          linkedProcurementIds.has(String(procurement.id)),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [procurements, planList, contractProjects, registryContracts],
   );
   const publishedNotices = orgProcurements.filter((procurement) =>
     Boolean(procurement.noticeNumber),
+  );
+
+  // Уведомления о приближении сроков и рисках санкций 44-ФЗ
+  const activeAlerts = useMemo(() => {
+    if (!orgId) return [];
+    const ackSet = new Set(ackStates.map((s) => s.notificationKey));
+    return buildProcurementNotifications({
+      todayIso,
+      contracts: registryContracts ?? [],
+      stages: allStages,
+      payments: allPayments,
+      contractProjects: contractProjects ?? [],
+      procurements: orgProcurements,
+      tasks: orgTasks,
+    }).filter((a) => !ackSet.has(a.id));
+  }, [
+    orgId,
+    ackStates,
+    todayIso,
+    registryContracts,
+    allStages,
+    allPayments,
+    contractProjects,
+    orgProcurements,
+    orgTasks,
+  ]);
+  const alertStats = useMemo(
+    () => summarizeNotifications(activeAlerts),
+    [activeAlerts],
+  );
+
+  // Аналитика для Recharts и D3 монитора исполнения бюджета
+  const analytics = useMemo(
+    () =>
+      buildDashboardAnalytics({
+        plans: planList,
+        contracts: registryContracts ?? [],
+        stages: allStages,
+        payments: allPayments,
+        penalties: allPenalties,
+        selectedYear,
+      }),
+    [
+      planList,
+      registryContracts,
+      allStages,
+      allPayments,
+      allPenalties,
+      selectedYear,
+    ],
   );
 
   const steps = [
@@ -125,6 +205,11 @@ const Main = ({}: MainProps) => {
 
   const testLinks = [
     {
+      to: "/notifications",
+      title: "Контроль сроков и уведомления 44-ФЗ",
+      hint: "предотвращение просрочек исполнения, оплаты и публикации в ЕИС",
+    },
+    {
       to: "/contract-service",
       title: "Контрактная служба",
       hint: "приказ N 158н, п. 2.1",
@@ -132,7 +217,7 @@ const Main = ({}: MainProps) => {
     {
       to: "/purchase-plans",
       title: "План-график закупок",
-      hint: "44-ФЗ, планирование",
+      hint: "44-ФЗ, планирование, импорт ЕИС и версионность",
     },
     {
       to: "/nmck-calculator",
@@ -147,7 +232,12 @@ const Main = ({}: MainProps) => {
     {
       to: "/procurement-processing",
       title: "Обработка информации по закупке",
-      hint: "закупки и процедуры",
+      hint: "закупки, извещения и оценка рисков проектов контрактов",
+    },
+    {
+      to: "/documents",
+      title: "Типовые документы и Document Checker",
+      hint: "приказы о комиссии, протоколы заявок и проверка по реестру НПА",
     },
     {
       to: "/procurement-processing/new/notice-info",
@@ -163,6 +253,11 @@ const Main = ({}: MainProps) => {
       to: "/reports/smnp",
       title: "Отчёт СМП / СОНКО",
       hint: "ч. 1 ст. 30 44-ФЗ, форма № 9",
+    },
+    {
+      to: "/reports/order-158n",
+      title: "Отчётность по № 158н",
+      hint: "приказ Минфина № 158н, деятельность КС",
     },
     {
       to: "/norming-requirements",
@@ -223,6 +318,44 @@ const Main = ({}: MainProps) => {
         )}
       </section>
 
+      {/* === Срочные уведомления о сроках 44-ФЗ === */}
+      {orgId && activeAlerts.length > 0 && (
+        <section
+          className={main(
+            "alert-banner",
+            alertStats.critical > 0
+              ? ["critical"]
+              : alertStats.warning > 0
+                ? ["warning"]
+                : [],
+          )}
+        >
+          <div className={styles["alert-head"]}>
+            <h2 className={styles["alert-title"]}>
+              Контроль сроков 44-ФЗ: {alertStats.total} активных уведомлений (
+              {alertStats.critical} критических · {alertStats.warning} срочных)
+            </h2>
+            <Link className={styles["alert-link"]} to="/notifications">
+              Открыть центр уведомлений →
+            </Link>
+          </div>
+          <ul className={styles["alert-list"]}>
+            {activeAlerts.slice(0, 3).map((alert) => (
+              <li key={alert.id} className={styles["alert-item"]}>
+                <span>{alert.title}</span>
+                <span>
+                  {alert.daysRemaining !== null
+                    ? alert.daysRemaining < 0
+                      ? `Просрочка ${Math.abs(alert.daysRemaining)} дн.`
+                      : `Осталось ${alert.daysRemaining} дн.`
+                    : "Требует действия"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* === Поток закупки === */}
       <section className={main("card")}>
         <h2 className={main("section-title")}>Поток закупки</h2>
@@ -249,7 +382,24 @@ const Main = ({}: MainProps) => {
         </ol>
       </section>
 
-      {/* === Разделы для тестов === */}
+      {/* === Дашборд динамики закупок и статусов контрактов (Recharts) === */}
+      {orgId && (
+        <section className={main("card")}>
+          <ProcurementChartsDashboard
+            analytics={analytics}
+            onYearChange={setSelectedYear}
+          />
+        </section>
+      )}
+
+      {/* === Визуальный монитор исполнения бюджета (D3.js) === */}
+      {orgId && (
+        <section className={main("card")}>
+          <BudgetExecutionMonitorD3 analytics={analytics} />
+        </section>
+      )}
+
+      {/* === Разделы === */}
       <section className={main("card")}>
         <h2 className={main("section-title")}>Разделы</h2>
 
