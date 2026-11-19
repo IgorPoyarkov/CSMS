@@ -504,18 +504,20 @@ const PurchaseObjectsSection = ({
                                 </option>
                               ))}
                             </select>
-                            {advantageAllowed ? (
+                            {advantageAllowed && (
                               <span className={block("caption")}>
                                 «Преимущество» — право заказчика: можно
                                 установить, а можно не устанавливать (только
                                 товары российского происхождения, когда запрет и
                                 ограничение не установлены).
                               </span>
-                            ) : (
+                            )}
+                            {/* По работам и услугам преимущество не выводим
+                                вовсе: это не ошибка заказчика, а отсутствие
+                                самого механизма */}
+                            {!advantageAllowed && regimeCheck.regime && (
                               <span className={block("caption")}>
-                                {regimeCheck.regime
-                                  ? `«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(regimeCheck.regime)}».`
-                                  : "«Преимущество» недоступно: применяется только к товарам (не к работам и услугам)."}
+                                {`«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(regimeCheck.regime)}».`}
                               </span>
                             )}
                             {regimeCheck.regime && (

@@ -2339,7 +2339,7 @@ export default function PurchaseNoteModal({
                                       </option>
                                     ))}
                                   </select>
-                                  {itemAdvantageApplicable ? (
+                                  {itemAdvantageApplicable && (
                                     <span className={block("hint")}>
                                       «Преимущество» — право заказчика: можно
                                       установить, а можно не устанавливать. По
@@ -2347,13 +2347,16 @@ export default function PurchaseNoteModal({
                                       товарам российского происхождения, когда
                                       запрет и ограничение не установлены.
                                     </span>
-                                  ) : (
-                                    <span className={block("hint")}>
-                                      {itemRegime.regime
-                                        ? `«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(itemRegime.regime)}».`
-                                        : "«Преимущество» недоступно: применяется только к товарам (не к работам и услугам)."}
-                                    </span>
                                   )}
+                                  {/* По работам и услугам преимущество не
+                                      выводим вовсе: это не ошибка заказчика, а
+                                      отсутствие самого механизма */}
+                                  {!itemAdvantageApplicable &&
+                                    itemRegime.regime && (
+                                      <span className={block("hint")}>
+                                        {`«Преимущество» недоступно: по коду обязательно «${nationalRegimeModeLabel(itemRegime.regime)}».`}
+                                      </span>
+                                    )}
                                   {itemRegime.regime && (
                                     <span className={block("hint")}>
                                       ПП РФ № 1875:{" "}
