@@ -28,9 +28,15 @@
 
 ## 1. Команды и проверки
 
-- `npm start` — Vite (:5173) + `json-server-auth db.json` (:3001). `npm run build`
-  = `tsc -b && vite build`. Линт: `npx oxlint src` (в проекте oxlint; `npm run lint`
-  — осколок eslint). Типы: `npx tsc -b --pretty false`.
+- `npm start` — три процесса через `concurrently`: Vite (:5173),
+  `json-server-auth db.json` (:3001) и `csms-api` (:5099, скрипт
+  `scripts/start-api.mjs`). Скрипт по умолчанию ставит `EIS_STORE=postgres`,
+  `Development` и `http://localhost:5099`; заданные снаружи переменные окружения
+  не перетираются (`Npa__Enabled=false` и т.п. работают как раньше).
+  ⚠️ `EIS_STORE=postgres` требует поднятый PostgreSQL на :5433 с базой `csms_eis`;
+  без него ОКПД2 на фронте будет пустым. `npm run api` — только API.
+  `npm run build` = `tsc -b && vite build`. Линт: `npx oxlint src` (в проекте
+  oxlint; `npm run lint` — осколок eslint). Типы: `npx tsc -b --pretty false`.
   - ⚠️ В PowerShell этого агента `npx` заблокирован политикой выполнения
     (`npx.ps1`, PSSecurityException) — использовать `npx.cmd tsc -b ...`,
     `npx.cmd oxlint src`, `npx.cmd vite build`.
@@ -1332,3 +1338,23 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   версии отдали `fetchedAt` и `lastCheckedAt`; на `/legal-acts` в браузере три
   строки с временем МСК, включая 471-р при поиске по номеру. `dotnet build`
   (0/0), 66 тестов, `tsc -b`, `oxlint`, `vite build` — успешно.
+
+## 42. ОКПД2 на фронте и единый запуск через npm start (2026-11-20)
+
+- **Где посмотреть:** маршрут `/okpd2` (`src/components/Okpd2Ref/Okpd2Dictionary.tsx`,
+  пункт «Справочники» в шапке). Страница берёт 21 066 кодов с
+  `GET /api/references/nsiOKPD2/all` и показывает код, наименование, способ
+  закупки по 471-р, признак нормирования и предельную цену; есть поиск и отборы.
+- **`npm start` теперь поднимает три процесса:** Vite (:5173), json-server
+  (:3001) и `csms-api` (:5099). API запускается через `scripts/start-api.mjs`,
+  который по умолчанию выставляет `EIS_STORE=postgres`, `Development` и
+  `http://localhost:5099`, но не перетирает переменные окружения пользователя.
+  Отдельно API можно поднять командой `npm run api`.
+- **Зависимость:** API с postgres читает базу `csms_eis` на :5433. Если кластер
+  не поднят, ОКПД2 на странице будет пустым — сначала запустить PostgreSQL.
+  Ошибка в пути скрипта (`../csms-api` вместо `../../csms-api`) была найдена
+  и исправлена при проверке.
+- **Проверено вживую:** после `npm.cmd run start` слушаются все три порта;
+  `/api/references/nsiOKPD2/all` → 21 066 записей, `/api/npa/config` → 03:00/30;
+  в браузере на `/okpd2` запрос к API вернул 200, в таблице реальные коды
+  (13.94.99, 43.31.10.130, 28.12.12.122) и счётчик «Справочники ЕИС 21 066».
