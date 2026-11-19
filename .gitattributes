@@ -1,0 +1,32 @@
+# Принудительные LF для всех текстовых файлов
+* text=auto eol=lf
+
+# Бинарные файлы не трогать
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.eot binary
+
+# SVG — текстовый, нормализуем
+*.svg text
+
+# JS/TS/JSON/HTML/SCSS — всегда LF
+*.ts text
+*.tsx text
+*.js text
+*.jsx text
+*.json text
+*.html text
+*.scss text
+*.css text
+*.xml text
+*.xsd text
+*.wsdl text
+
+# Git-файлы
+*.sh text

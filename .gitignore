@@ -50,3 +50,10 @@ eis-parser/stunnel.local.conf
 
 # Модели, сгенерированные из XSD: воспроизводятся schemas/generate-models.ps1
 eis-parser/src/Eis44Parser.Core/Models/Generated/
+
+# Локальные скриншоты и временные файлы
+screenshots/
+test.txt
+
+# Архивы со схемами/альбомами ЕИС — скачиваются локально, не в git
+*.zip
