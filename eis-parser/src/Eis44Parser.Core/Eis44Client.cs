@@ -84,6 +84,61 @@ public sealed class Eis44Client : IEis44Client
         string documentType = "",
         CancellationToken cancellationToken = default)
     {
+        var documents = await DownloadArchiveDocumentsAsync(archiveUrl, cancellationToken)
+            .ConfigureAwait(false);
+
+        var results = documents
+            .Select(document => _parser.Parse(document.Document, document.FileName) with
+            {
+                ArchiveUrl = archiveUrl,
+                SubsystemType = subsystemType,
+                DocumentType = documentType,
+            })
+            .ToArray();
+
+        _logger.LogInformation(
+            "Из архива {Archive} прочитано документов: {Count}",
+            archiveUrl,
+            results.Length);
+
+        return results;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> FetchNsiArchiveUrlsAsync(
+        string nsiCode,
+        string nsiKind,
+        CancellationToken cancellationToken = default)
+    {
+        var soap = SoapRequestBuilder.BuildNsiRequest(
+            _options.IndividualPersonToken,
+            nsiCode,
+            nsiKind,
+            _options.Mode,
+            Guid.NewGuid(),
+            DateTime.UtcNow);
+
+        return await SendSoapAndGetArchiveUrlsAsync(soap, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<XDocument>> DownloadArchiveXmlAsync(
+        string archiveUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var documents = await DownloadArchiveDocumentsAsync(archiveUrl, cancellationToken)
+            .ConfigureAwait(false);
+        return documents.Select(document => document.Document).ToArray();
+    }
+
+    /// <summary>
+    /// Скачивание ZIP через туннель. Общая часть для извещений и справочников:
+    /// и там и там ссылка ведёт на архив с XML, только парсеры разные.
+    /// </summary>
+    private async Task<IReadOnlyList<(string FileName, XDocument Document)>> DownloadArchiveDocumentsAsync(
+        string archiveUrl,
+        CancellationToken cancellationToken)
+    {
         if (!Uri.TryCreate(archiveUrl, UriKind.Absolute, out var archiveUri))
         {
             throw new ArgumentException($"Некорректная ссылка на архив ЕИС: {archiveUrl}", nameof(archiveUrl));
@@ -120,32 +175,19 @@ public sealed class Eis44Client : IEis44Client
             .ConfigureAwait(false);
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
 
-        var results = new List<TenderDto>();
+        var documents = new List<(string, XDocument)>();
         foreach (var entry in archive.Entries.Where(entry =>
                      entry.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             await using var entryStream = entry.Open();
-            var xml = await XDocument
+            documents.Add((entry.FullName, await XDocument
                 .LoadAsync(entryStream, LoadOptions.None, cancellationToken)
-                .ConfigureAwait(false);
-
-            var tender = _parser.Parse(xml, entry.FullName);
-            results.Add(tender with
-            {
-                ArchiveUrl = archiveUrl,
-                SubsystemType = subsystemType,
-                DocumentType = documentType,
-            });
+                .ConfigureAwait(false)));
         }
 
-        _logger.LogInformation(
-            "Из архива {Archive} прочитано документов: {Count}",
-            archiveUri.GetLeftPart(UriPartial.Path),
-            results.Count);
-
-        return results;
+        return documents;
     }
 
     private async Task<IReadOnlyList<string>> SendSoapAndGetArchiveUrlsAsync(

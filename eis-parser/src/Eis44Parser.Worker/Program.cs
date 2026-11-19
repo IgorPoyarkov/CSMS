@@ -11,10 +11,14 @@ using Microsoft.Extensions.Options;
 
 // Режимы: без аргументов — постоянный опрос, --once — один проход,
 // --validate — проверить конфигурацию и создать БД без обращения к ЕИС,
-// --check — проверить токен и доступность локального ГОСТ-туннеля.
+// --check — проверить токен и доступность локального ГОСТ-туннеля,
+// --import-nsi — выгрузить справочник НСИ (КТРУ) и опубликовать в csms-api,
+// --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase);
 var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
+var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
+var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
 
 // ContentRoot привязан к каталогу исполняемого файла: туда копируется
 // appsettings.json. Иначе при запуске из корня репозитория (dotnet run
@@ -56,6 +60,8 @@ builder.Services.AddHttpClient();
 
 builder.Services.Configure<EisClientOptions>(
     builder.Configuration.GetSection(EisClientOptions.SectionName));
+builder.Services.Configure<EisNsiOptions>(
+    builder.Configuration.GetSection(EisNsiOptions.SectionName));
 
 // Биндер коллекций дописывает значения из конфига к значениям свойств-инициализаторов.
 // Убираем дубли, иначе воркер опрашивает один и тот же регион/тип по несколько раз.
@@ -82,6 +88,8 @@ builder.Services.PostConfigure<EisClientOptions>(options =>
 });
 builder.Services.AddSingleton<ITenderXmlParser, TenderXmlParser>();
 builder.Services.AddSingleton<IEis44Client, Eis44Client>();
+builder.Services.AddSingleton<NsiImportService>();
+builder.Services.AddTransient<ReferenceApiClient>();
 builder.Services.AddSingleton<ITenderRepository, TenderRepository>();
 builder.Services.AddSingleton<PollingWorker>();
 builder.Services.AddHostedService(service => service.GetRequiredService<PollingWorker>());
@@ -102,6 +110,50 @@ builder.Services.AddDbContext<EisDbContext>(options =>
 });
 
 var host = builder.Build();
+
+if (importNsi)
+{
+    try
+    {
+        var nsiOptions = host.Services.GetRequiredService<IOptions<EisNsiOptions>>().Value;
+        var snapshot = await host.Services.GetRequiredService<NsiImportService>()
+            .BuildSnapshotAsync(CancellationToken.None);
+
+        Console.WriteLine($"Справочник: {snapshot.Dataset}");
+        Console.WriteLine($"Версия: {snapshot.Version}");
+        Console.WriteLine($"SHA-256: {snapshot.SourceSha256}");
+        Console.WriteLine($"Позиций: {snapshot.Items.Count}");
+        foreach (var item in snapshot.Items.Take(5))
+        {
+            Console.WriteLine($"  {item.Code} | {item.ParentCode} | {item.Name}");
+        }
+
+        if (dryRun)
+        {
+            Console.WriteLine("dry-run: снимок не опубликован.");
+            return 0;
+        }
+
+        var dto = new ReferenceImportRequestDto(
+            snapshot.Dataset,
+            snapshot.Version,
+            snapshot.SourceDocument,
+            snapshot.SourceUrl,
+            snapshot.SourceSha256,
+            snapshot.PublishedAt,
+            snapshot.Items);
+
+        var response = await host.Services.GetRequiredService<ReferenceApiClient>()
+            .PublishAsync(dto, CancellationToken.None);
+        Console.WriteLine($"Опубликовано в {nsiOptions.ApiBaseUrl}: {response}");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка импорта справочника НСИ: {exception.Message}");
+        return 1;
+    }
+}
 
 if (validateOnly)
 {

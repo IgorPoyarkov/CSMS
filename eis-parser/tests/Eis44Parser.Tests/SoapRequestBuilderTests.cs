@@ -67,4 +67,33 @@ public sealed class SoapRequestBuilderTests
             "01234567890123456789",
             selection.Elements().Single(element => element.Name.LocalName == "reestrNumber").Value);
     }
+
+    [Fact]
+    public void NsiRequest_PreservesSequenceAndValidatesKind()
+    {
+        var xml = SoapRequestBuilder.BuildNsiRequest(
+            "token&1",
+            "nsiKtru",
+            "all",
+            "PROD",
+            RequestId,
+            CreatedAt);
+
+        var document = XDocument.Parse(xml);
+        Assert.Equal("Envelope", document.Root?.Name.LocalName);
+        Assert.Equal("getNsiRequest", document.Descendants()
+            .Single(element => element.Name.LocalName == "getNsiRequest").Name.LocalName);
+        Assert.Equal("token&1", document.Descendants()
+            .Single(element => element.Name.LocalName == "individualPerson_token").Value);
+
+        var selection = document.Descendants()
+            .Single(element => element.Name.LocalName == "selectionParams");
+        Assert.Equal(["nsiCode44", "nsiKind"], selection.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal("nsiKtru", selection.Elements().Single(e => e.Name.LocalName == "nsiCode44").Value);
+        Assert.Equal("all", selection.Elements().Single(e => e.Name.LocalName == "nsiKind").Value);
+        Assert.Equal("PROD", document.Descendants().Single(e => e.Name.LocalName == "mode").Value);
+
+        Assert.Throws<ArgumentException>(() => SoapRequestBuilder.BuildNsiRequest(
+            "token", "nsiKtru", "full", "PROD", RequestId, CreatedAt));
+    }
 }

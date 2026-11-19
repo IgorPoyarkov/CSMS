@@ -86,6 +86,35 @@ WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 Подсистемы 44-ФЗ: `PRIZ` (извещения и протоколы), `RPEC` (реестр контрактов),
 `RPGZ` (планы-графики), `NSI` (справочники).
 
+## Выгрузка справочника КТРУ (nsiKtru)
+
+Открытый FTP ЕИС закрыт с 01.01.2025: КТРУ отдаёт тот же `getDocsIP`, но методом
+`getNsiRequest`. Структура запроса и теги позиций — по XSD 17.0
+(`getDocsIP-ws-api.xsd`, `IntegrationTypes.xsd`); полный разбор есть в
+`csms-api/docs/eis-nsi-soap.md`. Клиент использует **тот же токен и туннель**,
+что и выгрузка извещений — секрет в `csms-api` не дублируется.
+
+```powershell
+# Только посчитать версию и объём, без записи:
+dotnet run --project src/Eis44Parser.Worker -- --import-nsi --dry-run
+
+# Выгрузить и опубликовать в csms-api (POST /api/references/import):
+dotnet run --project src/Eis44Parser.Worker -- --import-nsi
+```
+
+Настройки — в разделе `EisNsi` файла `appsettings.json`: `Dataset`, `NsiCode`,
+`NsiKind` (`all` — полная выгрузка не чаще раза в сутки, `inc` — инкремент),
+`ApiBaseUrl`, `ServiceUrl`. Перед живым прогоном надо подтвердить точный
+`nsiCode` ответом `nsiAllList`: в XSD это свободная строка, а не перечисление.
+
+Версия снимка — `eis-<dataset>-<16 hex из SHA-256>`, хеш считается по
+каноническому набору `code|name|payload`, как и в `csms-api`. Поэтому повтор
+той же выгрузки даёт ту же версию и корректно получает `400` от API.
+
+⚠️ Живой прогон пока невозможен: `int44.zakupki.gov.ru:443` сбрасывает
+соединение на `SSL_connect` (подробности — §26 `.koda/PROJECT_STATE.md`).
+Код и тесты готовы, но сетевой путь не проверен.
+
 ## Запуск
 
 ```bash

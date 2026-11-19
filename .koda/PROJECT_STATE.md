@@ -694,6 +694,22 @@ to TLS`, в `csptest -tlsc -hello -ciphers ff85 -user <thumbprint>` —
   Дальше без пользователя: подтвердить доступ/белый список IP, рабочий контур
   ЕИС или актуальность сертификата на стороне сервера. SSL Labs тоже пишет
   `Unable to connect to the server` (для GOST-хоста не доказательно).
+- **Повторная проверка 2026-11-19 (по просьбе пользователя).** `--check`:
+  токен задан, stunnel запущен из готового `%TEMP%\eis44-stunnel.conf`, локальный
+  порт 8080 слушает. Но запрос через туннель снова умирает: `s_connect:
+  connected 94.25.27.252:443`, затем `SSL_connect` и `Connection reset: 0 byte(s)
+  sent to TLS`. То есть это не токен и не PIN, а доступ/контур на стороне ЕИС.
+- **Импорт КТРУ код готов, без live-прогона (2026-11-19).** В `eis-parser`:
+  `SoapRequestBuilder.BuildNsiRequest` (getNsiRequest по XSD 17.0),
+  `Eis44Client.FetchNsiArchiveUrlsAsync` + `DownloadArchiveXmlAsync` (общая
+  часть вынесена в `DownloadArchiveDocumentsAsync`), `NsiXmlParser` (позиции
+  `position/data` по локальным именам, `actual` из статуса), `NsiSnapshotBuilder`
+  (версия `eis-nsiKtru-<16 hex>`, SHA по `code|name|payload`, как в csms-api),
+  `NsiImportService`, CLI `--import-nsi` и `--dry-run`, публикация через
+  `ReferenceApiClient` → `POST /api/references/import` (токен не дублируется).
+  Настройки — раздел `EisNsi` в appsettings: `NsiCode=nsiKtru` надо подтвердить
+  ответом `nsiAllList`. Проверки: `dotnet build` 0 ошибок/0 предупреждений,
+  `dotnet test` 12/12, `--validate` зелёный. Описание — `eis-parser/README.md`.
 - ⚠️ **Ловушка, уже пойманная:** нельзя совмещать `SecurityElement.Escape()` с
   `XElement` — получается двойное экранирование (`&amp;amp;`). `XElement` сам
   экранирует содержимое. Вторая ловушка: `ResiliencePipeline<T>.ExecuteAsync`

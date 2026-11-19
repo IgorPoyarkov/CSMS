@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Eis44Parser.Core.Models;
 
 namespace Eis44Parser.Core.Abstractions;
@@ -30,5 +31,21 @@ public interface IEis44Client
         string archiveUrl,
         string subsystemType = EisSubsystems.Priz,
         string documentType = "",
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Этап 1 для справочников НСИ: getNsiRequest → ссылки на ZIP-архивы.
+    /// </summary>
+    Task<IReadOnlyList<string>> FetchNsiArchiveUrlsAsync(
+        string nsiCode,
+        string nsiKind,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Этап 2 для справочников НСИ: скачать ZIP и вернуть XML без разбора
+    /// в типы извещений — позиции КТРУ разбирает NsiXmlParser.
+    /// </summary>
+    Task<IReadOnlyList<XDocument>> DownloadArchiveXmlAsync(
+        string archiveUrl,
         CancellationToken cancellationToken = default);
 }

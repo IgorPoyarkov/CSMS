@@ -57,6 +57,38 @@ public static class SoapRequestBuilder
                 new XElement("reestrNumber", reestrNumber))));
     }
 
+    /// <summary>
+    /// Запрос выгрузки справочника НСИ (getNsiRequest). Порядок тегов и
+    /// допустимые значения nsiKind — по getDocsIP-ws-api.xsd 17.0 (line 687+):
+    /// index, затем selectionParams{nsiCode44, nsiKind}.
+    /// Пространство имён конверта повторяет остальные методы этого сервиса.
+    /// </summary>
+    public static string BuildNsiRequest(
+        string token,
+        string nsiCode,
+        string nsiKind,
+        string mode,
+        Guid requestId,
+        DateTime createdAt)
+    {
+        if (string.IsNullOrWhiteSpace(nsiCode))
+        {
+            throw new ArgumentException("Не задан код справочника ЕИС (nsiCode44).", nameof(nsiCode));
+        }
+
+        if (nsiKind is not ("all" or "inc"))
+        {
+            throw new ArgumentException("nsiKind может быть только all или inc.", nameof(nsiKind));
+        }
+
+        return BuildEnvelope(token, new XElement(
+            XNamespace.Get(EisNamespace) + "getNsiRequest",
+            BuildIndex(requestId, createdAt, mode),
+            new XElement("selectionParams",
+                new XElement("nsiCode44", nsiCode),
+                new XElement("nsiKind", nsiKind))));
+    }
+
     private static XElement BuildIndex(Guid requestId, DateTime createdAt, string mode) =>
         new("index",
             new XElement("id", requestId.ToString("D")),
