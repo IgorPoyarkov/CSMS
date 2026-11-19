@@ -6,11 +6,17 @@ param(
     [string]$CertThumbprint = '08A26ABA98738FEE6BB29A103D1909A251C5D20F',
     [int]$ListenPort = 8080,
     [string]$Connect = 'int44.zakupki.gov.ru:443',
+    [string]$Sni,
     [string]$LogPath = (Join-Path $env:TEMP 'eis44-stunnel.log'),
     [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
+
+# SNI должен соответствовать выбранному контуру. По умолчанию берём хост
+# из -Connect: официальная WSDL указывает int44, но если он сбрасывает
+# TLS-handshake, можно переключиться на -Connect int.zakupki.gov.ru:443.
+if (-not $Sni) { $Sni = ($Connect -split ':')[0] }
 
 if (-not (Test-Path -LiteralPath $StunnelExe)) {
     throw "Не найден stunnel-msspi.exe: $StunnelExe"
@@ -34,7 +40,7 @@ output = $LogPath
 client = yes
 accept = 127.0.0.1:$ListenPort
 connect = $Connect
-sni = int44.zakupki.gov.ru
+sni = $Sni
 sslVersion = TLSv1.2
 cert = $CertThumbprint
 pin = $pin
