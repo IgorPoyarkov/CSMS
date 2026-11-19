@@ -2,6 +2,11 @@ import { Fragment, useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
+  formatMskDateTime,
+  useNpaDocuments,
+  type NpaDocumentInfo,
+} from "../../services/Npa/npa.api";
+import {
   useLegalActs,
   visibleLegalActs,
 } from "../../services/LegalAct/legalAct.api";
@@ -36,6 +41,25 @@ export default function LegalActsRegistry() {
   const block = bem(styles, "legal-acts");
   const { data: organization } = useCurrentOrganization();
   const { data: acts = [], isLoading, isError, error } = useLegalActs();
+  const { data: npaDocuments = [] } = useNpaDocuments();
+
+  // Реестр актов живёт в json-server, а отметки проверки — в csms-api. Сопоставляем
+  // по номеру акта (471-р, 1875, 2604): только три акта размечаются агентом НПА.
+  const npaByNumber = useMemo(() => {
+    const result = new Map<string, NpaDocumentInfo>();
+    for (const document of npaDocuments) {
+      const key = (document.number ?? document.code).trim().toLowerCase();
+      const previous = result.get(key);
+      if (
+        !previous ||
+        (document.isActive && !previous.isActive) ||
+        document.fetchedAt > previous.fetchedAt
+      ) {
+        result.set(key, document);
+      }
+    }
+    return result;
+  }, [npaDocuments]);
 
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<LegalActType | "">("");
@@ -277,18 +301,58 @@ export default function LegalActsRegistry() {
                         )}
                       </td>
                       <td className={block("cell")}>
-                        {act.isVerified ? (
-                          <span className={block("check", ["done"])}>
-                            Сверен
-                            {act.lastCheckedDate
-                              ? ` ${formatActDate(act.lastCheckedDate)}`
-                              : ""}
-                          </span>
-                        ) : (
-                          <span className={block("check", ["pending"])}>
-                            Не сверен
-                          </span>
-                        )}
+                        {(() => {
+                          // У актов НПА показываем не только дату сверки из
+                          // реестра, а реальные отметки серверного агента.
+                          const npa = npaByNumber.get(
+                            act.actNumber.trim().toLowerCase(),
+                          );
+
+                          if (npa) {
+                            const failed = npa.lastCheckStatus === "error";
+                            return (
+                              <>
+                                <span
+                                  className={block("check", [
+                                    failed ? "pending" : "done",
+                                  ])}
+                                >
+                                  {failed ? "Проверка с ошибкой" : "Проверен"}
+                                </span>
+                                <span className={block("npa-times")}>
+                                  <span className={block("npa-time")}>
+                                    Проверен:{" "}
+                                    {formatMskDateTime(npa.lastCheckedAt)}
+                                  </span>
+                                  <span className={block("npa-time")}>
+                                    Обновлён: {formatMskDateTime(npa.fetchedAt)}
+                                  </span>
+                                  <span className={block("sub")}>
+                                    Версия: {npa.version}
+                                  </span>
+                                  {npa.lastCheckMessage && (
+                                    <span className={block("sub")}>
+                                      {npa.lastCheckMessage}
+                                    </span>
+                                  )}
+                                </span>
+                              </>
+                            );
+                          }
+
+                          return act.isVerified ? (
+                            <span className={block("check", ["done"])}>
+                              Сверен
+                              {act.lastCheckedDate
+                                ? ` ${formatActDate(act.lastCheckedDate)}`
+                                : ""}
+                            </span>
+                          ) : (
+                            <span className={block("check", ["pending"])}>
+                              Не сверен
+                            </span>
+                          );
+                        })()}
                         {act.notes && (
                           <span className={block("sub")}>{act.notes}</span>
                         )}

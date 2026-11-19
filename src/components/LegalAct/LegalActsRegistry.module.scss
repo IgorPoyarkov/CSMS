@@ -264,6 +264,20 @@
     }
   }
 
+  &__npa-times {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+  }
+
+  &__npa-time {
+    font-size: 12px;
+    line-height: 17px;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
   &__pager {
     display: flex;
     flex-wrap: wrap;

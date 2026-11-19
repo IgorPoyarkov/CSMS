@@ -64,8 +64,28 @@ export interface NpaDocumentInfo {
   isActive: boolean;
   sourceUrl: string | null;
   pdfSha256: string | null;
+  /** Когда опубликована текущая версия правил. */
   fetchedAt: string;
+  /** Когда официальный текст последний раз проверялся (даже без новой версии). */
+  lastCheckedAt: string | null;
+  /** up_to_date / published / prepared / error. */
+  lastCheckStatus: string | null;
+  lastCheckMessage: string | null;
 }
+
+/**
+ * Время в МСК (UTC+3) без зависимости от локали браузера: «21.11.2026 03:14 МСК».
+ * Москва не переводит часы, поэтому фиксированный сдвиг корректен круглый год.
+ */
+export const formatMskDateTime = (iso: string | null | undefined): string => {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const msk = new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString();
+  const [year, month, day] = msk.slice(0, 10).split("-");
+  return `${day}.${month}.${year} ${msk.slice(11, 16)} МСК`;
+};
 
 export const npaDocumentsQueryKey = ["npaDocuments"];
 export const npaRuleIndexQueryKey = ["npaRuleIndex"];
@@ -111,6 +131,9 @@ export const useNpaDocuments = () =>
   useQuery({
     queryKey: npaDocumentsQueryKey,
     staleTime: 10 * 60_000,
+    // Реестр НПА должен подтянуть свежие отметки проверки после ночного цикла
+    // без перезагрузки страницы.
+    refetchInterval: 10 * 60_000,
     retry: false,
     queryFn: async ({ signal }): Promise<NpaDocumentInfo[]> => {
       const { data } = await npaApi.get<unknown>("/api/npa/documents", {
