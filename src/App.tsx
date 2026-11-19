@@ -23,6 +23,7 @@ import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
+import EisPackagesPage from "./components/Eis/EisPackagesPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
@@ -121,6 +122,11 @@ const router = createBrowserRouter([
       {
         path: "/eis/smp-export",
         element: <EisSmpExportPage />,
+      },
+      {
+        // Исходящие пакеты в ЕИС: подпись, статусы и ошибки ФЛК
+        path: "/eis/packages",
+        element: <EisPackagesPage />,
       },
       {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования

@@ -225,6 +225,13 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Исходящие пакеты: подпись, статусы и ошибки ФЛК */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/packages"}>
+              <span className={nav("link-name")}>Пакеты ЕИС</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item", ["end"])}>
             {user ? (
               <div
