@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
+import { useEisSchemaCatalog } from "../../services/Eis/eisSchemaCatalog";
 import {
   EIS_XSD_COVERAGE,
   EIS_XSD_SNAPSHOT_VERSION,
   eisCoverageStatusLabels,
   eisCoverageSummary,
+  eisXsdDoc,
   type EisCoverageStatus,
   type EisTypeCoverage,
 } from "../../services/Eis/types";
@@ -72,6 +74,9 @@ interface EisCoverageModalProps {
 const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
   const { bem } = useUtils();
   const modal = bem(styles, "eis-coverage");
+  // Описания «что написано рядом» лежат в каталоге XSD, а не в карте:
+  // каталог грузится один раз и кэшируется react-query.
+  const { data: schemaCatalog } = useEisSchemaCatalog();
   const [activeDomain, setActiveDomain] = useState<string>(
     EIS_XSD_COVERAGE.find((item) => item.domain === "PurchasePlanPosition")
       ?.domain ??
@@ -186,38 +191,47 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {active.fields.map((field) => (
-                    <tr key={`${field.field}-${field.xsd ?? "none"}`}>
-                      <td>
-                        <span className={modal("field")}>{field.field}</span>
-                        {field.required === true ? (
-                          <span className={modal("required", ["yes"])}>
-                            обяз.
+                  {active.fields.map((field) => {
+                    const doc = eisXsdDoc(
+                      schemaCatalog,
+                      active.xsdType,
+                      field.xsd,
+                      field.xsdDoc,
+                    );
+
+                    return (
+                      <tr key={`${field.field}-${field.xsd ?? "none"}`}>
+                        <td>
+                          <span className={modal("field")}>{field.field}</span>
+                          {field.required === true ? (
+                            <span className={modal("required", ["yes"])}>
+                              обяз.
+                            </span>
+                          ) : field.required === false ? (
+                            <span className={modal("required", ["no"])}>
+                              опц.
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>
+                          <code className={modal("code")}>
+                            {field.xsd ?? "—"}
+                          </code>
+                        </td>
+                        <td className={modal("doc")}>{doc ?? ""}</td>
+                        <td>
+                          <span
+                            className={modal("status", [
+                              STATUS_MODIFIERS[field.status],
+                            ])}
+                          >
+                            {eisCoverageStatusLabels[field.status]}
                           </span>
-                        ) : field.required === false ? (
-                          <span className={modal("required", ["no"])}>
-                            опц.
-                          </span>
-                        ) : null}
-                      </td>
-                      <td>
-                        <code className={modal("code")}>
-                          {field.xsd ?? "—"}
-                        </code>
-                      </td>
-                      <td className={modal("doc")}>{field.xsdDoc ?? ""}</td>
-                      <td>
-                        <span
-                          className={modal("status", [
-                            STATUS_MODIFIERS[field.status],
-                          ])}
-                        >
-                          {eisCoverageStatusLabels[field.status]}
-                        </span>
-                      </td>
-                      <td className={modal("note")}>{field.note ?? ""}</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className={modal("note")}>{field.note ?? ""}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

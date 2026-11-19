@@ -7,3 +7,4 @@
 export * from "./eisChain";
 export * from "./eisChainBuilder";
 export * from "./eisXsdCoverage";
+export * from "./eisXsdDocs";
