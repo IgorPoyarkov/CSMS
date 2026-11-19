@@ -54,6 +54,7 @@ import { useCurrentOrganization } from "../../services/Organization/organization
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
 import styles from "./ContractProject.module.scss";
 
 interface ContractLocationState {
@@ -1013,6 +1014,14 @@ export default function ContractProjectForm() {
           })}
         </div>
       </div>
+
+      {/* Автоматическая оценка рисков проекта контракта по 44-ФЗ */}
+      <ContractRiskAssessmentPanel
+        project={project}
+        notice={matchedNotice}
+        purchaseNote={matchedNote}
+        onNavigateSection={(sectionId) => setActiveSection(sectionId)}
+      />
 
       <div className={styles.layout}>
         <aside className={styles.sidebar}>

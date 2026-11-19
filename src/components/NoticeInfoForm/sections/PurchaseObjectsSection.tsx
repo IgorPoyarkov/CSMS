@@ -30,7 +30,11 @@ import {
 import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
 import type { KtruRef } from "../../../services/KtruRef/ktruRef.schema";
 import type { Okpd2Ref } from "../../../services/Okpd2Ref/okpd2Ref.schema";
-import { NATIONAL_REGIME_OPTIONS } from "../noticeInfo.config";
+import {
+  EIS_PRODUCT_TYPE_OPTIONS,
+  EIS_VOLUME_SPECIFYING_METHODS,
+  NATIONAL_REGIME_OPTIONS,
+} from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -129,16 +133,26 @@ const PurchaseObjectsSection = ({
     append({
       id,
       okpd2OrKtruCode: "",
+      externalSid: "",
+      productType: "PRODUCT",
       ktruCode: "",
       ktruName: "",
+      okeiCode: "",
       name: "",
       unit: "Условная единица",
       quantity: 1,
       unitPrice: 0,
       totalPrice: 0,
+      volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
+      volumeTextForm: "",
       trademarks: "",
+      isEquivalentDeliveryAllowed: false,
+      isMedicalProduct: false,
+      isSoftware: false,
       isSupplyDuringWorks: false,
       nationalRegimeType: "none",
+      imposibilityBan: false,
+      imposibilityBanReason: "",
     });
     expand(id);
   };
@@ -208,6 +222,11 @@ const PurchaseObjectsSection = ({
             <CustomCheckbox
               label="Невозможно определить количество (объем) закупаемых товаров, работ, услуг"
               {...register("purchaseObjects.isIndeterminateVolume")}
+            />
+
+            <CustomCheckbox
+              label="Формировать объект закупки в структурированном виде (isStructuredForm, ЕИС 17.0)"
+              {...register("purchaseObjects.isStructuredForm")}
             />
 
             <div className={block("inline-group")}>
@@ -405,13 +424,20 @@ const PurchaseObjectsSection = ({
                               value={currentItem?.unit ?? ""}
                               valueMode="name"
                               placeholder="Ед. по ОКЕИ…"
-                              onChange={(nextUnit) =>
+                              onChange={(nextUnit, okeiItem) => {
                                 setValue(
                                   `purchaseObjects.items.${index}.unit`,
                                   nextUnit,
                                   { shouldDirty: true },
-                                )
-                              }
+                                );
+                                if (okeiItem?.code) {
+                                  setValue(
+                                    `purchaseObjects.items.${index}.okeiCode`,
+                                    okeiItem.code,
+                                    { shouldDirty: true },
+                                  );
+                                }
+                              }}
                             />
                           </td>
                           <td>
@@ -609,6 +635,123 @@ const PurchaseObjectsSection = ({
                             </td>
                           </tr>
                         )}
+
+                        {/* Реквизиты позиции для XSD ЕИС 17.0 */}
+                        <tr>
+                          <td colSpan={9}>
+                            <div className={block("sub-grid")}>
+                              <div className={block("field-col")}>
+                                <span className={block("caption")}>
+                                  Тип объекта (productTypeEnumType)
+                                </span>
+                                <select
+                                  className={block("select")}
+                                  {...register(
+                                    `purchaseObjects.items.${index}.productType`,
+                                  )}
+                                >
+                                  {EIS_PRODUCT_TYPE_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className={block("field-col")}>
+                                <span className={block("caption")}>Код ОКЕИ</span>
+                                <input
+                                  type="text"
+                                  placeholder="796"
+                                  className={block("input")}
+                                  {...register(
+                                    `purchaseObjects.items.${index}.okeiCode`,
+                                  )}
+                                />
+                              </div>
+                              <div className={block("field-col")}>
+                                <span className={block("caption")}>
+                                  Способ указания объёма
+                                </span>
+                                <select
+                                  className={block("select")}
+                                  {...register(
+                                    `purchaseObjects.items.${index}.volumeSpecifyingMethod`,
+                                  )}
+                                >
+                                  {EIS_VOLUME_SPECIFYING_METHODS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {currentItem?.volumeSpecifyingMethod === "SF" && (
+                              <input
+                                type="text"
+                                placeholder="Текстовое описание объёма (volumeTextForm)"
+                                className={block("input")}
+                                {...register(
+                                  `purchaseObjects.items.${index}.volumeTextForm`,
+                                )}
+                              />
+                            )}
+
+                            <div className={block("inline-group")}>
+                              <label className={block("checkbox")}>
+                                <input
+                                  type="checkbox"
+                                  {...register(
+                                    `purchaseObjects.items.${index}.isMedicalProduct`,
+                                  )}
+                                />
+                                <span>Медицинское изделие</span>
+                              </label>
+                              <label className={block("checkbox")}>
+                                <input
+                                  type="checkbox"
+                                  {...register(
+                                    `purchaseObjects.items.${index}.isSoftware`,
+                                  )}
+                                />
+                                <span>Программное обеспечение (ПО)</span>
+                              </label>
+                              <label className={block("checkbox")}>
+                                <input
+                                  type="checkbox"
+                                  {...register(
+                                    `purchaseObjects.items.${index}.isEquivalentDeliveryAllowed`,
+                                  )}
+                                />
+                                <span>Допускается поставка эквивалента</span>
+                              </label>
+                              <label className={block("checkbox")}>
+                                <input
+                                  type="checkbox"
+                                  {...register(
+                                    `purchaseObjects.items.${index}.imposibilityBan`,
+                                  )}
+                                />
+                                <span>
+                                  Невозможность применения запрета/ограничения
+                                  по ст. 14 (imposibilityBan)
+                                </span>
+                              </label>
+                            </div>
+
+                            {currentItem?.imposibilityBan && (
+                              <textarea
+                                rows={2}
+                                placeholder="Обоснование невозможности применения запрета/ограничения (imposibilityBanReason)"
+                                className={block("input")}
+                                {...register(
+                                  `purchaseObjects.items.${index}.imposibilityBanReason`,
+                                )}
+                              />
+                            )}
+                          </td>
+                        </tr>
 
                         {/* Характеристики живут под своей позицией */}
                         <tr>

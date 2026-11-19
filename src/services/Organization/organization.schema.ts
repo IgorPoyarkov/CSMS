@@ -130,6 +130,13 @@ export const OrganizationRequisitesSchema = z.object({
     "Укажите ответственного за планирование закупок (ФИО)",
   ),
   responsiblePhone: optionalText(5, "Укажите телефон ответственного"),
+  // Реквизиты организации для выгрузки в ЕИС 17.0 (tenderPlan2020OrganizationType)
+  regNum: optionalPattern(/^\d{11}$/, "Код по СПЗ состоит из 11 цифр"),
+  consRegistryNum: optionalText(5, "Укажите код по Сводному реестру"),
+  okopf: optionalText(2, "Укажите код ОКОПФ"),
+  okfs: optionalText(2, "Укажите код ОКФС"),
+  oktmo: optionalPattern(/^\d{8,11}$/, "Код ОКТМО состоит из 8–11 цифр"),
+  oktmoPpo: optionalText(2, "Укажите публично-правовое образование по ОКТМО"),
 });
 
 export type OrganizationRequisites = z.infer<
@@ -175,4 +182,10 @@ export const organizationToCustomer = (
   phone: organization.phone,
   responsiblePerson: organization.responsiblePerson,
   responsiblePhone: organization.responsiblePhone,
+  regNum: organization.regNum,
+  consRegistryNum: organization.consRegistryNum,
+  okopf: organization.okopf,
+  okfs: organization.okfs,
+  oktmo: organization.oktmo,
+  oktmoPpo: organization.oktmoPpo,
 });

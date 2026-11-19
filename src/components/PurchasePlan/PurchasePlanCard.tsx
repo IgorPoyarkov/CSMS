@@ -26,6 +26,13 @@ import {
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
+import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
+import { usePurchasePlanVersions } from "../../services/PurchasePlan/purchasePlanVersion.api";
+import {
+  buildTenderPlan2020XmlPreview,
+  validatePurchasePlanEis17,
+} from "../../services/Eis/eis17Types";
+import { downloadText } from "../../services/Eis/eisExport";
 import styles from "./PurchasePlanCard.module.scss";
 
 /**
@@ -98,9 +105,12 @@ export default function PurchasePlanCard() {
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   // Потребности / служебные записки по позициям ПГ
   const { data: purchaseNotes = [] } = usePurchaseNotes(organizationId);
+  const { data: planVersions = [] } = usePurchasePlanVersions(id, organizationId);
   const [confirmDeletePositionId, setConfirmDeletePositionId] = useState<
     string | null
   >(null);
+  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
+  const [showEisXml, setShowEisXml] = useState(false);
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "purchase-plan-card");
 
@@ -519,6 +529,18 @@ export default function PurchasePlanCard() {
         <div className={block("actions")}>
           <button
             type="button"
+            onClick={() => setIsVersionsOpen(true)}
+          >
+            История версий ({planVersions.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowEisXml((prev) => !prev)}
+          >
+            {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
+          </button>
+          <button
+            type="button"
             onClick={() => navigate("/purchase-notes")}
           >
             Реестр потребностей (СЗ)
@@ -562,12 +584,70 @@ export default function PurchasePlanCard() {
             <span className={block("field-label")}>Записей в плане</span>
             <span className={block("field-value")}>{positions.length}</span>
           </li>
+          <li className={block("field")}>
+            <span className={block("field-label")}>
+              ЕИС 17.0 (роль / ПФХД / период)
+            </span>
+            <span className={block("field-value")}>
+              {plan.ownerRole ?? "CU"} / {plan.pfhdType ?? "IND"} ·{" "}
+              {plan.planYear}–
+              {plan.planPeriodSecondYear || Number(plan.planYear) + 2}
+            </span>
+          </li>
         </ul>
         <p className={block("note")}>
           {customer.shortName || customer.fullName}
           {customer.inn ? ` · ИНН ${customer.inn}` : ""}
           {customer.kpp ? ` · КПП ${customer.kpp}` : ""}
+          {customer.regNum ? ` · СПЗ ${customer.regNum}` : ""}
         </p>
+
+        {showEisXml && (() => {
+          const validation = validatePurchasePlanEis17(plan);
+          const xmlPreview = buildTenderPlan2020XmlPreview(plan);
+          return (
+            <div className={block("eis-preview")}>
+              <div className={block("eis-preview-head")}>
+                <strong>
+                  Контроль схемы ЕИС 17.0 (tenderPlan2020Type):{" "}
+                  {validation.valid
+                    ? "ошибок XSD нет"
+                    : `ошибок: ${validation.errorsCount}`}
+                  {validation.warningsCount > 0
+                    ? `, предупреждений: ${validation.warningsCount}`
+                    : ""}
+                </strong>
+                <button
+                  type="button"
+                  className={block("edit-btn")}
+                  onClick={() =>
+                    downloadText(
+                      xmlPreview,
+                      `tenderPlan2020_${plan.planNumber || "draft"}.xml`,
+                      "application/xml;charset=utf-8",
+                    )
+                  }
+                >
+                  Скачать XML 17.0
+                </button>
+              </div>
+              {validation.issues.length > 0 && (
+                <ul className={block("eis-issues")}>
+                  {validation.issues.map((issue, idx) => (
+                    <li
+                      key={`${issue.field}-${idx}`}
+                      className={block("eis-issue", [issue.severity])}
+                    >
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <pre className={block("eis-xml")}>{xmlPreview}</pre>
+            </div>
+          );
+        })()}
+
         {/* Форма записи и состав граф берутся из актов реестра: при правке
             нормы меняется запись реестра, а не подписи в таблице */}
         <LegalActRefs component="PurchasePlanCard" />
@@ -701,6 +781,13 @@ export default function PurchasePlanCard() {
           </>
         )}
       </fieldset>
+
+      {isVersionsOpen && (
+        <PurchasePlanVersionsModal
+          plan={plan}
+          onClose={() => setIsVersionsOpen(false)}
+        />
+      )}
     </section>
   );
 }

@@ -15,6 +15,8 @@ import {
   planTotalAmount,
   purchasePlanStatusLabel,
 } from "./purchasePlan.config";
+import PurchasePlanImportModal from "./PurchasePlanImportModal";
+import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
 import styles from "./PurchasePlanList.module.scss";
 
 // Пагинация: по умолчанию 10, далее 25, 50 и все записи сразу
@@ -52,6 +54,8 @@ export default function PurchasePlanList() {
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
   const [openMenuPlanId, setOpenMenuPlanId] = useState<string | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [versionsPlan, setVersionsPlan] = useState<PurchasePlan | null>(null);
 
   // Выпадающий список действий: закрывается по клику вне меню. Состояние
   // единственное на странице — открыто меню у одной записи плана
@@ -146,14 +150,24 @@ export default function PurchasePlanList() {
               : "Организация-заказчик не определена"}
           </p>
         </div>
-        <button
-          className={block("create-button")}
-          type="button"
-          disabled={!organizationId || needsContractService}
-          onClick={() => navigate("/purchase-plans/new")}
-        >
-          Сформировать план-график
-        </button>
+        <div className={block("header-actions")}>
+          <button
+            className={block("import-button")}
+            type="button"
+            disabled={!organizationId || needsContractService}
+            onClick={() => setIsImportOpen(true)}
+          >
+            Загрузить из файла / ЕИС
+          </button>
+          <button
+            className={block("create-button")}
+            type="button"
+            disabled={!organizationId || needsContractService}
+            onClick={() => navigate("/purchase-plans/new")}
+          >
+            Сформировать план-график
+          </button>
+        </div>
       </header>
 
       {isOrganizationLoading && (
@@ -331,6 +345,16 @@ export default function PurchasePlanList() {
                           </button>
                           <button
                             type="button"
+                            className={block("menu-item")}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              setVersionsPlan(plan);
+                            }}
+                          >
+                            История версий
+                          </button>
+                          <button
+                            type="button"
                             className={block("menu-item", ["danger"])}
                             disabled={isDeleting}
                             onClick={() => {
@@ -387,6 +411,21 @@ export default function PurchasePlanList() {
             </div>
           )}
         </>
+      )}
+
+      {isImportOpen && organization && (
+        <PurchasePlanImportModal
+          organization={organization}
+          existingPlans={allPlans}
+          onClose={() => setIsImportOpen(false)}
+        />
+      )}
+
+      {versionsPlan && (
+        <PurchasePlanVersionsModal
+          plan={versionsPlan}
+          onClose={() => setVersionsPlan(null)}
+        />
       )}
     </section>
   );

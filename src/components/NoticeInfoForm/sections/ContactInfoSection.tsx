@@ -1,6 +1,10 @@
 import type React from "react";
 import { useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
+import {
+  EIS_RESPONSIBLE_ROLES,
+  EIS_RESPONSIBLE_ROLE_LABELS,
+} from "../../../services/Eis/eis17Types";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -101,6 +105,48 @@ const ContactInfoSection = () => {
             Организация, осуществляющая размещение<sup>*</sup>
           </span>
           <span className={block("value")}>{contactInfo.organizationName}</span>
+        </div>
+
+        <div className={block("row")}>
+          <span className={block("label")}>
+            Роль организации (responsibleRoleEPType)
+          </span>
+          <div className={block("field-col")}>
+            <select
+              className={block("select")}
+              {...register("contactInfo.responsibleRole")}
+            >
+              {EIS_RESPONSIBLE_ROLES.map((role) => (
+                <option key={role} value={role}>
+                  {EIS_RESPONSIBLE_ROLE_LABELS[role]}
+                </option>
+              ))}
+            </select>
+            {(contactInfo.responsibleRole === "CS" ||
+              contactInfo.responsibleRole === "OCS" ||
+              Boolean(contactInfo.specializedOrgName)) && (
+              <div className={block("sub-grid")}>
+                <input
+                  type="text"
+                  placeholder="Наименование специализированной организации"
+                  className={block("input")}
+                  {...register("contactInfo.specializedOrgName")}
+                />
+                <input
+                  type="text"
+                  placeholder="ИНН спец. организации"
+                  className={block("input")}
+                  {...register("contactInfo.specializedOrgInn")}
+                />
+                <input
+                  type="text"
+                  placeholder="КПП спец. организации"
+                  className={block("input")}
+                  {...register("contactInfo.specializedOrgKpp")}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className={block("row")}>

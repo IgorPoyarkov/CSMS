@@ -4,7 +4,10 @@ import type { NoticeInfoFormValues } from "../../../services/Procurements/notice
 import AddressCascade from "../../UI/AddressCascade/AddressCascade";
 import MoneyInput from "../../UI/MoneyInput/MoneyInput";
 import { RUSSIA } from "../../../services/AddressRef/addressRef.schema";
-import { LIFECYCLE_CASES_PP1087 } from "../noticeInfo.config";
+import {
+  EIS_DAY_TYPE_OPTIONS,
+  LIFECYCLE_CASES_PP1087,
+} from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
 
 const ContractConditionsSection = () => {
@@ -130,6 +133,16 @@ const ContractConditionsSection = () => {
                 со ст. 20 Закона № 44-ФЗ
               </span>
             </label>
+
+            <label className={block("checkbox")}>
+              <input
+                type="checkbox"
+                {...register("contractConditions.interbudgetaryTransfer")}
+              />
+              <span>
+                Закупка за счёт средств межбюджетных трансфертов (ЕИС 17.0)
+              </span>
+            </label>
           </div>
         </div>
 
@@ -149,7 +162,7 @@ const ContractConditionsSection = () => {
           </div>
         </div>
 
-        {/* Сроки исполнения контракта */}
+        {/* Сроки исполнения контракта (relativeAndNotRelativeTerms2022Type) */}
         <div className={block("row")}>
           <span className={block("label")}>Сроки исполнения контракта</span>
           <div className={block("field-col")}>
@@ -158,27 +171,106 @@ const ContractConditionsSection = () => {
                 type="checkbox"
                 {...register("contractConditions.isRelativeTerms")}
               />
-              <span>Относительные сроки (в календарных днях)</span>
+              <span>Относительные сроки (от даты заключения контракта)</span>
             </label>
 
-            <div className={block("inline-group")}>
-              <span>Начало через (дней с даты заключения):</span>
+            {conditions.isRelativeTerms ? (
+              <div className={block("inline-group")}>
+                <span>Начало через:</span>
+                <input
+                  type="number"
+                  className={block("input", ["code"])}
+                  {...register("contractConditions.startOffsetDays", {
+                    valueAsNumber: true,
+                  })}
+                />
+                <select
+                  className={block("select")}
+                  aria-label="Тип дней начала исполнения"
+                  {...register("contractConditions.startDayType")}
+                >
+                  {EIS_DAY_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <span>Срок исполнения:</span>
+                <input
+                  type="number"
+                  className={block("input", ["code"])}
+                  {...register("contractConditions.durationDays", {
+                    valueAsNumber: true,
+                  })}
+                />
+                <select
+                  className={block("select")}
+                  aria-label="Тип дней срока исполнения"
+                  {...register("contractConditions.termDayType")}
+                >
+                  {EIS_DAY_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className={block("sub-box")}>
+                <div className={block("sub-grid")}>
+                  <div className={block("field-col")}>
+                    <span className={block("caption")}>
+                      Дата начала исполнения (startDate)
+                    </span>
+                    <input
+                      type="date"
+                      className={block("input")}
+                      {...register("contractConditions.startDate")}
+                    />
+                  </div>
+                  <div className={block("field-col")}>
+                    <span className={block("caption")}>
+                      Дата окончания исполнения (endDate)
+                    </span>
+                    <input
+                      type="date"
+                      className={block("input")}
+                      {...register("contractConditions.endDate")}
+                    />
+                  </div>
+                </div>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("contractConditions.isFromConclusionDate")}
+                  />
+                  <span>С даты заключения контракта (isFromConclusionDate)</span>
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register(
+                      "contractConditions.isNotEarlierConclusionDate",
+                    )}
+                  />
+                  <span>
+                    Не ранее даты заключения контракта
+                    (isNotEarlierConclusionDate)
+                  </span>
+                </label>
+              </div>
+            )}
+
+            <label className={block("checkbox")}>
               <input
-                type="number"
-                className={block("input", ["code"])}
-                {...register("contractConditions.startOffsetDays", {
-                  valueAsNumber: true,
-                })}
+                type="checkbox"
+                {...register("contractConditions.isExecutionStagesTerms")}
               />
-              <span>Срок исполнения (дней):</span>
-              <input
-                type="number"
-                className={block("input", ["code"])}
-                {...register("contractConditions.durationDays", {
-                  valueAsNumber: true,
-                })}
-              />
-            </div>
+              <span>
+                Предусмотрены отдельные этапы исполнения контракта
+                (isExecutionStagesTerms)
+              </span>
+            </label>
           </div>
         </div>
 
@@ -244,6 +336,40 @@ const ContractConditionsSection = () => {
                     <span>{item}</span>
                   </label>
                 ))}
+                <div className={block("sub-grid")}>
+                  <div className={block("field-col")}>
+                    <span className={block("caption")}>
+                      Стоимость поставки товара/работы (КЖЦ), руб.
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={block("input")}
+                      {...register("contractConditions.lcDeliveryPrice", {
+                        setValueAs: (v) =>
+                          v === "" || v === null || v === undefined
+                            ? undefined
+                            : Number(v),
+                      })}
+                    />
+                  </div>
+                  <div className={block("field-col")}>
+                    <span className={block("caption")}>
+                      Стоимость обслуживания/эксплуатации (КЖЦ), руб.
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className={block("input")}
+                      {...register("contractConditions.lcServicePrice", {
+                        setValueAs: (v) =>
+                          v === "" || v === null || v === undefined
+                            ? undefined
+                            : Number(v),
+                      })}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -278,6 +404,35 @@ const ContractConditionsSection = () => {
                       )
                     }
                   />
+                  <div className={block("sub-grid")}>
+                    <div className={block("field-col")}>
+                      <span className={block("caption")}>
+                        Код страны по ОКСМ (по умолчанию 643)
+                      </span>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="643"
+                        className={block("input")}
+                        {...register(
+                          `contractConditions.deliveryPlaces.${index}.oksmCode`,
+                        )}
+                      />
+                    </div>
+                    <div className={block("field-col")}>
+                      <span className={block("caption")}>
+                        GUID ГАР (byGARInfoType / GARInfo)
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                        className={block("input")}
+                        {...register(
+                          `contractConditions.deliveryPlaces.${index}.garGuid`,
+                        )}
+                      />
+                    </div>
+                  </div>
                   {placeFields.length > 1 && (
                     <button
                       type="button"
@@ -298,6 +453,8 @@ const ContractConditionsSection = () => {
                 appendPlace({
                   id: String(Date.now()),
                   country: RUSSIA,
+                  oksmCode: "643",
+                  garGuid: "",
                   region: "",
                   municipality: "",
                   settlement: "",
@@ -326,6 +483,15 @@ const ContractConditionsSection = () => {
                 контракта в соответствии со ст. 95 Закона № 44-ФЗ
               </span>
             </label>
+
+            {conditions.allowUnilateralRefusalArt95 && (
+              <textarea
+                rows={2}
+                placeholder="Порядок / обоснование одностороннего отказа по ст. 95 (oneSideRejectionSt95Text)"
+                className={block("input")}
+                {...register("contractConditions.oneSideRejectionSt95Text")}
+              />
+            )}
 
             <div className={block("radio-group")}>
               <span className={block("muted")}>

@@ -12,6 +12,7 @@ export type ProcurementActionType =
   | "view_notice" // Просмотр / редактирование извещения
   | "edit_notice" // Внесение изменений в извещение
   | "cancel_notice" // Отмена извещения
+  | "generate_docs" // Типовые документы (приказ о комиссии, протокол заявок)
   | "delete_procurement"; // Удаление записи
 
 export interface NoticeActionConfig {
@@ -43,6 +44,13 @@ export const noticeActions: NoticeActionConfig[] = [
     title: "Отменить извещение",
     icon: "⊘",
     tone: "danger",
+  },
+  {
+    action: "generate_docs",
+    label: "Документы",
+    title: "Комиссия / Протокол / Приказ (Документы)",
+    icon: "📄",
+    tone: "info",
   },
   {
     action: "delete_procurement",

@@ -180,6 +180,48 @@ export const sha256Hex = async (text: string): Promise<string> => {
     .join("");
 };
 
+/** Метаданные каталога XSD-схем на шлюзе CSMS-API (/api/eis/schemas). */
+export interface EisSchemaStatusResponse {
+  activeVersion?: string;
+  availableVersions?: string[];
+  lastCheckedAt?: string;
+  documentsCount?: number;
+}
+
+export interface EisSchemaCatalogItem {
+  code?: string;
+  title?: string;
+  xsdFile?: string;
+  rootElement?: string;
+  version?: string;
+}
+
+export const useEisSchemaStatus = (enabled = false) =>
+  useQuery({
+    queryKey: ["eisSchemaStatus"],
+    enabled,
+    queryFn: async () => {
+      const { data } = await eisApi.get<EisSchemaStatusResponse>(
+        "/api/eis/schemas/status",
+      );
+      return data;
+    },
+    retry: false,
+  });
+
+export const useEisSchemaCatalog = (enabled = false) =>
+  useQuery({
+    queryKey: ["eisSchemaCatalog"],
+    enabled,
+    queryFn: async () => {
+      const { data } = await eisApi.get<EisSchemaCatalogItem[]>(
+        "/api/eis/schemas/catalog",
+      );
+      return data;
+    },
+    retry: false,
+  });
+
 /** Для тестов и отладки: доступ к клиенту без хуков. */
 export { eisApi };
 

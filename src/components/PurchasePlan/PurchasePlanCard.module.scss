@@ -689,4 +689,56 @@
       color: var(--state-danger);
     }
   }
+
+  &__eis-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-raised);
+  }
+
+  &__eis-preview-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  &__eis-issues {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  &__eis-issue {
+    &--error {
+      color: var(--state-danger);
+    }
+
+    &--warning {
+      color: var(--state-warning);
+    }
+  }
+
+  &__eis-xml {
+    margin: 0;
+    padding: 10px 12px;
+    max-height: 280px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-panel);
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
 }

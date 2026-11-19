@@ -8,7 +8,11 @@ import {
   procedureApplicabilityHint,
   procedureKindFromPlacingWay,
 } from "../../../services/BidEvaluation/bidEvaluation.schema";
-import { CRITERION_LABELS, PP2571_POSITIONS } from "../noticeInfo.config";
+import {
+  CRITERION_EIS_CODES,
+  CRITERION_LABELS,
+  PP2571_POSITIONS,
+} from "../noticeInfo.config";
 import SecurityRequisitesFields from "../../PurchaseNote/SecurityRequisitesFields";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -146,7 +150,14 @@ const ParticipantsRequirementsSection = () => {
                         `participantsRequirements.evaluationCriteria.${index}.enabled`,
                       )}
                     />
-                    <span>{CRITERION_LABELS[crit.type] || crit.type}</span>
+                    <span>
+                      {CRITERION_LABELS[crit.type] || crit.type}
+                      {CRITERION_EIS_CODES[crit.type] && (
+                        <span className={block("code-badge")}>
+                          {CRITERION_EIS_CODES[crit.type]}
+                        </span>
+                      )}
+                    </span>
                   </label>
                   {crit.enabled && (
                     <div className={block("inline-group")}>
@@ -638,6 +649,17 @@ const ParticipantsRequirementsSection = () => {
                   }
                 />
               </div>
+            )}
+
+            {!reqs.requiresContractSecurity && (
+              <textarea
+                rows={2}
+                placeholder="Обоснование невозможности установления обеспечения исполнения контракта (unableProvideReason, XSD 17.0)"
+                className={block("input")}
+                {...register(
+                  "participantsRequirements.unableProvideContractGuaranteeReason",
+                )}
+              />
             )}
 
             <label className={block("checkbox")}>

@@ -1,14 +1,20 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
+import useMyContractRole from "../../hooks/useMyContractRole";
 import PageSizePicker from "../UI/PageSizePicker";
+import { useUpdateTaskSteps } from "../../services/Tasks/tasks.api";
 import {
   sortTasksByDeadline,
   taskDaysLeft,
   taskStatusLabels,
+  taskStepProgress,
   taskSummary,
   type Task,
+  type TaskExecutionStep,
   type TaskStatus,
 } from "../../services/Tasks/tasks.schema";
+import { findOrder158nTaskPoolItem } from "../../services/Tasks/order158nTaskPool";
 import styles from "./MyTasks.module.scss";
 
 interface MyTasksProps {
@@ -34,13 +40,17 @@ type ViewMode = keyof typeof VIEW_LABELS;
 // Список «моих» задач: при сотне записей человек должен отфильтровать их по
 // статусу, получить очередь по остатку срока и листать порциями
 export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
-  const { formatDate } = useUtils();
+  const { formatDate, fullName } = useUtils();
+  const { employee } = useMyContractRole();
+  const { mutate: updateSteps, isPending: isStepsPending } =
+    useUpdateTaskSteps();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pageSize, setPageSize] = useState<PageSize>(5);
   const [view, setView] = useState<ViewMode>("list");
   const [page, setPage] = useState(1);
 
   const summary = taskSummary(tasks);
+  const actorName = employee ? fullName(employee.employee ?? {}) : "Исполнитель";
 
   const visible = useMemo(() => {
     const filtered =
@@ -80,6 +90,30 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
         count: summary.completed,
       },
     ];
+
+  const handleToggleStep = (task: Task, step: TaskExecutionStep) => {
+    if (!task.id || task.status === "completed") return;
+    const nowIso = new Date().toISOString().slice(0, 10);
+    const nextDone = !step.isDone;
+    const nextSteps = (task.steps ?? []).map((s) =>
+      s.id === step.id
+        ? {
+            ...s,
+            isDone: nextDone,
+            completedAt: nextDone ? nowIso : "",
+            completedBy: nextDone ? actorName : "",
+          }
+        : s,
+    );
+
+    updateSteps({
+      id: task.id,
+      steps: nextSteps,
+      autoStartIfPending: true,
+      currentStatus: task.status,
+      startedAt: task.startedAt,
+    });
+  };
 
   if (tasks.length === 0) {
     return <div className={styles["empty-state"]}>Задач нет</div>;
@@ -155,10 +189,23 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
         >
           {pageTasks.map((task) => {
             const daysLeft = taskDaysLeft(task);
+            const stepProgress = taskStepProgress(task);
+            const steps = task.steps ?? [];
+            const nextStep = steps.find((s) => !s.isDone);
+            const poolItem = findOrder158nTaskPoolItem(
+              task.order158nPoolCode || task.order158nClause,
+            );
+            const criteria =
+              task.completionCriteria || poolItem?.completionCriteria;
 
             return (
               <li key={String(task.id)} className={styles["task-item"]}>
                 <div className={styles["task-item__header"]}>
+                  {task.order158nClause && (
+                    <span className={styles["task-item__clause"]}>
+                      {task.order158nClause}
+                    </span>
+                  )}
                   <span className={styles["task-item__title"]}>
                     {task.title}
                   </span>
@@ -186,6 +233,10 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
                         : ` · осталось ${daysLeft} дн.`}
                     </span>
                   )}
+                  {task.startedAt && (
+                    <span> · начата {formatDate(task.startedAt)}</span>
+                  )}
+                  {task.legalBasis && <span> · {task.legalBasis}</span>}
                 </div>
 
                 {task.description && (
@@ -194,14 +245,81 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
                   </p>
                 )}
 
+                {stepProgress.total > 0 && (
+                  <div className={styles["steps-box"]}>
+                    <div className={styles["steps-box__head"]}>
+                      <span>
+                        Этапы: {stepProgress.done} из {stepProgress.total} (
+                        {stepProgress.percent}%)
+                      </span>
+                      {nextStep && (
+                        <span className={styles["steps-box__next"]}>
+                          Следующий: {nextStep.title}
+                        </span>
+                      )}
+                    </div>
+                    <div className={styles["steps-box__track"]}>
+                      <div
+                        className={styles["steps-box__fill"]}
+                        style={{ width: `${stepProgress.percent}%` }}
+                      />
+                    </div>
+
+                    <details className={styles["steps-details"]}>
+                      <summary className={styles["steps-details__summary"]}>
+                        Чек-лист шагов ({stepProgress.done}/{stepProgress.total}
+                        )
+                      </summary>
+                      <ul className={styles["steps-checklist"]}>
+                        {steps.map((step) => (
+                          <li
+                            key={step.id}
+                            className={styles["steps-checklist__item"]}
+                          >
+                            <label className={styles["steps-checklist__label"]}>
+                              <input
+                                type="checkbox"
+                                checked={step.isDone}
+                                disabled={
+                                  isStepsPending || task.status === "completed"
+                                }
+                                onChange={() => handleToggleStep(task, step)}
+                              />
+                              <span
+                                className={
+                                  step.isDone
+                                    ? styles["steps-checklist__done"]
+                                    : ""
+                                }
+                              >
+                                {step.order}. [{step.stageLabel}] {step.title}
+                              </span>
+                            </label>
+                            {step.dueDate && (
+                              <span className={styles["steps-checklist__date"]}>
+                                {formatDate(step.dueDate)}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {criteria && (
+                        <div className={styles["steps-criteria"]}>
+                          <strong>Критерий приёмки:</strong> {criteria}
+                        </div>
+                      )}
+                    </details>
+                  </div>
+                )}
+
                 {task.result && (
                   <div className={styles["task-item__result"]}>
                     <strong>Результат:</strong> {task.result}
                   </div>
                 )}
 
-                {task.status !== "completed" && task.id && (
-                  <div className={styles["task-item__actions"]}>
+                <div className={styles["task-item__actions"]}>
+                  {task.status !== "completed" && task.id && (
                     <button
                       type="button"
                       className={styles["btn-small"]}
@@ -209,8 +327,24 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
                     >
                       {task.status === "pending" ? "Начать" : "Завершить"}
                     </button>
-                  </div>
-                )}
+                  )}
+                  {task.id !== undefined && (
+                    <Link
+                      to={`/tasks/${task.id}`}
+                      className={styles["btn-link"]}
+                    >
+                      Детализация задачи →
+                    </Link>
+                  )}
+                  {poolItem?.appRoute && poolItem?.appRouteLabel && (
+                    <Link
+                      to={poolItem.appRoute}
+                      className={styles["btn-link"]}
+                    >
+                      {poolItem.appRouteLabel}
+                    </Link>
+                  )}
+                </div>
               </li>
             );
           })}

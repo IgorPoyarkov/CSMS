@@ -92,6 +92,12 @@ const ProcurementProcessing: React.FC = () => {
         }
         break;
 
+      case "generate_docs":
+        navigate(
+          `/documents?procurementId=${item.id}&docType=commission_order`,
+        );
+        break;
+
       case "delete_procurement":
         if (
           window.confirm(

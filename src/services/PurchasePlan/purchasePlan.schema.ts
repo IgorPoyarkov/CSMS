@@ -128,6 +128,58 @@ export const PurchasePlanKbkEntrySchema = z.object({
 
 export type PurchasePlanKbkEntry = z.infer<typeof PurchasePlanKbkEntrySchema>;
 
+// Детализация объёма финансового обеспечения по КВР (tenderPlan2020KVRInfoType)
+export const PurchasePlanKvrEntrySchema = z.object({
+  kvr: optionalPattern(/^\d{3}$/, "КВР состоит из 3 цифр"),
+  amountTotal: moneySchema("Укажите объём финансового обеспечения по КВР"),
+  amountCurrentYear: moneySchema(),
+  amountPlanPeriodFirstYear: moneySchema(),
+  amountPlanPeriodSecondYear: moneySchema(),
+  amountSubsequentYears: moneySchema(),
+});
+
+export type PurchasePlanKvrEntry = z.infer<typeof PurchasePlanKvrEntrySchema>;
+
+// Детализация по кодам ОКС/ОНИ (КОКС, tenderPlan2020KOKSInfoType)
+export const PurchasePlanKoksEntrySchema = z.object({
+  koksCode: z.string().min(1, "Укажите код КОКС"),
+  koksName: z.string().optional(),
+  amountTotal: moneySchema("Укажите сумму по объекту КОКС"),
+  amountCurrentYear: moneySchema(),
+  amountPlanPeriodFirstYear: moneySchema(),
+  amountPlanPeriodSecondYear: moneySchema(),
+  amountSubsequentYears: moneySchema(),
+});
+
+export type PurchasePlanKoksEntry = z.infer<typeof PurchasePlanKoksEntrySchema>;
+
+// Особые закупки плана-графика (tenderPlan2020SpecialPurchaseType)
+export const PurchasePlanSpecialPurchaseSchema = z.object({
+  id: idSchema(),
+  typeCode: z.string().min(1, "Укажите код особой закупки"),
+  typeName: z.string().optional(),
+  ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
+  kvr: optionalPattern(/^\d{3}$/, "КВР состоит из 3 цифр"),
+  publishYear: z.union([z.string(), z.number()]).optional(),
+  purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
+  amountTotal: moneySchema(),
+  amountCurrentYear: moneySchema(),
+  amountPlanPeriodFirstYear: moneySchema(),
+  amountPlanPeriodSecondYear: moneySchema(),
+  amountSubsequentYears: moneySchema(),
+});
+
+export type PurchasePlanSpecialPurchase = z.infer<
+  typeof PurchasePlanSpecialPurchaseSchema
+>;
+
+export const PurchasePlanOkpd2ItemSchema = z.object({
+  okpd2Code: z.string(),
+  okpd2Name: z.string().optional(),
+});
+
+export type PurchasePlanOkpd2Item = z.infer<typeof PurchasePlanOkpd2ItemSchema>;
+
 // Запись плана-графика: набор граф повторяет форму ПГ из ЛК заказчика ЕИС —
 // № п/п, ИКЗ, объект закупки, планируемый год размещения извещения, объём
 // финансового обеспечения по годам, обязательное общественное обсуждение,
@@ -225,6 +277,36 @@ export const PurchasePlanPositionSchema = z
     statusDate: optionalDate(
       "Неверный формат даты размещения записи (ожидается ГГГГ-ММ-ДД)",
     ),
+
+    // Поля ЕИС 17.0 (IntegrationTPTypes.xsd :: tenderPlan2020PositionType)
+    extNumber: optionalText(1, "Укажите внешний номер позиции"),
+    iku: optionalPattern(
+      /^\d{20}$/,
+      "ИКУ организации-владельца состоит из 20 цифр",
+    ),
+    purchaseOrderNumber: optionalPattern(
+      /^\d{1,3}$/,
+      "Порядковый номер закупки в ИКЗ состоит из 3 цифр (в ПГ обычно 000)",
+    ),
+    kvr: optionalPattern(/^\d{3}$/, "Код вида расходов (КВР) состоит из 3 цифр"),
+    ktruCode: optionalText(4, "Укажите код позиции по КТРУ"),
+    ktruName: optionalText(2, "Укажите наименование позиции по КТРУ"),
+    hasMultipleOkpd2: z.boolean().optional(),
+    okpd2Items: z.array(PurchasePlanOkpd2ItemSchema).optional(),
+    isEnergyServiceContract: z.boolean().optional(),
+    isProvisionLendingServices: z.boolean().optional(),
+    isConstructionWorks: z.boolean().optional(),
+    isNotFederalFinancing: z.boolean().optional(),
+    notPublishedOnEIS: z.boolean().optional(),
+    modificationStatus: z.enum(["N", "E"]).optional(),
+    changeReasonCode: z.string().optional(),
+    changeReasonName: z.string().optional(),
+    modificationDecision: z
+      .enum(["notSpecified", "purchaseChanged", "purchaseCanceled"])
+      .optional(),
+    modificationDescription: z.string().optional(),
+    kvrEntries: z.array(PurchasePlanKvrEntrySchema).optional(),
+    koksEntries: z.array(PurchasePlanKoksEntrySchema).optional(),
   })
   .refine(
     (position) =>
@@ -283,6 +365,19 @@ export const PurchasePlanSchema = z
     totalAmount: moneySchema("Укажите совокупный объём закупок числом"),
     remarks: z.string().optional(),
     positions: z.array(PurchasePlanPositionSchema),
+
+    // Метаданные версии и заголовка по ЕИС 17.0 (tenderPlan2020CommonInfoType)
+    externalId: z.string().optional(),
+    ownerRole: z.enum(["CU", "OA"]).optional(),
+    pfhdType: z.enum(["IND", "CONS"]).optional(),
+    planPeriodFirstYear: z.union([z.string(), z.number()]).optional(),
+    planPeriodSecondYear: z.union([z.string(), z.number()]).optional(),
+    directDate: optionalDate("Неверный формат даты направления на контроль"),
+    createDate: optionalDate("Неверный формат даты создания"),
+    firstVersionPublishDate: optionalDate(
+      "Неверный формат даты публикации первой версии",
+    ),
+    specialPurchases: z.array(PurchasePlanSpecialPurchaseSchema).optional(),
   })
   .refine((plan) => plan.status === "draft" || plan.positions.length > 0, {
     message: "Размещаемый план-график должен содержать хотя бы одну запись",
@@ -374,43 +469,81 @@ export const buildPositionUniqueNumber = (
 };
 
 /**
- * ИКЗ формируется автоматически, состав — как в просмотре позиции
- * плана-графика: 2 разряда года планирования, 15 разрядов кода заказчика
- * (ИНН и КПП), 4 разряда номера закупки, 3 разряда кода позиции плана-графика
- * и 3 разряда кода вида расходов из КБК. Пока не из чего собрать хотя бы одну
- * часть, код не формируется — его заполняют вручную.
+ * Формирование 36-значного ИКЗ в соответствии с XSD ЕИС 17.0 (`ikzCodeType`: ^\d{36}$):
+ * - 1..2   (2) : последние 2 цифры года планирования;
+ * - 3..22  (20): ИКУ заказчика (ИНН 10/12 + КПП 9 + код вида организации '1');
+ * - 23..26 (4) : номер закупки, включённой в план-график;
+ * - 27..29 (3) : порядковый номер закупки ('000' или порядковый номер в группе);
+ * - 30..33 (4) : первые 4 цифры кода ОКПД2 (или '0000' при нескольких ОКПД2);
+ * - 34..36 (3) : КВР (явный 3-значный код или последние 3 цифры 20-значного КБК).
  */
 export const buildIdentificationCode = ({
   planYear,
   inn,
   kpp,
+  iku,
+  orgKindDigit = "1",
   purchaseNumber,
+  purchaseOrderNumber,
   serialNumber,
+  okpd2Code,
+  hasMultipleOkpd2 = false,
+  kvr,
   kbk,
 }: {
   planYear: string | number | undefined;
   inn: string | undefined;
   kpp: string | undefined;
+  iku?: string | undefined;
+  orgKindDigit?: string | undefined;
   purchaseNumber: string | number | undefined;
+  purchaseOrderNumber?: string | number | undefined;
   serialNumber: string | number | undefined;
+  okpd2Code?: string | undefined;
+  hasMultipleOkpd2?: boolean;
+  kvr?: string | undefined;
   kbk: string | undefined;
 }): string => {
   const year = toNumber(planYear);
-  const customerDigits = `${String(inn ?? "").replace(/\D/g, "")}${String(
-    kpp ?? "",
-  ).replace(/\D/g, "")}`;
+  const ikuDigits = String(iku ?? "").replace(/\D/g, "");
+  const innDigits = String(inn ?? "").replace(/\D/g, "");
+  const kppDigits = String(kpp ?? "").replace(/\D/g, "");
+  const kind = String(orgKindDigit ?? "1").replace(/\D/g, "").slice(0, 1) || "1";
+
+  let customerCode20 = "";
+  if (ikuDigits.length === 20) {
+    customerCode20 = ikuDigits;
+  } else if (innDigits.length >= 10) {
+    const baseInn = innDigits.length === 10 ? innDigits : innDigits.slice(0, 12);
+    const kppPart = kppDigits.padStart(9, "0").slice(0, 9);
+    customerCode20 = `${baseInn}${kppPart}${kind}`.slice(0, 20).padEnd(20, "0");
+  }
+
   const purchase = toNumber(purchaseNumber);
-  const order = toNumber(serialNumber);
-  // Разряды вида расходов в кодовой записи бюджета (группа и подгруппа)
-  const expenditureKind = String(kbk ?? "")
-    .replace(/\D/g, "")
-    .slice(12, 15);
+  const explicitOrder = toNumber(purchaseOrderNumber);
+  const fallbackSerial = toNumber(serialNumber);
+  const order = explicitOrder ?? fallbackSerial ?? 0;
+
+  const kvrDigits = String(kvr ?? "").replace(/\D/g, "");
+  const kbkDigits = String(kbk ?? "").replace(/\D/g, "");
+  const expenditureKind =
+    kvrDigits.length === 3
+      ? kvrDigits
+      : kbkDigits.length >= 3
+        ? kbkDigits.slice(-3)
+        : "";
+
+  const okpdDigits = hasMultipleOkpd2
+    ? "0000"
+    : String(okpd2Code ?? "")
+        .replace(/\D/g, "")
+        .slice(0, 4)
+        .padEnd(4, "0");
 
   if (
     year === null ||
-    customerDigits.length < 10 ||
+    customerCode20.length !== 20 ||
     purchase === null ||
-    order === null ||
     expenditureKind.length !== 3
   ) {
     return "";
@@ -418,9 +551,10 @@ export const buildIdentificationCode = ({
 
   return [
     String(year % 100).padStart(2, "0"),
-    customerDigits.slice(0, 15).padEnd(15, "0"),
-    String(purchase).padStart(4, "0"),
-    String(order).padStart(3, "0"),
+    customerCode20,
+    String(Math.trunc(purchase)).padStart(4, "0").slice(-4),
+    String(Math.trunc(order)).padStart(3, "0").slice(-3),
+    okpdDigits,
     expenditureKind,
   ].join("");
 };
@@ -439,7 +573,11 @@ export const isPlanOfOrganization = (
 export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   serialNumber: "",
   uniqueNumber: "",
+  extNumber: "",
   purchaseNumber: "",
+  purchaseOrderNumber: "000",
+  iku: "",
+  kvr: "",
   identificationCode: "",
   objectOfPurchase: "",
   plannedPlacementYear: "",
@@ -453,37 +591,72 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   jointOrganizerName: "",
   okpd2Code: "",
   okpd2Name: "",
+  hasMultipleOkpd2: false,
+  okpd2Items: [],
+  ktruCode: "",
+  ktruName: "",
   objectName: "",
   kbk: "",
   kbkEntries: [],
+  kvrEntries: [],
+  koksEntries: [],
+  isEnergyServiceContract: false,
+  isProvisionLendingServices: false,
+  isConstructionWorks: false,
+  isNotFederalFinancing: false,
+  notPublishedOnEIS: false,
   status: "planned",
   statusDate: "",
+  modificationStatus: "N",
+  changeReasonCode: "",
+  changeReasonName: "",
+  modificationDecision: "notSpecified",
+  modificationDescription: "",
 });
 
-export const emptyPurchasePlan = (): PurchasePlan => ({
-  organizationId: "",
-  planNumber: "",
-  customer: {
-    fullName: "",
-    shortName: "",
-    inn: "",
-    kpp: "",
-    ogrn: "",
-    legalAddress: "",
-    postalAddress: "",
-    email: "",
-    phone: "",
-    responsiblePerson: "",
-    responsiblePhone: "",
-  },
-  planYear: String(new Date().getFullYear()),
-  status: "draft",
-  versionNumber: "1",
-  approvalDate: "",
-  approvalAuthor: "",
-  publishDate: "",
-  eisUrl: "",
-  totalAmount: "",
-  remarks: "",
-  positions: [],
-});
+export const emptyPurchasePlan = (): PurchasePlan => {
+  const year = new Date().getFullYear();
+
+  return {
+    organizationId: "",
+    planNumber: "",
+    customer: {
+      fullName: "",
+      shortName: "",
+      inn: "",
+      kpp: "",
+      ogrn: "",
+      legalAddress: "",
+      postalAddress: "",
+      email: "",
+      phone: "",
+      responsiblePerson: "",
+      responsiblePhone: "",
+      regNum: "",
+      consRegistryNum: "",
+      okopf: "",
+      okfs: "",
+      oktmo: "",
+      oktmoPpo: "",
+    },
+    planYear: String(year),
+    planPeriodFirstYear: String(year + 1),
+    planPeriodSecondYear: String(year + 2),
+    status: "draft",
+    ownerRole: "CU",
+    pfhdType: "IND",
+    versionNumber: "1",
+    approvalDate: "",
+    approvalAuthor: "",
+    publishDate: "",
+    directDate: "",
+    createDate: new Date().toISOString().slice(0, 10),
+    firstVersionPublishDate: "",
+    externalId: "",
+    eisUrl: "",
+    totalAmount: "",
+    remarks: "",
+    positions: [],
+    specialPurchases: [],
+  };
+};

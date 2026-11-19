@@ -47,6 +47,8 @@ export const ContractStageSchema = z.object({
 export const DeliveryPlaceSchema = z.object({
   id: z.string(),
   country: z.string(),
+  oksmCode: z.string().optional(),
+  garGuid: z.string().optional(),
   region: z.string().optional(),
   municipality: z.string().optional(),
   settlement: z.string().optional(),
@@ -66,20 +68,31 @@ export type PurchaseObjectRequirement = z.infer<
 
 export const PurchaseObjectItemSchema = z.object({
   id: z.string(),
+  externalSid: z.string().optional(),
+  productType: z.enum(["PRODUCT", "WORK", "SERVICE"]).optional(),
   okpd2OrKtruCode: z.string(),
+  okpd2Code: z.string().optional(),
   // Позиция КТРУ, выбранная для кода ОКПД2 (ПП РФ № 145)
   ktruCode: z.string().optional(),
   ktruName: z.string().optional(),
   // Связанное структурированное ООЗ (единый набор характеристик)
   objectDescriptionId: z.union([z.string(), z.number()]).optional(),
   name: z.string(),
+  okeiCode: z.string().optional(),
   unit: z.string(),
   quantity: z.number(),
   unitPrice: z.number(),
   totalPrice: z.number(),
+  volumeSpecifyingMethod: z.enum(["QF", "SF"]).optional(),
+  volumeTextForm: z.string().optional(),
   trademarks: z.string().optional(),
+  isEquivalentDeliveryAllowed: z.boolean().optional(),
+  isMedicalProduct: z.boolean().optional(),
+  isSoftware: z.boolean().optional(),
   isSupplyDuringWorks: z.boolean(),
   nationalRegimeType: z.enum(["none", "ban", "restriction", "advantage"]),
+  imposibilityBan: z.boolean().optional(),
+  imposibilityBanReason: z.string().optional(),
   // Устаревшие требования по позиции (совместимость старых записей).
   // Новые извещения ведут единый набор в purchaseObjects.normingRequirements.
   normingRequirements: z.array(PurchaseObjectRequirementSchema).optional(),
@@ -152,6 +165,36 @@ export const NoticeInfoSchema = z.object({
   objectDescriptionId: z.union([z.string(), z.number()]).nullable().optional(),
   ikz: z.string().optional(),
 
+  // Метаданные типа документа и версионности по IntegrationEPTypes.xsd (ЕИС 17.0)
+  notificationType: z
+    .enum(["EF2020", "EOK2020", "EZK2020", "EZT2020", "EMZ2025", "Cancel"])
+    .optional(),
+  externalId: z.string().optional(),
+  versionNumber: z.union([z.string(), z.number()]).optional(),
+  serviceSigns: z
+    .object({
+      isIncludeKOKS: z.boolean().optional(),
+      isControlP1Ch5St99: z.boolean().optional(),
+    })
+    .optional(),
+  modificationInfo: z
+    .object({
+      info: z.string().optional(),
+      addInfo: z.string().optional(),
+      reasonCode: z.string().optional(),
+      reasonName: z.string().optional(),
+      decisionDate: z.string().optional(),
+      decisionDocNumber: z.string().optional(),
+    })
+    .optional(),
+  cancelReasonInfo: z
+    .object({
+      reasonCode: z.string().optional(),
+      reasonName: z.string().optional(),
+      addInfo: z.string().optional(),
+    })
+    .optional(),
+
   // ВКЛАДКА 1: Сведения о состоянии извещения
   noticeState: z.object({
     statusLabel: z.string(),
@@ -173,14 +216,27 @@ export const NoticeInfoSchema = z.object({
     authorizedBodyApproval: z.string(),
     orderName: z.string().min(1, "Наименование объекта закупки обязательно"),
     planPositionNumber: z.string(),
-    // Уникальный номер позиции плана-графика (связь с ПГ), а не ИКЗ
+    // Связь с позицией плана-графика по tenderPlan2020InfoType
+    plan2020Number: z.string().optional(),
     positionUniqueNumber: z.string().optional(),
+    position2020ExtNumber: z.string().optional(),
     positionSerialNumber: z.string().optional(),
     ikz: z.string().min(36, "ИКЗ должен содержать 36 символов"),
     nmck: z.number().nonnegative(),
     authorizedBodyName: z.string().optional(),
     jointOrganizerName: z.string().optional(),
     kbk: z.string().optional(),
+    // Признаки commonInfo (ЕИС 17.0)
+    isGOZ: z.boolean().optional(),
+    notPublishedOnEIS: z.boolean().optional(),
+    article15Features: z
+      .enum(["", "P4", "P5", "P6", "P41", "P43", "P44"])
+      .optional(),
+    isBudgetUnionState: z.boolean().optional(),
+    is449Features: z.boolean().optional(),
+    directDT: z.string().optional(),
+    publishDTInEIS: z.string().optional(),
+    href: z.string().optional(),
   }),
 
   // ВКЛАДКА 1: Жизнеобеспечение (ч. 9 ст. 37)
@@ -192,6 +248,33 @@ export const NoticeInfoSchema = z.object({
     organizationName: z.string().min(1),
     postalAddress: z.string().min(1),
     locationAddress: z.string().min(1),
+    responsibleRole: z
+      .enum([
+        "CU",
+        "OCU",
+        "RA",
+        "ORA",
+        "AI",
+        "OAI",
+        "OA",
+        "OOA",
+        "CS",
+        "OCS",
+        "CC",
+        "OCC",
+        "AU",
+        "OAU",
+        "RO",
+        "TKO",
+        "CN",
+        "OCN",
+        "CU5CH26",
+      ])
+      .optional(),
+    specializedOrgName: z.string().optional(),
+    specializedOrgInn: z.string().optional(),
+    specializedOrgKpp: z.string().optional(),
+    specializedOrgAddress: z.string().optional(),
     placerSurname: z.string().min(1, "Укажите фамилию").max(50),
     placerName: z.string().min(1, "Укажите имя").max(50),
     placerFathername: z.string().max(50),
@@ -203,6 +286,7 @@ export const NoticeInfoSchema = z.object({
 
   // ВКЛАДКА 2: Информация о процедуре закупки
   procedureInfo: z.object({
+    collectingStartDT: z.string().optional(),
     plannedPublishDate: z
       .string()
       .min(1, "Укажите предполагаемую дату размещения"),
@@ -212,8 +296,13 @@ export const NoticeInfoSchema = z.object({
     submissionEndTime: z
       .string()
       .min(1, "Укажите время окончания подачи заявок"),
+    // Поля procedureEOK2020Type (конкурс) и procedureEF2020Type (аукцион)
+    firstPartsDate: z.string().optional(),
+    submissionProcedureDate: z.string().optional(),
     secondPartsReviewEndDate: z.string().optional(),
+    biddingDate: z.string().optional(),
     summingUpDate: z.string().min(1, "Укажите дату подведения итогов"),
+    additionalInfo: z.string().optional(),
   }),
 
   // ВКЛАДКА 3: Условия контракта
@@ -222,6 +311,7 @@ export const NoticeInfoSchema = z.object({
     usePriceFormulaPP19: z.boolean(),
     priceFormulaText: z.string().optional(),
     isForeignCurrencyNmck: z.boolean(),
+    interbudgetaryTransfer: z.boolean().optional(),
     hasAdvance: z.boolean(),
     advancePercent: z.number().min(0).max(100),
     requiresPublicDiscussionArt20: z.boolean(),
@@ -234,10 +324,17 @@ export const NoticeInfoSchema = z.object({
     ikzOkpd2: z.string(),
     ikzKvr: z.string(),
 
-    // Сроки и этапы
+    // Сроки и этапы (relativeAndNotRelativeTerms2022Type)
     isRelativeTerms: z.boolean(),
     startOffsetDays: z.number().nonnegative(),
+    startDayType: z.enum(["C", "W"]).optional(),
     durationDays: z.number().nonnegative(),
+    termDayType: z.enum(["C", "W"]).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    isFromConclusionDate: z.boolean().optional(),
+    isNotEarlierConclusionDate: z.boolean().optional(),
+    isExecutionStagesTerms: z.boolean().optional(),
     hasMultipleStages: z.boolean(),
     stagesCount: z.number().min(1),
     stages: z.array(ContractStageSchema),
@@ -252,16 +349,20 @@ export const NoticeInfoSchema = z.object({
     typicalConditionsNumber: z.string().optional(),
     isLifecycleContract: z.boolean(),
     lifecycleCasesPP1087: z.array(z.string()),
+    lcDeliveryPrice: z.number().optional(),
+    lcServicePrice: z.number().optional(),
 
     // Места поставки и доп. условия
     deliveryPlaces: z.array(DeliveryPlaceSchema),
     allowUnilateralRefusalArt95: z.boolean(),
+    oneSideRejectionSt95Text: z.string().optional(),
     multipleWinnersPart10Art34: z.enum(["not_established", "established"]),
   }),
 
   // ВКЛАДКА 4: Объект закупки
   purchaseObjects: z.object({
     isMedicines: z.boolean(),
+    isStructuredForm: z.boolean().optional(),
     isIndeterminateVolume: z.boolean(),
     items: z.array(PurchaseObjectItemSchema),
     // Единый набор характеристик объекта закупки (п. 7 ПП РФ № 926 / ООЗ).
@@ -353,6 +454,7 @@ export const NoticeInfoSchema = z.object({
     contractSecurityPercent: z.number().min(0).max(30),
     contractSecurityOrder: z.string().optional(),
     contractSecurityRequisites: BankRequisitesSchema,
+    unableProvideContractGuaranteeReason: z.string().optional(),
 
     // Гарантия качества и обеспечение гарантийных обязательств
     requiresQualityWarranty: z.boolean(),
@@ -391,3 +493,4 @@ export const NoticeInfoSchema = z.object({
 });
 
 export type NoticeInfoFormValues = z.infer<typeof NoticeInfoSchema>;
+export type NoticeInfo = NoticeInfoFormValues;

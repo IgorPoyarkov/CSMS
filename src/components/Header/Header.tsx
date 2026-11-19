@@ -266,6 +266,28 @@ const Header = ({}: HeaderProps) => {
             </button>
           </li>
 
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/reports/order-158n"}>
+              <span className={nav("link-name")}>Отчёты 158н</span>
+            </NavLink>
+          </li>
+
+          {user && (
+            <li className={nav("item")}>
+              <NavLink className={nav("link", ["logo"])} to={"/documents"}>
+                <span className={nav("link-name")}>Документы</span>
+              </NavLink>
+            </li>
+          )}
+
+          {user && (
+            <li className={nav("item")}>
+              <NavLink className={nav("link", ["logo"])} to={"/notifications"}>
+                <span className={nav("link-name")}>Сроки и риски</span>
+              </NavLink>
+            </li>
+          )}
+
           {/* Реальные выгрузки НСИ: версия, объём и источник из csms-api */}
           <li className={nav("item")}>
             <ReferenceDataBadge />

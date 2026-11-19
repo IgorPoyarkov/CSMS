@@ -40,9 +40,13 @@ export const PLACING_WAYS_ALL = [
     label: "Электронный запрос котировок",
   },
   {
+    code: "EZT20",
+    label: "Закупка товара в электронной форме по ч. 12 ст. 93 Закона № 44-ФЗ (ЭЗТ20)",
+  },
+  {
     code: "EP93",
     label:
-      "Закупка у единственного поставщика (подрядчика, исполнителя) по ст. 93 Закона № 44-ФЗ",
+      "Закупка у единственного поставщика (подрядчика, исполнителя) по ст. 93 Закона № 44-ФЗ (EMZ2025)",
   },
 ];
 
@@ -84,6 +88,31 @@ export const CRITERION_LABELS: Record<string, string> = {
   qualification:
     "Квалификация участников закупки (финансовые ресурсы, оборудование, опыт, деловая репутация, специалисты)",
 };
+
+export const CRITERION_EIS_CODES: Record<string, string> = {
+  price: "CP",
+  lifecycle_cost: "MC",
+  exploitation_expenses: "TC",
+  energy_service_expenses: "EN",
+  qualitative_characteristics: "QO",
+  qualification: "QF",
+};
+
+export const EIS_PRODUCT_TYPE_OPTIONS = [
+  { value: "PRODUCT", label: "Товар (PRODUCT)" },
+  { value: "WORK", label: "Работа (WORK)" },
+  { value: "SERVICE", label: "Услуга (SERVICE)" },
+] as const;
+
+export const EIS_DAY_TYPE_OPTIONS = [
+  { value: "C", label: "Календарные дни (C)" },
+  { value: "W", label: "Рабочие дни (W)" },
+] as const;
+
+export const EIS_VOLUME_SPECIFYING_METHODS = [
+  { value: "QF", label: "Количественно (QF)" },
+  { value: "SF", label: "Текстовое описание объёма (SF)" },
+] as const;
 
 export const PP2571_POSITIONS = [
   "Позиция 1 разд. I ПП РФ № 2571 (Работы по сохранению объектов культурного наследия)",

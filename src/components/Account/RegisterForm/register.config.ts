@@ -8,7 +8,7 @@ export const registerFormFields: ConfigurationInput<RegisterForm>[] = [
     input: {
       name: "password",
       type: "password",
-      placeholder: "не менее 6 символов",
+      placeholder: "ведите пароль",
       defaultValue: "",
     },
   },
@@ -27,15 +27,14 @@ export const registerFormButtons: ConfigurationButton[] = [
     button: {
       name: "",
       type: "submit",
-      value: "Зарегистрироваться",
-      modifier: ["main"],
+      value: "Регистрация",
     },
   },
   {
     button: {
       name: "",
       type: "button",
-      value: "Войти",
+      value: "Назад",
     },
   },
 ];

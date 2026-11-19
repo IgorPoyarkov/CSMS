@@ -63,6 +63,22 @@ export const TaskOriginSchema = z.enum(["head", "system"]);
 
 export type TaskOrigin = z.infer<typeof TaskOriginSchema>;
 
+export const TaskExecutionStepSchema = z.object({
+  id: z.string().min(1),
+  order: z.number().int().positive(),
+  stageLabel: z.string().min(1),
+  title: z.string().min(1),
+  detail: z.string().optional(),
+  expectedArtifact: z.string().optional(),
+  dueDate: z.string().optional(),
+  isDone: z.boolean().default(false),
+  completedAt: z.string().optional(),
+  completedBy: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export type TaskExecutionStep = z.infer<typeof TaskExecutionStepSchema>;
+
 export const TaskSchema = z.object({
   id: idSchema(),
   // Заказчик-владелец задачи: нужен, чтобы руководитель видел задачи только
@@ -78,6 +94,15 @@ export const TaskSchema = z.object({
   // Функция и полномочия по разделу III, в рамках которой поставлена задача.
   // Необязательна: поручение может быть и вне служебных функций
   functionCode: ContractServiceFunctionSchema.optional(),
+  // Конкретная подфункция (пункт) из полного пула Приказа Минфина № 158н
+  order158nPoolCode: z.string().optional(),
+  order158nClause: z.string().optional(),
+  legalBasis: z.string().optional(),
+
+  // Входные данные и критерий приёмки результата, детализация шагов исполнения
+  requiredInputs: z.array(z.string()).optional(),
+  completionCriteria: z.string().optional(),
+  steps: z.array(TaskExecutionStepSchema).optional(),
 
   // Исполнитель — работник из штатного расписания (employees.id). ФИО
   // сохраняются снимком: задача остаётся читаемой, даже если работник уволится
@@ -88,12 +113,13 @@ export const TaskSchema = z.object({
   assignedByEmployeeId: idSchema(),
   assignedByName: optionalText(3, "Укажите, кто поставил задачу"),
 
-  // Регламентированный срок выполнения
+  // Регламентированный срок выполнения и контрольные даты цикла
   dueDate: optionalDate(
     "Неверный формат срока выполнения (ожидается ГГГГ-ММ-ДД)",
   ),
 
   createdAt: optionalDate("Неверный формат даты постановки задачи"),
+  startedAt: optionalDate("Неверный формат даты начала выполнения задачи"),
   completedAt: optionalDate("Неверный формат даты завершения задачи"),
 
   // Результат: чем завершилась работа — попадает в табельный учёт выполнения
@@ -111,15 +137,43 @@ export const emptyTask = (organizationId: string | number = ""): Task => ({
   status: "pending",
   origin: "head",
   functionCode: undefined,
+  order158nPoolCode: "",
+  order158nClause: "",
+  legalBasis: "",
+  requiredInputs: [],
+  completionCriteria: "",
+  steps: [],
   assigneeId: "",
   assigneeName: "",
   assignedByEmployeeId: "",
   assignedByName: "",
   dueDate: "",
   createdAt: today(),
+  startedAt: "",
   completedAt: "",
   result: "",
 });
+
+export interface TaskStepProgress {
+  total: number;
+  done: number;
+  percent: number;
+}
+
+export const taskStepProgress = (
+  task: Pick<Task, "steps">,
+): TaskStepProgress => {
+  const list = task.steps ?? [];
+  if (list.length === 0) {
+    return { total: 0, done: 0, percent: 0 };
+  }
+  const done = list.filter((s) => s.isDone).length;
+  return {
+    total: list.length,
+    done,
+    percent: Math.round((done / list.length) * 100),
+  };
+};
 
 const dueMoment = (task: Task): number | null => {
   if (!task.dueDate) {
