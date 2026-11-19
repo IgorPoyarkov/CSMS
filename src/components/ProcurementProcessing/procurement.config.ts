@@ -1,82 +1,61 @@
-import type { ConfigurationButton } from "../UI/CustomButton";
-
 /**
- * Действия над текущим извещением. Список сокращён до рабочего контура:
- * просмотр/редактирование, внесение изменений, бюджетное обязательство,
- * отмена и удаление. «Сформировать документы», «приказ» и «замечания»
- * убраны — они относятся к подготовительным шагам, а не к текущим извещениям.
+ * Действия над текущим извещением.
+ *
+ * Список сокращён до рабочего контура и оформлен компактными кнопками
+ * с иконкой и подсказкой: просмотр/редактирование, внесение изменений,
+ * направление сведений в контрольный орган (БО), отмена и удаление.
  */
 export type ProcurementActionType =
   | "view_notice" // Просмотр / редактирование извещения
   | "edit_notice" // Внесение изменений в извещение
-  | "budget_obligation" // Формирование бюджетного обязательства
+  | "budget_obligation" // БО: сведения об извещении в контрольный орган
   | "cancel_notice" // Отмена извещения
   | "delete_procurement"; // Удаление записи
 
-export const noticeActionButtons: Array<{
+export interface NoticeActionConfig {
   action: ProcurementActionType;
-  config: ConfigurationButton;
-}> = [
+  label: string;
+  title: string;
+  icon: string;
+  tone: "primary" | "info" | "danger";
+}
+
+export const noticeActions: NoticeActionConfig[] = [
   {
     action: "view_notice",
-    config: {
-      button: {
-        name: "view_notice",
-        type: "button",
-        value: "Просмотр / редактирование",
-        modifier: ["primary"],
-      },
-    },
+    label: "Открыть",
+    title: "Просмотр и редактирование извещения",
+    icon: "↗",
+    tone: "primary",
   },
   {
     action: "edit_notice",
-    config: {
-      button: {
-        name: "edit_notice",
-        type: "button",
-        value: "Внести изменения",
-        modifier: ["info"],
-      },
-    },
+    label: "Изменить",
+    title: "Внести изменения в извещение",
+    icon: "✎",
+    tone: "info",
   },
   {
     action: "budget_obligation",
-    config: {
-      button: {
-        name: "budget_obligation",
-        type: "button",
-        value: "Бюджетное обязательство",
-        modifier: ["primary"],
-      },
-    },
+    label: "БО",
+    title:
+      "БО: направить сведения об извещении в контрольный орган (доступно после подготовки извещения)",
+    icon: "⇧",
+    tone: "info",
   },
-];
-
-export const noticeDangerButtons: Array<{
-  action: ProcurementActionType;
-  config: ConfigurationButton;
-}> = [
   {
     action: "cancel_notice",
-    config: {
-      button: {
-        name: "cancel_notice",
-        type: "button",
-        value: "Отмена извещения",
-        modifier: ["danger"],
-      },
-    },
+    label: "Отмена",
+    title: "Отменить извещение",
+    icon: "⊘",
+    tone: "danger",
   },
   {
     action: "delete_procurement",
-    config: {
-      button: {
-        name: "delete_procurement",
-        type: "button",
-        value: "Удалить",
-        modifier: ["danger"],
-      },
-    },
+    label: "Удалить",
+    title: "Удалить запись закупки",
+    icon: "🗑",
+    tone: "danger",
   },
 ];
 

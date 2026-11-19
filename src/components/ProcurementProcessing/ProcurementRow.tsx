@@ -4,12 +4,7 @@ import {
   noticeStatusLabel,
   type Procurement,
 } from "../../services/Procurements/procurement.schema";
-import CustomButton from "../UI/CustomButton";
-import {
-  noticeActionButtons,
-  noticeDangerButtons,
-  type ProcurementActionType,
-} from "./procurement.config";
+import { noticeActions, type ProcurementActionType } from "./procurement.config";
 import styles from "./ProcurementRow.module.scss";
 
 interface ProcurementRowProps {
@@ -19,6 +14,22 @@ interface ProcurementRowProps {
   isStatusPending?: boolean;
 }
 
+/** Дата из ЕИС приходит в ISO или уже в русском формате — приводим к ДД.ММ.ГГГГ. */
+const formatRuDate = (raw?: string | null): string => {
+  if (!raw) return "—";
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw.trim());
+  if (iso) {
+    return `${iso[3]}.${iso[2]}.${iso[1]}`;
+  }
+  return raw;
+};
+
+/** Ссылка на карточку извещения в ЕИС по номеру (общий доступ). */
+const eisNoticeUrl = (noticeNumber: string): string =>
+  `https://zakupki.gov.ru/epz/order/extendedsearch/results.html?searchString=${encodeURIComponent(
+    noticeNumber,
+  )}`;
+
 const ProcurementRow: React.FC<ProcurementRowProps> = ({
   procurement,
   onAction,
@@ -26,72 +37,97 @@ const ProcurementRow: React.FC<ProcurementRowProps> = ({
   isStatusPending = false,
 }) => {
   const { bem } = useUtils();
-  const block = bem(styles, "procurement-row");
+  const block = bem(styles, "notice-card");
 
   const formattedPrice = procurement.nmck.toLocaleString("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 
+  const isActionDisabled = (action: ProcurementActionType): boolean => {
+    if (action === "cancel_notice") {
+      return isStatusPending || procurement.noticeStatus === "cancelled";
+    }
+    if (action === "delete_procurement") {
+      return isDeleting;
+    }
+    // БО доступно после подготовки извещения: на подготовке сведения
+    // ещё нечего направлять в контрольный орган
+    if (action === "budget_obligation") {
+      return procurement.noticeStatus === "preparing";
+    }
+    return false;
+  };
+
   return (
     <li className={block()}>
-      <div className={block("info")}>
-        <div className={block("cell", ["main"])}>
-          <span className={block("ikz")}>ИКЗ: {procurement.ikz}</span>
-          <p className={block("name")}>{procurement.name}</p>
-        </div>
-
-        <div className={block("cell", ["type"])}>
-          {procurement.procurementType}
-        </div>
-
-        <div className={block("cell", ["notice"])}>
+      <div className={block("head")}>
+        <div className={block("head-main")}>
           {procurement.noticeNumber ? (
-            <>
-              <span className={block("label")}>Извещение №</span>
-              <strong>{procurement.noticeNumber}</strong>
-            </>
+            <a
+              className={block("number")}
+              href={eisNoticeUrl(procurement.noticeNumber)}
+              target="_blank"
+              rel="noreferrer"
+              title="Открыть извещение в ЕИС"
+            >
+              № {procurement.noticeNumber}
+            </a>
           ) : (
-            <span className={block("empty")}>Не размещено</span>
+            <span className={block("number", ["empty"])}>
+              Извещение не размещено
+            </span>
           )}
-        </div>
-
-        <div className={block("cell", ["status"])}>
           <span
-            className={block("status-badge", [procurement.noticeStatus])}
+            className={block("status", [procurement.noticeStatus])}
             title="Статус извещения"
           >
             {noticeStatusLabel(procurement.noticeStatus)}
           </span>
         </div>
-
-        <div className={block("cell", ["price"])}>{formattedPrice}</div>
+        <span className={block("price")}>{formattedPrice} ₽</span>
       </div>
 
-      <div className={block("actions")}>
-        {noticeActionButtons.map(({ action, config }) => (
-          <CustomButton
-            key={action}
-            configuration={config}
-            onClick={() => onAction(action, procurement)}
-          />
-        ))}
+      <p className={block("name")}>{procurement.name}</p>
 
-        {noticeDangerButtons.map(({ action, config }) => (
-          <CustomButton
+      <dl className={block("meta")}>
+        <div className={block("meta-item")}>
+          <dt>Способ закупки</dt>
+          <dd>{procurement.procurementType}</dd>
+        </div>
+        <div className={block("meta-item")}>
+          <dt>Начало подачи заявок</dt>
+          <dd>{formatRuDate(procurement.applicationStartDate)}</dd>
+        </div>
+        <div className={block("meta-item")}>
+          <dt>Окончание подачи заявок</dt>
+          <dd>{formatRuDate(procurement.applicationEndDate)}</dd>
+        </div>
+        <div className={block("meta-item")}>
+          <dt>Рассмотрение заявок</dt>
+          <dd>{formatRuDate(procurement.reviewDate)}</dd>
+        </div>
+        <div className={block("meta-item")}>
+          <dt>Подведение итогов</dt>
+          <dd>{formatRuDate(procurement.summingUpDate)}</dd>
+        </div>
+      </dl>
+
+      <div className={block("actions")}>
+        {noticeActions.map(({ action, label, title, icon, tone }) => (
+          <button
             key={action}
-            configuration={{
-              ...config,
-              button: {
-                ...config.button,
-                disabled:
-                  action === "cancel_notice"
-                    ? isStatusPending || procurement.noticeStatus === "cancelled"
-                    : isDeleting,
-              },
-            }}
+            type="button"
+            className={block("action", [tone])}
+            title={title}
+            disabled={isActionDisabled(action)}
             onClick={() => onAction(action, procurement)}
-          />
+          >
+            <span className={block("action-icon")} aria-hidden="true">
+              {icon}
+            </span>
+            <span>{label}</span>
+          </button>
         ))}
       </div>
     </li>

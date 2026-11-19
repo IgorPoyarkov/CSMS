@@ -4,7 +4,7 @@
   max-width: 1440px;
   margin: 0 auto;
   padding: 16px 20px;
-  font-family: "Times New Roman", Times, serif;
+  font-family: inherit;
   color: var(--text-primary);
 
   &__header {
@@ -19,14 +19,8 @@
   &__title {
     margin: 0;
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 600;
     text-align: center;
-  }
-
-  &__logout {
-    position: absolute;
-    right: 0;
-    top: 0;
   }
 
   &__close {
@@ -53,16 +47,17 @@
   }
 
   &__status {
-    text-align: center;
-    font-size: 16px;
     padding: 20px 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
 
     &--error {
       color: var(--state-danger);
     }
   }
 
-  // Сообщение о сформированном бюджетном обязательстве
+  // Сообщение о подготовке сведений для контрольного органа (БО)
   &__notice {
     margin: 0 0 12px;
     padding: 8px 12px;
@@ -71,9 +66,29 @@
     background: var(--state-success-soft);
     font-size: 13px;
     color: var(--state-success);
+  }
 
-    &--success {
-      color: var(--state-success);
+  &__toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  &__search {
+    width: 100%;
+    max-width: 520px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-field);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+
+    &:focus-visible {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
     }
   }
 
@@ -82,7 +97,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 14px;
   }
 
   &__filter {

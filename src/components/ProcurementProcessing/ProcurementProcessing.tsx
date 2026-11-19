@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import {
+  useCreateBudgetObligation,
   useDeleteProcurement,
   useGetProcurements,
   useUpdateProcurementStatus,
@@ -10,7 +11,6 @@ import {
 import {
   NOTICE_FILTER_STATUSES,
   noticeStatusLabel,
-  type BudgetObligation,
   type NoticeStatus,
   type Procurement,
 } from "../../services/Procurements/procurement.schema";
@@ -18,7 +18,6 @@ import { useCurrentOrganization } from "../../services/Organization/organization
 
 import type { ProcurementActionType } from "./procurement.config";
 import ProcurementRow from "./ProcurementRow";
-import BudgetObligationModal from "./BudgetObligationModal";
 import styles from "./ProcurementProcessing.module.scss";
 import Loader from "../UI/Loader";
 
@@ -35,18 +34,15 @@ const ProcurementProcessing: React.FC = () => {
     useDeleteProcurement();
   const { mutate: updateStatus, isPending: isStatusPending } =
     useUpdateProcurementStatus();
+  const { mutate: createObligation } = useCreateBudgetObligation();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [budgetProcurement, setBudgetProcurement] =
-    useState<Procurement | null>(null);
+  const [query, setQuery] = useState("");
   const [budgetMessage, setBudgetMessage] = useState<string | null>(null);
 
   // В разделе — только текущие извещения: отменённые записи скрыты
   const currentProcurements = useMemo(
-    () =>
-      procurements.filter(
-        (item) => item.noticeStatus !== "cancelled",
-      ),
+    () => procurements.filter((item) => item.noticeStatus !== "cancelled"),
     [procurements],
   );
 
@@ -59,15 +55,19 @@ const ProcurementProcessing: React.FC = () => {
     return counts;
   }, [currentProcurements]);
 
-  const visibleProcurements = useMemo(
-    () =>
-      statusFilter === "all"
-        ? currentProcurements
-        : currentProcurements.filter(
-            (item) => item.noticeStatus === statusFilter,
-          ),
-    [currentProcurements, statusFilter],
-  );
+  const visibleProcurements = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return currentProcurements.filter((item) => {
+      if (statusFilter !== "all" && item.noticeStatus !== statusFilter) {
+        return false;
+      }
+      if (!needle) return true;
+      return (
+        item.name.toLowerCase().includes(needle) ||
+        (item.noticeNumber ?? "").toLowerCase().includes(needle)
+      );
+    });
+  }, [currentProcurements, statusFilter, query]);
 
   const handleAction = (action: ProcurementActionType, item: Procurement) => {
     switch (action) {
@@ -87,10 +87,47 @@ const ProcurementProcessing: React.FC = () => {
         });
         break;
 
-      case "budget_obligation":
-        setBudgetMessage(null);
-        setBudgetProcurement(item);
+      case "budget_obligation": {
+        // БО — направление сведений об извещении в контрольный орган.
+        // Саму отправку организует бэкенд; здесь фиксируем готовность
+        const label = item.noticeNumber || item.ikz;
+        if (
+          !window.confirm(
+            `Направить сведения об извещении ${label} в контрольный орган? Запись будет подготовлена к отправке (БО).`,
+          )
+        ) {
+          return;
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        createObligation(
+          {
+            organizationId: organization?.id,
+            procurementId: item.id,
+            ikz: item.ikz,
+            noticeNumber: item.noticeNumber,
+            obligationNumber: `БО-${item.noticeNumber || item.id}-${today.slice(0, 4)}`,
+            obligationDate: today,
+            kbk: item.kbk ?? "",
+            amount: item.nmck.toFixed(2),
+            comment:
+              "Сведения об извещении подготовлены к направлению в контрольный орган; отправка — через бэкенд",
+            createdAt: new Date().toISOString(),
+          },
+          {
+            onSuccess: (created) => {
+              setBudgetMessage(
+                `Сведения по извещению ${label} подготовлены к направлению в контрольный орган (БО № ${created.obligationNumber}). Отправка будет выполнена через бэкенд.`,
+              );
+            },
+            onError: () => {
+              setBudgetMessage(
+                "Не удалось подготовить сведения для контрольного органа.",
+              );
+            },
+          },
+        );
         break;
+      }
 
       case "cancel_notice":
         if (
@@ -103,22 +140,15 @@ const ProcurementProcessing: React.FC = () => {
         break;
 
       case "delete_procurement":
-        if (window.confirm("Удалить запись закупки без возможности восстановления?")) {
+        if (
+          window.confirm(
+            "Удалить запись закупки без возможности восстановления?",
+          )
+        ) {
           deleteProcurement(item.id);
         }
         break;
     }
-  };
-
-  const handleBudgetCreated = (obligation: BudgetObligation) => {
-    setBudgetMessage(
-      `Бюджетное обязательство ${obligation.obligationNumber} на сумму ${Number(
-        obligation.amount,
-      ).toLocaleString("ru-RU", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })} руб. сформировано.`,
-    );
   };
 
   return (
@@ -148,31 +178,54 @@ const ProcurementProcessing: React.FC = () => {
         </p>
       )}
 
-      <div className={block("filters")} role="group" aria-label="Фильтр по статусу извещения">
-        <button
-          type="button"
-          className={block("filter", statusFilter === "all" ? ["active"] : [])}
-          onClick={() => setStatusFilter("all")}
+      <div className={block("toolbar")}>
+        <input
+          type="search"
+          className={block("search")}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Поиск по названию или номеру извещения…"
+          aria-label="Поиск по названию или номеру извещения"
+        />
+
+        <div
+          className={block("filters")}
+          role="group"
+          aria-label="Фильтр по статусу извещения"
         >
-          Все ({currentProcurements.length})
-        </button>
-        {NOTICE_FILTER_STATUSES.map((status) => (
           <button
-            key={status}
             type="button"
-            className={block("filter", statusFilter === status ? ["active"] : [])}
-            onClick={() => setStatusFilter(status)}
+            className={block(
+              "filter",
+              statusFilter === "all" ? ["active"] : [],
+            )}
+            onClick={() => setStatusFilter("all")}
           >
-            {noticeStatusLabel(status)} ({statusCounts.get(status) ?? 0})
+            Все ({currentProcurements.length})
           </button>
-        ))}
+          {NOTICE_FILTER_STATUSES.map((status) => (
+            <button
+              key={status}
+              type="button"
+              className={block(
+                "filter",
+                statusFilter === status ? ["active"] : [],
+              )}
+              onClick={() => setStatusFilter(status)}
+            >
+              {noticeStatusLabel(status)} ({statusCounts.get(status) ?? 0})
+            </button>
+          ))}
+        </div>
       </div>
 
       {visibleProcurements.length === 0 ? (
         <p className={block("status")}>
-          {statusFilter === "all"
-            ? "Текущих извещений нет"
-            : `Нет извещений со статусом «${noticeStatusLabel(statusFilter)}»`}
+          {query.trim()
+            ? "По запросу ничего не найдено"
+            : statusFilter === "all"
+              ? "Текущих извещений нет"
+              : `Нет извещений со статусом «${noticeStatusLabel(statusFilter)}»`}
         </p>
       ) : (
         <ul className={block("list")}>
@@ -186,15 +239,6 @@ const ProcurementProcessing: React.FC = () => {
             />
           ))}
         </ul>
-      )}
-
-      {budgetProcurement && (
-        <BudgetObligationModal
-          procurement={budgetProcurement}
-          organizationId={organization?.id}
-          onClose={() => setBudgetProcurement(null)}
-          onCreated={handleBudgetCreated}
-        />
       )}
     </section>
   );
