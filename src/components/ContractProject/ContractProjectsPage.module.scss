@@ -1,0 +1,275 @@
+@import "variables";
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  max-width: 720px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+
+  @media (max-width: 720px) {
+    align-items: stretch;
+    width: 100%;
+  }
+}
+
+.search {
+  width: 320px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+}
+
+.counter {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empty {
+  margin: 0;
+  padding: 18px;
+  background: var(--surface-panel);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kind {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusDraft {
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.statusPublished {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.statusSigned {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.statusTerminated {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-primary);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.metaRow {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+
+  dt {
+    color: var(--text-secondary);
+    flex: 0 0 auto;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-primary);
+    text-align: right;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.btnPrimary,
+.btnSecondary {
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.btnPrimary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
+}
+
+.btnSecondary {
+  background: var(--surface-accent);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--text-on-accent);
+  }
+}
+
+.createList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.createRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+
+  @media (max-width: 720px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.createMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.createName {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.createMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.createIkz {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}

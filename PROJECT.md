@@ -71,6 +71,7 @@ react-hook-form 7 · SCSS-модули.
 | `/procurement-processing`                                                | Обработка информации по закупке                                                           |
 | `/procurement-processing/:id/notice-info`                                | извещение                                                                                 |
 | `/procurement-processing/:id/contract-project`                           | проект контракта                                                                          |
+| `/contract-projects`                                                     | реестр проектов контрактов — точка входа в конструктор из шапки                           |
 | `/reports/smnp`                                                          | Отчётность СМП и СОНКО                                                                    |
 | `/contract-registry`                                                     | Реестр контрактов со стадиями, платежами, неустойками и поставками                        |
 
