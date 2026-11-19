@@ -426,7 +426,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "okpd2Code / okpd2Name",
         xsd: "commonInfo/OKPD2Info",
         status: "partial",
-        note: "В XSD выбор: ОКПД2, КТРУ, укрупнённая КТРУ или набор из нескольких.",
+        note: "В XSD выбор: ОКПД2, КТРУ, укрупнённая КТРУ или набор из нескольких. Код — строка 1..12 без pattern, точки убирать не нужно.",
       },
       {
         field: "kbk / kbkEntries",
@@ -659,6 +659,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "purchaseObjects.items",
         xsd: "customerRequirement/purchaseObjects/purchaseObject",
         status: "mapped",
+        note: "Код ОКПД2 в XSD — строка 1..12 без pattern: 42.12.20.100 и 421220100 технически проходят, но ЕИС сверяет со справочником nsiOKPD2.",
       },
       {
         field: "purchaseObjects.normingRequirements",
