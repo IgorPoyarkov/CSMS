@@ -685,7 +685,9 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
     plan.specialPurchases ?? []
   ).map((sp) => ({
     id: sp.id ? String(sp.id) : undefined,
-    typeCode: sp.typeCode,
+    // В черновике код типа может быть не заполнен: в DTO отдаём пустую
+    // строку, а ошибку выгрузки покажет validatePurchasePlanEis17
+    typeCode: sp.typeCode ?? "",
     typeName: sp.typeName,
     ikz: sp.ikz,
     iku: sp.iku,
@@ -1098,6 +1100,20 @@ export const validatePurchasePlanEis17 = (
         severity: "warning",
         field: `positions[${idx}].koksEntries`,
         message: `${label}: отмечено строительство/ОКС, но не заполнена детализация по КОКС (KOKSsInfo).`,
+      });
+    }
+  });
+
+  // Особые закупки: пустой typeCode допустим в черновике (строка только
+  // добавлена), но в ЕИС 17.0 такая позиция не пройдёт контроль
+  (plan.specialPurchases ?? []).forEach((special, idx) => {
+    if (!String(special.typeCode ?? "").trim()) {
+      issues.push({
+        severity: "error",
+        field: `specialPurchases[${idx}].typeCode`,
+        message:
+          `Особая закупка № ${idx + 1}: не указан код типа особой закупки (typeCode) — ` +
+          `без него позиция specialPurchasePositions не пройдёт контроль ЕИС 17.0.`,
       });
     }
   });

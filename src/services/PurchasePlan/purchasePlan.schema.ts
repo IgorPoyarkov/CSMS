@@ -165,9 +165,12 @@ export type PurchasePlanKoksEntry = z.infer<typeof PurchasePlanKoksEntrySchema>;
 // Особые закупки плана-графика (tenderPlan2020SpecialPurchasePositionType,
 // IntegrationTPTypes.xsd): в ЕИС 17.0 особые закупки передаются блоком
 // specialPurchasePositions. Устаревший блок specialPurchases игнорируется.
+// Код типа необязателен на уровне чтения: добавленная и ещё не заполненная
+// строка не должна блокировать загрузку плана-графика. Требование кода
+// проверяет validatePurchasePlanEis17 при выгрузке в ЕИС.
 export const PurchasePlanSpecialPurchaseSchema = z.object({
   id: idSchema(),
-  typeCode: z.string().min(1, "Укажите код особой закупки"),
+  typeCode: optionalText(1, "Укажите код особой закупки"),
   typeName: z.string().optional(),
   ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
   iku: optionalPattern(

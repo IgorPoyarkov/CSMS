@@ -1323,6 +1323,13 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   миграции. `eis17Types.ts` переносит их в `EisTenderPlan2020SpecialPurchase`;
   карта покрытия (`eisXsdCoverage.ts`) переведена с `missing` на `partial` с
   путём `specialPurchasePositions/specialPurchasePosition`.
+  - **`typeCode` особой закупки необязателен при чтении (2026-11-20).**
+    Добавленная, но не заполненная строка (пустой `typeCode`) роняла загрузку
+    всех планов-графиков: `PurchasePlanSchema` не проходила. Теперь
+    `typeCode` — `optionalText(1)`, а требование кода перенесено в
+    `validatePurchasePlanEis17` (ошибка при выгрузке в ЕИС); в маппере DTO
+    отдаётся `typeCode ?? ""`. Кнопка «Сохранить особые закупки» отбрасывает
+    строки без кода, чтобы пустышки не копились в записи плана.
 - **Проверки:** `npx.cmd tsc -b` — 0 ошибок; `npx.cmd oxlint` по
   `PurchasePlan`/`Eis` — 0 ошибок (остались только прежние предупреждения в
   `PurchasePlanForm.tsx`); `npx.cmd vite build` — успешно.

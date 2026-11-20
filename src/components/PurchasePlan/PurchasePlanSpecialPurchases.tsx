@@ -362,7 +362,13 @@ export default function PurchasePlanSpecialPurchases({
           type="button"
           className={block("save")}
           disabled={isSaving}
-          onClick={() => onSave(items)}
+          // Пустые строки (добавлены, но не заполнены) не сохраняем: иначе они
+          // копятся в записи плана и мешают выгрузке в ЕИС
+          onClick={() =>
+            onSave(
+              items.filter((item) => String(item.typeCode ?? "").trim() !== ""),
+            )
+          }
         >
           {isSaving ? "Сохранение..." : "Сохранить особые закупки"}
         </button>
