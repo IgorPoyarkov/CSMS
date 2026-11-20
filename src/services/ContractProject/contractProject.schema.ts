@@ -99,6 +99,27 @@ const optionalPercent = () =>
     )
     .optional();
 
+// П. 11 Положения (ПП РФ от 27.01.2022 N 60): цена единицы товара, работы,
+// услуги округляется до 11 цифр после запятой. В форме хранится строкой,
+// чтобы не потерять знаки при сериализации.
+const optionalUnitPrice = () =>
+  z
+    .string()
+    .refine(
+      (v) => v === "" || /^\d+(\.\d{1,11})?$/.test(v),
+      "Цена единицы указывается с точностью до 11 знаков после запятой",
+    )
+    .optional();
+
+export const roundUnitPrice = (value: number | string): string => {
+  const num =
+    typeof value === "number" ? value : Number(String(value).replace(",", "."));
+  if (!Number.isFinite(num)) return "";
+  const fixed = num.toFixed(11);
+  // Убираем хвостовые нули, сохраняя не более 11 знаков после запятой
+  return fixed.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+};
+
 const optionalInt = (min = 0) =>
   z.number().int("Укажите целое число").min(min).optional();
 
@@ -148,6 +169,8 @@ export const ContractSubjectSchema = z.object({
 export const ContractPriceSchema = z.object({
   // Валюта контракта
   currency: z.string().default("Российский рубль"),
+  // П. 15 Раздела 1 формы извещения: код валюты по ОКВ
+  currencyCode: z.string().default("643"),
   // Начальная (максимальная) цена контракта
   initialMaxPrice: optionalMoney(),
   // Цена контракта (итоговая, с учётом скидок)
@@ -161,6 +184,9 @@ export const ContractPriceSchema = z.object({
   priceIncludesExpenses: z.boolean().default(true),
   // Формула цены и максимальное значение (ПП РФ № 19)
   formula: z.string().optional(),
+  // Цена единицы товара, работы, услуги (п. 11 Положения, ПП РФ N 60):
+  // округляется до 11 цифр после запятой
+  unitPrice: optionalUnitPrice(),
   // Цена единицы, если объём нельзя определить (ч. 24 ст. 22, ч. 4 ст. 34)
   unitPriceNote: z.string().optional(),
   // Порядок оплаты: аванс, постоплата, поэтапная (ст. 34 ч. 12)
@@ -436,6 +462,23 @@ export const ContractRequisitesSchema = z.object({
   supplierEmail: z.string().optional(),
   supplierPhone: z.string().optional(),
   supplierBankDetails: z.string().optional(),
+  // П. 11 Положения (ПП РФ N 60): реквизиты платёжного агента / банковского
+  // платёжного агента, если он участвует в расчётах по контракту
+  isAgentInvolved: z.boolean().default(false),
+  agentType: z.enum(["payment", "bank_payment", "other"]).default("payment"),
+  agentFullName: z.string().optional(),
+  agentShortName: z.string().optional(),
+  agentInn: z.string().optional(),
+  agentKpp: z.string().optional(),
+  agentAccount: z.string().optional(),
+  agentBankDetails: z.string().optional(),
+  // П. 11: контракт на приобретение жилого помещения с представителем
+  // собственника — реквизиты счёта представителя и собственника
+  isResidentialPremisesPurchase: z.boolean().default(false),
+  ownerRepresentativeName: z.string().optional(),
+  ownerRepresentativeAccount: z.string().optional(),
+  ownerAccount: z.string().optional(),
+  ownerBankDetails: z.string().optional(),
   // Подписант заказчика (для блока подписей)
   signerPosition: z.string().optional(),
   signerName: z.string().optional(),

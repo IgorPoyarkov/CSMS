@@ -42,24 +42,43 @@ const ContractConditionsSection = () => {
       <h2 className={block("section-title")}>Условия контракта</h2>
 
       <div className={block("form-grid")}>
-        {/* НМЦК и валюта */}
+        {/* НМЦК и валюта (п. 15 Раздела 1 формы извещения, ПП РФ N 60) */}
         <div className={block("row")}>
           <span className={block("label")}>
             Начальная (максимальная) цена контракта<sup>*</sup>
           </span>
-          <div className={block("inline-group")}>
-            <MoneyInput
-              className={block("input", ["phone-num"])}
-              value={nmck}
-              ariaLabel="Начальная (максимальная) цена контракта"
-              onChange={(next) =>
-                setValue("generalInfo.nmck", next, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            <span className={block("muted")}>{conditions.currency}</span>
+          <div className={block("field-col")}>
+            <div className={block("inline-group")}>
+              <MoneyInput
+                className={block("input", ["phone-num"])}
+                value={nmck}
+                ariaLabel="Начальная (максимальная) цена контракта"
+                onChange={(next) =>
+                  setValue("generalInfo.nmck", next, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              />
+              <span className={block("muted")}>{conditions.currency}</span>
+            </div>
+            <div className={block("inline-group")}>
+              <span className={block("caption")}>
+                Код валюты по ОКВ (maxPriceCurrency)
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={3}
+                placeholder="643"
+                className={block("input", ["code"])}
+                {...register("contractConditions.currencyCode")}
+              />
+              <span className={block("caption")}>
+                643 — российский рубль; иное значение — только при закупке в
+                иностранной валюте
+              </span>
+            </div>
           </div>
         </div>
 
@@ -244,7 +263,9 @@ const ContractConditionsSection = () => {
                     type="checkbox"
                     {...register("contractConditions.isFromConclusionDate")}
                   />
-                  <span>С даты заключения контракта (isFromConclusionDate)</span>
+                  <span>
+                    С даты заключения контракта (isFromConclusionDate)
+                  </span>
                 </label>
                 <label className={block("checkbox")}>
                   <input

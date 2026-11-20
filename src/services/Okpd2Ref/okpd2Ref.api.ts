@@ -37,8 +37,10 @@ const fetchSnapshot = async (signal?: AbortSignal): Promise<Okpd2Ref[]> => {
     { signal },
   );
 
+  // Не отбрасываем буквенные разделы A–U: это тоже строки официального снимка,
+  // и всего их 21 066 — ровно столько, сколько отдаёт API.
   return readReferenceItems(data)
-    .filter((item) => /^[\d.]+$/.test(item.code))
+    .filter((item) => item.code.trim().length > 0)
     .map((item) => ({ code: item.code, name: item.name, isNormed: false }));
 };
 
@@ -117,15 +119,9 @@ export const useOkpd2Dictionary = () =>
         );
       });
 
-      // Локальные позиции, которых нет в снимке, сохраняем: на них могут быть
-      // выставлены признаки нормирования по предыдущим редакциям справочника.
-      const known = new Set(merged.map((item) => normalizeCode(item.code)));
-      for (const item of local) {
-        if (!known.has(normalizeCode(item.code))) {
-          merged.push(withNormingFlag(item));
-        }
-      }
-
+      // Коды берём только из официального снимка НСИ (21 066 записей):
+      // локальная выборка db.json — лишь оверлей признаков для существующих
+      // кодов, она не должна добавлять «лишние» позиции в справочник.
       return merged;
     },
   });

@@ -17,7 +17,7 @@ import {
 } from "../../components/ContractService/contractService.config";
 import { useComplianceCheck } from "../../components/ContractService/complianceCheck";
 import {
-  ORDER_158N_TASK_POOL,
+  useOrder158nPool,
   type Order158nTaskPoolItem,
 } from "../../services/Tasks/order158nTaskPool";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
@@ -86,6 +86,10 @@ export default function TasksPage() {
   const { data: orgEmployees = [] } = useFetchOrganizationEmployees(
     organization?.id,
   );
+  // Пул 158н приходит из БД через csms-api; без связи показываем пустой список
+  const { data: poolData, isLoading: isPoolLoading, isError: isPoolError } =
+    useOrder158nPool();
+  const poolItems = useMemo(() => poolData?.items ?? [], [poolData]);
   const compliance = useComplianceCheck(
     organization?.id,
     contractService ?? undefined,
@@ -139,7 +143,7 @@ export default function TasksPage() {
   }, [contractService, orgEmployees, fullName]);
 
   const poolEntries = useMemo(() => {
-    return ORDER_158N_TASK_POOL.map((item) => {
+    return poolItems.map((item) => {
       const exactTasks = orgTasks.filter((t) => taskMatchesPoolItem(t, item));
       const fnTasks = orgTasks.filter((t) => t.functionCode === item.functionCode);
       const staff = assigneesByFunction.get(item.functionCode) ?? [];
@@ -155,7 +159,7 @@ export default function TasksPage() {
         isCovered: exactTasks.length > 0,
       };
     });
-  }, [orgTasks, assigneesByFunction]);
+  }, [orgTasks, assigneesByFunction, poolItems]);
 
   const filteredPoolEntries = useMemo(() => {
     const query = poolSearch.trim().toLowerCase();
@@ -249,7 +253,7 @@ export default function TasksPage() {
         >
           Весь пул задач по Приказу № 158н
           <span className={styles["tab__count"]}>
-            {ORDER_158N_TASK_POOL.length}
+            {poolItems.length}
           </span>
         </button>
       </div>
@@ -430,10 +434,17 @@ export default function TasksPage() {
 
       {activeTab === "pool" && (
         <section className={styles["section"]}>
+          {(isPoolLoading || isPoolError) && (
+            <p className={styles["hint"]}>
+              {isPoolLoading
+                ? "Загрузка пула № 158н из csms-api…"
+                : "Пул № 158н недоступен: проверьте csms-api и хранилище справочников."}
+            </p>
+          )}
           <div className={styles["pool-summary"]}>
             <div className={styles["pool-stat"]}>
               <span className={styles["pool-stat__value"]}>
-                {ORDER_158N_TASK_POOL.length}
+                {poolItems.length}
               </span>
               <span className={styles["pool-stat__label"]}>
                 Всего подфункций в пуле № 158н
@@ -441,7 +452,7 @@ export default function TasksPage() {
             </div>
             <div className={styles["pool-stat"]}>
               <span className={styles["pool-stat__value"]}>
-                {coveredCount} из {ORDER_158N_TASK_POOL.length}
+                {coveredCount} из {poolItems.length}
               </span>
               <span className={styles["pool-stat__label"]}>
                 Подфункций с точечными задачами

@@ -471,6 +471,73 @@ const GeneralInfoSection = ({
               </div>
             </div>
           </div>
+
+          {/* П. 3 Раздела 1 формы извещения: указание на часть ст. 15 */}
+          <div className={block("row")}>
+            <span className={block("label")}>
+              Указание на часть ст. 15 Закона № 44-ФЗ
+            </span>
+            <div className={block("field-col")}>
+              <input
+                type="text"
+                className={block("input")}
+                placeholder="Например: ч. 1 ст. 15 (закупка для обеспечения государственных нужд)"
+                {...register("generalInfo.article15Part")}
+              />
+            </div>
+          </div>
+
+          {/* П. 13 Раздела 1: максимальное значение цены и сумма цен единиц */}
+          <div className={block("row")}>
+            <span className={block("label")}>
+              Максимальное значение цены контракта, ₽
+            </span>
+            <div className={block("field-col", ["narrow"])}>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={block("input")}
+                placeholder="При формуле цены или цене единицы (ч. 24 ст. 22)"
+                {...register("generalInfo.maxContractPrice", {
+                  valueAsNumber: true,
+                })}
+              />
+            </div>
+          </div>
+
+          <div className={block("row")}>
+            <span className={block("label")}>
+              Начальная сумма цен единиц товара, работы, услуги, ₽
+            </span>
+            <div className={block("field-col", ["narrow"])}>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={block("input")}
+                placeholder="При закупке по цене единицы (ч. 24 ст. 22)"
+                {...register("generalInfo.initialUnitPriceSum", {
+                  valueAsNumber: true,
+                })}
+              />
+            </div>
+          </div>
+
+          {/* П. 38 Раздела 1: предупреждение об ответственности */}
+          <div className={block("row", ["single"])}>
+            <label className={block("checkbox")}>
+              <input
+                type="checkbox"
+                {...register("generalInfo.antitrustWarning")}
+              />
+              <span>
+                Предупреждение об административной и уголовной ответственности
+                за нарушение антимонопольного законодательства (п. 38 Раздела 1
+                формы извещения)
+              </span>
+            </label>
+          </div>
         </div>
       </section>
 

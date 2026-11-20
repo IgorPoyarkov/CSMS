@@ -25,6 +25,159 @@
   gap: 12px;
 }
 
+/* ===== Подгрузка сведений по реестровому номеру контракта ===== */
+.lookup {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.lookupTitle {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lookupRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lookupField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 320px;
+}
+
+.lookupLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lookupInput {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+.lookupInput:focus-visible {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.lookupSubmit,
+.lookupReset {
+  padding: 7px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.lookupSubmit {
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+.lookupSubmit:hover:not(:disabled), .lookupSubmit:focus-visible {
+  background: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+}
+.lookupSubmit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.lookupReset {
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+}
+.lookupReset:hover {
+  background: var(--surface-raised);
+}
+
+.lookupHint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lookupNotice {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.lookupNotice_pending {
+  color: var(--text-secondary);
+}
+
+.lookupNotice_success {
+  background: var(--state-success-soft);
+  border-color: var(--state-success);
+}
+
+.lookupNotice_warning {
+  background: var(--state-warning-soft);
+  border-color: var(--state-warning);
+}
+
+.lookupNotice_danger {
+  background: var(--state-danger-soft);
+  border-color: var(--state-danger);
+}
+
+.lookupSuggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.lookupSuggestionsLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lookupSuggestion {
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.lookupSuggestion:hover, .lookupSuggestion:focus-visible {
+  background: var(--surface-raised);
+  border-color: var(--accent);
+}
+
+.lookupSuggestion_active {
+  color: var(--text-on-accent);
+  background: var(--surface-accent);
+  border-color: var(--accent);
+}
+
 /* ===== Карточка контракта ===== */
 .card {
   background: var(--surface-panel);
@@ -36,6 +189,12 @@
 .cardOverdue {
   border-color: var(--state-danger);
   box-shadow: 0 0 0 1px var(--state-danger-soft);
+}
+
+/* Карточка, полученная подгрузкой по реестровому номеру */
+.cardHighlighted {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .cardHeader {
@@ -120,7 +279,7 @@
   font-size: 12px;
   font-weight: 700;
   background: var(--state-danger);
-  color: var(--on-accent);
+  color: var(--text-on-accent);
 }
 
 .chevron {
@@ -365,4 +524,809 @@
 }
 .btnDanger:hover {
   background: var(--state-danger-soft);
+}
+
+/* ===== Привлечение СМП (Tasks 9, п. 7) ===== */
+.smp-section {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-panel);
+}
+
+.smp-section__note {
+  margin: 0;
+  padding: 6px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.smp-section__volume {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.smp-section__volume-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.smp-section__progress-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--stripe);
+  overflow: hidden;
+}
+
+.smp-section__progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.smp-section__volume-footer {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smp-section__btnPenalty {
+  align-self: flex-start;
+  padding: 6px 14px;
+  background: var(--state-danger);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+.smp-section__btnPenalty:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.smp-section__btnPenalty:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.smp-section__deadlines {
+  padding: 0 16px 12px;
+}
+
+.smp-section__deadlinesTitle {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.smp-section__customerDeadlineTitle {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.smp-section__deadlinesTable {
+  overflow-x: auto;
+}
+
+.smp-section__records {
+  padding: 0 16px 12px;
+}
+
+.smp-section__recordsTitle {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.smp-section__statusSelect {
+  padding: 2px 6px;
+  font-size: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+}
+
+.smp-section__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.smp-section__hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.smp-section__btnPrimary {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+.smp-section__btnPrimary:hover {
+  background: var(--accent-hover);
+}
+
+.smp-section__btnSmall {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.smp-section__btnSmall:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.smp-section__rowDanger {
+  background: var(--state-danger-soft);
+}
+
+/* Подтверждения достоверности в таблице записей (п. 6 ПП РФ N 1466) */
+.smp-section__confirm-cell {
+  font-size: 11px;
+  min-width: 190px;
+}
+
+.smp-section__confirm-row {
+  padding: 3px 0;
+}
+.smp-section__confirm-row + .smp-section__confirm-row {
+  border-top: 1px dashed var(--border);
+}
+
+.smp-section__confirm-done {
+  color: var(--text-primary);
+}
+
+.smp-section__confirm-doc {
+  color: var(--text-secondary);
+}
+
+/* Форма сведений о СМП */
+.smp-form {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+}
+
+.smp-form__window {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.smp-form__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.smp-form__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.smp-form__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0 4px;
+}
+.smp-form__close:hover {
+  color: var(--text-primary);
+}
+
+.smp-form__form {
+  padding: 16px 20px;
+}
+
+.smp-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 16px;
+}
+
+.smp-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.smp-form__field--wide {
+  grid-column: 1/-1;
+}
+
+.smp-form__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smp-form__input,
+.smp-form__select {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+.smp-form__input:focus-visible,
+.smp-form__select:focus-visible {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.smp-form__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.smp-form__section {
+  margin: 16px 0 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.smp-form__section legend {
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.smp-form__error {
+  font-size: 11px;
+  color: var(--state-danger);
+}
+
+/* Файл-основание */
+.smp-form__fileRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.smp-form__fileInput {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.smp-form__fileInput::file-selector-button {
+  margin-right: 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.smp-form__fileInput::file-selector-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.smp-form__fileClear {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.smp-form__fileClear:hover {
+  border-color: var(--state-danger);
+  color: var(--state-danger);
+}
+
+.smp-form__fileInfo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.smp-form__fileName {
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.smp-form__fileSize {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.smp-form__fileExtracted {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.smp-form__fileEmpty {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--state-warning-soft);
+  border: 1px solid var(--state-warning);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.smp-form__fileHint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.smp-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.smp-form__actions {
+  display: flex;
+  gap: 8px;
+}
+.smp-form__actions button {
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.smp-form__actions button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.smp-form__actions button[type=submit] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}
+.smp-form__actions button[type=submit]:hover {
+  background: var(--accent-hover);
+}
+
+/* ===== Чекпоинты процесса по контракту (Tasks 8, п. 2 б) ===== */
+.events__list {
+  position: relative;
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+  /* Вертикальная линия маршрута проходит через центры точек */
+}
+.events__list::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 20px;
+  width: 1px;
+  background: var(--border);
+}
+
+.events__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+  /* Кнопки правки и удаления не отвлекают, пока строка не в работе */
+}
+.events__item:hover .events__delete, .events__item:hover .events__edit, .events__item:focus-within .events__delete, .events__item:focus-within .events__edit {
+  opacity: 1;
+}
+.events__item {
+  /* Запись, которую сейчас правят, видно в таймлайне */
+}
+.events__item--editing {
+  border-radius: 4px;
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+.events__dot {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  /* Кольцо цветом панели перекрывает линию под точкой */
+  box-shadow: 0 0 0 3px var(--surface-panel);
+}
+.events__dot--completed {
+  background: var(--state-success);
+}
+.events__dot--terminated {
+  background: var(--state-danger);
+}
+.events__dot--payment {
+  background: var(--state-warning);
+}
+
+.events__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.events__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.events__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.events__date {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.events__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.events__comment {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.events__delete {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+.events__delete:hover:not(:disabled) {
+  border-color: var(--state-danger);
+  color: var(--state-danger);
+}
+.events__delete:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--accent);
+}
+.events__delete:disabled {
+  cursor: not-allowed;
+}
+
+.events__edit {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+.events__edit:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.events__edit:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--accent);
+}
+.events__edit:disabled {
+  cursor: not-allowed;
+}
+
+.events__empty {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.events__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.events__hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.events__btnPrimary {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-on-accent);
+  cursor: pointer;
+}
+.events__btnPrimary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.events__btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.events__btnGhost {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.events__btnGhost:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.events__formTitle {
+  grid-column: 1/-1;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.events__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.events__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.events__field--wide {
+  grid-column: 1/-1;
+}
+
+.events__fieldLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.events__input,
+.events__select {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+.events__input:focus-visible,
+.events__select:focus-visible {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.events__formActions {
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ===== Реквизиты для ЕИС: реестровый номер контракта и ИКЗ ===== */
+.eis-section {
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eis-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eis-section__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.eis-section__btnEdit {
+  padding: 4px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.eis-section__btnEdit:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.eis-section__rows {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 32px;
+}
+
+.eis-section__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.eis-section__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-section__value {
+  margin: 0;
+  font-size: 13px;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.eis-section__warn {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-warning);
+}
+
+.eis-section__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.eis-section__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.eis-section__input {
+  padding: 6px 10px;
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+.eis-section__input:focus-visible {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.eis-section__error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--state-danger);
+}
+
+.eis-section__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.eis-section__btnPrimary {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+.eis-section__btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.eis-section__btnCancel {
+  padding: 6px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
 }/*# sourceMappingURL=ContractRegistry.module.css.map */

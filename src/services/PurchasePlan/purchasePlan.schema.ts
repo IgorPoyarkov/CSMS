@@ -82,6 +82,42 @@ export const PurchasePlanCustomerSchema = OrganizationCustomerSchema;
 
 export type PurchasePlanCustomer = z.infer<typeof PurchasePlanCustomerSchema>;
 
+// Организация, которой переданы полномочия государственного (муниципального)
+// заказчика: заполняется, когда план-график формирует бюджетное, автономное
+// учреждение, унитарное предприятие или иное юридическое лицо (п. 14, подп. "ж"
+// Положения, утв. постановлением Правительства РФ от 30.09.2019 N 1279).
+export const PurchasePlanAuthorizedOrganizationSchema = z.object({
+  fullName: optionalText(
+    5,
+    "Укажите полное наименование организации, которой переданы полномочия заказчика",
+  ),
+  inn: optionalPattern(
+    /^(\d{10}|\d{12})$/,
+    "ИНН организации, которой переданы полномочия, — 10 или 12 цифр",
+  ),
+  kpp: optionalPattern(/^\d{9}$/, "КПП организации — 9 цифр"),
+  legalAddress: optionalText(
+    5,
+    "Укажите место нахождения организации, которой переданы полномочия",
+  ),
+  phone: optionalText(5, "Укажите телефон организации"),
+  email: z
+    .string()
+    .refine(
+      (value) => value === "" || z.email().safeParse(value).success,
+      "Не корректный email организации",
+    )
+    .optional(),
+  oktmo: optionalPattern(
+    /^\d{8,11}$/,
+    "Код ОКТМО организации состоит из 8–11 цифр",
+  ),
+});
+
+export type PurchasePlanAuthorizedOrganization = z.infer<
+  typeof PurchasePlanAuthorizedOrganizationSchema
+>;
+
 // Разбивка объёма финансового обеспечения по графам формы ПГ
 // (приказ МЭР/Минфина России 145/206н): всего, текущий финансовый год,
 // плановый период (первый и второй год), последующие годы.
@@ -168,36 +204,58 @@ export type PurchasePlanKoksEntry = z.infer<typeof PurchasePlanKoksEntrySchema>;
 // Код типа необязателен на уровне чтения: добавленная и ещё не заполненная
 // строка не должна блокировать загрузку плана-графика. Требование кода
 // проверяет validatePurchasePlanEis17 при выгрузке в ЕИС.
-export const PurchasePlanSpecialPurchaseSchema = z.object({
-  id: idSchema(),
-  typeCode: optionalText(1, "Укажите код особой закупки"),
-  typeName: z.string().optional(),
-  ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
-  iku: optionalPattern(
-    /^\d{20}$/,
-    "ИКУ организации-владельца версии плана-графика состоит из 20 цифр",
-  ),
-  // Реестровый номер позиции особой закупки в плане-графике
-  positionNumber: optionalPattern(
-    /^\d{1,6}$/,
-    "Реестровый номер позиции особой закупки — до 6 цифр",
-  ),
-  extNumber: optionalText(1, "Укажите внешний номер позиции"),
-  kvr: optionalPattern(/^\d{3}$/, "КВР состоит из 3 цифр"),
-  kbk: optionalPattern(
-    /^\d{20}$/,
-    "КБК состоит из 20 цифр (разряды кода соединяются без пробелов)",
-  ),
-  koksCode: z.string().optional(),
-  publishYear: z.union([z.string(), z.number()]).optional(),
-  purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
-  modificationStatus: z.enum(["N", "E"]).optional(),
-  amountTotal: moneySchema(),
-  amountCurrentYear: moneySchema(),
-  amountPlanPeriodFirstYear: moneySchema(),
-  amountPlanPeriodSecondYear: moneySchema(),
-  amountSubsequentYears: moneySchema(),
-});
+export const PurchasePlanSpecialPurchaseSchema = z
+  .object({
+    id: idSchema(),
+    typeCode: optionalText(1, "Укажите код особой закупки"),
+    typeName: z.string().optional(),
+    ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
+    iku: optionalPattern(
+      /^\d{20}$/,
+      "ИКУ организации-владельца версии плана-графика состоит из 20 цифр",
+    ),
+    // Реестровый номер позиции особой закупки в плане-графике
+    positionNumber: optionalPattern(
+      /^\d{1,6}$/,
+      "Реестровый номер позиции особой закупки — до 6 цифр",
+    ),
+    extNumber: optionalText(1, "Укажите внешний номер позиции"),
+    kvr: optionalPattern(/^\d{3}$/, "КВР состоит из 3 цифр"),
+    kbk: optionalPattern(
+      /^\d{20}$/,
+      "КБК состоит из 20 цифр (разряды кода соединяются без пробелов)",
+    ),
+    koksCode: z.string().optional(),
+    publishYear: z.union([z.string(), z.number()]).optional(),
+    purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
+    modificationStatus: z.enum(["N", "E"]).optional(),
+    // Закупка в отношении объекта капитального строительства / недвижимого
+    // имущества без софинансирования из федерального бюджета (XSD ЕИС 17.0)
+    isNotFederalFinancing: z.boolean().optional(),
+    amountTotal: moneySchema(),
+    amountCurrentYear: moneySchema(),
+    amountPlanPeriodFirstYear: moneySchema(),
+    amountPlanPeriodSecondYear: moneySchema(),
+    amountSubsequentYears: moneySchema(),
+  })
+  .refine(
+    (item) =>
+      toNumber(item.amountTotal) === null ||
+      Math.abs(
+        Number(item.amountTotal) -
+          sumOf(
+            item.amountCurrentYear,
+            item.amountPlanPeriodFirstYear,
+            item.amountPlanPeriodSecondYear,
+            item.amountSubsequentYears,
+          ),
+      ) < 1e-6,
+    {
+      message:
+        "Объём финансового обеспечения особой закупки «всего» не совпадает с суммой платежей по годам",
+      path: ["amountTotal"],
+    },
+  );
 
 export type PurchasePlanSpecialPurchase = z.infer<
   typeof PurchasePlanSpecialPurchaseSchema
@@ -221,6 +279,7 @@ export const emptyPurchasePlanSpecialPurchase = (
   publishYear: String(planYear),
   purchaseNumber: "",
   modificationStatus: "N",
+  isNotFederalFinancing: false,
   amountTotal: "",
   amountCurrentYear: "",
   amountPlanPeriodFirstYear: "",
@@ -234,6 +293,93 @@ export const PurchasePlanOkpd2ItemSchema = z.object({
 });
 
 export type PurchasePlanOkpd2Item = z.infer<typeof PurchasePlanOkpd2ItemSchema>;
+
+// Графы объёма финансового обеспечения и соответствующие им суммы в
+// детализации по КБК / КВР / КОКС (п. 16, подп. "е" Положения N 1279).
+const FINANCE_AMOUNT_KEYS = [
+  { key: "amountTotal", label: "Всего" },
+  { key: "amountCurrentYear", label: "Текущий финансовый год" },
+  { key: "amountPlanPeriodFirstYear", label: "Первый год планового периода" },
+  { key: "amountPlanPeriodSecondYear", label: "Второй год планового периода" },
+  { key: "amountSubsequentYears", label: "Последующие годы" },
+] as const;
+
+const POSITION_DETAIL_GROUPS = [
+  { key: "kbkEntries", label: "КБК", codeKey: "kbk" },
+  { key: "kvrEntries", label: "КВР", codeKey: "kvr" },
+  { key: "koksEntries", label: "КОКС", codeKey: "koksCode" },
+] as const;
+
+interface PositionFinanceDetailSource {
+  amountTotal?: string | number;
+  amountCurrentYear?: string | number;
+  amountPlanPeriodFirstYear?: string | number;
+  amountPlanPeriodSecondYear?: string | number;
+  amountSubsequentYears?: string | number;
+  kbkEntries?: unknown[];
+  kvrEntries?: unknown[];
+  koksEntries?: unknown[];
+}
+
+/**
+ * Сверка детализации с итоговыми графами объёма финансового обеспечения:
+ * суммы по КБК, КВР и КОКС должны совпадать с суммами по годам, а строка с
+ * суммой обязана иметь код. Это правило п. 16, подп. "е" Положения N 1279 и
+ * контроль XSD ЕИС 17.0 (KBKsInfo / KVRsInfo / KOKSsInfo).
+ */
+const refinePositionFinanceDetails = (
+  position: PositionFinanceDetailSource,
+  ctx: z.RefinementCtx,
+) => {
+  for (const group of POSITION_DETAIL_GROUPS) {
+    const entries = (position[group.key] ?? []) as Array<
+      Record<string, unknown>
+    >;
+
+    if (entries.length === 0) {
+      continue;
+    }
+
+    entries.forEach((entry, index) => {
+      const hasAmount = FINANCE_AMOUNT_KEYS.some(
+        (amount) => toNumber(entry[amount.key] as string | number) !== null,
+      );
+
+      if (hasAmount && !String(entry[group.codeKey] ?? "").trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: [group.key, index, group.codeKey],
+          message: `${group.label}: укажите код в строке, где заполнены суммы`,
+        });
+      }
+    });
+
+    for (const amount of FINANCE_AMOUNT_KEYS) {
+      const positionAmount = toNumber(position[amount.key]);
+      const hasDetailAmount = entries.some(
+        (entry) => toNumber(entry[amount.key] as string | number) !== null,
+      );
+
+      if (positionAmount === null || !hasDetailAmount) {
+        continue;
+      }
+
+      const detailSum = entries.reduce(
+        (total, entry) =>
+          total + (toNumber(entry[amount.key] as string | number) ?? 0),
+        0,
+      );
+
+      if (Math.abs(positionAmount - detailSum) > 0.01) {
+        ctx.addIssue({
+          code: "custom",
+          path: [group.key],
+          message: `${group.label}: сумма по графе «${amount.label}» (${detailSum.toFixed(2)}) не совпадает с объёмом финансового обеспечения записи (${positionAmount.toFixed(2)})`,
+        });
+      }
+    }
+  }
+};
 
 // Запись плана-графика: набор граф повторяет форму ПГ из ЛК заказчика ЕИС —
 // № п/п, ИКЗ, объект закупки, планируемый год размещения извещения, объём
@@ -384,7 +530,8 @@ export const PurchasePlanPositionSchema = z
         "Объём финансового обеспечения «всего» не совпадает с суммой планируемых платежей по годам",
       path: ["amountTotal"],
     },
-  );
+  )
+  .superRefine(refinePositionFinanceDetails);
 
 export type PurchasePlanPosition = z.infer<typeof PurchasePlanPositionSchema>;
 
@@ -409,11 +556,17 @@ export const PurchasePlanSchema = z
         "Укажите номер плана-графика: 18 цифр — год (4), код заказчика по СПЗ (11), порядковый номер плана (3), например 202603770123450001",
       ),
     customer: PurchasePlanCustomerSchema,
+    // Заполняется, если план-график формирует организация, которой переданы
+    // полномочия заказчика (ownerRole = OA)
+    authorizedOrganization: PurchasePlanAuthorizedOrganizationSchema.optional(),
     planYear: z.union([z.string(), z.number()]).refine((value) => {
       const year = Number(value);
 
       return Number.isInteger(year) && year >= 2014 && year <= 2100;
     }, "Год планирования должен быть в диапазоне 2014-2100"),
+    // Раздел 1 формы ПГ: единица измерения — рубль по ОКЕИ 383
+    okeiCode: optionalPattern(/^\d{3}$/, "Код ОКЕИ состоит из 3 цифр"),
+    okeiName: optionalText(2, "Укажите наименование единицы измерения"),
     status: PurchasePlanStatusSchema,
     versionNumber: z
       .union([z.string(), z.number()])
@@ -450,10 +603,32 @@ export const PurchasePlanSchema = z
     ),
     specialPurchases: z.array(PurchasePlanSpecialPurchaseSchema).optional(),
   })
-  .refine((plan) => plan.status === "draft" || plan.positions.length > 0, {
-    message: "Размещаемый план-график должен содержать хотя бы одну запись",
-    path: ["positions"],
-  })
+  .refine(
+    (plan) =>
+      plan.status === "draft" ||
+      plan.positions.length > 0 ||
+      (plan.specialPurchases ?? []).length > 0,
+    {
+      message:
+        "Размещаемый план-график должен содержать хотя бы одну запись или особую закупку",
+      path: ["positions"],
+    },
+  )
+  .refine(
+    (plan) =>
+      plan.ownerRole !== "OA" ||
+      Boolean(
+        plan.authorizedOrganization?.fullName &&
+        plan.authorizedOrganization.inn &&
+        plan.authorizedOrganization.kpp &&
+        plan.authorizedOrganization.oktmo,
+      ),
+    {
+      message:
+        "Для роли OA укажите организацию, которой переданы полномочия заказчика: наименование, ИНН, КПП и ОКТМО",
+      path: ["authorizedOrganization"],
+    },
+  )
   .refine(
     (plan) =>
       !plan.approvalDate ||
@@ -469,18 +644,27 @@ export const PurchasePlanSchema = z
     path: ["publishDate"],
   })
   .refine(
-    (plan) =>
-      toNumber(plan.totalAmount) === null ||
-      Math.abs(
-        Number(plan.totalAmount) -
-          plan.positions.reduce(
-            (total, position) => total + (toNumber(position.amountTotal) ?? 0),
-            0,
-          ),
-      ) < 1,
+    (plan) => {
+      if (toNumber(plan.totalAmount) === null) {
+        return true;
+      }
+
+      const positionsTotal = plan.positions.reduce(
+        (total, position) => total + (toNumber(position.amountTotal) ?? 0),
+        0,
+      );
+      const specialTotal = (plan.specialPurchases ?? []).reduce(
+        (total, item) => total + (toNumber(item.amountTotal) ?? 0),
+        0,
+      );
+
+      return (
+        Math.abs(Number(plan.totalAmount) - positionsTotal - specialTotal) < 1
+      );
+    },
     {
       message:
-        "Совокупный объём не совпадает с суммой объёмов финансового обеспечения по записям ПГ",
+        "Совокупный объём не совпадает с суммой объёмов финансового обеспечения по записям и особым закупкам ПГ",
       path: ["totalAmount"],
     },
   );
@@ -909,6 +1093,8 @@ export const emptyPurchasePlan = (): PurchasePlan => {
       oktmoPpo: "",
     },
     planYear: String(year),
+    okeiCode: "383",
+    okeiName: "рубль",
     planPeriodFirstYear: String(year + 1),
     planPeriodSecondYear: String(year + 2),
     status: "draft",

@@ -3,11 +3,12 @@
  * Типового положения (приказ Минфина России от 31.07.2020 № 158н)
  * и Федерального закона № 44-ФЗ.
  *
- * Синхронизированы с полным пулом функций ORDER_158N_TASK_POOL.
+ * Список сроков строится из активной версии пула в API: после отказа от
+ * статического массива больше нет второго источника регламентных дней.
  */
 
 import type { ContractServiceFunction } from "../../services/ContractService/contractService.schema";
-import { ORDER_158N_TASK_POOL } from "../../services/Tasks/order158nTaskPool";
+import type { Order158nTaskPoolItem } from "../../services/Tasks/order158nTaskPool";
 
 export interface RegulatoryDeadline {
   functionCode: ContractServiceFunction;
@@ -22,9 +23,10 @@ export interface RegulatoryDeadline {
   reference: string;
 }
 
-// Полный перечень регламентированных сроков из пула Приказа Минфина № 158н
-export const regulatoryDeadlines: RegulatoryDeadline[] =
-  ORDER_158N_TASK_POOL.map((item) => ({
+export const regulatoryDeadlinesFromPool = (
+  pool: Order158nTaskPoolItem[],
+): RegulatoryDeadline[] =>
+  pool.map((item) => ({
     functionCode: item.functionCode,
     clause: item.clause,
     action: `${item.clause}: ${item.defaultTaskTitle}`,
@@ -36,10 +38,11 @@ export const regulatoryDeadlines: RegulatoryDeadline[] =
 // Средний срок по функции: автоподстановка в форму задачи
 export const averageDeadlineByFunction = (
   functionCode: ContractServiceFunction | undefined,
+  pool: Order158nTaskPoolItem[],
 ): number => {
   if (!functionCode) return 10;
 
-  const filtered = regulatoryDeadlines.filter(
+  const filtered = regulatoryDeadlinesFromPool(pool).filter(
     (d) => d.functionCode === functionCode,
   );
 
@@ -53,12 +56,13 @@ export const averageDeadlineByFunction = (
 // Рассчитать рекомендованный срок: дата + days (либо средний по функции)
 export const recommendedDueDate = (
   functionCode: ContractServiceFunction | undefined,
+  pool: Order158nTaskPoolItem[],
   customDays?: number,
 ): string => {
   const days =
     typeof customDays === "number" && customDays > 0
       ? customDays
-      : averageDeadlineByFunction(functionCode);
+      : averageDeadlineByFunction(functionCode, pool);
   const date = new Date();
 
   date.setDate(date.getDate() + days);
@@ -69,8 +73,11 @@ export const recommendedDueDate = (
 // Подобрать подходящие регламентированные сроки для функции
 export const getDeadlinesForFunction = (
   functionCode: ContractServiceFunction | undefined,
+  pool: Order158nTaskPoolItem[],
 ): RegulatoryDeadline[] => {
   if (!functionCode) return [];
 
-  return regulatoryDeadlines.filter((d) => d.functionCode === functionCode);
+  return regulatoryDeadlinesFromPool(pool).filter(
+    (d) => d.functionCode === functionCode,
+  );
 };

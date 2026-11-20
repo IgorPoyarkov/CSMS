@@ -1579,6 +1579,8 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
 
 ## 45. Бриф агента извлечения функций из любого документа (2026-11-20)
 
+> Бриф закрыт кодом — см. §46. Текст ниже оставлен как исходная договорённость.
+
 - **Задача:** из любого НПА/регламента/ТЗ (первый целевой — Приказ Минфина
   № 158н) получить функции и атомарные подзадачи с обратной ссылкой на пункт.
   Алгоритм документонезависимый, передаётся агенту-исполнителю как бриф.
@@ -1600,3 +1602,81 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   «глагол + объект», расхождения выносить в отчёт, а не чинить по пути.
 - **Очередь:** сегментер docx/txt → Map на 158н → Reduce → расширение на pdf и
   произвольные документы.
+
+## 46. Агент извлечения функций реализован в `csms-api` (2026-11-20)
+
+- **Код:** `src/Csms.Application/DocumentFunctionContracts.cs`,
+  `DocumentFunctionStore.cs`; `src/Csms.Infrastructure/Documents/` (text extractor,
+  segmenter, Map, response parser, normalizer, validator, reducer, in-memory store,
+  orchestrator); `src/Csms.Api/DocumentFunctionsEndpoints.cs`; DI и секция
+  `DocumentFunctions` в `Program.cs` / `appsettings.json`.
+- **Endpoint'ы:** `GET /api/documents/config`, `POST /api/documents/extract?dryRun=true`
+  (multipart `file`, `.docx/.pdf/.txt/.md`, до 32 МБ), `GET /api/documents/{sha256}/functions`,
+  `GET /api/documents/{sha256}/report`, `POST /api/documents/functions/{id}/verify`.
+- **Конвейер:** Ingest (Docnet+Tesseract для PDF) → сегментация с ancestors →
+  Map (14B, `temperature=0`, `json_object`, батч 4, массив `results`) →
+  Validate (цитата подстрока сегмента, срок/роль/условие из сегмента или предков) →
+  Reduce (точный нормализованный ключ, все `source_paths` сохраняются) →
+  `needs_review`. Версия набора = `sha256 + prompt + taxonomy + model`.
+- **Тесты:** `tests/Csms.Tests/DocumentFunctionAgentTests.cs` — 7 тестов без LLM;
+  `dotnet build` 0/0, `dotnet test` **76 passed / 3 skipped** (Postgres).
+  Исправлено по ходу: разделы верхнего уровня (уровень -1) теперь попадают в
+  `ancestors`; подтверждение функции применяется ко всем версиям одного sha256;
+  глагол в цитате сверяется и с исходной формой, и с инфинитивом.
+- **Эталон:** `csms-api/tests/Csms.Tests/Fixtures/order158n-golden.json` — 41 пункт
+  из `order158nTaskPool.ts`. Живой прогон по официальному PDF 158н
+  (`0001202010200032`, 10 стр.) запущен, результат сравнивается с эталоном.
+- **Ограничения честно:** хранилище in-memory (до перезапуска API), граф
+  зависимостей и нечёткие пары Reduce не сделаны, UI очереди проверки нет —
+  подтверждение пока только через HTTP.
+- **Живые прогоны (2026-11-20):** первый запуск 158н упал с HTTP 500 — 14B
+  генерировала без лимита и уперлась в `HttpClient.Timeout=300`, а
+  `OperationCanceledException` от HttpClient валил весь прогон. Исправлено:
+  `max_tokens=2048`, таймаут 900 с, `MaxRetries=1`, таймаут считается failed-сегментом.
+  Второй запуск показал, что Qwen воспроизводит 158н по памяти и выдумывает цитаты;
+  добавлены запрет на это в промпт, few-shot пример и напоминание в user-prompt.
+  На контрольном файле из 3 пунктов после правок: `candidatesBefore=3`,
+  `quotesRejected=1`, `uncovered=[]` — валидатор отсекает галлюцинации.
+- **Следующий шаг:** сверить полный живой прогон с 41 пунктом эталона, добавить
+  персистентность версий и граф зависимостей, затем подключить результат к
+  карточкам функций контрактной службы на фронте.
+
+## 47. Пул 158н и ОКПД2 в хедере (2026-11-20)
+
+- **Пул 158н больше не в TS:** 41 пункт перенесён в `csms-api` как версия
+  справочника `order158nPool` (`src/Csms.Infrastructure/Seeds/order158n-pool.json`,
+  SHA-256 `F8820D98…D14AC`). Каталог
+  `src/Csms.Infrastructure/Order158nPoolCatalog.cs` один раз импортирует эталон
+  в `IReferenceDataStore` (память/PostgreSQL) и дальше читает только оттуда.
+  Версия `order-158n-2020-07-31-v1`, `publishedAt` приводится к UTC (иначе
+  Npgsql падает на `DateTimeOffset` с offset +03:00).
+- **API:** `GET /api/order158n/pool` (41 пункт + реквизиты источника) и
+  `GET /api/order158n/pool/{id}` (по ID или `п. 3.1.1`). Датасет виден в
+  `/api/references/datasets`. Тесты `Order158nPoolTests` — 2 новых, всего
+  `dotnet test` **79 passed / 3 skipped**, `dotnet build` 0/0.
+- **Фронт:** `order158nTaskPool.ts` теперь только типы, `useOrder158nPool()`,
+  `filterPoolItems`/`findPoolItem` и чистые функции шагов. Потребители
+  (`TasksPage`, `TaskAssignModal`, `TaskDetailPage`, `MyTasks`,
+  `ContractServiceForm`, `regulatoryDeadlines`) получают пул через react-query.
+  Проверки: `npx.cmd oxlint src` — только先前ние warning'и; `npx.cmd vite build`
+  — успешно (exit 0). `npx.cmd tsc -b` падает **на чужом, не тронутом нами
+  файле** `src/components/NoticeInfoForm/sections/AttachedDocsSection.tsx:106`
+  (`additional_requirements` не входит в тип), это незавершённая работа другого
+  агента, не чиним по указанию AGENTS.md.
+- **Хедер:** добавлен прямой пункт «ОКПД2» → `/okpd2`. В справке агентов
+  карточка «Извлечение функций из документа»; оба агента НПА и агент извлечения
+  упоминают активный справочник ОКПД2. `db.json` теперь только оверлей признаков
+  для существующих кодов, «лишние» 48 локальных кодов из выдачи убраны: страница
+  показывает ровно 21 066 кодов из `/api/references/nsiOKPD2/all` (проверено в
+  браузере с `EIS_STORE=postgres`). Буквенные разделы A–U也不能 отбрасывать:
+  это часть официального снимка, всего 21 066 строк.
+- **PostgreSQL payload:** `EfCoreReferenceDataStore.GetAllAsync` намеренно не
+  тянет `PayloadJson` (ОКПД2 — десятки МБ), из-за чего первый postgres-прогон
+  вернул 41 пункт с null-полями и `/tasks` упал на `.length`. Добавлен
+  `IReferenceDataStore.GetAllWithPayloadAsync` (в memory — алиас на GetAllAsync,
+  в EF — выборка с `PayloadJson`); каталог пула использует его. После
+  пересборки и перезапуска с `EIS_STORE=postgres` `/api/order158n/pool` снова
+  отдаёт 41 полноценный пункт, `/tasks` показывает 41 без ошибки.
+- **Не закрыто:** качество полного прогона 158н (`segmentsTotal=62`,
+  `processed=31`, `failedSegments=31`, `coverage=8/41`) — нужен repair-проход
+  или привязка цитат к сегментам; хранилище результатов извлечения in-memory.

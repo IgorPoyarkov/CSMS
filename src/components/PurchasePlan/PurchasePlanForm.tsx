@@ -120,6 +120,9 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
   const isPending = createPlan.isPending || updatePlan.isPending;
   const mutationError = createPlan.error ?? updatePlan.error;
   const customer = useWatch({ control, name: "customer" });
+  const ownerRole = useWatch({ control, name: "ownerRole" });
+  const okeiCode = useWatch({ control, name: "okeiCode" });
+  const okeiName = useWatch({ control, name: "okeiName" });
   // Новый план-график формируется только после того, как заказчик указал
   // способ создания контрактной службы (п. 2.1 приказа N 158н). Уже
   // сформированные планы при этом остаются доступными для правки.
@@ -267,7 +270,10 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
               ))}
 
               <div className={block("field")}>
-                <label className={block("label")} htmlFor="purchase-plan-owner-role">
+                <label
+                  className={block("label")}
+                  htmlFor="purchase-plan-owner-role"
+                >
                   Роль владельца версии (ЕИС 17.0)
                 </label>
                 <select
@@ -314,7 +320,9 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
               />
               <CustomInput
                 configuration={{
-                  label: { value: "Дата направления на контроль (ч. 5 ст. 99)" },
+                  label: {
+                    value: "Дата направления на контроль (ч. 5 ст. 99)",
+                  },
                   input: { name: "directDate", type: "date" },
                 }}
               />
@@ -391,6 +399,14 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
                   </li>
                   <li className={block("customer-item")}>
                     <span className={block("customer-label")}>
+                      ОКОПФ / ОКФС
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.okopf || "—"} / {customer.okfs || "—"}
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
                       Код по СПЗ / ОКТМО (ЕИС 17.0)
                     </span>
                     <span className={block("customer-value")}>
@@ -398,24 +414,43 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
                       {customer.oktmo || "—"}
                     </span>
                   </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Единица измерения (ОКЕИ)
+                    </span>
+                    <span className={block("customer-value")}>
+                      {okeiCode || "383"} — {okeiName || "рубль"}
+                    </span>
+                  </li>
                 </ul>
                 <div className={block("grid")}>
                   <CustomInput
                     configuration={{
-                      label: { value: "Код организации по СПЗ (11 цифр, ЕИС 17.0)" },
-                      input: { name: "customer.regNum", placeholder: "00000000000" },
+                      label: {
+                        value: "Код организации по СПЗ (11 цифр, ЕИС 17.0)",
+                      },
+                      input: {
+                        name: "customer.regNum",
+                        placeholder: "00000000000",
+                      },
                     }}
                   />
                   <CustomInput
                     configuration={{
                       label: { value: "Код по Сводному реестру (СвР)" },
-                      input: { name: "customer.consRegistryNum", placeholder: "001Ж0000" },
+                      input: {
+                        name: "customer.consRegistryNum",
+                        placeholder: "001Ж0000",
+                      },
                     }}
                   />
                   <CustomInput
                     configuration={{
                       label: { value: "Код ОКТМО организации" },
-                      input: { name: "customer.oktmo", placeholder: "38701000" },
+                      input: {
+                        name: "customer.oktmo",
+                        placeholder: "38701000",
+                      },
                     }}
                   />
                 </div>
@@ -427,6 +462,95 @@ export default function PurchasePlanForm({}: PurchasePlanFormProps) {
               </>
             )}
           </fieldset>
+
+          {ownerRole === "OA" && (
+            <fieldset className={block("section")}>
+              <legend>
+                Организация, которой переданы полномочия заказчика
+              </legend>
+              <div className={block("grid")}>
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value: "Полное наименование организации",
+                    },
+                    input: {
+                      name: "authorizedOrganization.fullName",
+                      placeholder: "Государственное бюджетное учреждение «...»",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "ИНН организации" },
+                    input: {
+                      name: "authorizedOrganization.inn",
+                      placeholder: "0000000000",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "КПП организации" },
+                    input: {
+                      name: "authorizedOrganization.kpp",
+                      placeholder: "000000000",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value:
+                        "Место нахождения, телефон, адрес электронной почты",
+                    },
+                    input: {
+                      name: "authorizedOrganization.legalAddress",
+                      placeholder: "Адрес местонахождения организации",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Телефон организации" },
+                    input: {
+                      name: "authorizedOrganization.phone",
+                      placeholder: "8-000-000-00-00",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Адрес электронной почты организации" },
+                    input: {
+                      name: "authorizedOrganization.email",
+                      placeholder: "org@example.ru",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Код ОКТМО организации" },
+                    input: {
+                      name: "authorizedOrganization.oktmo",
+                      placeholder: "00000000",
+                    },
+                  }}
+                />
+              </div>
+              {errorMessage("authorizedOrganization") && (
+                <p className={block("error")}>
+                  {errorMessage("authorizedOrganization")}
+                </p>
+              )}
+              <p className={block("hint")}>
+                Заполняется по пункту 14, подпункту «ж» Положения N 1279, если
+                план-график формирует бюджетное, автономное учреждение,
+                унитарное предприятие или иное юридическое лицо, которому
+                переданы полномочия заказчика.
+              </p>
+            </fieldset>
+          )}
 
           <fieldset className={block("section")}>
             <legend>Записи плана-графика ({positions.fields.length})</legend>

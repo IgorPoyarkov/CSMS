@@ -167,6 +167,7 @@ export default function PurchasePlanPositionForm({
     formState: { errors },
   } = methods;
   const kbkEntries = useFieldArray({ control, name: "kbkEntries" });
+  const kvrEntries = useFieldArray({ control, name: "kvrEntries" });
   const koksEntries = useFieldArray({ control, name: "koksEntries" });
   // Дополнительные коды ОКПД2: один основной селект и любое число добавленных
   const okpd2Items = useFieldArray({ control, name: "okpd2Items" });
@@ -197,6 +198,7 @@ export default function PurchasePlanPositionForm({
   const authorizedBodyName = useWatch({ control, name: "authorizedBodyName" });
   const jointOrganizerName = useWatch({ control, name: "jointOrganizerName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
+  const kvrEntriesValues = useWatch({ control, name: "kvrEntries" });
   const koksEntriesValues = useWatch({ control, name: "koksEntries" });
   // ИКУ заказчика в карточке не вводится: он уже есть у заказчика. Берём
   // сохранённое значение; если его нет, ИКУ соберётся из ИНН и КПП
@@ -249,8 +251,7 @@ export default function PurchasePlanPositionForm({
   }, [positions, purchaseNumber, position.id]);
 
   // КБК первой строки детализации; КВР — последние 3 разряда (или резерв)
-  const resolvedKbk =
-    buildKbk(kbkEntriesValues?.[0] ?? {}) || kbk || "";
+  const resolvedKbk = buildKbk(kbkEntriesValues?.[0] ?? {}) || kbk || "";
   const resolvedKvr =
     resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : kvr || "";
 
@@ -311,6 +312,20 @@ export default function PurchasePlanPositionForm({
     return totals;
   }, [kbkEntriesValues]);
 
+  // Итоги по КВР — строка «Итого» под таблицей детализации
+  const kvrTotals = useMemo(() => {
+    const totals = {} as Record<AmountKey, number>;
+
+    for (const field of AMOUNT_FIELDS) {
+      totals[field.key] = (kvrEntriesValues ?? []).reduce(
+        (sum, entry) => sum + (toNumber(entry?.[field.key]) ?? 0),
+        0,
+      );
+    }
+
+    return totals;
+  }, [kvrEntriesValues]);
+
   // Три признака ЕИС взаимоисключающие: энергосервис, кредит, ОКС.
   // «Информация, не подлежащая размещению» (notPublishedOnEIS) от них не зависит.
   const exclusiveFlags = [
@@ -369,8 +384,10 @@ export default function PurchasePlanPositionForm({
       kbk: entry.kbk || buildKbk(entry),
     }));
     const saveKbk = kbkEntriesData[0]?.kbk || data.kbk || "";
-    // КВР — из КБК (последние 3 разряда), отдельное значение только резерв
-    const saveKvr = saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "";
+    // КВР — из детализации по КВР, иначе из КБК (последние 3 разряда)
+    const saveKvr =
+      data.kvrEntries?.[0]?.kvr ||
+      (saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "");
 
     // Несколько кодов ОКПД2 сохраняются массивом okpd2Items: это и есть
     // «склеенный» набор для бэка, а в ИКЗ ставится «0000»
@@ -1026,6 +1043,95 @@ export default function PurchasePlanPositionForm({
               </p>
             </div>
 
+            <div className={block("subblock")}>
+              <h3 className={block("subtitle")}>
+                Детализация по кодам видов расходов (КВР) (
+                {kvrEntries.fields.length})
+              </h3>
+
+              <div className={block("table-wrap")}>
+                <table className={block("table", ["kbk"])}>
+                  <thead>
+                    <tr>
+                      <th>КВР</th>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <th key={field.key}>{amountHeaders[field.key]}</th>
+                      ))}
+                      <th>Действие</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kvrEntries.fields.map((field, entryIndex) => (
+                      <tr key={field.id}>
+                        <td>
+                          <input
+                            className={block("input")}
+                            placeholder="244"
+                            aria-label="Код вида расходов"
+                            maxLength={3}
+                            list="kvr-options"
+                            {...register(`kvrEntries.${entryIndex}.kvr`)}
+                          />
+                        </td>
+                        {AMOUNT_FIELDS.map((amount) => (
+                          <td key={amount.key}>
+                            <CustomInput
+                              configuration={{
+                                input: {
+                                  name: `kvrEntries.${entryIndex}.${amount.key}`,
+                                  placeholder: "0.00",
+                                },
+                              }}
+                            />
+                          </td>
+                        ))}
+                        <td>
+                          <button
+                            type="button"
+                            className={block("remove")}
+                            onClick={() => kvrEntries.remove(entryIndex)}
+                          >
+                            Убрать
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td colSpan={1 + AMOUNT_FIELDS.length + 1}>
+                        <button
+                          type="button"
+                          className={block("add")}
+                          onClick={() => kvrEntries.append({ kvr: "" })}
+                        >
+                          Добавить КВР
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className={block("cell", ["right"])}>Итого по КВР</td>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <td
+                          key={field.key}
+                          className={block("cell", ["total"])}
+                        >
+                          {formatMoney(kvrTotals[field.key])}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className={block("hint")}>
+                Детализация по КВР заполняется бюджетными и автономными
+                учреждениями; суммы по годам должны совпадать с объёмом
+                финансового обеспечения записи (п. 16, подп. «е» Положения N
+                1279).
+              </p>
+            </div>
+
             {(isConstructionWorks || koksEntries.fields.length > 0) && (
               <div className={block("subblock")}>
                 <h3 className={block("subtitle")}>
@@ -1041,8 +1147,7 @@ export default function PurchasePlanPositionForm({
                             // Подпись выводится в каждой строке: иначе поля
                             // кода и сумм встают на разной высоте
                             label: {
-                              value:
-                                entryIndex === 0 ? "Код КОКС" : "\u00A0",
+                              value: entryIndex === 0 ? "Код КОКС" : "\u00A0",
                             },
                             input: {
                               name: `koksEntries.${entryIndex}.koksCode`,
@@ -1106,7 +1211,6 @@ export default function PurchasePlanPositionForm({
               </div>
             )}
           </fieldset>
-
 
           <footer className={block("footer")}>
             {errorText("objectOfPurchase") && (

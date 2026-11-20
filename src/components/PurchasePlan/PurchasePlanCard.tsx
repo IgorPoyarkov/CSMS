@@ -107,7 +107,10 @@ export default function PurchasePlanCard() {
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   // Потребности / служебные записки по позициям ПГ
   const { data: purchaseNotes = [] } = usePurchaseNotes(organizationId);
-  const { data: planVersions = [] } = usePurchasePlanVersions(id, organizationId);
+  const { data: planVersions = [] } = usePurchasePlanVersions(
+    id,
+    organizationId,
+  );
   const [confirmDeletePositionId, setConfirmDeletePositionId] = useState<
     string | null
   >(null);
@@ -367,7 +370,10 @@ export default function PurchasePlanCard() {
               </span>
             )}
             {posNotes.map((note) => (
-              <div key={String(note.id ?? note.noteNumber)} className={block("note-status-line")}>
+              <div
+                key={String(note.id ?? note.noteNumber)}
+                className={block("note-status-line")}
+              >
                 <span className={block("sub", ["compact"])}>
                   СЗ №{note.noteNumber}:
                 </span>
@@ -545,22 +551,13 @@ export default function PurchasePlanCard() {
           </h1>
         </div>
         <div className={block("actions")}>
-          <button
-            type="button"
-            onClick={() => setIsVersionsOpen(true)}
-          >
+          <button type="button" onClick={() => setIsVersionsOpen(true)}>
             История версий ({planVersions.length})
           </button>
-          <button
-            type="button"
-            onClick={() => setShowEisXml((prev) => !prev)}
-          >
+          <button type="button" onClick={() => setShowEisXml((prev) => !prev)}>
             {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
           </button>
-          <button
-            type="button"
-            onClick={() => navigate("/purchase-notes")}
-          >
+          <button type="button" onClick={() => navigate("/purchase-notes")}>
             Реестр потребностей (СЗ)
           </button>
         </div>
@@ -592,15 +589,28 @@ export default function PurchasePlanCard() {
           </li>
           <li className={block("field")}>
             <span className={block("field-label")}>
-              Объём финансового обеспечения (сумма записей)
+              Объём финансового обеспечения (с учётом особых закупок)
             </span>
             <span className={block("field-value", ["total"])}>
               {formatMoney(planTotalAmount(plan))}
             </span>
           </li>
           <li className={block("field")}>
-            <span className={block("field-label")}>Записей в плане</span>
-            <span className={block("field-value")}>{positions.length}</span>
+            <span className={block("field-label")}>
+              Записей в плане (позиции + особые закупки)
+            </span>
+            <span className={block("field-value")}>
+              {positions.length + (plan.specialPurchases ?? []).length}
+            </span>
+          </li>
+          <li className={block("field")}>
+            <span className={block("field-label")}>
+              Единица измерения (ОКЕИ)
+            </span>
+            <span className={block("field-value")}>
+              {plan.okeiCode || "383"}
+              {plan.okeiName ? ` · ${plan.okeiName}` : " · рубль"}
+            </span>
           </li>
           <li className={block("field")}>
             <span className={block("field-label")}>
@@ -618,53 +628,72 @@ export default function PurchasePlanCard() {
           {customer.inn ? ` · ИНН ${customer.inn}` : ""}
           {customer.kpp ? ` · КПП ${customer.kpp}` : ""}
           {customer.regNum ? ` · СПЗ ${customer.regNum}` : ""}
+          {customer.okopf ? ` · ОКОПФ ${customer.okopf}` : ""}
+          {customer.okfs ? ` · ОКФС ${customer.okfs}` : ""}
+          {customer.oktmo ? ` · ОКТМО ${customer.oktmo}` : ""}
         </p>
+        {plan.ownerRole === "OA" && (
+          <p className={block("note")}>
+            Полномочия заказчика переданы:{" "}
+            {plan.authorizedOrganization?.fullName || "организация не указана"}
+            {plan.authorizedOrganization?.inn
+              ? ` · ИНН ${plan.authorizedOrganization.inn}`
+              : ""}
+            {plan.authorizedOrganization?.kpp
+              ? ` · КПП ${plan.authorizedOrganization.kpp}`
+              : ""}
+            {plan.authorizedOrganization?.oktmo
+              ? ` · ОКТМО ${plan.authorizedOrganization.oktmo}`
+              : ""}
+          </p>
+        )}
 
-        {showEisXml && (() => {
-          const validation = validatePurchasePlanEis17(plan);
-          const xmlPreview = buildTenderPlan2020XmlPreview(plan);
-          return (
-            <div className={block("eis-preview")}>
-              <div className={block("eis-preview-head")}>
-                <strong>
-                  Контроль схемы ЕИС 17.0 (tenderPlan2020Type):{" "}
-                  {validation.valid
-                    ? "ошибок XSD нет"
-                    : `ошибок: ${validation.errorsCount}`}
-                  {validation.warningsCount > 0
-                    ? `, предупреждений: ${validation.warningsCount}`
-                    : ""}
-                </strong>
-                <button
-                  type="button"
-                  className={block("edit-btn")}
-                  onClick={() =>
-                    downloadText(
-                      xmlPreview,
-                      `tenderPlan2020_${plan.planNumber || "draft"}.xml`,
-                      "application/xml;charset=utf-8",
-                    )
-                  }
-                >
-                  Скачать XML 17.0
-                </button>
+        {showEisXml &&
+          (() => {
+            const validation = validatePurchasePlanEis17(plan);
+            const xmlPreview = buildTenderPlan2020XmlPreview(plan);
+            return (
+              <div className={block("eis-preview")}>
+                <div className={block("eis-preview-head")}>
+                  <strong>
+                    Контроль схемы ЕИС 17.0 (tenderPlan2020Type):{" "}
+                    {validation.valid
+                      ? "ошибок XSD нет"
+                      : `ошибок: ${validation.errorsCount}`}
+                    {validation.warningsCount > 0
+                      ? `, предупреждений: ${validation.warningsCount}`
+                      : ""}
+                  </strong>
+                  <button
+                    type="button"
+                    className={block("edit-btn")}
+                    onClick={() =>
+                      downloadText(
+                        xmlPreview,
+                        `tenderPlan2020_${plan.planNumber || "draft"}.xml`,
+                        "application/xml;charset=utf-8",
+                      )
+                    }
+                  >
+                    Скачать XML 17.0
+                  </button>
+                </div>
+                {validation.issues.length > 0 && (
+                  <ul className={block("eis-issues")}>
+                    {validation.issues.map((issue, idx) => (
+                      <li
+                        key={`${issue.field}-${idx}`}
+                        className={block("eis-issue", [issue.severity])}
+                      >
+                        {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <pre className={block("eis-xml")}>{xmlPreview}</pre>
               </div>
-              {validation.issues.length > 0 && (
-                <ul className={block("eis-issues")}>
-                  {validation.issues.map((issue, idx) => (
-                    <li
-                      key={`${issue.field}-${idx}`}
-                      className={block("eis-issue", [issue.severity])}
-                    >
-                      {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <pre className={block("eis-xml")}>{xmlPreview}</pre>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         {/* Форма записи и состав граф берутся из актов реестра: при правке
             нормы меняется запись реестра, а не подписи в таблице */}
@@ -691,134 +720,134 @@ export default function PurchasePlanCard() {
 
       {activeTab === "positions" && (
         <>
-      {/* Основная кнопка добавления записи — над таблицей записей */}
-      <button
-        type="button"
-        className={block("add-btn")}
-        onClick={() => navigate(`/purchase-plans/${planId}/positions/new`)}
-      >
-        Добавить запись
-      </button>
+          {/* Основная кнопка добавления записи — над таблицей записей */}
+          <button
+            type="button"
+            className={block("add-btn")}
+            onClick={() => navigate(`/purchase-plans/${planId}/positions/new`)}
+          >
+            Добавить запись
+          </button>
 
-      <fieldset className={block("section")}>
-        <legend>
-          Записи плана-графика ({filteredPositions.length} из {positions.length}
-          )
-        </legend>
+          <fieldset className={block("section")}>
+            <legend>
+              Записи плана-графика ({filteredPositions.length} из{" "}
+              {positions.length})
+            </legend>
 
-        {positions.length === 0 ? (
-          <p className={block("status")}>
-            Записи плана-графика не внесены — добавьте их в режиме
-            редактирования.
-          </p>
-        ) : (
-          <>
-            <div className={block("toolbar")}>
-              <input
-                className={block("search")}
-                type="search"
-                placeholder="Поиск по ИКЗ, номеру закупки, объекту закупки, ОКПД2 или КБК…"
-                value={searchQuery}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  setPage(1);
-                }}
-              />
-
-              <PageSizePicker
-                sizes={[...PAGE_SIZES, ALL_PAGES]}
-                value={pageSize}
-                allLabel="все"
-                onChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
-              />
-            </div>
-
-            {visiblePositions.length === 0 ? (
+            {positions.length === 0 ? (
               <p className={block("status")}>
-                По заданным условиям записей плана-графика не найдено.
+                Записи плана-графика не внесены — добавьте их в режиме
+                редактирования.
               </p>
             ) : (
-              <div
-                className={
-                  openActionsPositionId
-                    ? block("table-wrapper", ["open"])
-                    : block("table-wrapper")
-                }
-              >
-                <table className={block("table")}>
-                  <thead>
-                    {/* Шапка в две строки, как в форме ПГ: под «Номером
+              <>
+                <div className={block("toolbar")}>
+                  <input
+                    className={block("search")}
+                    type="search"
+                    placeholder="Поиск по ИКЗ, номеру закупки, объекту закупки, ОКПД2 или КБК…"
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setPage(1);
+                    }}
+                  />
+
+                  <PageSizePicker
+                    sizes={[...PAGE_SIZES, ALL_PAGES]}
+                    value={pageSize}
+                    allLabel="все"
+                    onChange={(size) => {
+                      setPageSize(size);
+                      setPage(1);
+                    }}
+                  />
+                </div>
+
+                {visiblePositions.length === 0 ? (
+                  <p className={block("status")}>
+                    По заданным условиям записей плана-графика не найдено.
+                  </p>
+                ) : (
+                  <div
+                    className={
+                      openActionsPositionId
+                        ? block("table-wrapper", ["open"])
+                        : block("table-wrapper")
+                    }
+                  >
+                    <table className={block("table")}>
+                      <thead>
+                        {/* Шапка в две строки, как в форме ПГ: под «Номером
                         закупки» и «Наименованием объекта закупки» стоит ИКЗ,
                         остальные графы занимают обе строки */}
-                    <tr>
-                      <th rowSpan={2} className={block("th", ["year"])}>
-                        Планируемый год размещения извещения, направления
-                        приглашения, заключения контракта с единственным
-                        поставщиком (подрядчиком, исполнителем)
-                      </th>
-                      <th
-                        className={block("th", ["narrow"])}
-                        data-col="number"
-                      >
-                        Номер закупки, включенной в план-график
-                      </th>
-                      <th>Наименование объекта (объектов) закупки</th>
-                      <th rowSpan={2}>
-                        Наименование товара, работы, услуги по ОКПД2
-                      </th>
-                      <th rowSpan={2}>
-                        Объём финансового обеспечения, всего (рублей)
-                      </th>
-                      <th rowSpan={2} className={block("th", ["narrow"])}>
-                        Статус
-                      </th>
-                      <th rowSpan={2} className={block("th", ["narrow"])}>
-                        Обязательное общественное обсуждение
-                      </th>
-                      <th rowSpan={2}>Действия</th>
-                    </tr>
-                    <tr>
-                      <th colSpan={2}>Идентификационный код закупки</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visiblePositions.map((position, index) =>
-                      renderPositionRow(position, index % 2 === 1),
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                        <tr>
+                          <th rowSpan={2} className={block("th", ["year"])}>
+                            Планируемый год размещения извещения, направления
+                            приглашения, заключения контракта с единственным
+                            поставщиком (подрядчиком, исполнителем)
+                          </th>
+                          <th
+                            className={block("th", ["narrow"])}
+                            data-col="number"
+                          >
+                            Номер закупки, включенной в план-график
+                          </th>
+                          <th>Наименование объекта (объектов) закупки</th>
+                          <th rowSpan={2}>
+                            Наименование товара, работы, услуги по ОКПД2
+                          </th>
+                          <th rowSpan={2}>
+                            Объём финансового обеспечения, всего (рублей)
+                          </th>
+                          <th rowSpan={2} className={block("th", ["narrow"])}>
+                            Статус
+                          </th>
+                          <th rowSpan={2} className={block("th", ["narrow"])}>
+                            Обязательное общественное обсуждение
+                          </th>
+                          <th rowSpan={2}>Действия</th>
+                        </tr>
+                        <tr>
+                          <th colSpan={2}>Идентификационный код закупки</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visiblePositions.map((position, index) =>
+                          renderPositionRow(position, index % 2 === 1),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
-            {isPaged && filteredPositions.length > 0 && (
-              <div className={block("pagination")}>
-                <button
-                  type="button"
-                  className={block("page-btn")}
-                  disabled={currentPage === 1}
-                  onClick={() => setPage(currentPage - 1)}
-                >
-                  ← Назад
-                </button>
-                <span className={block("page-info")}>
-                  Страница {currentPage} из {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className={block("page-btn")}
-                  disabled={currentPage === totalPages}
-                  onClick={() => setPage(currentPage + 1)}
-                >
-                  Вперёд →
-                </button>
-              </div>
+                {isPaged && filteredPositions.length > 0 && (
+                  <div className={block("pagination")}>
+                    <button
+                      type="button"
+                      className={block("page-btn")}
+                      disabled={currentPage === 1}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      ← Назад
+                    </button>
+                    <span className={block("page-info")}>
+                      Страница {currentPage} из {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className={block("page-btn")}
+                      disabled={currentPage === totalPages}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      Вперёд →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </fieldset>
+          </fieldset>
         </>
       )}
 

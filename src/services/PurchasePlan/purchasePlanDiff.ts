@@ -15,11 +15,7 @@ export interface HeaderFieldDiff {
   after: string;
 }
 
-export type PositionChangeKind =
-  | "added"
-  | "removed"
-  | "modified"
-  | "unchanged";
+export type PositionChangeKind = "added" | "removed" | "modified" | "unchanged";
 
 export interface PositionFieldDiff {
   field: string;
@@ -81,10 +77,18 @@ const normStr = (val: unknown): string => {
 const planSum = (plan: PurchasePlan): number => {
   const declared = toNumber(plan.totalAmount);
   if (declared !== null) return declared;
-  return (plan.positions ?? []).reduce(
+
+  // Итог ПГ по Положению N 1279 = позиции + особые закупки
+  const positionsSum = (plan.positions ?? []).reduce(
     (s, p) => s + (toNumber(p.amountTotal) ?? 0),
     0,
   );
+  const specialSum = (plan.specialPurchases ?? []).reduce(
+    (s, p) => s + (toNumber(p.amountTotal) ?? 0),
+    0,
+  );
+
+  return positionsSum + specialSum;
 };
 
 const positionMatchKey = (
@@ -118,11 +122,27 @@ const POSITION_COMPARED_FIELDS: {
   {
     key: "status",
     label: "Статус позиции",
-    format: (v) => (v ? posStatusLabels[String(v)] ?? String(v) : "Запланирована"),
+    format: (v) =>
+      v ? (posStatusLabels[String(v)] ?? String(v)) : "Запланирована",
   },
   {
     key: "isPublicDiscussionRequired",
     label: "Общественное обсуждение",
+    format: (v) => (v ? "Да" : "Нет"),
+  },
+  {
+    key: "isEnergyServiceContract",
+    label: "Энергосервисный контракт",
+    format: (v) => (v ? "Да" : "Нет"),
+  },
+  {
+    key: "isConstructionWorks",
+    label: "Строительство, реконструкция ОКС",
+    format: (v) => (v ? "Да" : "Нет"),
+  },
+  {
+    key: "isNotFederalFinancing",
+    label: "Без софинансирования из федерального бюджета",
     format: (v) => (v ? "Да" : "Нет"),
   },
 ];
@@ -138,6 +158,17 @@ export const diffPurchasePlans = (
   }[] = [
     { key: "planNumber", label: "Номер плана-графика" },
     { key: "planYear", label: "Год планирования" },
+    {
+      key: "okeiCode",
+      label: "Единица измерения (ОКЕИ)",
+      format: (v) => (v ? String(v) : "383"),
+    },
+    {
+      key: "ownerRole",
+      label: "Роль владельца версии (ЕИС)",
+      format: (v) =>
+        v === "OA" ? "OA — организация с полномочиями" : "CU — заказчик",
+    },
     {
       key: "status",
       label: "Статус",
@@ -263,7 +294,8 @@ export const diffPurchasePlans = (
         ),
         identificationCode:
           afterPos.identificationCode || beforePos.identificationCode || "—",
-        objectOfPurchase: afterPos.objectOfPurchase || beforePos.objectOfPurchase,
+        objectOfPurchase:
+          afterPos.objectOfPurchase || beforePos.objectOfPurchase,
         beforeAmount,
         afterAmount,
         amountDelta: delta,

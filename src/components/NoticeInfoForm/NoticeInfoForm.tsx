@@ -29,10 +29,7 @@ import {
   criterionToNoticeType,
   normalizeCriteria,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
-import {
-  MIN_PROCEDURE_DAYS,
-  placingWayFamily,
-} from "./noticeInfo.config";
+import { MIN_PROCEDURE_DAYS, placingWayFamily } from "./noticeInfo.config";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import {
   formatCharacteristicValue,
@@ -360,8 +357,12 @@ const NoticeInfoForm = () => {
         isGOZ: false,
         notPublishedOnEIS: false,
         article15Features: "",
+        article15Part: "",
         isBudgetUnionState: false,
         is449Features: false,
+        maxContractPrice: undefined,
+        initialUnitPriceSum: undefined,
+        antitrustWarning: true,
       },
       purchaseObjectsCh9St37: false,
       contactInfo: {
@@ -387,6 +388,7 @@ const NoticeInfoForm = () => {
       },
       contractConditions: {
         currency: "РОССИЙСКИЙ РУБЛЬ",
+        currencyCode: "643",
         usePriceFormulaPP19: false,
         priceFormulaText: "",
         isForeignCurrencyNmck: false,
@@ -441,6 +443,7 @@ const NoticeInfoForm = () => {
         isStructuredForm: true,
         isIndeterminateVolume: false,
         items: [],
+        medicines: [],
         normingRequirements: [],
       },
       objectDescription: {
@@ -864,7 +867,10 @@ const NoticeInfoForm = () => {
       }
       if (matchedNote.deliveryTermMode === "absolute") {
         if (matchedNote.desiredStartDate) {
-          setValue("contractConditions.startDate", matchedNote.desiredStartDate);
+          setValue(
+            "contractConditions.startDate",
+            matchedNote.desiredStartDate,
+          );
         }
         if (matchedNote.desiredEndDate) {
           setValue("contractConditions.endDate", matchedNote.desiredEndDate);
@@ -1096,7 +1102,6 @@ const NoticeInfoForm = () => {
 
       if (additions.length > 0) {
         setValue("attachedDocs", [...existingDocs, ...additions]);
-
       }
 
       if (matchedNote.advantageSmpPart3Art30 !== undefined) {

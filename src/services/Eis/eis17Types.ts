@@ -171,6 +171,11 @@ export interface EisTenderPlan2020Organization {
   factAddress?: string;
   phone?: string;
   email?: string;
+  // Раздел 1 формы ПГ: ОКОПФ, ОКФС и ОКТМО ППО заказчика
+  // (tenderPlan2020CommonInfoType/customerInfo)
+  okopf?: string;
+  okfs?: string;
+  oktmoPpo?: string;
 }
 
 export interface EisTenderPlan2020Position {
@@ -225,6 +230,7 @@ export interface EisTenderPlan2020SpecialPurchase {
   publishYear?: number;
   purchaseNumber?: string;
   modificationStatus?: "N" | "E";
+  isNotFederalFinancing?: boolean;
   financeInfo: EisTenderPlan2020FinanceResources;
 }
 
@@ -274,9 +280,25 @@ export const EIS_NOTIFICATION_TYPE_LABELS: Record<EisNotificationType, string> =
     EOK2020: "notificationEOK2020 — Открытый конкурс в ЭФ (ЭОК20)",
     EZK2020: "notificationEZK2020 — Запрос котировок в ЭФ (ЭЗК20)",
     EZT2020: "notificationEZT2020 — Закупка товара по ч. 12 ст. 93 (ЭЗТ20)",
-    EMZ2025: "notificationEMZ2025 — Закупка у ед. поставщика (п. 4–5 ч. 1 ст. 93)",
+    EMZ2025:
+      "notificationEMZ2025 — Закупка у ед. поставщика (п. 4–5 ч. 1 ст. 93)",
     Cancel: "notificationCancel — Извещение об отмене определения поставщика",
   };
+
+// Лекарственный препарат извещения (п. 9 Раздела 1 формы, ПП РФ N 60).
+// В ЕИС выгружается только при наличии внешнего кода МНН по справочнику.
+export interface EisNotificationMedicine {
+  externalSid?: string;
+  mnnExternalCode: string;
+  mnnName: string;
+  tradeName?: string;
+  medicamentalForm?: string;
+  dosage?: string;
+  okeiCode?: string;
+  okeiName?: string;
+  quantity?: number;
+  registrationNumber?: string;
+}
 
 export interface EisNotification2020 {
   schemaVersion: "17.0";
@@ -296,9 +318,20 @@ export interface EisNotification2020 {
     etpName: string;
     etpUrl: string;
     article15Features?: EisArticle15Part;
+    // П. 3 Раздела 1: указание на часть ст. 15 Закона N 44-ФЗ
+    article15Part?: string;
     isGOZ: boolean;
     notPublishedOnEIS: boolean;
     isBudgetUnionState: boolean;
+    // П. 13 Раздела 1: максимальное значение цены контракта и начальная
+    // сумма цен единиц (при формуле цены либо цене единицы по ч. 24 ст. 22)
+    maxContractPrice?: number;
+    initialUnitPriceSum?: number;
+    // П. 15 Раздела 1: валюта по ОКВ (по умолчанию 643)
+    currencyNumericCode: string;
+    // П. 38 Раздела 1: предупреждение об административной и уголовной
+    // ответственности за нарушение антимонопольного законодательства
+    antitrustWarning: boolean;
   };
   purchaseResponsibleInfo: {
     responsibleOrgName: string;
@@ -333,7 +366,10 @@ export interface EisNotification2020 {
     };
     contractConditionsInfo: {
       maxPrice: number;
+      // Начальная (максимальная) цена в валюте контракта
+      maxPriceCurrency?: number;
       currencyCode: "RUB";
+      currencyNumericCode: string;
       interbudgetaryTransfer: boolean;
       isContractPriceFormula: boolean;
       contractPriceFormulaText?: string;
@@ -394,6 +430,11 @@ export interface EisNotification2020 {
       isMedicines: boolean;
       isStructuredForm: boolean;
       quantityUndefined: boolean;
+      // П. 13 Раздела 1: начальная сумма цен единиц товара, работы, услуги
+      totalSum?: number;
+      totalSumCurrency?: number;
+      // П. 9 Раздела 1: лекарственные препараты (МНН и характеристики)
+      medicines: EisNotificationMedicine[];
       objects: Array<{
         externalSid?: string;
         type: EisProductType;
@@ -526,6 +567,17 @@ const emptyFinance = (): EisTenderPlan2020FinanceResources => ({
   subsecYears: 0,
 });
 
+const addFinance = (
+  left: EisTenderPlan2020FinanceResources,
+  right: EisTenderPlan2020FinanceResources,
+): EisTenderPlan2020FinanceResources => ({
+  total: Math.round((left.total + right.total) * 100) / 100,
+  currentYear: Math.round((left.currentYear + right.currentYear) * 100) / 100,
+  firstYear: Math.round((left.firstYear + right.firstYear) * 100) / 100,
+  secondYear: Math.round((left.secondYear + right.secondYear) * 100) / 100,
+  subsecYears: Math.round((left.subsecYears + right.subsecYears) * 100) / 100,
+});
+
 const positionFinance = (
   pos: Pick<
     PurchasePlanPosition,
@@ -546,14 +598,14 @@ const positionFinance = (
 /**
  * Преобразует план-график фронтенда в структуру tenderPlan2020Type (ЕИС 17.0).
  */
-export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 => {
+export const mapPurchasePlanToEis17 = (
+  plan: PurchasePlan,
+): EisTenderPlan2020 => {
   const planYearNum = Number(plan.planYear) || new Date().getFullYear();
-  const firstYear =
-    Number(plan.planPeriodFirstYear) || planYearNum + 1;
-  const secondYear =
-    Number(plan.planPeriodSecondYear) || planYearNum + 2;
+  const firstYear = Number(plan.planPeriodFirstYear) || planYearNum + 1;
+  const secondYear = Number(plan.planPeriodSecondYear) || planYearNum + 2;
 
-  const orgDto: EisTenderPlan2020Organization = {
+  const customerOrg: EisTenderPlan2020Organization = {
     regNum: plan.customer.regNum || undefined,
     consRegistryNum: plan.customer.consRegistryNum || undefined,
     fullName: plan.customer.fullName,
@@ -563,21 +615,34 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
     factAddress: plan.customer.legalAddress || undefined,
     phone: plan.customer.phone || undefined,
     email: plan.customer.email || undefined,
+    okopf: plan.customer.okopf || undefined,
+    okfs: plan.customer.okfs || undefined,
+    oktmoPpo: plan.customer.oktmoPpo || undefined,
   };
 
-  const totals = plan.positions.reduce<EisTenderPlan2020FinanceResources>(
-    (acc, pos) => {
-      const f = positionFinance(pos);
-      return {
-        total: Math.round((acc.total + f.total) * 100) / 100,
-        currentYear: Math.round((acc.currentYear + f.currentYear) * 100) / 100,
-        firstYear: Math.round((acc.firstYear + f.firstYear) * 100) / 100,
-        secondYear: Math.round((acc.secondYear + f.secondYear) * 100) / 100,
-        subsecYears: Math.round((acc.subsecYears + f.subsecYears) * 100) / 100,
-      };
-    },
-    emptyFinance(),
-  );
+  // Роль OA: версию плана-графика формирует организация, которой переданы
+  // полномочия заказчика (п. 14, подп. "ж" Положения N 1279)
+  const authorized = plan.authorizedOrganization;
+  const ownerOrg: EisTenderPlan2020Organization =
+    plan.ownerRole === "OA" && authorized
+      ? {
+          regNum: undefined,
+          consRegistryNum: undefined,
+          fullName: authorized.fullName || plan.customer.fullName,
+          inn: authorized.inn || plan.customer.inn,
+          kpp: authorized.kpp || undefined,
+          oktmoCode: authorized.oktmo || undefined,
+          factAddress: authorized.legalAddress || undefined,
+          phone: authorized.phone || undefined,
+          email: authorized.email || undefined,
+        }
+      : customerOrg;
+
+  // Итоги ПГ = записи + особые закупки (totalsInfo XSD ЕИС 17.0)
+  const totals = [
+    ...plan.positions.map((position) => positionFinance(position)),
+    ...(plan.specialPurchases ?? []).map((item) => positionFinance(item)),
+  ].reduce(addFinance, emptyFinance());
 
   const positions: EisTenderPlan2020Position[] = plan.positions.map((pos) => {
     const fin = positionFinance(pos);
@@ -640,7 +705,8 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
       purchaseNumber: pos.purchaseNumber ?? "",
       purchaseOrderNumber: pos.purchaseOrderNumber || "000",
       okpd2Codes: okpdList,
-      okpd2MultipleZeroCode: Boolean(pos.hasMultipleOkpd2) || okpdList.length > 1,
+      okpd2MultipleZeroCode:
+        Boolean(pos.hasMultipleOkpd2) || okpdList.length > 1,
       ktruCode: pos.ktruCode || undefined,
       ktruName: pos.ktruName || undefined,
       kvrCode: pos.kvr || (pos.kbk ? pos.kbk.slice(-3) : undefined),
@@ -699,6 +765,7 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
     publishYear: Number(sp.publishYear) || planYearNum,
     purchaseNumber: sp.purchaseNumber,
     modificationStatus: sp.modificationStatus,
+    isNotFederalFinancing: sp.isNotFederalFinancing,
     financeInfo: positionFinance(sp),
   }));
 
@@ -721,8 +788,8 @@ export const mapPurchasePlanToEis17 = (plan: PurchasePlan): EisTenderPlan2020 =>
       publishDate: plan.publishDate || undefined,
       firstVersionPublishDate: plan.firstVersionPublishDate || undefined,
       eisUrl: plan.eisUrl || undefined,
-      owner: orgDto,
-      customer: orgDto,
+      owner: ownerOrg,
+      customer: customerOrg,
     },
     positions,
     specialPurchases,
@@ -765,9 +832,15 @@ export const mapNoticeInfoToEis17 = (
       etpName: notice.generalInfo.etpName,
       etpUrl: notice.generalInfo.etpUrl,
       article15Features: notice.generalInfo.article15Features || undefined,
+      article15Part: notice.generalInfo.article15Part || undefined,
       isGOZ: Boolean(notice.generalInfo.isGOZ),
       notPublishedOnEIS: Boolean(notice.generalInfo.notPublishedOnEIS),
       isBudgetUnionState: Boolean(notice.generalInfo.isBudgetUnionState),
+      maxContractPrice: notice.generalInfo.maxContractPrice,
+      initialUnitPriceSum: notice.generalInfo.initialUnitPriceSum,
+      currencyNumericCode: notice.contractConditions.currencyCode || "643",
+      // Предупреждение по п. 38 обязательно, поэтому по умолчанию включено
+      antitrustWarning: notice.generalInfo.antitrustWarning !== false,
     },
     purchaseResponsibleInfo: {
       responsibleOrgName: notice.contactInfo.organizationName,
@@ -809,8 +882,14 @@ export const mapNoticeInfoToEis17 = (
         additionalInfo: notice.procedureInfo.additionalInfo || undefined,
       },
       contractConditionsInfo: {
-        maxPrice: notice.generalInfo.nmck,
+        // При формуле цены либо цене единицы (ч. 24 ст. 22) в maxPriceInfo
+        // указывается максимальное значение цены, а не НМЦК
+        maxPrice:
+          notice.generalInfo.maxContractPrice ?? notice.generalInfo.nmck,
+        maxPriceCurrency:
+          notice.generalInfo.maxContractPrice ?? notice.generalInfo.nmck,
         currencyCode: "RUB",
+        currencyNumericCode: notice.contractConditions.currencyCode || "643",
         interbudgetaryTransfer: Boolean(
           notice.contractConditions.interbudgetaryTransfer,
         ),
@@ -851,8 +930,7 @@ export const mapNoticeInfoToEis17 = (
                 notice.participantsRequirements.contractSecurityOrder ||
                 undefined,
             }
-          : notice.participantsRequirements
-                .unableProvideContractGuaranteeReason
+          : notice.participantsRequirements.unableProvideContractGuaranteeReason
             ? {
                 part: 0,
                 unableProvideReason:
@@ -906,7 +984,8 @@ export const mapNoticeInfoToEis17 = (
               },
             },
         deliveryPlacesInfo: (
-          notice.contractConditions.deliveryPlaces ?? (firstPlace ? [firstPlace] : [])
+          notice.contractConditions.deliveryPlaces ??
+          (firstPlace ? [firstPlace] : [])
         ).map((place) => ({
           countryCode: place.oksmCode || "643",
           countryFullName: place.country || "Российская Федерация",
@@ -936,9 +1015,29 @@ export const mapNoticeInfoToEis17 = (
         quantityUndefined: Boolean(
           notice.purchaseObjects.isIndeterminateVolume,
         ),
+        totalSum: notice.generalInfo.initialUnitPriceSum,
+        totalSumCurrency: notice.generalInfo.initialUnitPriceSum,
+        // Лекарственные препараты выгружаются только при наличии внешнего
+        // кода МНН — без него ЕИС не примет блок drugPurchaseObjectsInfo
+        medicines: (notice.purchaseObjects.medicines ?? [])
+          .filter((medicine) => Boolean(medicine.mnnExternalCode?.trim()))
+          .map((medicine) => ({
+            externalSid: medicine.id,
+            mnnExternalCode: medicine.mnnExternalCode!.trim(),
+            mnnName: medicine.mnnName,
+            tradeName: medicine.tradeName || undefined,
+            medicamentalForm: medicine.medicamentalForm || undefined,
+            dosage: medicine.dosage || undefined,
+            okeiCode: medicine.okeiCode || undefined,
+            okeiName: medicine.okeiName || undefined,
+            quantity: medicine.quantity,
+            registrationNumber: medicine.registrationNumber || undefined,
+          })),
         objects: notice.purchaseObjects.items.map((item) => {
           const code = item.okpd2OrKtruCode || "";
-          const looksLikeKtru = Boolean(item.ktruCode) || /^\d{2}\.\d{2}\.\d{2}\.\d{3}-\d{8}$/.test(code);
+          const looksLikeKtru =
+            Boolean(item.ktruCode) ||
+            /^\d{2}\.\d{2}\.\d{2}\.\d{3}-\d{8}$/.test(code);
           return {
             externalSid: item.externalSid || item.id,
             type: item.productType ?? "PRODUCT",
@@ -1014,37 +1113,134 @@ export const validatePurchasePlanEis17 = (
   plan: PurchasePlan,
 ): Eis17ValidationResult => {
   const issues: Eis17ValidationIssue[] = [];
+  const pushIssue = (
+    severity: Eis17ValidationIssue["severity"],
+    field: string,
+    message: string,
+  ) => {
+    issues.push({ severity, field, message });
+  };
 
-  if (!plan.ownerRole) {
-    issues.push({
-      severity: "warning",
-      field: "ownerRole",
-      message:
-        "Не указана роль владельца версии (ownerRole: CU / OA по IntegrationTPTypes.xsd). При выгрузке принята CU.",
-    });
+  // Раздел 1 формы ПГ: единица измерения — рубль по ОКЕИ 383
+  if ((plan.okeiCode ?? "").trim() !== "383") {
+    pushIssue(
+      "error",
+      "okeiCode",
+      "Единица измерения плана-графика — рубль по ОКЕИ 383 (Раздел 1 формы ПГ, п. 2 Положения N 1279).",
+    );
+  }
+  if (!(plan.okeiName ?? "").trim()) {
+    pushIssue(
+      "warning",
+      "okeiName",
+      "Не заполнено наименование единицы измерения — по ОКЕИ 383 ожидается «рубль».",
+    );
   }
 
+  if (!plan.ownerRole) {
+    pushIssue(
+      "warning",
+      "ownerRole",
+      "Не указана роль владельца версии (ownerRole: CU / OA по IntegrationTPTypes.xsd). При выгрузке принята CU.",
+    );
+  }
+
+  // Раздел 1 формы ПГ: реквизиты заказчика
   if (!plan.customer.regNum && !plan.customer.consRegistryNum) {
-    issues.push({
-      severity: "warning",
-      field: "customer.regNum",
-      message:
-        "Не заполнены код по СПЗ (regNum) или код по Сводному реестру (consRegistryNum) — обязательны при передаче XML в ЕИС.",
-    });
+    pushIssue(
+      "warning",
+      "customer.regNum",
+      "Не заполнены код по СПЗ (regNum) или код по Сводному реестру (consRegistryNum) — обязательны при передаче XML в ЕИС.",
+    );
+  }
+  if (!plan.customer.okopf) {
+    pushIssue(
+      "warning",
+      "customer.okopf",
+      "Не указана организационно-правовая форма заказчика по ОКОПФ (Раздел 1 формы ПГ).",
+    );
+  }
+  if (!plan.customer.okfs) {
+    pushIssue(
+      "warning",
+      "customer.okfs",
+      "Не указана форма собственности заказчика по ОКФС (Раздел 1 формы ПГ).",
+    );
+  }
+  if (!plan.customer.oktmo) {
+    pushIssue(
+      "warning",
+      "customer.oktmo",
+      "Не указан код ОКТМО места нахождения заказчика (Раздел 1 формы ПГ).",
+    );
+  }
+  if (!plan.customer.legalAddress) {
+    pushIssue(
+      "warning",
+      "customer.legalAddress",
+      "Не указано место нахождения заказчика (Раздел 1 формы ПГ).",
+    );
+  }
+  if (!plan.customer.phone) {
+    pushIssue(
+      "warning",
+      "customer.phone",
+      "Не указан телефон заказчика (Раздел 1 формы ПГ).",
+    );
+  }
+  if (!plan.customer.email) {
+    pushIssue(
+      "warning",
+      "customer.email",
+      "Не указан адрес электронной почты заказчика (Раздел 1 формы ПГ).",
+    );
+  }
+
+  // Подп. «ж» п. 14 Положения N 1279: при передаче полномочий заказчика
+  // в плане-графике указывается организация, которой они переданы
+  if (plan.ownerRole === "OA") {
+    const authorized = plan.authorizedOrganization;
+    if (!authorized?.fullName) {
+      pushIssue(
+        "error",
+        "authorizedOrganization.fullName",
+        "Для роли OA не указано полное наименование организации, которой переданы полномочия заказчика.",
+      );
+    }
+    if (!authorized?.inn) {
+      pushIssue(
+        "error",
+        "authorizedOrganization.inn",
+        "Для роли OA не указан ИНН организации, которой переданы полномочия заказчика.",
+      );
+    }
+    if (!authorized?.kpp) {
+      pushIssue(
+        "error",
+        "authorizedOrganization.kpp",
+        "Для роли OA не указан КПП организации, которой переданы полномочия заказчика.",
+      );
+    }
+    if (!authorized?.oktmo) {
+      pushIssue(
+        "error",
+        "authorizedOrganization.oktmo",
+        "Для роли OA не указан ОКТМО организации, которой переданы полномочия заказчика.",
+      );
+    }
   }
 
   // Реестровый номер плана-графика — 18 цифр: год (4), код заказчика по СПЗ
   // (11), порядковый номер плана (3). От него зависит уникальный номер позиции
   const planDigits = String(plan.planNumber ?? "").replace(/\D/g, "");
   if (planDigits.length !== 18) {
-    issues.push({
-      severity: "error",
-      field: "planNumber",
-      message:
-        `Реестровый номер плана-графика содержит ${planDigits.length} цифр вместо 18: ` +
+    pushIssue(
+      "error",
+      "planNumber",
+      `Реестровый номер плана-графика содержит ${planDigits.length} цифр вместо 18: ` +
         `год (4) + код заказчика по СПЗ (11) + порядковый номер плана (3). ` +
         `Без него уникальный номер позиции не собирается в 24 знака.`,
-    });
+    );
   }
 
   plan.positions.forEach((pos, idx) => {
@@ -1052,71 +1248,260 @@ export const validatePurchasePlanEis17 = (
     const ikz = (pos.identificationCode ?? "").trim();
 
     if (!ikz) {
-      issues.push({
-        severity: "error",
-        field: `positions[${idx}].identificationCode`,
-        message: `${label}: отсутствует ИКЗ (по приказу Минфина России от 10.04.2019 № 55н — 36 цифр).`,
-      });
+      pushIssue(
+        "error",
+        `positions[${idx}].identificationCode`,
+        `${label}: отсутствует ИКЗ (по приказу Минфина России от 10.04.2019 № 55н — 36 цифр).`,
+      );
     } else if (!EIS_IKZ_PATTERN.test(ikz)) {
-      issues.push({
-        severity: "error",
-        field: `positions[${idx}].identificationCode`,
-        message: `${label}: ИКЗ «${ikz}» содержит ${ikz.length} симв. вместо 36 цифр по приказу Минфина России от 10.04.2019 № 55н.`,
-      });
+      pushIssue(
+        "error",
+        `positions[${idx}].identificationCode`,
+        `${label}: ИКЗ «${ikz}» содержит ${ikz.length} симв. вместо 36 цифр по приказу Минфина России от 10.04.2019 № 55н.`,
+      );
+    }
+
+    // Графа 2 формы ПГ: ОКПД2 не ниже группы, один или несколько кодов.
+    // XSD контролирует минимум 4 разряда в коде без учёта точки
+    const okpd2Codes =
+      pos.okpd2Items && pos.okpd2Items.length > 0
+        ? pos.okpd2Items.map((item) => item.okpd2Code)
+        : pos.okpd2Code
+          ? [pos.okpd2Code]
+          : [];
+    if (okpd2Codes.length === 0) {
+      pushIssue(
+        "error",
+        `positions[${idx}].okpd2Code`,
+        `${label}: не указан код ОКПД2 (графа 2 формы ПГ, п. 6 Положения N 1279).`,
+      );
+    }
+    okpd2Codes.forEach((code) => {
+      const digits = String(code ?? "").replace(/\D/g, "");
+      if (digits.length > 0 && digits.length < 4) {
+        pushIssue(
+          "error",
+          `positions[${idx}].okpd2Code`,
+          `${label}: код ОКПД2 «${code}» содержит менее 4 разрядов — XSD требует указывать код не ниже группы.`,
+        );
+      }
+    });
+
+    // Графа 4 формы ПГ: планируемый год размещения извещения
+    const publishYear = toNumber(pos.plannedPlacementYear);
+    if (publishYear === null) {
+      pushIssue(
+        "error",
+        `positions[${idx}].plannedPlacementYear`,
+        `${label}: не указан планируемый год размещения извещения (графа 4 формы ПГ).`,
+      );
+    } else if (publishYear < 2000 || publishYear > 2100) {
+      pushIssue(
+        "warning",
+        `positions[${idx}].plannedPlacementYear`,
+        `${label}: планируемый год размещения «${pos.plannedPlacementYear}» выглядит некорректно.`,
+      );
+    }
+
+    // Графа 5 формы ПГ: объём финансового обеспечения, всего
+    const amountTotal = toNumber(pos.amountTotal);
+    if (amountTotal === null) {
+      pushIssue(
+        "error",
+        `positions[${idx}].amountTotal`,
+        `${label}: не указан объём финансового обеспечения, всего (графа 5 формы ПГ).`,
+      );
+    } else if (amountTotal === 0) {
+      pushIssue(
+        "warning",
+        `positions[${idx}].amountTotal`,
+        `${label}: объём финансового обеспечения равен нулю.`,
+      );
     }
 
     if (!pos.uniqueNumber && !pos.extNumber) {
-      issues.push({
-        severity: "warning",
-        field: `positions[${idx}].extNumber`,
-        message: `${label}: отсутствуют positionNumber и extNumber (требуются для связки tenderPlan2020Info в извещении).`,
-      });
+      pushIssue(
+        "warning",
+        `positions[${idx}].extNumber`,
+        `${label}: отсутствуют positionNumber и extNumber (требуются для связки tenderPlan2020Info в извещении).`,
+      );
     }
 
     // tenderPlan2020PositonNumberType — xs:length 24: 18 цифр номера
     // плана-графика + 6 цифр внутреннего номера позиции
     if (pos.uniqueNumber && !/^\d{24}$/.test(String(pos.uniqueNumber))) {
-      issues.push({
-        severity: "error",
-        field: `positions[${idx}].uniqueNumber`,
-        message:
-          `${label}: уникальный номер позиции «${pos.uniqueNumber}» содержит ` +
+      pushIssue(
+        "error",
+        `positions[${idx}].uniqueNumber`,
+        `${label}: уникальный номер позиции «${pos.uniqueNumber}» содержит ` +
           `${String(pos.uniqueNumber).length} симв. вместо 24 (18 цифр номера плана-графика + 6 цифр номера позиции).`,
-      });
+      );
     }
+
+    // Детализация по КБК: при заполненной сумме код КБК обязателен
+    (pos.kbkEntries ?? []).forEach((entry, entryIdx) => {
+      if ((toNumber(entry.amountTotal) ?? 0) > 0 && !entry.kbk) {
+        pushIssue(
+          "error",
+          `positions[${idx}].kbkEntries[${entryIdx}].kbk`,
+          `${label}: в детализации по КБК не заполнен код при ненулевой сумме (KBKsInfo/KBKInfo).`,
+        );
+      }
+    });
+
+    // Детализация по КВР: при заполненной сумме код КВР обязателен
+    (pos.kvrEntries ?? []).forEach((entry, entryIdx) => {
+      if ((toNumber(entry.amountTotal) ?? 0) > 0 && !entry.kvr) {
+        pushIssue(
+          "error",
+          `positions[${idx}].kvrEntries[${entryIdx}].kvr`,
+          `${label}: в детализации по КВР не заполнен код при ненулевой сумме (KVRsInfo/KVRInfo).`,
+        );
+      }
+    });
 
     if (pos.status === "changed" || pos.status === "cancelled") {
       if (!pos.changeReasonCode && !pos.modificationDescription) {
-        issues.push({
-          severity: "warning",
-          field: `positions[${idx}].changeReasonCode`,
-          message: `${label}: для изменённой/исключённой позиции XSD 17.0 требует блок positionModification (основание и решение).`,
-        });
+        pushIssue(
+          "warning",
+          `positions[${idx}].changeReasonCode`,
+          `${label}: для изменённой/исключённой позиции XSD 17.0 требует блок positionModification (основание и решение).`,
+        );
       }
     }
 
-    if (pos.isConstructionWorks && (!pos.koksEntries || pos.koksEntries.length === 0)) {
-      issues.push({
-        severity: "warning",
-        field: `positions[${idx}].koksEntries`,
-        message: `${label}: отмечено строительство/ОКС, но не заполнена детализация по КОКС (KOKSsInfo).`,
-      });
+    // В XSD признаки энергосервиса, кредита и строительства взаимоисключающие
+    const specialFlags = [
+      pos.isEnergyServiceContract,
+      pos.isProvisionLendingServices,
+      pos.isConstructionWorks,
+    ].filter(Boolean).length;
+    if (specialFlags > 1) {
+      pushIssue(
+        "error",
+        `positions[${idx}].isConstructionWorks`,
+        `${label}: одновременно установлено несколько признаков (энергосервис / кредит / строительство), XSD допускает только один.`,
+      );
+    }
+
+    if (pos.isNotFederalFinancing && !pos.isConstructionWorks) {
+      pushIssue(
+        "warning",
+        `positions[${idx}].isNotFederalFinancing`,
+        `${label}: признак «без софинансирования из федерального бюджета» относится к закупкам работ по строительству/ОКС.`,
+      );
+    }
+
+    if (
+      pos.isConstructionWorks &&
+      (!pos.koksEntries || pos.koksEntries.length === 0)
+    ) {
+      pushIssue(
+        "warning",
+        `positions[${idx}].koksEntries`,
+        `${label}: отмечено строительство/ОКС, но не заполнена детализация по КОКС (KOKSsInfo).`,
+      );
     }
   });
 
   // Особые закупки: пустой typeCode допустим в черновике (строка только
   // добавлена), но в ЕИС 17.0 такая позиция не пройдёт контроль
-  (plan.specialPurchases ?? []).forEach((special, idx) => {
+  const specialPurchases = plan.specialPurchases ?? [];
+  specialPurchases.forEach((special, idx) => {
+    const label = `Особая закупка № ${idx + 1}`;
+
     if (!String(special.typeCode ?? "").trim()) {
-      issues.push({
-        severity: "error",
-        field: `specialPurchases[${idx}].typeCode`,
-        message:
-          `Особая закупка № ${idx + 1}: не указан код типа особой закупки (typeCode) — ` +
-          `без него позиция specialPurchasePositions не пройдёт контроль ЕИС 17.0.`,
-      });
+      pushIssue(
+        "error",
+        `specialPurchases[${idx}].typeCode`,
+        `${label}: не указан код типа особой закупки (typeCode) — без него позиция specialPurchasePositions не пройдёт контроль ЕИС 17.0.`,
+      );
+    }
+    if (!String(special.kvr ?? "").trim()) {
+      pushIssue(
+        "error",
+        `specialPurchases[${idx}].kvr`,
+        `${label}: не указан КВР — в specialPurchasePositionType блок KVRInfo обязателен.`,
+      );
+    }
+    if (!String(special.ikz ?? "").trim()) {
+      pushIssue(
+        "warning",
+        `specialPurchases[${idx}].ikz`,
+        `${label}: не указан ИКЗ особой закупки.`,
+      );
+    }
+    if (!String(special.purchaseNumber ?? "").trim()) {
+      pushIssue(
+        "warning",
+        `specialPurchases[${idx}].purchaseNumber`,
+        `${label}: не указан номер закупки, включённой в план-график.`,
+      );
+    }
+    if (toNumber(special.publishYear) === null) {
+      pushIssue(
+        "warning",
+        `specialPurchases[${idx}].publishYear`,
+        `${label}: не указан планируемый год размещения извещения.`,
+      );
+    }
+
+    const declared = toNumber(special.amountTotal);
+    if (declared === null) {
+      pushIssue(
+        "error",
+        `specialPurchases[${idx}].amountTotal`,
+        `${label}: не указан объём финансового обеспечения.`,
+      );
+    } else {
+      const yearsSum =
+        (toNumber(special.amountCurrentYear) ?? 0) +
+        (toNumber(special.amountPlanPeriodFirstYear) ?? 0) +
+        (toNumber(special.amountPlanPeriodSecondYear) ?? 0) +
+        (toNumber(special.amountSubsequentYears) ?? 0);
+      if (Math.abs(declared - yearsSum) > 0.01) {
+        pushIssue(
+          "error",
+          `specialPurchases[${idx}].amountTotal`,
+          `${label}: объём «всего» (${declared.toFixed(2)}) не совпадает с суммой по годам (${yearsSum.toFixed(2)}).`,
+        );
+      }
     }
   });
+
+  // Итог плана-графика = позиции + особые закупки (outcomeIndicators/totalsInfo)
+  const declaredTotal = toNumber(plan.totalAmount);
+  if (declaredTotal !== null) {
+    const positionsTotal = plan.positions.reduce(
+      (sum, position) => sum + (toNumber(position.amountTotal) ?? 0),
+      0,
+    );
+    const specialTotal = specialPurchases.reduce(
+      (sum, item) => sum + (toNumber(item.amountTotal) ?? 0),
+      0,
+    );
+    if (Math.abs(declaredTotal - (positionsTotal + specialTotal)) > 0.01) {
+      pushIssue(
+        "error",
+        "totalAmount",
+        `Совокупный объём (${declaredTotal.toFixed(2)}) не совпадает с суммой позиций и особых закупок ` +
+          `(${(positionsTotal + specialTotal).toFixed(2)}).`,
+      );
+    }
+  }
+
+  // Размещённый план-график не может быть пустым
+  if (
+    plan.status !== "draft" &&
+    plan.positions.length === 0 &&
+    specialPurchases.length === 0
+  ) {
+    pushIssue(
+      "error",
+      "positions",
+      "Размещённый план-график должен содержать хотя бы одну позицию или особую закупку.",
+    );
+  }
 
   const errorsCount = issues.filter((i) => i.severity === "error").length;
   const warningsCount = issues.filter((i) => i.severity === "warning").length;
@@ -1135,7 +1520,11 @@ export const validateNoticeInfoEis17 = (
   const issues: Eis17ValidationIssue[] = [];
   const dto = mapNoticeInfoToEis17(notice);
 
-  if (!EIS_IKZ_PATTERN.test(dto.notificationInfo.customerRequirementInfo.ikz.trim())) {
+  if (
+    !EIS_IKZ_PATTERN.test(
+      dto.notificationInfo.customerRequirementInfo.ikz.trim(),
+    )
+  ) {
     issues.push({
       severity: "error",
       field: "generalInfo.ikz",
@@ -1217,7 +1606,10 @@ export const validateNoticeInfoEis17 = (
         message: `Позиция объекта № ${idx + 1}: отсутствует код ОКПД2 или КТРУ.`,
       });
     }
-    if (obj.restrictionSt14?.imposibilityBan && !obj.restrictionSt14.imposibilityBanReason) {
+    if (
+      obj.restrictionSt14?.imposibilityBan &&
+      !obj.restrictionSt14.imposibilityBanReason
+    ) {
       issues.push({
         severity: "error",
         field: `purchaseObjects.items.${idx}.imposibilityBanReason`,
@@ -1225,6 +1617,157 @@ export const validateNoticeInfoEis17 = (
       });
     }
   });
+
+  // П. 3 Раздела 1 формы извещения (ПП РФ N 60): указание на часть ст. 15
+  if (!dto.commonInfo.article15Part && !dto.commonInfo.article15Features) {
+    issues.push({
+      severity: "warning",
+      field: "generalInfo.article15Part",
+      message:
+        "П. 3 Раздела 1: укажите часть ст. 15 Закона № 44-ФЗ либо признак article15Features.",
+    });
+  }
+
+  // П. 15 Раздела 1: наименование валюты по ОКВ
+  if (!/^\d{3}$/.test(dto.commonInfo.currencyNumericCode)) {
+    issues.push({
+      severity: "warning",
+      field: "contractConditions.currencyCode",
+      message:
+        "П. 15 Раздела 1: код валюты по ОКВ должен состоять из трёх цифр (по умолчанию 643 — российский рубль).",
+    });
+  } else if (dto.commonInfo.currencyNumericCode !== "643") {
+    issues.push({
+      severity: "warning",
+      field: "contractConditions.currencyCode",
+      message: `П. 15 Раздела 1: закупка в иностранной валюте (ОКВ ${dto.commonInfo.currencyNumericCode}) — проверьте курс и maxPriceCurrency.`,
+    });
+  }
+
+  // П. 13 Раздела 1: при формуле цены либо невозможности определить объём
+  // указываются максимальное значение цены и начальная сумма цен единиц
+  const needsMaxPriceInfo =
+    notice.contractConditions.usePriceFormulaPP19 ||
+    notice.purchaseObjects.isIndeterminateVolume;
+  if (needsMaxPriceInfo && !dto.commonInfo.maxContractPrice) {
+    issues.push({
+      severity: "error",
+      field: "generalInfo.maxContractPrice",
+      message:
+        "П. 13 Раздела 1: при формуле цены или невозможности определить объём укажите максимальное значение цены контракта.",
+    });
+  }
+  if (needsMaxPriceInfo && !dto.commonInfo.initialUnitPriceSum) {
+    issues.push({
+      severity: "error",
+      field: "generalInfo.initialUnitPriceSum",
+      message:
+        "П. 13 Раздела 1: укажите начальную сумму цен единиц товара, работы, услуги (totalSum).",
+    });
+  }
+
+  // П. 9 Раздела 1: сведения о лекарственных препаратах
+  if (notice.purchaseObjects.isMedicines) {
+    const declaredMedicines = notice.purchaseObjects.medicines ?? [];
+    if (declaredMedicines.length === 0) {
+      issues.push({
+        severity: "error",
+        field: "purchaseObjects.medicines",
+        message:
+          "П. 9 Раздела 1: установлен признак закупки лекарственных препаратов, но МНН не добавлены.",
+      });
+    }
+    declaredMedicines.forEach((medicine, idx) => {
+      if (!medicine.mnnName?.trim()) {
+        issues.push({
+          severity: "error",
+          field: `purchaseObjects.medicines.${idx}.mnnName`,
+          message: `Лекарственный препарат № ${idx + 1}: укажите МНН (группировочное, химическое наименование).`,
+        });
+      }
+      if (!medicine.mnnExternalCode?.trim()) {
+        issues.push({
+          severity: "warning",
+          field: `purchaseObjects.medicines.${idx}.mnnExternalCode`,
+          message: `Лекарственный препарат № ${idx + 1}: без внешнего кода МНН блок не выгрузится в drugPurchaseObjectsInfo.`,
+        });
+      }
+      if (!medicine.okeiCode?.trim()) {
+        issues.push({
+          severity: "warning",
+          field: `purchaseObjects.medicines.${idx}.okeiCode`,
+          message: `Лекарственный препарат № ${idx + 1}: не указана единица измерения по ОКЕИ.`,
+        });
+      }
+      if (medicine.quantity === undefined) {
+        issues.push({
+          severity: "warning",
+          field: `purchaseObjects.medicines.${idx}.quantity`,
+          message: `Лекарственный препарат № ${idx + 1}: не указано количество (drugQuantity).`,
+        });
+      }
+    });
+  }
+
+  // П. 38 Раздела 1: предупреждение об административной и уголовной
+  // ответственности за нарушение антимонопольного законодательства
+  if (!dto.commonInfo.antitrustWarning) {
+    issues.push({
+      severity: "error",
+      field: "generalInfo.antitrustWarning",
+      message:
+        "П. 38 Раздела 1: предупреждение об административной и уголовной ответственности за нарушение антимонопольного законодательства обязательно.",
+    });
+  }
+
+  // Раздел 2 формы извещения: обязательный состав прилагаемых документов
+  const attachedDocs = notice.attachedDocs ?? [];
+  const hasDoc = (category: string) =>
+    attachedDocs.some((doc) => doc.category === category);
+  const requiredDocs: Array<{ category: string; label: string }> = [
+    {
+      category: "object_description",
+      label: "описание объекта закупки (ст. 33)",
+    },
+    { category: "nmck_justification", label: "обоснование НМЦК" },
+    {
+      category: "application_requirements",
+      label: "требования к содержанию и составу заявки с инструкцией",
+    },
+    { category: "contract_project", label: "проект контракта" },
+  ];
+  requiredDocs.forEach(({ category, label }) => {
+    if (!hasDoc(category)) {
+      issues.push({
+        severity: "error",
+        field: `attachedDocs.${category}`,
+        message: `Раздел 2: не приложен документ «${label}».`,
+      });
+    }
+  });
+  if (dto.notificationType === "EOK2020" && !hasDoc("evaluation_order")) {
+    issues.push({
+      severity: "warning",
+      field: "attachedDocs.evaluation_order",
+      message:
+        "Раздел 2: для конкурса приложите порядок рассмотрения и оценки заявок.",
+    });
+  }
+
+  // Извещение на 80 % состоит из сведений о закупке (СЗ): без связи с СЗ
+  // невозможно сверить предзаполненные значения
+  if (
+    notice.purchaseNoteId === null ||
+    notice.purchaseNoteId === undefined ||
+    notice.purchaseNoteId === ""
+  ) {
+    issues.push({
+      severity: "warning",
+      field: "purchaseNoteId",
+      message:
+        "Извещение не связано со сведениями о закупке (СЗ) — предзаполнение и сверка с планом-графиком недоступны.",
+    });
+  }
 
   const errorsCount = issues.filter((i) => i.severity === "error").length;
   const warningsCount = issues.filter((i) => i.severity === "warning").length;
@@ -1247,40 +1790,261 @@ const escapeXml = (value: unknown): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 
+// Объём финансового обеспечения (tenderPlan2020FinanceResourcesType)
+const financeResourcesXml = (
+  finance: EisTenderPlan2020FinanceResources,
+): string =>
+  `<total>${finance.total.toFixed(2)}</total>` +
+  `<currentYear>${finance.currentYear.toFixed(2)}</currentYear>` +
+  `<firstYear>${finance.firstYear.toFixed(2)}</firstYear>` +
+  `<secondYear>${finance.secondYear.toFixed(2)}</secondYear>` +
+  `<subsecYears>${finance.subsecYears.toFixed(2)}</subsecYears>`;
+
+// Организация по tenderPlan2020OrganizationType. Код по СПЗ обязателен:
+// если он неизвестен, XSD требует заглушку 00000000000 и код по СвР
+const organizationXml = (org: EisTenderPlan2020Organization): string =>
+  `<regNum>${escapeXml(org.regNum || "00000000000")}</regNum>` +
+  (org.consRegistryNum
+    ? `<consRegistryNum>${escapeXml(org.consRegistryNum)}</consRegistryNum>`
+    : "") +
+  (org.fullName ? `<fullName>${escapeXml(org.fullName)}</fullName>` : "") +
+  (org.inn ? `<INN>${escapeXml(org.inn)}</INN>` : "") +
+  (org.kpp ? `<KPP>${escapeXml(org.kpp)}</KPP>` : "") +
+  (org.oktmoCode
+    ? `<OKTMO><code>${escapeXml(org.oktmoCode)}</code></OKTMO>`
+    : "") +
+  (org.factAddress
+    ? `<factAddress>${escapeXml(org.factAddress)}</factAddress>`
+    : "") +
+  (org.phone ? `<phone>${escapeXml(org.phone)}</phone>` : "") +
+  (org.email ? `<email>${escapeXml(org.email)}</email>` : "");
+
+// Ссылка на КВР (tenderPlan2020KVRRefType): код либо заглушка 000
+const kvrRefXml = (kvr?: string): string => {
+  const code = (kvr ?? "").trim();
+
+  return code
+    ? `<KVR><code>${escapeXml(code)}</code></KVR>`
+    : `<undefined>000</undefined>`;
+};
+
+// Классификация по ОКПД2 (choice: один OKPD2Info либо undefined/OKPD2s)
+const okpd2InfoXml = (pos: EisTenderPlan2020Position): string => {
+  const okpd2RefXml = (item: { okpdCode: string; okpdName?: string }): string =>
+    `<OKPD2Info><OKPDCode>${escapeXml(item.okpdCode)}</OKPDCode>` +
+    (item.okpdName ? `<OKPDName>${escapeXml(item.okpdName)}</OKPDName>` : "") +
+    `</OKPD2Info>`;
+
+  if (pos.okpd2Codes.length === 0) {
+    return `<undefined><OKPD2s/></undefined>`;
+  }
+
+  if (pos.okpd2Codes.length === 1) {
+    return okpd2RefXml(pos.okpd2Codes[0]);
+  }
+
+  return (
+    `<undefined><OKPD2s>` +
+    pos.okpd2Codes.map(okpd2RefXml).join("") +
+    `</OKPD2s></undefined>`
+  );
+};
+
+// Позиция плана-графика (tenderPlan2020PositionType)
+const positionXml = (pos: EisTenderPlan2020Position): string => {
+  const modification = pos.positionModification;
+  const modificationXml = modification
+    ? `<positionModification>` +
+      (modification.changeReasonCode
+        ? `<changeReason><code>${escapeXml(modification.changeReasonCode)}</code>` +
+          (modification.changeReasonName
+            ? `<name>${escapeXml(modification.changeReasonName)}</name>`
+            : "") +
+          `</changeReason>`
+        : "") +
+      `<decision>${modification.decision}</decision>` +
+      (modification.description
+        ? `<description>${escapeXml(modification.description)}</description>`
+        : "") +
+      (modification.modificationNumber
+        ? `<modificationNumber>${modification.modificationNumber}</modificationNumber>`
+        : "") +
+      `</positionModification>`
+    : "";
+
+  // Детализация по КБК вложена в financeInfo (tenderPlan2020KBKsInfoType)
+  const kbksXml = pos.kbksInfo.length
+    ? `<KBKsInfo>${pos.kbksInfo
+        .map(
+          (entry) =>
+            `<KBKInfo><KBK>${escapeXml(entry.kbk)}</KBK>` +
+            `<KBKYearsInfo>${financeResourcesXml(entry.yearsInfo)}</KBKYearsInfo>` +
+            `</KBKInfo>`,
+        )
+        .join("")}</KBKsInfo>`
+    : "";
+
+  const kvrsXml = pos.kvrsInfo.length
+    ? `<KVRsInfo>${pos.kvrsInfo
+        .map(
+          (entry) =>
+            `<KVRInfo><KVR><code>${escapeXml(entry.kvrCode)}</code></KVR>` +
+            `<KVRYearsInfo>${financeResourcesXml(entry.yearsInfo)}</KVRYearsInfo>` +
+            `</KVRInfo>`,
+        )
+        .join("")}</KVRsInfo>`
+    : "";
+
+  const koksXml = pos.koksInfo.length
+    ? `<KOKSsInfo>${pos.koksInfo
+        .map(
+          (entry) =>
+            `<KOKSInfo><KOKS><code>${escapeXml(entry.koksCode)}</code>` +
+            (entry.koksName
+              ? `<name>${escapeXml(entry.koksName)}</name>`
+              : "") +
+            `</KOKS>` +
+            `<KOKSYearsInfo>${financeResourcesXml(entry.yearsInfo)}</KOKSYearsInfo>` +
+            `</KOKSInfo>`,
+        )
+        .join("")}</KOKSsInfo>`
+    : "";
+
+  // Признаки isProvisionLendingServices / isConstructionWorks /
+  // isNotFederalFinancing в XSD объявлены с fixed="true": передаём только true
+  return (
+    `<position><commonInfo>` +
+    (pos.positionNumber
+      ? `<positionNumber>${escapeXml(pos.positionNumber)}</positionNumber>`
+      : "") +
+    (pos.extNumber
+      ? `<extNumber>${escapeXml(pos.extNumber)}</extNumber>`
+      : "") +
+    (pos.ikz ? `<IKZ>${escapeXml(pos.ikz)}</IKZ>` : "") +
+    `<publishYear>${pos.publishYear}</publishYear>` +
+    (pos.iku ? `<IKU>${escapeXml(pos.iku)}</IKU>` : "") +
+    `<purchaseNumber>${escapeXml(pos.purchaseNumber)}</purchaseNumber>` +
+    (pos.purchaseOrderNumber
+      ? `<purchaseOrderNumber>${escapeXml(pos.purchaseOrderNumber)}</purchaseOrderNumber>`
+      : "") +
+    okpd2InfoXml(pos) +
+    `<KVRInfo>${kvrRefXml(pos.kvrCode)}</KVRInfo>` +
+    (pos.purchaseObjectInfo
+      ? `<purchaseObjectInfo>${escapeXml(pos.purchaseObjectInfo)}</purchaseObjectInfo>`
+      : "") +
+    `<publicDiscussion>${pos.publicDiscussion}</publicDiscussion>` +
+    `<positionCanceled>${pos.positionCanceled}</positionCanceled>` +
+    modificationXml +
+    (pos.positionModificationStatus
+      ? `<positionModificationStatus>${pos.positionModificationStatus}</positionModificationStatus>`
+      : "") +
+    // В схеме ПГ уполномоченный орган и организатор совместной закупки —
+    // это организация, а не строка: код по СПЗ неизвестен, ставим заглушку
+    (pos.centralizedPurchaseOrg
+      ? `<centralizedPurchaseInfo><centralizedPurchaseOrgInfo>` +
+        `<regNum>00000000000</regNum>` +
+        `<fullName>${escapeXml(pos.centralizedPurchaseOrg)}</fullName>` +
+        `</centralizedPurchaseOrgInfo></centralizedPurchaseInfo>`
+      : "") +
+    (pos.jointBiddingOrg
+      ? `<jointBiddingInfo><jointBiddingOrgInfo>` +
+        `<regNum>00000000000</regNum>` +
+        `<fullName>${escapeXml(pos.jointBiddingOrg)}</fullName>` +
+        `</jointBiddingOrgInfo></jointBiddingInfo>`
+      : "") +
+    `</commonInfo>` +
+    `<financeInfo>${financeResourcesXml(pos.financeInfo)}${kbksXml}</financeInfo>` +
+    kvrsXml +
+    `<isEnergyServiceContract>${pos.isEnergyServiceContract}</isEnergyServiceContract>` +
+    (pos.isProvisionLendingServices
+      ? `<isProvisionLendingServices>true</isProvisionLendingServices>`
+      : "") +
+    (pos.isConstructionWorks
+      ? `<isConstructionWorks>true</isConstructionWorks>`
+      : "") +
+    (pos.isNotFederalFinancing
+      ? `<isNotFederalFinancing>true</isNotFederalFinancing>`
+      : "") +
+    koksXml +
+    `</position>`
+  );
+};
+
+// Позиция особой закупки (tenderPlan2020SpecialPurchasePositionType)
+const specialPurchaseXml = (sp: EisTenderPlan2020SpecialPurchase): string => {
+  const kbksXml = sp.kbk
+    ? `<KBKsInfo><KBKInfo><KBK>${escapeXml(sp.kbk)}</KBK>` +
+      `<KBKYearsInfo>${financeResourcesXml(sp.financeInfo)}</KBKYearsInfo>` +
+      `</KBKInfo></KBKsInfo>`
+    : "";
+
+  const koksXml = sp.koksCode
+    ? `<KOKSsInfo><KOKSInfo><KOKS><code>${escapeXml(sp.koksCode)}</code></KOKS>` +
+      `<KOKSYearsInfo>${financeResourcesXml(sp.financeInfo)}</KOKSYearsInfo>` +
+      `</KOKSInfo></KOKSsInfo>`
+    : "";
+
+  return (
+    `<specialPurchasePosition>` +
+    `<type><code>${escapeXml(sp.typeCode)}</code>` +
+    (sp.typeName ? `<name>${escapeXml(sp.typeName)}</name>` : "") +
+    `</type>` +
+    (sp.positionNumber
+      ? `<positionNumber>${escapeXml(sp.positionNumber)}</positionNumber>`
+      : "") +
+    (sp.extNumber ? `<extNumber>${escapeXml(sp.extNumber)}</extNumber>` : "") +
+    (sp.ikz ? `<IKZ>${escapeXml(sp.ikz)}</IKZ>` : "") +
+    `<publishYear>${sp.publishYear ?? 0}</publishYear>` +
+    (sp.iku ? `<IKU>${escapeXml(sp.iku)}</IKU>` : "") +
+    `<KVRInfo>${kvrRefXml(sp.kvr)}</KVRInfo>` +
+    `<purchaseNumber>${escapeXml(sp.purchaseNumber ?? "")}</purchaseNumber>` +
+    `<financeInfo>${financeResourcesXml(sp.financeInfo)}</financeInfo>` +
+    kbksXml +
+    (sp.modificationStatus
+      ? `<specialPurchasePositionModificationStatus>${sp.modificationStatus}</specialPurchasePositionModificationStatus>`
+      : "") +
+    (sp.isNotFederalFinancing
+      ? `<isNotFederalFinancing>true</isNotFederalFinancing>`
+      : "") +
+    koksXml +
+    `</specialPurchasePosition>`
+  );
+};
+
 export const buildTenderPlan2020XmlPreview = (plan: PurchasePlan): string => {
   const dto = mapPurchasePlanToEis17(plan);
-  const positionsXml = dto.positions
-    .map(
-      (pos) => `    <position>
-      <commonInfo>
-        ${pos.positionNumber ? `<positionNumber>${escapeXml(pos.positionNumber)}</positionNumber>` : ""}
-        ${pos.extNumber ? `<extNumber>${escapeXml(pos.extNumber)}</extNumber>` : ""}
-        <IKZ>${escapeXml(pos.ikz)}</IKZ>
-        <publishYear>${pos.publishYear}</publishYear>
-        ${pos.iku ? `<IKU>${escapeXml(pos.iku)}</IKU>` : ""}
-        <purchaseNumber>${escapeXml(pos.purchaseNumber)}</purchaseNumber>
-        <purchaseObjectInfo>${escapeXml(pos.purchaseObjectInfo)}</purchaseObjectInfo>
-        <publicDiscussion>${pos.publicDiscussion}</publicDiscussion>
-        <positionCanceled>${pos.positionCanceled}</positionCanceled>
-        ${
-          pos.positionModificationStatus
-            ? `<positionModificationStatus>${pos.positionModificationStatus}</positionModificationStatus>`
-            : ""
-        }
-      </commonInfo>
-      <financeInfo>
-        <total>${pos.financeInfo.total.toFixed(2)}</total>
-        <currentYear>${pos.financeInfo.currentYear.toFixed(2)}</currentYear>
-        <firstYear>${pos.financeInfo.firstYear.toFixed(2)}</firstYear>
-        <secondYear>${pos.financeInfo.secondYear.toFixed(2)}</secondYear>
-        <subsecYears>${pos.financeInfo.subsecYears.toFixed(2)}</subsecYears>
-      </financeInfo>
-      <isEnergyServiceContract>${pos.isEnergyServiceContract}</isEnergyServiceContract>
-      <isProvisionLendingServices>${pos.isProvisionLendingServices}</isProvisionLendingServices>
-      <isConstructionWorks>${pos.isConstructionWorks}</isConstructionWorks>
-    </position>`,
-    )
-    .join("\n");
+
+  // customerInfo — расширение tenderPlan2020OrganizationType:
+  // ОКОПФ, ОКФС, ОКТМО ППО и тип ПФХД идут после реквизитов организации
+  const customerXml =
+    organizationXml(dto.commonInfo.customer) +
+    (dto.commonInfo.customer.okopf
+      ? `<OKOPF><code>${escapeXml(dto.commonInfo.customer.okopf)}</code></OKOPF>`
+      : "") +
+    (dto.commonInfo.customer.okfs
+      ? `<OKFS><code>${escapeXml(dto.commonInfo.customer.okfs)}</code></OKFS>`
+      : "") +
+    (dto.commonInfo.customer.oktmoPpo
+      ? `<OKTMOPPO><code>${escapeXml(dto.commonInfo.customer.oktmoPpo)}</code></OKTMOPPO>`
+      : "") +
+    (dto.commonInfo.pfhdType
+      ? `<PFHDType>${dto.commonInfo.pfhdType}</PFHDType>`
+      : "");
+
+  // Роль владельца версии (CU/OA) в XSD находится внутри ownerInfo
+  const ownerXml =
+    organizationXml(dto.commonInfo.owner) +
+    `<ownerRole>${dto.commonInfo.ownerRole}</ownerRole>`;
+
+  const positionsXml = dto.positions.length
+    ? `\n  <positions>${dto.positions.map(positionXml).join("")}</positions>`
+    : "";
+
+  const specialXml = dto.specialPurchases.length
+    ? `\n  <specialPurchasePositions>${dto.specialPurchases
+        .map(specialPurchaseXml)
+        .join("")}</specialPurchasePositions>`
+    : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <tenderPlan2020 xmlns="http://zakupki.gov.ru/oos/TPtypes/1" schemeVersion="${dto.schemaVersion}">
@@ -1289,22 +2053,16 @@ export const buildTenderPlan2020XmlPreview = (plan: PurchasePlan): string => {
   <versionNumber>${dto.versionNumber}</versionNumber>
   <commonInfo>
     <planYear>${dto.commonInfo.planYear}</planYear>
-    <planPeriod>
-      <firstYear>${dto.commonInfo.planPeriod.firstYear}</firstYear>
-      <secondYear>${dto.commonInfo.planPeriod.secondYear}</secondYear>
-    </planPeriod>
-    <ownerRole>${dto.commonInfo.ownerRole}</ownerRole>
-    ${dto.commonInfo.pfhdType ? `<PFHD>${dto.commonInfo.pfhdType}</PFHD>` : ""}
-    <customerInfo>
-      ${dto.commonInfo.customer.regNum ? `<regNum>${escapeXml(dto.commonInfo.customer.regNum)}</regNum>` : ""}
-      <fullName>${escapeXml(dto.commonInfo.customer.fullName)}</fullName>
-      <INN>${escapeXml(dto.commonInfo.customer.inn)}</INN>
-      ${dto.commonInfo.customer.kpp ? `<KPP>${escapeXml(dto.commonInfo.customer.kpp)}</KPP>` : ""}
-    </customerInfo>
-  </commonInfo>
-  <positions>
-${positionsXml}
-  </positions>
+    <planPeriod><firstYear>${dto.commonInfo.planPeriod.firstYear}</firstYear><secondYear>${dto.commonInfo.planPeriod.secondYear}</secondYear></planPeriod>
+    ${dto.commonInfo.createDate ? `<createDate>${escapeXml(dto.commonInfo.createDate)}</createDate>` : ""}
+    ${dto.commonInfo.firstVersionPublishDate ? `<firstVersionPublishDate>${escapeXml(dto.commonInfo.firstVersionPublishDate)}</firstVersionPublishDate>` : ""}
+    ${dto.commonInfo.confirmDate ? `<confirmDate>${escapeXml(dto.commonInfo.confirmDate)}</confirmDate>` : ""}
+    ${dto.commonInfo.directDate ? `<directDate>${escapeXml(dto.commonInfo.directDate)}</directDate>` : ""}
+    ${dto.commonInfo.publishDate ? `<publishDate>${escapeXml(dto.commonInfo.publishDate)}</publishDate>` : ""}
+    <customerInfo>${customerXml}</customerInfo>
+    <ownerInfo>${ownerXml}</ownerInfo>
+  </commonInfo>${positionsXml}${specialXml}
+  <outcomeIndicators><totalsInfo>${financeResourcesXml(dto.totals)}</totalsInfo></outcomeIndicators>
 </tenderPlan2020>`;
 };
 
@@ -1330,6 +2088,35 @@ export const buildNotification2020XmlPreview = (
           <sum>${obj.sum.toFixed(2)}</sum>
           <volumeSpecifyingMethod>${obj.volumeSpecifyingMethod}</volumeSpecifyingMethod>
         </purchaseObject>`,
+    )
+    .join("\n");
+
+  // П. 9 Раздела 1: лекарственные препараты. Блок drugPurchaseObjectsInfo
+  // выводится только при наличии внешнего кода МНН — иначе ЕИС отклонит
+  // документ, поэтому остаётся notDrugPurchaseObjectsInfo.
+  const drugsXml = dto.notificationInfo.purchaseObjectsInfo.medicines
+    .map(
+      (medicine) => `        <drugPurchaseObjectInfo>
+          ${medicine.externalSid ? `<externalSid>${escapeXml(medicine.externalSid)}</externalSid>` : ""}
+          <objectInfoUsingReferenceInfo>
+            <drugsInfo>
+              <drugInfo>
+                <MNNInfoUsingReferenceInfo>
+                  <notificationSid>${escapeXml(medicine.externalSid ?? medicine.mnnExternalCode)}</notificationSid>
+                  <MNNInfo>
+                    <MNNExternalCode>${escapeXml(medicine.mnnExternalCode)}</MNNExternalCode>
+                    <MNNName>${escapeXml(medicine.mnnName)}</MNNName>
+                  </MNNInfo>
+                  ${medicine.medicamentalForm ? `<medicamentalFormInfo><medicamentalFormName>${escapeXml(medicine.medicamentalForm)}</medicamentalFormName></medicamentalFormInfo>` : ""}
+                  ${medicine.dosage ? `<dosageInfo><dosageGRLSValue>${escapeXml(medicine.dosage)}</dosageGRLSValue></dosageInfo>` : ""}
+                  <OKEIInfo>${medicine.okeiCode ? `<code>${escapeXml(medicine.okeiCode)}</code>` : ""}<name>${escapeXml(medicine.okeiName ?? "Штука")}</name></OKEIInfo>
+                  ${medicine.quantity !== undefined ? `<drugQuantity>${medicine.quantity}</drugQuantity>` : ""}
+                  ${medicine.registrationNumber ? `<registrationNumbersInfo><registrationNumber>${escapeXml(medicine.registrationNumber)}</registrationNumber></registrationNumbersInfo>` : ""}
+                </MNNInfoUsingReferenceInfo>
+              </drugInfo>
+            </drugsInfo>
+          </objectInfoUsingReferenceInfo>
+        </drugPurchaseObjectInfo>`,
     )
     .join("\n");
 
@@ -1366,7 +2153,13 @@ export const buildNotification2020XmlPreview = (
   </purchaseResponsibleInfo>
   <notificationInfo>
     <contractConditionsInfo>
-      <maxPriceInfo><maxPrice>${dto.notificationInfo.contractConditionsInfo.maxPrice.toFixed(2)}</maxPrice><currency><code>RUB</code></currency></maxPriceInfo>
+      <maxPriceInfo>
+        <maxPrice>${dto.notificationInfo.contractConditionsInfo.maxPrice.toFixed(2)}</maxPrice>
+        <currency><code>RUB</code><name>Российский рубль</name></currency>
+        ${dto.notificationInfo.contractConditionsInfo.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
+        ${dto.notificationInfo.contractConditionsInfo.contractPriceFormulaText ? `<contractPriceFormulaText>${escapeXml(dto.notificationInfo.contractConditionsInfo.contractPriceFormulaText)}</contractPriceFormulaText>` : ""}
+      </maxPriceInfo>
+      ${dto.notificationInfo.contractConditionsInfo.maxPriceCurrency !== undefined ? `<maxPriceCurrency>${dto.notificationInfo.contractConditionsInfo.maxPriceCurrency.toFixed(2)}</maxPriceCurrency>` : ""}
       <interbudgetaryTransfer>${dto.notificationInfo.contractConditionsInfo.interbudgetaryTransfer}</interbudgetaryTransfer>
       <contractLifeCycle>${dto.notificationInfo.contractConditionsInfo.contractLifeCycle}</contractLifeCycle>
     </contractConditionsInfo>
@@ -1382,9 +2175,18 @@ export const buildNotification2020XmlPreview = (
     </customerRequirementsInfo>
     <purchaseObjectsInfo>
       <isStructuredForm>${dto.notificationInfo.purchaseObjectsInfo.isStructuredForm}</isStructuredForm>
-      <notDrugPurchaseObjectsInfo>
+      ${dto.notificationInfo.purchaseObjectsInfo.quantityUndefined ? "<quantityUndefined>true</quantityUndefined>" : ""}
+      ${
+        drugsXml
+          ? `<drugPurchaseObjectsInfo>
+${drugsXml}
+      </drugPurchaseObjectsInfo>`
+          : `<notDrugPurchaseObjectsInfo>
 ${objectsXml}
-      </notDrugPurchaseObjectsInfo>
+      </notDrugPurchaseObjectsInfo>`
+      }
+      ${dto.notificationInfo.purchaseObjectsInfo.totalSum !== undefined ? `<totalSum>${dto.notificationInfo.purchaseObjectsInfo.totalSum.toFixed(2)}</totalSum>` : ""}
+      ${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency !== undefined ? `<totalSumCurrency>${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency.toFixed(2)}</totalSumCurrency>` : ""}
     </purchaseObjectsInfo>
     ${criteriaXml ? `<criteriaInfo>\n${criteriaXml}\n    </criteriaInfo>` : ""}
   </notificationInfo>

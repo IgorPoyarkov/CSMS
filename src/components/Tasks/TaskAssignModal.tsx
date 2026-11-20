@@ -25,9 +25,10 @@ import {
 import {
   buildDefaultGenericSteps,
   buildTaskStepsFromPoolItem,
-  findOrder158nTaskPoolItem,
-  getOrder158nTasksByFunction,
+  filterPoolItems,
+  findPoolItem,
   recalculateStepDueDates,
+  useOrder158nPool,
   type Order158nTaskPoolItem,
 } from "../../services/Tasks/order158nTaskPool";
 import { recommendedDueDate } from "./regulatoryDeadlines";
@@ -102,6 +103,8 @@ export default function TaskAssignModal({
   // График отпусков организации: работник в отпуске не может быть исполнителем
   // задачи, срок которой попадает в период его отсутствия
   const { data: orgLeaves } = useOrganizationLeaves(organization?.id);
+  const { data: poolData } = useOrder158nPool();
+  const poolItems = useMemo(() => poolData?.items ?? [], [poolData]);
 
   const block = bem(styles, "task-assign");
   const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
@@ -109,6 +112,7 @@ export default function TaskAssignModal({
   const initialDue = initialTemplate
     ? recommendedDueDate(
         initialTemplate.functionCode,
+        poolItems,
         initialTemplate.recommendedDays,
       )
     : "";
@@ -165,6 +169,7 @@ export default function TaskAssignModal({
     if (!initialTemplate) return;
     const recDue = recommendedDueDate(
       initialTemplate.functionCode,
+      poolItems,
       initialTemplate.recommendedDays,
     );
     reset({
@@ -187,19 +192,16 @@ export default function TaskAssignModal({
       completedAt: "",
       result: "",
     });
-  }, [initialTemplate, organization?.id, me, reset, fullName, todayIso]);
+  }, [initialTemplate, organization?.id, me, reset, fullName, todayIso, poolItems]);
 
   const poolTemplates = useMemo(
-    () =>
-      functionCode
-        ? getOrder158nTasksByFunction(functionCode as ContractServiceFunction)
-        : [],
-    [functionCode],
+    () => filterPoolItems(poolItems, functionCode as ContractServiceFunction),
+    [functionCode, poolItems],
   );
 
   const selectedTemplate = useMemo(
-    () => findOrder158nTaskPoolItem(order158nPoolCode),
-    [order158nPoolCode],
+    () => findPoolItem(poolItems, order158nPoolCode),
+    [order158nPoolCode, poolItems],
   );
 
   // Кандидаты по выбранной функции. Способ службы решает, где искать носителей
@@ -248,7 +250,7 @@ export default function TaskAssignModal({
 
   const handleTemplateSelect = (poolId: string) => {
     methods.setValue("order158nPoolCode", poolId);
-    const tpl = findOrder158nTaskPoolItem(poolId);
+    const tpl = findPoolItem(poolItems, poolId);
     if (!tpl) {
       methods.setValue("order158nClause", "");
       methods.setValue("legalBasis", "");
@@ -258,7 +260,7 @@ export default function TaskAssignModal({
       return;
     }
 
-    const recDue = recommendedDueDate(tpl.functionCode, tpl.recommendedDays);
+    const recDue = recommendedDueDate(tpl.functionCode, poolItems, tpl.recommendedDays);
     methods.setValue("order158nClause", tpl.clause);
     methods.setValue("legalBasis", tpl.legalReference);
     methods.setValue("title", tpl.defaultTaskTitle, { shouldValidate: true });
@@ -456,7 +458,10 @@ export default function TaskAssignModal({
                 setCompletionCriteria("");
                 setSteps([]);
                 if (nextFn && !dueDate) {
-                  methods.setValue("dueDate", recommendedDueDate(nextFn));
+                  methods.setValue(
+                    "dueDate",
+                    recommendedDueDate(nextFn, poolItems),
+                  );
                 }
                 // Исполнитель выбран под предыдущую функцию — сбрасываем
                 methods.setValue("assigneeId", "");

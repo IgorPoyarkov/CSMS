@@ -303,6 +303,18 @@ const Header = ({}: HeaderProps) => {
             </li>
           )}
 
+          {/* ОКПД2 из реальной выгрузки НСИ: 21 066 кодов из csms-api */}
+          <li className={nav("item")}>
+            <NavLink
+              className={({ isActive }) =>
+                nav("link", ["logo", ...(isActive ? ["active"] : [])])
+              }
+              to={"/okpd2"}
+            >
+              <span className={nav("link-name")}>ОКПД2</span>
+            </NavLink>
+          </li>
+
           {/* Реальные выгрузки НСИ: версия, объём и источник из csms-api */}
           <li className={nav("item")}>
             <ReferenceDataBadge />

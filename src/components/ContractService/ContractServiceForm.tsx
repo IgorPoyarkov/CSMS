@@ -40,7 +40,10 @@ import {
   contractServiceHeadcount,
   contractServiceOrderFields,
 } from "./contractService.config";
-import { getOrder158nTasksByFunction } from "../../services/Tasks/order158nTaskPool";
+import {
+  filterPoolItems,
+  useOrder158nPool,
+} from "../../services/Tasks/order158nTaskPool";
 import StaffEmployeePicker, {
   type StaffEmployeeFields,
 } from "./StaffEmployeePicker";
@@ -129,6 +132,8 @@ function FunctionPicker({
 }) {
   const { bem } = useUtils();
   const block = bem(styles, "contract-service");
+  const { data: poolData } = useOrder158nPool();
+  const poolItems = poolData?.items ?? [];
 
   return (
     <div className={block("functions")}>
@@ -154,7 +159,7 @@ function FunctionPicker({
                 const option = contractServiceFunctionOptions.find(
                   (o) => o.value === code,
                 );
-                const subClauses = getOrder158nTasksByFunction(code)
+                const subClauses = filterPoolItems(poolItems, code)
                   .map((item) => item.clause)
                   .join(", ");
 

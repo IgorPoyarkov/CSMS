@@ -68,14 +68,16 @@ export const modificationDecisionOptions: Option<
   { value: "purchaseCanceled", label: "Отмена закупки" },
 ];
 
+// Основания изменения плана-графика — пункт 22 Положения N 1279:
+// подпункты "а" (пункты 1–4 части 8 статьи 16 Закона N 44-ФЗ), "б"–"е".
 export const tpChangeReasonOptions = [
   {
     code: "1",
-    name: "Изменение объёма финансового обеспечения для осуществления закупок",
+    name: "Изменение объёма финансового обеспечения для осуществления закупок (пункты 1–4 части 8 статьи 16 Закона N 44-ФЗ)",
   },
   {
     code: "2",
-    name: "Изменение планируемых сроков, способа или требований к объекту закупки",
+    name: "Уточнение информации об объекте закупки",
   },
   {
     code: "3",
@@ -87,11 +89,11 @@ export const tpChangeReasonOptions = [
   },
   {
     code: "5",
-    name: "Расторжение контракта или отмена закупки по решению заказчика",
+    name: "Расторжение контракта",
   },
   {
     code: "6",
-    name: "Возникновение иных обстоятельств, предвидеть которые было невозможно",
+    name: "Возникновение иных обстоятельств, предвидеть которые при утверждении плана-графика было невозможно",
   },
 ] as const;
 
@@ -158,10 +160,18 @@ export const planTotalAmount = (plan: PurchasePlan): number => {
     return declared;
   }
 
-  return plan.positions.reduce(
+  const positionsTotal = plan.positions.reduce(
     (total, position) => total + (toNumber(position.amountTotal) ?? 0),
     0,
   );
+  // Итог формы ПГ включает и записи, и особые закупки (п. 16, подп. "е"
+  // Положения N 1279; totalsInfo XSD ЕИС 17.0)
+  const specialTotal = (plan.specialPurchases ?? []).reduce(
+    (total, item) => total + (toNumber(item.amountTotal) ?? 0),
+    0,
+  );
+
+  return positionsTotal + specialTotal;
 };
 
 // Подписи граф объёма финансового обеспечения: плановый период всегда
@@ -253,6 +263,14 @@ export const planHeaderFields: ConfigurationInput<PurchasePlan>[] = [
   {
     label: { value: "Совокупный объём закупок, ₽" },
     input: { name: "totalAmount", placeholder: "12500000.00" },
+  },
+  {
+    label: { value: "Единица измерения по ОКЕИ" },
+    input: { name: "okeiCode", placeholder: "383" },
+  },
+  {
+    label: { value: "Наименование единицы измерения" },
+    input: { name: "okeiName", placeholder: "рубль" },
   },
   {
     label: { value: "Примечание" },

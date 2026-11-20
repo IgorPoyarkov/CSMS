@@ -28,8 +28,9 @@ import type { ContractServiceFunction } from "../../services/ContractService/con
 import {
   buildDefaultGenericSteps,
   buildTaskStepsFromPoolItem,
-  findOrder158nTaskPoolItem,
-  getOrder158nTasksByFunction,
+  filterPoolItems,
+  findPoolItem,
+  useOrder158nPool,
 } from "../../services/Tasks/order158nTaskPool";
 import TaskEvaluationForm from "./TaskEvaluationForm";
 import styles from "./TaskDetailPage.module.scss";
@@ -52,6 +53,8 @@ export default function TaskDetailPage() {
   const { data: task, isLoading } = useTask(id);
   const { data: orgEmployees } = useFetchOrganizationEmployees(organization?.id);
   const { data: taskEvaluations = [] } = useTaskEvaluations(task?.id);
+  const { data: poolData } = useOrder158nPool();
+  const poolItems = poolData?.items ?? [];
   const { mutate: updateTask, isPending } = useUpdateTask();
   const { mutate: updateProgress, isPending: isProgressPending } =
     useUpdateTaskProgress();
@@ -95,10 +98,8 @@ export default function TaskDetailPage() {
 
   const daysLeft = taskDaysLeftValue(task, todayIso);
   const poolItem =
-    findOrder158nTaskPoolItem(task.order158nPoolCode || task.order158nClause) ??
-    (task.functionCode
-      ? getOrder158nTasksByFunction(task.functionCode)[0]
-      : undefined);
+    findPoolItem(poolItems, task.order158nPoolCode || task.order158nClause) ??
+    filterPoolItems(poolItems, task.functionCode)[0];
 
   const steps = task.steps ?? [];
   const stepProgress = taskStepProgress(task);
@@ -428,7 +429,7 @@ export default function TaskDetailPage() {
                   methods.setValue("legalBasis", "");
                   methods.setValue(
                     "dueDate",
-                    recommendedDueDate(code || undefined),
+                    recommendedDueDate(code || undefined, poolItems),
                   );
                 }}
               >
@@ -449,7 +450,7 @@ export default function TaskDetailPage() {
                 className={styles.input}
                 {...methods.register("order158nPoolCode")}
                 onChange={(e) => {
-                  const tpl = findOrder158nTaskPoolItem(e.target.value);
+                  const tpl = findPoolItem(poolItems, e.target.value);
                   methods.setValue("order158nPoolCode", tpl?.id ?? "");
                   methods.setValue("order158nClause", tpl?.clause ?? "");
                   methods.setValue(
@@ -461,6 +462,7 @@ export default function TaskDetailPage() {
                       "dueDate",
                       recommendedDueDate(
                         tpl.functionCode,
+                        poolItems,
                         tpl.recommendedDays,
                       ),
                     );
@@ -468,10 +470,9 @@ export default function TaskDetailPage() {
                 }}
               >
                 <option value="">— Не выбрана —</option>
-                {getOrder158nTasksByFunction(
-                  (watchedFunctionCode || undefined) as
-                    | ContractServiceFunction
-                    | undefined,
+                {filterPoolItems(
+                  poolItems,
+                  watchedFunctionCode as ContractServiceFunction | undefined,
                 ).map((tpl) => (
                   <option key={tpl.id} value={tpl.id}>
                     {tpl.clause} · {tpl.defaultTaskTitle} ({tpl.recommendedDays}{" "}
@@ -486,6 +487,7 @@ export default function TaskDetailPage() {
 
                 const deadlines = getDeadlinesForFunction(
                   code as ContractServiceFunction,
+                  poolItems,
                 );
 
                 if (deadlines.length === 0) return null;

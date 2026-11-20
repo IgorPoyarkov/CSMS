@@ -63,7 +63,7 @@
 .submit {
   padding: 8px 20px;
   background: var(--accent);
-  color: var(--on-accent);
+  color: var(--text-on-accent);
   border: none;
   border-radius: 6px;
   font-size: 14px;

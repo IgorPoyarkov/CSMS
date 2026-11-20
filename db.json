@@ -1399,7 +1399,6 @@
       "totalAmount": "159240000.00",
       "remarks": "План-график размещён в ЕИС 12.01.2026, изменения по результатам состоявшихся процедур",
       "customer": {
-        "id": 1,
         "fullName": "Государственное бюджетное учреждение здравоохранения города Москвы «Городская клиническая больница № 7 имени М.М. Покровского Департамента здравоохранения города Москвы»",
         "shortName": "ГБУЗ «ГКБ № 7 им. М.М. Покровского»",
         "inn": "7701234567",
@@ -1410,7 +1409,8 @@
         "email": "zakupki@gkb7.ru",
         "phone": "+7 (499) 123-45-67",
         "responsiblePerson": "Иванова Анна Сергеевна",
-        "responsiblePhone": "+7 (499) 123-45-68"
+        "responsiblePhone": "+7 (499) 123-45-68",
+        "id": 1
       },
       "positions": [
         {
@@ -1608,6 +1608,68 @@
               "amountSubsequentYears": "0"
             }
           ]
+        }
+      ],
+      "specialPurchases": [
+        {
+          "id": "special-1795134599852-547",
+          "typeCode": "",
+          "typeName": "",
+          "ikz": "",
+          "iku": "",
+          "positionNumber": "",
+          "extNumber": "",
+          "kvr": "",
+          "kbk": "",
+          "koksCode": "",
+          "publishYear": "2026",
+          "purchaseNumber": "",
+          "modificationStatus": "E",
+          "amountTotal": "",
+          "amountCurrentYear": "",
+          "amountPlanPeriodFirstYear": "",
+          "amountPlanPeriodSecondYear": "",
+          "amountSubsequentYears": ""
+        },
+        {
+          "id": "special-1795134625608-310",
+          "typeCode": "",
+          "typeName": "",
+          "ikz": "",
+          "iku": "",
+          "positionNumber": "",
+          "extNumber": "",
+          "kvr": "",
+          "kbk": "",
+          "koksCode": "",
+          "publishYear": "2028",
+          "purchaseNumber": "",
+          "modificationStatus": "N",
+          "amountTotal": "",
+          "amountCurrentYear": "",
+          "amountPlanPeriodFirstYear": "",
+          "amountPlanPeriodSecondYear": "",
+          "amountSubsequentYears": ""
+        },
+        {
+          "id": "special-1795134628081-724",
+          "typeCode": "",
+          "typeName": "",
+          "ikz": "",
+          "iku": "",
+          "positionNumber": "",
+          "extNumber": "",
+          "kvr": "",
+          "kbk": "",
+          "koksCode": "",
+          "publishYear": "2027",
+          "purchaseNumber": "",
+          "modificationStatus": "N",
+          "amountTotal": "",
+          "amountCurrentYear": "",
+          "amountPlanPeriodFirstYear": "",
+          "amountPlanPeriodSecondYear": "",
+          "amountSubsequentYears": ""
         }
       ]
     },
@@ -5491,7 +5553,7 @@
       "desiredEndDate": "",
       "executionTermDays": 30,
       "acceptanceTermMode": "event",
-      "acceptanceEventBase": "с даты поступления заказчику документа о приёмке в ЕИС",
+      "acceptanceEventBase": "",
       "acceptanceTermDays": 10,
       "acceptanceDate": "",
       "deliveryPlaces": [
@@ -5508,7 +5570,7 @@
       "deliveryPlace": "Российская Федерация",
       "nationalRegimeType": "ban",
       "advantageSmpPart3Art30": false,
-      "requiresSmpSubcontracting": true,
+      "requiresSmpSubcontracting": false,
       "unifiedRequirementsPart1Art31": true,
       "unifiedRequirementsPart1Art31Text": "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
       "requirementP1Part1Art31": false,
@@ -10421,6 +10483,254 @@
       "note": "",
       "createdAt": "2026-11-18",
       "id": 6
+    },
+    {
+      "organizationId": 1,
+      "year": 2026,
+      "status": "draft",
+      "rows": [
+        {
+          "id": "row-1795125787952-859",
+          "employeeId": 6,
+          "employeeName": "Иванова Анна Сергеевна",
+          "position": "Начальник отдела закупок",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-477",
+          "employeeId": 7,
+          "employeeName": "Петров Сергей Николаевич",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-123",
+          "employeeId": 8,
+          "employeeName": "Сидорова Мария Ивановна",
+          "position": "Юрисконсульт",
+          "structuralUnitName": "Правовое управление",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-649",
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-68",
+          "employeeId": 14,
+          "employeeName": "Эпинцев Виталий Александрович",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-57",
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-983",
+          "employeeId": 16,
+          "employeeName": "Фомин Игорь Николаевич",
+          "position": "Экономист по планированию закупок",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-58",
+          "employeeId": 17,
+          "employeeName": "Егорова Мария Петровна",
+          "position": "Заведующий хозяйством",
+          "structuralUnitName": "Хозяйственный отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-744",
+          "employeeId": 36,
+          "employeeName": "Козлова Мария Дмитриевна",
+          "position": "Специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795125787952-873",
+          "employeeId": 37,
+          "employeeName": "Никитин Игорь Павлович",
+          "position": "Экономист по расчёту НМЦК",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-19",
+      "id": 7
+    },
+    {
+      "organizationId": 1,
+      "year": 2027,
+      "status": "draft",
+      "rows": [
+        {
+          "id": "row-1795138224451-122",
+          "employeeId": 6,
+          "employeeName": "Иванова Анна Сергеевна",
+          "position": "Начальник отдела закупок",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-151",
+          "employeeId": 7,
+          "employeeName": "Петров Сергей Николаевич",
+          "position": "Ведущий специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-927",
+          "employeeId": 8,
+          "employeeName": "Сидорова Мария Ивановна",
+          "position": "Юрисконсульт",
+          "structuralUnitName": "Правовое управление",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-416",
+          "employeeId": 9,
+          "employeeName": "Кузнецова Ольга Петровна",
+          "position": "Главный бухгалтер",
+          "structuralUnitName": "Центральная бухгалтерия",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-646",
+          "employeeId": 14,
+          "employeeName": "Эпинцев Виталий Александрович",
+          "position": "Главный врач",
+          "structuralUnitName": "Руководство",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-878",
+          "employeeId": 15,
+          "employeeName": "Смирнова Анна Викторовна",
+          "position": "Начальник отдела кадров",
+          "structuralUnitName": "Отдел кадров",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-945",
+          "employeeId": 16,
+          "employeeName": "Фомин Игорь Николаевич",
+          "position": "Экономист по планированию закупок",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-65",
+          "employeeId": 17,
+          "employeeName": "Егорова Мария Петровна",
+          "position": "Заведующий хозяйством",
+          "structuralUnitName": "Хозяйственный отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-454",
+          "employeeId": 36,
+          "employeeName": "Козлова Мария Дмитриевна",
+          "position": "Специалист по закупкам",
+          "structuralUnitName": "Отдел закупок",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        },
+        {
+          "id": "row-1795138224451-401",
+          "employeeId": 37,
+          "employeeName": "Никитин Игорь Павлович",
+          "position": "Экономист по расчёту НМЦК",
+          "structuralUnitName": "Экономический отдел",
+          "adoptionDate": "",
+          "unpaidLeaveDays": 0,
+          "parts": [],
+          "note": ""
+        }
+      ],
+      "orderNumber": "",
+      "orderDate": "",
+      "approvedByName": "",
+      "approvedAt": "",
+      "note": "",
+      "createdAt": "2026-11-20",
+      "id": 8
     }
   ],
   "ktruRefs": [
@@ -11028,5 +11338,74 @@
         ]
       }
     }
-  ]
+  ],
+  "koksRefs": [
+    {
+      "id": 1,
+      "code": "25000000000000000001",
+      "name": "Строительство блока начальных классов на 200 мест в г. Белгороде",
+      "address": "Белгородская обл., г. Белгород, ул. Примерная, д. 1",
+      "GRBSCode": "801",
+      "GRBSName": "Департамент строительства и транспорта Белгородской области",
+      "budgetName": "Бюджет городского округа",
+      "dateStart": "2024-01-01",
+      "dateEnd": ""
+    },
+    {
+      "id": 2,
+      "code": "25000000000000000002",
+      "name": "Реконструкция системы водоснабжения микрорайона Западный",
+      "address": "Белгородская обл., г. Белгород, мкр. Западный",
+      "GRBSCode": "801",
+      "GRBSName": "Департамент строительства и транспорта Белгородской области",
+      "budgetName": "Бюджет Белгородской области",
+      "dateStart": "2023-06-15",
+      "dateEnd": ""
+    },
+    {
+      "id": 3,
+      "code": "25000000000000000003",
+      "name": "Капитальный ремонт здания ГБУЗ Городская больница N1",
+      "address": "г. Москва, ул. Больничная, д. 5",
+      "GRBSCode": "770",
+      "GRBSName": "Департамент здравоохранения города Москвы",
+      "budgetName": "Бюджет города Москвы",
+      "dateStart": "2025-03-01",
+      "dateEnd": ""
+    },
+    {
+      "id": 4,
+      "code": "25000000000000000004",
+      "name": "Строительство физкультурно-оздоровительного комплекса с бассейном",
+      "address": "Белгородская обл., г. Старый Оскол, ул. Спортивная, д. 10",
+      "GRBSCode": "805",
+      "GRBSName": "Министерство строительства и ЖКХ Белгородской области",
+      "budgetName": "Бюджет Белгородской области",
+      "dateStart": "2024-09-01",
+      "dateEnd": ""
+    },
+    {
+      "id": 5,
+      "code": "25000000000000000005",
+      "name": "Приобретение объекта недвижимого имущества для размещения ГКУ",
+      "address": "г. Москва, ул. Управленческая, д. 12",
+      "GRBSCode": "770",
+      "GRBSName": "Департамент городского имущества города Москвы",
+      "budgetName": "Бюджет города Москвы",
+      "dateStart": "2025-01-10",
+      "dateEnd": ""
+    },
+    {
+      "id": 6,
+      "code": "25000000000000000006",
+      "name": "Выполнение инженерных изысканий для строительства автомобильной дороги",
+      "address": "Белгородская обл., Корочанский р-н",
+      "GRBSCode": "801",
+      "GRBSName": "Департамент строительства и транспорта Белгородской области",
+      "budgetName": "Бюджет Белгородской области",
+      "dateStart": "2026-01-01",
+      "dateEnd": ""
+    }
+  ],
+  "smnpReports238": []
 }

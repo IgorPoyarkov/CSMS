@@ -319,6 +319,20 @@ export default function PurchasePlanSpecialPurchases({
                             </option>
                           ))}
                         </select>
+                        <label className={block("check")}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(item.isNotFederalFinancing)}
+                            onChange={(event) =>
+                              updateField(
+                                index,
+                                "isNotFederalFinancing",
+                                event.target.checked,
+                              )
+                            }
+                          />
+                          Без федерального софинансирования
+                        </label>
                         <button
                           type="button"
                           className={block("remove")}

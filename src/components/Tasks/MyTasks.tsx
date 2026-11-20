@@ -14,7 +14,10 @@ import {
   type TaskExecutionStep,
   type TaskStatus,
 } from "../../services/Tasks/tasks.schema";
-import { findOrder158nTaskPoolItem } from "../../services/Tasks/order158nTaskPool";
+import {
+  findPoolItem,
+  useOrder158nPool,
+} from "../../services/Tasks/order158nTaskPool";
 import styles from "./MyTasks.module.scss";
 
 interface MyTasksProps {
@@ -44,6 +47,8 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
   const { employee } = useMyContractRole();
   const { mutate: updateSteps, isPending: isStepsPending } =
     useUpdateTaskSteps();
+  const { data: poolData } = useOrder158nPool();
+  const poolItems = poolData?.items ?? [];
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pageSize, setPageSize] = useState<PageSize>(5);
   const [view, setView] = useState<ViewMode>("list");
@@ -192,7 +197,8 @@ export default function MyTasks({ tasks, onAdvance }: MyTasksProps) {
             const stepProgress = taskStepProgress(task);
             const steps = task.steps ?? [];
             const nextStep = steps.find((s) => !s.isDone);
-            const poolItem = findOrder158nTaskPoolItem(
+            const poolItem = findPoolItem(
+              poolItems,
               task.order158nPoolCode || task.order158nClause,
             );
             const criteria =

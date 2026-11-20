@@ -66,6 +66,26 @@ export type PurchaseObjectRequirement = z.infer<
   typeof PurchaseObjectRequirementSchema
 >;
 
+// Лекарственные препараты (п. 9 Раздела 1 формы извещения, ПП РФ N 60):
+// указываются МНН (или группировочное, химическое наименование), торговое
+// наименование, лекарственная форма, дозировка и количество.
+export const NoticeMedicineSchema = z.object({
+  id: z.string(),
+  // МНН / группировочное / химическое наименование
+  mnnName: z.string().min(1, "Укажите МНН лекарственного препарата"),
+  // Внешний код МНН по справочнику ЕИС (nsiFarmDrugDictionary)
+  mnnExternalCode: z.string().optional(),
+  tradeName: z.string().optional(),
+  medicamentalForm: z.string().optional(),
+  dosage: z.string().optional(),
+  okeiCode: z.string().optional(),
+  okeiName: z.string().optional(),
+  quantity: z.number().nonnegative().optional(),
+  registrationNumber: z.string().optional(),
+});
+
+export type NoticeMedicine = z.infer<typeof NoticeMedicineSchema>;
+
 export const PurchaseObjectItemSchema = z.object({
   id: z.string(),
   externalSid: z.string().optional(),
@@ -146,12 +166,17 @@ export const EvaluationCriterionSchema = z.object({
 
 export const AttachedDocItemSchema = z.object({
   id: z.string(),
+  // Раздел 2 формы извещения (п. 8 Положения, ПП РФ N 60):
+  // 1) описание объекта; 2) обоснование НМЦК; 3) требования к заявке
+  // и инструкция; 4) порядок рассмотрения и оценки; 5) проект контракта;
+  // 6) перечень дополнительных требований
   category: z.enum([
     "nmck_justification",
     "contract_project",
     "object_description",
     "application_requirements",
     "evaluation_order",
+    "additional_requirements",
     "additional_docs",
   ]),
   fileName: z.string(),
@@ -232,11 +257,22 @@ export const NoticeInfoSchema = z.object({
     article15Features: z
       .enum(["", "P4", "P5", "P6", "P41", "P43", "P44"])
       .optional(),
+    // Указание на соответствующую часть ст. 15 Закона N 44-ФЗ
+    // (п. 3 Раздела 1 формы извещения)
+    article15Part: z.string().optional(),
     isBudgetUnionState: z.boolean().optional(),
     is449Features: z.boolean().optional(),
     directDT: z.string().optional(),
     publishDTInEIS: z.string().optional(),
     href: z.string().optional(),
+    // П. 13 Раздела 1: максимальное значение цены контракта
+    // (при формуле цены или цене единицы по ч. 24 ст. 22)
+    maxContractPrice: z.number().nonnegative().optional(),
+    // П. 13 Раздела 1: начальная сумма цен единиц товара, работы, услуги
+    initialUnitPriceSum: z.number().nonnegative().optional(),
+    // П. 38 Раздела 1: предупреждение об административной и уголовной
+    // ответственности за нарушение антимонопольного законодательства
+    antitrustWarning: z.boolean().optional(),
   }),
 
   // ВКЛАДКА 1: Жизнеобеспечение (ч. 9 ст. 37)
@@ -308,6 +344,9 @@ export const NoticeInfoSchema = z.object({
   // ВКЛАДКА 3: Условия контракта
   contractConditions: z.object({
     currency: z.string(),
+    // П. 15 Раздела 1: наименование валюты по Общероссийскому
+    // классификатору валют (ОКВ), по умолчанию 643 — российский рубль
+    currencyCode: z.string().optional(),
     usePriceFormulaPP19: z.boolean(),
     priceFormulaText: z.string().optional(),
     isForeignCurrencyNmck: z.boolean(),
@@ -365,6 +404,8 @@ export const NoticeInfoSchema = z.object({
     isStructuredForm: z.boolean().optional(),
     isIndeterminateVolume: z.boolean(),
     items: z.array(PurchaseObjectItemSchema),
+    // П. 9 Раздела 1: МНН лекарственных средств (при закупке лекарств)
+    medicines: z.array(NoticeMedicineSchema).optional(),
     // Единый набор характеристик объекта закупки (п. 7 ПП РФ № 926 / ООЗ).
     // Раньше набор дублировался в каждой позиции; теперь он один на закупку.
     normingRequirements: z.array(PurchaseObjectRequirementSchema).optional(),

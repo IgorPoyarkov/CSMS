@@ -138,6 +138,16 @@
     }
   }
 
+  &__check {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
   &__actions {
     display: flex;
     flex-wrap: wrap;

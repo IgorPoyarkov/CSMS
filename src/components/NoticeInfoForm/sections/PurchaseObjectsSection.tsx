@@ -66,6 +66,7 @@ const PurchaseObjectsSection = ({
 
   const items = watch("purchaseObjects.items") ?? [];
   const isIndeterminate = watch("purchaseObjects.isIndeterminateVolume");
+  const isMedicines = watch("purchaseObjects.isMedicines");
   // Подпись главного подписанта опускает контроль нормирования до предупреждения
   const breachSignedBy = watch("normingControl.breachConfirmedByName");
   const isBreachSigned = Boolean(breachSignedBy);
@@ -76,6 +77,18 @@ const PurchaseObjectsSection = ({
   const { fields, append, remove } = useFieldArray({
     control,
     name: "purchaseObjects.items",
+  });
+
+  // Лекарственные препараты (п. 9 Раздела 1 формы извещения, ПП РФ N 60).
+  // Ведём отдельным массивом, чтобы МНН не дублировался в каждой позиции
+  // ОКПД2 и выгружался в drugPurchaseObjectsInfo одним блоком.
+  const {
+    fields: medicineFields,
+    append: appendMedicine,
+    remove: removeMedicine,
+  } = useFieldArray({
+    control,
+    name: "purchaseObjects.medicines",
   });
 
   // Раскрытые для редактирования позиции. Новая позиция раскрывается сразу,
@@ -660,7 +673,9 @@ const PurchaseObjectsSection = ({
                                 </select>
                               </div>
                               <div className={block("field-col")}>
-                                <span className={block("caption")}>Код ОКЕИ</span>
+                                <span className={block("caption")}>
+                                  Код ОКЕИ
+                                </span>
                                 <input
                                   type="text"
                                   placeholder="796"
@@ -770,6 +785,197 @@ const PurchaseObjectsSection = ({
                 </tbody>
               </table>
             </div>
+
+            {/* Лекарственные препараты (п. 9 Раздела 1 формы извещения,
+                ПП РФ N 60): МНН (группировочное, химическое наименование),
+                торговое наименование, лекарственная форма, дозировка и
+                количество. В ЕИС выгружаются только при наличии внешнего
+                кода МНН по справочнику. */}
+            {isMedicines && (
+              <div className={block("object-selection")}>
+                <span className={block("caption")}>
+                  Лекарственные препараты — МНН и характеристики
+                </span>
+                <span className={block("muted")}>
+                  П. 9 Раздела 1: укажите МНН (группировочное, химическое
+                  наименование), торговое наименование, лекарственную форму,
+                  дозировку, единицу измерения по ОКЕИ и количество. Для
+                  выгрузки в ЕИС обязателен внешний код МНН по справочнику
+                  (MNNExternalCode).
+                </span>
+
+                {medicineFields.length === 0 && (
+                  <span className={block("yellow-warning")}>
+                    <span className={block("warning-badge")}>!</span>
+                    <span>
+                      Препараты не добавлены — сведения о лекарственных
+                      препаратах не попадут в drugPurchaseObjectsInfo.
+                    </span>
+                  </span>
+                )}
+
+                {medicineFields.map((field, index) => (
+                  <div key={field.id} className={block("sub-box")}>
+                    <div className={block("sub-grid")}>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          МНН / группировочное / химическое наименование
+                          <sup>*</sup>
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Например, Парацетамол"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.mnnName`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          Внешний код МНН по справочнику ЕИС
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="MNNExternalCode"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.mnnExternalCode`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          Торговое наименование
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Если указано в закупке"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.tradeName`,
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={block("sub-grid")}>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          Лекарственная форма
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Таблетки, раствор и т. п."
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.medicamentalForm`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>Дозировка</span>
+                        <input
+                          type="text"
+                          placeholder="Например, 500 мг"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.dosage`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          Регистрационное удостоверение
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Номер РУ"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.registrationNumber`,
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={block("sub-grid")}>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>Код ОКЕИ</span>
+                        <input
+                          type="text"
+                          placeholder="796"
+                          className={block("input", ["code"])}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.okeiCode`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>
+                          Единица измерения (ОКЕИ)
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Штука"
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.okeiName`,
+                          )}
+                        />
+                      </div>
+                      <div className={block("field-col")}>
+                        <span className={block("caption")}>Количество</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min={0}
+                          className={block("input")}
+                          {...register(
+                            `purchaseObjects.medicines.${index}.quantity`,
+                            {
+                              setValueAs: (v) =>
+                                v === "" || v === null || v === undefined
+                                  ? undefined
+                                  : Number(v),
+                            },
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={block("small-btn", ["danger"])}
+                      onClick={() => removeMedicine(index)}
+                    >
+                      Удалить препарат
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className={block("link-btn")}
+                  onClick={() =>
+                    appendMedicine({
+                      id: `med-${Date.now()}`,
+                      mnnName: "",
+                      mnnExternalCode: "",
+                      tradeName: "",
+                      medicamentalForm: "",
+                      dosage: "",
+                      okeiCode: "",
+                      okeiName: "",
+                      quantity: undefined,
+                      registrationNumber: "",
+                    })
+                  }
+                >
+                  + Добавить лекарственный препарат
+                </button>
+              </div>
+            )}
 
             {/* Блок «Позиции ОКПД2 / КТРУ, выбранные заказчиком» — под
                 таблицей: краткий срез и действия над позициями */}
