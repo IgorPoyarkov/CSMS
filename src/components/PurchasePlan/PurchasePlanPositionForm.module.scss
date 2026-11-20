@@ -305,10 +305,23 @@
     }
   }
 
-  // Таблица разрядов ИКЗ: 6 граф, значения только для чтения
+  // Таблица разрядов ИКЗ: 6 граф, значения только для чтения.
+  // Шапка не переносится: при нехватке места таблица прокручивается
+  // по горизонтали (обёртка table-wrap), а не растягивается в высоту
   &__table--ikz {
-    min-width: 680px;
-    table-layout: fixed;
+    min-width: 100%;
+
+    th {
+      padding: 4px 6px;
+      font-size: 11px;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+
+    td {
+      height: 34px;
+      white-space: nowrap;
+    }
 
     input {
       text-align: center;
@@ -319,27 +332,27 @@
   &__col {
     // Ширины граф ИКЗ пропорциональны числу символов: 2 / 20 / 4 / 3 / 4 / 3
     &--ikz-year {
-      width: 6%;
+      width: 6ch;
     }
 
     &--ikz-customer {
-      width: 52%;
+      width: 22ch;
     }
 
     &--ikz-purchase {
-      width: 12%;
+      width: 8ch;
     }
 
     &--ikz-order {
-      width: 9%;
+      width: 8ch;
     }
 
     &--ikz-okpd2 {
-      width: 12%;
+      width: 8ch;
     }
 
     &--ikz-kvr {
-      width: 9%;
+      width: 8ch;
     }
     &--chapter {
       width: 64px;
