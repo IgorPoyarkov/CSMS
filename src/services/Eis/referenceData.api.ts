@@ -10,7 +10,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
  * какие коды и поля считать правильными.
  */
 
-const BASE_URL = import.meta.env.VITE_EIS_API_URL || "http://localhost:5099";
+// В dev без явного адреса идём через прокси Vite (/api → localhost:5099):
+// браузер видит один origin, и CORS-блокировка не возникает. В production
+// поведение прежнее — абсолютный адрес csms-api.
+const BASE_URL =
+  import.meta.env.VITE_EIS_API_URL ||
+  (import.meta.env.DEV ? "" : "http://localhost:5099");
 
 const referenceApi = axios.create({
   baseURL: BASE_URL,
