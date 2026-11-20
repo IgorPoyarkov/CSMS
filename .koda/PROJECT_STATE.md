@@ -9,6 +9,9 @@
 > первыми; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
 > 103 passed / 3 skipped, JSON-контракт зафиксирован тестом — §§48–50, бриф
 > `csms-api/docs/tasks/compliance-liability-mapping.md`).
+> Также 2026-11-20: каталог ПП РФ N 2604 загружен в `legal.pp2604_*` и отдаётся
+> через `/api/pp2604/*`; фронт читает активную версию API, офлайн-снимок остался
+> fallback (§55).
 > Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
 > в `csms-api`: модель `qwen2.5:14b-instruct-q4_K_M`, вызов только по спорным
 > строкам, все предложения идут в `needs_review`; endpoint
@@ -1837,7 +1840,7 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   производная и несёт `basis` (`classifier` / `purpose` / `residual`), номер
   позиции, акт и наименование кода из НСИ. Спорные коды получают
   `needsReview=true`.
-- **Реализация:** `src/services/BidEvaluation/bidEvaluation.schema.ts` —
+- **Реализация (офлайн-fallback):** `src/services/BidEvaluation/bidEvaluation.schema.ts` —
   `PP2604_APPENDIX2_SOURCE`, `OBJECT_CATEGORY_LIMITS` (+ `appendixRow`,
   `appendixName`), `OKPD2_CATEGORY_RULES`, `resolveOkpd2Category`,
   `detectObjectCategory`, новое поле `okpd2Purpose`. Приоритет: цель закупки →
@@ -1879,4 +1882,39 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
 - Проверки после слияния: `npx tsc -b`, `npx oxlint src` (только предупреждения),
   `npx vite build`, `npm run check:pp2604` — проходят. Заметка §52 о падении
   TS2740/CS1739 утратила силу: ошибки устранены принятыми правками.
+
+## 55. Импортёр и API каталога ПП РФ N 2604 (2026-11-20)
+
+- **Импортёр `csms-api/tools/Pp2604Importer`:** читает снимок
+  `pp2604-seed.json` (20 позиций приложения N 2 и 57 связей), получает
+  реквизиты и PDF только с `publication.pravo.gov.ru`
+  (`eoNumber=0001202201040005`, SHA-256 `b265fdec…572d9bf`), пишет в
+  `legal.pp2604_documents`, `legal.pp2604_categories`,
+  `legal.pp2604_okpd2_links`. CLI: `--connection`, `--seed`, `--snapshot`,
+  `--pdf`, `--parse-only`, `--load-only`, `--offline`. Версия детерминированная
+  (`pp-2604-d22664ddcd64`); повторный прогон не дублирует данные, старые
+  версии остаются неактивными.
+- **API:** `GET /api/pp2604/mapping` и `/api/pp2604/resolve?code=…&purpose=…`
+  читают активную версию через `EfCorePp2604Catalog`. В memory-режиме
+  `InMemoryPp2604Catalog` возвращает 404, а не выдуманные правила. Решение
+  `ref.npa_rules` НПА как источника пределов отклонено: там нет привязки к
+  позициям приложения N 2.
+- **Фронтенд:** `src/services/Pp2604/pp2604.api.ts` +
+  `usePp2604MappingOrDefault()`. `resolveOkpd2Category`,
+  `detectObjectCategory`, `categoryFromOkpd2`, `objectCategoryLimits` и
+  `validateBidEvaluation` принимают каталог API; константы
+  `OKPD2_CATEGORY_RULES` остались только как офлайн-снимок
+  `PP2604_OFFLINE_MAPPING`. Подключено в оценке заявок, списке оценок,
+  требованиях участников и служебной записке.
+- **Проверки:** `dotnet build` — 0 ошибок; `dotnet test` — 202 passed /
+  6 skipped (новые `Pp2604CatalogTests`); `npx tsc -b`, `npx oxlint src`
+  (warnings), `npx vite build`, `npm run check:pp2604` — проходят. Снимок
+  экспортируется скриптом `npm run export:pp2604-seed -- <путь>`. Брифы:
+  `csms/docs/tasks/pp2604-okpd2-limits.md`,
+  `csms-api/docs/tasks/compliance-liability-mapping.md` §14.
+- **Не включено в коммит:** чужая незавершённая работа по электронному
+  актированию в `csms-api` (`Acceptance*.cs`, `20261120160000_AddContractAcceptance`,
+  правки `Program.cs`, `EisDbContext.cs`, model snapshot). В коммит `csms-api`
+  вошли только строки ПП N 2604 из `Program.cs`; `EisDbContext.cs` и model
+  snapshot не были добавлены в индекс.
 

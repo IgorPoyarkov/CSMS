@@ -24,6 +24,7 @@ import {
   useOrganizationBidEvaluations,
   useUpdateBidEvaluation,
 } from "../../services/BidEvaluation/bidEvaluation.api";
+import { usePp2604MappingOrDefault } from "../../services/Pp2604/pp2604.api";
 import BidEvaluationModal from "./BidEvaluationModal";
 import styles from "./BidEvaluationsPage.module.scss";
 
@@ -68,6 +69,7 @@ export default function BidEvaluationsPage() {
   const { data: evaluations = [], isLoading } =
     useOrganizationBidEvaluations(orgId);
   const { data: acts = [] } = useLegalActs();
+  const { mapping } = usePp2604MappingOrDefault();
 
   const updateEvaluation = useUpdateBidEvaluation();
   const deleteEvaluation = useDeleteBidEvaluation();
@@ -108,7 +110,7 @@ export default function BidEvaluationsPage() {
     evaluation: BidEvaluation,
     status: BidEvaluationStatus,
   ): boolean => {
-    const issues = validateBidEvaluation({ ...evaluation, status });
+    const issues = validateBidEvaluation({ ...evaluation, status }, { mapping });
     const errors = issues.filter((issue) => issue.level === "error");
 
     if (hasValidationErrors(issues)) {
@@ -236,12 +238,12 @@ export default function BidEvaluationsPage() {
             const enabled = evaluation.criteria.filter(
               (criterion) => criterion.enabled,
             );
-            const issues = validateBidEvaluation(evaluation);
+            const issues = validateBidEvaluation(evaluation, { mapping });
             const errors = issues.filter((issue) => issue.level === "error");
             const warnings = issues.filter(
               (issue) => issue.level === "warning",
             );
-            const limits = objectCategoryLimits(evaluation.objectCategory);
+            const limits = objectCategoryLimits(evaluation.objectCategory, mapping);
             const isBusy =
               updateEvaluation.isPending &&
               String(updateEvaluation.variables?.id) === String(evaluation.id);

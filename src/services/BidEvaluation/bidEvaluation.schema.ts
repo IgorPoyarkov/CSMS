@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { checkOkpd2AuctionList } from "../Okpd2Ref/auctionListControl";
+import type { Pp2604Mapping, Pp2604Rule } from "../Pp2604/pp2604.schema";
 
 /**
  * Оценка заявок на участие в закупке по Положению, утверждённому
@@ -380,9 +381,10 @@ export const OBJECT_CATEGORY_IDS = OBJECT_CATEGORY_LIMITS.map(
 
 export const objectCategoryLimits = (
   category: string | undefined,
+  mapping: Pp2604Mapping = PP2604_OFFLINE_MAPPING,
 ): ObjectCategoryLimit =>
-  OBJECT_CATEGORY_LIMITS.find((item) => item.id === category) ??
-  OBJECT_CATEGORY_LIMITS[1];
+  mapping.categories.find((item) => item.id === category) ??
+  mapping.categories[1];
 
 // === Связь кода ОКПД2 с позицией приложения N 2 ===
 
@@ -407,7 +409,7 @@ export interface Okpd2CategoryRule {
 const sourceOf = (rule: Okpd2CategoryRule): string =>
   `${PP2604_APPENDIX2_SOURCE.act}, ${PP2604_APPENDIX2_SOURCE.appendix}, поз. ${rule.row}; ОКПД2 ${rule.prefix} — ${rule.classifierName}`;
 
-/** Названия разделов ОКПД2, по которым позиции 1 attracted к товарам. */
+/** Названия разделов ОКПД2, по которым позиция 1 отнесена к товарам. */
 const GOODS_SECTIONS: Record<string, string> = {
   "01": "Продукция и услуги сельского хозяйства и охоты",
   "02": "Продукция лесоводства, лесозаготовок и связанные с этим услуги",
@@ -734,7 +736,7 @@ export const isOkpd2CodeFormatValid = (code: string | undefined): boolean =>
 /** Цель закупки, из-за которой пищевые продукты попадают в позицию 13. */
 export type Okpd2PurchasePurpose = "food_for_social_orgs";
 
-const FOOD_PURPOSE_RULE: Okpd2CategoryRule = {
+export const PP2604_FOOD_PURPOSE_RULE: Okpd2CategoryRule = {
   prefix: "10, 11",
   category: "food_catering",
   row: 13,
@@ -761,6 +763,7 @@ export interface Okpd2CategoryResolution {
 export const resolveOkpd2Category = (
   code: string | undefined,
   purpose?: Okpd2PurchasePurpose,
+  mapping: Pp2604Mapping = PP2604_OFFLINE_MAPPING,
 ): Okpd2CategoryResolution => {
   const normalized = normalizeOkpd2Code(code);
   const clean = stripCodeDots(normalized);
@@ -782,20 +785,32 @@ export const resolveOkpd2Category = (
   }
 
   if (purpose === "food_for_social_orgs" && /^(10|11)/.test(clean)) {
-    return {
-      code: normalized,
-      category: FOOD_PURPOSE_RULE.category,
-      row: FOOD_PURPOSE_RULE.row,
-      basis: FOOD_PURPOSE_RULE.basis,
-      source: sourceOf(FOOD_PURPOSE_RULE),
-      needsReview: false,
-      reason: FOOD_PURPOSE_RULE.condition,
-    };
+    const byPurpose = mapping.rules.find(
+      (item) => item.purpose === "food_for_social_orgs",
+    );
+    if (byPurpose) {
+      return {
+        code: normalized,
+        category: byPurpose.category,
+        row: byPurpose.row,
+        basis: byPurpose.basis,
+        source: byPurpose.source,
+        needsReview: byPurpose.needsReview,
+        reason: byPurpose.condition ?? undefined,
+      };
+    }
   }
 
-  const rule = OKPD2_CATEGORY_RULES.find((item) =>
-    clean.startsWith(stripCodeDots(item.prefix)),
-  );
+  // Самый длинный префикс побеждает общий раздел. src — в БД или офлайн-снимке.
+  const prefixLength = (prefix: string) => stripCodeDots(prefix).length;
+  const rule = mapping.rules
+    .filter(
+      (item) =>
+        item.purpose === null && clean.startsWith(stripCodeDots(item.prefix)),
+    )
+    .sort(
+      (a, b) => prefixLength(b.prefix) - prefixLength(a.prefix) || a.sortOrder - b.sortOrder,
+    )[0];
 
   if (!rule) {
     return {
@@ -810,16 +825,18 @@ export const resolveOkpd2Category = (
     category: rule.category,
     row: rule.row,
     basis: rule.basis,
-    source: sourceOf(rule),
-    needsReview: Boolean(rule.needsReview),
-    reason: rule.condition,
+    source: rule.source,
+    needsReview: rule.needsReview,
+    reason: rule.condition ?? undefined,
   };
 };
 
 /** Категория приложения N 2 по коду ОКПД2 (undefined — код не указан/невалиден) */
 export const categoryFromOkpd2 = (
   code: string | undefined,
-): string | undefined => resolveOkpd2Category(code).category;
+  purpose?: Okpd2PurchasePurpose,
+  mapping: Pp2604Mapping = PP2604_OFFLINE_MAPPING,
+): string | undefined => resolveOkpd2Category(code, purpose, mapping).category;
 
 export type Okpd2CategoryMatch = Okpd2CategoryResolution;
 
@@ -843,12 +860,13 @@ export interface Okpd2CategoryDetection {
 export const detectObjectCategory = (
   codes: (string | undefined)[],
   purpose?: Okpd2PurchasePurpose,
+  mapping: Pp2604Mapping = PP2604_OFFLINE_MAPPING,
 ): Okpd2CategoryDetection => {
   const matches: Okpd2CategoryMatch[] = [];
   const unmatched: string[] = [];
 
   codes.forEach((rawCode) => {
-    const resolution = resolveOkpd2Category(rawCode, purpose);
+    const resolution = resolveOkpd2Category(rawCode, purpose, mapping);
 
     if (!resolution.code || !isOkpd2CodeFormatValid(resolution.code)) {
       unmatched.push(resolution.code);
@@ -869,6 +887,51 @@ export const detectObjectCategory = (
     conflict: categories.size > 1,
     needsReview: matches.some((item) => item.needsReview),
   };
+};
+
+/**
+ * Офлайн-снимок на случай, когда csms-api недоступен. Основной источник —
+ * активная версия каталога из `/api/pp2604/mapping`: она импортируется из
+ * официального PDF и может меняться без правок фронтенда.
+ */
+export const PP2604_OFFLINE_MAPPING: Pp2604Mapping = {
+  version: "offline",
+  rulesVersion: "pp2604-rules-v1",
+  eoNumber: PP2604_APPENDIX2_SOURCE.eoNumber,
+  apiUrl: "",
+  pdfUrl: "",
+  pdfSha256: "",
+  documentTitle: PP2604_APPENDIX2_SOURCE.act,
+  documentDate: null,
+  publishDate: null,
+  pagesCount: null,
+  appendixPages: PP2604_APPENDIX2_SOURCE.pdfPages,
+  extractionMethod: "снимок во фронтенде",
+  importedAt: "",
+  source: PP2604_APPENDIX2_SOURCE,
+  categories: OBJECT_CATEGORY_LIMITS.map((item) => ({
+    ...item,
+    sourcePage: 27,
+  })),
+  rules: [
+    ...["10", "11"].map((prefix, index): Pp2604Rule => ({
+      ...PP2604_FOOD_PURPOSE_RULE,
+      prefix,
+      condition: PP2604_FOOD_PURPOSE_RULE.condition ?? null,
+      needsReview: false,
+      purpose: "food_for_social_orgs",
+      source: sourceOf(PP2604_FOOD_PURPOSE_RULE),
+      sortOrder: index - 2,
+    })),
+    ...OKPD2_CATEGORY_RULES.map((rule, index): Pp2604Rule => ({
+      ...rule,
+      condition: rule.condition ?? null,
+      needsReview: Boolean(rule.needsReview),
+      purpose: null,
+      source: sourceOf(rule),
+      sortOrder: index,
+    })),
+  ],
 };
 
 // === Критерии оценки (п. 3 Положения) ===
@@ -1513,6 +1576,8 @@ export interface ValidationOptions {
   checkIndicators?: boolean;
   // Проверять состав заявок: в СЗ заявок ещё нет
   checkBids?: boolean;
+  // Активная версия каталога 2604; по умолчанию офлайн-снимок
+  mapping?: Pp2604Mapping;
 }
 
 /**
@@ -1538,6 +1603,7 @@ export const validateBidEvaluation = (
 ): ValidationIssue[] => {
   const checkIndicators = options.checkIndicators ?? true;
   const checkBids = options.checkBids ?? true;
+  const mapping = options.mapping ?? PP2604_OFFLINE_MAPPING;
   const issues: ValidationIssue[] = [];
   const enabled = config.criteria.filter((criterion) => criterion.enabled);
   const error = (message: string) => issues.push({ level: "error", message });
@@ -1598,7 +1664,7 @@ export const validateBidEvaluation = (
   }
 
   // Приложение N 2: предельные величины значимости
-  const limits = objectCategoryLimits(config.objectCategory);
+  const limits = objectCategoryLimits(config.objectCategory, mapping);
   const price = enabled.find((criterion) => criterion.type === "price");
   const expenses = enabled.find((criterion) => criterion.type === "expenses");
 
@@ -1651,7 +1717,7 @@ export const validateBidEvaluation = (
       `Код ОКПД2 не указан: категорию и пределы значимости проверить автоматически нельзя. Выберите категорию вручную (${PP2604_APPENDIX2_SOURCE.appendix}).`,
     );
   } else {
-    const detection = detectObjectCategory(codes, config.okpd2Purpose);
+    const detection = detectObjectCategory(codes, config.okpd2Purpose, mapping);
 
     detection.matches.forEach((match) => {
       if (match.needsReview) {
@@ -1683,7 +1749,7 @@ export const validateBidEvaluation = (
       detection.category &&
       detection.category !== config.objectCategory
     ) {
-      const expected = objectCategoryLimits(detection.category);
+      const expected = objectCategoryLimits(detection.category, mapping);
       error(
         `Категория «${limits.label}» (поз. ${limits.appendixRow}) не соответствует ОКПД2 ${codes.join(
           ", ",

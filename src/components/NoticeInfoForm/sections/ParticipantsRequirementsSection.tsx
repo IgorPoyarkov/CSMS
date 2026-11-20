@@ -8,6 +8,7 @@ import {
   procedureApplicabilityHint,
   procedureKindFromPlacingWay,
 } from "../../../services/BidEvaluation/bidEvaluation.schema";
+import { usePp2604MappingOrDefault } from "../../../services/Pp2604/pp2604.api";
 import {
   CRITERION_EIS_CODES,
   CRITERION_LABELS,
@@ -20,6 +21,7 @@ const ParticipantsRequirementsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { mapping } = usePp2604MappingOrDefault();
 
   const placingWayCode = watch("generalInfo.placingWayCode");
   const reqs = watch("participantsRequirements");
@@ -28,8 +30,15 @@ const ParticipantsRequirementsSection = () => {
 
   // Категория объекта и ОКПД2 пришли из служебной записки: по ним проверяем
   // предельные величины значимости приложения N 2 к ПП РФ N 2604
-  const evaluationLimits = objectCategoryLimits(reqs.evaluationObjectCategory);
-  const detection = detectObjectCategory(reqs.evaluationOkpd2Codes ?? []);
+  const evaluationLimits = objectCategoryLimits(
+    reqs.evaluationObjectCategory,
+    mapping,
+  );
+  const detection = detectObjectCategory(
+    reqs.evaluationOkpd2Codes ?? [],
+    undefined,
+    mapping,
+  );
   const enabledCriteria = reqs.evaluationCriteria.filter(
     (criterion) => criterion.enabled,
   );
@@ -85,7 +94,7 @@ const ParticipantsRequirementsSection = () => {
                     (match) =>
                       `${match.code} → ${
                         match.category
-                          ? objectCategoryLimits(match.category).label
+                          ? objectCategoryLimits(match.category, mapping).label
                           : "правило не найдено"
                       }`,
                   )

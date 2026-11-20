@@ -103,7 +103,6 @@ import {
 } from "../../services/ContractSmp/smpRegistry.schema";
 import {
   BEST_DIRECTIONS,
-  OBJECT_CATEGORY_LIMITS,
   SCORING_MODES,
   bestDirectionLabels,
   criterionFormulaText,
@@ -121,6 +120,7 @@ import {
   validateBidEvaluation,
   type Criterion,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
+import { usePp2604MappingOrDefault } from "../../services/Pp2604/pp2604.api";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { useKtruDictionary } from "../../services/KtruRef/ktruRef.api";
 import { checkKtruUsage } from "../../services/KtruRef/ktruControl";
@@ -263,6 +263,7 @@ export default function PurchaseNoteModal({
   const isReadOnly = !canEditPurchaseNote;
 
   const { data: existingNotes = [] } = usePurchaseNotes(organizationId);
+  const { mapping } = usePp2604MappingOrDefault();
   const { data: orgEmployees = [] } =
     useFetchOrganizationEmployees(organizationId);
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
@@ -708,11 +709,15 @@ export default function PurchaseNoteModal({
   const evaluationOkpd2Codes = watchedItems
     .map((item) => item.okpd2Code)
     .filter((code): code is string => Boolean(code));
-  const detectedCategory = detectObjectCategory(evaluationOkpd2Codes);
+  const detectedCategory = detectObjectCategory(
+    evaluationOkpd2Codes,
+    undefined,
+    mapping,
+  );
   const watchedEvaluationCategory = watch("evaluationObjectCategory");
   const evaluationCategory =
     watchedEvaluationCategory || detectedCategory.category || "works_services";
-  const evaluationLimits = objectCategoryLimits(evaluationCategory);
+  const evaluationLimits = objectCategoryLimits(evaluationCategory, mapping);
   // useWatch следит за вложенными полями критериев (значимость, показатели),
   // поэтому чекбокс и редактор показателей перерисовываются сразу
   const watchedEvaluationCriteria = useWatch({
@@ -733,7 +738,7 @@ export default function PurchaseNoteModal({
           nmck: watch("initialMaxPrice") ?? "",
           okpd2Codes: evaluationOkpd2Codes,
         },
-        { checkIndicators: false, checkBids: false },
+        { checkIndicators: false, checkBids: false, mapping },
       )
     : [];
 
@@ -2663,7 +2668,7 @@ export default function PurchaseNoteModal({
                       className={block("select")}
                       {...register("evaluationObjectCategory")}
                     >
-                      {OBJECT_CATEGORY_LIMITS.map((category) => (
+                      {mapping.categories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.label}
                         </option>
@@ -2695,7 +2700,10 @@ export default function PurchaseNoteModal({
                             (match) =>
                               `${match.code} → ${
                                 match.category
-                                  ? objectCategoryLimits(match.category).label
+                                  ? objectCategoryLimits(
+                                      match.category,
+                                      mapping,
+                                    ).label
                                   : "правило не найдено"
                               }`,
                           )

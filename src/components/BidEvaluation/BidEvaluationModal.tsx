@@ -8,7 +8,6 @@ import {
   BEST_DIRECTIONS,
   BID_EVALUATION_LEGAL_ACT_ID,
   BidEvaluationSchema,
-  OBJECT_CATEGORY_LIMITS,
   PROCEDURE_KINDS,
   SCORING_MODES,
   bestDirectionLabels,
@@ -38,6 +37,7 @@ import {
   useCreateBidEvaluation,
   useUpdateBidEvaluation,
 } from "../../services/BidEvaluation/bidEvaluation.api";
+import { usePp2604MappingOrDefault } from "../../services/Pp2604/pp2604.api";
 import styles from "./BidEvaluationModal.module.scss";
 
 /**
@@ -98,6 +98,7 @@ export default function BidEvaluationModal({
   const block = bem(styles, "bid-evaluation-modal");
 
   const { data: acts = [] } = useLegalActs();
+  const { mapping } = usePp2604MappingOrDefault();
   const createEvaluation = useCreateBidEvaluation();
   const updateEvaluation = useUpdateBidEvaluation();
   const isPending = createEvaluation.isPending || updateEvaluation.isPending;
@@ -134,13 +135,17 @@ export default function BidEvaluationModal({
     ...(watched ?? {}),
   } as Partial<BidEvaluation>);
 
-  const issues = validateBidEvaluation(evaluation);
+  const issues = validateBidEvaluation(evaluation, { mapping });
   const applies = pp2604Applies(evaluation.procedureKind);
   // Аукцион и запрос котировок Положением N 2604 не оцениваются
   const result = applies ? evaluateBids(evaluation) : null;
 
-  const limits = objectCategoryLimits(evaluation.objectCategory);
-  const categoryDetection = detectObjectCategory(evaluation.okpd2Codes);
+  const limits = objectCategoryLimits(evaluation.objectCategory, mapping);
+  const categoryDetection = detectObjectCategory(
+    evaluation.okpd2Codes,
+    evaluation.okpd2Purpose,
+    mapping,
+  );
   const legalActs = acts.filter(
     (act) =>
       String(act.id) === BID_EVALUATION_LEGAL_ACT_ID ||
@@ -492,7 +497,7 @@ export default function BidEvaluationModal({
                 className={block("input")}
                 {...register("objectCategory")}
               >
-                {OBJECT_CATEGORY_LIMITS.map((category) => (
+                {mapping.categories.map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.label}
                   </option>
@@ -513,7 +518,7 @@ export default function BidEvaluationModal({
                       (match) =>
                         `${match.code} → ${
                           match.category
-                            ? objectCategoryLimits(match.category).label
+                            ? objectCategoryLimits(match.category, mapping).label
                             : "правило не найдено"
                         }`,
                     )
