@@ -19,6 +19,7 @@ import {
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import SmnpSonekModal, { type SmnpRecordType } from "./SmnpSonekModal";
+import SmnpReport238Form from "./SmnpReport238Form";
 import styles from "./SmnpSonek.module.scss";
 
 export default function SmnpSonekPage() {
@@ -31,7 +32,7 @@ export default function SmnpSonekPage() {
     useSmnpProcurements(orgId);
 
   const [activeTab, setActiveTab] = useState<
-    "plans" | "reports" | "procurements"
+    "plans" | "reports" | "procurements" | "form238"
   >("plans");
 
   const { mutate: deletePlan } = useDeleteSmnpPlan();
@@ -65,6 +66,7 @@ export default function SmnpSonekPage() {
     { id: "plans" as const, label: "Планы" },
     { id: "reports" as const, label: "Отчёты" },
     { id: "procurements" as const, label: "Закупки СМП/СОНКО" },
+    { id: "form238" as const, label: "Форма ПП 238" },
   ];
 
   return (
@@ -93,6 +95,11 @@ export default function SmnpSonekPage() {
         субподрядчиков из числа СМП внутри одного контракта (п. 1 типовых
         условий, ПП РФ от 23.12.2016 N 1466)
       </div>
+
+      {/* ===== ФОРМА ПП 238 ===== */}
+      {activeTab === "form238" && (
+        <SmnpReport238Form organization={organization} />
+      )}
 
       {/* ===== ПЛАНЫ ===== */}
       {activeTab === "plans" && (
