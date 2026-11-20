@@ -146,9 +146,12 @@ export default function CustomSelect<TItem>({
                   <li
                     className={select("item", isSelected ? ["active"] : [])}
                     key={key}
+                    title={searchTextOf(item)}
                     onClick={() => handleSelectItem(key, item)}
                   >
-                    <span>{renderItem ? renderItem(item) : String(item)}</span>
+                    <span className={select("item-text")}>
+                      {renderItem ? renderItem(item) : String(item)}
+                    </span>
                     {isMulti && (
                       <input type="checkbox" checked={isSelected} readOnly />
                     )}

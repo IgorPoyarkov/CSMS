@@ -308,10 +308,7 @@
   // Таблица разрядов ИКЗ: 6 граф, значения только для чтения
   &__table--ikz {
     min-width: 680px;
-
-    td {
-      min-width: 80px;
-    }
+    table-layout: fixed;
 
     input {
       text-align: center;
@@ -320,6 +317,30 @@
 
   // Ширины разрядов КБК — по содержимому графы
   &__col {
+    // Ширины граф ИКЗ пропорциональны числу символов: 2 / 20 / 4 / 3 / 4 / 3
+    &--ikz-year {
+      width: 6%;
+    }
+
+    &--ikz-customer {
+      width: 52%;
+    }
+
+    &--ikz-purchase {
+      width: 12%;
+    }
+
+    &--ikz-order {
+      width: 9%;
+    }
+
+    &--ikz-okpd2 {
+      width: 12%;
+    }
+
+    &--ikz-kvr {
+      width: 9%;
+    }
     &--chapter {
       width: 64px;
     }

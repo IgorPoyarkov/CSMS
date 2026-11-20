@@ -468,6 +468,17 @@ export default function PurchasePlanPositionForm({
                 </span>
                 <div className={block("table-wrap")}>
                   <table className={block("table", ["ikz"])}>
+                    {/* Ширины граф пропорциональны числу символов разряда:
+                        год 2, ИКУ 20, номер закупки 4, порядковый 3,
+                        ОКПД2 4, КВР 3 (всего 36) */}
+                    <colgroup>
+                      <col className={block("col", ["ikz-year"])} />
+                      <col className={block("col", ["ikz-customer"])} />
+                      <col className={block("col", ["ikz-purchase"])} />
+                      <col className={block("col", ["ikz-order"])} />
+                      <col className={block("col", ["ikz-okpd2"])} />
+                      <col className={block("col", ["ikz-kvr"])} />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th>Год</th>
@@ -515,7 +526,67 @@ export default function PurchasePlanPositionForm({
                 </p>
               </div>
 
-              <div className={block("cell", ["wide"])}>
+              {/* Уполномоченный орган и организатор совместной закупки —
+                  признаки самой закупки, поэтому стоят в «Сведениях о
+                  закупке» над номером закупки */}
+              <div className={block("cell")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasAuthorizedBody")} />
+                  Есть уполномоченный орган (учреждение)
+                </label>
+                {hasAuthorizedBody && (
+                  <>
+                    <span className={block("label")}>
+                      Наименование уполномоченного органа (учреждения)
+                    </span>
+                    <CustomSelect
+                      listData={AUTHORIZED_BODIES}
+                      selectedValue={authorizedBodyName ?? ""}
+                      placeholder="Выберите уполномоченный орган"
+                      getKey={(item) => item.name}
+                      getLabel={(item) => item.name}
+                      searchable
+                      searchPlaceholder="Поиск уполномоченного органа…"
+                      onClick={(_key, item) =>
+                        setValue("authorizedBodyName", item.name, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className={block("cell")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasJointOrganizer")} />
+                  Есть организатор совместной закупки
+                </label>
+                {hasJointOrganizer && (
+                  <>
+                    <span className={block("label")}>
+                      Наименование организатора совместного конкурса или
+                      аукциона
+                    </span>
+                    <CustomSelect
+                      listData={organizers}
+                      selectedValue={jointOrganizerName ?? ""}
+                      placeholder="Выберите организатора"
+                      getKey={(item) => item.name}
+                      getLabel={(item) => item.name}
+                      searchable
+                      searchPlaceholder="Поиск организатора…"
+                      onClick={(_key, item) =>
+                        setValue("jointOrganizerName", item.name, {
+                          shouldValidate: true,
+                        })
+                      }
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className={block("cell")}>
                 <label
                   className={block("label")}
                   htmlFor="position-purchase-number"
@@ -545,7 +616,103 @@ export default function PurchasePlanPositionForm({
                   (разряды 23–26).
                 </p>
               </div>
+
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-public-discussion"
+                >
+                  Необходимо обязательное общественное обсуждение в соответствии
+                  со ст. 20 44-ФЗ
+                </label>
+                <select
+                  id="position-public-discussion"
+                  className={block("select")}
+                  value={String(Boolean(isPublicDiscussionRequired))}
+                  onChange={(event) =>
+                    setValue(
+                      "isPublicDiscussionRequired",
+                      event.target.value === "true",
+                      { shouldValidate: true },
+                    )
+                  }
+                >
+                  {publicDiscussionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
+            {/* Блок изменений доступен только при редактировании существующей
+                позиции: у новой записи решения ещё нет */}
+            {!isNew && (
+              <div className={block("fields")}>
+                <div className={block("cell")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-change-reason"
+                  >
+                    Основание внесения изменений (positionModification)
+                  </label>
+                  <select
+                    id="position-change-reason"
+                    className={block("select")}
+                    {...register("changeReasonCode", {
+                      onChange: (e) => {
+                        const found = tpChangeReasonOptions.find(
+                          (item) => item.code === e.target.value,
+                        );
+                        setValue("changeReasonName", found?.name ?? "");
+                      },
+                    })}
+                  >
+                    <option value="">— Не выбрано —</option>
+                    {tpChangeReasonOptions.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.code}. {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className={block("cell")}>
+                  <span className={block("label")}>
+                    Вынесенное решение (decision)
+                  </span>
+                  {/* По XSD 17.0 decision — это «изменение» либо «отмена»
+                      закупки; для новой записи решение ещё не принято */}
+                  <div className={block("radio-row")}>
+                    {modificationDecisionOptions.map((option) => (
+                      <label key={option.value} className={block("radio")}>
+                        <input
+                          type="radio"
+                          value={option.value}
+                          {...register("modificationDecision")}
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className={block("cell", ["wide"])}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-modification-description"
+                  >
+                    Содержание изменений позиции
+                  </label>
+                  <textarea
+                    id="position-modification-description"
+                    className={block("textarea")}
+                    rows={3}
+                    placeholder="Обоснование корректировки или отмены позиции"
+                    {...register("modificationDescription")}
+                  />
+                </div>
+              </div>
+            )}
           </fieldset>
 
           <fieldset className={block("section")}>
@@ -630,6 +797,63 @@ export default function PurchasePlanPositionForm({
                   placeholder="Наименование по ОКПД2, правится заказчиком"
                   {...register("objectOfPurchase")}
                 />
+              </div>
+
+              {/* Признаки закупки ЕИС 17.0 стоят под наименованием объекта */}
+              <div className={block("cell", ["wide"])}>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isEnergyServiceContract)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isEnergyServiceContract",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка на заключение энергосервисного контракта (ст. 108
+                  44-ФЗ)
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isProvisionLendingServices)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isProvisionLendingServices",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка на оказание услуг по предоставлению кредита
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isConstructionWorks)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isConstructionWorks",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  Закупка по пп. «а» п. 18 Положения № 1279 (объект капитального
+                  строительства)
+                </label>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    {...register("isNotFederalFinancing")}
+                  />
+                  ОКС / недвижимость без софинансирования из федерального
+                  бюджета
+                </label>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("notPublishedOnEIS")} />
+                  Информация, не подлежащая размещению на официальном сайте ЕИС
+                </label>
               </div>
             </div>
           </fieldset>
@@ -883,216 +1107,6 @@ export default function PurchasePlanPositionForm({
             )}
           </fieldset>
 
-          <fieldset className={block("section")}>
-            <legend>Признаки ЕИС 17.0 и изменения</legend>
-            <div className={block("fields")}>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-public-discussion"
-                >
-                  Необходимо обязательное общественное обсуждение в соответствии
-                  со ст. 20 44-ФЗ
-                </label>
-                <select
-                  id="position-public-discussion"
-                  className={block("select")}
-                  value={String(Boolean(isPublicDiscussionRequired))}
-                  onChange={(event) =>
-                    setValue(
-                      "isPublicDiscussionRequired",
-                      event.target.value === "true",
-                      { shouldValidate: true },
-                    )
-                  }
-                >
-                  {publicDiscussionOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={block("cell")}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("hasAuthorizedBody")} />
-                  Есть уполномоченный орган (учреждение)
-                </label>
-                {hasAuthorizedBody && (
-                  <>
-                    <span className={block("label")}>
-                      Наименование уполномоченного органа (учреждения)
-                    </span>
-                    <CustomSelect
-                      listData={AUTHORIZED_BODIES}
-                      selectedValue={authorizedBodyName ?? ""}
-                      placeholder="Выберите уполномоченный орган"
-                      getKey={(item) => item.name}
-                      getLabel={(item) => item.name}
-                      searchable
-                      searchPlaceholder="Поиск уполномоченного органа…"
-                      onClick={(_key, item) =>
-                        setValue("authorizedBodyName", item.name, {
-                          shouldValidate: true,
-                        })
-                      }
-                    />
-                  </>
-                )}
-              </div>
-              <div className={block("cell")}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("hasJointOrganizer")} />
-                  Есть организатор совместной закупки
-                </label>
-                {hasJointOrganizer && (
-                  <>
-                    <span className={block("label")}>
-                      Наименование организатора совместного конкурса или
-                      аукциона
-                    </span>
-                    <CustomSelect
-                      listData={organizers}
-                      selectedValue={jointOrganizerName ?? ""}
-                      placeholder="Выберите организатора"
-                      getKey={(item) => item.name}
-                      getLabel={(item) => item.name}
-                      searchable
-                      searchPlaceholder="Поиск организатора…"
-                      onClick={(_key, item) =>
-                        setValue("jointOrganizerName", item.name, {
-                          shouldValidate: true,
-                        })
-                      }
-                    />
-                  </>
-                )}
-              </div>
-              <div className={block("cell", ["wide"])}>
-                <label className={block("checkbox")}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(isEnergyServiceContract)}
-                    onChange={(event) =>
-                      setExclusiveFlag(
-                        "isEnergyServiceContract",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Закупка на заключение энергосервисного контракта (ст. 108
-                  44-ФЗ)
-                </label>
-                <label className={block("checkbox")}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(isProvisionLendingServices)}
-                    onChange={(event) =>
-                      setExclusiveFlag(
-                        "isProvisionLendingServices",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Закупка на оказание услуг по предоставлению кредита
-                </label>
-                <label className={block("checkbox")}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(isConstructionWorks)}
-                    onChange={(event) =>
-                      setExclusiveFlag(
-                        "isConstructionWorks",
-                        event.target.checked,
-                      )
-                    }
-                  />
-                  Закупка по пп. «а» п. 18 Положения № 1279 (объект капитального
-                  строительства)
-                </label>
-                <label className={block("checkbox")}>
-                  <input
-                    type="checkbox"
-                    {...register("isNotFederalFinancing")}
-                  />
-                  ОКС / недвижимость без софинансирования из федерального
-                  бюджета
-                </label>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("notPublishedOnEIS")} />
-                  Информация, не подлежащая размещению на официальном сайте ЕИС
-                </label>
-              </div>
-            </div>
-
-            {/* Блок изменений доступен только при редактировании существующей
-                позиции: у новой записи решения ещё нет */}
-            {!isNew && (
-              <div className={block("fields")}>
-                <div className={block("cell")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-change-reason"
-                  >
-                    Основание внесения изменений (positionModification)
-                  </label>
-                  <select
-                    id="position-change-reason"
-                    className={block("select")}
-                    {...register("changeReasonCode", {
-                      onChange: (e) => {
-                        const found = tpChangeReasonOptions.find(
-                          (item) => item.code === e.target.value,
-                        );
-                        setValue("changeReasonName", found?.name ?? "");
-                      },
-                    })}
-                  >
-                    <option value="">— Не выбрано —</option>
-                    {tpChangeReasonOptions.map((item) => (
-                      <option key={item.code} value={item.code}>
-                        {item.code}. {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={block("cell")}>
-                  <span className={block("label")}>
-                    Вынесенное решение (decision)
-                  </span>
-                  {/* По XSD 17.0 decision — это «изменение» либо «отмена»
-                      закупки; для новой записи решение ещё не принято */}
-                  <div className={block("radio-row")}>
-                    {modificationDecisionOptions.map((option) => (
-                      <label key={option.value} className={block("radio")}>
-                        <input
-                          type="radio"
-                          value={option.value}
-                          {...register("modificationDecision")}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div className={block("cell", ["wide"])}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-modification-description"
-                  >
-                    Содержание изменений позиции
-                  </label>
-                  <textarea
-                    id="position-modification-description"
-                    className={block("textarea")}
-                    rows={3}
-                    placeholder="Обоснование корректировки или отмены позиции"
-                    {...register("modificationDescription")}
-                  />
-                </div>
-              </div>
-            )}
-          </fieldset>
 
           <footer className={block("footer")}>
             {errorText("objectOfPurchase") && (

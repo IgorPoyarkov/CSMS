@@ -118,6 +118,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     min-height: 34px;
     padding: 8px 12px;
     font-size: 14px;
@@ -126,6 +127,14 @@
     transition:
       background-color 0.15s ease,
       color 0.15s ease;
+
+    // Длинные наименования (например, уполномоченных органов) переносятся,
+    // а не обрезаются и не вылезают за границы выпадающего списка
+    .custom-select__item-text {
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
 
     &:hover {
       color: var(--accent-emphasis);
