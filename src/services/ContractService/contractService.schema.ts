@@ -67,16 +67,109 @@ export type ContractServiceCreationMethod = z.infer<
   typeof ContractServiceCreationMethodSchema
 >;
 
-// Функции и полномочия контрактной службы — по разделу III Типового положения:
-// 3.1 планирование закупок, 3.2 описание объекта закупки и обоснование НМЦК,
-// 3.3 определение поставщика, 3.4 заключение контракта,
-// 3.5 исполнение, изменение, расторжение контракта и отчётность.
+// Функции и полномочия контрактной службы — по разделу III Типового положения
+// (Приказ Минфина России от 31.07.2020 № 158н).
+//
+// Пять основных кодов (п. 3.1–3.5) сохраняются для обратной совместимости
+// с существующими задачами и отчётами. К ним добавлены детальные коды
+// подпунктов, чтобы заказчик мог наделять работников конкретными функциями.
+//
+// 3.1 Планирование закупок:
+//   planning_develop_plan — разрабатывает план-график (3.1.1)
+//   planning_place_plan   — размещает ПГ в ЕИС (3.1.2)
+//   planning_justify_need — обосновывает потребность (3.1.3)
+//   planning_norming      — разрабатывает нормирование (3.1.4)
+//   planning_consultation — организует консультации с поставщиками (3.1.5)
+//
+// 3.2 Определение поставщика:
+//   supplier_determination_closed     — закрытые способы (3.2.1)
+//   supplier_determination_notice     — извещения и документация (3.2.2)
+//   supplier_determination_nmtc       — обоснование НМЦК (3.2.2.1)
+//   supplier_determination_object     — описание объекта закупки (3.2.2.2)
+//   supplier_determination_information — сведения в извещении (3.2.2.3)
+//   supplier_determination_explanation — разъяснения (3.2.3)
+//   supplier_determination_cancel     — отмена определения (3.2.4)
+//   supplier_determination_protocol   — протоколы (3.2.5)
+//   supplier_determination_commission — обеспечение комиссии (3.2.6)
+//   supplier_determination_expert     — привлечение экспертов (3.2.7)
+//
+// 3.3 Заключение контрактов:
+//   contract_conclusion_placing      — размещение проекта в ЕИС (3.3.1)
+//   contract_conclusion_protocol_diff — рассмотрение разногласий (3.3.2)
+//   contract_conclusion_guarantee    — рассмотрение независимой гарантии (3.3.3)
+//   contract_conclusion_ensuring     — проверка обеспечения (3.3.4)
+//   contract_conclusion_single_match — согласование с ед. поставщиком (3.3.5)
+//   contract_conclusion_single_notify — уведомление о заключении с ед. (3.3.6)
+//   contract_conclusion_storage      — хранение информации и документов (3.3.7)
+//   contract_conclusion_ensuring_sig — заключение контракта с участником (3.3.8)
+//   contract_conclusion_registry     — направление сведений в реестр (3.3.9)
+//
+// 3.4 Исполнение, изменение, расторжение:
+//   contract_execution_guarantee     — рассмотрение гарантии гарантийного обязательства (3.4.1)
+//   contract_execution_advance       — выплата аванса (3.4.2)
+//   contract_execution_acceptance    — приёмка (3.4.3)
+//   contract_execution_payment       — оплата поставленного (3.4.4)
+//   contract_execution_registry      — направление сведений об исполнении (3.4.5)
+//   contract_execution_interaction   — взаимодействие при изменении/расторжении (3.4.6)
+//   contract_execution_unfair_registry — направление сведений в РНП (3.4.7)
+//   contract_execution_return_bond   — возврат обеспечения (3.4.8)
+//   contract_execution_unilateral    — одностороннее расторжение (3.4.9)
+//
+// 3.5 Иные функции:
+//   reporting_winner_evasion   — информация об уклонении победителя (3.5.1)
+//   reporting_smnp             — отчёт об объёме закупок у СМП/СОНКО (3.5.2)
+//   reporting_appeals          — участие в обжаловании (3.5.3)
+//   reporting_centralization   — централизация закупок (3.5.5)
 export const ContractServiceFunctionSchema = z.enum([
+  // Основные коды разделов (обратная совместимость)
   "planning",
   "purchase_description",
   "supplier_determination",
   "contract_conclusion",
   "contract_execution",
+  "reporting",
+  // Подпункты 3.1 — Планирование закупок
+  "planning_develop_plan",
+  "planning_place_plan",
+  "planning_justify_need",
+  "planning_norming",
+  "planning_consultation",
+  // Подпункты 3.2 — Определение поставщика
+  "supplier_determination_closed",
+  "supplier_determination_notice",
+  "supplier_determination_nmtc",
+  "supplier_determination_object",
+  "supplier_determination_information",
+  "supplier_determination_explanation",
+  "supplier_determination_cancel",
+  "supplier_determination_protocol",
+  "supplier_determination_commission",
+  "supplier_determination_expert",
+  // Подпункты 3.3 — Заключение контрактов
+  "contract_conclusion_placing",
+  "contract_conclusion_protocol_diff",
+  "contract_conclusion_guarantee",
+  "contract_conclusion_ensuring",
+  "contract_conclusion_single_match",
+  "contract_conclusion_single_notify",
+  "contract_conclusion_storage",
+  "contract_conclusion_ensuring_sig",
+  "contract_conclusion_registry",
+  // Подпункты 3.4 — Исполнение, изменение, расторжение
+  "contract_execution_guarantee",
+  "contract_execution_advance",
+  "contract_execution_acceptance",
+  "contract_execution_payment",
+  "contract_execution_registry",
+  "contract_execution_interaction",
+  "contract_execution_unfair_registry",
+  "contract_execution_return_bond",
+  "contract_execution_unilateral",
+  // Подпункты 3.5 — Иные функции
+  "reporting_winner_evasion",
+  "reporting_smnp",
+  "reporting_appeals",
+  "reporting_centralization",
 ]);
 
 export type ContractServiceFunction = z.infer<
@@ -85,6 +178,80 @@ export type ContractServiceFunction = z.infer<
 
 export const contractServiceFunctionCodes =
   ContractServiceFunctionSchema.options;
+
+// Пять основных кодов разделов III (обратная совместимость с задачами/отчётами)
+export const CONTRACT_SERVICE_SECTION_CODES = [
+  "planning",
+  "purchase_description",
+  "supplier_determination",
+  "contract_conclusion",
+  "contract_execution",
+  "reporting",
+] as const satisfies readonly ContractServiceFunction[];
+
+// Родительский код раздела для каждого подпункта. Используется, чтобы при
+// выборе подпункта в массив functions автоматически добавлялся код раздела —
+// существующие фильтры задач и отчёты продолжают работать без изменений.
+const SUB_FUNCTION_PARENT: Partial<
+  Record<ContractServiceFunction, ContractServiceFunction>
+> = {
+  planning_develop_plan: "planning",
+  planning_place_plan: "planning",
+  planning_justify_need: "planning",
+  planning_norming: "planning",
+  planning_consultation: "planning",
+  supplier_determination_closed: "purchase_description",
+  supplier_determination_notice: "purchase_description",
+  supplier_determination_nmtc: "purchase_description",
+  supplier_determination_object: "purchase_description",
+  supplier_determination_information: "purchase_description",
+  supplier_determination_explanation: "purchase_description",
+  supplier_determination_cancel: "purchase_description",
+  supplier_determination_protocol: "purchase_description",
+  supplier_determination_commission: "purchase_description",
+  supplier_determination_expert: "purchase_description",
+  contract_conclusion_placing: "supplier_determination",
+  contract_conclusion_protocol_diff: "supplier_determination",
+  contract_conclusion_guarantee: "supplier_determination",
+  contract_conclusion_ensuring: "supplier_determination",
+  contract_conclusion_single_match: "supplier_determination",
+  contract_conclusion_single_notify: "supplier_determination",
+  contract_conclusion_storage: "supplier_determination",
+  contract_conclusion_ensuring_sig: "supplier_determination",
+  contract_conclusion_registry: "supplier_determination",
+  contract_execution_guarantee: "contract_conclusion",
+  contract_execution_advance: "contract_conclusion",
+  contract_execution_acceptance: "contract_conclusion",
+  contract_execution_payment: "contract_conclusion",
+  contract_execution_registry: "contract_conclusion",
+  contract_execution_interaction: "contract_conclusion",
+  contract_execution_unfair_registry: "contract_conclusion",
+  contract_execution_return_bond: "contract_conclusion",
+  contract_execution_unilateral: "contract_conclusion",
+  reporting_winner_evasion: "contract_execution",
+  reporting_smnp: "contract_execution",
+  reporting_appeals: "contract_execution",
+  reporting_centralization: "contract_execution",
+};
+
+// Получить родительский код раздела для любого кода функции
+export const parentFunctionCode = (
+  code: ContractServiceFunction,
+): ContractServiceFunction => SUB_FUNCTION_PARENT[code] ?? code;
+
+// Получить все подпункты раздела
+export const subFunctionsOfSection = (
+  section: ContractServiceFunction,
+): ContractServiceFunction[] =>
+  Object.entries(SUB_FUNCTION_PARENT)
+    .filter(([, parent]) => parent === section)
+    .map(([code]) => code as ContractServiceFunction);
+
+// Нормализовать массив функций: убрать дубликаты, отсортировать по порядку enum
+export const normalizeFunctionCodes = (
+  codes: ContractServiceFunction[],
+): ContractServiceFunction[] =>
+  contractServiceFunctionCodes.filter((code) => codes.includes(code));
 
 // Работник заказчика в составе контрактной службы (способ "employees").
 // Подразделение и ФИО сохраняются снимком: состав службы утверждается приказом,

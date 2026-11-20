@@ -1855,10 +1855,28 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   rolldown + Node) проходит; полная таблица —
   `csms/docs/tasks/pp2604-okpd2-limits.md`. На момент коммита `npx tsc -b`,
   `npx oxlint src` и `npx vite build` проходили.
-- **Чужая незавершённая работа после коммита:** другой агент изменил
-  `src/services/ContractService/contractService.schema.ts` (детализация функций
-  158н), не обновив `contractService.config.ts` и `order158nReport.schema.ts`;
-  повторный `npx tsc -b` падает с TS2740 в этих двух файлах. Правку не трогали
-  и в коммит не включали. В `csms-api` чужие `ContractChange*.cs` по-прежнему
-  дают CS1739; наши сборка/тесты проверены в чистом worktree.
+## 53. Слияние ContractChange в csms-api (2026-11-20)
+
+- Приняты правки другого агента: `ContractChange*.cs`, миграции
+  `20261120062439_AddContractChanges` и `20261120140000_AddContractChangeRevision`,
+  регистрация в `Program.cs`, DbSet'ы в `EisDbContext.cs` и snapshot моделей.
+- Модуль хранит снимок контракта, предлагаемые условия, документы с редакциями
+  и SHA-256, журнал переходов. Статус меняется только сценариями домена,
+  отдельного `PUT /status` нет. Бриф — `csms-api/docs/tasks/contract-change.md`.
+- Перед сборкой остановлен запущенный `Csms.Api` (PID 21740), блокировавший DLL.
+  После слияния `dotnet build` — 0 ошибок, `dotnet test` —
+  **195 passed / 6 skipped** (в том числе новые тесты ContractChange).
+
+## 54. Детализация функций 158н во фронтенде (2026-11-20)
+
+- Приняты правки `contractService.schema.ts`, `contractFunction.schema.ts`,
+  `contractService.config.ts`, `ContractServiceForm.tsx`,
+  `order158nReport.schema.ts`, `db.json`, `WorkPlan.md`: 6 основных кодов и
+  41 подпункт раздела III Приказа № 158н, справочник `contractFunctions`
+  (47 записей), двухуровневый `FunctionPicker`, адаптация отчёта 158н.
+- Родительский код раздела добавляется автоматически для обратной
+  совместимости существующих задач и отчётов.
+- Проверки после слияния: `npx tsc -b`, `npx oxlint src` (только предупреждения),
+  `npx vite build`, `npm run check:pp2604` — проходят. Заметка §52 о падении
+  TS2740/CS1739 утратила силу: ошибки устранены принятыми правками.
 

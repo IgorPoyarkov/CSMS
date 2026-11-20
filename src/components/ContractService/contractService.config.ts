@@ -7,17 +7,67 @@ import type {
 import {
   contractServiceStaff,
   MIN_CONTRACT_SERVICE_SIZE,
+  parentFunctionCode,
+  subFunctionsOfSection,
 } from "../../services/ContractService/contractService.schema";
 import type { BaseEmployee } from "../../services/StaffingTable/StaffingTable.schema";
 import type { EmployeeEducation } from "../../services/ContractService/education.schema";
 
-// Человекочитаемые названия функций раздела III Типового положения
+// Человекочитаемые названия функций раздела III Типового положения.
+// Основные коды разделов + детальные коды подпунктов.
 export const functionLabels: Record<ContractServiceFunction, string> = {
-  planning: "1. Планирование",
-  purchase_description: "2. Описание объекта закупки",
-  supplier_determination: "3. Определение поставщика",
-  contract_conclusion: "4. Заключение контракта",
-  contract_execution: "5. Исполнение контракта",
+  // Разделы (обратная совместимость)
+  planning: "3.1 Планирование закупок",
+  purchase_description: "3.2 Определение поставщика",
+  supplier_determination: "3.3 Заключение контрактов",
+  contract_conclusion: "3.4 Исполнение, изменение, расторжение контракта",
+  contract_execution: "3.5 Иные функции и отчётность",
+  reporting: "Отчётность и обжалование",
+  // Подпункты 3.1
+  planning_develop_plan: "3.1.1 Разработка плана-графика",
+  planning_place_plan: "3.1.2 Размещение ПГ в ЕИС",
+  planning_justify_need: "3.1.3 Обоснование потребности",
+  planning_norming: "3.1.4 Нормирование закупок",
+  planning_consultation: "3.1.5 Консультации с поставщиками",
+  // Подпункты 3.2
+  supplier_determination_closed: "3.2.1 Закрытые способы определения",
+  supplier_determination_notice: "3.2.2 Извещения и документация",
+  supplier_determination_nmtc: "3.2.2.1 Обоснование НМЦК",
+  supplier_determination_object: "3.2.2.2 Описание объекта закупки",
+  supplier_determination_information: "3.2.2.3 Сведения в извещении (ст. 42)",
+  supplier_determination_explanation: "3.2.3 Разъяснения извещения",
+  supplier_determination_cancel: "3.2.4 Отмена определения поставщика",
+  supplier_determination_protocol: "3.2.5 Протоколы определения",
+  supplier_determination_commission: "3.2.6 Обеспечение комиссии",
+  supplier_determination_expert: "3.2.7 Привлечение экспертов",
+  // Подпункты 3.3
+  contract_conclusion_placing: "3.3.1 Размещение проекта контракта",
+  contract_conclusion_protocol_diff: "3.3.2 Протокол разногласий",
+  contract_conclusion_guarantee: "3.3.3 Независимая гарантия (обеспечение)",
+  contract_conclusion_ensuring: "3.3.4 Проверка поступления обеспечения",
+  contract_conclusion_single_match: "3.3.5 Согласование с контрольным органом",
+  contract_conclusion_single_notify:
+    "3.3.6 Уведомление о контракте с едпоставщиком",
+  contract_conclusion_storage: "3.3.7 Хранение информации и документов",
+  contract_conclusion_ensuring_sig: "3.3.8 Обеспечение заключения контракта",
+  contract_conclusion_registry: "3.3.9 Направление сведений в реестр",
+  // Подпункты 3.4
+  contract_execution_guarantee:
+    "3.4.1 Независимая гарантия (гарантийное обязат.)",
+  contract_execution_advance: "3.4.2 Выплата аванса",
+  contract_execution_acceptance: "3.4.3 Приёмка поставленного",
+  contract_execution_payment: "3.4.4 Оплата поставленного",
+  contract_execution_registry: "3.4.5 Сведения об исполнении в реестр",
+  contract_execution_interaction:
+    "3.4.6 Взаимодействие при изменении/расторжении",
+  contract_execution_unfair_registry: "3.4.7 Направление сведений в РНП",
+  contract_execution_return_bond: "3.4.8 Возврат обеспечения",
+  contract_execution_unilateral: "3.4.9 Одностороннее расторжение",
+  // Подпункты 3.5
+  reporting_winner_evasion: "3.5.1 Уклонение победителя — сведения в РНП",
+  reporting_smnp: "3.5.2 Отчёт об объёме закупок у СМП/СОНКО",
+  reporting_appeals: "3.5.3 Участие в обжаловании, претензионная работа",
+  reporting_centralization: "3.5.5 Полномочия при централизации закупок",
 };
 
 // Ключевые слова, указывающие на профильное образование в сфере закупок
@@ -67,14 +117,15 @@ export const contractServiceCreationMethodOptions: CreationMethodOption[] = [
   },
 ];
 
-// Функции и полномочия — раздел III Типового положения. Формулировки
-// укрупнены по пунктам 3.1-3.5: конкретные действия внутри пункта
+// Функции и полномочия — раздел III Типового положения. Пять основных разделов
+// (3.1–3.5) с детализацией по подпунктам. Конкретные действия внутри пункта
 // наделяются приказом заказчика.
 export interface FunctionOption extends Option<ContractServiceFunction> {
   paragraph: string;
   shortLabel: string;
 }
 
+// Основные разделы (для обратной совместимости и отображения в таблицах)
 export const contractServiceFunctionOptions: FunctionOption[] = [
   {
     value: "planning",
@@ -84,27 +135,285 @@ export const contractServiceFunctionOptions: FunctionOption[] = [
   },
   {
     value: "purchase_description",
-    label: "Описание объекта закупки и обоснование НМЦК",
-    shortLabel: "Описание и НМЦК",
+    label: "Определение поставщика (подрядчика, исполнителя)",
+    shortLabel: "Определение поставщика",
     paragraph: "п. 3.2",
   },
   {
     value: "supplier_determination",
-    label: "Определение поставщика (подрядчика, исполнителя)",
-    shortLabel: "Определение поставщика",
+    label: "Заключение контрактов",
+    shortLabel: "Заключение контрактов",
     paragraph: "п. 3.3",
   },
   {
     value: "contract_conclusion",
-    label: "Заключение контракта",
-    shortLabel: "Заключение контракта",
+    label: "Исполнение, изменение, расторжение контракта",
+    shortLabel: "Исполнение контракта",
     paragraph: "п. 3.4",
   },
   {
     value: "contract_execution",
-    label: "Исполнение, изменение, расторжение контракта и отчётность",
-    shortLabel: "Исполнение и отчётность",
+    label: "Иные функции и полномочия",
+    shortLabel: "Иные функции",
     paragraph: "п. 3.5",
+  },
+  {
+    value: "reporting",
+    label: "Отчётность и обжалование",
+    shortLabel: "Отчётность",
+    paragraph: "п. 3.5",
+  },
+];
+
+// Детальные подпункты для двухуровневого пикера функций
+export interface SubFunctionItem {
+  code: ContractServiceFunction;
+  paragraph: string;
+  label: string;
+}
+
+export interface SectionWithSubFunctions {
+  section: FunctionOption;
+  subFunctions: SubFunctionItem[];
+}
+
+export const contractServiceSections: SectionWithSubFunctions[] = [
+  {
+    section: {
+      value: "planning",
+      label: "Планирование закупок",
+      shortLabel: "Планирование",
+      paragraph: "п. 3.1",
+    },
+    subFunctions: [
+      {
+        code: "planning_develop_plan",
+        paragraph: "3.1.1",
+        label: "Разрабатывает план-график, подготовку изменений в ПГ",
+      },
+      {
+        code: "planning_place_plan",
+        paragraph: "3.1.2",
+        label: "Размещает в ЕИС план-график и изменения",
+      },
+      {
+        code: "planning_justify_need",
+        paragraph: "3.1.3",
+        label: "Обосновывает потребность в закупке",
+      },
+      {
+        code: "planning_norming",
+        paragraph: "3.1.4",
+        label:
+          "Разрабатывает требования к закупаемым, нормативные затраты (ст. 19)",
+      },
+      {
+        code: "planning_consultation",
+        paragraph: "3.1.5",
+        label: "Организует консультации с поставщиками",
+      },
+    ],
+  },
+  {
+    section: {
+      value: "purchase_description",
+      label: "Определение поставщика (подрядчика, исполнителя)",
+      shortLabel: "Определение поставщика",
+      paragraph: "п. 3.2",
+    },
+    subFunctions: [
+      {
+        code: "supplier_determination_closed",
+        paragraph: "3.2.1",
+        label: "Проведение закрытых способов определения",
+      },
+      {
+        code: "supplier_determination_notice",
+        paragraph: "3.2.2",
+        label:
+          "Подготовка и размещение извещений, документации, проектов контрактов",
+      },
+      {
+        code: "supplier_determination_nmtc",
+        paragraph: "3.2.2.1",
+        label: "Определение и обоснование НМЦК",
+      },
+      {
+        code: "supplier_determination_object",
+        paragraph: "3.2.2.2",
+        label: "Описание объекта закупки",
+      },
+      {
+        code: "supplier_determination_information",
+        paragraph: "3.2.2.3",
+        label: "Указание сведений в извещении (ст. 42)",
+      },
+      {
+        code: "supplier_determination_explanation",
+        paragraph: "3.2.3",
+        label: "Подготовка и размещение разъяснений",
+      },
+      {
+        code: "supplier_determination_cancel",
+        paragraph: "3.2.4",
+        label: "Подготовка извещения об отмене определения",
+      },
+      {
+        code: "supplier_determination_protocol",
+        paragraph: "3.2.5",
+        label: "Оформление протоколов определения поставщика",
+      },
+      {
+        code: "supplier_determination_commission",
+        paragraph: "3.2.6",
+        label: "Организационно-техническое обеспечение комиссии",
+      },
+      {
+        code: "supplier_determination_expert",
+        paragraph: "3.2.7",
+        label: "Привлечение экспертов и экспертных организаций",
+      },
+    ],
+  },
+  {
+    section: {
+      value: "supplier_determination",
+      label: "Заключение контрактов",
+      shortLabel: "Заключение контрактов",
+      paragraph: "п. 3.3",
+    },
+    subFunctions: [
+      {
+        code: "contract_conclusion_placing",
+        paragraph: "3.3.1",
+        label: "Размещение проекта контракта в ЕИС и на площадке",
+      },
+      {
+        code: "contract_conclusion_protocol_diff",
+        paragraph: "3.3.2",
+        label: "Рассмотрение протокола разногласий",
+      },
+      {
+        code: "contract_conclusion_guarantee",
+        paragraph: "3.3.3",
+        label: "Рассмотрение независимой гарантии (обеспечение исполнения)",
+      },
+      {
+        code: "contract_conclusion_ensuring",
+        paragraph: "3.3.4",
+        label: "Проверка поступления обеспечения на счёт заказчика",
+      },
+      {
+        code: "contract_conclusion_single_match",
+        paragraph: "3.3.5",
+        label: "Обращение о согласовании контракта с единственным поставщиком",
+      },
+      {
+        code: "contract_conclusion_single_notify",
+        paragraph: "3.3.6",
+        label: "Уведомление о заключении контракта с едпоставщиком",
+      },
+      {
+        code: "contract_conclusion_storage",
+        paragraph: "3.3.7",
+        label: "Хранение информации и документов (ч. 15 ст. 4)",
+      },
+      {
+        code: "contract_conclusion_ensuring_sig",
+        paragraph: "3.3.8",
+        label: "Обеспечение заключения контракта с участником",
+      },
+      {
+        code: "contract_conclusion_registry",
+        paragraph: "3.3.9",
+        label: "Направление сведений о заключённых контрактах в реестр",
+      },
+    ],
+  },
+  {
+    section: {
+      value: "contract_conclusion",
+      label: "Исполнение, изменение, расторжение контракта",
+      shortLabel: "Исполнение контракта",
+      paragraph: "п. 3.4",
+    },
+    subFunctions: [
+      {
+        code: "contract_execution_guarantee",
+        paragraph: "3.4.1",
+        label: "Рассмотрение независимой гарантии (гарантийное обязательство)",
+      },
+      {
+        code: "contract_execution_advance",
+        paragraph: "3.4.2",
+        label: "Исполнение условий в части выплаты аванса",
+      },
+      {
+        code: "contract_execution_acceptance",
+        paragraph: "3.4.3",
+        label: "Приёмка поставленного товара, работ, услуг",
+      },
+      {
+        code: "contract_execution_payment",
+        paragraph: "3.4.4",
+        label: "Исполнение условий в части оплаты поставленного",
+      },
+      {
+        code: "contract_execution_registry",
+        paragraph: "3.4.5",
+        label: "Направление сведений об исполнении в реестр контрактов",
+      },
+      {
+        code: "contract_execution_interaction",
+        paragraph: "3.4.6",
+        label: "Взаимодействие при изменении/расторжении, неустойки",
+      },
+      {
+        code: "contract_execution_unfair_registry",
+        paragraph: "3.4.7",
+        label: "Направление сведений в РНП о расторжении (ст. 104)",
+      },
+      {
+        code: "contract_execution_return_bond",
+        paragraph: "3.4.8",
+        label: "Возврат обеспечения исполнения контракта",
+      },
+      {
+        code: "contract_execution_unilateral",
+        paragraph: "3.4.9",
+        label: "Одностороннее расторжение контракта (ст. 95)",
+      },
+    ],
+  },
+  {
+    section: {
+      value: "contract_execution",
+      label: "Иные функции и полномочия",
+      shortLabel: "Иные функции",
+      paragraph: "п. 3.5",
+    },
+    subFunctions: [
+      {
+        code: "reporting_winner_evasion",
+        paragraph: "3.5.1",
+        label: "Информация об уклонении победителя (РНП)",
+      },
+      {
+        code: "reporting_smnp",
+        paragraph: "3.5.2",
+        label: "Отчёт об объёме закупок у СМП, СОНКО",
+      },
+      {
+        code: "reporting_appeals",
+        paragraph: "3.5.3",
+        label: "Участие в обжаловании, претензионно-исковая работа",
+      },
+      {
+        code: "reporting_centralization",
+        paragraph: "3.5.5",
+        label: "Полномочия при централизации закупок (ст. 26)",
+      },
+    ],
   },
 ];
 
@@ -135,10 +444,17 @@ export const contractServiceFunctionParagraph = (
   fn?: ContractServiceFunction,
 ): string => findOption(contractServiceFunctionOptions, fn)?.paragraph ?? "";
 
-// Полный перечень функций — нужен, чтобы показать, что контрактный
-// управляющий ведёт закупки целиком
+// Полный перечень основных кодов разделов — для проверки «все функции на месте»
 export const allContractServiceFunctions: ContractServiceFunction[] =
   contractServiceFunctionOptions.map((option) => option.value);
+
+// Получить все коды функций (основные + подпункты) для данного раздела
+export const allFunctionsInSection = (
+  section: ContractServiceFunction,
+): ContractServiceFunction[] => {
+  const subs = subFunctionsOfSection(section);
+  return [section, ...subs];
+};
 
 // Категории функций для группировки в раскрывающихся списках
 export interface FunctionCategory {
@@ -149,22 +465,34 @@ export interface FunctionCategory {
 
 export const contractServiceFunctionCategories: FunctionCategory[] = [
   {
-    id: "planning_and_basis",
-    label: "Планирование и обоснование",
-    functions: ["planning", "purchase_description"],
+    id: "planning",
+    label: "3.1 Планирование закупок",
+    functions: ["planning"],
   },
   {
     id: "procurement",
-    label: "Закупочные процедуры",
-    functions: ["supplier_determination", "contract_conclusion"],
+    label: "3.2 Определение поставщика",
+    functions: ["purchase_description"],
   },
   {
-    id: "execution_and_reporting",
-    label: "Исполнение и отчётность",
-    functions: ["contract_execution"],
+    id: "contract_conclusion",
+    label: "3.3 Заключение контрактов",
+    functions: ["supplier_determination"],
+  },
+  {
+    id: "execution",
+    label: "3.4 Исполнение, изменение, расторжение",
+    functions: ["contract_conclusion"],
+  },
+  {
+    id: "reporting",
+    label: "3.5 Иные функции и отчётность",
+    functions: ["contract_execution", "reporting"],
   },
 ];
 
+// Форматирует массив кодов функций для отображения в таблицах.
+// Показывает разделы и, при наличии, детальные подпункты.
 export const formatContractServiceFunctions = (
   functions: ContractServiceFunction[] | undefined,
 ): string => {
@@ -172,10 +500,60 @@ export const formatContractServiceFunctions = (
     return "Функции и полномочия ещё не наделены";
   }
 
-  return contractServiceFunctionOptions
+  // Разделяем на основные разделы и подпункты
+  const sections = contractServiceFunctionOptions
     .filter((option) => functions.includes(option.value))
-    .map((option) => `${option.paragraph} ${option.label}`)
-    .join("; ");
+    .map((option) => `${option.paragraph} ${option.label}`);
+
+  // Если есть только разделы без подпунктов — возвращаем их
+  const subFunctions = functions.filter(
+    (code) => code !== parentFunctionCode(code),
+  );
+
+  if (subFunctions.length === 0) {
+    return sections.join("; ");
+  }
+
+  // Группируем подпункты по разделам
+  const subBySection = new Map<string, string[]>();
+
+  for (const code of subFunctions) {
+    const parent = parentFunctionCode(code);
+    const sectionOption = contractServiceFunctionOptions.find(
+      (o) => o.value === parent,
+    );
+    const sectionLabel = sectionOption
+      ? `${sectionOption.paragraph} ${sectionOption.shortLabel}`
+      : parent;
+    const existing = subBySection.get(sectionLabel) ?? [];
+
+    existing.push(functionLabels[code] ?? code);
+    subBySection.set(sectionLabel, existing);
+  }
+
+  const parts: string[] = [];
+
+  for (const [sectionLabel, subs] of subBySection) {
+    parts.push(`${sectionLabel}: ${subs.join(", ")}`);
+  }
+
+  return parts.join("; ");
+};
+
+// Сокращённая подпись функций (для таблиц с ограниченной шириной)
+export const formatContractServiceFunctionsShort = (
+  functions: ContractServiceFunction[] | undefined,
+): string => {
+  if (!functions || functions.length === 0) {
+    return "—";
+  }
+
+  // Показываем только основные разделы
+  const sections = contractServiceFunctionOptions
+    .filter((option) => functions.includes(option.value))
+    .map((option) => option.shortLabel);
+
+  return sections.length > 0 ? sections.join(", ") : "—";
 };
 
 // Численность контрактной службы: при способе «подразделение» считаем по

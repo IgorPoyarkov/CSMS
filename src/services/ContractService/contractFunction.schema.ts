@@ -34,11 +34,13 @@ export const emptyContractFunction = (
   isDeletable: true,
 });
 
-// Категории для выпадающего списка (берутся из config, т.к. они фиксированы)
+// Категории для выпадающего списка (соответствуют разделам III Приказа 158н)
 export const contractFunctionCategoryOptions = [
-  { value: "planning_and_basis", label: "Планирование и обоснование" },
-  { value: "procurement", label: "Закупочные процедуры" },
-  { value: "execution_and_reporting", label: "Исполнение и отчётность" },
+  { value: "planning", label: "3.1 Планирование закупок" },
+  { value: "procurement", label: "3.2 Определение поставщика" },
+  { value: "contract_conclusion", label: "3.3 Заключение контрактов" },
+  { value: "execution", label: "3.4 Исполнение, изменение, расторжение" },
+  { value: "other_functions", label: "3.5 Иные функции и полномочия" },
 ];
 
 export const contractFunctionCategoryLabel = (category: string): string =>

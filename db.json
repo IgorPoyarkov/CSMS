@@ -1114,8 +1114,21 @@
             "planning",
             "purchase_description",
             "supplier_determination",
-            "contract_conclusion",
-            "contract_execution"
+            "contract_execution",
+            "planning_develop_plan",
+            "planning_place_plan",
+            "planning_justify_need",
+            "planning_norming",
+            "planning_consultation",
+            "contract_conclusion_placing",
+            "contract_conclusion_protocol_diff",
+            "contract_conclusion_guarantee",
+            "contract_conclusion_ensuring",
+            "contract_conclusion_single_match",
+            "contract_conclusion_single_notify",
+            "contract_conclusion_storage",
+            "contract_conclusion_ensuring_sig",
+            "contract_conclusion_registry"
           ],
           "remarks": ""
         },
@@ -1142,7 +1155,6 @@
           "functions": [
             "planning",
             "purchase_description",
-            "supplier_determination",
             "contract_conclusion",
             "contract_execution"
           ],
@@ -1158,7 +1170,31 @@
           "functions": [
             "purchase_description",
             "supplier_determination",
-            "contract_execution"
+            "contract_conclusion",
+            "contract_execution",
+            "supplier_determination_information",
+            "supplier_determination_expert",
+            "contract_conclusion_placing",
+            "contract_conclusion_protocol_diff",
+            "contract_conclusion_guarantee",
+            "contract_conclusion_ensuring",
+            "contract_conclusion_single_match",
+            "contract_conclusion_single_notify",
+            "contract_conclusion_storage",
+            "contract_conclusion_ensuring_sig",
+            "contract_conclusion_registry",
+            "contract_execution_guarantee",
+            "contract_execution_advance",
+            "contract_execution_acceptance",
+            "contract_execution_payment",
+            "contract_execution_registry",
+            "contract_execution_interaction",
+            "contract_execution_unfair_registry",
+            "contract_execution_return_bond",
+            "contract_execution_unilateral",
+            "reporting_smnp",
+            "reporting_appeals",
+            "reporting_centralization"
           ],
           "remarks": ""
         }
@@ -4115,7 +4151,7 @@
       "code": "planning",
       "paragraph": "п. 3.1",
       "title": "Планирование закупок",
-      "category": "planning_and_basis",
+      "category": "planning",
       "isFromOrder": true,
       "organizationId": null,
       "isDeletable": false
@@ -4124,8 +4160,8 @@
       "id": "fn-order-2",
       "code": "purchase_description",
       "paragraph": "п. 3.2",
-      "title": "Описание объекта закупки и обоснование НМЦК",
-      "category": "planning_and_basis",
+      "title": "Определение поставщика (подрядчика, исполнителя)",
+      "category": "procurement",
       "isFromOrder": true,
       "organizationId": null,
       "isDeletable": false
@@ -4134,8 +4170,8 @@
       "id": "fn-order-3",
       "code": "supplier_determination",
       "paragraph": "п. 3.3",
-      "title": "Определение поставщика (подрядчика, исполнителя)",
-      "category": "procurement",
+      "title": "Заключение контрактов",
+      "category": "contract_conclusion",
       "isFromOrder": true,
       "organizationId": null,
       "isDeletable": false
@@ -4144,8 +4180,8 @@
       "id": "fn-order-4",
       "code": "contract_conclusion",
       "paragraph": "п. 3.4",
-      "title": "Заключение контракта",
-      "category": "procurement",
+      "title": "Исполнение, изменение, расторжение контракта",
+      "category": "execution",
       "isFromOrder": true,
       "organizationId": null,
       "isDeletable": false
@@ -4154,8 +4190,388 @@
       "id": "fn-order-5",
       "code": "contract_execution",
       "paragraph": "п. 3.5",
-      "title": "Исполнение, изменение, расторжение контракта и отчётность",
-      "category": "execution_and_reporting",
+      "title": "Иные функции и полномочия",
+      "category": "other_functions",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-order-6",
+      "code": "reporting",
+      "paragraph": "п. 3.5",
+      "title": "Отчётность и обжалование",
+      "category": "other_functions",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.1.1",
+      "code": "planning_develop_plan",
+      "paragraph": "3.1.1",
+      "title": "Разрабатывает план-график, осуществляет подготовку изменений в план-график",
+      "category": "planning",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.1.2",
+      "code": "planning_place_plan",
+      "paragraph": "3.1.2",
+      "title": "Размещает в ЕИС план-график и внесённые в него изменения",
+      "category": "planning",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.1.3",
+      "code": "planning_justify_need",
+      "paragraph": "3.1.3",
+      "title": "Обосновывает потребность в закупке",
+      "category": "planning",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.1.4",
+      "code": "planning_norming",
+      "paragraph": "3.1.4",
+      "title": "Разрабатывает требования к закупаемым, нормативные затраты (ст. 19)",
+      "category": "planning",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.1.5",
+      "code": "planning_consultation",
+      "paragraph": "3.1.5",
+      "title": "Организует консультации с поставщиками",
+      "category": "planning",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.1",
+      "code": "supplier_determination_closed",
+      "paragraph": "3.2.1",
+      "title": "Обеспечивает проведение закрытых конкурентных способов",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.2",
+      "code": "supplier_determination_notice",
+      "paragraph": "3.2.2",
+      "title": "Подготовка и размещение извещений, документации, проектов контрактов",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.2.1",
+      "code": "supplier_determination_nmtc",
+      "paragraph": "3.2.2.1",
+      "title": "Определяет и обосновывает НМЦК, цену контракта",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.2.2",
+      "code": "supplier_determination_object",
+      "paragraph": "3.2.2.2",
+      "title": "Осуществляет описание объекта закупки",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.2.3",
+      "code": "supplier_determination_information",
+      "paragraph": "3.2.2.3",
+      "title": "Указывает сведения в извещении (ст. 42): запреты, ограничения, преимущества",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.3",
+      "code": "supplier_determination_explanation",
+      "paragraph": "3.2.3",
+      "title": "Подготовка и размещение разъяснений извещения",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.4",
+      "code": "supplier_determination_cancel",
+      "paragraph": "3.2.4",
+      "title": "Подготовка извещения об отмене определения поставщика",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.5",
+      "code": "supplier_determination_protocol",
+      "paragraph": "3.2.5",
+      "title": "Оформление и размещение протоколов определения поставщика",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.6",
+      "code": "supplier_determination_commission",
+      "paragraph": "3.2.6",
+      "title": "Организационно-техническое обеспечение деятельности комиссии",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.2.7",
+      "code": "supplier_determination_expert",
+      "paragraph": "3.2.7",
+      "title": "Привлечение экспертов, экспертных организаций",
+      "category": "procurement",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.1",
+      "code": "contract_conclusion_placing",
+      "paragraph": "3.3.1",
+      "title": "Размещение проекта контракта в ЕИС и на электронной площадке",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.2",
+      "code": "contract_conclusion_protocol_diff",
+      "paragraph": "3.3.2",
+      "title": "Рассмотрение протокола разногласий",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.3",
+      "code": "contract_conclusion_guarantee",
+      "paragraph": "3.3.3",
+      "title": "Рассмотрение независимой гарантии (обеспечение исполнения)",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.4",
+      "code": "contract_conclusion_ensuring",
+      "paragraph": "3.3.4",
+      "title": "Проверка поступления обеспечения на счёт заказчика",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.5",
+      "code": "contract_conclusion_single_match",
+      "paragraph": "3.3.5",
+      "title": "Подготовка обращения о согласовании контракта с ед. поставщиком",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.6",
+      "code": "contract_conclusion_single_notify",
+      "paragraph": "3.3.6",
+      "title": "Направление уведомления о заключении контракта с ед. поставщиком",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.7",
+      "code": "contract_conclusion_storage",
+      "paragraph": "3.3.7",
+      "title": "Хранение информации и документов (ч. 15 ст. 4)",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.8",
+      "code": "contract_conclusion_ensuring_sig",
+      "paragraph": "3.3.8",
+      "title": "Обеспечение заключения контракта с участником (в т.ч. уклоняющимся)",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.3.9",
+      "code": "contract_conclusion_registry",
+      "paragraph": "3.3.9",
+      "title": "Направление сведений о заключённых контрактах в реестр",
+      "category": "contract_conclusion",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.1",
+      "code": "contract_execution_guarantee",
+      "paragraph": "3.4.1",
+      "title": "Рассмотрение независимой гарантии (гарантийное обязательство)",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.2",
+      "code": "contract_execution_advance",
+      "paragraph": "3.4.2",
+      "title": "Исполнение условий в части выплаты аванса",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.3",
+      "code": "contract_execution_acceptance",
+      "paragraph": "3.4.3",
+      "title": "Приёмка поставленного товара, выполненной работы, оказанной услуги",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.4",
+      "code": "contract_execution_payment",
+      "paragraph": "3.4.4",
+      "title": "Исполнение условий в части оплаты поставленного",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.5",
+      "code": "contract_execution_registry",
+      "paragraph": "3.4.5",
+      "title": "Направление сведений об исполнении и изменениях в реестр",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.6",
+      "code": "contract_execution_interaction",
+      "paragraph": "3.4.6",
+      "title": "Взаимодействие с поставщиком при изменении, расторжении, неустойки",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.7",
+      "code": "contract_execution_unfair_registry",
+      "paragraph": "3.4.7",
+      "title": "Направление сведений о расторжении в РНП (ст. 104)",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.8",
+      "code": "contract_execution_return_bond",
+      "paragraph": "3.4.8",
+      "title": "Возврат обеспечения исполнения контракта поставщику",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.4.9",
+      "code": "contract_execution_unilateral",
+      "paragraph": "3.4.9",
+      "title": "Обеспечение одностороннего расторжения контракта (ст. 95)",
+      "category": "execution",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.5.1",
+      "code": "reporting_winner_evasion",
+      "paragraph": "3.5.1",
+      "title": "Подготовка информации об уклонении победителя (РНП)",
+      "category": "other_functions",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.5.2",
+      "code": "reporting_smnp",
+      "paragraph": "3.5.2",
+      "title": "Составление и размещение отчёта об объёме закупок у СМП, СОНКО",
+      "category": "other_functions",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.5.3",
+      "code": "reporting_appeals",
+      "paragraph": "3.5.3",
+      "title": "Участие в обжаловании, подготовка материалов претензионно-исковой работы",
+      "category": "other_functions",
+      "isFromOrder": true,
+      "organizationId": null,
+      "isDeletable": false
+    },
+    {
+      "id": "fn-3.5.5",
+      "code": "reporting_centralization",
+      "paragraph": "3.5.5",
+      "title": "Полномочия при централизации закупок (ст. 26)",
+      "category": "other_functions",
       "isFromOrder": true,
       "organizationId": null,
       "isDeletable": false

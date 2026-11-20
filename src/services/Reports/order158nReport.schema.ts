@@ -140,8 +140,8 @@ export const Order158nFunctionActivitySchema = z.object({
   tasksPending: z.number().int().nonnegative(),
   tasksOverdue: z.number().int().nonnegative(),
   averageScore: z.number().nullable().optional(),
-  keyMetricLabel: z.string(),
-  keyMetricValue: z.string(),
+  keyMetricLabel: z.string().default(""),
+  keyMetricValue: z.string().default(""),
   subIndicators: z.array(Order158nSubIndicatorSchema).default([]),
 });
 export type Order158nFunctionActivity = z.infer<
@@ -807,14 +807,16 @@ export function buildOrder158nActivityReport(
     isAccessRequestOpen(r),
   ).length;
 
-  // Деятельность по 5 функциям Раздела III Приказа № 158н
-  const functionMetricsMap: Record<
-    ContractServiceFunction,
-    {
-      keyMetricLabel: string;
-      keyMetricValue: string;
-      subIndicators: Order158nSubIndicator[];
-    }
+  // Деятельность по основным разделам Раздела III Приказа № 158н
+  const functionMetricsMap: Partial<
+    Record<
+      ContractServiceFunction,
+      {
+        keyMetricLabel: string;
+        keyMetricValue: string;
+        subIndicators: Order158nSubIndicator[];
+      }
+    >
   > = {
     planning: {
       keyMetricLabel: "Позиций в планах-графиках",
@@ -906,7 +908,7 @@ export function buildOrder158nActivityReport(
       );
       const metrics = functionMetricsMap[fnCode];
 
-      return {
+      const taskStats = {
         functionCode: fnCode,
         paragraph: contractServiceFunctionParagraph(fnCode),
         title: contractServiceFunctionLabel(fnCode),
@@ -919,6 +921,18 @@ export function buildOrder158nActivityReport(
         tasksPending: fnTasks.filter((t) => t.status === "pending").length,
         tasksOverdue: fnTasks.filter((t) => isTaskOverdue(t)).length,
         averageScore: employeeScoreAverage(fnEvals),
+      };
+
+      if (!metrics)
+        return {
+          ...taskStats,
+          keyMetricLabel: "",
+          keyMetricValue: "",
+          subIndicators: [],
+        };
+
+      return {
+        ...taskStats,
         keyMetricLabel: metrics.keyMetricLabel,
         keyMetricValue: metrics.keyMetricValue,
         subIndicators: metrics.subIndicators,
@@ -1029,7 +1043,10 @@ export function buildOrder158nActivityReport(
       actionTo: "/contract-service",
       actionLabel: "Назначить руководителя",
     });
-  } else if (!contractService.headOrderNumber || !contractService.headOrderDate) {
+  } else if (
+    !contractService.headOrderNumber ||
+    !contractService.headOrderDate
+  ) {
     complianceChecks.push({
       id: "p2_3_head",
       clause: "п. 2.3",
@@ -1144,7 +1161,11 @@ export function buildOrder158nActivityReport(
   const violationEvalsCount = periodEvaluations.filter(
     (e) => e.score === "violation",
   ).length;
-  if (violationEvalsCount > 0 || tasksOverdueCount > 0 || contractsOverdueCount > 0) {
+  if (
+    violationEvalsCount > 0 ||
+    tasksOverdueCount > 0 ||
+    contractsOverdueCount > 0
+  ) {
     complianceChecks.push({
       id: "p2_6_discipline",
       clause: "п. 2.6",
@@ -1353,7 +1374,9 @@ export function buildOrder158nActivityReport(
     recommendations,
 
     preparedByName:
-      input.preparedByName?.trim() || headName || organization.responsiblePerson,
+      input.preparedByName?.trim() ||
+      headName ||
+      organization.responsiblePerson,
     approvedByName: organization.responsiblePerson || undefined,
     conclusionNote: autoConclusion,
     generatedAt: todayIso,

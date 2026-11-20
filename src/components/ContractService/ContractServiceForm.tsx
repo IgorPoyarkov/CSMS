@@ -21,6 +21,7 @@ import {
   isContractServiceAppointerPosition,
   ContractServiceSchema,
   contractServiceFunctionCodes,
+  subFunctionsOfSection,
   type ContractService,
   type ContractServiceCreationMethod,
   type ContractServiceFunction,
@@ -34,16 +35,11 @@ import CustomInput from "../UI/CustomInput";
 import {
   contractServiceCreationMethodOptions,
   contractServiceDeclarationFields,
-  contractServiceFunctionCategories,
-  contractServiceFunctionOptions,
   contractServiceHeadOrderFields,
   contractServiceHeadcount,
   contractServiceOrderFields,
+  contractServiceSections,
 } from "./contractService.config";
-import {
-  filterPoolItems,
-  useOrder158nPool,
-} from "../../services/Tasks/order158nTaskPool";
 import StaffEmployeePicker, {
   type StaffEmployeeFields,
 } from "./StaffEmployeePicker";
@@ -106,21 +102,7 @@ const declaratorEmployeeFields: StaffEmployeeFields = {
   position: "declaredByPosition",
 };
 
-// Отметка функций: toggle — если уже выбрана, снять; иначе добавить.
-// Порядок сохраняет справочник contractServiceFunctionCodes, чтобы перечень
-// не «прыгал» при назначении функций в произвольном порядке.
-const toggleFunction = (
-  selected: ContractServiceFunction[],
-  toggled: ContractServiceFunction,
-): ContractServiceFunction[] => {
-  const next = selected.includes(toggled)
-    ? selected.filter((code) => code !== toggled)
-    : [...selected, toggled];
-
-  return contractServiceFunctionCodes.filter((code) => next.includes(code));
-};
-
-// Функции сгруппированы по категориям (раскрывающиеся списки) — аналогично ЛК.
+// Функции сгруппированы по разделам (раскрывающиеся списки) — аналогично ЛК.
 // При снятии последней функции в категории она всё равно остаётся видимой
 // (пустая категория не прячется), чтобы пользователь не потерял её из виду.
 function FunctionPicker({
@@ -132,51 +114,101 @@ function FunctionPicker({
 }) {
   const { bem } = useUtils();
   const block = bem(styles, "contract-service");
-  const { data: poolData } = useOrder158nPool();
-  const poolItems = poolData?.items ?? [];
+
+  const selectedSet = new Set(value);
+
+  // Проверка: все ли подпункты раздела выбраны
+  const sectionIsFullySelected = (
+    sectionCode: ContractServiceFunction,
+  ): boolean => {
+    const sectionSubs = subFunctionsOfSection(sectionCode);
+    if (sectionSubs.length === 0) return false;
+    return (
+      sectionSubs.every((s) => selectedSet.has(s)) &&
+      selectedSet.has(sectionCode)
+    );
+  };
+
+  // Проверка: есть ли хотя бы один подпункт раздела выбран
+  const sectionHasPartialSelection = (
+    sectionCode: ContractServiceFunction,
+  ): boolean => {
+    const sectionSubs = subFunctionsOfSection(sectionCode);
+    return sectionSubs.some((s) => selectedSet.has(s));
+  };
 
   return (
     <div className={block("functions")}>
-      {contractServiceFunctionCategories.map((category) => {
-        const selectedInCategory = category.functions.filter((code) =>
-          value.includes(code),
-        );
+      {contractServiceSections.map((section) => {
+        const sectionSubs = section.subFunctions;
+        const isSelected = selectedSet.has(section.section.value);
+        const hasPartial = sectionHasPartialSelection(section.section.value);
+        const fullySelected = sectionIsFullySelected(section.section.value);
 
         return (
           <details
-            key={category.id}
+            key={section.section.value}
             className={block("function-group")}
-            open={selectedInCategory.length > 0}
+            open={isSelected || hasPartial}
           >
             <summary>
-              {category.label}
-              {selectedInCategory.length > 0
-                ? ` (${selectedInCategory.length})`
-                : ""}
+              <label
+                style={{
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flex: 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => {
+                    const allCodes = [
+                      section.section.value,
+                      ...subFunctionsOfSection(section.section.value),
+                    ];
+                    const next = isSelected
+                      ? value.filter((c) => !allCodes.includes(c))
+                      : [...new Set([...value, ...allCodes])];
+                    onChange?.(
+                      contractServiceFunctionCodes.filter((c) =>
+                        next.includes(c),
+                      ),
+                    );
+                  }}
+                />
+                <span>
+                  {section.section.paragraph} · {section.section.label}
+                  {fullySelected
+                    ? ` ✓`
+                    : hasPartial
+                      ? ` (${sectionSubs.filter((s) => selectedSet.has(s.code)).length}/${sectionSubs.length})`
+                      : ""}
+                </span>
+              </label>
             </summary>
             <div className={block("function-group__body")}>
-              {category.functions.map((code) => {
-                const option = contractServiceFunctionOptions.find(
-                  (o) => o.value === code,
-                );
-                const subClauses = filterPoolItems(poolItems, code)
-                  .map((item) => item.clause)
-                  .join(", ");
-
-                return (
-                  <label key={code} className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      checked={value.includes(code)}
-                      onChange={() => onChange?.(toggleFunction(value, code))}
-                    />
-                    <span>
-                      {option?.paragraph} · {option?.label}
-                      {subClauses ? ` (${subClauses})` : ""}
-                    </span>
-                  </label>
-                );
-              })}
+              {sectionSubs.map((sub) => (
+                <label key={sub.code} className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(sub.code)}
+                    onChange={() => {
+                      const next = selectedSet.has(sub.code)
+                        ? value.filter((c) => c !== sub.code)
+                        : [...value, sub.code];
+                      onChange?.(
+                        contractServiceFunctionCodes.filter((c) =>
+                          next.includes(c),
+                        ),
+                      );
+                    }}
+                  />
+                  <span>
+                    {sub.paragraph} · {sub.label}
+                  </span>
+                </label>
+              ))}
             </div>
           </details>
         );
