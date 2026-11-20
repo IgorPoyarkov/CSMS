@@ -140,9 +140,27 @@ export const procedureKindFromPlacingWay = (
 
 // === Категории объекта закупки (приложение N 2) ===
 
+/**
+ * Откуда взят текст приложения № 2. Кодов ОКПД2 в приложении нет: связи
+ * строятся по наименованию позиции и наименованию кода из НСИ ЕИС и поэтому
+ * всегда несут источник и признак «требует подтверждения».
+ */
+export const PP2604_APPENDIX2_SOURCE = {
+  act: "Постановление Правительства РФ от 31.12.2021 N 2604",
+  appendix: "Приложение N 2 «Предельные величины значимости критериев оценки заявок»",
+  portal: "publication.pravo.gov.ru",
+  eoNumber: "0001202201040005",
+  pdfPages: "27–29",
+  classifier: "ОКПД2, активная версия НСИ ЕИС (zakupki.gov.ru)",
+} as const;
+
 export interface ObjectCategoryLimit {
   id: string;
   label: string;
+  // Номер позиции приложения № 2 — точный адрес предельных величин
+  appendixRow: number;
+  // Дословное (с OCR) наименование позиции приложения № 2
+  appendixName: string;
   // Минимальная значимость критерия «цена контракта...»
   minPrice: number;
   // Максимальная значимость критерия «расходы»; null — критерий не применяется
@@ -153,12 +171,16 @@ export interface ObjectCategoryLimit {
 
 /**
  * Приложение N 2 к Положению: предельные величины значимости критериев
- * оценки. Значения сверены с текстом Положения (ред. от 31.10.2022).
+ * оценки. Сверено с PDF официального опубликования (страницы 27–29),
+ * `eoNumber=0001202201040005`, а не с производными сайтами.
  */
 export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "goods",
-    label: "Товары, за исключением пищевых продуктов",
+    label: "Товары, кроме пищевых продуктов из позиции 13",
+    appendixRow: 1,
+    appendixName:
+      "Товары, за исключением пищевых продуктов, предусмотренных позицией 13 настоящего приложения",
     minPrice: 70,
     maxExpenses: 10,
     maxNonCost: 30,
@@ -166,6 +188,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "works_services",
     label: "Работы, услуги (общий случай)",
+    appendixRow: 2,
+    appendixName:
+      "Работы, услуги, за исключением услуг, предусмотренных позициями 3 — 20 настоящего приложения",
     minPrice: 60,
     maxExpenses: 10,
     maxNonCost: 40,
@@ -174,6 +199,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
     id: "construction",
     label:
       "Строительство, реконструкция, капитальный ремонт, снос объекта капитального строительства",
+    appendixRow: 3,
+    appendixName:
+      "Работы по строительству, реконструкции, капитальному ремонту, сносу объекта капитального строительства (в том числе линейного объекта), включая контракт жизненного цикла",
     minPrice: 60,
     maxExpenses: null,
     maxNonCost: 40,
@@ -181,6 +209,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "road",
     label: "Ремонт, содержание автомобильной дороги",
+    appendixRow: 4,
+    appendixName: "Работы по ремонту, содержанию автомобильной дороги",
     minPrice: 60,
     maxExpenses: null,
     maxNonCost: 40,
@@ -188,6 +218,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "building_repair",
     label: "Текущий ремонт зданий, сооружений",
+    appendixRow: 5,
+    appendixName: "Работы по текущему ремонту зданий, сооружений",
     minPrice: 60,
     maxExpenses: null,
     maxNonCost: 40,
@@ -196,6 +228,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
     id: "cultural_heritage",
     label:
       "Сохранение объектов культурного наследия (памятников истории и культуры)",
+    appendixRow: 6,
+    appendixName:
+      "Работы по сохранению объектов культурного наследия (памятников истории и культуры народов Российской Федерации)",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -203,6 +238,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "museum_restoration",
     label: "Реставрация музейных предметов и музейных коллекций",
+    appendixRow: 7,
+    appendixName:
+      "Работы по реставрации музейных предметов и музейных коллекций, включенных в состав Музейного фонда Российской Федерации",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -211,6 +249,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
     id: "archive_restoration",
     label:
       "Реставрация документов Архивного фонда, особо ценных и редких документов",
+    appendixRow: 8,
+    appendixName:
+      "Работы по реставрации документов Архивного фонда Российской Федерации, особо ценных и редких документов, входящих в состав библиотечных фондов",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -218,6 +259,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "literature_art",
     label: "Создание произведения литературы или искусства",
+    appendixRow: 9,
+    appendixName: "Работы по созданию произведения литературы или искусства",
     minPrice: 0,
     maxExpenses: null,
     maxNonCost: 100,
@@ -225,6 +268,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "film",
     label: "Исполнение, финансирование проката или показа национального фильма",
+    appendixRow: 10,
+    appendixName:
+      "Исполнение, финансирование проката или показа национального фильма",
     minPrice: 20,
     maxExpenses: null,
     maxNonCost: 80,
@@ -232,6 +278,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "research",
     label:
+      "Научно-исследовательские, опытно-конструкторские, технологические работы",
+    appendixRow: 11,
+    appendixName:
       "Научно-исследовательские, опытно-конструкторские, технологические работы",
     minPrice: 20,
     maxExpenses: 10,
@@ -241,6 +290,9 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
     id: "it_systems",
     label:
       "Создание, развитие, обслуживание государственных и муниципальных информационных систем и сайтов",
+    appendixRow: 12,
+    appendixName:
+      "Работы по созданию, развитию, функционированию, обслуживанию государственных, муниципальных информационных систем, официальных сайтов государственных, муниципальных органов, учреждений",
     minPrice: 30,
     maxExpenses: null,
     maxNonCost: 70,
@@ -248,14 +300,20 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "food_catering",
     label:
-      "Услуги общественного питания и (или) поставка пищевых продуктов для образовательных и медицинских организаций",
+      "Общественное питание и поставка пищевых продуктов для образовательных, медицинских, социальных организаций и отдыха детей",
+    appendixRow: 13,
+    appendixName:
+      "Услуги общественного питания и (или) поставка пищевых продуктов, закупаемых для образовательных организаций, организаций, осуществляющих медицинскую деятельность, организаций социального обслуживания, организаций отдыха детей и их оздоровления",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
   },
   {
     id: "security",
-    label: "Услуги по обеспечению охраны объектов (территорий)",
+    label: "Охрана объектов образовательных и научных организаций",
+    appendixRow: 14,
+    appendixName:
+      "Услуги по обеспечению охраны объектов (территорий) образовательных организаций и научных организаций",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -263,6 +321,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "children_recreation",
     label: "Услуги по организации отдыха детей и их оздоровлению",
+    appendixRow: 15,
+    appendixName: "Услуги по организации отдыха детей и их оздоровлению",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -270,6 +330,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "medical",
     label: "Медицинские услуги",
+    appendixRow: 16,
+    appendixName: "Медицинские услуги",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -277,6 +339,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "education",
     label: "Образовательные услуги",
+    appendixRow: 17,
+    appendixName: "Образовательные услуги",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -284,6 +348,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "legal",
     label: "Юридические услуги",
+    appendixRow: 18,
+    appendixName: "Юридические услуги",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -291,6 +357,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "audit",
     label: "Аудиторские услуги",
+    appendixRow: 19,
+    appendixName: "Аудиторские услуги",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -298,6 +366,8 @@ export const OBJECT_CATEGORY_LIMITS: ObjectCategoryLimit[] = [
   {
     id: "expertise",
     label: "Услуги по проведению экспертизы",
+    appendixRow: 20,
+    appendixName: "Услуги по проведению экспертизы",
     minPrice: 40,
     maxExpenses: null,
     maxNonCost: 60,
@@ -314,80 +384,338 @@ export const objectCategoryLimits = (
   OBJECT_CATEGORY_LIMITS.find((item) => item.id === category) ??
   OBJECT_CATEGORY_LIMITS[1];
 
-// === Связь категории объекта закупки с ОКПД2 (приложение N 2) ===
-
-interface CategoryRule {
-  prefix: string;
-  category: string;
-}
+// === Связь кода ОКПД2 с позицией приложения N 2 ===
 
 /**
- * Правила отнесения ОКПД2 к категориям приложения N 2. Порядок важен:
- * частные правила (автодороги, текущий ремонт, отдых детей, пищевые продукты)
- * стоят выше общих разделов. Категория нужна, чтобы проверить предельные
- * величины значимости и понять, применим ли конкурс вообще.
+ * Связь «код ОКПД2 → позиция приложения № 2» всегда выводимая: сам акт
+ * коды не перечисляет. `classifier` — совпадение наименования кода из НСИ
+ * ЕИС с наименованием позиции; `purpose` — зависимость от цели закупки;
+ * `residual` — остаточный случай «работы, услуги» (поз. 2).
  */
-const CATEGORY_RULES: CategoryRule[] = [
-  // Строительство и ремонт
-  { prefix: "42.11", category: "road" },
-  { prefix: "43.3", category: "building_repair" },
-  { prefix: "41", category: "construction" },
-  { prefix: "42", category: "construction" },
-  { prefix: "43", category: "construction" },
-  // Здравоохранение, образование, отдых детей
-  { prefix: "86", category: "medical" },
-  { prefix: "85.4", category: "children_recreation" },
-  { prefix: "85", category: "education" },
-  // Услуги с отдельными правилами
-  { prefix: "69.1", category: "legal" },
-  { prefix: "69.2", category: "audit" },
-  { prefix: "71.2", category: "expertise" },
-  { prefix: "72", category: "research" },
-  { prefix: "62", category: "it_systems" },
-  { prefix: "63", category: "it_systems" },
-  { prefix: "80", category: "security" },
-  { prefix: "91.02", category: "museum_restoration" },
-  { prefix: "91.01", category: "archive_restoration" },
-  { prefix: "91.03", category: "archive_restoration" },
-  { prefix: "90", category: "literature_art" },
-  { prefix: "59.1", category: "film" },
-  { prefix: "56", category: "food_catering" },
-  { prefix: "10", category: "food_catering" },
-  { prefix: "11", category: "food_catering" },
-  // Товары (01–33, кроме перечисленного выше)
-  ...[
-    "01",
-    "02",
-    "03",
-    "04",
-    "05",
-    "06",
-    "07",
-    "08",
-    "09",
-    "12",
-    "13",
-    "14",
-    "15",
-    "16",
-    "17",
-    "18",
-    "19",
-    "20",
-    "21",
-    "22",
-    "23",
-    "24",
-    "25",
-    "26",
-    "27",
-    "28",
-    "29",
-    "30",
-    "31",
-    "32",
-    "33",
-  ].map((prefix) => ({ prefix, category: "goods" })),
+export type Okpd2RuleBasis = "classifier" | "purpose" | "residual";
+
+export interface Okpd2CategoryRule {
+  prefix: string;
+  category: string;
+  row: number;
+  basis: Okpd2RuleBasis;
+  classifierName: string;
+  condition?: string;
+  needsReview?: boolean;
+}
+
+const sourceOf = (rule: Okpd2CategoryRule): string =>
+  `${PP2604_APPENDIX2_SOURCE.act}, ${PP2604_APPENDIX2_SOURCE.appendix}, поз. ${rule.row}; ОКПД2 ${rule.prefix} — ${rule.classifierName}`;
+
+/** Названия разделов ОКПД2, по которым позиции 1 attracted к товарам. */
+const GOODS_SECTIONS: Record<string, string> = {
+  "01": "Продукция и услуги сельского хозяйства и охоты",
+  "02": "Продукция лесоводства, лесозаготовок и связанные с этим услуги",
+  "03": "Рыба и прочая продукция рыболовства и рыбоводства",
+  "05": "Уголь",
+  "06": "Нефть и газ природный",
+  "07": "Руды металлические",
+  "08": "Продукция горнодобывающих производств прочая",
+  "12": "Изделия табачные",
+  "13": "Текстиль и изделия текстильные",
+  "14": "Одежда",
+  "15": "Кожа и изделия из кожи",
+  "16": "Древесина и изделия из дерева и пробки, кроме мебели",
+  "17": "Бумага и изделия из бумаги",
+  "19": "Кокс и нефтепродукты",
+  "20": "Вещества химические и продукты химические",
+  "21": "Средства лекарственные и материалы, применяемые в медицинских целях",
+  "22": "Изделия резиновые и пластмассовые",
+  "23": "Продукты минеральные неметаллические прочие",
+  "24": "Металлы основные",
+  "25": "Изделия металлические готовые, кроме машин и оборудования",
+  "26": "Оборудование компьютерное, электронное и оптическое",
+  "27": "Оборудование электрическое",
+  "28": "Машины и оборудование, не включенные в другие группировки",
+  "29": "Средства автотранспортные, прицепы и полуприцепы",
+  "30": "Средства транспортные и оборудование, прочие",
+  "31": "Мебель",
+  "32": "Изделия готовые прочие",
+};
+
+/**
+ * Правила отнесения кода ОКПД2 к позиции приложения № 2. Порядок важен:
+ * частные правила стоят выше общих; последнее правило с пустым префиксом —
+ * остаточный случай «работы, услуги». Каждое правило несёт источник связи,
+ * чтобы проверяющий видел, что это вывод, а не текст постановления.
+ */
+export const OKPD2_CATEGORY_RULES: Okpd2CategoryRule[] = [
+  // Поз. 4 — автодороги (42.11 точнее общего раздела 42)
+  {
+    prefix: "42.11",
+    category: "road",
+    row: 4,
+    basis: "classifier",
+    classifierName:
+      "Дороги автомобильные и автомагистрали; строительные работы по строительству автомобильных дорог и автомагистралей",
+    condition:
+      "код включает также работы по ремонту и содержанию автомобильных дорог",
+  },
+  // Поз. 5 — текущий ремонт зданий (43.3 точнее общего раздела 43)
+  {
+    prefix: "43.3",
+    category: "building_repair",
+    row: 5,
+    basis: "classifier",
+    classifierName: "Работы завершающие и отделочные в зданиях и сооружениях",
+    needsReview: true,
+    condition:
+      "позиция 5 говорит о текущем ремонте; код 43.3 — завершающие и отделочные работы, подтвердите вид работ",
+  },
+  // Поз. 3 — строительство в целом
+  {
+    prefix: "41",
+    category: "construction",
+    row: 3,
+    basis: "classifier",
+    classifierName: "Здания и работы по возведению зданий",
+  },
+  {
+    prefix: "42",
+    category: "construction",
+    row: 3,
+    basis: "classifier",
+    classifierName:
+      "Сооружения и строительные работы в области гражданского строительства",
+  },
+  {
+    prefix: "43",
+    category: "construction",
+    row: 3,
+    basis: "classifier",
+    classifierName: "Работы строительные специализированные",
+  },
+  // Поз. 6–8 — реставрация и сохранение
+  {
+    prefix: "91.03",
+    category: "cultural_heritage",
+    row: 6,
+    basis: "classifier",
+    classifierName:
+      "Услуги, связанные с деятельностью по использованию исторических мест, зданий и аналогичных туристических достопримечательностей",
+    needsReview: true,
+    condition:
+      "позиция 6 — сохранение объектов культурного наследия; код 91.03 покрывает не только работы по сохранению",
+  },
+  {
+    prefix: "71.11.23",
+    category: "cultural_heritage",
+    row: 6,
+    basis: "classifier",
+    classifierName:
+      "Услуги в области архитектуры, связанные с реставрацией исторических зданий",
+    needsReview: true,
+    condition:
+      "наименование указывает на реставрацию исторических зданий, но это архитектурные услуги, а не работы по сохранению объектов культурного наследия",
+  },
+  {
+    prefix: "91.02",
+    category: "museum_restoration",
+    row: 7,
+    basis: "classifier",
+    classifierName: "Услуги музеев",
+    needsReview: true,
+    condition:
+      "позиция 7 — реставрация предметов и коллекций Музейного фонда, а не любые услуги музеев",
+  },
+  {
+    prefix: "91.01",
+    category: "archive_restoration",
+    row: 8,
+    basis: "classifier",
+    classifierName: "Услуги библиотек и архивов",
+    needsReview: true,
+    condition:
+      "позиция 8 — реставрация документов Архивного фонда и библиотечных фондов",
+  },
+  // Поз. 15–20 — услуги с отдельными пределами
+  {
+    prefix: "86",
+    category: "medical",
+    row: 16,
+    basis: "classifier",
+    classifierName: "Услуги в области здравоохранения",
+  },
+  {
+    prefix: "85.4",
+    category: "children_recreation",
+    row: 15,
+    basis: "classifier",
+    classifierName: "Услуги по дополнительному образованию",
+    needsReview: true,
+    condition:
+      "в ОКПД2 нет отдельного кода «отдых детей и их оздоровление»; 85.4 выбран по близости наименования, нужна цель закупки",
+  },
+  {
+    prefix: "85",
+    category: "education",
+    row: 17,
+    basis: "classifier",
+    classifierName: "Услуги в области образования",
+  },
+  {
+    prefix: "69.1",
+    category: "legal",
+    row: 18,
+    basis: "classifier",
+    classifierName: "Услуги юридические",
+  },
+  {
+    prefix: "69.2",
+    category: "audit",
+    row: 19,
+    basis: "classifier",
+    classifierName:
+      "Услуги в области бухгалтерского учета; по проведению финансового аудита; по налоговому консультированию",
+    needsReview: true,
+    condition:
+      "позиция 19 — аудиторские услуги; код 69.2 включает также бухгалтерский учёт и налоговое консультирование",
+  },
+  {
+    prefix: "71.2",
+    category: "expertise",
+    row: 20,
+    basis: "classifier",
+    classifierName:
+      "Услуги в области технических испытаний, исследований, анализа и сертификации",
+    needsReview: true,
+    condition:
+      "позиция 20 — услуги по проведению экспертизы; код 71.2 шире (испытания, сертификация)",
+  },
+  {
+    prefix: "72",
+    category: "research",
+    row: 11,
+    basis: "classifier",
+    classifierName:
+      "Услуги и работы, связанные с научными исследованиями и экспериментальными разработками",
+  },
+  {
+    prefix: "62",
+    category: "it_systems",
+    row: 12,
+    basis: "classifier",
+    classifierName:
+      "Продукты программные и услуги по разработке программного обеспечения; консультационные услуги в области ИТ",
+    needsReview: true,
+    condition:
+      "позиция 12 — только государственные/муниципальные информационные системы и официальные сайты",
+  },
+  {
+    prefix: "63",
+    category: "it_systems",
+    row: 12,
+    basis: "classifier",
+    classifierName: "Услуги в области информационных технологий",
+    needsReview: true,
+    condition:
+      "позиция 12 — только государственные/муниципальные информационные системы и официальные сайты",
+  },
+  {
+    prefix: "80",
+    category: "security",
+    row: 14,
+    basis: "classifier",
+    classifierName: "Услуги по обеспечению безопасности и проведению расследований",
+    needsReview: true,
+    condition:
+      "позиция 14 — охрана объектов образовательных и научных организаций; код 80 шире",
+  },
+  {
+    prefix: "90",
+    category: "literature_art",
+    row: 9,
+    basis: "classifier",
+    classifierName: "Услуги в области творчества, искусства и развлечений",
+    needsReview: true,
+    condition:
+      "позиция 9 — создание произведения литературы или искусства; код 90 включает иные развлекательные услуги",
+  },
+  {
+    prefix: "59.1",
+    category: "film",
+    row: 10,
+    basis: "classifier",
+    classifierName:
+      "Услуги по производству кинофильмов, видеофильмов и телевизионных программ",
+    needsReview: true,
+    condition:
+      "позиция 10 — национальный фильм; код 59.1 покрывает любую кинопродукцию",
+  },
+  // Поз. 13 — общественное питание
+  {
+    prefix: "56",
+    category: "food_catering",
+    row: 13,
+    basis: "classifier",
+    classifierName: "Услуги общественного питания",
+  },
+  // Поз. 1 — товары. 09, 18, 33 — услуги, поэтому уходят в поз. 2
+  ...Object.entries(GOODS_SECTIONS).map(
+    ([prefix, classifierName]): Okpd2CategoryRule => ({
+      prefix,
+      category: "goods",
+      row: 1,
+      basis: "classifier",
+      classifierName,
+    }),
+  ),
+  {
+    prefix: "10",
+    category: "goods",
+    row: 1,
+    basis: "classifier",
+    classifierName: "Продукты пищевые",
+    condition:
+      "позиция 1 исключает пищевые продукты из позиции 13; при поставке для образовательных, медицинских, социальных организаций и отдыха детей применяется позиция 13",
+    needsReview: true,
+  },
+  {
+    prefix: "11",
+    category: "goods",
+    row: 1,
+    basis: "classifier",
+    classifierName: "Напитки",
+    condition:
+      "при поставке для образовательных, медицинских, социальных организаций и отдыха детей применяется позиция 13",
+    needsReview: true,
+  },
+  {
+    prefix: "09",
+    category: "works_services",
+    row: 2,
+    basis: "classifier",
+    classifierName: "Услуги в области добычи полезных ископаемых",
+  },
+  {
+    prefix: "18",
+    category: "works_services",
+    row: 2,
+    basis: "classifier",
+    classifierName: "Услуги печатные и услуги по копированию",
+  },
+  {
+    prefix: "33",
+    category: "works_services",
+    row: 2,
+    basis: "classifier",
+    classifierName: "Услуги по ремонту и монтажу машин и оборудования",
+  },
+  // Остаток: любые другие услуги и работы — позиция 2
+  {
+    prefix: "",
+    category: "works_services",
+    row: 2,
+    basis: "residual",
+    classifierName: "код ОКПД2 вне перечисленных разделов",
+    condition:
+      "остаточное правило позиции 2; для товаров проверьте, не подпадает ли код под позицию 1",
+  },
 ];
 
 const stripCodeDots = (code: string): string => code.replace(/\./g, "");
@@ -398,63 +726,136 @@ export const normalizeOkpd2Code = (code: string | undefined): string =>
     .replace(/,/g, ".")
     .replace(/\s+/g, "");
 
-/** Категория приложения N 2 по коду ОКПД2 (undefined — правило не найдено) */
-export const categoryFromOkpd2 = (
+const OKPD2_CODE_PATTERN = /^\d{2}(?:\.\d{1,3}){0,3}$/;
+
+export const isOkpd2CodeFormatValid = (code: string | undefined): boolean =>
+  OKPD2_CODE_PATTERN.test(normalizeOkpd2Code(code));
+
+/** Цель закупки, из-за которой пищевые продукты попадают в позицию 13. */
+export type Okpd2PurchasePurpose = "food_for_social_orgs";
+
+const FOOD_PURPOSE_RULE: Okpd2CategoryRule = {
+  prefix: "10, 11",
+  category: "food_catering",
+  row: 13,
+  basis: "purpose",
+  classifierName: "Продукты пищевые / Напитки",
+  condition:
+    "поставка для образовательных организаций, организаций здравоохранения, социального обслуживания и отдыха детей",
+};
+
+export interface Okpd2CategoryResolution {
+  code: string;
+  category?: string;
+  row?: number;
+  basis?: Okpd2RuleBasis;
+  source?: string;
+  needsReview: boolean;
+  reason?: string;
+}
+
+/**
+ * Приоритет: цель закупки → самое длинное совпадение префикса → остаток.
+ * Возвращает источник связи и признак ручной проверки вместе с категорией.
+ */
+export const resolveOkpd2Category = (
   code: string | undefined,
-): string | undefined => {
-  const clean = stripCodeDots(normalizeOkpd2Code(code));
+  purpose?: Okpd2PurchasePurpose,
+): Okpd2CategoryResolution => {
+  const normalized = normalizeOkpd2Code(code);
+  const clean = stripCodeDots(normalized);
 
   if (!clean) {
-    return undefined;
+    return {
+      code: normalized,
+      needsReview: true,
+      reason: "Код ОКПД2 не указан",
+    };
   }
 
-  const rule = CATEGORY_RULES.find((item) =>
+  if (!OKPD2_CODE_PATTERN.test(normalized)) {
+    return {
+      code: normalized,
+      needsReview: true,
+      reason: `Код ОКПД2 «${normalized}» имеет некорректный формат`,
+    };
+  }
+
+  if (purpose === "food_for_social_orgs" && /^(10|11)/.test(clean)) {
+    return {
+      code: normalized,
+      category: FOOD_PURPOSE_RULE.category,
+      row: FOOD_PURPOSE_RULE.row,
+      basis: FOOD_PURPOSE_RULE.basis,
+      source: sourceOf(FOOD_PURPOSE_RULE),
+      needsReview: false,
+      reason: FOOD_PURPOSE_RULE.condition,
+    };
+  }
+
+  const rule = OKPD2_CATEGORY_RULES.find((item) =>
     clean.startsWith(stripCodeDots(item.prefix)),
   );
 
-  return rule?.category;
+  if (!rule) {
+    return {
+      code: normalized,
+      needsReview: true,
+      reason: "Не удалось подобрать правило ОКПД2",
+    };
+  }
+
+  return {
+    code: normalized,
+    category: rule.category,
+    row: rule.row,
+    basis: rule.basis,
+    source: sourceOf(rule),
+    needsReview: Boolean(rule.needsReview),
+    reason: rule.condition,
+  };
 };
 
-export interface Okpd2CategoryMatch {
-  code: string;
-  category?: string;
-}
+/** Категория приложения N 2 по коду ОКПД2 (undefined — код не указан/невалиден) */
+export const categoryFromOkpd2 = (
+  code: string | undefined,
+): string | undefined => resolveOkpd2Category(code).category;
+
+export type Okpd2CategoryMatch = Okpd2CategoryResolution;
 
 export interface Okpd2CategoryDetection {
   // Категория, если все коды дали одно значение; иначе undefined
   category?: string;
   matches: Okpd2CategoryMatch[];
-  // Коды, для которых правило не нашлось
+  // Коды, для которых не удалось определить категорию
   unmatched: string[];
   // Объекты закупки попали в разные категории приложения N 2
   conflict: boolean;
+  // Есть связь, которую нужно подтвердить человеку
+  needsReview: boolean;
 }
 
 /**
  * Определяет категорию объекта закупки по кодам ОКПД2 позиций СЗ/плана-графика.
  * Если коды расходятся по категориям, категорию нужно выбрать вручную —
- * `conflict: true`.
+ * `conflict: true`. Каждое совпадение несёт источник связи.
  */
 export const detectObjectCategory = (
   codes: (string | undefined)[],
+  purpose?: Okpd2PurchasePurpose,
 ): Okpd2CategoryDetection => {
   const matches: Okpd2CategoryMatch[] = [];
   const unmatched: string[] = [];
 
   codes.forEach((rawCode) => {
-    const code = normalizeOkpd2Code(rawCode);
+    const resolution = resolveOkpd2Category(rawCode, purpose);
 
-    if (!code) {
+    if (!resolution.code || !isOkpd2CodeFormatValid(resolution.code)) {
+      unmatched.push(resolution.code);
       return;
     }
 
-    const category = categoryFromOkpd2(code);
-
-    matches.push({ code, category });
-
-    if (!category) {
-      unmatched.push(code);
-    }
+    matches.push(resolution);
   });
 
   const categories = new Set(
@@ -466,6 +867,7 @@ export const detectObjectCategory = (
     matches,
     unmatched,
     conflict: categories.size > 1,
+    needsReview: matches.some((item) => item.needsReview),
   };
 };
 
@@ -703,6 +1105,8 @@ export const BidEvaluationSchema = z.object({
   // Коды ОКПД2 объектов закупки: по ним определяется категория приложения N 2
   // и проверяется аукционный перечень (РП РФ N 471-р)
   okpd2Codes: z.array(z.string()).default([]),
+  // Цель закупки, из-за которой пищевые продукты (10, 11) попадают в поз. 13
+  okpd2Purpose: z.enum(["food_for_social_orgs"]).optional(),
   procedureKind: z.enum(PROCEDURE_KINDS).default("tender"),
   // Начальная (максимальная) цена контракта — база для формул п. 9 и 10
   nmck: optionalMoney(),
@@ -786,6 +1190,7 @@ export const emptyBidEvaluation = (
   objectName: "",
   objectCategory: "works_services",
   okpd2Codes: [],
+  okpd2Purpose: undefined,
   procedureKind: "tender",
   nmck: "",
   criteria: defaultCriteria(),
@@ -1127,6 +1532,7 @@ export const validateBidEvaluation = (
     | "status"
     | "nmck"
     | "okpd2Codes"
+    | "okpd2Purpose"
   >,
   options: ValidationOptions = {},
 ): ValidationIssue[] => {
@@ -1198,7 +1604,7 @@ export const validateBidEvaluation = (
 
   if (price && parseNumber(price.weightPercent) < limits.minPrice) {
     error(
-      `Минимальная значимость критерия «цена» для категории «${limits.label}» — ${limits.minPrice}% (приложение N 2 к Положению).`,
+      `Минимальная значимость критерия «цена» для категории «${limits.label}» — ${limits.minPrice}% (приложение N 2, поз. ${limits.appendixRow}).`,
     );
   }
 
@@ -1208,7 +1614,7 @@ export const validateBidEvaluation = (
     parseNumber(expenses.weightPercent) > limits.maxExpenses
   ) {
     error(
-      `Максимальная значимость критерия «расходы» для категории «${limits.label}» — ${limits.maxExpenses}% (приложение N 2 к Положению).`,
+      `Максимальная значимость критерия «расходы» для категории «${limits.label}» — ${limits.maxExpenses}% (приложение N 2, поз. ${limits.appendixRow}).`,
     );
   }
 
@@ -1221,7 +1627,7 @@ export const validateBidEvaluation = (
 
   if (nonCostSum > limits.maxNonCost) {
     error(
-      `Сумма значимости характеристик объекта и квалификации — ${nonCostSum}%, максимум для категории «${limits.label}» — ${limits.maxNonCost}% (приложение N 2 к Положению).`,
+      `Сумма значимости характеристик объекта и квалификации — ${nonCostSum}%, максимум для категории «${limits.label}» — ${limits.maxNonCost}% (приложение N 2, поз. ${limits.appendixRow}).`,
     );
   }
 
@@ -1240,23 +1646,50 @@ export const validateBidEvaluation = (
     .map((code) => normalizeOkpd2Code(code))
     .filter(Boolean);
 
-  if (codes.length > 0) {
-    const detection = detectObjectCategory(codes);
+  if (codes.length === 0) {
+    warning(
+      `Код ОКПД2 не указан: категорию и пределы значимости проверить автоматически нельзя. Выберите категорию вручную (${PP2604_APPENDIX2_SOURCE.appendix}).`,
+    );
+  } else {
+    const detection = detectObjectCategory(codes, config.okpd2Purpose);
+
+    detection.matches.forEach((match) => {
+      if (match.needsReview) {
+        warning(
+          `Код ОКПД2 ${match.code}: соответствие позиции ${
+            match.row ?? "?"
+          } приложения N 2 требует подтверждения. ${match.reason ?? ""} Источник: ${
+            match.source ?? PP2604_APPENDIX2_SOURCE.appendix
+          }.`,
+        );
+      }
+    });
+
+    if (detection.unmatched.length > 0) {
+      error(
+        `Код ОКПД2 ${detection.unmatched.join(
+          ", ",
+        )} не распознан: проверьте формат и наличие кода в активном справочнике НСИ ЕИС.`,
+      );
+    }
 
     if (detection.conflict) {
       warning(
-        "Коды ОКПД2 объектов закупки относятся к разным категориям приложения N 2 — выберите категорию вручную.",
+        `Коды ОКПД2 объектов закупки попали в разные позиции приложения N 2 — выберите категорию вручную. ${detection.matches
+          .map((match) => `${match.code} → поз. ${match.row ?? "?"} (${match.source ?? "источник не найден"})`)
+          .join("; ")}.`,
       );
     } else if (
       detection.category &&
       detection.category !== config.objectCategory
     ) {
+      const expected = objectCategoryLimits(detection.category);
       error(
-        `Категория «${limits.label}» не соответствует ОКПД2 ${codes.join(
+        `Категория «${limits.label}» (поз. ${limits.appendixRow}) не соответствует ОКПД2 ${codes.join(
           ", ",
-        )}: по приложению N 2 ожидается «${
-          objectCategoryLimits(detection.category).label
-        }».`,
+        )}: по приложению N 2 ожидается «${expected.label}» (поз. ${expected.appendixRow}). Источник связи: ${
+          detection.matches[0]?.source ?? PP2604_APPENDIX2_SOURCE.appendix
+        }.`,
       );
     }
 

@@ -287,6 +287,15 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          <li className={nav("item")}>
+            <NavLink
+              className={nav("link", ["logo"])}
+              to={"/liability-mapping"}
+            >
+              <span className={nav("link-name")}>Ответственность КС</span>
+            </NavLink>
+          </li>
+
           {user && (
             <li className={nav("item")}>
               <NavLink className={nav("link", ["logo"])} to={"/documents"}>

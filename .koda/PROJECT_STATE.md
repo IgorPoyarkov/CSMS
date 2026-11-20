@@ -5,8 +5,9 @@
 > Карта всех программных агентов/воркеров — `csms-api/docs/agents.md`.
 > Дата последнего обновления: 2026-11-20 (Compliance & Liability Mapping в
 > `csms-api`: 4 гипотезы → гибридный pgvector/fts пул → строгий LLM-арбитр →
-> валидатор; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
-> 97 passed / 3 skipped, JSON-контракт зафиксирован тестом — §48, бриф
+> валидатор; версионирование всех параметров, промпт v2, действия в гипотезах
+> первыми; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
+> 103 passed / 3 skipped, JSON-контракт зафиксирован тестом — §§48–50, бриф
 > `csms-api/docs/tasks/compliance-liability-mapping.md`).
 > Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
 > в `csms-api`: модель `qwen2.5:14b-instruct-q4_K_M`, вызов только по спорным
@@ -1663,7 +1664,7 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   `filterPoolItems`/`findPoolItem` и чистые функции шагов. Потребители
   (`TasksPage`, `TaskAssignModal`, `TaskDetailPage`, `MyTasks`,
   `ContractServiceForm`, `regulatoryDeadlines`) получают пул через react-query.
-  Проверки: `npx.cmd oxlint src` — только先前ние warning'и; `npx.cmd vite build`
+  Проверки: `npx.cmd oxlint src` — только прежние warning'и; `npx.cmd vite build`
   — успешно (exit 0). `npx.cmd tsc -b` падает **на чужом, не тронутом нами
   файле** `src/components/NoticeInfoForm/sections/AttachedDocsSection.tsx:106`
   (`additional_requirements` не входит в тип), это незавершённая работа другого
@@ -1673,7 +1674,7 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   упоминают активный справочник ОКПД2. `db.json` теперь только оверлей признаков
   для существующих кодов, «лишние» 48 локальных кодов из выдачи убраны: страница
   показывает ровно 21 066 кодов из `/api/references/nsiOKPD2/all` (проверено в
-  браузере с `EIS_STORE=postgres`). Буквенные разделы A–U也不能 отбрасывать:
+  браузере с `EIS_STORE=postgres`). Буквенные разделы A–U тоже нельзя отбрасывать:
   это часть официального снимка, всего 21 066 строк.
 - **PostgreSQL payload:** `EfCoreReferenceDataStore.GetAllAsync` намеренно не
   тянет `PayloadJson` (ОКПД2 — десятки МБ), из-за чего первый postgres-прогон
@@ -1736,4 +1737,128 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   (`EmptyLiabilityRetriever`), эндпоинт работает и возвращает 0 норм без
   вызова LLM. Полный конвейер (pgvector + FTS + Ollama) требует
   `EIS_STORE=postgres`; после установки pgvector миграция больше не блокируется.
+
+## 49. Загрузка КоАП и витрина Liability Mapping (2026-11-20)
+
+- **Источник:** веб-версия КонсультантПлюс
+  `http://www.consultant.ru/document/cons_doc_LAW_34661/` (ред. от 04.08.2026,
+  изм. с 03.11.2026), `source=consultant-web` в метаданных. Официальные
+  порталы pravo.gov.ru из среды недоступны; в UI источник подписан как
+  «КонсультантПлюс (веб-версия)», не как официальный портал.
+- **Загрузчик:** `csms-api/tools/KoapImporter` (отдельный .NET 9 консольный
+  проект). Разбирает TOC (1176 ссылок), обходит 1138 статей, делит на части и
+  пункты, строит чанки и 768-мерные эмбеддинги `nomic-embed-text`. Итог
+  полного прогона: **2871 норма** (2812 частей), **3303 чанка**, запись в
+  `legal.liability_norms` / `legal.liability_norm_chunks` идемпотентна.
+- **Модель эмбеддингов:** реестр Ollama недоступен (TLS timeout), GGUF
+  `nomic-ai/nomic-embed-text-v1.5.Q4_K_M` скачан с HuggingFace и зарегистрирован
+  локально через `ollama create` (`num_ctx 8192`). `POST /api/embed` → 768
+  чисел. Арбитр остаётся `qwen2.5:14b-instruct-q4_K_M`, `temperature=0`.
+- **Миграции:** `20261120120000_AddMappingNormReference` (колонка
+  `norm_reference` + backfill; до этого чтение связи падало) и
+  `20261120130000_AddMappingRunStatus` (маркер `completed` в
+  `mapping_candidates`, чтобы пустой прогон не дёргал LLM повторно). Обе
+  применены к БД :5433. Исправлены скалярные `SqlQueryRaw` (`AS "Value"`) и
+  вызовы `ExecuteSqlRawAsync` (массив параметров + отдельный токен отмены):
+  EF Core 9 иначе принимал `CancellationToken` за параметр SQL.
+- **API+фронт:** добавились `GET /api/liability-mapping/duties` (41 DutyInput
+  из пула 158н) и `/overview`; на клиенте — `services/LiabilityMapping/*`
+  (axios через Vite-прокси `/api`, Zod-схемы) и страница
+  `components/LiabilityMapping/LiabilityMappingPage.tsx` `/liability-mapping`
+  со списком 41 пункта, гипотезами, нормами, degree/score и ручной проверкой.
+  Ссылки — в `Header.tsx` и на главной `Main.tsx`.
+- **Запуск API:** только с launch profile (в `launchSettings.json` есть строка
+  подключения); `--no-launch-profile` без `ConnectionStrings:EisDb` падает.
+  Полный конвейер требует PostgreSQL :5433, Ollama :11434, `EIS_STORE=postgres`.
+- **Проверки (2026-11-20):** `dotnet build` — успешно; `dotnet test --no-build`
+  — 0 ошибок, 100 passed / 3 skipped (увеличение на 3 теста относительно §48);
+  `npx tsc -b` — успешно (ранее падал `NoticeInfoForm.tsx:1683` из-за чужой
+  незавершённой правки, к моменту проверки ошибка устранена); `npx oxlint src`
+  — только предупреждения, новых ошибок нет; `npx vite build` — успешно
+  (предупреждения Sass `@import`, размера чанков и отсутствующих шрифтов).
+
+## 50. Настройка и версионирование конвейера (2026-11-20)
+
+- **Проблема:** раньше `run_id` хэшировал duty + пул + модель, поэтому смена
+  промпта/порогов не создавала новый прогон и старый результат считался
+  актуальным. Теперь в ключ входят `PromptVersion=liability-arbiter-v2`,
+  `RulesVersion=liability-rules-v2`, `HypothesesVersion=liability-hypotheses-v2`,
+  `ConfigVersion=liability-config-v3`, `BuildRulesFingerprint()` (пороги,
+  лимиты, веса) и `options.BuildConfigFingerprint()` (модель, эмбеддинги,
+  температура, токены, ретраи). Старые строки остаются в истории БД.
+- **Промпт v2:** пороги подставлены из правил, добавлена калибровка score
+  (full 0.85–1.00, partial 0.50–0.84, blanket 0.20–0.60, irrelevant 0),
+  требование оценить каждый id, цитата из нормы + id гипотезы, усечённый текст
+  не повышает оценку. В user prompt уходит блок `evaluation_rules`.
+- **Пороги:** low 0.5, partial 0.7, новый full 0.8; blanket всегда на проверке.
+- **Гипотезы:** 4 по ТЗ, но действия идут первыми, бездействие последним
+  (практика 158н ~80/20 в пользу действия); бездействие сохранено для ч. 2
+  ст. 19.5. При добавлении нового `ViolationKind` нужно bump
+  `HypothesesVersion`, поправить промпт «3–4» и тест генератора.
+- **Пул:** лимиты 24/18/6 передаются в SQL параметрами, максимум 30; ранг —
+  взвешенная сумма 0.65/0.35/0.5 вместо max, umbrella не вытесняет специальные
+  нормы; при пуле <25 пишется warning.
+- **Опции:** добавлены `Temperature` (по умолчанию 0, попадает в аудит и
+  отпечаток) и `ConfigVersion`; `Validate()` проверяет оба новых поля.
+  Невалидный ответ LLM теперь сохраняется в `llm_audit_log` строкой, а не
+  роняет вставку.
+- **Проверки:** `dotnet build` — 0 ошибок, `dotnet test --no-build` —
+  **103 passed / 3 skipped** (+3 теста: промпт, порог full, версионность).
+  Подробности — `csms-api/docs/tasks/compliance-liability-mapping.md` §11.
+
+## 51. Живой прогон Liability Mapping v3 (2026-11-20)
+
+- **Результат:** duty `158n-3-1-1`, `run_id=91baaa0c-5f97-bc16-6b56-060e48fd04f3`,
+  `candidate_count=29`, `matched=1` — «КоАП РФ ст. 2.9.1 ч. 1», `blanket`,
+  `probability_score=0.5`, `requires_human_review=true`. Модель
+  `qwen2.5:14b-instruct-q4_K_M`, промпт `liability-arbiter-v2`,
+  `calculated_at=2026-11-20T06:11:47.5552543+00:00`.
+- **Контур:** PostgreSQL `:5433` + pgvector, Ollama `:11434`, `EIS_STORE=postgres`,
+  csms-api `:5099`. В `legal` загружен КоАП: 1138 статей, 2871 единица,
+  3303 чанка с эмбеддингами `nomic-embed-text` (768). При `EIS_STORE=memory`
+  работает `EmptyLiabilityRetriever` — живой прогон без PostgreSQL невозможен.
+- **Версии/конфиг:** `ConfigVersion=liability-config-v3`, `ContextTokens=8192`
+  (`num_ctx`), `MaxOutputTokens=4096`, timeout 900 с, retries 2. Новый прогон
+  =$новый `run_id`; старые строки (включая неудачные `7c2f5690…`, `976b5470…`)
+  остаются в БД и аудите. Кандидаты `pending` → `completed` только в
+  `SaveMappingsAsync`; `irrelevant` живёт только в `llm_audit_log`.
+- **Документация:** `csms-api/docs/tasks/compliance-liability-mapping.md` §§11–12.
+
+## 52. ПП РФ N 2604: ОКПД2 → категории предельных величин (2026-11-20)
+
+- **Источник:** официальный API `publication.pravo.gov.ru`,
+  `eoNumber=0001202201040005`, PDF стр. 27–29 (повёрнутый скан, OCR после
+  поворота на 90°). Справочник — активная версия НСИ ЕИС `nsiOKPD2`
+  (`eis-nsiOKPD2-7c7ee4215e3ee405`, 21066 кодов). Сторонние сайты не
+  использовались; правила `ref.npa_rules` для `pp-2604` не являются источником
+  пределов (там `include/auto` на весь справочник).
+- **Ключевой факт:** приложение N 2 содержит 20 наименований объектов и три
+  числа на строку, но **ни одного кода ОКПД2**. Каждая связь «код → позиция»
+  производная и несёт `basis` (`classifier` / `purpose` / `residual`), номер
+  позиции, акт и наименование кода из НСИ. Спорные коды получают
+  `needsReview=true`.
+- **Реализация:** `src/services/BidEvaluation/bidEvaluation.schema.ts` —
+  `PP2604_APPENDIX2_SOURCE`, `OBJECT_CATEGORY_LIMITS` (+ `appendixRow`,
+  `appendixName`), `OKPD2_CATEGORY_RULES`, `resolveOkpd2Category`,
+  `detectObjectCategory`, новое поле `okpd2Purpose`. Приоритет: цель закупки →
+ самый длинный префикс → остаток поз. 2. Отсутствие кода — warning, невалидный код —
+  error, конфликт категорий — warning с источниками, несоответствие выбранной
+  категории — error с номером позиции.
+- **Уточнения:** поз. 12 — `30 / — / 70` (OCR повёрнутой страницы давал
+  `70 / — / 30`, сверка по изображению подтвердила `30 / — / 70`, значение в
+  коде не менялось); поз. 13 ограничена образовательными,
+  медицинскими, социальными организациями и отдыхом детей; поз. 14 — только
+  охрана объектов образовательных и научных организаций. Для поз. 6 добавлен
+  спорный код `71.11.23` (архитектурные услуги по реставрации исторических
+  зданий).
+- **Проверки и документация:** `npm run check:pp2604` (новый smoke-скрипт на
+  rolldown + Node) проходит; полная таблица —
+  `csms/docs/tasks/pp2604-okpd2-limits.md`. На момент коммита `npx tsc -b`,
+  `npx oxlint src` и `npx vite build` проходили.
+- **Чужая незавершённая работа после коммита:** другой агент изменил
+  `src/services/ContractService/contractService.schema.ts` (детализация функций
+  158н), не обновив `contractService.config.ts` и `order158nReport.schema.ts`;
+  повторный `npx tsc -b` падает с TS2740 в этих двух файлах. Правку не трогали
+  и в коммит не включали. В `csms-api` чужие `ContractChange*.cs` по-прежнему
+  дают CS1739; наши сборка/тесты проверены в чистом worktree.
 

@@ -23,6 +23,7 @@ import Order158nReportsPage from "./components/Reports/Order158nReportsPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
 import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
+import LiabilityMappingPage from "./components/LiabilityMapping/LiabilityMappingPage";
 import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import EisPackagesPage from "./components/Eis/EisPackagesPage";
@@ -151,6 +152,11 @@ const router = createBrowserRouter([
         // Реестр законодательных актов и связей норм с компонентами системы
         path: "/legal-acts",
         element: <LegalActsRegistry />,
+      },
+      {
+        // Compliance & Liability Mapping: обязанности 158н → нормы КоАП
+        path: "/liability-mapping",
+        element: <LiabilityMappingPage />,
       },
       {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал
