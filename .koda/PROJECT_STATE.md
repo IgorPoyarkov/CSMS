@@ -2109,4 +2109,33 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   доменный маппер `Б9`; оболочка при этом уже валидна, и ошибки XSD теперь
   относятся только к телу документа.
 
+## 61. Бэк: маппер приёмки Б7 и уточнения оболочки от Фронт-2 (2026-11-21)
+
+- **Б7 закрыт по объёму маппера:** новый
+  `csms-api/src/Csms.Infrastructure/AcceptanceXmlMapper.cs` собирает пакет
+  ЕИС 17.0 по `ContractAcceptance`, не меняя домен. Корень —
+  `ceContractExecutionDocAcceptance` (большая закупка / ЭА, ЦРК),
+  `objectType=CRK`, внутри `data` — `docAcceptanceInfo` с позициями и
+  `fulfilledCost`. Альтернативный корень малой закупки
+  (`cemContractExecutionDocAcceptance`, строка 5945) зафиксирован в
+  `csms-api/docs/eis-xsd-roots.md`, но не включается без признака способа
+  закупки в домене.
+- Значения из справочников (**код `nsiContractExecutionDoc`, СПЗ заказчика,
+  код `nsiVAT`**) передаются явным `AcceptanceXmlContext`; маппер не подбирает
+  их по названию. Нет реестрового номера (19 цифр), даты документа, номера или
+  позиций — `DomainException` с именем поля. Маппер остаётся отдельным от
+  `PlaceholderXmlBuilder`: заглушка `placeholder-v0` не выдаётся за готовый XML.
+- Уточнения оболочки от Фронт-2 внесены в `docs/eis-xsd-roots.md`:
+  `schemeVersion` — атрибут `data`, документ получает свой namespace через
+  `xmlns` на корне, пустая подпись валидна. 5 новых тестов
+  (`AcceptanceXmlMapperTests`) гоняют XML через `EisSchemaCatalog` на всех
+  32 XSD версии 17.0.
+- **Проверки:** `dotnet test` — 292 пройдено, 0 провалено, 10 пропущено
+  (Postgres-тесты без БД); сборка с `-p:BaseOutputPath` в temp, штатный `bin`
+  занят запущенным `Csms.Api.exe`.
+- **Хендофф:** `Б4` снова свободен — Фронт-2 прислал спецификацию
+  `csms/docs/tasks/eis-package-dto.md` (`source` + снимок `customer`). Брать
+  его только после коммита этого блока и не трогая чужие WIP (`db.json`,
+  `Acceptance*`, `KoksRef/`, `src/services/Eis/generated/**`).
+
 
