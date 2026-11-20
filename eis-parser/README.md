@@ -9,10 +9,10 @@ XML-данных из ЕИС через SOAP-сервис `getDocsIP`. Поль�
 
 | Проект | Назначение |
 | --- | --- |
-| `Eis44Parser.Core` | SOAP-клиент, сборщик запросов, парсер XML, модели, дедупликация |
-| `Eis44Parser.Data` | EF Core: SQLite/PostgreSQL, таблица `Tenders`, ключ по номеру закупки |
-| `Eis44Parser.Worker` | Фоновая служба опроса, конфигурация, CLI-режимы |
-| `Eis44Parser.Tests` | xUnit: порядок SOAP-тегов, парсинг разных версий схем, дедупликация |
+| `Eis44Parser.Core` | `EisSoapClient` (этап 1), `ArchiveDownloader` (2), `ArchiveProcessor` + `EisDocumentParser` (3), модели |
+| `Eis44Parser.Data` | EF Core: SQLite/PostgreSQL; старая таблица `Tenders` и таблицы конвейера (`eis_sync_state`, `eis_archive_queue`, `raw_documents`, `purchases`, `purchase_items`, `contracts`, `participants`) |
+| `Eis44Parser.Worker` | Фоновая служба опроса, `EisPipelineRunner`, конфигурация, CLI-режимы |
+| `Eis44Parser.Tests` | xUnit: SOAP-теги и заголовки, ZIP/парсинг, идемпотентность очереди и upsert |
 
 ## Схемы и типы Альбома ТФФ 17.0
 
@@ -95,17 +95,40 @@ WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 Актуальные XSD берутся из Альбома ТФФ на портале ЕИС (раздел «Документы» →
 «Требования к форматам и способам передачи»).
 
-## Двухэтапное получение данных
+## Четырёхэтапный конвейер выгрузки
 
-1. SOAP `getDocsByOrgRegionRequest` (по региону и дате) или
-   `getDocsByReestrNumberRequest` (по 19-значному номеру) возвращает `archiveUrl`.
-2. ZIP скачивается `HTTP GET` через тот же туннель; в заголовке обязателен
-   `individualPerson_token: {token}`. XML внутри архива разбирается по
-   `XDocument` с поиском через `Name.LocalName` — префиксы пространств имён и
-   `schemeVersion` разных версий не ломают разбор.
+1. **Опросник** (`EisSoapClient`): `getDocsByOrgRegionRequest` по региону/дате
+   или `getDocsByReestrNumberRequest` по номеру, пауза 300–500 мс между
+   запросами, Polly с экспоненциальным backoff на 429/502/503/504 и таймаутах.
+   Ссылки и курсоры идут в `eis_archive_queue` / `eis_sync_state` (идемпотентно
+   по SHA-256 URL).
+2. **Загрузчик** (`ArchiveDownloader`): `HTTP GET` через туннель с заголовком
+   `individualPerson_token`, потоковая запись на диск с подсчётом SHA-256,
+   проверка, что файл — читаемый ZIP (все записи читаются до конца).
+3. **Распаковщик/парсер** (`ArchiveProcessor`, `EisDocumentParser`): XML читаются
+   из `ZipArchive` в потоке, поля ищутся по `Name.LocalName`, поэтому префиксы
+   пространств имён и версии схем (14.x–17.x) не ломают разбор.
+4. **Хранение** (`EisPipelineRepository`): сырой XML — в `raw_documents`,
+   нормализованные сущности — в `purchases`, `purchase_items`, `contracts`,
+   `participants`. Upsert по естественным ключам (номер закупки, regNum).
+   Схема PostgreSQL — `sql/001_pipeline.sql`.
 
-Подсистемы 44-ФЗ: `PRIZ` (извещения и протоколы), `RPEC` (реестр контрактов),
-`RPGZ` (планы-графики), `NSI` (справочники).
+Один проход: `dotnet run --project src/Eis44Parser.Worker -- --pipeline-once`.
+Старый `--once` оставляет прежнее поведение (опрос + таблица `Tenders`).
+
+### Что говорит XSD 17.0 (в спецификации из поисковой выдачи есть ошибки)
+
+- `selectionParams/getDocsByOrgRegionRequest` — строго `orgRegion`,
+  `subsystemType`, `documentType44`, `periodInfo` (плюс необязательный
+  `reestrNumber`). В `periodInfo` **нет** `from/to`: только `exactDate` или
+  `oneHourInfo` (дата, час и смещение пояса). Инкремент строится по датам,
+  а не произвольному интервалу UTC.
+- Коды 44-ФЗ из `getDocsIP-ws-api.xsd`: `PRIZ`, `RPEC`, `RPGZ`, `RGK`, `CRK`,
+  `EA`, `UR`, `REC` и др. Кодов `RPZ`, `RBG`, `RNP` в перечне нет (`RPZ223` —
+  223-ФЗ). Справочники НСИ выгружаются отдельным методом `getNsiRequest`,
+  а не подсистемой `NSI`.
+- Адрес сервиса — `int.zakupki.gov.ru` через локальный ГОСТ-туннель; старый
+  `int44.zakupki.gov.ru` сбрасывает TLS и в конвейере не используется.
 
 ## Выгрузка справочника КТРУ (nsiKtru)
 
@@ -208,6 +231,9 @@ $env:ConnectionStrings__EisDb = "Data Source=eis44.db"
 - `RawXml` хранится в БД как текст; для реальных объёмов вынести его в S3/MinIO,
   оставив ссылку и хэш.
 - Реальная проверка подписи/верификация ответов ЕИС на этом этапе не требуется.
+- Извлечение позиций КТРУ/ОКПД2 и реквизитов сторон — best effort по
+  `LocalName`. Для точного маппинга нужен реальный XML из архива ЕИС и
+  соответствующий раздел Альбома ТФФ; коды справочников не подбираются.
 - Состояние на 2026-11-19 (вечер): код, тесты и `--validate` зелёные. Хост
   `int44.zakupki.gov.ru:443` по-прежнему сбрасывает TLS-handshake даже с
   статическим внешним IP `195.226.203.100`; зато `int.zakupki.gov.ru:443`

@@ -34,6 +34,21 @@ public sealed class EisClientOptions
     /// <summary>Начальная задержка между повторами (экспоненциально растёт).</summary>
     public int RetryBaseDelayMs { get; set; } = 1000;
 
+    /// <summary>Пауза между соседними запросами к ЕИС (300–500 мс по лимитам).</summary>
+    public int RequestDelayMs { get; set; } = 400;
+
+    /// <summary>Каталог для проверенных ZIP-архивов; пусто — системный temp.</summary>
+    public string ArchiveDirectory { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Отключить TCP-пинг локального ГОСТ-туннеля. Нужен только тестам с
+    /// подменённым HttpMessageHandler; в бою оставлять false.
+    /// </summary>
+    public bool SkipTunnelProbe { get; set; }
+
+    /// <summary>Максимум архивов, обрабатываемых за один проход конвейера.</summary>
+    public int MaxArchivesPerRun { get; set; } = 50;
+
     /// <summary>Период опроса фоновой службы.</summary>
     public int PollingIntervalMinutes { get; set; } = 60;
 

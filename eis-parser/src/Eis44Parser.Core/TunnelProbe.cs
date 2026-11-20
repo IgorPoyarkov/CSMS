@@ -41,8 +41,8 @@ public static class TunnelProbe
             throw new InvalidOperationException(
                 $"Локальный ГОСТ-туннель недоступен: {uri.Host}:{port}. " +
                 "Запустите stunnel с eis-parser/stunnel.conf " +
-                "(accept=127.0.0.1:8080, connect=int44.zakupki.gov.ru:443), " +
-                "затем проверьте командой --check.",
+                "(accept=127.0.0.1:8080, connect=int.zakupki.gov.ru:443). " +
+                "Старый хост int44.zakupki.gov.ru не используется — затем проверьте --check.",
                 exception);
         }
     }

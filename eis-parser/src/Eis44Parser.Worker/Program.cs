@@ -13,8 +13,10 @@ using Microsoft.Extensions.Options;
 // --validate — проверить конфигурацию и создать БД без обращения к ЕИС,
 // --check — проверить токен и доступность локального ГОСТ-туннеля,
 // --import-nsi — выгрузить справочник НСИ (КТРУ) и опубликовать в csms-api,
+// --pipeline-once — один проход четырёхэтапного конвейера (очередь архивов),
 // --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
+var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnoreCase);
 var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase);
 var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
@@ -87,7 +89,13 @@ builder.Services.PostConfigure<EisClientOptions>(options =>
     }
 });
 builder.Services.AddSingleton<ITenderXmlParser, TenderXmlParser>();
+builder.Services.AddSingleton<IEisSoapClient, EisSoapClient>();
 builder.Services.AddSingleton<IEis44Client, Eis44Client>();
+builder.Services.AddSingleton<EisDocumentParser>();
+builder.Services.AddSingleton<ArchiveDownloader>();
+builder.Services.AddSingleton<ArchiveProcessor>();
+builder.Services.AddSingleton<IEisPipelineRepository, EisPipelineRepository>();
+builder.Services.AddSingleton<EisPipelineRunner>();
 builder.Services.AddSingleton<NsiImportService>();
 builder.Services.AddTransient<ReferenceApiClient>();
 builder.Services.AddSingleton<ITenderRepository, TenderRepository>();
@@ -171,6 +179,27 @@ if (validateOnly)
         : "Токен задан.");
     Console.WriteLine("БД готова.");
     return 0;
+}
+
+if (pipelineOnce)
+{
+    try
+    {
+        using var scope = host.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<EisDbContext>()
+            .Database.EnsureCreatedAsync();
+
+        var result = await host.Services.GetRequiredService<EisPipelineRunner>()
+            .RunOnceAsync(CancellationToken.None);
+        Console.WriteLine(
+            $"Конвейер: в очередь {result.Enqueued}, обработано {result.Processed}, ошибок {result.Failed}.");
+        return result.Failed == 0 ? 0 : 1;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка конвейера ЕИС: {exception.Message}");
+        return 1;
+    }
 }
 
 if (runOnce)

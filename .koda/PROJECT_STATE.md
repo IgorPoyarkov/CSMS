@@ -2187,4 +2187,32 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   реестр) требуют утверждённых ТФФ 658/215н и 918, токена ЕИС и доменных
   сущностей, которых в API пока нет. `placeholder-v0` не подменяется.
 
+## 64. Отдельный eis-parser: четырёхэтапный конвейер ЕИС 44-ФЗ (2026-11-21)
+
+- **Где искать:** `eis-parser/` (своё решение .NET 9, не смешивается с csms-api).
+  Старый код (`Eis44Client`, `PollingWorker`, таблица `Tenders`) сохранён для
+  совместимости; SOAP-транспорт вынесен в `EisSoapClient`.
+- **Этапы:** `EisSoapClient` (опрос, токен в SOAP+HTTP, Polly, пауза 400 мс),
+  `ArchiveDownloader` (потоковая загрузка ZIP на диск + SHA-256 + проверка
+  целостности), `ArchiveProcessor`/`EisDocumentParser` (потоковый XML, поиск по
+  `LocalName`), `EisPipelineRepository` (EF Core, upsert). Оркестратор —
+  `EisPipelineRunner`, CLI `--pipeline-once`.
+- **Схема БД:** `eis-parser/sql/001_pipeline.sql` — `eis_sync_state`,
+  `eis_archive_queue`, `raw_documents`, `purchases`, `purchase_items`,
+  `contracts`, `participants`. Сырой XML хранится всегда, даже для
+  нераспознанного типа документа, чтобы перепарсить без повторной выгрузки.
+- **Сверка с XSD вместо копирования ТЗ из поисковой выдачи:** в
+  `getDocsIP-ws-api.xsd` 17.0 у `getDocsByOrgRegionRequest` нет интервала
+  `from/to` — только `exactDate` или `oneHourInfo`; кодов `RPZ/RBG/RNP` в
+  списке 44-ФЗ нет (`RPZ223` — 223-ФЗ), НСИ — отдельный `getNsiRequest`.
+  Рабочий хост — `int.zakupki.gov.ru` через ГОСТ-туннель, не `int44`.
+- **Проверки:** `dotnet test eis-parser/...` — 23/23 зелёных; `dotnet build`
+  решения и `--validate` воркера — без ошибок. Тесты закрывают порядок SOAP,
+  ошибки ЕИС, ретраи Polly (свежий HttpRequestMessage на каждую попытку),
+  токен при скачивании, ZIP-целостность, LocalName-парсинг и идемпотентность БД.
+- **Не закрыто:** живая выгрузка всё ещё заблокирована регистрацией токена в ЕИС
+  («Токены для сервисов отдачи отсутствуют»). Точные правила маппинга позиций
+  и сторон в контрактах требуют реального XML из архива и раздела Альбома ТФФ;
+  коды справочников не выдумываются. `db.json` — чужая WIP, не тронута.
+
 
