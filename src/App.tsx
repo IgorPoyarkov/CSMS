@@ -42,6 +42,7 @@ import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
 import VacationSchedulePage from "./components/VacationSchedule/VacationSchedulePage";
 import DeadlineNotificationsPage from "./components/Notifications/DeadlineNotificationsPage";
 import ProcurementDocumentsPage from "./components/ProcurementDocuments/ProcurementDocumentsPage";
+import UiSolutionsPage from "./components/UiSolutions/UiSolutionsPage";
 
 const router = createBrowserRouter([
   {
@@ -221,6 +222,11 @@ const router = createBrowserRouter([
         // Генерация типовых форм документов по карточкам закупок и Document Checker по реестру НПА
         path: "/documents",
         element: <ProcurementDocumentsPage />,
+      },
+      {
+        // Полный структурированный перечень UI-решений: назначение, место применения и реализация
+        path: "/ui-solutions",
+        element: <UiSolutionsPage />,
       },
     ],
   },

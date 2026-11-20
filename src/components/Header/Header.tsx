@@ -281,6 +281,13 @@ const Header = ({}: HeaderProps) => {
             </button>
           </li>
 
+          {/* Полный перечень UI-решений: назначение, место применения и реализация */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/ui-solutions"}>
+              <span className={nav("link-name")}>UI-решения</span>
+            </NavLink>
+          </li>
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/reports/order-158n"}>
               <span className={nav("link-name")}>Отчёты 158н</span>
