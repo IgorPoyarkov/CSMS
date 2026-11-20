@@ -7,6 +7,7 @@ import useUtils from "../../hooks/useUtils";
 import useTheme from "../../hooks/useTheme";
 import EisCoverageModal from "../Eis/EisCoverageModal";
 import ReferenceDataBadge from "../Eis/ReferenceDataBadge";
+import AgentsHelpModal from "./AgentsHelpModal";
 import styles from "./Header.module.scss";
 
 interface HeaderProps {}
@@ -56,6 +57,9 @@ const Header = ({}: HeaderProps) => {
   // Быстрый чек-лист покрытия XSD: открывается модалкой, чтобы не уводить
   // пользователя со страницы, на которой он смотрит план-график или извещение
   const [isCoverageOpen, setIsCoverageOpen] = useState(false);
+
+  // Справка по агентам: та же логика — не уводим пользователя с его страницы
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const openProfile = () => {
     if (isHoverDisabled) return;
@@ -266,6 +270,17 @@ const Header = ({}: HeaderProps) => {
             </button>
           </li>
 
+          {/* Короткая справка о программных агентах системы */}
+          <li className={nav("item")}>
+            <button
+              type="button"
+              className={nav("link", ["logo", "button"])}
+              onClick={() => setIsHelpOpen(true)}
+            >
+              <span className={nav("link-name")}>Справка</span>
+            </button>
+          </li>
+
           <li className={nav("item")}>
             <NavLink className={nav("link", ["logo"])} to={"/reports/order-158n"}>
               <span className={nav("link-name")}>Отчёты 158н</span>
@@ -381,6 +396,8 @@ const Header = ({}: HeaderProps) => {
       {isCoverageOpen && (
         <EisCoverageModal onClose={() => setIsCoverageOpen(false)} />
       )}
+
+      {isHelpOpen && <AgentsHelpModal onClose={() => setIsHelpOpen(false)} />}
     </header>
   );
 };

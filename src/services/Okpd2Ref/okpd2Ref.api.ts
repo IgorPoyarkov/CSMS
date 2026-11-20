@@ -6,16 +6,22 @@ import {
   NPA_DOCUMENT_CODES,
   npaApi,
 } from "../Npa/npa.api";
-import { setNpaDirectRules } from "../Npa/npaControl";
+import {
+  buildNpaRuleIndex,
+  normingFlagFromRule,
+  resolveIndexedNpaRule,
+  setNpaDirectRules,
+} from "../Npa/npaControl";
 import { Okpd2RefListSchema, type Okpd2Ref } from "./okpd2Ref.schema";
 
 export type { Okpd2Ref };
 
 /**
  * Справочник ОКПД2 строится по официальному снимку НСИ из csms-api
- * (`/api/references/nsiOKPD2/all`, 21 066 записей). Локальная выборка
- * `okpd2Refs` из db.json служит только оверлеем с признаками заказчика
- * (`isNormed`, `normLimit`, `nationalRegime`) — в выгрузке НСИ их нет.
+ * (`/api/references/nsiOKPD2/all`, 21 066 записей). Признак обязательного
+ * нормирования (`isNormed`) берётся из правил ПП РФ № 926, разобранных агентом;
+ * локальная выборка `okpd2Refs` из db.json остаётся оверлеем заказчика
+ * (`normLimit`, `nationalRegime`) и запасным источником, когда API НПА недоступен.
  *
  * Поиск выполняется на клиенте: выдача появляется без задержки на каждый
  * символ, а справочник и правила НПА кэшируются react-query на час.
@@ -76,14 +82,39 @@ export const useOkpd2Dictionary = () =>
         setNpaDirectRules(npaIndex);
       }
 
+      // Массовая разметка: 21 066 кодов × правила акта. Индекс по префиксу
+      // убирает вложенный перебор и работает по тем же приоритетам, что и
+      // серверный `/effective`.
+      const normingRules = npaIndex?.[NPA_DOCUMENT_CODES.norming];
+      const normingIndex = normingRules?.length
+        ? buildNpaRuleIndex(normingRules)
+        : null;
+      const withNormingFlag = (item: Okpd2Ref): Okpd2Ref => {
+        if (!normingIndex) {
+          return item;
+        }
+
+        const flag = normingFlagFromRule(
+          resolveIndexedNpaRule(
+            NPA_DOCUMENT_CODES.norming,
+            normingIndex,
+            item.code,
+          ),
+        );
+
+        // needs_review и conditional не меняют флаг: человек ещё не подтвердил
+        // конкретную запись, поэтому остаётся локальное значение (если есть).
+        return flag.isNormed === null ? item : { ...item, isNormed: flag.isNormed };
+      };
+
       const localByCode = new Map(
         local.map((item) => [normalizeCode(item.code), item]),
       );
       const merged = official.map<Okpd2Ref>((item) => {
         const overlay = localByCode.get(normalizeCode(item.code));
-        return overlay
-          ? { ...overlay, code: item.code, name: item.name }
-          : item;
+        return withNormingFlag(
+          overlay ? { ...overlay, code: item.code, name: item.name } : item,
+        );
       });
 
       // Локальные позиции, которых нет в снимке, сохраняем: на них могут быть
@@ -91,7 +122,7 @@ export const useOkpd2Dictionary = () =>
       const known = new Set(merged.map((item) => normalizeCode(item.code)));
       for (const item of local) {
         if (!known.has(normalizeCode(item.code))) {
-          merged.push(item);
+          merged.push(withNormingFlag(item));
         }
       }
 

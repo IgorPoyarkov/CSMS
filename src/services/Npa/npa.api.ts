@@ -19,6 +19,8 @@ export const NPA_DOCUMENT_CODES = {
   auctionList: "rp-471",
   nationalRegime: "pp-1875",
   bidEvaluation: "pp-2604",
+  /** ПП РФ от 02.09.2015 № 926 — обязательное нормирование ОКПД2. */
+  norming: "pp-926",
 } as const;
 
 export type NpaDocumentCode =
@@ -26,6 +28,8 @@ export type NpaDocumentCode =
 
 /** Одно правило активной версии: ответ `/api/npa/documents/{code}/rules`. */
 export interface NpaRuleInfo {
+  /** ID конкретной записи: по одному коду может быть несколько правил. */
+  id: string;
   code: string;
   okpd2Code: string;
   ruleType: "include" | "exclude" | "conditional";
@@ -143,6 +147,23 @@ export const useNpaDocuments = () =>
       return readList<NpaDocumentInfo>(data);
     },
   });
+
+/**
+ * Подтвердить или отклонить конкретное предложение. Идентификатор обязателен:
+ * у одного кода ОКПД2 может быть и явное правило, и предложение LLM.
+ */
+export const verifyNpaRule = async (
+  documentCode: string,
+  ruleId: string,
+  status: "approved" | "rejected" | "needs_review",
+  note?: string,
+): Promise<NpaRuleInfo> => {
+  const { data } = await npaApi.post<NpaRuleInfo>(
+    `/api/npa/documents/${encodeURIComponent(documentCode)}/rules/${encodeURIComponent(ruleId)}/verify`,
+    { status, note: note ?? null },
+  );
+  return data;
+};
 
 /**
  * Индекс правил всех актов для синхронных проверок в формах. Живёт в кэше
