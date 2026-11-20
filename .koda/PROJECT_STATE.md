@@ -3,7 +3,11 @@
 > Файл для ассистента, не для пользователя. Читать первым в новой сессии, чтобы
 > не сканировать весь репозиторий. Пользовательское описание проекта — `PROJECT.md`.
 > Карта всех программных агентов/воркеров — `csms-api/docs/agents.md`.
-> Дата последнего обновления: 2026-11-20 (второй агент НПА на локальном Ollama
+> Дата последнего обновления: 2026-11-20 (Compliance & Liability Mapping в
+> `csms-api`: 4 гипотезы → гибридный pgvector/fts пул → строгий LLM-арбитр →
+> валидатор; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
+> 96 passed / 3 skipped — §48, бриф `csms-api/docs/tasks/compliance-liability-mapping.md`).
+> Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
 > в `csms-api`: модель `qwen2.5:14b-instruct-q4_K_M`, вызов только по спорным
 > строкам, все предложения идут в `needs_review`; endpoint
 > `POST /api/npa/documents/{code}/analyze` и сравнение 7B/14B — §43, бриф
@@ -1680,3 +1684,42 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
 - **Не закрыто:** качество полного прогона 158н (`segmentsTotal=62`,
   `processed=31`, `failedSegments=31`, `coverage=8/41`) — нужен repair-проход
   или привязка цитат к сегментам; хранилище результатов извлечения in-memory.
+
+## 48. Compliance & Liability Mapping в csms-api (2026-11-20)
+
+- **Что добавили:** новый конвейер «одна обязанность → многие нормы
+  ответственности». Сущность А (`DutyInput`) инвертируется детерминированным
+  `ViolationHypothesisGenerator` в 4 гипотезы (неисполнение, срок, форма,
+  субъект). Сущность Б ищется `EfCoreLiabilityRetriever`: pgvector (768,
+  HNSW) + `tsvector('russian')` + принудительный umbrella-пул общих/бланкетных
+  норм, дедупликация до 30 кандидатов. Арбитр `LlmArbiter` — локальная Ollama
+  `qwen2.5:14b-instruct-q4_K_M`, `temperature=0`, strict JSON, батчи ≤8,
+  3 попытки 2/4/8 с, аудит каждой попытки. `MappingValidator` отбрасывает
+  id вне пула, фильтрует `irrelevant`, дедуплицирует конфликты, ограничивает
+  score до 0..1 и помечает спорное в `requires_human_review`.
+- **Где:** контракты — `csms-api/src/Csms.Application/LiabilityMappingContracts.cs`,
+  `LiabilityMappingRules.cs`, `LiabilityArbiterPrompts.cs`,
+  `LlmArbiterResponseParser.cs`, `MappingValidator.cs`,
+  `ViolationHypothesisGenerator.cs`; реализация —
+  `csms-api/src/Csms.Infrastructure/Liability/`, миграция
+  `20261120041526_AddLegalLiabilityMapping` (схема `legal`: `liability_norms`,
+  `liability_norm_chunks`, `mapping_candidates`, `llm_audit_log`,
+  `duty_liability_mappings`), API — `LiabilityMappingEndpoints.cs`,
+  тесты — `ComplianceLiabilityMappingTests.cs`.
+- **API:** `POST /api/liability-mapping/map` с телом `DutyInput`,
+  `GET /api/liability-mapping/{dutyId}`. Повтор с теми же входами считает
+  детерминированный `run_id` (SHA-256 канонического JSON duty + пул + модель)
+  и возвращает сохранённый результат, не вызывая модель; unique
+  `(duty_id, liability_node_id)` не даёт дублей.
+- **Проверки:** `dotnet build` — 0 ошибок; `dotnet test --no-build` —
+  **96 passed / 3 skipped** (17 новых тестов на инверсию, валидацию, парсер,
+  ретраи, manual review, пустой пул, идемпотентность, длинные тексты).
+  Единственное предупреждение сборки — старый xUnit2009 в
+  `EisPackageFlowTests.cs`, не трогали.
+- **Важное ограничение:** локальный PostgreSQL на :5433 **без pgvector** —
+  `dotnet ef database update` не смог применить миграцию:
+  `extension "vector" is not available`. Schema/DDL и код готовы, но перед
+  живым прогоном нужно поставить pgvector в кластер и повторить миграцию.
+  В `EIS_STORE=memory` пул кандидатов пустой (`EmptyLiabilityRetriever`),
+  эндпоинт при этом работает и возвращает 0 норм без вызова LLM.
+
