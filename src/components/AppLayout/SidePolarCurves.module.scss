@@ -1,0 +1,32 @@
+// Декоративные полярные кривые по бокам от контента: фиксированная подложка,
+// которая не участвует в кликах и не влияет на поток документа.
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.canvas {
+  display: block;
+  width: clamp(120px, 18vw, 320px);
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+// На узких экранах боковые полярные кривые убираем, чтобы не мешать контенту.
+@media (max-width: 1100px) {
+  .root {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas {
+    opacity: 0.55;
+  }
+}

@@ -3,4 +3,11 @@
 .app {
   position: relative;
   width: 100vw;
+  isolation: isolate;
+}
+
+// Контент выше декоративной подложки, чтобы кривые не перекрывали интерфейс.
+.content {
+  position: relative;
+  z-index: 1;
 }
