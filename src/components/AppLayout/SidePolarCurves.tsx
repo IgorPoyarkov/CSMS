@@ -4,26 +4,38 @@ import styles from "./SidePolarCurves.module.scss";
 /**
  * Декоративные полярные кривые по бокам от контента.
  *
- * Кривая r = exp(sin θ) − 2·cos(4θ) + sin⁵((2θ − π) / 24) рисуется по параметру
- * θ от 0 до 24π: на каждом кадре точки вычисляются заново, масштабируются под
- * размер полотна и центрируются. Правая и левая версии — зеркальные копии,
- * обе рисуются в одном requestAnimationFrame, поэтому синхронны по времени.
+ * Кривая r = exp(sin θ) − 2·cos(4θ) + sin⁵((2θ − π) / 24) на θ ∈ [0, 24π]
+ * рисуется целиком приглушённым контуром, а по ней бегут шесть световых
+ * сегментов с хвостами. Сегменты распределены по контуру равномерно и
+ * движутся с одинаковой скоростью: точки кривой заранее пересемплированы
+ * по длине дуги, поэтому свет не «дёргается» на крутых участках.
+ *
+ * Правая и левая версии — зеркальные копии, обе рисуются в одном
+ * requestAnimationFrame, поэтому синхронны по времени.
  *
  * Компонент чисто декоративный: canvas не принимает события мыши, не участвует
- * в потоке документа и не влияет на клики. При prefers-reduced-motion кривая
- * показывается целиком без анимации.
+ * в потоке документа и не влияет на клики. При prefers-reduced-motion сегменты
+ * показываются неподвижно.
  */
 
 const THETA_MAX = 24 * Math.PI;
-// Точек на полную кривую: достаточно для плавной линии при ширине полотна
-// до ~320 CSS-пикселей и высоком DPI.
-const DRAW_SAMPLES = 2600;
+// Плотная выборка нужна только для пересемплирования по длине дуги.
+const DENSE_SAMPLES = 6000;
+// Равномерные по длине дуги точки контура: по ним строятся путь и сегменты.
+const ARC_SAMPLES = 1800;
 // Отдельная, более частая выборка только для расчёта габаритов кривой.
 const BOUNDS_SAMPLES = 8000;
-const DRAW_DURATION_MS = 18_000;
-const HOLD_DURATION_MS = 4_000;
+// Полный оборот световых сегментов по контуру.
+const SEGMENT_CYCLE_MS = 16_000;
+const SEGMENT_COUNT = 6;
+// Длина хвоста сегмента как доля длины контура.
+const SEGMENT_TAIL = 0.055;
+// Хвост рисуется несколькими кусками с нарастающей яркостью.
+const SEGMENT_CHUNKS = 8;
 const PADDING = 14;
 const MAX_DPR = 2.5;
+const BASE_ALPHA = 0.13;
+const HEAD_RADIUS = 1.7;
 
 interface Point {
   x: number;
@@ -43,6 +55,12 @@ interface CanvasSurface {
   height: number;
 }
 
+interface SurfaceGeometry {
+  path: Path2D;
+  // Точки контура в экранных координатах, равномерные по длине дуги.
+  points: Point[];
+}
+
 const polarPoint = (theta: number): Point => {
   const r =
     Math.exp(Math.sin(theta)) -
@@ -52,7 +70,16 @@ const polarPoint = (theta: number): Point => {
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) };
 };
 
+// Габариты кривой не зависят от размера полотна — считаем один раз.
+let boundsCache: Bounds | null = null;
+// Точки, равномерные по длине дуги, тоже не зависят от размера полотна.
+let arcCache: Point[] | null = null;
+
 const curveBounds = (): Bounds => {
+  if (boundsCache) {
+    return boundsCache;
+  }
+
   let minX = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
@@ -69,12 +96,68 @@ const curveBounds = (): Bounds => {
   const padX = Math.max((maxX - minX) * 0.06, 0.5);
   const padY = Math.max((maxY - minY) * 0.06, 0.5);
 
-  return {
+  boundsCache = {
     minX: minX - padX,
     maxX: maxX + padX,
     minY: minY - padY,
     maxY: maxY + padY,
   };
+
+  return boundsCache;
+};
+
+/**
+ * Пересемплирование кривой по длине дуги: световые сегменты движутся с
+ * постоянной скоростью и не ускоряются на участках, где параметр θ меняется
+ * быстро. Кривая замкнута (θ = 0 и θ = 24π дают одну точку), поэтому стык
+ * при зацикливании незаметен.
+ */
+const arcPoints = (): Point[] => {
+  if (arcCache) {
+    return arcCache;
+  }
+
+  const dense: Point[] = [];
+  const cumulative: number[] = [0];
+  let previous = polarPoint(0);
+  dense.push(previous);
+
+  for (let index = 1; index <= DENSE_SAMPLES; index += 1) {
+    const point = polarPoint((THETA_MAX * index) / DENSE_SAMPLES);
+    cumulative.push(
+      cumulative[index - 1] +
+        Math.hypot(point.x - previous.x, point.y - previous.y),
+    );
+    dense.push(point);
+    previous = point;
+  }
+
+  const totalLength = cumulative[DENSE_SAMPLES];
+  const result: Point[] = [];
+  let cursor = 0;
+
+  for (let index = 0; index <= ARC_SAMPLES; index += 1) {
+    const target = (totalLength * index) / ARC_SAMPLES;
+
+    while (cursor < DENSE_SAMPLES - 1 && cumulative[cursor + 1] < target) {
+      cursor += 1;
+    }
+
+    const segmentLength = cumulative[cursor + 1] - cumulative[cursor];
+    const ratio =
+      segmentLength > 0 ? (target - cumulative[cursor]) / segmentLength : 0;
+    const start = dense[cursor];
+    const end = dense[cursor + 1];
+
+    result.push({
+      x: start.x + (end.x - start.x) * ratio,
+      y: start.y + (end.y - start.y) * ratio,
+    });
+  }
+
+  arcCache = result;
+
+  return result;
 };
 
 const readThemeColor = (canvas: HTMLCanvasElement): string => {
@@ -104,6 +187,179 @@ const prepareSurface = (canvas: HTMLCanvasElement): CanvasSurface => {
   return { ctx, width, height };
 };
 
+const buildGeometry = (
+  surface: CanvasSurface,
+  mirrored: boolean,
+): SurfaceGeometry => {
+  const bounds = curveBounds();
+  const rangeX = Math.max(bounds.maxX - bounds.minX, 0.0001);
+  const rangeY = Math.max(bounds.maxY - bounds.minY, 0.0001);
+  const availableWidth = Math.max(1, surface.width - PADDING * 2);
+  const availableHeight = Math.max(1, surface.height - PADDING * 2);
+  const scale = Math.min(availableWidth / rangeX, availableHeight / rangeY);
+  const centerX = surface.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale;
+  const centerY =
+    surface.height / 2 + ((bounds.minY + bounds.maxY) / 2) * scale;
+
+  const points = arcPoints().map((point) => {
+    const screenX = centerX + point.x * scale;
+
+    return {
+      x: mirrored ? surface.width - screenX : screenX,
+      y: centerY - point.y * scale,
+    };
+  });
+
+  const path = new Path2D();
+
+  points.forEach((point, index) => {
+    if (index === 0) {
+      path.moveTo(point.x, point.y);
+    } else {
+      path.lineTo(point.x, point.y);
+    }
+  });
+
+  return { path, points };
+};
+
+/**
+ * Точка контура по дробной позиции в массиве точек с зацикливанием:
+ * позиция за пределами массива (хвост сегмента у начала координат)
+ * переходит на противоположный конец контура.
+ */
+const sampleAt = (points: Point[], position: number): Point => {
+  const total = points.length;
+  let wrapped = position % total;
+
+  if (wrapped < 0) {
+    wrapped += total;
+  }
+
+  const first = Math.floor(wrapped);
+  const second = (first + 1) % total;
+  const ratio = wrapped - first;
+  const start = points[first];
+  const end = points[second];
+
+  return {
+    x: start.x + (end.x - start.x) * ratio,
+    y: start.y + (end.y - start.y) * ratio,
+  };
+};
+
+const strokeChunk = (
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  startPosition: number,
+  endPosition: number,
+) => {
+  const span = endPosition - startPosition;
+  const steps = Math.max(2, Math.min(40, Math.ceil(Math.abs(span) / 2)));
+
+  ctx.beginPath();
+
+  for (let step = 0; step <= steps; step += 1) {
+    const point = sampleAt(points, startPosition + (span * step) / steps);
+
+    if (step === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  }
+};
+
+const drawBaseCurve = (
+  surface: CanvasSurface,
+  geometry: SurfaceGeometry,
+  color: string,
+) => {
+  const { ctx } = surface;
+
+  if (!ctx) {
+    return;
+  }
+
+  ctx.save();
+  ctx.globalAlpha = BASE_ALPHA;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.1;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.stroke(geometry.path);
+  ctx.restore();
+};
+
+const drawSegments = (
+  surface: CanvasSurface,
+  geometry: SurfaceGeometry,
+  phase: number,
+  color: string,
+) => {
+  const { ctx } = surface;
+  const points = geometry.points;
+
+  if (!ctx || points.length < 2) {
+    return;
+  }
+
+  const lastIndex = points.length - 1;
+  const tailLength = Math.max(6, Math.round(points.length * SEGMENT_TAIL));
+
+  for (let index = 0; index < SEGMENT_COUNT; index += 1) {
+    const fraction = (phase + index / SEGMENT_COUNT) % 1;
+    const head = fraction * lastIndex;
+
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    for (let chunk = 0; chunk < SEGMENT_CHUNKS; chunk += 1) {
+      const from = chunk / SEGMENT_CHUNKS;
+      const to = (chunk + 1) / SEGMENT_CHUNKS;
+      const startPosition = head - tailLength * (1 - from);
+      const endPosition = head - tailLength * (1 - to);
+
+      strokeChunk(ctx, points, startPosition, endPosition);
+
+      // Чем ближе кусок к голове, тем он ярче и толще — эффект хвоста кометы.
+      ctx.globalAlpha = 0.08 + 0.72 * to * to;
+      ctx.lineWidth = 0.8 + 1.7 * to;
+      ctx.stroke();
+    }
+
+    const headPoint = sampleAt(points, head);
+
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(headPoint.x, headPoint.y, HEAD_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+};
+
+const drawScene = (
+  surface: CanvasSurface,
+  geometry: SurfaceGeometry,
+  phase: number,
+  color: string,
+) => {
+  const { ctx, width, height } = surface;
+
+  if (!ctx) {
+    return;
+  }
+
+  ctx.clearRect(0, 0, width, height);
+  drawBaseCurve(surface, geometry, color);
+  drawSegments(surface, geometry, phase, color);
+};
+
 export default function SidePolarCurves() {
   const rootRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLCanvasElement>(null);
@@ -120,10 +376,11 @@ export default function SidePolarCurves() {
 
     let leftSurface = prepareSurface(left);
     let rightSurface = prepareSurface(right);
-    let bounds = curveBounds();
+    let leftGeometry = buildGeometry(leftSurface, true);
+    let rightGeometry = buildGeometry(rightSurface, false);
     let color = readThemeColor(left);
     let frameId = 0;
-    let startedAt = 0;
+    let startedAt = performance.now();
     let disposed = false;
 
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -135,72 +392,9 @@ export default function SidePolarCurves() {
       }
     };
 
-    const clearSurface = (surface: CanvasSurface) => {
-      surface.ctx?.clearRect(0, 0, surface.width, surface.height);
-    };
-
-    const drawCurve = (
-      surface: CanvasSurface,
-      progress: number,
-      mirrored: boolean,
-    ) => {
-      const { ctx, width, height } = surface;
-
-      if (!ctx) {
-        return;
-      }
-
-      const rangeX = Math.max(bounds.maxX - bounds.minX, 0.0001);
-      const rangeY = Math.max(bounds.maxY - bounds.minY, 0.0001);
-      const availableWidth = Math.max(1, width - PADDING * 2);
-      const availableHeight = Math.max(1, height - PADDING * 2);
-      const scale = Math.min(
-        availableWidth / rangeX,
-        availableHeight / rangeY,
-      );
-      const centerX =
-        width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale;
-      const centerY =
-        height / 2 + ((bounds.minY + bounds.maxY) / 2) * scale;
-
-      ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      ctx.globalAlpha = 0.34;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.4;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.shadowBlur = 7;
-      ctx.shadowColor = color;
-
-      const visibleSamples = Math.max(
-        2,
-        Math.ceil(DRAW_SAMPLES * Math.min(1, Math.max(0, progress))),
-      );
-
-      ctx.beginPath();
-
-      for (let index = 0; index <= visibleSamples; index += 1) {
-        const theta = (THETA_MAX * index) / DRAW_SAMPLES;
-        const point = polarPoint(theta);
-        const screenX = centerX + point.x * scale;
-        const screenY = centerY - point.y * scale;
-        const x = mirrored ? width - screenX : screenX;
-
-        if (index === 0) {
-          ctx.moveTo(x, screenY);
-        } else {
-          ctx.lineTo(x, screenY);
-        }
-      }
-
-      ctx.stroke();
-      ctx.restore();
-    };
-
-    const drawFrame = (progress: number) => {
-      drawCurve(leftSurface, progress, true);
-      drawCurve(rightSurface, progress, false);
+    const renderFrame = (phase: number) => {
+      drawScene(leftSurface, leftGeometry, phase, color);
+      drawScene(rightSurface, rightGeometry, phase, color);
     };
 
     const tick = (now: number) => {
@@ -208,27 +402,23 @@ export default function SidePolarCurves() {
         return;
       }
 
-      const cycle = DRAW_DURATION_MS + HOLD_DURATION_MS;
-      const elapsed = now - startedAt;
-
-      if (elapsed >= cycle) {
-        startedAt = now;
-      }
-
-      const localElapsed = now - startedAt;
-      drawFrame(Math.min(1, localElapsed / DRAW_DURATION_MS));
+      renderFrame(((now - startedAt) / SEGMENT_CYCLE_MS) % 1);
       frameId = requestAnimationFrame(tick);
     };
 
-    const startAnimation = () => {
+    const startAnimation = (resetPhase: boolean) => {
       stopAnimation();
 
       if (motionQuery.matches) {
-        drawFrame(1);
+        // Без анимации показываем сегменты в фиксированных позициях.
+        renderFrame(0);
         return;
       }
 
-      startedAt = performance.now();
+      if (resetPhase) {
+        startedAt = performance.now();
+      }
+
       frameId = requestAnimationFrame(tick);
     };
 
@@ -239,13 +429,15 @@ export default function SidePolarCurves() {
 
       leftSurface = prepareSurface(left);
       rightSurface = prepareSurface(right);
-      bounds = curveBounds();
+      leftGeometry = buildGeometry(leftSurface, true);
+      rightGeometry = buildGeometry(rightSurface, false);
       color = readThemeColor(left);
-      startAnimation();
+      // Фазу не сбрасываем, чтобы при изменении размера свет не «прыгал».
+      startAnimation(false);
     };
 
     const handleMotionChange = () => {
-      startAnimation();
+      startAnimation(true);
     };
 
     const resizeObserver =
@@ -257,8 +449,9 @@ export default function SidePolarCurves() {
 
     const themeObserver = new MutationObserver(() => {
       color = readThemeColor(left);
+
       if (motionQuery.matches) {
-        drawFrame(1);
+        renderFrame(0);
       }
     });
     themeObserver.observe(document.documentElement, {
@@ -268,7 +461,7 @@ export default function SidePolarCurves() {
 
     motionQuery.addEventListener?.("change", handleMotionChange);
 
-    startAnimation();
+    startAnimation(true);
 
     return () => {
       disposed = true;
@@ -276,8 +469,13 @@ export default function SidePolarCurves() {
       resizeObserver?.disconnect();
       themeObserver.disconnect();
       motionQuery.removeEventListener?.("change", handleMotionChange);
-      clearSurface(leftSurface);
-      clearSurface(rightSurface);
+      leftSurface.ctx?.clearRect(0, 0, leftSurface.width, leftSurface.height);
+      rightSurface.ctx?.clearRect(
+        0,
+        0,
+        rightSurface.width,
+        rightSurface.height,
+      );
     };
   }, []);
 
