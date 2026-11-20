@@ -2161,4 +2161,30 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `Б9` (доменный маппер тела извещения/проекта контракта), `Б10` (для `Ф14`).
   `Б4` считается закрытым; в чужие WIP не входили.
 
+## 63. Бэк: Б7 endpoint, Б6 каталог справочников, часть Б10 (2026-11-21)
+
+- **Б7 доведён до API:** `POST /api/acceptances/{id}/eis-package` собирает
+  XSD-валидный пакет по принятому документу о приёмке. Оркестрация вынесена в
+  `AcceptanceEisPackageBuilder` (проверка статуса, явных справочников и XSD),
+  endpoint остался тонким. Собственные маршруты электронного актирования не
+  тронуты.
+- **Б6 закрыт по объёму API:** добавлен `ReferenceDatasetCatalog` с кодами
+  `nsiOKPD2`, `nsiKTRU`, `nsiKLADR`, `nsiOKSM`, `nsiOKTMO`, `nsiKBK`, `nsiOKEI`,
+  `nsiCurrency`; новый `GET /api/references/catalog` показывает их до импорта.
+  `ReferenceImportNormalizer` теперь достаёт код/имя из полей конкретного
+  справочника (`OKEI`, `OKSM`, `OKTMO`, `KBK`, `digitalCode` и др.), сохраняя
+  совместимость со старыми выгрузками. Официальные URL для автоимпорта этих
+  датасетов не выдумывались: импорт выполняется вручную через
+  `POST /api/references/import`.
+- **Часть Б10:** `ContractCancelXmlMapper` + `ContractCancelEisPackageBuilder`
+  и `POST /api/contract-changes/{id}/eis-package` собирают `contractCancel`
+  (`objectType=CT`, `currentContractStage=IN`) по подписанному расторжению из
+  `ContractChange`. XML проходит XSD 17.0; реестровый номер и дата приходят из
+  домена, а не подбираются.
+- **Проверки:** `dotnet test` с temp `BaseOutputPath` — 313 пройдено,
+  0 провалено, 10 пропущено (Postgres без БД). Миграция и чужие WIP не тронуты.
+- **Остаётся открытым:** `Б1`, `Б5`, `Б9` и полный `Б10` (оплата, СМП, этапы,
+  реестр) требуют утверждённых ТФФ 658/215н и 918, токена ЕИС и доменных
+  сущностей, которых в API пока нет. `placeholder-v0` не подменяется.
+
 
