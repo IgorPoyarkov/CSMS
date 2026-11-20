@@ -58,6 +58,7 @@ import { useCurrentOrganization } from "../../services/Organization/organization
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
 import styles from "./ContractProject.module.scss";
 
@@ -94,6 +95,7 @@ export default function ContractProjectForm() {
   const { data: purchaseNotes = [] } = usePurchaseNotes(orgId);
   const { data: objectDescriptions = [] } =
     useOrganizationObjectDescriptions(orgId);
+  const { data: registryContracts = [] } = useContractRegistry(orgId);
 
   const { mutate: createProject, isPending: isCreating } =
     useCreateContractProject();
@@ -164,6 +166,26 @@ export default function ContractProjectForm() {
     return undefined;
   }, [purchaseNotes, matchedNotice, id, stateData?.ikz]);
 
+  // Контракт в реестре по этой закупке: из него берём реквизиты поставщика,
+  // если определение поставщика уже состоялось
+  const matchedContract = useMemo(() => {
+    const targetIkz =
+      matchedNotice?.generalInfo?.ikz || stateData?.ikz || matchedNote?.ikz;
+    return (
+      registryContracts.find(
+        (contract) =>
+          (id && String(contract.procurementId ?? "") === String(id)) ||
+          (targetIkz && contract.ikz === targetIkz),
+      ) ?? null
+    );
+  }, [
+    registryContracts,
+    matchedNotice?.generalInfo?.ikz,
+    matchedNote?.ikz,
+    id,
+    stateData?.ikz,
+  ]);
+
   // Структурированное ООЗ
   const matchedDesc = useMemo(() => {
     const onlyOoz = objectDescriptions.filter(
@@ -210,7 +232,14 @@ export default function ContractProjectForm() {
         objectDescription: matchedDesc ?? null,
         organization: organization ?? null,
         procurementType,
-        supplierName: "",
+        supplierName: matchedContract?.supplierName ?? "",
+        supplier: matchedContract
+          ? {
+              name: matchedContract.supplierName,
+              inn: matchedContract.supplierInn,
+              kpp: matchedContract.supplierKpp,
+            }
+          : null,
         ikz: stateData?.ikz,
         noticeNumber: stateData?.noticeNumber,
         nmck: stateData?.nmck,
@@ -224,6 +253,7 @@ export default function ContractProjectForm() {
       matchedNotice,
       matchedNote,
       matchedDesc,
+      matchedContract,
       organization,
       procurementType,
       id,
@@ -391,10 +421,21 @@ export default function ContractProjectForm() {
       objectDescription: matchedDesc ?? null,
       organization: organization ?? null,
       procurementType,
-      supplierName: project.supplierName,
+      supplierName: project.supplierName || matchedContract?.supplierName,
+      supplier: matchedContract
+        ? {
+            name: matchedContract.supplierName,
+            inn: matchedContract.supplierInn,
+            kpp: matchedContract.supplierKpp,
+          }
+        : null,
       ikz: stateData?.ikz,
       noticeNumber: stateData?.noticeNumber,
       nmck: stateData?.nmck,
+      // Изменение цены и основание не выводятся из цепочки — сохраняем
+      // введённые значения при повторном предзаполнении
+      changePrice: project.eisInfo?.changePrice,
+      changePriceFoundation: project.eisInfo?.changePriceFoundation,
     });
     methods.reset({
       ...next,
@@ -460,14 +501,29 @@ export default function ContractProjectForm() {
   };
 
   const onSubmit = (data: ContractProject) => {
+    // При неструктурированной форме ЕИС требует файлы проекта контракта
+    // (contractProjectFilesInfo): без них документ будет отклонён
+    if (!data.eisInfo?.isStructuredForm) {
+      const files = (data.eisInfo?.contractProjectFiles ?? []).filter(
+        (file) => file.fileName?.trim().length > 0,
+      );
+
+      if (files.length === 0) {
+        methods.setError("root", {
+          message:
+            "При неструктурированной форме проекта контракта приложите хотя бы один файл проекта (contractProjectFilesInfo)",
+        });
+        return;
+      }
+    }
+
     const today = new Date().toISOString().slice(0, 10);
     const payload: ContractProject = {
       ...data,
       organizationId: orgId,
       // Связь с закупкой не теряется, даже если поле в форме пустое:
       // берём его из состояния перехода или из маршрута
-      procurementId:
-        data.procurementId || stateData?.procurementId || id || "",
+      procurementId: data.procurementId || stateData?.procurementId || id || "",
       appendices: (data.appendices ?? []).map((item, index) => ({
         ...item,
         number: index + 1,
@@ -861,7 +917,9 @@ export default function ContractProjectForm() {
           требует contractProjectType (IntegrationCPTypes.xsd) */}
       <div className={styles.stages}>
         <div className={styles.stagesHead}>
-          <h4 className={styles.stagesTitle}>Выгрузка в ЕИС (проект контракта)</h4>
+          <h4 className={styles.stagesTitle}>
+            Выгрузка в ЕИС (проект контракта)
+          </h4>
           <span className={styles.articleRef}>
             {eisValidation.errorsCount} ошибок · {eisValidation.warningsCount}{" "}
             предупреждений
@@ -931,8 +989,8 @@ export default function ContractProjectForm() {
               {...methods.register("eisInfo.isStructuredForm")}
             />
             <span>
-              Структурированная форма проекта (файлы не требуются; при выключенном
-              признаке приложите файл проекта)
+              Структурированная форма проекта (файлы не требуются; при
+              выключенном признаке приложите файл проекта)
             </span>
           </label>
         </div>
@@ -972,12 +1030,16 @@ export default function ContractProjectForm() {
                 <input
                   className={styles.input}
                   placeholder="Имя файла"
-                  {...methods.register(`eisInfo.contractProjectFiles.${index}.fileName`)}
+                  {...methods.register(
+                    `eisInfo.contractProjectFiles.${index}.fileName`,
+                  )}
                 />
                 <input
                   className={styles.input}
                   placeholder="Описание"
-                  {...methods.register(`eisInfo.contractProjectFiles.${index}.description`)}
+                  {...methods.register(
+                    `eisInfo.contractProjectFiles.${index}.description`,
+                  )}
                 />
                 <button
                   type="button"

@@ -1,0 +1,276 @@
+@import "variables";
+
+// Экран сквозной цепочки: карточки цепочек, шаги, разрывы и сохранение номеров.
+.eis-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  color: var(--text-primary);
+
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  &__subtitle {
+    max-width: 760px;
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  &__summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+    padding: 10px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  &__toolbar {
+    display: flex;
+    gap: 12px;
+  }
+
+  &__search {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font: inherit;
+  }
+
+  &__empty {
+    padding: 24px;
+    background: var(--surface-panel);
+    border: 1px dashed var(--border-strong);
+    border-radius: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+  }
+
+  &__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.3;
+  }
+
+  &__card-subtitle {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-family: monospace;
+    overflow-wrap: anywhere;
+  }
+
+  &__progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 180px;
+  }
+
+  &__progress-value {
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  &__progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface-raised);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width $transition-300;
+  }
+
+  &__steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__step {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    &--done {
+      border-color: var(--accent);
+    }
+
+    &--missing {
+      border-style: dashed;
+    }
+  }
+
+  &__step-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  &__step-name {
+    font-weight: 600;
+  }
+
+  &__step-state {
+    color: var(--text-secondary);
+  }
+
+  &__step-text {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  &__step-refs {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+
+  &__issues {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__issue {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+
+    &--error {
+      background: color-mix(in srgb, var(--danger, #b00020) 12%, transparent);
+      border: 1px solid
+        color-mix(in srgb, var(--danger, #b00020) 40%, transparent);
+    }
+
+    &--warning {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+    }
+  }
+
+  &__issue-stage {
+    flex: 0 0 auto;
+    font-weight: 600;
+  }
+
+  &__save-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+  }
+
+  &__label {
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  &__input {
+    padding: 8px 10px;
+    background: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font: inherit;
+  }
+
+  &__save {
+    padding: 9px 16px;
+    background: var(--surface-accent);
+    border: 1px solid var(--accent-emphasis);
+    border-radius: 8px;
+    color: var(--accent-emphasis);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover:not(:disabled),
+    &:focus-visible:not(:disabled) {
+      background: var(--accent);
+      color: var(--text-on-accent);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+  }
+}

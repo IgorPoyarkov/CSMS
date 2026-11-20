@@ -195,6 +195,8 @@ export const ContractPriceSchema = z.object({
     .default("postpayment"),
   // Размер аванса (в процентах)
   advancePercent: optionalPercent(),
+  // Сумма аванса в рублях — нужна для графика оплаты и обеспечения
+  advanceAmount: optionalMoney(),
   // Срок оплаты (в рабочих днях, ст. 34 ч. 13.1)
   paymentTermDays: z
     .number()

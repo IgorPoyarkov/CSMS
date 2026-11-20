@@ -68,6 +68,8 @@ export const emptyEisIdentifiers = (): EisChainIdentifiers => ({
 export interface EisChainRefs {
   planId: string | null;
   planPositionId: string | null;
+  // Потребность (служебная записка) по позиции плана-графика
+  purchaseNoteId: string | null;
   procurementId: string | null;
   noticeId: string | null;
   contractId: string | null;
@@ -78,6 +80,7 @@ export interface EisChainRefs {
 export const emptyEisChainRefs = (): EisChainRefs => ({
   planId: null,
   planPositionId: null,
+  purchaseNoteId: null,
   procurementId: null,
   noticeId: null,
   contractId: null,

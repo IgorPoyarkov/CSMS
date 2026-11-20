@@ -31,6 +31,18 @@ import {
  *   5) карточка организации (реквизиты заказчика).
  */
 
+/** Реквизиты поставщика, которые уже известны по цепочке (реестр контрактов). */
+export interface ContractPrefillSupplier {
+  name?: string;
+  inn?: string;
+  kpp?: string;
+  ogrn?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  bankDetails?: string;
+}
+
 export interface ContractPrefillSources {
   organizationId: string | number;
   // Ссылка на закупку — не выводится из ИКЗ: связь проекта с закупкой
@@ -42,10 +54,16 @@ export interface ContractPrefillSources {
   organization?: BaseOrganization | null;
   procurementType?: string;
   supplierName?: string;
+  // Реквизиты поставщика из реестра контрактов, если контракт уже заключён
+  supplier?: ContractPrefillSupplier | null;
   ikz?: string;
   noticeNumber?: string;
   nmck?: number;
   contractName?: string;
+  // Изменение цены и основание (changePriceInfo) — заполняются вручную
+  // либо переносятся при повторном предзаполнении
+  changePrice?: string;
+  changePriceFoundation?: string;
   today?: string;
 }
 
@@ -263,7 +281,8 @@ export const buildContractProjectDraft = (
   // ─── Преамбула и реквизиты ───────────────────────────────────────────────
   const organizationName =
     organization?.fullName || notice?.contactInfo?.organizationName || "";
-  const supplierName = sources.supplierName || "";
+  const supplier = sources.supplier ?? null;
+  const supplierName = sources.supplierName || supplier?.name || "";
 
   project.contractName =
     sources.contractName ||
@@ -272,15 +291,16 @@ export const buildContractProjectDraft = (
       : `Контракт на ${terms.subjectAccusative}`);
   project.customerName = organizationName;
   project.supplierName = supplierName;
-  project.procurementId =
-    sources.procurementId ?? notice?.procurementId ?? "";
+  project.procurementId = sources.procurementId ?? notice?.procurementId ?? "";
   project.ikz = notice?.generalInfo?.ikz || note?.ikz || sources.ikz || "";
   project.noticeNumber =
     notice?.generalInfo?.noticeNumber || sources.noticeNumber || "";
   project.projectDate = today;
   // Снимок полей XSD проекта контракта (contractProjectType). Номер закупки,
   // способ, ЭТП, формула цены и признак неопределённого объёма приходят из
-  // извещения; протокол-основание и номер заявки появляются после процедуры.
+  // извещения; протокол-основание, номер заявки, структурированная форма и
+  // файлы — из служебной записки (СЗ) или извещения, если уже заполнены.
+  const foundation = notice?.foundationInfo;
   project.eisInfo = {
     ...project.eisInfo,
     purchaseNumber: project.noticeNumber,
@@ -292,6 +312,32 @@ export const buildContractProjectDraft = (
       notice?.contractConditions?.usePriceFormulaPP19,
     ),
     quantityUndefined: Boolean(notice?.purchaseObjects?.isIndeterminateVolume),
+    // Протокол-основание и номер заявки победителя: извещение имеет
+    // приоритет, затем служебная записка
+    protocolName: foundation?.protocolName || note?.protocolName || "",
+    protocolNumber: foundation?.protocolNumber || note?.protocolNumber || "",
+    protocolPublishDate:
+      foundation?.protocolPublishDate || note?.protocolPublishDate || "",
+    appNumber: foundation?.appNumber || note?.appNumber || "",
+    // Структурированная форма: значение из СЗ/извещения; если не задано,
+    // смотрим признак структурированной формы объекта закупки. При false
+    // в форме обязателен блок файлов проекта контракта.
+    isStructuredForm: Boolean(
+      foundation?.isStructuredForm ??
+      note?.isStructuredForm ??
+      notice?.purchaseObjects?.isStructuredForm ??
+      false,
+    ),
+    changePrice: sources.changePrice ?? "",
+    changePriceFoundation: sources.changePriceFoundation ?? "",
+    contractProjectFiles: (foundation?.contractProjectFiles?.length
+      ? foundation.contractProjectFiles
+      : (note?.contractProjectFiles ?? [])
+    ).map((file, fileIndex) => ({
+      id: file.id || `contract-project-file-${fileIndex}`,
+      fileName: file.fileName,
+      description: file.description ?? "",
+    })),
   };
   project.preamble = {
     place: "",
@@ -323,13 +369,13 @@ export const buildContractProjectDraft = (
     customerBankDetails: "",
     supplierFullName: supplierName,
     supplierShortName: "",
-    supplierInn: "",
-    supplierKpp: "",
-    supplierOgrn: "",
-    supplierAddress: "",
-    supplierEmail: "",
-    supplierPhone: "",
-    supplierBankDetails: "",
+    supplierInn: supplier?.inn ?? "",
+    supplierKpp: supplier?.kpp ?? "",
+    supplierOgrn: supplier?.ogrn ?? "",
+    supplierAddress: supplier?.address ?? "",
+    supplierEmail: supplier?.email ?? "",
+    supplierPhone: supplier?.phone ?? "",
+    supplierBankDetails: supplier?.bankDetails ?? "",
     // П. 11 Положения (ПП РФ N 60): агент и представитель собственника
     // заполняются вручную — из извещения этих сведений нет
     isAgentInvolved: false,
@@ -432,6 +478,13 @@ export const buildContractProjectDraft = (
     treasurySupport: treasury,
     bankSupport: bank,
   };
+  // Сумма аванса в рублях: процент берётся из извещения/СЗ, база — НМЦК
+  if (hasAdvance && nmckValue > 0) {
+    const percent = Number.parseFloat(project.price.advancePercent ?? "");
+    if (Number.isFinite(percent) && percent > 0) {
+      project.price.advanceAmount = ((nmckValue * percent) / 100).toFixed(2);
+    }
+  }
 
   // ─── Сроки и этапы ───────────────────────────────────────────────────────
   const startOffset =

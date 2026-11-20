@@ -5,6 +5,9 @@ import {
   paymentPercent,
   totalPenalties,
   isContractOverdue,
+  contractIkzError,
+  paymentDeadlineDate,
+  paymentXsdCodeFor,
   type ContractRegistryItem,
   type ContractStage,
   type ContractPayment,
@@ -456,6 +459,18 @@ function ContractCard({
           </span>
         </div>
         <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>НМЦК</span>
+          <span className={styles.summaryValue}>
+            {formatMoney(contract.initialMaxPrice)} ₽
+          </span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Аванс</span>
+          <span className={styles.summaryValue}>
+            {formatMoney(contract.advanceAmount)} ₽
+          </span>
+        </div>
+        <div className={styles.summaryItem}>
           <span className={styles.summaryLabel}>Заключён</span>
           <span className={styles.summaryValue}>
             {formatDate(contract.contractDate)}
@@ -490,6 +505,11 @@ function ContractCard({
 
           <div className={styles.cardFooter}>
             <div className={styles.meta}>
+              {contractIkzError(contract.ikz) && (
+                <span className={styles.cellDanger}>
+                  {contractIkzError(contract.ikz)}
+                </span>
+              )}
               {contract.eisPublishDate && (
                 <span>
                   Опубликован в ЕИС: {formatDate(contract.eisPublishDate)}
@@ -576,9 +596,11 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
         <thead>
           <tr>
             <th>№</th>
+            <th>Идентификатор ЕИС (sid)</th>
             <th>Наименование</th>
             <th>Период</th>
             <th>Сумма, ₽</th>
+            <th>По годам (paymentsSumInfo)</th>
             <th>Оплачено, ₽</th>
             <th>Статус</th>
           </tr>
@@ -587,11 +609,22 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
           {stages.map((s: ContractStage) => (
             <tr key={s.id}>
               <td>{s.stageNumber}</td>
+              <td>{s.sid || "—"}</td>
               <td>{s.name}</td>
               <td>
                 {s.startDate} — {s.endDate}
               </td>
               <td>{formatMoney(s.amount)}</td>
+              <td>
+                {[
+                  s.paymentsSumInfo?.currentYear,
+                  s.paymentsSumInfo?.firstYear,
+                  s.paymentsSumInfo?.secondYear,
+                  s.paymentsSumInfo?.subsequentYears,
+                ]
+                  .map((value) => formatMoney(value))
+                  .join(" / ")}
+              </td>
               <td>{formatMoney(s.paidAmount)}</td>
               <td>
                 <span
@@ -624,7 +657,11 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
             <th>Документ</th>
             <th>Дата</th>
             <th>Тип</th>
+            <th>Код XSD</th>
             <th>Сумма, ₽</th>
+            <th>Банковский документ</th>
+            <th>Реестровый номер исполнения</th>
+            <th>Срок оплаты</th>
             <th>Статус</th>
             <th>Казначейство</th>
           </tr>
@@ -635,7 +672,11 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
               <td>{p.paymentDocumentNumber || "—"}</td>
               <td>{p.paymentDate || "—"}</td>
               <td>{PAYMENT_LABELS[p.paymentType]}</td>
+              <td>{p.paymentTypeCode || paymentXsdCodeFor(p.paymentType)}</td>
               <td>{formatMoney(p.amount)}</td>
+              <td>{p.bankDocumentNumber || "—"}</td>
+              <td>{p.regNumberExecution || "—"}</td>
+              <td>{paymentDeadlineDate(p) || "—"}</td>
               <td>
                 <span
                   className={`${styles.payBadge} ${styles[`pay_${p.status}`]}`}

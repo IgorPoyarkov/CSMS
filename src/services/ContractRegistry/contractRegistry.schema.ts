@@ -1,7 +1,9 @@
 import z from "zod";
 import {
   EIS_CONTRACT_NUMBER_LENGTH,
+  IKZ_LENGTH,
   isEisContractNumber,
+  isIkz,
 } from "../Eis/eisIdentifiers";
 
 /**
@@ -61,6 +63,9 @@ export const ContractStageSchema = z.object({
   contractId: z.union([z.string(), z.number()]).optional(),
   // Номер этапа
   stageNumber: z.number().int().min(1),
+  // Идентификатор этапа в ЕИС (stagetInfoType/sid): портал различает этапы
+  // именно по sid, а не по порядковому номеру
+  sid: optionalText(1, "Укажите идентификатор этапа в ЕИС (sid)"),
   // Наименование этапа
   name: requiredText(3, "Укажите наименование этапа"),
   // Дата начала этапа
@@ -69,6 +74,16 @@ export const ContractStageSchema = z.object({
   endDate: optionalDate(),
   // Стоимость этапа (руб)
   amount: optionalMoney(),
+  // Разбивка суммы этапа по годам (paymentsSumInfo): в XSD сумма этапа
+  // хранится не в stage, а в блоке платежей
+  paymentsSumInfo: z
+    .object({
+      currentYear: optionalMoney(),
+      firstYear: optionalMoney(),
+      secondYear: optionalMoney(),
+      subsequentYears: optionalMoney(),
+    })
+    .optional(),
   // Сумма оплачена
   paidAmount: optionalMoney(),
   // Статус этапа
@@ -87,6 +102,41 @@ export const ContractStageListSchema = z.array(ContractStageSchema);
 
 // ─── Платёж по контракту (ст. 34 ч. 12, 13.1) ─────────────────────────────
 
+/**
+ * Коды вида платежа в XSD ЕИС (payDocumentInfo/payDocumentType):
+ * PC — авансовый платёж, PN — промежуточный, RC — окончательный расчёт,
+ * RE — возврат. Наши типы advance/intermediate/final переводятся в них
+ * при маппинге, но код можно задать и явно.
+ */
+export const CONTRACT_PAYMENT_XSD_CODES = ["PC", "PN", "RC", "RE"] as const;
+
+export type ContractPaymentXsdCode =
+  (typeof CONTRACT_PAYMENT_XSD_CODES)[number];
+
+export const CONTRACT_PAYMENT_XSD_LABELS: Record<
+  ContractPaymentXsdCode,
+  string
+> = {
+  PC: "PC — авансовый платёж",
+  PN: "PN — промежуточный платёж",
+  RC: "RC — окончательный расчёт",
+  RE: "RE — возврат",
+};
+
+/** Код XSD по нашему типу платежа. */
+export const paymentXsdCodeFor = (
+  paymentType: ContractPayment["paymentType"],
+): ContractPaymentXsdCode =>
+  paymentType === "advance"
+    ? "PC"
+    : paymentType === "intermediate"
+      ? "PN"
+      : "RC";
+
+/** Срок оплаты по ч. 13.1 ст. 34: 7 рабочих дней, при казначейском — 10. */
+export const paymentDeadlineDays = (treasuryExecution: boolean): number =>
+  treasuryExecution ? 10 : 7;
+
 export const ContractPaymentSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   contractId: z.union([z.string(), z.number()]).optional(),
@@ -98,6 +148,9 @@ export const ContractPaymentSchema = z.object({
   amount: requiredMoney("Укажите сумму платежа"),
   // Тип платежа: аванс, промежуточный, финальный
   paymentType: z.enum(["advance", "intermediate", "final"]).default("advance"),
+  // Код вида платежа по XSD ЕИС (PC/PN/RC/RE); при пустом значении
+  // вычисляется из paymentType
+  paymentTypeCode: z.enum(CONTRACT_PAYMENT_XSD_CODES).optional(),
   // Счёт-фактура
   invoiceNumber: optionalText(3, "Номер счёта-фактуры"),
   invoiceDate: optionalDate(),
@@ -107,6 +160,11 @@ export const ContractPaymentSchema = z.object({
     .default("scheduled"),
   // Номер банковского документа
   bankDocumentNumber: optionalText(3, "Номер банковского документа"),
+  // Реестровый номер сведений об исполнении, который присваивает ЕИС
+  regNumberExecution: optionalText(
+    1,
+    "Укажите реестровый номер сведений об исполнении в ЕИС",
+  ),
   // Казначейское исполнение
   treasuryExecution: z.boolean().default(false),
   // Комментарий
@@ -280,6 +338,8 @@ export const ContractRegistryItemSchema = z.object({
   performanceSecurityAmount: optionalMoney(),
   // Гарантийное обеспечение (руб)
   warrantySecurityAmount: optionalMoney(),
+  // Аванс по контракту (руб)
+  advanceAmount: optionalMoney(),
   // Форма исполнения: полная / частичная
   executionForm: z.enum(["full", "partial"]).default("full"),
   // Ссылка на опубликованный контракт в ЕИС
@@ -329,6 +389,94 @@ export const ContractRegistryItemListSchema = z.array(
 );
 
 // ─── Утилиты ───────────────────────────────────────────────────────────────
+
+/**
+ * Проверка ИКЗ карточки контракта: 36 цифр (приказ Минфина № 55н, XSD 17.0).
+ * В старых записях встречаются 35-значные коды — на чтении они допускаются,
+ * но перед выгрузкой в ЕИС должны быть исправлены.
+ */
+export const isContractIkzValid = (ikz: string | undefined): boolean =>
+  Boolean(ikz && isIkz(ikz));
+
+export const contractIkzError = (ikz: string | undefined): string | null => {
+  if (!ikz) return null;
+  if (isContractIkzValid(ikz)) return null;
+  return `ИКЗ — ${IKZ_LENGTH} цифр, сейчас введено ${ikz.trim().length}. Код берут из позиции плана-графика.`;
+};
+
+/**
+ * Дата, до которой должна быть произведена оплата по ч. 13.1 ст. 34:
+ * 7 рабочих дней с даты подписания документа о приёмке, при казначейском
+ * сопровождении — 10 рабочих дней.
+ */
+export const paymentDeadlineDate = (
+  payment: Pick<ContractPayment, "paymentDate" | "treasuryExecution">,
+): string => {
+  if (!payment.paymentDate) return "";
+  const days = paymentDeadlineDays(Boolean(payment.treasuryExecution));
+  const date = new Date(`${payment.paymentDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  let added = 0;
+
+  while (added < days) {
+    date.setDate(date.getDate() + 1);
+    const weekday = date.getDay();
+    if (weekday !== 0 && weekday !== 6) {
+      added += 1;
+    }
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
+/**
+ * Полный набор полей payDocumentInfo для маппера в XML ЕИС.
+ * Собирается из карточки платежа, чтобы бэк не додумывал коды и сроки.
+ */
+export interface PayDocumentInfo {
+  payDocumentNum: string;
+  payDocumentDate: string;
+  paid: string;
+  payDocumentType: ContractPaymentXsdCode;
+  bankDocumentNumber: string;
+  regNumberExecution: string;
+  paymentDeadlineDate: string;
+}
+
+export const buildPayDocumentInfo = (
+  payment: ContractPayment,
+): PayDocumentInfo => ({
+  payDocumentNum: payment.paymentDocumentNumber ?? "",
+  payDocumentDate: payment.paymentDate ?? "",
+  paid: payment.amount,
+  payDocumentType:
+    payment.paymentTypeCode ?? paymentXsdCodeFor(payment.paymentType),
+  bankDocumentNumber: payment.bankDocumentNumber ?? "",
+  regNumberExecution: payment.regNumberExecution ?? "",
+  paymentDeadlineDate: paymentDeadlineDate(payment),
+});
+
+/**
+ * Поля этапа для stagetInfoType: ЕИС идентифицирует этап по sid, а сумма
+ * лежит в paymentsSumInfo, а не в самом stage.
+ */
+export interface ContractStageEisInfo {
+  sid: string;
+  stageName: string;
+  startDate: string;
+  endDate: string;
+  paymentsSumInfo: ContractStage["paymentsSumInfo"] | null;
+}
+
+export const buildStageEisInfo = (
+  stage: ContractStage,
+): ContractStageEisInfo => ({
+  sid: stage.sid ?? "",
+  stageName: stage.name,
+  startDate: stage.startDate ?? "",
+  endDate: stage.endDate ?? "",
+  paymentsSumInfo: stage.paymentsSumInfo ?? null,
+});
 
 // Расчёт оплаченной суммы по контракту
 export const totalPaid = (payments: ContractPayment[]): string => {

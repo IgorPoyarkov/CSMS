@@ -875,6 +875,125 @@ export default function PurchasePlanPositionForm({
             </div>
           </fieldset>
 
+          {/* Блок execution и basementInfo: обязательные по XSD 17.0 поля,
+              без которых ЕИС не примет позицию плана-графика */}
+          <fieldset className={block("section")}>
+            <legend>Срок осуществления закупки и обоснование</legend>
+            <div className={block("fields")}>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-execution-start"
+                >
+                  Срок осуществления закупки — начало
+                </label>
+                <input
+                  id="position-execution-start"
+                  className={block("input")}
+                  type="date"
+                  {...register("executionTermStartDate")}
+                />
+                {errorText("executionTermStartDate") && (
+                  <span className={block("error")}>
+                    {errorText("executionTermStartDate")}
+                  </span>
+                )}
+              </div>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-execution-end"
+                >
+                  Срок осуществления закупки — окончание
+                </label>
+                <input
+                  id="position-execution-end"
+                  className={block("input")}
+                  type="date"
+                  {...register("executionTermEndDate")}
+                />
+                {errorText("executionTermEndDate") && (
+                  <span className={block("error")}>
+                    {errorText("executionTermEndDate")}
+                  </span>
+                )}
+              </div>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-periodicity-type"
+                >
+                  Периодичность осуществления закупки
+                </label>
+                <select
+                  id="position-periodicity-type"
+                  className={block("select")}
+                  {...register("periodicityType")}
+                >
+                  <option value="">— Не указана —</option>
+                  <option value="W">W — неделя</option>
+                  <option value="B">B — две недели</option>
+                  <option value="M">M — месяц</option>
+                  <option value="Q">Q — квартал</option>
+                  <option value="S">S — полгода</option>
+                  <option value="Y">Y — год</option>
+                </select>
+                <p className={block("hint")}>
+                  Заполняется вместе со сроком либо вместо него, если закупка
+                  носит регулярный характер.
+                </p>
+              </div>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-periodicity-text"
+                >
+                  Иная периодичность (текстом)
+                </label>
+                <input
+                  id="position-periodicity-text"
+                  className={block("input")}
+                  placeholder="Например, по заявкам заказчика"
+                  {...register("periodicityText")}
+                />
+              </div>
+              <div className={block("cell", ["wide"])}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-basement-info"
+                >
+                  Обоснование закупки (basementInfo)
+                </label>
+                <textarea
+                  id="position-basement-info"
+                  className={block("textarea")}
+                  rows={3}
+                  placeholder="Обоснование необходимости закупки по позиции плана-графика"
+                  {...register("basementInfo")}
+                />
+                {errorText("basementInfo") && (
+                  <span className={block("error")}>
+                    {errorText("basementInfo")}
+                  </span>
+                )}
+              </div>
+              <div className={block("cell")}>
+                <label
+                  className={block("label")}
+                  htmlFor="position-basement-legal-act"
+                >
+                  Правовой акт-основание
+                </label>
+                <input
+                  id="position-basement-legal-act"
+                  className={block("input")}
+                  placeholder="Например, приказ о подготовке закупки"
+                  {...register("basementLegalAct")}
+                />
+              </div>
+            </div>
+          </fieldset>
+
           {/* Объём финансового обеспечения и его детализация — один
               взаимозависимый блок: суммы по годам, КБК и КОКС */}
           <fieldset className={block("section")}>

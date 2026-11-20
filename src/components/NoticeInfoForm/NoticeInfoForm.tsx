@@ -319,6 +319,15 @@ const NoticeInfoForm = () => {
       purchaseNoteId: state.purchaseNoteId,
       objectDescriptionId: state.objectDescriptionId,
       ikz: rawIkz,
+      // Основание процедуры и данные проекта контракта: заполняются из СЗ
+      foundationInfo: {
+        protocolName: "",
+        protocolNumber: "",
+        protocolPublishDate: "",
+        appNumber: "",
+        isStructuredForm: true,
+        contractProjectFiles: [],
+      },
       notificationType: inferNotificationType(PLACING_WAYS_CONTEST[0].code),
       versionNumber: "1",
       serviceSigns: {
@@ -395,6 +404,8 @@ const NoticeInfoForm = () => {
         interbudgetaryTransfer: false,
         hasAdvance: false,
         advancePercent: 0,
+        paymentProcedure: "postpayment",
+        paymentTermDays: 7,
         requiresPublicDiscussionArt20: false,
         ikzYear: rawIkz.slice(0, 2) ? `20${rawIkz.slice(0, 2)}` : "2026",
         ikzCustomerCode: rawIkz.slice(2, 22),
@@ -848,6 +859,52 @@ const NoticeInfoForm = () => {
         if (Number.isFinite(adv)) {
           setValue("contractConditions.advancePercent", adv);
         }
+      }
+      // Порядок и срок оплаты наследуются из СЗ (ст. 34 ч. 13.1)
+      if (matchedNote.paymentProcedure) {
+        setValue(
+          "contractConditions.paymentProcedure",
+          matchedNote.paymentProcedure,
+        );
+      }
+      if (matchedNote.paymentTermDays !== undefined) {
+        setValue(
+          "contractConditions.paymentTermDays",
+          matchedNote.paymentTermDays,
+        );
+      }
+
+      // Основание процедуры (протокол, номер заявки), структурированная форма
+      // и файлы проекта контракта — переносятся из СЗ без ручного ввода
+      setValue("foundationInfo.protocolName", matchedNote.protocolName ?? "");
+      setValue(
+        "foundationInfo.protocolNumber",
+        matchedNote.protocolNumber ?? "",
+      );
+      setValue(
+        "foundationInfo.protocolPublishDate",
+        matchedNote.protocolPublishDate ?? "",
+      );
+      setValue("foundationInfo.appNumber", matchedNote.appNumber ?? "");
+      if (matchedNote.isStructuredForm !== undefined) {
+        setValue(
+          "foundationInfo.isStructuredForm",
+          matchedNote.isStructuredForm,
+        );
+        setValue(
+          "purchaseObjects.isStructuredForm",
+          matchedNote.isStructuredForm,
+        );
+      }
+      if (matchedNote.contractProjectFiles) {
+        setValue(
+          "foundationInfo.contractProjectFiles",
+          matchedNote.contractProjectFiles.map((file, fileIndex) => ({
+            id: file.id || `note-contract-project-file-${fileIndex}`,
+            fileName: file.fileName,
+            description: file.description ?? "",
+          })),
+        );
       }
       if (matchedNote.budgetLevel) {
         setValue("contractConditions.budgetLevel", matchedNote.budgetLevel);

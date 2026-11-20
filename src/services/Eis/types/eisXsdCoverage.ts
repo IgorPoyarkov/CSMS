@@ -79,9 +79,9 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       { field: "contractPrice", xsd: "priceInfo/price", status: "mapped" },
       {
         field: "initialMaxPrice",
-        xsd: null,
-        status: "missing",
-        note: "НМЦК хранится в извещении, в карточке контракта её нет.",
+        xsd: "priceInfo",
+        status: "partial",
+        note: "НМЦК переносится в карточку контракта из извещения; в XSD цена контракта идёт в priceInfo, НМЦК уточняется при маппинге.",
       },
       {
         field: "supplierName",
@@ -95,7 +95,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "ikz",
         xsd: "foundation",
         status: "partial",
-        note: "ИКЗ связан с основанием заключения контракта.",
+        note: "ИКЗ связан с основанием заключения контракта; проверяется 36-значный формат (contractIkzError).",
       },
       {
         field: "smpRequiredPercent",
@@ -112,6 +112,12 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         xsd: "subsequentMaintenanceEnforcement",
         status: "partial",
       },
+      {
+        field: "advanceAmount",
+        xsd: "advancePaymentSum",
+        status: "partial",
+        note: "Сумма аванса в рублях хранится в карточке контракта и переносится в сведения об исполнении.",
+      },
       { field: "eisPublishDate", xsd: "publishDate", status: "mapped" },
       {
         field: "status",
@@ -121,9 +127,9 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "executionStartDate / executionEndDate",
-        xsd: null,
-        status: "missing",
-        note: "В прочитанном фрагменте типа дат исполнения нет — уточнить по XSD.",
+        xsd: "executionInfo",
+        status: "partial",
+        note: "Даты начала и окончания исполнения ведутся в карточке; путь в zfcs_contract2015Type уточняется при маппинге.",
       },
     ],
     notes: [
@@ -222,10 +228,10 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       { field: "amount", xsd: "payDocumentInfo/paid", status: "mapped" },
       {
-        field: "paymentType",
+        field: "paymentType / paymentTypeCode",
         xsd: "payDocumentInfo/payDocumentType",
-        status: "partial",
-        note: "У нас advance/intermediate/final, в XSD PC/PN/RC/RE и т.п.",
+        status: "mapped",
+        note: "У нас advance/intermediate/final, в XSD PC/PN/RC/RE; соответствие задаёт paymentXsdCodeFor, код можно переопределить полем paymentTypeCode.",
       },
       {
         field: "invoiceNumber",
@@ -241,13 +247,25 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "bankDocumentNumber",
         xsd: null,
         status: "missing",
-        note: "В payDocumentInfo такого поля нет.",
+        note: "Поле хранится у нас, но в payDocumentInfo прямого элемента нет — идёт в блоке банковского сопровождения.",
+      },
+      {
+        field: "regNumberExecution",
+        xsd: "regNumberExecution",
+        status: "mapped",
+        note: "Реестровый номер сведений об исполнении присваивает ЕИС; сохраняем у нас для повторной отправки.",
       },
       {
         field: "treasuryExecution",
         xsd: "payDocumentInfo/paymentsSumInfo/budgetFinancingsInfo",
         status: "partial",
         note: "Казначейское исполнение раскрывается через КБК, а не флагом.",
+      },
+      {
+        field: "paymentDeadlineDate",
+        xsd: null,
+        status: "derived",
+        note: "Срок оплаты 7/10 рабочих дней по ч. 13.1 ст. 34 считается из даты платежа и казначейского сопровождения.",
       },
       {
         field: "comment",
@@ -309,19 +327,25 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
     status: "partial",
     fields: [
       {
+        field: "sid",
+        xsd: "sid / externalSid",
+        status: "mapped",
+        note: "В ЕИС этап идентифицируется sid, а не порядковым номером; поле добавлено в ContractStageSchema.",
+      },
+      {
         field: "stageNumber",
         xsd: "sid / externalSid",
         status: "partial",
-        note: "В ЕИС этап идентифицируется sid, а не порядковым номером.",
+        note: "Порядковый номер остаётся у нас для отображения; в ЕИС уходит sid.",
       },
       { field: "name", xsd: "stageName", status: "mapped" },
       { field: "startDate", xsd: "startDate", status: "mapped" },
       { field: "endDate", xsd: "endDate", status: "mapped" },
       {
-        field: "amount",
-        xsd: null,
-        status: "missing",
-        note: "Суммы этапа в stage нет — они в paymentsSumInfo.",
+        field: "amount / paymentsSumInfo",
+        xsd: "paymentsSumInfo",
+        status: "partial",
+        note: "Суммы этапа в stage нет — они в paymentsSumInfo по годам; поле paymentsSumInfo добавлено в схему.",
       },
       {
         field: "status",
@@ -361,11 +385,11 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         required: true,
       },
       {
-        field: "planPeriod",
+        field: "planPeriodFirstYear / planPeriodSecondYear",
         xsd: "commonInfo/planPeriod/firstYear + secondYear",
-        status: "missing",
+        status: "mapped",
         required: true,
-        note: "У нас только год планирования; первый и второй год планового периода не хранятся.",
+        note: "Поля есть в PurchasePlanSchema и заполняются в форме шапки плана-графика.",
       },
       {
         field: "approvalDate",
@@ -377,9 +401,9 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       {
         field: "approveDate",
         xsd: "commonInfo/approveDate",
-        status: "missing",
+        status: "partial",
         required: true,
-        note: "Отдельной даты утверждения обоснования плана у нас нет.",
+        note: "Поле есть в схеме и форме шапки; маппер eis17Types.ts (зона Фронт-2) пока переносит только planPeriod и не выводит approveDate.",
       },
       {
         field: "customer",
@@ -412,10 +436,10 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "У нас одной строкой «должность и ФИО», в XSD — должность и контактные данные.",
       },
       {
-        field: "responsibleContact",
-        xsd: "commonInfo/responsibleContactInfo/position",
-        status: "missing",
-        note: "Ответственный за планирование хранится в карточке организации, а не в плане.",
+        field: "responsibleContactInfo",
+        xsd: "commonInfo/responsibleContactInfo",
+        status: "partial",
+        note: "Поля есть в шапке плана-графика; маппер eis17Types.ts (зона Фронт-2) ещё не переносит блок ответственного контакта.",
       },
       { field: "positions", xsd: "positions/position", status: "mapped" },
       {
@@ -483,18 +507,18 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Обязателен для новых позиций; ЕИС контролирует по publishYear, ИКУ, purchaseNumber, ОКПД2 и КВР.",
       },
       {
-        field: "IKU",
+        field: "iku",
         xsd: "commonInfo/IKU",
-        status: "missing",
+        status: "mapped",
         required: false,
-        note: "Если не заполнено, ЕИС подставит ИКУ организации.",
+        note: "Поле есть в схеме; при пустом значении ЕИС подставит ИКУ организации.",
       },
       {
         field: "extNumber",
         xsd: "commonInfo/extNumber",
-        status: "missing",
+        status: "mapped",
         required: false,
-        note: "Внешний номер позиции; необязателен (minOccurs=0).",
+        note: "Внешний номер позиции заполняется номером плана-графика; необязателен (minOccurs=0).",
       },
       {
         field: "tenderPlanPurchaseNumber",
@@ -504,12 +528,12 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "ЕИС игнорирует значение и ставит '000'.",
       },
       {
-        field: "kvrCode",
-        xsd: "commonInfo/KVRInfo",
-        status: "missing",
+        field: "kvr",
+        xsd: "commonInfo/KVRInfo/code",
+        status: "mapped",
         required: true,
         xsdDoc: "Классификация по КВР",
-        note: "Отдельный код вида расходов. У нас есть kbk на 20 цифр, КВР — его последние 3 разряда. Можно вычислять, но лучше хранить kvrCode явно.",
+        note: "КВР хранится в поле kvr: заполняется из детализации по КВР или из последних 3 разрядов КБК.",
       },
       {
         field: "uniqueNumber",
@@ -618,11 +642,11 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Флаг отмены позиции; ЕИС игнорирует значение при приёме.",
       },
       {
-        field: "positionModification",
+        field: "positionModification / modificationDecision",
         xsd: "commonInfo/positionModification",
-        status: "missing",
+        status: "partial",
         required: false,
-        note: "Обязателен при positionModificationStatus=E (позиция отредактирована).",
+        note: "Обязателен при positionModificationStatus=E; основание и описание ведутся в блоке изменений позиции.",
       },
       {
         field: "authorizedBodyName / jointOrganizerName",
@@ -631,27 +655,27 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Прямого поля в позиции нет; уточнить по commonInfo плана.",
       },
       {
-        field: "КТРУ",
+        field: "ktruCode / ktruName",
         xsd: "commonInfo/KTRUInfo / templateKTRUInfo / undefined",
-        status: "missing",
-        note: "У нас только ОКПД2; для КТРУ-позиций нужен отдельный код и характеристики.",
+        status: "partial",
+        note: "Код и наименование КТРУ есть в схеме; характеристики КТРУ ведутся отдельно и в позицию ПГ не дублируются.",
       },
       {
-        field: "срок осуществления закупки",
+        field: "executionTermStartDate / executionTermEndDate",
         xsd: "commonInfo/execution/term",
-        status: "missing",
+        status: "partial",
         required: true,
         xsdDoc:
           "Осуществление закупки. В рамках блока должен быть заполнен блок term и/или periodicity",
-        note: "Обязательный блок. Внутри term/startDate, term/endDate или periodicity. У нас в позиции ПГ срока осуществления закупки нет.",
+        note: "Даты срока осуществления закупки добавлены в позицию и форму; маппер собирает из них term/startDate и term/endDate.",
       },
       {
-        field: "периодичность",
+        field: "periodicityType / periodicityText",
         xsd: "commonInfo/execution/periodicity",
-        status: "missing",
+        status: "partial",
         required: false,
         xsdDoc: "Периодичность осуществления закупки",
-        note: "periodicityType W/B/M/Q/S/Y или otherPeriodicityText. Заполняется вместе с term внутри блока execution.",
+        note: "periodicityType W/B/M/Q/S/Y или otherPeriodicityText; поля добавлены в схему и форму.",
       },
       {
         field: "цель закупки",
@@ -661,11 +685,11 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Блок необязательный (minOccurs=0): мероприятие (eventName) в современном ПГ можно не заполнять.",
       },
       {
-        field: "обоснование закупки",
+        field: "basementInfo / basementLegalAct",
         xsd: "basementInfo",
-        status: "missing",
+        status: "partial",
         required: true,
-        note: "basement и legalActs/noLegalAct — блок обязателен по XSD.",
+        note: "Обоснование и правовой акт добавлены в схему и форму; маппер раскладывает их в basement и legalActs/noLegalAct.",
       },
       {
         field: "закупки на последующие годы",
@@ -673,9 +697,10 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         status: "missing",
       },
       {
-        field: "энергосервисный контракт",
+        field: "isEnergyServiceContract",
         xsd: "isEnergyServiceContract",
-        status: "missing",
+        status: "mapped",
+        note: "Признак энергосервисного контракта есть в схеме и в форме позиции.",
       },
     ],
     notes: [
@@ -739,6 +764,34 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         status: "partial",
       },
       {
+        field:
+          "foundationInfo.protocolName / protocolNumber / protocolPublishDate",
+        xsd: "foundationInfo/protocolInfo",
+        status: "partial",
+        required: false,
+        note: "Протокол-основание переносится из СЗ и используется проектом контракта; в извещении служит ссылкой на процедуру.",
+      },
+      {
+        field: "foundationInfo.appNumber",
+        xsd: "appNumber",
+        status: "partial",
+        required: false,
+        note: "Номер заявки победителя появляется после процедуры и переносится из СЗ.",
+      },
+      {
+        field: "foundationInfo.isStructuredForm",
+        xsd: "contractInfo/isStructuredForm",
+        status: "mapped",
+        note: "Признак структурированной формы проекта контракта; при false проект контракта требует файлов.",
+      },
+      {
+        field: "foundationInfo.contractProjectFiles",
+        xsd: "contractProjectFilesInfo/contractProjectFileInfo",
+        status: "partial",
+        required: false,
+        note: "Файлы проекта контракта ведутся в СЗ и переносятся в извещение и проект контракта.",
+      },
+      {
         field: "generalInfo.kbk",
         xsd: "contractExecutionPaymentPlan/budgetFinancings",
         status: "partial",
@@ -791,6 +844,12 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "contractConditions.hasAdvance / advancePercent",
         xsd: "customerRequirement/advancePaymentSum",
         status: "mapped",
+      },
+      {
+        field: "contractConditions.paymentProcedure / paymentTermDays",
+        xsd: "customerRequirement/contractConditionsInfo",
+        status: "partial",
+        note: "Порядок и срок оплаты (7/10 рабочих дней) наследуются из СЗ; в XSD срок оплаты выгружается текстом.",
       },
       {
         field: "contractConditions.requiresPublicDiscussionArt20",
@@ -1028,6 +1087,13 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         status: "derived",
         required: false,
         note: "ЕИС заполняет из итогового протокола или changePriceInfo.",
+      },
+      {
+        field: "price.advanceAmount",
+        xsd: "contractInfo/advancePaymentSum",
+        status: "mapped",
+        required: false,
+        note: "Сумма аванса рассчитывается из НМЦК и процента аванса и переносится в проект контракта.",
       },
       {
         field: "price.currency",

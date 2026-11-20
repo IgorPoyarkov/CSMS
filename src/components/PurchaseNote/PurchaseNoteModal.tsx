@@ -600,6 +600,16 @@ export default function PurchaseNoteModal({
     name: "deliveryPlaces",
   });
 
+  // Файлы проекта контракта: нужны при неструктурированной выгрузке в ЕИС
+  const {
+    fields: contractProjectFileFields,
+    append: appendContractProjectFile,
+    remove: removeContractProjectFile,
+  } = useFieldArray({
+    control,
+    name: "contractProjectFiles",
+  });
+
   // Подставляем реквизиты организации и уровень бюджета после их загрузки (для новой СЗ)
   useEffect(() => {
     if (!organization) return;
@@ -662,6 +672,8 @@ export default function PurchaseNoteModal({
   // Способ определения поставщика по умолчанию не подставляется: пока
   // пользователь не выбрал его, способ считается незаданным
   const watchedPlacingWay = watch("placingWayCode") ?? "";
+  // Структурированная форма проекта контракта: при отказе нужны файлы
+  const watchedStructuredForm = Boolean(watch("isStructuredForm") ?? true);
   const watchedItems = (watch("items") ?? []) as PurchaseNoteObjectItem[];
   const watchedOozId = watch("objectDescriptionId");
   const selectedOoz = objectDescriptions.find(
@@ -1424,6 +1436,16 @@ export default function PurchaseNoteModal({
           ? fullName(employee.employee)
           : data.kbkDisagreementAuthor,
       items: normalizedItems,
+      // Пустые строки файлов не сохраняем: иначе в СЗ копятся «пустышки»,
+      // а извещение и проект контракта получают битые вложения
+      isStructuredForm: data.isStructuredForm ?? true,
+      contractProjectFiles: (data.contractProjectFiles ?? [])
+        .filter((file) => file.fileName.trim().length > 0)
+        .map((file) => ({
+          ...file,
+          fileName: file.fileName.trim(),
+          description: file.description?.trim() ?? "",
+        })),
       objectDescriptionId: oozId,
       objectDescriptionFileName: oozFileName,
       objectDescriptionFileUpdatedAt: oozFileName
@@ -2638,6 +2660,130 @@ export default function PurchaseNoteModal({
                   {auctionValidation.infoMessage}
                 </span>
               )}
+          </div>
+
+          {/* Основание процедуры и проект контракта: протокол-основание,
+              номер заявки победителя, структурированная форма и файлы
+              переносятся в извещение и проект контракта без ручного ввода */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("subblock")}>
+              <h3 className={block("subtitle")}>
+                Основание процедуры и проект контракта
+              </h3>
+              <div className={block("grid")}>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-name"
+                  >
+                    Протокол-основание — наименование
+                  </label>
+                  <input
+                    id="note-protocol-name"
+                    className={block("input")}
+                    placeholder="Протокол подведения итогов"
+                    {...register("protocolName")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-number"
+                  >
+                    Номер протокола
+                  </label>
+                  <input
+                    id="note-protocol-number"
+                    className={block("input")}
+                    placeholder="1"
+                    {...register("protocolNumber")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-date"
+                  >
+                    Дата публикации протокола
+                  </label>
+                  <input
+                    id="note-protocol-date"
+                    className={block("input")}
+                    type="date"
+                    {...register("protocolPublishDate")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label className={block("label")} htmlFor="note-app-number">
+                    Номер заявки победителя
+                  </label>
+                  <input
+                    id="note-app-number"
+                    className={block("input")}
+                    placeholder="1"
+                    {...register("appNumber")}
+                  />
+                </div>
+              </div>
+
+              <CustomCheckbox
+                label="Проект контракта формируется в структурированной форме"
+                checked={watchedStructuredForm}
+                disabled={isReadOnly}
+                onChange={(event) =>
+                  setValue("isStructuredForm", event.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              {!watchedStructuredForm && (
+                <span className={block("hint")}>
+                  При неструктурированной форме ЕИС требует приложить файлы
+                  проекта контракта — без них документ будет отклонён.
+                </span>
+              )}
+
+              <div className={block("file-list")}>
+                {contractProjectFileFields.map((field, fileIndex) => (
+                  <div className={block("file-row")} key={field.id}>
+                    <input
+                      className={block("input")}
+                      placeholder="Имя файла проекта контракта"
+                      {...register(
+                        `contractProjectFiles.${fileIndex}.fileName`,
+                      )}
+                    />
+                    <input
+                      className={block("input")}
+                      placeholder="Описание"
+                      {...register(
+                        `contractProjectFiles.${fileIndex}.description`,
+                      )}
+                    />
+                    <button
+                      type="button"
+                      className={block("remove")}
+                      onClick={() => removeContractProjectFile(fileIndex)}
+                    >
+                      Убрать
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className={block("add")}
+                  onClick={() =>
+                    appendContractProjectFile({
+                      id: `contract-project-file-${Date.now()}`,
+                      fileName: "",
+                      description: "",
+                    })
+                  }
+                >
+                  Добавить файл проекта контракта
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Критерии оценки заявок — рядом со способом закупки, чтобы было

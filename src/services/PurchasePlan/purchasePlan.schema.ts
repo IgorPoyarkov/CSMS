@@ -82,6 +82,28 @@ export const PurchasePlanCustomerSchema = OrganizationCustomerSchema;
 
 export type PurchasePlanCustomer = z.infer<typeof PurchasePlanCustomerSchema>;
 
+/**
+ * Ответственный за планирование (commonInfo/responsibleContactInfo).
+ * XSD 17.0 требует отдельный блок контактов, а не только ФИО в карточке
+ * организации: должность, ФИО, телефон и адрес электронной почты.
+ */
+export const PurchasePlanResponsibleContactSchema = z.object({
+  position: optionalText(2, "Укажите должность ответственного за планирование"),
+  fullName: optionalText(3, "Укажите ФИО ответственного за планирование"),
+  phone: optionalText(3, "Укажите телефон ответственного за планирование"),
+  email: z
+    .string()
+    .refine(
+      (value) => value === "" || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value),
+      "Некорректный адрес электронной почты",
+    )
+    .optional(),
+});
+
+export type PurchasePlanResponsibleContact = z.infer<
+  typeof PurchasePlanResponsibleContactSchema
+>;
+
 // Организация, которой переданы полномочия государственного (муниципального)
 // заказчика: заполняется, когда план-график формирует бюджетное, автономное
 // учреждение, унитарное предприятие или иное юридическое лицо (п. 14, подп. "ж"
@@ -470,6 +492,27 @@ export const PurchasePlanPositionSchema = z
       "Укажите наименование объекта закупки (по КТРУ или в свободной форме)",
     ),
 
+    // Блок execution (commonInfo/execution) обязателен по XSD 17.0:
+    // внутри должен быть заполнен срок осуществления закупки (term)
+    // и/или периодичность. Без него ЕИС не примет позицию.
+    executionTermStartDate: optionalDate(
+      "Неверный формат даты начала срока осуществления закупки",
+    ),
+    executionTermEndDate: optionalDate(
+      "Неверный формат даты окончания срока осуществления закупки",
+    ),
+    periodicityType: z.enum(["W", "B", "M", "Q", "S", "Y"]).optional(),
+    periodicityText: optionalText(
+      3,
+      "Укажите периодичность осуществления закупки",
+    ),
+    // basementInfo — обоснование закупки, обязательный блок XSD 17.0
+    basementInfo: optionalText(5, "Укажите обоснование закупки"),
+    basementLegalAct: optionalText(
+      3,
+      "Укажите реквизиты правового акта, являющегося основанием закупки",
+    ),
+
     // Код бюджетной классификации: 20 цифр. Нужен для группировки записей ПГ
     // и поиска по расходам — в форме ПГ это отдельная графа. Основной код
     // записи, когда кодов несколько они перечислены в kbkEntries
@@ -582,6 +625,13 @@ export const PurchasePlanSchema = z
       5,
       "Укажите должность и ФИО утвердившего план-график",
     ),
+    // XSD различает confirmDate (утверждение плана-графика) и approveDate
+    // (утверждение обоснования плана). Раньше хранилась одна дата — теперь
+    // обе, чтобы выгрузка в ЕИС не теряла обязательный approveDate.
+    approveDate: optionalDate(
+      "Неверный формат даты утверждения обоснования плана-графика (ожидается ГГГГ-ММ-ДД)",
+    ),
+    responsibleContactInfo: PurchasePlanResponsibleContactSchema.optional(),
     publishDate: optionalDate(
       "Неверный формат даты размещения в ЕИС (ожидается ГГГГ-ММ-ДД)",
     ),
@@ -1032,6 +1082,12 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   identificationCode: "",
   objectOfPurchase: "",
   plannedPlacementYear: "",
+  executionTermStartDate: "",
+  executionTermEndDate: "",
+  periodicityType: undefined,
+  periodicityText: "",
+  basementInfo: "",
+  basementLegalAct: "",
   amountTotal: "",
   amountCurrentYear: "",
   amountPlanPeriodFirstYear: "",
@@ -1103,6 +1159,13 @@ export const emptyPurchasePlan = (): PurchasePlan => {
     versionNumber: "1",
     approvalDate: "",
     approvalAuthor: "",
+    approveDate: "",
+    responsibleContactInfo: {
+      position: "",
+      fullName: "",
+      phone: "",
+      email: "",
+    },
     publishDate: "",
     directDate: "",
     createDate: new Date().toISOString().slice(0, 10),

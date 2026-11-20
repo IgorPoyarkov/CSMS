@@ -246,8 +246,42 @@ export const planHeaderFields: ConfigurationInput<PurchasePlan>[] = [
     input: { name: "approvalDate", type: "date" },
   },
   {
+    // XSD различает confirmDate (утверждение плана) и approveDate
+    // (утверждение обоснования плана) — обе даты обязательны для выгрузки
+    label: { value: "Дата утверждения обоснования плана" },
+    input: { name: "approveDate", type: "date" },
+  },
+  {
     label: { value: "Утвердил (должность, ФИО)" },
     input: { name: "approvalAuthor", placeholder: "Главный врач И.И. Иванов" },
+  },
+  {
+    label: { value: "Ответственный за планирование — должность" },
+    input: {
+      name: "responsibleContactInfo.position",
+      placeholder: "Начальник отдела закупок",
+    },
+  },
+  {
+    label: { value: "Ответственный за планирование — ФИО" },
+    input: {
+      name: "responsibleContactInfo.fullName",
+      placeholder: "Иванов Иван Иванович",
+    },
+  },
+  {
+    label: { value: "Ответственный за планирование — телефон" },
+    input: {
+      name: "responsibleContactInfo.phone",
+      placeholder: "+7 (4722) 00-00-00",
+    },
+  },
+  {
+    label: { value: "Ответственный за планирование — email" },
+    input: {
+      name: "responsibleContactInfo.email",
+      placeholder: "planning@example.ru",
+    },
   },
   {
     label: { value: "Дата размещения в ЕИС" },

@@ -190,6 +190,28 @@ export const NoticeInfoSchema = z.object({
   objectDescriptionId: z.union([z.string(), z.number()]).nullable().optional(),
   ikz: z.string().optional(),
 
+  // Основание процедуры и данные проекта контракта, которые появляются после
+  // определения поставщика. Приходят из служебной записки, чтобы проект
+  // контракта (contractProjectType) заполнялся без ручного ввода.
+  foundationInfo: z
+    .object({
+      protocolName: z.string().optional(),
+      protocolNumber: z.string().optional(),
+      protocolPublishDate: z.string().optional(),
+      appNumber: z.string().optional(),
+      isStructuredForm: z.boolean().optional(),
+      contractProjectFiles: z
+        .array(
+          z.object({
+            id: z.string(),
+            fileName: z.string().min(1),
+            description: z.string().optional(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
+
   // Метаданные типа документа и версионности по IntegrationEPTypes.xsd (ЕИС 17.0)
   notificationType: z
     .enum(["EF2020", "EOK2020", "EZK2020", "EZT2020", "EMZ2025", "Cancel"])
@@ -353,6 +375,10 @@ export const NoticeInfoSchema = z.object({
     interbudgetaryTransfer: z.boolean().optional(),
     hasAdvance: z.boolean(),
     advancePercent: z.number().min(0).max(100),
+    // Порядок оплаты и срок оплаты наследуются из служебной записки:
+    // в XSD срок оплаты выгружается текстом, но основание нужно мапперу
+    paymentProcedure: z.enum(["postpayment", "advance", "staged"]).optional(),
+    paymentTermDays: z.number().nonnegative().optional(),
     requiresPublicDiscussionArt20: z.boolean(),
 
     // Составные части ИКЗ

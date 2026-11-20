@@ -34,6 +34,7 @@ import TaskDetailPage from "./components/Tasks/TaskDetailPage";
 import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import EisPackagesPage from "./components/Eis/EisPackagesPage";
 import EisSchemaExplorerPage from "./components/Eis/EisSchemaExplorerPage";
+import EisChainPage from "./components/Eis/EisChainPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
@@ -166,6 +167,11 @@ const router = createBrowserRouter([
         // Обозреватель XSD Альбома ЕИС: версии, пространства имён, типы и поля
         path: "/eis/schemas",
         element: <EisSchemaExplorerPage />,
+      },
+      {
+        // Сквозная цепочка: план-график → СЗ → извещение → контракт → СМП
+        path: "/eis/chains",
+        element: <EisChainPage />,
       },
       {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования

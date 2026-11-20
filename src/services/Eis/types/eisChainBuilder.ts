@@ -4,6 +4,7 @@ import {
   type ContractSmpRecord,
 } from "../../ContractSmp/contractSmp.schema";
 import type { NoticeInfoFormValues } from "../../Procurements/noticeInfo.schema";
+import type { PurchaseNote } from "../../PurchaseNote/purchaseNote.schema";
 import type {
   PurchasePlan,
   PurchasePlanPosition,
@@ -41,6 +42,8 @@ import {
 
 export interface EisChainSource {
   plans: PurchasePlan[];
+  // Потребности (СЗ) по позициям плана-графика: связывают план и извещение
+  notes: PurchaseNote[];
   notices: NoticeInfoFormValues[];
   contracts: ContractRegistryItem[];
   smpRecords: ContractSmpRecord[];
@@ -110,6 +113,34 @@ const matchesNotice = (
   return Boolean(noticeIkz && position.ikz && noticeIkz === position.ikz);
 };
 
+const matchesNote = (
+  note: PurchaseNote,
+  position: {
+    ikz: string | null;
+    planPositionNumber: string | null;
+    positionId: string | null;
+  },
+): boolean => {
+  if (
+    position.positionId &&
+    note.positionId !== null &&
+    note.positionId !== undefined &&
+    sameId(note.positionId, position.positionId)
+  ) {
+    return true;
+  }
+
+  const notePosition = nullableText(note.positionUniqueNumber);
+
+  if (notePosition && position.planPositionNumber) {
+    return notePosition === position.planPositionNumber;
+  }
+
+  const noteIkz = nullableText(note.ikz);
+
+  return Boolean(noteIkz && position.ikz && noteIkz === position.ikz);
+};
+
 const matchesContract = (
   contract: ContractRegistryItem,
   notice: { ikz: string | null; procurementId: string | null },
@@ -141,7 +172,10 @@ const absentLink = (stage: EisChainStage): EisChainLink => ({
   publishedAt: null,
 });
 
-const planLinkOf = (entry: PlanPositionEntry): EisChainLink => {
+const planLinkOf = (
+  entry: PlanPositionEntry,
+  note: PurchaseNote | null,
+): EisChainLink => {
   const { plan, position } = entry;
 
   return {
@@ -159,6 +193,7 @@ const planLinkOf = (entry: PlanPositionEntry): EisChainLink => {
       ...emptyEisChainRefs(),
       planId: localId(plan.id),
       planPositionId: localId(position.id),
+      purchaseNoteId: localId(note?.id),
     },
     amount: moneyText(position.amountTotal),
     status: nullableText(position.status) ?? nullableText(plan.status),
@@ -173,6 +208,7 @@ const noticeLinkOf = (
     planPositionNumber: string | null;
     ikz: string | null;
   },
+  note: PurchaseNote | null = null,
 ): EisChainLink => ({
   stage: "notice",
   label: `Извещение ${nullableText(notice.generalInfo.noticeNumber) ?? "без номера"}`,
@@ -187,6 +223,7 @@ const noticeLinkOf = (
   },
   refs: {
     ...emptyEisChainRefs(),
+    purchaseNoteId: localId(note?.id ?? notice.purchaseNoteId),
     procurementId: localId(notice.procurementId),
     noticeId: localId(notice.id),
   },
@@ -367,6 +404,17 @@ export const eisChainIssues = (chain: EisChain): EisChainIssue[] => {
         ),
       );
     }
+  }
+
+  if (plan?.present && !plan.refs.purchaseNoteId) {
+    issues.push(
+      issue(
+        "plan",
+        "plan.no_purchase_note",
+        "По позиции плана-графика ещё не создана потребность (служебная записка).",
+        "warning",
+      ),
+    );
   }
 
   if (plan?.present && !notice?.present) {
@@ -589,6 +637,14 @@ const buildChainForPosition = (
   const ikz = nullableText(position.identificationCode);
   const planPositionNumber = nullableText(position.uniqueNumber);
 
+  const note =
+    source.notes.find((item) =>
+      matchesNote(item, {
+        ikz,
+        planPositionNumber,
+        positionId: localId(position.id),
+      }),
+    ) ?? null;
   const notice =
     source.notices.find((item) =>
       matchesNotice(item, { ikz, planPositionNumber }),
@@ -605,9 +661,9 @@ const buildChainForPosition = (
     : [];
 
   const links: EisChainLink[] = [
-    planLinkOf(entry),
+    planLinkOf(entry, note),
     notice
-      ? noticeLinkOf(notice, { purchaseNumber, planPositionNumber, ikz })
+      ? noticeLinkOf(notice, { purchaseNumber, planPositionNumber, ikz }, note)
       : absentLink("notice"),
     contract
       ? contractLinkOf(contract, { purchaseNumber, ikz })
@@ -656,13 +712,26 @@ const buildChainForNotice = (
       )
     : [];
 
+  const note =
+    source.notes.find(
+      (item) =>
+        sameId(item.id, notice.purchaseNoteId) ||
+        (nullableText(item.ikz) !== null && nullableText(item.ikz) === ikz),
+    ) ?? null;
+
   const links: EisChainLink[] = [
     absentLink("plan"),
-    noticeLinkOf(notice, {
-      purchaseNumber: null,
-      planPositionNumber: nullableText(notice.generalInfo.positionUniqueNumber),
-      ikz,
-    }),
+    noticeLinkOf(
+      notice,
+      {
+        purchaseNumber: null,
+        planPositionNumber: nullableText(
+          notice.generalInfo.positionUniqueNumber,
+        ),
+        ikz,
+      },
+      note,
+    ),
     contract
       ? contractLinkOf(contract, { purchaseNumber: null, ikz })
       : absentLink("contract"),
@@ -729,6 +798,72 @@ const buildChainForContract = (
   });
 };
 
+const buildChainForNote = (
+  note: PurchaseNote,
+  source: EisChainSource,
+  skipContractIds: Set<string>,
+  skipSmpIds: Set<string>,
+): EisChain => {
+  const ikz = nullableText(note.ikz);
+  const notice =
+    source.notices.find(
+      (item) =>
+        sameId(item.purchaseNoteId, note.id) ||
+        (nullableText(item.generalInfo.ikz) !== null &&
+          nullableText(item.generalInfo.ikz) === ikz),
+    ) ?? null;
+  const procurementId = localId(notice?.procurementId);
+  const contract =
+    source.contracts.find(
+      (item) =>
+        !skipContractIds.has(localId(item.id) ?? "") &&
+        matchesContract(item, { ikz, procurementId }),
+    ) ?? null;
+  const smpRecords = contract
+    ? source.smpRecords.filter(
+        (record) =>
+          !skipSmpIds.has(localId(record.id) ?? "") &&
+          sameId(record.contractId, contract.id),
+      )
+    : [];
+
+  const links: EisChainLink[] = [
+    absentLink("plan"),
+    notice
+      ? noticeLinkOf(
+          notice,
+          {
+            purchaseNumber: null,
+            planPositionNumber: nullableText(note.positionUniqueNumber),
+            ikz,
+          },
+          note,
+        )
+      : absentLink("notice"),
+    contract
+      ? contractLinkOf(contract, { purchaseNumber: null, ikz })
+      : absentLink("contract"),
+    smpLinkOf(smpRecords, {
+      purchaseNumber: null,
+      ikz: nullableText(contract?.ikz) ?? ikz,
+      contractRegistryNumber: nullableText(contract?.eisRegistryNumber),
+      contractId: localId(contract?.id),
+    }),
+  ];
+
+  return finalizeChain({
+    organizationId:
+      localId(note.organizationId) ??
+      localId(contract?.organizationId) ??
+      localId(smpRecords[0]?.organizationId),
+    key: chainKey(null, ikz, `note:${localId(note.id) ?? note.noteNumber}`),
+    purchaseNumber: null,
+    ikz,
+    links,
+    smp: smpSummaryOf(smpRecords, contract, notice),
+  });
+};
+
 const buildChainForSmp = (record: ContractSmpRecord): EisChain => {
   const links: EisChainLink[] = [
     absentLink("plan"),
@@ -762,12 +897,17 @@ const buildChainForSmp = (record: ContractSmpRecord): EisChain => {
  */
 export const buildEisChains = (source: EisChainSource): EisChain[] => {
   const chains: EisChain[] = [];
+  const usedNoteIds = new Set<string>();
   const usedNoticeIds = new Set<string>();
   const usedContractIds = new Set<string>();
   const usedSmpIds = new Set<string>();
 
   const markUsed = (chain: EisChain): void => {
     for (const link of chain.links) {
+      if (link.refs.purchaseNoteId) {
+        usedNoteIds.add(link.refs.purchaseNoteId);
+      }
+
       if (!link.present) {
         continue;
       }
@@ -794,6 +934,18 @@ export const buildEisChains = (source: EisChainSource): EisChain[] => {
       chains.push(chain);
       markUsed(chain);
     }
+  }
+
+  for (const note of source.notes) {
+    const id = localId(note.id);
+
+    if (id && usedNoteIds.has(id)) {
+      continue;
+    }
+
+    const chain = buildChainForNote(note, source, usedContractIds, usedSmpIds);
+    chains.push(chain);
+    markUsed(chain);
   }
 
   for (const notice of source.notices) {
@@ -988,6 +1140,7 @@ export const findEisChain = (
         const byLocalId = chain.links.some(
           (link) =>
             link.identifiers.localId === localIdQuery ||
+            link.refs.purchaseNoteId === localIdQuery ||
             link.refs.smpRecordIds.includes(localIdQuery),
         );
 

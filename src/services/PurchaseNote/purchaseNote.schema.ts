@@ -129,6 +129,24 @@ export const NmckSignatureSchema = z.object({
 
 export type NmckSignature = z.infer<typeof NmckSignatureSchema>;
 
+/**
+ * Файл проекта контракта, приложенный к потребности (СЗ).
+ *
+ * Нужен для неструктурированной выгрузки проекта контракта в ЕИС
+ * (contractProjectType/contractProjectFilesInfo): при isStructuredForm = false
+ * без файлов ЕИС отклонит документ. В СЗ файлы готовятся заранее, чтобы
+ * извещение и проект контракта не собирали их заново.
+ */
+export const PurchaseNoteContractProjectFileSchema = z.object({
+  id: z.string(),
+  fileName: z.string().trim().min(1, "Укажите имя файла проекта контракта"),
+  description: z.string().optional(),
+});
+
+export type PurchaseNoteContractProjectFile = z.infer<
+  typeof PurchaseNoteContractProjectFileSchema
+>;
+
 export const PurchaseNoteSchema = z
   .object({
     id: z.union([z.string(), z.number()]).optional(),
@@ -228,6 +246,19 @@ export const PurchaseNoteSchema = z
     // Способ определения поставщика и отраслевой тип закупки
     placingWayCode: z.string().optional(),
     procurementType: z.string().optional(),
+
+    // Основание процедуры и данные для проекта контракта, которые
+    // появляются после определения поставщика. Хранятся в СЗ, чтобы извещение
+    // и проект контракта получали их без ручного ввода.
+    protocolName: z.string().optional(),
+    protocolNumber: z.string().optional(),
+    protocolPublishDate: isoDate(),
+    appNumber: z.string().optional(),
+    // Структурированная форма проекта контракта: при false обязательны файлы
+    isStructuredForm: z.boolean().optional(),
+    contractProjectFiles: z
+      .array(PurchaseNoteContractProjectFileSchema)
+      .optional(),
 
     // Аванс и сопровождение контракта (порядка оплаты и срока оплаты в СЗ нет —
     // срок оплаты определяется на этапе проекта контракта в т.ч. по казначейскому сопровождению)

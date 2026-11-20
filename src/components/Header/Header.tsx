@@ -259,6 +259,13 @@ const Header = ({}: HeaderProps) => {
             </NavLink>
           </li>
 
+          {/* Сквозная цепочка: план-график → СЗ → извещение → контракт */}
+          <li className={nav("item")}>
+            <NavLink className={nav("link", ["logo"])} to={"/eis/chains"}>
+              <span className={nav("link-name")}>Цепочка ЕИС</span>
+            </NavLink>
+          </li>
+
           {/* Чек-лист покрытия: какие наши поля уже переносятся в XSD */}
           <li className={nav("item")}>
             <button
@@ -289,7 +296,10 @@ const Header = ({}: HeaderProps) => {
           </li>
 
           <li className={nav("item")}>
-            <NavLink className={nav("link", ["logo"])} to={"/reports/order-158n"}>
+            <NavLink
+              className={nav("link", ["logo"])}
+              to={"/reports/order-158n"}
+            >
               <span className={nav("link-name")}>Отчёты 158н</span>
             </NavLink>
           </li>
