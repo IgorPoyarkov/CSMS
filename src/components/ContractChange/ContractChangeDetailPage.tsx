@@ -725,6 +725,25 @@ export default function ContractChangeDetailPage() {
       </section>
 
       <section className={block("section")}>
+        <h2 className={block("section-title")}>Связанные документы</h2>
+
+        <div className={block("card-actions")}>
+          <Link
+            className={block("action")}
+            to={`/acceptances?contractId=${input.contractId}`}
+          >
+            Приёмки по контракту
+          </Link>
+          <Link
+            className={block("action")}
+            to={`/acceptances/new?contractId=${input.contractId}`}
+          >
+            Оформить приёмку
+          </Link>
+        </div>
+      </section>
+
+      <section className={block("section")}>
         <h2 className={block("section-title")}>История</h2>
 
         <ul className={block("events")}>

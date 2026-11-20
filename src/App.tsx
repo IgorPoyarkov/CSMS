@@ -24,6 +24,9 @@ import ContractRegistryPage from "./components/ContractRegistry/ContractRegistry
 import ContractChangeRegistryPage from "./components/ContractChange/ContractChangeRegistryPage";
 import ContractChangeFormPage from "./components/ContractChange/ContractChangeFormPage";
 import ContractChangeDetailPage from "./components/ContractChange/ContractChangeDetailPage";
+import AcceptanceRegistryPage from "./components/ContractAcceptance/AcceptanceRegistryPage";
+import AcceptanceFormPage from "./components/ContractAcceptance/AcceptanceFormPage";
+import AcceptanceDetailPage from "./components/ContractAcceptance/AcceptanceDetailPage";
 import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import LiabilityMappingPage from "./components/LiabilityMapping/LiabilityMappingPage";
@@ -136,6 +139,17 @@ const router = createBrowserRouter([
           { path: "new", element: <ContractChangeFormPage /> },
           { path: ":id", element: <ContractChangeDetailPage /> },
           { path: ":id/edit", element: <ContractChangeFormPage /> },
+        ],
+      },
+      {
+        // Электронное актирование по ст. 94 44-ФЗ: приёмка, расхождения,
+        // мотивированный отказ и регистрация документа в ЕИС
+        path: "/acceptances",
+        children: [
+          { index: true, element: <AcceptanceRegistryPage /> },
+          { path: "new", element: <AcceptanceFormPage /> },
+          { path: ":id", element: <AcceptanceDetailPage /> },
+          { path: ":id/edit", element: <AcceptanceFormPage /> },
         ],
       },
       {

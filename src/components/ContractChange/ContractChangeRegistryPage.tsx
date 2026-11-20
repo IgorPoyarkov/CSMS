@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
 import Loader from "../UI/Loader";
@@ -52,8 +52,11 @@ export default function ContractChangeRegistryPage() {
   const { data: contracts = [] } = useContractRegistry(orgId || undefined);
   const { data: bases = [] } = useContractChangeBases();
 
+  const [searchParams] = useSearchParams();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [contractFilter, setContractFilter] = useState("");
+  const [contractFilter, setContractFilter] = useState(
+    () => searchParams.get("contractId") ?? "",
+  );
 
   const basisByCode = useMemo(
     () => new Map(bases.map((basis) => [basis.code, basis])),

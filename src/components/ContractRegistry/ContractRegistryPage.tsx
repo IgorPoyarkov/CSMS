@@ -515,6 +515,14 @@ function ContractCard({
               >
                 Изменение / расторжение
               </Link>
+              {/* Электронное актирование по ст. 94: снимок контракта
+                  подставляется в форму приёмки из этой же карточки */}
+              <Link
+                className={styles.btnSecondary}
+                to={`/acceptances/new?contractId=${String(contract.id ?? "")}`}
+              >
+                Приёмка
+              </Link>
               <button className={styles.btnDanger} onClick={onDelete}>
                 Удалить
               </button>
