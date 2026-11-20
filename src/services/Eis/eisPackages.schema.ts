@@ -137,6 +137,71 @@ export const signatureTaskSchema = z.object({
 export type SignatureTask = z.infer<typeof signatureTaskSchema>;
 
 /**
+ * Вид документа CSMS, из которого собран `payloadXml`.
+ *
+ * Шлюзу это нужно, чтобы после Б4 показать в пакете ссылку на источник и
+ * пересобрать документ без человека. Пока (до Б4) поле просто уходит в теле
+ * запроса и шлюзом игнорируется.
+ */
+export const EIS_PACKAGE_SOURCE_KINDS = [
+  "Notice",
+  "ContractProject",
+  "Contract",
+  "SmpReport",
+  "ContractExecution",
+] as const;
+
+export type EisPackageSourceKind = (typeof EIS_PACKAGE_SOURCE_KINDS)[number];
+
+export const eisPackageSourceSchema = z.object({
+  documentKind: z.enum(EIS_PACKAGE_SOURCE_KINDS),
+  /** Идентификатор документа в CSMS (json-server id или GUID). */
+  documentId: z.string().min(1),
+  /** Номер документа ЕИС, если он уже присвоен. */
+  documentNumber: z.string().optional(),
+});
+
+export type EisPackageSource = z.infer<typeof eisPackageSourceSchema>;
+
+/**
+ * Снимок заказчика на момент формирования пакета.
+ *
+ * Пакет живёт годами, а карточку организации за это время правят. Снимок
+ * фиксирует, от чьего имени подписывался документ, и позволяет объяснить
+ * расхождение с текущей карточкой.
+ */
+export const eisPackageCustomerSnapshotSchema = z.object({
+  fullName: z.string().optional(),
+  shortName: z.string().optional(),
+  inn: z.string().optional(),
+  kpp: z.string().optional(),
+  okopf: z.string().optional(),
+  okfs: z.string().optional(),
+  oktmo: z.string().optional(),
+  oktmoPpo: z.string().optional(),
+  /** Код по СПЗ (реестровый номер заказчика в ЕИС). */
+  regNumber: z.string().optional(),
+});
+
+export type EisPackageCustomerSnapshot = z.infer<
+  typeof eisPackageCustomerSnapshotSchema
+>;
+
+/**
+ * Тело запроса на создание пакета. Проверяется перед отправкой: пустой
+ * `documentId` или незнакомый вид документа должны падать здесь, а не
+ * превращаться в 400 от шлюза.
+ */
+export const createEisPackageInputSchema = z.object({
+  documentType: z.enum(EIS_DOCUMENT_TYPES),
+  contractEisNumber: z.string(),
+  ikz: z.string(),
+  payloadXml: z.string().optional(),
+  source: eisPackageSourceSchema.optional(),
+  customer: eisPackageCustomerSnapshotSchema.optional(),
+});
+
+/**
  * Проверки идентификаторов живут отдельно: те же правила нужны карточке
  * контракта, поэтому здесь только реэкспорт, без второй копии регулярки.
  */

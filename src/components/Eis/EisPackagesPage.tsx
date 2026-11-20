@@ -18,12 +18,16 @@ import {
   isEisDocumentTypeWithPayload,
   isIkz,
   type EisDocumentType,
+  type EisPackageCustomerSnapshot,
+  type EisPackageSource,
 } from "../../services/Eis/eisPackages.schema";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
 import {
   buildContractProjectXmlPreview,
   buildNotification2020XmlPreview,
+  validateContractProjectEis17,
+  validateNoticeInfoEis17,
 } from "../../services/Eis/eis17Types";
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
 import EisPackageCard from "./EisPackageCard";
@@ -175,6 +179,44 @@ export default function EisPackagesPage() {
       return;
     }
 
+    // Ф3: прогоняем документ по проверкам XSD 17.0 до создания пакета.
+    // Иначе ЕИС вернёт те же ошибки уже после подписания, и пакет придётся
+    // переделывать — а подпись под исправленным документом станет второй.
+    //
+    // Валидатор работает по разобранному документу: у старых проектов контракта
+    // блока eisInfo может не быть вовсе. Тогда проверка не должна ронять
+    // создание пакета — пусть отвечает шлюз, у него те же данные.
+    let eisValidation: ReturnType<typeof validateNoticeInfoEis17> | null = null;
+
+    try {
+      eisValidation =
+        documentType === "Notification" && pickedNotice
+          ? validateNoticeInfoEis17(pickedNotice)
+          : documentType === "ContractProject" && pickedProject
+            ? validateContractProjectEis17(pickedProject)
+            : null;
+    } catch {
+      eisValidation = null;
+    }
+
+    if (eisValidation && eisValidation.errorsCount > 0) {
+      const errors = eisValidation.issues.filter(
+        (issue) => issue.severity === "error",
+      );
+      const shown = errors
+        .slice(0, 3)
+        .map((issue) => `${issue.field}: ${issue.message}`)
+        .join(" ");
+
+      setFormError(
+        `Документ не готов к выгрузке в ЕИС 17.0 (ошибок: ${eisValidation.errorsCount}). ` +
+          shown +
+          (errors.length > 3 ? ` … и ещё ${errors.length - 3}.` : ""),
+      );
+
+      return;
+    }
+
     try {
       const payloadXml =
         documentType === "Notification" && pickedNotice
@@ -183,11 +225,39 @@ export default function EisPackagesPage() {
             ? buildContractProjectXmlPreview(pickedProject)
             : undefined;
 
+      // Ф8: фиксируем документ-источник и снимок заказчика. Шлюз начнёт их
+      // читать после Б4 — до этого он просто игнорирует лишние поля, а пакет
+      // уже несёт ссылку на документ, из которого собран XML
+      const source: EisPackageSource | undefined =
+        documentType === "Notification" && pickedNotice
+          ? { documentKind: "Notice", documentId: String(pickedNotice.id) }
+          : documentType === "ContractProject" && pickedProject
+            ? {
+                documentKind: "ContractProject",
+                documentId: String(pickedProject.id),
+              }
+            : undefined;
+
+      const customer: EisPackageCustomerSnapshot | undefined = organization
+        ? {
+            fullName: organization.fullName || undefined,
+            shortName: organization.shortName || undefined,
+            inn: organization.inn || undefined,
+            kpp: organization.kpp || undefined,
+            okopf: organization.okopf || undefined,
+            okfs: organization.okfs || undefined,
+            oktmo: organization.oktmo || undefined,
+            oktmoPpo: organization.oktmoPpo || undefined,
+          }
+        : undefined;
+
       await createPackage.mutateAsync({
         documentType,
         contractEisNumber: contractEisNumber.trim(),
         ikz: ikz.trim(),
         payloadXml,
+        source,
+        customer,
       });
 
       setContractEisNumber("");

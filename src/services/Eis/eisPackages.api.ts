@@ -2,10 +2,13 @@ import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   eisPackageSchema,
+  createEisPackageInputSchema,
   isStatusPending,
   signatureTaskSchema,
   type EisDocumentType,
   type EisPackage,
+  type EisPackageCustomerSnapshot,
+  type EisPackageSource,
 } from "./eisPackages.schema";
 
 /**
@@ -87,6 +90,10 @@ export interface CreateEisPackageInput {
    * заглушку. Для типов без документа (СМП, исполнение) не передаётся.
    */
   payloadXml?: string;
+  /** Документ-источник в CSMS (Ф8; шлюз начнёт читать после Б4). */
+  source?: EisPackageSource;
+  /** Снимок заказчика на момент формирования пакета (Ф8). */
+  customer?: EisPackageCustomerSnapshot;
 }
 
 export const useCreateEisPackage = () => {
@@ -94,7 +101,10 @@ export const useCreateEisPackage = () => {
 
   return useMutation({
     mutationFn: async (input: CreateEisPackageInput) => {
-      const { data } = await eisApi.post("/api/eis/packages", input);
+      // Тело проверяем до отправки: незнакомый вид документа или пустая
+      // ссылка на источник должны падать здесь, с понятным текстом
+      const body = createEisPackageInputSchema.parse(input);
+      const { data } = await eisApi.post("/api/eis/packages", body);
 
       return eisPackageSchema.parse(data);
     },

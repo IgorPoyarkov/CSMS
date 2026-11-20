@@ -10,6 +10,11 @@ import type {
   NoticeInfoFormValues,
 } from "../Procurements/noticeInfo.schema";
 import type { ContractProject } from "../ContractProject/contractProject.schema";
+import {
+  EIS_PACKET_DESCRIPTORS,
+  buildEisPacket,
+  escapeXml,
+} from "./eisPacket";
 
 /**
  * Контракты ЕИС 17.0 (из XSD-схем CSMS-API: schemas/17.0).
@@ -1987,13 +1992,8 @@ export const validateNoticeInfoEis17 = (
 
 // ─── Предпросмотр XML по структурам ЕИС 17.0 ─────────────────────────────────
 
-const escapeXml = (value: unknown): string =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+// Экранирование значений вынесено в eisPacket.ts: там же собирается оболочка
+// пакета, и обе части превью должны экранировать одинаково.
 
 // Объём финансового обеспечения (tenderPlan2020FinanceResourcesType)
 const financeResourcesXml = (
@@ -2251,8 +2251,9 @@ export const buildTenderPlan2020XmlPreview = (plan: PurchasePlan): string => {
         .join("")}</specialPurchasePositions>`
     : "";
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<tenderPlan2020 xmlns="http://zakupki.gov.ru/oos/TPtypes/1" schemeVersion="${dto.schemaVersion}">
+  // Тело документа выводится без собственного корня: имя глобального элемента,
+  // namespace и обязательный schemeVersion выставляет оболочка пакета
+  const bodyXml = `
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
   <planNumber>${escapeXml(dto.planNumber)}</planNumber>
   <versionNumber>${dto.versionNumber}</versionNumber>
@@ -2267,8 +2268,13 @@ export const buildTenderPlan2020XmlPreview = (plan: PurchasePlan): string => {
     <customerInfo>${customerXml}</customerInfo>
     <ownerInfo>${ownerXml}</ownerInfo>
   </commonInfo>${positionsXml}${specialXml}
-  <outcomeIndicators><totalsInfo>${financeResourcesXml(dto.totals)}</totalsInfo></outcomeIndicators>
-</tenderPlan2020>`;
+  <outcomeIndicators><totalsInfo>${financeResourcesXml(dto.totals)}</totalsInfo></outcomeIndicators>`;
+
+  // Корень пакета — tenderPlan2020 (objectType TP2020), а не «голый» документ:
+  // ЕИС принимает только пакет с индексной карточкой
+  return buildEisPacket(EIS_PACKET_DESCRIPTORS.tenderPlan, bodyXml, {
+    objectId: dto.planNumber,
+  });
 };
 
 export const buildNotification2020XmlPreview = (
@@ -2279,6 +2285,17 @@ export const buildNotification2020XmlPreview = (
     dto.notificationType === "Cancel"
       ? "notificationCancel"
       : `notification${dto.notificationType}`;
+
+  // Глобальные корни пакетов в Альбоме 17.0 есть только у электронного
+  // аукциона (fcsNotificationEF) и отмены извещения (fcsNotificationCancel).
+  // Для ЕОК/ЭЗК/ЭЗТ/ЕМЗ в fcsIntegration.xsd глобальных элементов нет — их
+  // выгрузку нельзя выдавать за готовую.
+  const packetDescriptor =
+    dto.notificationType === "Cancel"
+      ? EIS_PACKET_DESCRIPTORS.notificationCancel
+      : dto.notificationType === "EF2020"
+        ? EIS_PACKET_DESCRIPTORS.notificationEF
+        : null;
 
   const objectsXml = dto.notificationInfo.purchaseObjectsInfo.objects
     .map(
@@ -2477,8 +2494,9 @@ ${dto.notificationInfo.restrictionsInfo
     </restrictionsInfo>`
     : "";
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<${rootTag} xmlns="http://zakupki.gov.ru/oos/EPtypes/1" schemeVersion="${dto.schemaVersion}">
+  // Тело документа без корня: имя пакета, namespace и schemeVersion добавляет
+  // оболочка (eisPacket.ts), иначе XML не пройдёт XSD-проверку
+  const bodyXml = `
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
   <versionNumber>${dto.versionNumber}</versionNumber>
   <commonInfo>
@@ -2552,7 +2570,24 @@ ${restrictionsXml}
     <isControlP1Ch5St99>${dto.serviceSigns.isControlP1Ch5St99}</isControlP1Ch5St99>
     <is449Features>${dto.serviceSigns.is449Features}</is449Features>
   </serviceSigns>
+`;
+
+  if (!packetDescriptor) {
+    // Честная заглушка вместо «похожего на правильный» пакета: для этих
+    // способов закупки в Альбоме 17.0 нет глобального корня, и ЕИС такой
+    // документ не примет. Показываем документ с предупреждением.
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- ЕИС 17.0 (fcsIntegration.xsd): глобального корневого элемента для ${rootTag} в Альбоме нет.
+     Пакет в таком виде ЕИС не принимает — нужен маппер на поддерживаемый способ
+     либо уточнение формата у оператора ЕИС. -->
+<${rootTag} xmlns="http://zakupki.gov.ru/oos/EPtypes/1" schemeVersion="${dto.schemaVersion}">${bodyXml}
 </${rootTag}>`;
+  }
+
+  // Корень пакета: fcsNotificationEF (EF) или fcsNotificationCancel
+  return buildEisPacket(packetDescriptor, bodyXml, {
+    objectId: dto.commonInfo.purchaseNumber ?? undefined,
+  });
 };
 
 // ─── Проект контракта (IntegrationCPTypes.xsd) ───────────────────────────────
@@ -2857,8 +2892,9 @@ ${dto.files
   </contractProjectFilesInfo>`
     : "";
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<contractProject xmlns="http://zakupki.gov.ru/oos/CPtypes/1" schemeVersion="${dto.schemaVersion}">
+  // Тело документа без корня: cpContractProject, namespace CPtypes и
+  // обязательный schemeVersion добавляет оболочка пакета
+  const bodyXml = `
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
   <versionNumber>${dto.versionNumber}</versionNumber>
 ${foundationXml}
@@ -2882,5 +2918,11 @@ ${changePriceXml}
   ${dto.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
   ${dto.appNumber ? `<appNumber>${escapeXml(dto.appNumber)}</appNumber>` : ""}
 ${filesXml}
-</contractProject>`;
+`;
+
+  // Корень пакета — cpContractProject (objectType CP). <contractProject> из
+  // старого превью — это имя complexType, а не глобальный элемент XSD
+  return buildEisPacket(EIS_PACKET_DESCRIPTORS.contractProject, bodyXml, {
+    objectId: dto.purchaseNumber,
+  });
 };
