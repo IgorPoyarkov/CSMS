@@ -15,9 +15,16 @@ import {
   digitsOnly,
   eisDocumentTypeLabels,
   isEisContractNumber,
+  isEisDocumentTypeWithPayload,
   isIkz,
   type EisDocumentType,
 } from "../../services/Eis/eisPackages.schema";
+import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
+import {
+  buildContractProjectXmlPreview,
+  buildNotification2020XmlPreview,
+} from "../../services/Eis/eis17Types";
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
 import EisPackageCard from "./EisPackageCard";
 import styles from "./EisPackagesPage.module.scss";
@@ -42,6 +49,11 @@ export default function EisPackagesPage() {
   const { data: contracts = [] } = useContractRegistry(organization?.id);
   const { data: packages = [], isPending, isError, error } = useEisPackages();
   const createPackage = useCreateEisPackage();
+  // Документы CSMS, из которых собирается готовый XML пакета
+  const { data: notices = [] } = useNotices();
+  const { data: contractProjects = [] } = useOrganizationContractProjects(
+    organization?.id ?? 1,
+  );
 
   // Во встроенном браузере приложения плагина КриптоПро нет и быть не может.
   // Об этом честнее сказать сразу, чем дать человеку нажать «Подписать»
@@ -50,9 +62,12 @@ export default function EisPackagesPage() {
   const currentUrl = typeof window === "undefined" ? "" : window.location.href;
 
   const [documentType, setDocumentType] =
-    useState<EisDocumentType>("SmpAttraction");
+    useState<EisDocumentType>("Notification");
   const [contractEisNumber, setContractEisNumber] = useState("");
   const [ikz, setIkz] = useState("");
+  // Документ-источник для типов с готовым XML
+  const [pickedNoticeId, setPickedNoticeId] = useState("");
+  const [pickedProjectId, setPickedProjectId] = useState("");
   // Выбранная карточка контракта: из неё берутся оба номера. Ручной ввод —
   // исключение (контракт ещё не заведён), поэтому он включается отдельно
   const [pickedContractId, setPickedContractId] = useState("");
@@ -67,7 +82,8 @@ export default function EisPackagesPage() {
       (item) => item.status === "RejectedByFlk",
     ).length;
     const inWork = packages.filter(
-      (item) => item.status !== "AcceptedInLk" && item.status !== "RejectedByFlk",
+      (item) =>
+        item.status !== "AcceptedInLk" && item.status !== "RejectedByFlk",
     ).length;
 
     return { accepted, rejected, inWork };
@@ -78,6 +94,15 @@ export default function EisPackagesPage() {
   // Пока номера взяты из карточки, поля только для чтения: править их надо
   // там, где они живут, иначе по системе разъедутся две версии одного номера
   const numbersFromContract = pickedContract !== null && !manualInput;
+
+  // Извещение и проект контракта — источники готового XML. Реестрового
+  // номера контракта у них ещё нет, поэтому он не требуется.
+  const pickedNotice =
+    notices.find((item) => String(item.id) === pickedNoticeId) ?? null;
+  const pickedProject =
+    contractProjects.find((item) => String(item.id) === pickedProjectId) ??
+    null;
+  const withPayload = isEisDocumentTypeWithPayload(documentType);
 
   const pickContract = (contractId: string) => {
     const contract = contracts.find(
@@ -94,10 +119,37 @@ export default function EisPackagesPage() {
     setIkz(contract?.ikz ?? "");
   };
 
+  const pickNotice = (noticeId: string) => {
+    const notice = notices.find((item) => String(item.id) === String(noticeId));
+
+    setPickedNoticeId(noticeId);
+    setFormError("");
+    setIkz(notice?.generalInfo.ikz ?? "");
+  };
+
+  const pickProject = (projectId: string) => {
+    const project = contractProjects.find(
+      (item) => String(item.id) === String(projectId),
+    );
+
+    setPickedProjectId(projectId);
+    setFormError("");
+    setIkz(project?.ikz ?? "");
+  };
+
   async function create() {
     setFormError("");
 
-    if (!isEisContractNumber(contractEisNumber)) {
+    if (documentType === "Notification" && !pickedNotice) {
+      setFormError("Выберите сохранённое извещение — из него собирается XML.");
+      return;
+    }
+    if (documentType === "ContractProject" && !pickedProject) {
+      setFormError("Выберите проект контракта — из него собирается XML.");
+      return;
+    }
+
+    if (!withPayload && !isEisContractNumber(contractEisNumber)) {
       setFormError(
         `Реестровый номер контракта в ЕИС — ${EIS_CONTRACT_NUMBER_LENGTH} цифр ` +
           `(например, 0373100000123000001). Сейчас введено «${contractEisNumber}». ` +
@@ -124,15 +176,25 @@ export default function EisPackagesPage() {
     }
 
     try {
+      const payloadXml =
+        documentType === "Notification" && pickedNotice
+          ? buildNotification2020XmlPreview(pickedNotice)
+          : documentType === "ContractProject" && pickedProject
+            ? buildContractProjectXmlPreview(pickedProject)
+            : undefined;
+
       await createPackage.mutateAsync({
         documentType,
         contractEisNumber: contractEisNumber.trim(),
         ikz: ikz.trim(),
+        payloadXml,
       });
 
       setContractEisNumber("");
       setIkz("");
       setPickedContractId("");
+      setPickedNoticeId("");
+      setPickedProjectId("");
       setManualInput(false);
     } catch (caught) {
       setFormError(describeEisError(caught));
@@ -198,53 +260,94 @@ export default function EisPackagesPage() {
 
           <label className={block("field")}>
             <span className={block("label")}>
-              Контракт (номер ЕИС и ИКЗ подставятся из карточки)
+              {withPayload
+                ? "Документ CSMS — источник XML"
+                : "Контракт (номер ЕИС и ИКЗ подставятся из карточки)"}
             </span>
-            <select
-              className={block("select")}
-              value={pickedContractId}
-              onChange={(event) => pickContract(event.target.value)}
-            >
-              <option value="">— не выбран —</option>
-              {contracts.map((contract) => (
-                <option key={contract.id} value={String(contract.id)}>
-                  {contract.contractNumber} · {contract.supplierName}
-                  {contract.eisRegistryNumber
-                    ? ` · ЕИС ${contract.eisRegistryNumber}`
-                    : ""}
-                </option>
-              ))}
-            </select>
+            {withPayload ? (
+              <select
+                className={block("select")}
+                value={
+                  documentType === "Notification"
+                    ? pickedNoticeId
+                    : pickedProjectId
+                }
+                onChange={(event) =>
+                  documentType === "Notification"
+                    ? pickNotice(event.target.value)
+                    : pickProject(event.target.value)
+                }
+              >
+                <option value="">— не выбран —</option>
+                {documentType === "Notification"
+                  ? notices.map((notice) => (
+                      <option key={notice.id} value={String(notice.id)}>
+                        № {notice.generalInfo.noticeNumber ?? "б/н"} ·{" "}
+                        {notice.generalInfo.orderName}
+                      </option>
+                    ))
+                  : contractProjects.map((project) => (
+                      <option key={project.id} value={String(project.id)}>
+                        {project.contractName || "Проект контракта"} ·{" "}
+                        {project.ikz || "без ИКЗ"}
+                      </option>
+                    ))}
+              </select>
+            ) : (
+              <select
+                className={block("select")}
+                value={pickedContractId}
+                onChange={(event) => pickContract(event.target.value)}
+              >
+                <option value="">— не выбран —</option>
+                {contracts.map((contract) => (
+                  <option key={contract.id} value={String(contract.id)}>
+                    {contract.contractNumber} · {contract.supplierName}
+                    {contract.eisRegistryNumber
+                      ? ` · ЕИС ${contract.eisRegistryNumber}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
         </div>
 
         <div className={block("form-row")}>
-          <label className={block("field")}>
-            <span className={block("label")}>
-              Реестровый номер контракта в ЕИС
-            </span>
-            <input
-              className={block("input", numbersFromContract ? ["readonly"] : [])}
-              value={contractEisNumber}
-              onChange={(event) =>
-                setContractEisNumber(
-                  digitsOnly(event.target.value).slice(
-                    0,
-                    EIS_CONTRACT_NUMBER_LENGTH,
-                  ),
-                )
-              }
-              readOnly={numbersFromContract}
-              placeholder="19 цифр, например 0373100000123000001"
-              inputMode="numeric"
-              maxLength={EIS_CONTRACT_NUMBER_LENGTH}
-            />
-          </label>
+          {!withPayload && (
+            <label className={block("field")}>
+              <span className={block("label")}>
+                Реестровый номер контракта в ЕИС
+              </span>
+              <input
+                className={block(
+                  "input",
+                  numbersFromContract ? ["readonly"] : [],
+                )}
+                value={contractEisNumber}
+                onChange={(event) =>
+                  setContractEisNumber(
+                    digitsOnly(event.target.value).slice(
+                      0,
+                      EIS_CONTRACT_NUMBER_LENGTH,
+                    ),
+                  )
+                }
+                readOnly={numbersFromContract}
+                placeholder="19 цифр, например 0373100000123000001"
+                inputMode="numeric"
+                maxLength={EIS_CONTRACT_NUMBER_LENGTH}
+              />
+            </label>
+          )}
 
           <label className={block("field")}>
             <span className={block("label")}>ИКЗ</span>
             <input
-              className={block("input", numbersFromContract ? ["readonly"] : [])}
+              className={block(
+                "input",
+                numbersFromContract ? ["readonly"] : [],
+              )}
               value={ikz}
               onChange={(event) =>
                 setIkz(digitsOnly(event.target.value).slice(0, IKZ_LENGTH))
@@ -305,8 +408,8 @@ export default function EisPackagesPage() {
 
       {!isPending && !isError && packages.length === 0 && (
         <div className={block("empty")}>
-          Пакетов пока нет. Создайте первый: выберите контракт — реестровый номер
-          ЕИС и ИКЗ подставятся из его карточки.
+          Пакетов пока нет. Создайте первый: выберите контракт — реестровый
+          номер ЕИС и ИКЗ подставятся из его карточки.
         </div>
       )}
 

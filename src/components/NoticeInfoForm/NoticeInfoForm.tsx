@@ -1512,7 +1512,10 @@ const NoticeInfoForm = () => {
     state.nmck,
   ]);
 
-  const onSubmit = (formData: NoticeInfoFormValues) => {
+  const onSubmit = (
+    formData: NoticeInfoFormValues,
+    next: "list" | "contract" = "list",
+  ) => {
     // Валидация минимальных сроков процедуры (ч. 2 ст. 45 44-ФЗ)
     const procedureError = validateProcedureDates(
       formData.procedureInfo.plannedPublishDate,
@@ -1615,7 +1618,36 @@ const NoticeInfoForm = () => {
     };
 
     createNotice(payload, {
-      onSuccess: () => {
+      onSuccess: (created) => {
+        // Прямой переход в проект контракта: сохранённое извещение уже есть,
+        // реестр /contract-projects для этого не нужен
+        const procurementId =
+          payload.procurementId ?? created?.procurementId ?? id;
+
+        if (
+          next === "contract" &&
+          procurementId !== undefined &&
+          procurementId !== null &&
+          procurementId !== ""
+        ) {
+          navigate(
+            `/procurement-processing/${procurementId}/contract-project`,
+            {
+              state: {
+                procurementId,
+                ikz: payload.ikz || payload.generalInfo.ikz,
+                name: payload.generalInfo.orderName,
+                procurementType: payload.generalInfo.orderName,
+                nmck: payload.generalInfo.nmck,
+                noticeNumber: payload.generalInfo.noticeNumber ?? undefined,
+                kbk: payload.generalInfo.kbk ?? undefined,
+              },
+            },
+          );
+
+          return;
+        }
+
         navigate("/procurement-processing");
       },
     });
@@ -1648,7 +1680,10 @@ const NoticeInfoForm = () => {
       )}
 
       <FormProvider {...methods}>
-        <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
+        <form
+          className={block("form")}
+          onSubmit={handleSubmit((data) => onSubmit(data))}
+        >
           <NoticeStateSection />
           {/* Способ определения поставщика приходит из служебной записки —
               в извещении он показывается зафиксированным */}
@@ -1729,6 +1764,14 @@ const NoticeInfoForm = () => {
               onClick={() => setShowEisXml((prev) => !prev)}
             >
               {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={isSaving}
+              onClick={handleSubmit((data) => onSubmit(data, "contract"))}
+            >
+              Сохранить и сформировать проект контракта
             </button>
             <NormingSubmitButton isSaving={isSaving} />
           </footer>

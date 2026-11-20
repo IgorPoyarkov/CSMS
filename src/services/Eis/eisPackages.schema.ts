@@ -11,6 +11,8 @@ import z from "zod";
  */
 
 export const EIS_DOCUMENT_TYPES = [
+  "Notification",
+  "ContractProject",
   "SmpAttraction",
   "ContractExecution",
 ] as const;
@@ -31,9 +33,25 @@ export const EIS_PACKAGE_STATUSES = [
 export type EisPackageStatus = (typeof EIS_PACKAGE_STATUSES)[number];
 
 export const eisDocumentTypeLabels: Record<EisDocumentType, string> = {
+  Notification: "Извещение о закупке",
+  ContractProject: "Проект контракта",
   SmpAttraction: "Привлечение СМП",
   ContractExecution: "Исполнение контракта",
 };
+
+/**
+ * Типы, которые собираются из документов CSMS (извещение и проект контракта)
+ * и потому могут передать в шлюз готовый XML (payloadXml). Остальные типы
+ * шлюз собирает заглушкой.
+ */
+export const EIS_DOCUMENT_TYPES_WITH_PAYLOAD: readonly EisDocumentType[] = [
+  "Notification",
+  "ContractProject",
+];
+
+export const isEisDocumentTypeWithPayload = (
+  type: EisDocumentType,
+): boolean => EIS_DOCUMENT_TYPES_WITH_PAYLOAD.includes(type);
 
 export const eisPackageStatusLabels: Record<EisPackageStatus, string> = {
   Draft: "Черновик",

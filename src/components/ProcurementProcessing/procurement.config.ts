@@ -11,6 +11,7 @@
 export type ProcurementActionType =
   | "view_notice" // Просмотр / редактирование извещения
   | "edit_notice" // Внесение изменений в извещение
+  | "create_contract_project" // Сформировать проект контракта по извещению
   | "cancel_notice" // Отмена извещения
   | "generate_docs" // Типовые документы (приказ о комиссии, протокол заявок)
   | "delete_procurement"; // Удаление записи
@@ -37,6 +38,13 @@ export const noticeActions: NoticeActionConfig[] = [
     title: "Внести изменения в извещение",
     icon: "✎",
     tone: "info",
+  },
+  {
+    action: "create_contract_project",
+    label: "Проект контракта",
+    title: "Сформировать проект контракта по сохранённому извещению",
+    icon: "📝",
+    tone: "primary",
   },
   {
     action: "cancel_notice",

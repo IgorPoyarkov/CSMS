@@ -9,6 +9,7 @@ import type {
   NoticeEvaluationCriterionType,
   NoticeInfoFormValues,
 } from "../Procurements/noticeInfo.schema";
+import type { ContractProject } from "../ContractProject/contractProject.schema";
 
 /**
  * Контракты ЕИС 17.0 (из XSD-схем CSMS-API: schemas/17.0).
@@ -401,6 +402,22 @@ export interface EisNotification2020 {
         manufacturersWarrantyRequirement?: string;
         warrantyTerm?: string;
       };
+      // provisionWarranty — обеспечение гарантийных обязательств
+      provisionWarranty?: {
+        amount?: number;
+        part?: number;
+        procedureInfo?: string;
+      };
+      // stagesInfo — этапы исполнения контракта
+      // (customerRequirementInfo/contractConditionsInfo/contractExecutionPaymentPlan)
+      stagesInfo?: Array<{
+        externalSid?: string;
+        start: number;
+        startDayType: "C" | "W";
+        term: number;
+        termDayType: "C" | "W";
+        amount?: number;
+      }>;
       deliveryTerm: {
         isRelative: boolean;
         relativeTermsInfo?: {
@@ -463,6 +480,32 @@ export interface EisNotification2020 {
       code: EisCostCriterionCode | EisQualitativeCriterionCode;
       valueInfo: number;
       indicatorsCount: number;
+    }>;
+    // preferensesInfo — преимущества участникам (ст. 28–30 44-ФЗ)
+    preferensesInfo: Array<{
+      code: string;
+      name?: string;
+      value?: number;
+    }>;
+    // requirementsInfo — требования к участникам (ст. 31 44-ФЗ)
+    requirementsInfo: Array<{
+      code: string;
+      name?: string;
+      content?: string;
+      addRequirements?: string[];
+    }>;
+    // restrictionsInfo — ограничения национального режима (ст. 14 44-ФЗ)
+    restrictionsInfo: Array<{
+      code: string;
+      name?: string;
+      content?: string;
+      restrictionsSt14?: Array<{
+        type: "BAN" | "RA" | "AC";
+        npaCode?: string;
+        npaName?: string;
+        imposibilityBan?: boolean;
+        imposibilityBanReason?: string;
+      }>;
     }>;
     flags: {
       purchaseObjectsCh9St37: boolean;
@@ -797,6 +840,143 @@ export const mapPurchasePlanToEis17 = (
   };
 };
 
+// Коды преимуществ и требований из справочника nsiPurchasePreferences.
+// Требования (ET44, TU44, TR442, ETP44312, TOVNPIVR) перечислены в XSD
+// IntegrationEPTypes.xsd; коды преимуществ (P1–P3) соответствуют записям
+// справочника и подлежат сверке при обновлении НСИ.
+const EIS_PREFERENCE_SMP = "P3";
+const EIS_PREFERENCE_PENAL = "P1";
+const EIS_PREFERENCE_DISABLED = "P2";
+// Ограничение национального режима: запрет/ограничение допуска (ст. 14)
+const EIS_RESTRICTION_ST14 = "JB2149";
+
+interface NoticePreferencesMapping {
+  preferensesInfo: EisNotification2020["notificationInfo"]["preferensesInfo"];
+  requirementsInfo: EisNotification2020["notificationInfo"]["requirementsInfo"];
+  restrictionsInfo: EisNotification2020["notificationInfo"]["restrictionsInfo"];
+}
+
+/**
+ * Преимущества, требования ст. 31 и ограничения нацрежима извещения.
+ *
+ * В форме они ведутся флагами и текстами (participantsRequirements), а в XSD
+ * лежат отдельными блоками notificationInfo/preferensesInfo,
+ * requirementsInfo и restrictionsInfo. Национальный режим собирается по
+ * позициям объекта закупки: запрет и ограничение допуска — это restrictionInfo
+ * с кодом JB2149 и перечнем restrictionSt14.
+ */
+const mapNoticePreferences = (
+  notice: NoticeInfoFormValues,
+): NoticePreferencesMapping => {
+  const requirements = notice.participantsRequirements;
+
+  const preferensesInfo: NoticePreferencesMapping["preferensesInfo"] = [];
+  if (requirements.advantagePenalSystemArt28) {
+    preferensesInfo.push({
+      code: EIS_PREFERENCE_PENAL,
+      name: "Преимущество учреждениям и предприятиям уголовно-исполнительной системы (ст. 28)",
+    });
+  }
+  if (requirements.advantageDisabledArt29) {
+    preferensesInfo.push({
+      code: EIS_PREFERENCE_DISABLED,
+      name: "Преимущество организациям инвалидов (ст. 29)",
+    });
+  }
+  if (requirements.advantageSmpPart3Art30) {
+    preferensesInfo.push({
+      code: EIS_PREFERENCE_SMP,
+      name: "Преимущество субъектам малого предпринимательства и СОНКО (ч. 3 ст. 30)",
+    });
+  }
+
+  const requirementsInfo: NoticePreferencesMapping["requirementsInfo"] = [];
+  if (requirements.unifiedRequirementsPart1Art31) {
+    requirementsInfo.push({
+      code: "ET44",
+      name: "Единые требования к участникам закупок (ч. 1 ст. 31)",
+      content: requirements.unifiedRequirementsPart1Art31Text || undefined,
+    });
+  }
+  if (requirements.additionalRequirementsPart2Art31) {
+    requirementsInfo.push({
+      code: "TU44",
+      name: "Дополнительные требования к участникам закупок (ч. 2 ст. 31)",
+      content: requirements.additionalRequirementsPart2Art31Text || undefined,
+      addRequirements: requirements.pp2571Positions?.length
+        ? requirements.pp2571Positions
+        : undefined,
+    });
+  }
+  if (requirements.requirementsPart1_1Art31) {
+    requirementsInfo.push({
+      code: "TR442",
+      name: "Требования к участникам закупок (ч. 1.1 ст. 31)",
+    });
+  }
+  if (requirements.requirementsPart2_1Art31) {
+    requirementsInfo.push({
+      code: "ETP44312",
+      name: "Требования к участникам закупок (ч. 2.1 ст. 31)",
+      content: requirements.requirementsPart2_1Art31Text || undefined,
+    });
+  }
+  if (
+    requirements.pp2571Point4Requirement ||
+    requirements.sanctionsRnpRequirement
+  ) {
+    requirementsInfo.push({
+      code: "TOVNPIVR",
+      name: "Отсутствие в РНП информации об отказе от исполнения контракта из-за санкций",
+      content: requirements.pp2571Point4RequirementText || undefined,
+    });
+  }
+
+  // Национальный режим: в извещении он задан по позициям, в XSD — общим
+  // блоком ограничений. Запрет и ограничение допуска выводятся отдельными
+  // restrictionInfo, чтобы в превью было видно основание.
+  const restrictionsInfo: NoticePreferencesMapping["restrictionsInfo"] = [];
+  const modes = new Set(
+    notice.purchaseObjects.items.map((item) => item.nationalRegimeType),
+  );
+  const npa = {
+    npaCode: "PP1875",
+    npaName:
+      "Постановление Правительства РФ от 23.12.2024 № 1875 «О мерах по предоставлению национального режима...»",
+  };
+  if (modes.has("ban")) {
+    const banItem = notice.purchaseObjects.items.find(
+      (item) => item.nationalRegimeType === "ban",
+    );
+    restrictionsInfo.push({
+      code: EIS_RESTRICTION_ST14,
+      name: "Запрет на допуск товаров, работ, услуг (ст. 14)",
+      content:
+        banItem?.imposibilityBanReason ||
+        "Запрет на допуск товаров, работ, услуг при осуществлении закупок",
+      restrictionsSt14: [
+        {
+          type: "BAN",
+          ...npa,
+          imposibilityBan: Boolean(banItem?.imposibilityBan),
+          imposibilityBanReason: banItem?.imposibilityBanReason || undefined,
+        },
+      ],
+    });
+  }
+  if (modes.has("restriction")) {
+    restrictionsInfo.push({
+      code: EIS_RESTRICTION_ST14,
+      name: "Ограничение допуска товаров, работ, услуг (ст. 14)",
+      content:
+        "Ограничение допуска товаров, работ, услуг при осуществлении закупок",
+      restrictionsSt14: [{ type: "RA", ...npa }],
+    });
+  }
+
+  return { preferensesInfo, requirementsInfo, restrictionsInfo };
+};
+
 /**
  * Преобразует извещение фронтенда в структуру notification2020Type (ЕИС 17.0).
  */
@@ -960,6 +1140,30 @@ export const mapNoticeInfoToEis17 = (
                 undefined,
             }
           : undefined,
+        // Обеспечение гарантийных обязательств (provisionWarranty)
+        provisionWarranty: notice.participantsRequirements
+          .requiresWarrantySecurity
+          ? {
+              part: notice.participantsRequirements.warrantySecurityPercent,
+              procedureInfo:
+                notice.participantsRequirements.warrantySecurityOrder ||
+                undefined,
+            }
+          : undefined,
+        // Этапы исполнения контракта: XSD ждёт их в плане оплаты, а не
+        // отдельным блоком извещения
+        stagesInfo: notice.contractConditions.hasMultipleStages
+          ? (notice.contractConditions.stages ?? []).map((stage) => ({
+              externalSid: `stage-${stage.stageNumber}`,
+              start: stage.startOffsetDays,
+              startDayType: notice.contractConditions.startDayType ?? "C",
+              term: stage.durationDays,
+              termDayType: notice.contractConditions.termDayType ?? "C",
+              amount:
+                stage.kbkRows.reduce((sum, row) => sum + row.total, 0) ||
+                undefined,
+            }))
+          : undefined,
         deliveryTerm: notice.contractConditions.isRelativeTerms
           ? {
               isRelative: true,
@@ -1082,6 +1286,7 @@ export const mapNoticeInfoToEis17 = (
           notice.contractConditions.isExecutionStagesTerms,
         ),
       },
+      ...mapNoticePreferences(notice),
     },
     modificationInfo: notice.modificationInfo?.reasonCode
       ? {
@@ -2129,6 +2334,149 @@ export const buildNotification2020XmlPreview = (
     )
     .join("\n");
 
+  const dayType = (value: "C" | "W"): string =>
+    value === "W" ? "working" : "calendar";
+
+  const customerRequirement = dto.notificationInfo.customerRequirementInfo;
+  const contractConditions = dto.notificationInfo.contractConditionsInfo;
+
+  // Обеспечения: заявки, исполнения контракта и гарантийных обязательств.
+  // Реквизиты счёта в превью не выводятся — их подставляет ЕИС из карточки
+  // заказчика; здесь видны размер и порядок внесения.
+  const guaranteeXml = (
+    tag: "applicationGuarantee" | "contractGuarantee" | "provisionWarranty",
+    value: { part?: number; procedureInfo?: string } | undefined,
+  ): string =>
+    value
+      ? `      <${tag}>
+        ${value.part !== undefined ? `<part>${value.part}</part>` : ""}
+        ${value.procedureInfo ? `<procedureInfo>${escapeXml(value.procedureInfo)}</procedureInfo>` : ""}
+      </${tag}>`
+      : "";
+
+  // Этапы исполнения контракта — внутри плана оплаты
+  const stagesXml = customerRequirement.stagesInfo?.length
+    ? `      <contractExecutionPaymentPlan>
+        <stagesInfo>
+${customerRequirement.stagesInfo
+  .map(
+    (stage) => `          <stageInfo>
+            ${stage.externalSid ? `<externalSid>${escapeXml(stage.externalSid)}</externalSid>` : ""}
+            <termsInfo>
+              <relativeTermsInfo>
+                <start>${stage.start}</start>
+                <startDayType>${dayType(stage.startDayType)}</startDayType>
+                <term>${stage.term}</term>
+                <termDayType>${dayType(stage.termDayType)}</termDayType>
+              </relativeTermsInfo>
+            </termsInfo>
+          </stageInfo>`,
+  )
+  .join("\n")}
+        </stagesInfo>
+      </contractExecutionPaymentPlan>`
+    : "";
+
+  const deliveryTermXml = customerRequirement.deliveryTerm.isRelative
+    ? `      <deliveryTerm>
+        <relativeTermsInfo>
+          <start>${customerRequirement.deliveryTerm.relativeTermsInfo?.start ?? 0}</start>
+          <startDayType>${dayType(customerRequirement.deliveryTerm.relativeTermsInfo?.startDayType ?? "C")}</startDayType>
+          <term>${customerRequirement.deliveryTerm.relativeTermsInfo?.term ?? 0}</term>
+          <termDayType>${dayType(customerRequirement.deliveryTerm.relativeTermsInfo?.termDayType ?? "C")}</termDayType>
+        </relativeTermsInfo>
+      </deliveryTerm>`
+    : `      <deliveryTerm>
+        <notRelativeTermsInfo>
+          ${customerRequirement.deliveryTerm.notRelativeTermsInfo?.startDate ? `<startDate>${escapeXml(customerRequirement.deliveryTerm.notRelativeTermsInfo.startDate)}</startDate>` : ""}
+          ${customerRequirement.deliveryTerm.notRelativeTermsInfo?.endDate ? `<endDate>${escapeXml(customerRequirement.deliveryTerm.notRelativeTermsInfo.endDate)}</endDate>` : ""}
+        </notRelativeTermsInfo>
+      </deliveryTerm>`;
+
+  const deliveryPlacesXml = customerRequirement.deliveryPlacesInfo.length
+    ? `      <deliveryPlacesInfo>
+${customerRequirement.deliveryPlacesInfo
+  .map(
+    (place) => `        <deliveryPlaceInfo>
+          <country><code>${escapeXml(place.countryCode)}</code><fullName>${escapeXml(place.countryFullName)}</fullName></country>
+          ${place.garGuid ? `<garGuid>${escapeXml(place.garGuid)}</garGuid>` : ""}
+          <deliveryPlace>${escapeXml(place.deliveryPlace)}</deliveryPlace>
+        </deliveryPlaceInfo>`,
+  )
+  .join("\n")}
+      </deliveryPlacesInfo>`
+    : "";
+
+  // Преимущества (ст. 28–30) — блок notificationInfo/preferensesInfo
+  const preferensesXml = dto.notificationInfo.preferensesInfo.length
+    ? `    <preferensesInfo>
+${dto.notificationInfo.preferensesInfo
+  .map(
+    (pref) => `      <preferenseInfo>
+        <preferenseRequirementInfo><code>${escapeXml(pref.code)}</code>${pref.name ? `<name>${escapeXml(pref.name)}</name>` : ""}</preferenseRequirementInfo>
+        ${pref.value !== undefined ? `<prefValue>${pref.value}</prefValue>` : ""}
+      </preferenseInfo>`,
+  )
+  .join("\n")}
+    </preferensesInfo>`
+    : "";
+
+  // Требования к участникам (ст. 31) — notificationInfo/requirementsInfo
+  const requirementsXml = dto.notificationInfo.requirementsInfo.length
+    ? `    <requirementsInfo>
+${dto.notificationInfo.requirementsInfo
+  .map(
+    (req) => `      <requirementInfo>
+        <preferenseRequirementInfo><code>${escapeXml(req.code)}</code>${req.name ? `<name>${escapeXml(req.name)}</name>` : ""}</preferenseRequirementInfo>
+        ${req.content ? `<content>${escapeXml(req.content)}</content>` : ""}
+        ${
+          req.addRequirements?.length
+            ? `<addRequirements>${req.addRequirements
+                .map(
+                  (item) =>
+                    `<addRequirement><shortName>${escapeXml(item)}</shortName></addRequirement>`,
+                )
+                .join("")}</addRequirements>`
+            : ""
+        }
+      </requirementInfo>`,
+  )
+  .join("\n")}
+    </requirementsInfo>`
+    : "";
+
+  // Национальный режим (ст. 14) — notificationInfo/restrictionsInfo
+  const restrictionsXml = dto.notificationInfo.restrictionsInfo.length
+    ? `    <restrictionsInfo>
+${dto.notificationInfo.restrictionsInfo
+  .map(
+    (restriction) => `      <restrictionInfo>
+        <preferenseRequirementInfo><code>${escapeXml(restriction.code)}</code>${restriction.name ? `<name>${escapeXml(restriction.name)}</name>` : ""}</preferenseRequirementInfo>
+        ${
+          restriction.restrictionsSt14?.length
+            ? `<restrictionsSt14>${restriction.restrictionsSt14
+                .map(
+                  (st14) => `<restrictionSt14>
+            <requirementsType><requirementType><type>${st14.type}</type></requirementType></requirementsType>
+            <NPAInfo><code>${escapeXml(st14.npaCode ?? "")}</code>${st14.npaName ? `<name>${escapeXml(st14.npaName)}</name>` : ""}</NPAInfo>
+            ${
+              st14.imposibilityBan
+                ? `<exception><imposibilityBan>true</imposibilityBan>${st14.imposibilityBanReason ? `<imposibilityBanReason>${escapeXml(st14.imposibilityBanReason)}</imposibilityBanReason>` : ""}</exception>`
+                : ""
+            }
+          </restrictionSt14>`,
+                )
+                .join("")}</restrictionsSt14>`
+            : restriction.content
+              ? `<content>${escapeXml(restriction.content)}</content>`
+              : ""
+        }
+      </restrictionInfo>`,
+  )
+  .join("\n")}
+    </restrictionsInfo>`
+    : "";
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <${rootTag} xmlns="http://zakupki.gov.ru/oos/EPtypes/1" schemeVersion="${dto.schemaVersion}">
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
@@ -2152,25 +2500,31 @@ export const buildNotification2020XmlPreview = (
     </responsibleInfo>
   </purchaseResponsibleInfo>
   <notificationInfo>
-    <contractConditionsInfo>
-      <maxPriceInfo>
-        <maxPrice>${dto.notificationInfo.contractConditionsInfo.maxPrice.toFixed(2)}</maxPrice>
-        <currency><code>RUB</code><name>Российский рубль</name></currency>
-        ${dto.notificationInfo.contractConditionsInfo.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
-        ${dto.notificationInfo.contractConditionsInfo.contractPriceFormulaText ? `<contractPriceFormulaText>${escapeXml(dto.notificationInfo.contractConditionsInfo.contractPriceFormulaText)}</contractPriceFormulaText>` : ""}
-      </maxPriceInfo>
-      ${dto.notificationInfo.contractConditionsInfo.maxPriceCurrency !== undefined ? `<maxPriceCurrency>${dto.notificationInfo.contractConditionsInfo.maxPriceCurrency.toFixed(2)}</maxPriceCurrency>` : ""}
-      <interbudgetaryTransfer>${dto.notificationInfo.contractConditionsInfo.interbudgetaryTransfer}</interbudgetaryTransfer>
-      <contractLifeCycle>${dto.notificationInfo.contractConditionsInfo.contractLifeCycle}</contractLifeCycle>
-    </contractConditionsInfo>
     <customerRequirementsInfo>
       <customerRequirementInfo>
-        <tenderPlan2020Info>
-          ${dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.plan2020Number ? `<plan2020Number>${escapeXml(dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.plan2020Number)}</plan2020Number>` : ""}
-          ${dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.position2020Number ? `<position2020Number>${escapeXml(dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.position2020Number)}</position2020Number>` : ""}
-          ${dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.position2020ExtNumber ? `<position2020ExtNumber>${escapeXml(dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info.position2020ExtNumber)}</position2020ExtNumber>` : ""}
-        </tenderPlan2020Info>
-        <IKZ>${escapeXml(dto.notificationInfo.customerRequirementInfo.ikz)}</IKZ>
+        ${guaranteeXml("applicationGuarantee", customerRequirement.applicationGuarantee)}
+        ${guaranteeXml("contractGuarantee", customerRequirement.contractGuarantee)}
+        ${guaranteeXml("provisionWarranty", customerRequirement.provisionWarranty)}
+        <contractConditionsInfo>
+          <maxPriceInfo>
+            <maxPrice>${contractConditions.maxPrice.toFixed(2)}</maxPrice>
+            <currency><code>RUB</code><name>Российский рубль</name></currency>
+            ${contractConditions.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
+            ${contractConditions.contractPriceFormulaText ? `<contractPriceFormulaText>${escapeXml(contractConditions.contractPriceFormulaText)}</contractPriceFormulaText>` : ""}
+          </maxPriceInfo>
+          ${contractConditions.maxPriceCurrency !== undefined ? `<maxPriceCurrency>${contractConditions.maxPriceCurrency.toFixed(2)}</maxPriceCurrency>` : ""}
+          <interbudgetaryTransfer>${contractConditions.interbudgetaryTransfer}</interbudgetaryTransfer>
+          <contractLifeCycle>${contractConditions.contractLifeCycle}</contractLifeCycle>
+          <purchaseCode>${escapeXml(customerRequirement.ikz)}</purchaseCode>
+          <tenderPlan2020Info>
+            ${customerRequirement.tenderPlan2020Info.plan2020Number ? `<plan2020Number>${escapeXml(customerRequirement.tenderPlan2020Info.plan2020Number)}</plan2020Number>` : ""}
+            ${customerRequirement.tenderPlan2020Info.position2020Number ? `<position2020Number>${escapeXml(customerRequirement.tenderPlan2020Info.position2020Number)}</position2020Number>` : ""}
+            ${customerRequirement.tenderPlan2020Info.position2020ExtNumber ? `<position2020ExtNumber>${escapeXml(customerRequirement.tenderPlan2020Info.position2020ExtNumber)}</position2020ExtNumber>` : ""}
+          </tenderPlan2020Info>
+${stagesXml}
+${deliveryPlacesXml}
+${deliveryTermXml}
+        </contractConditionsInfo>
       </customerRequirementInfo>
     </customerRequirementsInfo>
     <purchaseObjectsInfo>
@@ -2189,6 +2543,9 @@ ${objectsXml}
       ${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency !== undefined ? `<totalSumCurrency>${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency.toFixed(2)}</totalSumCurrency>` : ""}
     </purchaseObjectsInfo>
     ${criteriaXml ? `<criteriaInfo>\n${criteriaXml}\n    </criteriaInfo>` : ""}
+${preferensesXml}
+${requirementsXml}
+${restrictionsXml}
   </notificationInfo>
   <serviceSigns>
     <isIncludeKOKS>${dto.serviceSigns.isIncludeKOKS}</isIncludeKOKS>
@@ -2196,4 +2553,334 @@ ${objectsXml}
     <is449Features>${dto.serviceSigns.is449Features}</is449Features>
   </serviceSigns>
 </${rootTag}>`;
+};
+
+// ─── Проект контракта (IntegrationCPTypes.xsd) ───────────────────────────────
+
+/**
+ * Снимок проекта контракта для выгрузки в contractProjectType.
+ *
+ * Идентификаторы ЕИС (ЭТП, способ, ИКЗ, заказчик, поставщик) при приёме
+ * подтягивает из связанного извещения по foundationInfo/purchaseNumber,
+ * поэтому в превью они выводятся только при наличии — пустые блоки не
+ * создаются, чтобы не выдавать заведомо неполный документ за готовый.
+ */
+export interface EisContractProject2020 {
+  schemaVersion: "17.0";
+  externalId?: string;
+  versionNumber: number;
+  purchaseNumber: string;
+  etpName?: string;
+  etpUrl?: string;
+  placingWayCode?: string;
+  ikz?: string;
+  protocol?: {
+    name: string;
+    number: string;
+    publishDate: string;
+  };
+  customer?: {
+    fullName: string;
+    shortName?: string;
+    inn?: string;
+    kpp?: string;
+    address?: string;
+    email?: string;
+    phone?: string;
+  };
+  placerRole: string;
+  participant?: {
+    fullName: string;
+    inn?: string;
+    kpp?: string;
+    ogrn?: string;
+    address?: string;
+    email?: string;
+    phone?: string;
+  };
+  quantityUndefined: boolean;
+  isStructuredForm: boolean;
+  subject?: string;
+  concludeContractRight: boolean;
+  changePrice?: number;
+  changePriceFoundation?: string;
+  price?: number;
+  currencyNumericCode: string;
+  contractNumber?: string;
+  conclusionContractSt95Ch17_1: boolean;
+  isContractPriceFormula: boolean;
+  appNumber?: string;
+  files: Array<{
+    fileName: string;
+    description?: string;
+    fileSize?: number;
+    fileFingerPrint?: string;
+  }>;
+}
+
+const positiveNumber = (value?: string): number | undefined => {
+  const parsed = Number.parseFloat(value ?? "");
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+/**
+ * Проект контракта → DTO contractProjectType (ЕИС 17.0).
+ *
+ * Цена берётся из changePriceInfo, если цена изменена относительно
+ * предложения поставщика, иначе из итоговой цены контракта.
+ */
+export const mapContractProjectToEis17 = (
+  project: ContractProject,
+): EisContractProject2020 => {
+  const info = project.eisInfo;
+  const changePrice = positiveNumber(info.changePrice);
+
+  return {
+    schemaVersion: "17.0",
+    externalId: project.id !== undefined ? String(project.id) : undefined,
+    versionNumber: 1,
+    purchaseNumber: (info.purchaseNumber || project.noticeNumber || "").trim(),
+    etpName: info.etpName || undefined,
+    etpUrl: info.etpUrl || undefined,
+    placingWayCode: info.placingWayCode || undefined,
+    ikz: project.ikz || undefined,
+    protocol:
+      info.protocolName && info.protocolNumber && info.protocolPublishDate
+        ? {
+            name: info.protocolName,
+            number: info.protocolNumber,
+            publishDate: info.protocolPublishDate,
+          }
+        : undefined,
+    customer: project.customerName
+      ? {
+          fullName: project.customerName,
+          shortName: project.requisites.customerShortName || undefined,
+          inn: project.requisites.customerInn || undefined,
+          kpp: project.requisites.customerKpp || undefined,
+          address: project.requisites.customerAddress || undefined,
+          email: project.requisites.customerEmail || undefined,
+          phone: project.requisites.customerPhone || undefined,
+        }
+      : undefined,
+    placerRole: info.placerRole || "CU",
+    participant: project.supplierName
+      ? {
+          fullName: project.supplierName,
+          inn: project.requisites.supplierInn || undefined,
+          kpp: project.requisites.supplierKpp || undefined,
+          ogrn: project.requisites.supplierOgrn || undefined,
+          address: project.requisites.supplierAddress || undefined,
+          email: project.requisites.supplierEmail || undefined,
+          phone: project.requisites.supplierPhone || undefined,
+        }
+      : undefined,
+    quantityUndefined: Boolean(info.quantityUndefined),
+    isStructuredForm: Boolean(info.isStructuredForm),
+    subject: project.subject.objectName || undefined,
+    concludeContractRight: Boolean(info.concludeContractRight),
+    changePrice,
+    changePriceFoundation: changePrice
+      ? info.changePriceFoundation || undefined
+      : undefined,
+    price: changePrice ?? positiveNumber(project.price.finalPrice),
+    currencyNumericCode: project.price.currencyCode || "643",
+    contractNumber: project.contractNumber || undefined,
+    conclusionContractSt95Ch17_1: Boolean(info.conclusionContractSt95Ch17_1),
+    isContractPriceFormula: Boolean(info.isContractPriceFormula),
+    appNumber: info.appNumber || undefined,
+    files: (info.contractProjectFiles ?? []).map((file) => ({
+      fileName: file.fileName,
+      description: file.description || undefined,
+      fileSize: file.fileSize,
+      fileFingerPrint: file.fileFingerPrint || undefined,
+    })),
+  };
+};
+
+/**
+ * Проверки проекта контракта по contractProjectType.
+ *
+ * Не заменяет XSD-валидацию, но ловит то, что ЕИС отклонит по существу:
+ * нет номера закупки, цены, предмета, а при неструктурированной форме —
+ * файлов проекта.
+ */
+export const validateContractProjectEis17 = (
+  project: ContractProject,
+): Eis17ValidationResult => {
+  const dto = mapContractProjectToEis17(project);
+  const issues: Eis17ValidationIssue[] = [];
+
+  const pushIssue = (
+    severity: Eis17ValidationIssue["severity"],
+    field: string,
+    message: string,
+  ) => issues.push({ severity, field, message });
+
+  if (!dto.purchaseNumber) {
+    pushIssue(
+      "error",
+      "eisInfo.purchaseNumber",
+      "Не указан номер закупки: без foundationInfo/purchaseNumber ЕИС не свяжет проект с извещением.",
+    );
+  }
+  if (!dto.subject) {
+    pushIssue(
+      "error",
+      "subject.objectName",
+      "Не указан предмет контракта (contractInfo/subject).",
+    );
+  }
+  if (!dto.price) {
+    pushIssue(
+      "error",
+      "price.finalPrice",
+      "Не указана цена контракта (contractInfo/price или changePriceInfo/changePrice).",
+    );
+  }
+  if (dto.changePrice && !dto.changePriceFoundation) {
+    pushIssue(
+      "error",
+      "eisInfo.changePriceFoundation",
+      "Цена изменена относительно предложения поставщика — укажите основание изменения (nsiChangePriceFoundation).",
+    );
+  }
+  if (!dto.isStructuredForm && dto.files.length === 0) {
+    pushIssue(
+      "error",
+      "eisInfo.contractProjectFiles",
+      "Проект не в структурированной форме: приложите файл проекта контракта, иначе ЕИС отклонит документ.",
+    );
+  }
+  if (!dto.protocol) {
+    pushIssue(
+      "warning",
+      "eisInfo.protocolInfo",
+      "Не заполнен протокол-основание: ЕИС заполнит его из связанной закупки, но для проверки лучше указать.",
+    );
+  }
+  if (!dto.appNumber) {
+    pushIssue(
+      "warning",
+      "eisInfo.appNumber",
+      "Не указан номер заявки победителя (appNumber).",
+    );
+  }
+  if (!project.requisites.supplierInn) {
+    pushIssue(
+      "warning",
+      "requisites.supplierInn",
+      "Не указан ИНН поставщика: participantInfo проверяется по итоговому протоколу.",
+    );
+  }
+
+  const errorsCount = issues.filter((i) => i.severity === "error").length;
+
+  return {
+    valid: errorsCount === 0,
+    issues,
+    errorsCount,
+    warningsCount: issues.length - errorsCount,
+  };
+};
+
+/** Предпросмотр XML проекта контракта для contractProjectType. */
+export const buildContractProjectXmlPreview = (
+  project: ContractProject,
+): string => {
+  const dto = mapContractProjectToEis17(project);
+
+  const foundationXml = `  <foundationInfo>
+    <purchaseNumber>${escapeXml(dto.purchaseNumber)}</purchaseNumber>
+    ${dto.etpName ? `<ETP><name>${escapeXml(dto.etpName)}</name>${dto.etpUrl ? `<url>${escapeXml(dto.etpUrl)}</url>` : ""}</ETP>` : ""}
+    ${dto.placingWayCode ? `<placingWay><code>${escapeXml(dto.placingWayCode)}</code></placingWay>` : ""}
+    ${dto.ikz ? `<purchaseCode>${escapeXml(dto.ikz)}</purchaseCode>` : ""}
+    ${
+      dto.protocol
+        ? `<protocolInfo>
+      <name>${escapeXml(dto.protocol.name)}</name>
+      <number>${escapeXml(dto.protocol.number)}</number>
+      <publishDTInEIS>${escapeXml(dto.protocol.publishDate)}</publishDTInEIS>
+    </protocolInfo>`
+        : ""
+    }
+  </foundationInfo>`;
+
+  // customerInfo — organizationType, у которого regNum обязателен. Без кода
+  // СПЗ блок не выводим: ЕИС при одном заказчике всё равно берёт его из
+  // извещения, а неполный блок только запутает проверку.
+  const customerXml = dto.customer?.inn
+    ? `  <customerInfo>
+    <fullName>${escapeXml(dto.customer.fullName)}</fullName>
+    ${dto.customer.inn ? `<INN>${escapeXml(dto.customer.inn)}</INN>` : ""}
+    ${dto.customer.kpp ? `<KPP>${escapeXml(dto.customer.kpp)}</KPP>` : ""}
+  </customerInfo>`
+    : "";
+
+  const participantXml = dto.participant?.inn
+    ? `  <participantInfo>
+    <legalEntityRFInfo>
+      <fullName>${escapeXml(dto.participant.fullName)}</fullName>
+      <INN>${escapeXml(dto.participant.inn)}</INN>
+      ${dto.participant.kpp ? `<KPP>${escapeXml(dto.participant.kpp)}</KPP>` : ""}
+      ${dto.participant.ogrn ? `<ogrn>${escapeXml(dto.participant.ogrn)}</ogrn>` : ""}
+      <contactInfo>
+        <orgPostAddress>${escapeXml(dto.participant.address ?? "")}</orgPostAddress>
+        <orgFactAddress>${escapeXml(dto.participant.address ?? "")}</orgFactAddress>
+        ${dto.participant.email ? `<contactEMail>${escapeXml(dto.participant.email)}</contactEMail>` : ""}
+        <contactPhone>${escapeXml(dto.participant.phone ?? "")}</contactPhone>
+      </contactInfo>
+    </legalEntityRFInfo>
+  </participantInfo>`
+    : "";
+
+  const changePriceXml =
+    dto.changePrice !== undefined
+      ? `      <changePriceInfo>
+        <changePrice>${dto.changePrice.toFixed(2)}</changePrice>
+        <changePriceFoundation>${escapeXml(dto.changePriceFoundation ?? "")}</changePriceFoundation>
+      </changePriceInfo>`
+      : "";
+
+  const filesXml = dto.files.length
+    ? `  <contractProjectFilesInfo>
+${dto.files
+  .map(
+    (file) => `    <contractProjectFileInfo>
+      <fileName>${escapeXml(file.fileName)}</fileName>
+      ${file.description ? `<description>${escapeXml(file.description)}</description>` : ""}
+      ${file.fileSize !== undefined ? `<fileSize>${file.fileSize}</fileSize>` : ""}
+      ${file.fileFingerPrint ? `<fileFingerPrint>${escapeXml(file.fileFingerPrint)}</fileFingerPrint>` : ""}
+    </contractProjectFileInfo>`,
+  )
+  .join("\n")}
+  </contractProjectFilesInfo>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<contractProject xmlns="http://zakupki.gov.ru/oos/CPtypes/1" schemeVersion="${dto.schemaVersion}">
+  ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
+  <versionNumber>${dto.versionNumber}</versionNumber>
+${foundationXml}
+${customerXml}
+  <placerInfo>
+    <responsibleOrg><fullName>${escapeXml(project.customerName || project.requisites.customerFullName || "")}</fullName>${project.requisites.customerInn ? `<INN>${escapeXml(project.requisites.customerInn)}</INN>` : ""}${project.requisites.customerKpp ? `<KPP>${escapeXml(project.requisites.customerKpp)}</KPP>` : ""}</responsibleOrg>
+    <responsibleRole>${escapeXml(dto.placerRole)}</responsibleRole>
+  </placerInfo>
+${participantXml}
+  ${dto.quantityUndefined ? "<quantityUndefined>true</quantityUndefined>" : ""}
+  <contractInfo>
+    ${dto.isStructuredForm ? "<isStructuredForm>true</isStructuredForm>" : ""}
+    ${dto.subject ? `<subject>${escapeXml(dto.subject)}</subject>` : ""}
+    ${dto.concludeContractRight ? "<concludeContractRight>true</concludeContractRight>" : ""}
+${changePriceXml}
+    ${dto.price !== undefined ? `<price>${dto.price.toFixed(2)}</price>` : ""}
+    <currency><code>${escapeXml(dto.currencyNumericCode)}</code><name>Российский рубль</name></currency>
+    ${dto.contractNumber ? `<number>${escapeXml(dto.contractNumber)}</number>` : ""}
+    ${dto.conclusionContractSt95Ch17_1 ? "<conclusionContractSt95Ch17.1>true</conclusionContractSt95Ch17.1>" : ""}
+  </contractInfo>
+  ${dto.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
+  ${dto.appNumber ? `<appNumber>${escapeXml(dto.appNumber)}</appNumber>` : ""}
+${filesXml}
+</contractProject>`;
 };

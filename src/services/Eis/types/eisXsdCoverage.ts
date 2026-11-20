@@ -390,20 +390,20 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       {
         field: "customer.okopf",
         xsd: "commonInfo/customerInfo/OKOPF",
-        status: "missing",
-        note: "ОКОПФ в карточке организации не хранится.",
+        status: "mapped",
+        note: "Код ОКОПФ ведётся в карточке организации и выгружается в customerInfo/OKOPF.",
       },
       {
         field: "customer.okfs",
         xsd: "commonInfo/customerInfo/OKFS",
-        status: "missing",
-        note: "ОКФС в карточке организации не хранится.",
+        status: "mapped",
+        note: "Код ОКФС ведётся в карточке организации и выгружается в customerInfo/OKFS.",
       },
       {
         field: "customer.oktmo",
         xsd: "commonInfo/customerInfo/OKTMOPPO",
-        status: "missing",
-        note: "ОКТМО есть только в реквизитах бюджета (ч. 13 ст. 44), в снимке заказчика его нет.",
+        status: "mapped",
+        note: "ОКТМО ППО берётся из реквизитов организации (oktmoPpo) и выгружается в customerInfo/OKTMOPPO.",
       },
       {
         field: "approvalAuthor",
@@ -828,9 +828,9 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "contractConditions.stages",
-        xsd: null,
-        status: "missing",
-        note: "Структурированных этапов в извещении не нашли: этапы живут в контракте.",
+        xsd: "customerRequirement/contractConditionsInfo/contractExecutionPaymentPlan/stagesInfo",
+        status: "mapped",
+        note: "Этапы выгружаются в stagesInfo с относительными сроками и внешним идентификатором этапа.",
       },
       {
         field:
@@ -878,15 +878,21 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "participantsRequirements.advantage*",
-        xsd: null,
-        status: "partial",
-        note: "Преимущества и требования ст. 31 в XSD разложены по отдельным блокам — сверять при маппинге.",
+        xsd: "notificationInfo/preferensesInfo",
+        status: "mapped",
+        note: "Преимущества ст. 28–30 выгружаются в preferensesInfo (коды nsiPurchasePreferences: P1, P2, P3).",
       },
       {
         field: "participantsRequirements.unifiedRequirements*",
-        xsd: null,
-        status: "partial",
-        note: "Требования к участникам в XSD идут отдельными блоками, не одним текстом.",
+        xsd: "notificationInfo/requirementsInfo",
+        status: "mapped",
+        note: "Требования ст. 31 выгружаются в requirementsInfo кодами ET44, TU44, TR442, ETP44312, TOVNPIVR.",
+      },
+      {
+        field: "purchaseObjects.items.nationalRegimeType",
+        xsd: "notificationInfo/restrictionsInfo",
+        status: "mapped",
+        note: "Запрет и ограничение допуска по позициям сводятся в restrictionInfo с кодом JB2149 и перечнем restrictionSt14.",
       },
       {
         field: "attachedDocs",
@@ -902,8 +908,8 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
     ],
     notes: [
       "Базовый контур извещения совпадает: предмет, НМЦК, способ, ЭТП, контакты, сроки подачи, валюта, аванс, обеспечения, документы.",
-      "Главные пробелы: purchaseNumber отдельно от noticeNumber, структурированные этапы/сроки, требования к участникам и нацрежим.",
-      "Технические поля (docPublishDate, href, printForm, extPrintForm, isGOZ, isBBST) заполняет ЕИС или они вне нашего scope.",
+      "Этапы, требования ст. 31, преимущества ст. 28–30 и ограничения нацрежима выгружаются отдельными блоками notificationInfo.",
+      "Остаётся различие purchaseNumber/docNumber и технические поля (docPublishDate, href, printForm, extPrintForm, isGOZ), которые заполняет ЕИС.",
     ],
   },
   {
@@ -1012,9 +1018,9 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       {
         field: "eisInfo.changePrice / changePriceFoundation",
         xsd: "contractInfo/changePriceInfo",
-        status: "missing",
+        status: "mapped",
         required: false,
-        note: "Изменение цены относительно предложения поставщика; у нас не заполняется.",
+        note: "Изменённая цена и основание выгружаются в changePriceInfo; при заполненной цене основание обязательно.",
       },
       {
         field: "price.finalPrice",
@@ -1079,17 +1085,24 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Дату направления на размещение ставит ЕИС.",
       },
       {
-        field: "appendices",
-        xsd: "contractProjectFilesInfo / electronicContractInfo",
-        status: "missing",
+        field: "eisInfo.contractProjectFiles",
+        xsd: "contractProjectFilesInfo/contractProjectFileInfo",
+        status: "mapped",
         required: false,
-        note: "Файлы проекта контракта и проект электронного контракта мы не формируем.",
+        note: "Файлы проекта контракта ведутся в форме и выгружаются в contractProjectFilesInfo; обязательны при isStructuredForm = false.",
+      },
+      {
+        field: "appendices",
+        xsd: "electronicContractInfo",
+        status: "partial",
+        required: false,
+        note: "Приложения контракта — основа для спецификации и техзадания; электронный контракт (electronicContractInfo) не формируется.",
       },
     ],
     notes: [
       "Проект контракта выгружается в contractProjectType (IntegrationCPTypes.xsd:6150); большинство идентификаторов ЕИС заполняет из связанного извещения по foundationInfo/purchaseNumber.",
-      "Пробелы по цепочке ПГ → СЗ → извещение: протокол-основание, номер заявки, признак структурированной формы, изменение цены и файлы проекта контракта.",
-      "Поля eisInfo.* — снимок для маппера, а не текст контракта; из формы в него попадают только значения, которые есть в извещении.",
+      "Изменение цены (changePriceInfo) и файлы проекта контракта (contractProjectFilesInfo) выгружаются из формы; файлы обязательны при неструктурированной форме.",
+      "Поля eisInfo.* — снимок для маппера, а не текст контракта; протокол-основание и номер заявки появляются после процедуры.",
     ],
   },
 ];

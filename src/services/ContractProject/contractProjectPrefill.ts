@@ -33,6 +33,9 @@ import {
 
 export interface ContractPrefillSources {
   organizationId: string | number;
+  // Ссылка на закупку — не выводится из ИКЗ: связь проекта с закупкой
+  // должна жить отдельно, иначе при смене ИКЗ проект «отвязывается»
+  procurementId?: string | number;
   notice?: NoticeInfoFormValues | null;
   note?: PurchaseNote | null;
   objectDescription?: ObjectDescription | null;
@@ -269,6 +272,8 @@ export const buildContractProjectDraft = (
       : `Контракт на ${terms.subjectAccusative}`);
   project.customerName = organizationName;
   project.supplierName = supplierName;
+  project.procurementId =
+    sources.procurementId ?? notice?.procurementId ?? "";
   project.ikz = notice?.generalInfo?.ikz || note?.ikz || sources.ikz || "";
   project.noticeNumber =
     notice?.generalInfo?.noticeNumber || sources.noticeNumber || "";

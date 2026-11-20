@@ -36,6 +36,10 @@ import {
   contractPrefillSourceLabels,
 } from "../../services/ContractProject/contractProjectPrefill";
 import {
+  buildContractProjectXmlPreview,
+  validateContractProjectEis17,
+} from "../../services/Eis/eis17Types";
+import {
   buildContractDocument,
   contractDocumentToText,
   contractTimelineText,
@@ -58,6 +62,8 @@ import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
 import styles from "./ContractProject.module.scss";
 
 interface ContractLocationState {
+  // Ссылка на закупку: проект не должен держаться только на ИКЗ
+  procurementId?: string | number;
   ikz?: string;
   name?: string;
   procurementType?: string;
@@ -97,6 +103,7 @@ export default function ContractProjectForm() {
   const [activeSection, setActiveSection] = useState("preamble");
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEisXml, setShowEisXml] = useState(false);
 
   // Существующий проект контракта именно этой закупки (по procurementId или ИКЗ)
   const existing = useMemo(() => {
@@ -195,6 +202,9 @@ export default function ContractProjectForm() {
       existing ??
       buildContractProjectDraft({
         organizationId: orgId,
+        // В маршруте /procurement-processing/:id/contract-project id — это
+        // идентификатор закупки, поэтому он и становится procurementId
+        procurementId: stateData?.procurementId ?? id,
         notice: matchedNotice ?? null,
         note: matchedNote ?? null,
         objectDescription: matchedDesc ?? null,
@@ -216,6 +226,8 @@ export default function ContractProjectForm() {
       matchedDesc,
       organization,
       procurementType,
+      id,
+      stateData?.procurementId,
       stateData?.ikz,
       stateData?.noticeNumber,
       stateData?.nmck,
@@ -259,6 +271,15 @@ export default function ContractProjectForm() {
   const issues = validateContractProject(project);
   const issueCounts = contractIssueCounts(issues);
   const document = useMemo(() => buildContractDocument(project), [project]);
+  // Проверка и XML по contractProjectType (ЕИС 17.0) — для выгрузки в пакет
+  const eisValidation = useMemo(
+    () => validateContractProjectEis17(project),
+    [project],
+  );
+  const eisXml = useMemo(
+    () => buildContractProjectXmlPreview(project),
+    [project],
+  );
 
   const stageArray = useFieldArray({
     control: methods.control,
@@ -267,6 +288,11 @@ export default function ContractProjectForm() {
   const appendixArray = useFieldArray({
     control: methods.control,
     name: "appendices",
+  });
+  // Файлы проекта контракта для неструктурированной выгрузки
+  const fileArray = useFieldArray({
+    control: methods.control,
+    name: "eisInfo.contractProjectFiles",
   });
 
   useEffect(() => {
@@ -438,6 +464,10 @@ export default function ContractProjectForm() {
     const payload: ContractProject = {
       ...data,
       organizationId: orgId,
+      // Связь с закупкой не теряется, даже если поле в форме пустое:
+      // берём его из состояния перехода или из маршрута
+      procurementId:
+        data.procurementId || stateData?.procurementId || id || "",
       appendices: (data.appendices ?? []).map((item, index) => ({
         ...item,
         number: index + 1,
@@ -826,6 +856,163 @@ export default function ContractProjectForm() {
           ))}
         </div>
       </article>
+
+      {/* Выгрузка в ЕИС: поля, которых нет в тексте контракта, но которые
+          требует contractProjectType (IntegrationCPTypes.xsd) */}
+      <div className={styles.stages}>
+        <div className={styles.stagesHead}>
+          <h4 className={styles.stagesTitle}>Выгрузка в ЕИС (проект контракта)</h4>
+          <span className={styles.articleRef}>
+            {eisValidation.errorsCount} ошибок · {eisValidation.warningsCount}{" "}
+            предупреждений
+          </span>
+        </div>
+
+        <div className={styles.fields}>
+          <label className={styles.field}>
+            <span className={styles.label}>Номер закупки в ЕИС</span>
+            <input
+              className={styles.input}
+              {...methods.register("eisInfo.purchaseNumber")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Номер заявки победителя</span>
+            <input
+              className={styles.input}
+              {...methods.register("eisInfo.appNumber")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Протокол-основание</span>
+            <input
+              className={styles.input}
+              placeholder="Наименование протокола"
+              {...methods.register("eisInfo.protocolName")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Номер протокола</span>
+            <input
+              className={styles.input}
+              {...methods.register("eisInfo.protocolNumber")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Дата протокола</span>
+            <input
+              type="date"
+              className={styles.input}
+              {...methods.register("eisInfo.protocolPublishDate")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>
+              Изменённая цена (changePriceInfo)
+            </span>
+            <input
+              className={styles.input}
+              inputMode="decimal"
+              placeholder="Только если цена изменена"
+              {...methods.register("eisInfo.changePrice")}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Основание изменения цены</span>
+            <input
+              className={styles.input}
+              placeholder="Код/наименование по nsiChangePriceFoundation"
+              {...methods.register("eisInfo.changePriceFoundation")}
+            />
+          </label>
+          <label className={`${styles.checkbox} ${styles.fieldWide}`}>
+            <input
+              type="checkbox"
+              {...methods.register("eisInfo.isStructuredForm")}
+            />
+            <span>
+              Структурированная форма проекта (файлы не требуются; при выключенном
+              признаке приложите файл проекта)
+            </span>
+          </label>
+        </div>
+
+        <div className={styles.appendixToolbar}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={() =>
+              fileArray.append({
+                id: `file-${Date.now()}`,
+                fileName: "",
+                description: "",
+              })
+            }
+          >
+            + Файл проекта контракта
+          </button>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => setShowEisXml((prev) => !prev)}
+          >
+            {showEisXml ? "Скрыть XML" : "Проверка ЕИС 17.0 / XML"}
+          </button>
+        </div>
+
+        {fileArray.fields.length === 0 ? (
+          <p className={styles.muted}>
+            Файлы не приложены. Для неструктурированной формы без них ЕИС
+            отклонит проект.
+          </p>
+        ) : (
+          <div className={styles.appendixList}>
+            {fileArray.fields.map((file, index) => (
+              <div key={file.id} className={styles.appendixRow}>
+                <input
+                  className={styles.input}
+                  placeholder="Имя файла"
+                  {...methods.register(`eisInfo.contractProjectFiles.${index}.fileName`)}
+                />
+                <input
+                  className={styles.input}
+                  placeholder="Описание"
+                  {...methods.register(`eisInfo.contractProjectFiles.${index}.description`)}
+                />
+                <button
+                  type="button"
+                  className={styles.stageRemove}
+                  onClick={() => fileArray.remove(index)}
+                  aria-label="Удалить файл"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {eisValidation.issues.length > 0 && (
+          <ul className={styles.issueList}>
+            {eisValidation.issues.map((issue, index) => (
+              <li key={index} className={styles.issueItem}>
+                <span
+                  className={`${styles.issueBadge} ${
+                    issue.severity === "error"
+                      ? styles.issueError
+                      : styles.issueWarning
+                  }`}
+                >
+                  {issue.severity === "error" ? "Ошибка" : "Внимание"}
+                </span>
+                <span className={styles.issueText}>{issue.message}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {showEisXml && <pre className={styles.eisXml}>{eisXml}</pre>}
+      </div>
     </section>
   );
 

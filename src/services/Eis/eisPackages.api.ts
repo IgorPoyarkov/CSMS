@@ -71,13 +71,22 @@ export const useEisPackages = () =>
     // Пока пакет в проверке, ФЛК сама не «дозреет»: опрашиваем раз в 5 секунд,
     // чтобы человек не жал кнопку вручную. Когда ждать нечего — не опрашиваем
     refetchInterval: (query) =>
-      query.state.data?.some((item) => isStatusPending(item.status)) ? 5000 : false,
+      query.state.data?.some((item) => isStatusPending(item.status))
+        ? 5000
+        : false,
   });
 
 export interface CreateEisPackageInput {
   documentType: EisDocumentType;
   contractEisNumber: string;
   ikz: string;
+  /**
+   * Готовый XML документа CSMS (извещение или проект контракта).
+   *
+   * Если передан, шлюз подписывает и отправляет его как есть, а не собирает
+   * заглушку. Для типов без документа (СМП, исполнение) не передаётся.
+   */
+  payloadXml?: string;
 }
 
 export const useCreateEisPackage = () => {

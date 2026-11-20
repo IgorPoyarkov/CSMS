@@ -82,6 +82,22 @@ const ProcurementProcessing: React.FC = () => {
         });
         break;
 
+      case "create_contract_project":
+        // Прямой вход в конструктор проекта контракта по сохранённому
+        // извещению: реестр /contract-projects для этого не нужен
+        navigate(`/procurement-processing/${item.id}/contract-project`, {
+          state: {
+            procurementId: item.id,
+            ikz: item.ikz,
+            name: item.name,
+            procurementType: item.procurementType,
+            nmck: item.nmck,
+            noticeNumber: item.noticeNumber ?? undefined,
+            kbk: item.kbk ?? undefined,
+          },
+        });
+        break;
+
       case "cancel_notice":
         if (
           window.confirm(

@@ -488,6 +488,25 @@ export const ContractRequisitesSchema = z.object({
 // ─── Поля выгрузки в ЕИС (contractProjectType) ─────────────────────────────
 
 /**
+ * Файл проекта контракта, направляемого поставщику
+ * (contractProjectType/contractProjectFilesInfo/contractProjectFileInfo).
+ *
+ * Нужен, когда проект выгружается в неструктурированном виде
+ * (contractInfo/isStructuredForm = false): без вложений ЕИС отклонит документ.
+ * Размер и отпечаток необязательны — их проставляет ЕИС, но для превью
+ * полезно видеть, что именно уйдёт в пакет.
+ */
+export const ContractProjectFileSchema = z.object({
+  id: z.string(),
+  fileName: requiredText(1, "Укажите имя файла проекта контракта"),
+  description: z.string().optional(),
+  fileSize: z.number().nonnegative().optional(),
+  fileFingerPrint: z.string().optional(),
+});
+
+export type ContractProjectFile = z.infer<typeof ContractProjectFileSchema>;
+
+/**
  * Поля проекта контракта, которые требует XSD ЕИС
  * (IntegrationCPTypes.xsd, contractProjectCommonType + contractProjectType),
  * но которых нет в тексте контракта. Часть приходит по цепочке
@@ -525,6 +544,9 @@ export const ContractEisInfoSchema = z.object({
   // contractInfo/changePriceInfo — цена изменена относительно предложения
   changePrice: optionalMoney(),
   changePriceFoundation: z.string().optional(),
+  // contractProjectFilesInfo/contractProjectFileInfo — вложения проекта
+  // контракта в неструктурированном виде
+  contractProjectFiles: z.array(ContractProjectFileSchema).default(() => []),
 });
 
 export type ContractEisInfo = z.infer<typeof ContractEisInfoSchema>;
@@ -618,6 +640,7 @@ export const ContractProjectSchema = z.object({
     conclusionContractSt95Ch17_1: false,
     changePrice: "",
     changePriceFoundation: "",
+    contractProjectFiles: [],
   })),
   // Номер проекта контракта
   contractNumber: z.string().optional(),
@@ -795,6 +818,7 @@ export const emptyContractProject = (
     conclusionContractSt95Ch17_1: false,
     changePrice: "",
     changePriceFoundation: "",
+    contractProjectFiles: [],
   },
   contractNumber: "",
   contractName: "",

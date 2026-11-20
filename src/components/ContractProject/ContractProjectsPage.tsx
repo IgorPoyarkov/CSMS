@@ -92,6 +92,7 @@ export default function ContractProjectsPage() {
     const id = project.procurementId ?? project.ikz ?? "0";
     navigate(`/procurement-processing/${id}/contract-project`, {
       state: {
+        procurementId: project.procurementId,
         ikz: project.ikz,
         name: project.contractName,
         nmck: Number.parseFloat(project.price.finalPrice ?? "") || undefined,
@@ -111,6 +112,7 @@ export default function ContractProjectsPage() {
   }) => {
     navigate(`/procurement-processing/${procurement.id}/contract-project`, {
       state: {
+        procurementId: procurement.id,
         ikz: procurement.ikz,
         name: procurement.name,
         procurementType: procurement.procurementType,

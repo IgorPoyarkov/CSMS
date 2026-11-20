@@ -543,10 +543,9 @@
 
 .appendixRow {
   display: grid;
-  grid-template-columns: 28px minmax(180px, 2fr) minmax(
-      180px,
-      1.4fr
-    ) auto auto auto;
+  grid-template-columns:
+    28px minmax(180px, 2fr) minmax(180px, 1.4fr)
+    auto auto auto;
   gap: 8px;
   align-items: center;
   padding: 8px;
@@ -796,4 +795,20 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--state-success);
+}
+
+// XML-превью проекта контракта: моноширинный шрифт и прокрутка, чтобы
+// длинные строки не растягивали страницу
+.eisXml {
+  margin: 12px 0 0;
+  padding: 14px;
+  max-height: 420px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre;
 }
