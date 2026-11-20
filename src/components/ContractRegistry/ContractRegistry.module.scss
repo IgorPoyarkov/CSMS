@@ -538,6 +538,30 @@
 
 /* ===== Кнопки ===== */
 
+.footerActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnSecondary {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
 .btnDanger {
   padding: 6px 14px;
   background: transparent;

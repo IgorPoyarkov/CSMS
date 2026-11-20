@@ -21,6 +21,9 @@ import ContractProjectsPage from "./components/ContractProject/ContractProjectsP
 import SmnpSonekPage from "./components/Reports/SmnpSonekPage";
 import Order158nReportsPage from "./components/Reports/Order158nReportsPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
+import ContractChangeRegistryPage from "./components/ContractChange/ContractChangeRegistryPage";
+import ContractChangeFormPage from "./components/ContractChange/ContractChangeFormPage";
+import ContractChangeDetailPage from "./components/ContractChange/ContractChangeDetailPage";
 import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
 import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
 import LiabilityMappingPage from "./components/LiabilityMapping/LiabilityMappingPage";
@@ -123,6 +126,17 @@ const router = createBrowserRouter([
       {
         path: "/contract-registry",
         element: <ContractRegistryPage />,
+      },
+      {
+        // Изменение и расторжение контрактов по ст. 95 44-ФЗ: реестр,
+        // форма со снимком контракта и карточка с согласованием и ЕИС
+        path: "/contract-changes",
+        children: [
+          { index: true, element: <ContractChangeRegistryPage /> },
+          { path: "new", element: <ContractChangeFormPage /> },
+          { path: ":id", element: <ContractChangeDetailPage /> },
+          { path: ":id/edit", element: <ContractChangeFormPage /> },
+        ],
       },
       {
         path: "/eis/smp-export",

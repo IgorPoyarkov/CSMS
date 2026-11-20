@@ -1918,3 +1918,29 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   вошли только строки ПП N 2604 из `Program.cs`; `EisDbContext.cs` и model
   snapshot не были добавлены в индекс.
 
+## 56. Фронтенд изменения и расторжения контрактов (2026-11-20)
+
+- **Клиент csms-api:** `src/services/csmsApi.ts` — общий axios-клиент
+  (`VITE_EIS_API_URL`; в dev без переменной идёт через прокси Vite `/api` →
+  `localhost:5099`) и `readApiError` для ProblemDetails и доменных 409.
+- **Слой данных:** `src/services/ContractChange/contractChange.types.ts` +
+  `contractChange.api.ts` — список и карточка, каталог оснований, `meta`,
+  `validate`, создание/правка, документы, действия `submit/approve/reject/
+  sign/cancel`, регистрация в ЕИС. Статус меняется только именованными
+  маршрутами; хуки инвалидируют общий ключ `contractChanges`.
+- **Экран:** `src/components/ContractChange/` — реестр с фильтрами по статусу и
+  контракту, форма (снимок контракта, основание, условные поля по флагам
+  основания, клиентская проверка + серверная `validate`) и карточка (замечания,
+  документы с заготовками соглашения/уведомления/решения, действия по статусу,
+  регистрация в ЕИС, история). Роуты `/contract-changes`, `/new`, `/:id`,
+  `/:id/edit`; в карточке реестра контрактов — кнопка «Изменение / расторжение»
+  с `?contractId=`.
+- **Проверки:** `npx tsc -b` — 0; `npx oxlint src` — 0 ошибок (62 предупреждения,
+  в том числе react-компилятора на существующих файлах); `npx vite build` —
+  успешно; `dotnet build` — 0; `dotnet test --filter ContractChange` —
+  **92 passed / 3 skipped**.
+- **Не включено в коммит:** чужая незавершённая работа по электронному
+  актированию (`src/components/ContractAcceptance`, `src/services/Acceptance`,
+  `Acceptance*` и миграция в `csms-api`, правки `Program.cs`, `EisDbContext.cs`,
+  model snapshot, `db.json`).
+

@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   totalPaid,
   paymentPercent,
@@ -504,9 +504,21 @@ function ContractCard({
                 <span>Подписал: {contract.signedByName}</span>
               )}
             </div>
-            <button className={styles.btnDanger} onClick={onDelete}>
-              Удалить
-            </button>
+            <div className={styles.footerActions}>
+              {/* Изменение или расторжение по ст. 95: снимок контракта
+                  подставляется в форму из этой же карточки */}
+              <Link
+                className={styles.btnSecondary}
+                to={`/contract-changes/new?contractId=${String(
+                  contract.id ?? "",
+                )}`}
+              >
+                Изменение / расторжение
+              </Link>
+              <button className={styles.btnDanger} onClick={onDelete}>
+                Удалить
+              </button>
+            </div>
           </div>
         </div>
       )}
