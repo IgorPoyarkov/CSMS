@@ -33,6 +33,11 @@ const formatMoney = new Intl.NumberFormat("ru-RU", {
   maximumFractionDigits: 2,
 });
 
+// Выдача справочника — по возрастанию кода ОКПД2. Сравниваем как числа
+// в пределах разрядов: «2.10» идёт после «2.9», а не наоборот
+const compareOkpd2ByCode = (a: Okpd2Ref, b: Okpd2Ref): number =>
+  a.code.localeCompare(b.code, "ru", { numeric: true });
+
 /**
  * Выпадающий список ОКПД2 с поиском.
  *
@@ -81,7 +86,10 @@ export default function Okpd2Select({
   // Текст выбранной позиции, когда список закрыт
   const selectedLabel = code ? `${code}${name ? ` — ${name}` : ""}` : "";
   const items = useMemo(
-    () => searchOkpd2(availableDictionary, query),
+    () =>
+      searchOkpd2(availableDictionary, query)
+        .slice()
+        .sort(compareOkpd2ByCode),
     [availableDictionary, query],
   );
 
@@ -121,7 +129,7 @@ export default function Okpd2Select({
         };
       });
 
-    return [...items, ...extra];
+    return [...items, ...extra].sort(compareOkpd2ByCode);
   }, [items, referenceItems, dictionary]);
 
   // Справочник пополняется выгрузкой из ЕИС и может не содержать нужного кода,

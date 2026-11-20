@@ -134,6 +134,14 @@
       color: var(--text-secondary);
       cursor: default;
     }
+
+    // Заблокированное поле остаётся читаемым: значение показывает система
+    &:disabled {
+      background: var(--stripe);
+      color: var(--text-secondary);
+      cursor: default;
+      opacity: 1;
+    }
   }
 
   // Значение, которое выдаёт система: номер позиции показывается текстом,
@@ -169,6 +177,8 @@
   }
 
   &__textarea {
+    box-sizing: border-box;
+    width: 100%;
     padding: 8px 10px;
     font-family: inherit;
     font-size: 13px;
@@ -254,7 +264,32 @@
         outline: 1px solid var(--accent);
         border-color: var(--accent);
       }
+
+      // Разряды ИКЗ показывает система — поля заблокированы, но читаемы
+      &:disabled {
+        background: var(--stripe);
+        color: var(--text-secondary);
+        cursor: default;
+        opacity: 1;
+      }
     }
+  }
+
+  // Подблок внутри раздела: детализация по КБК и КОКС внутри объёма
+  // финансового обеспечения
+  &__subblock {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+
+  &__subtitle {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-secondary);
   }
 
   &__th {
