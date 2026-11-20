@@ -279,6 +279,13 @@ const PAYMENT_OPTIONS: ContractFieldOption[] = [
   { value: "staged", label: "Поэтапная оплата" },
 ];
 
+// П. 11 Положения (ПП РФ N 60): виды агентов в расчётах по контракту
+const AGENT_TYPE_OPTIONS: ContractFieldOption[] = [
+  { value: "payment", label: "Платёжный агент" },
+  { value: "bank_payment", label: "Банковский платёжный агент" },
+  { value: "other", label: "Иной агент" },
+];
+
 export const CONTRACT_SECTION_DEFS: ContractSectionDef[] = [
   {
     id: "preamble",
@@ -407,6 +414,12 @@ export const CONTRACT_SECTION_DEFS: ContractSectionDef[] = [
       "Цена, структура цены, валюта, порядок и срок оплаты, аванс, сопровождение.",
     fields: [
       { path: "price.currency", label: "Валюта", kind: "text" },
+      {
+        path: "price.currencyCode",
+        label: "Код валюты по ОКВ",
+        kind: "text",
+        hint: "П. 15 Раздела 1 формы извещения: 643 — российский рубль",
+      },
       { path: "price.initialMaxPrice", label: "НМЦК, руб.", kind: "money" },
       {
         path: "price.finalPrice",
@@ -438,6 +451,13 @@ export const CONTRACT_SECTION_DEFS: ContractSectionDef[] = [
         label: "Формула цены и максимальное значение (ПП РФ № 19)",
         kind: "textarea",
         rows: 2,
+      },
+      {
+        path: "price.unitPrice",
+        label: "Цена единицы товара, работы, услуги",
+        kind: "text",
+        hint: "П. 11 Положения (ПП РФ N 60): округление до 11 знаков после запятой",
+        placeholder: "Например, 1234.56789012345",
       },
       {
         path: "price.unitPriceNote",
@@ -1159,6 +1179,100 @@ export const CONTRACT_SECTION_DEFS: ContractSectionDef[] = [
         label: "Банковские реквизиты поставщика",
         kind: "textarea",
         rows: 2,
+      },
+      // П. 11 Положения (ПП РФ N 60): реквизиты платёжного агента
+      {
+        path: "requisites.isAgentInvolved",
+        label: "В расчётах участвует платёжный (банковский платёжный) агент",
+        kind: "checkbox",
+      },
+      {
+        path: "requisites.agentType",
+        label: "Вид агента",
+        kind: "select",
+        options: AGENT_TYPE_OPTIONS,
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentFullName",
+        label: "Полное наименование / ФИО агента",
+        kind: "text",
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentShortName",
+        label: "Сокращённое наименование агента",
+        kind: "text",
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentInn",
+        label: "ИНН агента",
+        kind: "text",
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentKpp",
+        label: "КПП агента",
+        kind: "text",
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentAccount",
+        label: "Реквизиты счёта агента",
+        kind: "text",
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      {
+        path: "requisites.agentBankDetails",
+        label: "Банковские реквизиты агента",
+        kind: "textarea",
+        rows: 2,
+        when: { path: "requisites.isAgentInvolved", truthy: true },
+      },
+      // П. 11: контракт на жилое помещение с представителем собственника
+      {
+        path: "requisites.isResidentialPremisesPurchase",
+        label:
+          "Контракт на приобретение жилого помещения у представителя собственника",
+        kind: "checkbox",
+      },
+      {
+        path: "requisites.ownerRepresentativeName",
+        label: "Представитель собственника жилого помещения",
+        kind: "text",
+        when: {
+          path: "requisites.isResidentialPremisesPurchase",
+          truthy: true,
+        },
+      },
+      {
+        path: "requisites.ownerRepresentativeAccount",
+        label: "Реквизиты счёта представителя собственника",
+        kind: "text",
+        when: {
+          path: "requisites.isResidentialPremisesPurchase",
+          truthy: true,
+        },
+      },
+      {
+        path: "requisites.ownerAccount",
+        label: "Реквизиты счёта собственника жилого помещения",
+        kind: "text",
+        when: {
+          path: "requisites.isResidentialPremisesPurchase",
+          truthy: true,
+        },
+      },
+      {
+        path: "requisites.ownerBankDetails",
+        label: "Банковские реквизиты собственника",
+        kind: "textarea",
+        rows: 2,
+        when: {
+          path: "requisites.isResidentialPremisesPurchase",
+          truthy: true,
+        },
       },
       {
         path: "requisites.signerPosition",

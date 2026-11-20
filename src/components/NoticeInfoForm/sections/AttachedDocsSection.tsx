@@ -19,10 +19,7 @@ const AttachedDocsSection = () => {
     Record<string, { fileName: string; description: string }>
   >({});
 
-  const handleFilePick = (
-    categoryId: string,
-    fileList: FileList | null
-  ) => {
+  const handleFilePick = (categoryId: string, fileList: FileList | null) => {
     const file = fileList?.[0];
     if (!file) return;
     setDraftFiles((prev) => ({
@@ -34,14 +31,10 @@ const AttachedDocsSection = () => {
     }));
   };
 
+  // Категории берём из схемы извещения, чтобы новый состав Раздела 2
+  // (ПП РФ N 60) не расходился между конфигом и типом
   const handleAttach = (
-    categoryId:
-      | "nmck_justification"
-      | "contract_project"
-      | "object_description"
-      | "application_requirements"
-      | "evaluation_order"
-      | "additional_docs"
+    categoryId: NoticeInfoFormValues["attachedDocs"][number]["category"],
   ) => {
     const draft = draftFiles[categoryId];
     if (!draft?.fileName) return;
@@ -110,7 +103,9 @@ const AttachedDocsSection = () => {
                 </div>
 
                 {categoryDocs.length === 0 ? (
-                  <span className={block("muted")}>Нет прикреплённых файлов</span>
+                  <span className={block("muted")}>
+                    Нет прикреплённых файлов
+                  </span>
                 ) : (
                   <ul className={block("doc-list")}>
                     {categoryDocs.map((doc) => (

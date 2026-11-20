@@ -7,6 +7,7 @@ import { PLACING_WAYS_ALL } from "../Procurements/noticeInfo.config";
 import {
   addCalendarDays,
   emptyContractProject,
+  roundUnitPrice,
   type ContractKind,
   type ContractProject,
 } from "./contractProject.schema";
@@ -285,9 +286,7 @@ export const buildContractProjectDraft = (
     isContractPriceFormula: Boolean(
       notice?.contractConditions?.usePriceFormulaPP19,
     ),
-    quantityUndefined: Boolean(
-      notice?.purchaseObjects?.isIndeterminateVolume,
-    ),
+    quantityUndefined: Boolean(notice?.purchaseObjects?.isIndeterminateVolume),
   };
   project.preamble = {
     place: "",
@@ -326,6 +325,21 @@ export const buildContractProjectDraft = (
     supplierEmail: "",
     supplierPhone: "",
     supplierBankDetails: "",
+    // П. 11 Положения (ПП РФ N 60): агент и представитель собственника
+    // заполняются вручную — из извещения этих сведений нет
+    isAgentInvolved: false,
+    agentType: "payment",
+    agentFullName: "",
+    agentShortName: "",
+    agentInn: "",
+    agentKpp: "",
+    agentAccount: "",
+    agentBankDetails: "",
+    isResidentialPremisesPurchase: false,
+    ownerRepresentativeName: "",
+    ownerRepresentativeAccount: "",
+    ownerAccount: "",
+    ownerBankDetails: "",
     signerPosition: "",
     signerName: organization?.responsiblePerson ?? "",
     signerBasis: "",
@@ -368,8 +382,12 @@ export const buildContractProjectDraft = (
   project.price = {
     ...project.price,
     currency: notice?.contractConditions?.currency || "Российский рубль",
+    currencyCode: notice?.contractConditions?.currencyCode || "643",
     initialMaxPrice: toMoney(nmckValue),
     finalPrice: toMoney(nmckValue),
+    // П. 11 Положения (ПП РФ N 60): цена единицы округляется до 11 цифр
+    // после запятой; берём первую позицию объекта закупки
+    unitPrice: firstItem ? roundUnitPrice(firstItem.unitPrice) : "",
     priceBasis:
       note?.priceBasis ||
       note?.nmckCalculation?.notes ||

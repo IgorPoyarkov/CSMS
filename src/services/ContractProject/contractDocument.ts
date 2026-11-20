@@ -150,6 +150,12 @@ const sectionParagraphs = (
       if (text(project.price.formula)) {
         paragraphs.push(`Формула цены Контракта: ${text(project.price.formula)}.`);
       }
+      // П. 11 Положения (ПП РФ N 60): цена единицы с точностью до 11 знаков
+      if (text(project.price.unitPrice)) {
+        paragraphs.push(
+          `Цена единицы товара, работы, услуги составляет ${text(project.price.unitPrice)} ${text(project.price.currency) || "рублей"} (округление до 11 знаков после запятой).`,
+        );
+      }
       if (text(project.price.unitPriceNote)) {
         paragraphs.push(text(project.price.unitPriceNote));
       }
@@ -399,6 +405,12 @@ const sectionParagraphs = (
       ].filter(Boolean) as string[];
     case "requisites": {
       const req = project.requisites;
+      const agentTypeLabel =
+        req.agentType === "bank_payment"
+          ? "Банковский платёжный агент"
+          : req.agentType === "other"
+            ? "Агент"
+            : "Платёжный агент";
       return [
         `Заказчик: ${text(req.customerFullName) || text(project.customerName) || "—"}; ИНН ${text(req.customerInn) || "—"}; КПП ${text(req.customerKpp) || "—"}; ОГРН ${text(req.customerOgrn) || "—"}; адрес: ${text(req.customerAddress) || "—"}; email: ${text(req.customerEmail) || "—"}; телефон: ${text(req.customerPhone) || "—"}.`,
         text(req.customerBankDetails) &&
@@ -406,6 +418,20 @@ const sectionParagraphs = (
         `${terms.contractorRole}: ${text(req.supplierFullName) || text(project.supplierName) || "—"}; ИНН ${text(req.supplierInn) || "—"}; КПП ${text(req.supplierKpp) || "—"}; ОГРН ${text(req.supplierOgrn) || "—"}; адрес: ${text(req.supplierAddress) || "—"}; email: ${text(req.supplierEmail) || "—"}; телефон: ${text(req.supplierPhone) || "—"}.`,
         text(req.supplierBankDetails) &&
           `Банковские реквизиты ${terms.contractorRoleGenitive}: ${text(req.supplierBankDetails)}.`,
+        // П. 11 Положения (ПП РФ N 60): реквизиты платёжного агента
+        req.isAgentInvolved &&
+          `${agentTypeLabel}: ${text(req.agentFullName) || text(req.agentShortName) || "—"}; ИНН ${text(req.agentInn) || "—"}; КПП ${text(req.agentKpp) || "—"}; счёт: ${text(req.agentAccount) || "—"}.`,
+        req.isAgentInvolved &&
+          text(req.agentBankDetails) &&
+          `Банковские реквизиты агента: ${text(req.agentBankDetails)}.`,
+        // П. 11: контракт на жилое помещение с представителем собственника
+        req.isResidentialPremisesPurchase &&
+          `Представитель собственника жилого помещения: ${text(req.ownerRepresentativeName) || "—"}; счёт: ${text(req.ownerRepresentativeAccount) || "—"}.`,
+        req.isResidentialPremisesPurchase &&
+          `Счёт собственника жилого помещения: ${text(req.ownerAccount) || "—"}.`,
+        req.isResidentialPremisesPurchase &&
+          text(req.ownerBankDetails) &&
+          `Банковские реквизиты собственника: ${text(req.ownerBankDetails)}.`,
       ].filter(Boolean) as string[];
     }
     default:

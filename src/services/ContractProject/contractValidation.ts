@@ -154,6 +154,90 @@ export const validateContractProject = (
     );
   }
 
+  // ─── Цена единицы (п. 11 Положения, ПП РФ N 60) ──────────────────────────
+  if (has(project.price.unitPrice)) {
+    if (!/^\d+(\.\d{1,11})?$/.test(project.price.unitPrice!)) {
+      error(
+        "price",
+        "price.unitPrice",
+        "Цена единицы товара, работы, услуги округляется до 11 цифр после запятой",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+  } else if (project.eisInfo.quantityUndefined) {
+    warning(
+      "price",
+      "price.unitPrice",
+      "Объём нельзя определить, но цена единицы не указана",
+      "п. 11 Положения (ПП РФ N 60), ч. 24 ст. 22",
+    );
+  }
+
+  // П. 15 Раздела 1 формы извещения: код валюты по ОКВ
+  if (!/^\d{3}$/.test(project.price.currencyCode || "643")) {
+    warning(
+      "price",
+      "price.currencyCode",
+      "Код валюты по ОКВ должен состоять из трёх цифр (по умолчанию 643)",
+      "п. 15 Раздела 1 (ПП РФ N 60)",
+    );
+  }
+
+  // ─── Агент и представитель собственника (п. 11 Положения) ────────────────
+  const req = project.requisites;
+  if (req.isAgentInvolved) {
+    if (!has(req.agentFullName)) {
+      error(
+        "requisites",
+        "requisites.agentFullName",
+        "Укажите полное (сокращённое) наименование или ФИО платёжного агента",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+    if (!has(req.agentInn)) {
+      error(
+        "requisites",
+        "requisites.agentInn",
+        "Укажите ИНН платёжного агента",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+    if (!has(req.agentAccount)) {
+      error(
+        "requisites",
+        "requisites.agentAccount",
+        "Укажите реквизиты счёта платёжного агента",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+  }
+  if (req.isResidentialPremisesPurchase) {
+    if (!has(req.ownerRepresentativeName)) {
+      error(
+        "requisites",
+        "requisites.ownerRepresentativeName",
+        "Укажите наименование представителя собственника жилого помещения",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+    if (!has(req.ownerRepresentativeAccount)) {
+      error(
+        "requisites",
+        "requisites.ownerRepresentativeAccount",
+        "Укажите реквизиты счёта представителя собственника",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+    if (!has(req.ownerAccount)) {
+      error(
+        "requisites",
+        "requisites.ownerAccount",
+        "Укажите реквизиты счёта собственника жилого помещения",
+        "п. 11 Положения (ПП РФ N 60)",
+      );
+    }
+  }
+
   // ─── Сроки ───────────────────────────────────────────────────────────────
   if (!has(project.term.endDate)) {
     error(
