@@ -35,7 +35,6 @@ import {
   kvrOptions,
   modificationDecisionOptions,
   okpd2FieldLabels,
-  placementYearOptions,
   publicDiscussionOptions,
   tpChangeReasonOptions,
 } from "./purchasePlan.config";
@@ -56,8 +55,9 @@ import styles from "./PurchasePlanPositionForm.module.scss";
  *
  * Уникальный номер позиции и ИКЗ формируются системой: заказчику остаётся
  * проверить код, а не набирать его вручную. Служебные поля (ИКУ заказчика,
- * порядковый номер закупки, КВР, статус записи, статус передачи изменений)
- * не выводятся: они либо уже есть у заказчика, либо определяются автоматически.
+ * год размещения, порядковый номер закупки, КВР, внешний номер, статус записи,
+ * статус передачи изменений) не выводятся: они либо уже есть у заказчика,
+ * либо определяются автоматически.
  */
 
 // Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
@@ -106,12 +106,6 @@ const KBK_PART_FIELDS = [
   { key: "expenseType", label: "Вид расходов", placeholder: "244", length: 3 },
 ] as const;
 
-// Да/нет для признаков ЕИС: значение хранится в форме булевым
-const YES_NO_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "false", label: "Нет" },
-  { value: "true", label: "Да" },
-];
-
 export default function PurchasePlanPositionForm({
   plan,
   position,
@@ -127,11 +121,20 @@ export default function PurchasePlanPositionForm({
   const block = bem(styles, "position-form");
   // Год формирования ПГ: от него считаются графы «Сумма на … год»
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
+  // Год размещения извещения в карточке не редактируется: для ИКЗ берём
+  // сохранённое значение позиции или год формирования плана-графика
+  const ikzYear = position.plannedPlacementYear || plan.planYear;
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
   // Индекс строки КОКС, для которой открыт справочник nsiKOKS
   const [koksPickerIndex, setKoksPickerIndex] = useState<number | null>(null);
+
+  // Детализация по КБК всегда начинается с одной строки: заказчику не нужно
+  // нажимать «Добавить», чтобы увидеть поля разрядов
+  const initialKbkEntries = (
+    position.kbkEntries?.length ? position.kbkEntries : [{ kbk: "" }]
+  ).map((entry) => ({ ...splitKbk(entry.kbk), ...entry }));
 
   const methods = useForm<PurchasePlanPosition>({
     resolver: zodResolver(PurchasePlanPositionSchema),
@@ -139,18 +142,19 @@ export default function PurchasePlanPositionForm({
       ...position,
       serialNumber: position.serialNumber || String(index + 1),
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
-      // Год по умолчанию — текущий; селект предлагает текущий и +10 лет
+      // Год в интерфейсе не показывается, но остаётся в записи для XSD
       plannedPlacementYear:
-        position.plannedPlacementYear || String(CURRENT_YEAR),
+        position.plannedPlacementYear || String(plan.planYear || CURRENT_YEAR),
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
       modificationStatus: position.modificationStatus ?? (isNew ? "N" : "E"),
       modificationDecision: position.modificationDecision ?? "notSpecified",
       hasAuthorizedBody: Boolean(position.hasAuthorizedBody),
       hasJointOrganizer: Boolean(position.hasJointOrganizer),
-      kbkEntries: position.kbkEntries ?? [],
+      kbkEntries: initialKbkEntries,
       kvrEntries: position.kvrEntries ?? [],
       koksEntries: position.koksEntries ?? [],
+      okpd2Items: position.okpd2Items ?? [],
     },
   });
 
@@ -164,15 +168,14 @@ export default function PurchasePlanPositionForm({
   } = methods;
   const kbkEntries = useFieldArray({ control, name: "kbkEntries" });
   const koksEntries = useFieldArray({ control, name: "koksEntries" });
+  // Дополнительные коды ОКПД2: один основной селект и любое число добавленных
+  const okpd2Items = useFieldArray({ control, name: "okpd2Items" });
 
   const serialNumber = useWatch({ control, name: "serialNumber" });
   const purchaseNumber = useWatch({ control, name: "purchaseNumber" });
-  const plannedPlacementYear = useWatch({
-    control,
-    name: "plannedPlacementYear",
-  });
   const okpd2Code = useWatch({ control, name: "okpd2Code" });
   const okpd2Name = useWatch({ control, name: "okpd2Name" });
+  const okpd2ItemsValues = useWatch({ control, name: "okpd2Items" });
   const isConstructionWorks = useWatch({
     control,
     name: "isConstructionWorks",
@@ -191,8 +194,8 @@ export default function PurchasePlanPositionForm({
   });
   const hasAuthorizedBody = useWatch({ control, name: "hasAuthorizedBody" });
   const hasJointOrganizer = useWatch({ control, name: "hasJointOrganizer" });
-  const hasMultipleOkpd2 = useWatch({ control, name: "hasMultipleOkpd2" });
   const authorizedBodyName = useWatch({ control, name: "authorizedBodyName" });
+  const jointOrganizerName = useWatch({ control, name: "jointOrganizerName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
   const koksEntriesValues = useWatch({ control, name: "koksEntries" });
   // ИКУ заказчика в карточке не вводится: он уже есть у заказчика. Берём
@@ -212,8 +215,6 @@ export default function PurchasePlanPositionForm({
   // Фильтрованные организаторы по выбранному уполномоченному органу
   const organizers = getOrganizersByAuthorizedBody(authorizedBodyName);
 
-  // Селект года: текущий и следующие 10 лет
-  const yearOptions = placementYearOptions(CURRENT_YEAR);
   const purchaseNumberTaken = isPurchaseNumberTaken(
     positions,
     purchaseNumber,
@@ -247,16 +248,20 @@ export default function PurchasePlanPositionForm({
     return String(order).padStart(3, "0").slice(-3);
   }, [positions, purchaseNumber, position.id]);
 
-  // КВР берётся из КБК (последние 3 разряда); отдельное значение — резерв
-  const resolvedKbk = kbk || kbkEntriesValues?.[0]?.kbk || "";
+  // КБК первой строки детализации; КВР — последние 3 разряда (или резерв)
+  const resolvedKbk =
+    buildKbk(kbkEntriesValues?.[0] ?? {}) || kbk || "";
   const resolvedKvr =
     resolvedKbk.length >= 3 ? resolvedKbk.slice(-3) : kvr || "";
+
+  // Несколько кодов ОКПД2 — когда добавлена хотя бы одна дополнительная строка
+  const hasMultipleOkpd2 = okpd2Items.fields.length > 0;
 
   // Разряды ИКЗ: предзаполненные значения для таблицы и итоговый код
   const ikzParts = useMemo(
     () =>
       buildIkzParts({
-        planYear: plannedPlacementYear || plan.planYear,
+        planYear: ikzYear,
         inn: plan.customer.inn,
         kpp: plan.customer.kpp,
         iku,
@@ -264,13 +269,12 @@ export default function PurchasePlanPositionForm({
         purchaseOrderNumber: resolvedOrderNumber,
         serialNumber,
         okpd2Code,
-        hasMultipleOkpd2: Boolean(hasMultipleOkpd2),
+        hasMultipleOkpd2,
         kvr: resolvedKvr,
         kbk: resolvedKbk,
       }),
     [
-      plannedPlacementYear,
-      plan.planYear,
+      ikzYear,
       plan.customer.inn,
       plan.customer.kpp,
       iku,
@@ -324,23 +328,6 @@ export default function PurchasePlanPositionForm({
     }
   }
 
-  // Разбивка КБК на разряды: при правке части пересобирается итоговый код
-  function updateKbkPart(
-    entryIndex: number,
-    part: keyof ReturnType<typeof splitKbk>,
-    value: string,
-  ) {
-    const current = kbkEntriesValues?.[entryIndex];
-    const parts = { ...splitKbk(current?.kbk), [part]: value };
-
-    setValue(`kbkEntries.${entryIndex}.${part}`, value, {
-      shouldValidate: true,
-    });
-    setValue(`kbkEntries.${entryIndex}.kbk`, buildKbk(parts), {
-      shouldValidate: true,
-    });
-  }
-
   function handleKoksSelect(item: KoksRef) {
     if (koksPickerIndex === null) {
       return;
@@ -365,19 +352,35 @@ export default function PurchasePlanPositionForm({
     }
   }
 
+  // Дополнительный код ОКПД2: пишется в okpd2Items и участвует в ИКЗ как «0000»
+  function handleExtraOkpd2Select(itemIndex: number, item: Okpd2Ref | null) {
+    setValue(`okpd2Items.${itemIndex}.okpd2Code`, item?.code ?? "", {
+      shouldValidate: true,
+    });
+    setValue(`okpd2Items.${itemIndex}.okpd2Name`, item?.name ?? "", {
+      shouldValidate: true,
+    });
+  }
+
   function onSubmit(data: PurchasePlanPosition) {
     // КБК может быть собран из разрядов формы
     const kbkEntriesData = (data.kbkEntries ?? []).map((entry) => ({
       ...entry,
       kbk: entry.kbk || buildKbk(entry),
     }));
-    const saveKbk = data.kbk || kbkEntriesData[0]?.kbk || "";
+    const saveKbk = kbkEntriesData[0]?.kbk || data.kbk || "";
     // КВР — из КБК (последние 3 разряда), отдельное значение только резерв
     const saveKvr = saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "";
 
+    // Несколько кодов ОКПД2 сохраняются массивом okpd2Items: это и есть
+    // «склеенный» набор для бэка, а в ИКЗ ставится «0000»
+    const okpd2ItemsData = (data.okpd2Items ?? []).filter(
+      (item) => item.okpd2Code,
+    );
+
     // ИКЗ собираем сами по 55н и отправляем в XSD: заказчик его не вводит
     const identificationCode = buildIdentificationCode({
-      planYear: data.plannedPlacementYear || plan.planYear,
+      planYear: data.plannedPlacementYear || ikzYear,
       inn: plan.customer.inn,
       kpp: plan.customer.kpp,
       iku: data.iku,
@@ -385,7 +388,7 @@ export default function PurchasePlanPositionForm({
       purchaseOrderNumber: resolvedOrderNumber,
       serialNumber: data.serialNumber || String(index + 1),
       okpd2Code: data.okpd2Code,
-      hasMultipleOkpd2: Boolean(data.hasMultipleOkpd2),
+      hasMultipleOkpd2: okpd2ItemsData.length > 0,
       kvr: saveKvr,
       kbk: saveKbk,
     });
@@ -398,6 +401,9 @@ export default function PurchasePlanPositionForm({
         data.uniqueNumber ||
         buildPositionUniqueNumber(plan.planNumber, serialNumber),
       purchaseOrderNumber: resolvedOrderNumber,
+      // Внешний номер позиции — это номер плана-графика: заказчик его не
+      // вводит, при создании подставляется автоматически
+      extNumber: data.extNumber || plan.planNumber || "",
       // Статус передачи изменений определяется действием: новая запись — «N»,
       // правка существующей — «E» (вручную не выбирается)
       modificationStatus: isNew ? "N" : "E",
@@ -406,6 +412,8 @@ export default function PurchasePlanPositionForm({
       kbkEntries: kbkEntriesData,
       kbk: saveKbk,
       kvr: saveKvr,
+      okpd2Items: okpd2ItemsData,
+      hasMultipleOkpd2: okpd2ItemsData.length > 0,
       // Скрытые блоками не должны оставлять значения в данных
       authorizedBodyName: data.hasAuthorizedBody ? data.authorizedBodyName : "",
       jointOrganizerName: data.hasJointOrganizer ? data.jointOrganizerName : "",
@@ -424,15 +432,6 @@ export default function PurchasePlanPositionForm({
         <h1 className={block("title")}>
           План-график закупок № {plan.planNumber || "без номера"}
         </h1>
-        <p className={block("caption")}>
-          Общие сведения позиции
-          {uniqueNumber ? ` · ${uniqueNumber}` : ""}
-        </p>
-        <p className={block("caption")}>
-          {plan.customer?.shortName || plan.customer?.fullName}
-          {plan.customer?.inn ? ` · ИНН ${plan.customer.inn}` : ""}
-          {plan.customer?.kpp ? ` · КПП ${plan.customer.kpp}` : ""}
-        </p>
       </header>
 
       <FormProvider {...methods}>
@@ -462,54 +461,7 @@ export default function PurchasePlanPositionForm({
                   при редактировании не меняется.
                 </p>
               </div>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-placement-year"
-                >
-                  Год (планируемый год размещения извещения)
-                </label>
-                <select
-                  id="position-placement-year"
-                  className={block("select")}
-                  value={plannedPlacementYear ?? ""}
-                  onChange={(event) =>
-                    setValue("plannedPlacementYear", event.target.value, {
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  {yearOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-purchase-number"
-                >
-                  Номер закупки, включенной в план-график закупок
-                </label>
-                <input
-                  id="position-purchase-number"
-                  className={block("input")}
-                  placeholder="0001"
-                  {...register("purchaseNumber")}
-                />
-                {purchaseNumberTaken && (
-                  <span className={block("error")}>
-                    Номер уже используется в этом плане-графике
-                  </span>
-                )}
-                {errorText("purchaseNumber") && (
-                  <span className={block("error")}>
-                    {errorText("purchaseNumber")}
-                  </span>
-                )}
-              </div>
+
               <div className={block("cell", ["wide"])}>
                 <span className={block("label")}>
                   Идентификационный код закупки (ИКЗ, 36 знаков)
@@ -524,7 +476,6 @@ export default function PurchasePlanPositionForm({
                         <th>Порядковый номер закупки</th>
                         <th>Код позиции ОКПД2</th>
                         <th>Код вида расходов</th>
-                        <th>Идентификационный код закупки</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -536,7 +487,6 @@ export default function PurchasePlanPositionForm({
                           ikzParts.orderNumber,
                           ikzParts.okpd2,
                           ikzParts.kvr,
-                          ikzParts.code,
                         ].map((part, partIndex) => (
                           <td key={partIndex}>
                             <input
@@ -564,15 +514,36 @@ export default function PurchasePlanPositionForm({
                   редактируются.
                 </p>
               </div>
+
               <div className={block("cell", ["wide"])}>
-                <CustomInput
-                  configuration={{
-                    label: {
-                      value: "Внешний номер позиции (extNumber, ЕИС 17.0)",
-                    },
-                    input: { name: "extNumber", placeholder: "PG-2026-0001" },
-                  }}
+                <label
+                  className={block("label")}
+                  htmlFor="position-purchase-number"
+                >
+                  Номер закупки, включенной в план-график закупок
+                </label>
+                <input
+                  id="position-purchase-number"
+                  className={block("input")}
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="0001"
+                  {...register("purchaseNumber")}
                 />
+                {purchaseNumberTaken && (
+                  <span className={block("error")}>
+                    Номер уже используется в этом плане-графике
+                  </span>
+                )}
+                {errorText("purchaseNumber") && (
+                  <span className={block("error")}>
+                    {errorText("purchaseNumber")}
+                  </span>
+                )}
+                <p className={block("hint")}>
+                  Не более 9999 — до четырёх цифр. Номер закупки входит в ИКЗ
+                  (разряды 23–26).
+                </p>
               </div>
             </div>
           </fieldset>
@@ -595,6 +566,38 @@ export default function PurchasePlanPositionForm({
                     {String(errors.okpd2Code.message)}
                   </span>
                 )}
+
+                {/* Дополнительные коды ОКПД2: добавляются кнопкой, в ИКЗ при
+                    нескольких кодах ставится «0000» */}
+                {okpd2Items.fields.map((field, itemIndex) => (
+                  <div className={block("okpd2-row")} key={field.id}>
+                    <Okpd2Select
+                      code={okpd2ItemsValues?.[itemIndex]?.okpd2Code}
+                      name={okpd2ItemsValues?.[itemIndex]?.okpd2Name}
+                      onSelect={(item) =>
+                        handleExtraOkpd2Select(itemIndex, item)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className={block("remove")}
+                      onClick={() => okpd2Items.remove(itemIndex)}
+                    >
+                      Убрать
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className={block("add")}
+                  onClick={() =>
+                    okpd2Items.append({ okpd2Code: "", okpd2Name: "" })
+                  }
+                >
+                  Добавить код ОКПД2
+                </button>
+
                 {normedRef?.isNormed && (
                   <span className={block("hint", ["norm"])}>
                     Код {normedRef.code} подлежит обязательному нормированию.
@@ -612,6 +615,7 @@ export default function PurchasePlanPositionForm({
                   </span>
                 )}
               </div>
+
               <div className={block("cell", ["wide"])}>
                 <label
                   className={block("label")}
@@ -627,18 +631,6 @@ export default function PurchasePlanPositionForm({
                   {...register("objectOfPurchase")}
                 />
               </div>
-              <div className={block("cell", ["wide"])}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("hasMultipleOkpd2")} />
-                  Несколько кодов ОКПД2 (в разрядах 30–33 ИКЗ ставится «0000»)
-                </label>
-                {hasMultipleOkpd2 && (
-                  <p className={block("hint")}>
-                    При наличии нескольких позиций ОКПД2 в ИКЗ по XSD 17.0
-                    автоматически проставляется значение «0000».
-                  </p>
-                )}
-              </div>
             </div>
           </fieldset>
 
@@ -647,10 +639,12 @@ export default function PurchasePlanPositionForm({
           <fieldset className={block("section")}>
             <legend>Объем финансового обеспечения закупки (рублей)</legend>
             <div className={block("table-wrap")}>
-              <table className={block("table")}>
+              <table className={block("table", ["amounts"])}>
                 <thead>
                   <tr>
-                    <th>Планируемые платежи, рублей</th>
+                    <th className={block("th", ["first"])}>
+                      Планируемые платежи, рублей
+                    </th>
                     {AMOUNT_FIELDS.map((field) => (
                       <th key={field.key}>{amountHeaders[field.key]}</th>
                     ))}
@@ -687,115 +681,113 @@ export default function PurchasePlanPositionForm({
                 {kbkEntries.fields.length})
               </h3>
 
-              {kbkEntries.fields.length === 0 && (
-                <p className={block("hint")}>
-                  Коды бюджетной классификации не указаны — добавьте их кнопкой
-                  ниже, если закупка финансируется по нескольким кодам.
-                </p>
-              )}
-
-              {kbkEntries.fields.length > 0 && (
-                <div className={block("table-wrap")}>
-                  <table className={block("table")}>
-                    <thead>
-                      <tr>
-                        <th colSpan={4}>Код бюджетной классификации</th>
-                        {AMOUNT_FIELDS.map((field) => (
-                          <th key={field.key}>
-                            {amountHeaders[field.key]}, рублей
-                          </th>
-                        ))}
-                        <th />
-                      </tr>
-                      <tr>
+              <div className={block("table-wrap")}>
+                <table className={block("table", ["kbk"])}>
+                  <colgroup>
+                    <col className={block("col", ["chapter"])} />
+                    <col className={block("col", ["section"])} />
+                    <col className={block("col", ["target"])} />
+                    <col className={block("col", ["expense"])} />
+                    {AMOUNT_FIELDS.map((field) => (
+                      <col key={field.key} />
+                    ))}
+                    <col className={block("col", ["action"])} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th colSpan={4}>Код бюджетной классификации</th>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <th key={field.key}>{amountHeaders[field.key]}</th>
+                      ))}
+                      <th>Действие</th>
+                    </tr>
+                    <tr>
+                      {KBK_PART_FIELDS.map((part) => (
+                        <th key={part.key} className={block("th", ["sub"])}>
+                          {part.label}
+                        </th>
+                      ))}
+                      <th colSpan={AMOUNT_FIELDS.length} />
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kbkEntries.fields.map((field, entryIndex) => (
+                      <tr key={field.id}>
                         {KBK_PART_FIELDS.map((part) => (
-                          <th key={part.key} className={block("th", ["sub"])}>
-                            {part.label}
-                          </th>
-                        ))}
-                        {AMOUNT_FIELDS.map((field) => (
-                          <th key={field.key} className={block("th", ["sub"])}>
-                            рублей
-                          </th>
-                        ))}
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {kbkEntries.fields.map((field, entryIndex) => {
-                        const parts = splitKbk(
-                          kbkEntriesValues?.[entryIndex]?.kbk,
-                        );
-
-                        return (
-                          <tr key={field.id}>
-                            {KBK_PART_FIELDS.map((part) => (
-                              <td key={part.key}>
-                                <input
-                                  className={block("input")}
-                                  value={parts[part.key]}
-                                  onChange={(event) =>
-                                    updateKbkPart(
-                                      entryIndex,
-                                      part.key,
-                                      event.target.value,
-                                    )
-                                  }
-                                  placeholder={part.placeholder}
-                                  aria-label={part.label}
-                                  maxLength={part.length}
-                                  list={
-                                    part.key === "expenseType"
-                                      ? "kvr-options"
-                                      : undefined
-                                  }
-                                />
-                              </td>
-                            ))}
-                            {AMOUNT_FIELDS.map((amount) => (
-                              <td key={amount.key}>
-                                <CustomInput
-                                  configuration={{
-                                    input: {
-                                      name: `kbkEntries.${entryIndex}.${amount.key}`,
-                                      placeholder: "0.00",
-                                    },
-                                  }}
-                                />
-                              </td>
-                            ))}
-                            <td>
-                              <button
-                                type="button"
-                                className={block("remove")}
-                                onClick={() => kbkEntries.remove(entryIndex)}
-                              >
-                                Убрать
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={4} className={block("cell", ["right"])}>
-                          Итого по кодам бюджетной классификации
-                        </td>
-                        {AMOUNT_FIELDS.map((field) => (
-                          <td
-                            key={field.key}
-                            className={block("cell", ["total"])}
-                          >
-                            {formatMoney(kbkTotals[field.key])}
+                          <td key={part.key}>
+                            {/* Разряды КБК — обычные поля формы: так они
+                                заполняются в любой строке, а не только в первой */}
+                            <input
+                              className={block("input")}
+                              placeholder={part.placeholder}
+                              aria-label={part.label}
+                              maxLength={part.length}
+                              list={
+                                part.key === "expenseType"
+                                  ? "kvr-options"
+                                  : undefined
+                              }
+                              {...register(
+                                `kbkEntries.${entryIndex}.${part.key}`,
+                              )}
+                            />
                           </td>
                         ))}
-                        <td />
+                        {AMOUNT_FIELDS.map((amount) => (
+                          <td key={amount.key}>
+                            <CustomInput
+                              configuration={{
+                                input: {
+                                  name: `kbkEntries.${entryIndex}.${amount.key}`,
+                                  placeholder: "0.00",
+                                },
+                              }}
+                            />
+                          </td>
+                        ))}
+                        <td>
+                          <button
+                            type="button"
+                            className={block("remove")}
+                            onClick={() => kbkEntries.remove(entryIndex)}
+                          >
+                            Убрать
+                          </button>
+                        </td>
                       </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
+                    ))}
+                    <tr>
+                      <td colSpan={4 + AMOUNT_FIELDS.length + 1}>
+                        {/* Кнопка стоит под последней заполненной строкой КБК */}
+                        <button
+                          type="button"
+                          className={block("add")}
+                          onClick={() => kbkEntries.append({ kbk: "" })}
+                        >
+                          Добавить КБК
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4} className={block("cell", ["right"])}>
+                        Итого по кодам бюджетной классификации
+                      </td>
+                      {AMOUNT_FIELDS.map((field) => (
+                        <td
+                          key={field.key}
+                          className={block("cell", ["total"])}
+                        >
+                          {formatMoney(kbkTotals[field.key])}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
 
               <datalist id="kvr-options">
                 {kvrOptions.map((option) => (
@@ -804,13 +796,6 @@ export default function PurchasePlanPositionForm({
                   </option>
                 ))}
               </datalist>
-              <button
-                type="button"
-                className={block("add")}
-                onClick={() => kbkEntries.append({ kbk: "" })}
-              >
-                Добавить КБК
-              </button>
               <p className={block("hint")}>
                 Кодов может быть сколько угодно: суммы по годам указываются,
                 только когда закупка разнесена по кодам.
@@ -829,8 +814,11 @@ export default function PurchasePlanPositionForm({
                       <div className={block("kbk-code")}>
                         <CustomInput
                           configuration={{
+                            // Подпись выводится в каждой строке: иначе поля
+                            // кода и сумм встают на разной высоте
                             label: {
-                              value: entryIndex === 0 ? "Код КОКС" : undefined,
+                              value:
+                                entryIndex === 0 ? "Код КОКС" : "\u00A0",
                             },
                             input: {
                               name: `koksEntries.${entryIndex}.koksCode`,
@@ -858,7 +846,7 @@ export default function PurchasePlanPositionForm({
                             configuration={{
                               label: {
                                 value:
-                                  entryIndex === 0 ? amount.label : undefined,
+                                  entryIndex === 0 ? amount.label : "\u00A0",
                               },
                               input: {
                                 name: `koksEntries.${entryIndex}.${amount.key}`,
@@ -926,21 +914,10 @@ export default function PurchasePlanPositionForm({
                 </select>
               </div>
               <div className={block("cell")}>
-                <span className={block("label")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasAuthorizedBody")} />
                   Есть уполномоченный орган (учреждение)
-                </span>
-                <CustomSelect
-                  listData={YES_NO_OPTIONS}
-                  selectedValue={String(Boolean(hasAuthorizedBody))}
-                  placeholder="Выберите значение"
-                  getKey={(item) => item.value}
-                  getLabel={(item) => item.label}
-                  onClick={(key) =>
-                    setValue("hasAuthorizedBody", key === "true", {
-                      shouldValidate: true,
-                    })
-                  }
-                />
+                </label>
                 {hasAuthorizedBody && (
                   <>
                     <span className={block("label")}>
@@ -964,21 +941,10 @@ export default function PurchasePlanPositionForm({
                 )}
               </div>
               <div className={block("cell")}>
-                <span className={block("label")}>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("hasJointOrganizer")} />
                   Есть организатор совместной закупки
-                </span>
-                <CustomSelect
-                  listData={YES_NO_OPTIONS}
-                  selectedValue={String(Boolean(hasJointOrganizer))}
-                  placeholder="Выберите значение"
-                  getKey={(item) => item.value}
-                  getLabel={(item) => item.label}
-                  onClick={(key) =>
-                    setValue("hasJointOrganizer", key === "true", {
-                      shouldValidate: true,
-                    })
-                  }
-                />
+                </label>
                 {hasJointOrganizer && (
                   <>
                     <span className={block("label")}>
@@ -987,7 +953,7 @@ export default function PurchasePlanPositionForm({
                     </span>
                     <CustomSelect
                       listData={organizers}
-                      selectedValue={getValues("jointOrganizerName") ?? ""}
+                      selectedValue={jointOrganizerName ?? ""}
                       placeholder="Выберите организатора"
                       getKey={(item) => item.name}
                       getLabel={(item) => item.name}

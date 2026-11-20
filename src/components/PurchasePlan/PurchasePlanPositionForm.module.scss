@@ -228,6 +228,12 @@
     overflow-x: auto;
   }
 
+  // Заголовок первой графы объёма финансового обеспечения — в такой же
+  // рамке, как и соседние ячейки
+  &__th--first {
+    border: 1px solid var(--border);
+  }
+
   &__table {
     width: 100%;
     border-collapse: collapse;
@@ -299,9 +305,9 @@
     }
   }
 
-  // Таблица разрядов ИКЗ: 7 граф, значения только для чтения
+  // Таблица разрядов ИКЗ: 6 граф, значения только для чтения
   &__table--ikz {
-    min-width: 760px;
+    min-width: 680px;
 
     td {
       min-width: 80px;
@@ -310,6 +316,38 @@
     input {
       text-align: center;
     }
+  }
+
+  // Ширины разрядов КБК — по содержимому графы
+  &__col {
+    &--chapter {
+      width: 64px;
+    }
+
+    &--section {
+      width: 96px;
+    }
+
+    &--target {
+      width: 136px;
+    }
+
+    &--expense {
+      width: 84px;
+    }
+
+    &--action {
+      width: 92px;
+    }
+  }
+
+  // Ряд дополнительного кода ОКПД2: селект и кнопка «Убрать»
+  &__okpd2-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   &__kbk-list {
@@ -324,7 +362,8 @@
   &__kbk-row {
     display: grid;
     grid-template-columns: minmax(200px, 1.2fr) minmax(0, 3fr) auto;
-    align-items: end;
+    // Поля кода и сумм стоят на одной линии: подписи есть в каждой строке
+    align-items: start;
     gap: 10px;
     padding: 8px;
     border: 1px solid var(--border);
