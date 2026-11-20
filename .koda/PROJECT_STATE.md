@@ -6,7 +6,8 @@
 > Дата последнего обновления: 2026-11-20 (Compliance & Liability Mapping в
 > `csms-api`: 4 гипотезы → гибридный pgvector/fts пул → строгий LLM-арбитр →
 > валидатор; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
-> 96 passed / 3 skipped — §48, бриф `csms-api/docs/tasks/compliance-liability-mapping.md`).
+> 97 passed / 3 skipped, JSON-контракт зафиксирован тестом — §48, бриф
+> `csms-api/docs/tasks/compliance-liability-mapping.md`).
 > Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
 > в `csms-api`: модель `qwen2.5:14b-instruct-q4_K_M`, вызов только по спорным
 > строкам, все предложения идут в `needs_review`; endpoint
@@ -1712,10 +1713,18 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   и возвращает сохранённый результат, не вызывая модель; unique
   `(duty_id, liability_node_id)` не даёт дублей.
 - **Проверки:** `dotnet build` — 0 ошибок; `dotnet test --no-build` —
-  **96 passed / 3 skipped** (17 новых тестов на инверсию, валидацию, парсер,
-  ретраи, manual review, пустой пул, идемпотентность, длинные тексты).
-  Единственное предупреждение сборки — старый xUnit2009 в
-  `EisPackageFlowTests.cs`, не трогали.
+  **97 passed / 3 skipped** (18 новых тестов: инверсия, валидация, парсер,
+  ретраи, manual review, пустой пул, идемпотентность, длинные тексты и
+  проверка точного JSON-контракта). Единственное предупреждение сборки —
+  старый xUnit2009 в `EisPackageFlowTests.cs`, не трогали.
+- **JSON-контракт API:** выход-result сериализуется в оговорённые имена полей
+  (`duty_id`, `violation_hypotheses`, `matched_liabilities`, внутри связи —
+  `liability_node_id`, `norm_reference`, `match_degree`, `probability_score`,
+  `qualifying_conditions`, `sanction_summary`, `legal_reasoning`,
+  `requires_human_review`). `match_degree` пишется строчными
+  `full|partial|blanket|irrelevant` через property-level конвертер — он
+  перекрывает глобальный PascalCase-конвертер перечислений API, не меняя
+  статусы документов ("Signed", "SmpAttraction").
 - **Важное ограничение:** локальный PostgreSQL на :5433 **без pgvector** —
   `dotnet ef database update` не смог применить миграцию:
   `extension "vector" is not available`. Schema/DDL и код готовы, но перед
