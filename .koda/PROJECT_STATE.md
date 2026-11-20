@@ -1725,10 +1725,15 @@ sent to TLS`. То есть это не токен и не PIN, а доступ/
   `full|partial|blanket|irrelevant` через property-level конвертер — он
   перекрывает глобальный PascalCase-конвертер перечислений API, не меняя
   статусы документов ("Signed", "SmpAttraction").
-- **Важное ограничение:** локальный PostgreSQL на :5433 **без pgvector** —
-  `dotnet ef database update` не смог применить миграцию:
-  `extension "vector" is not available`. Schema/DDL и код готовы, но перед
-  живым прогоном нужно поставить pgvector в кластер и повторить миграцию.
-  В `EIS_STORE=memory` пул кандидатов пустой (`EmptyLiabilityRetriever`),
-  эндпоинт при этом работает и возвращает 0 норм без вызова LLM.
+- **Окружение (закрыто 2026-11-20):** на локальном PostgreSQL 17 (:5433)
+  установлен pgvector 0.8.7 (готовая Windows-сборка, распакована в
+  `C:\Program Files\PostgreSQL\17`, служба перезапущена). Миграция
+  `20261120041526_AddLegalLiabilityMapping` применена (`--no-build`, потому
+  что запущенный экземпляр API блокировал DLL). Проверено: `vector | 0.8.7`
+  в `pg_extension`, 5 таблиц в схеме `legal`, запись в
+  `public."__EFMigrationsHistory"`.
+- **Режимы:** в `EIS_STORE=memory` пул кандидатов пустой
+  (`EmptyLiabilityRetriever`), эндпоинт работает и возвращает 0 норм без
+  вызова LLM. Полный конвейер (pgvector + FTS + Ollama) требует
+  `EIS_STORE=postgres`; после установки pgvector миграция больше не блокируется.
 
