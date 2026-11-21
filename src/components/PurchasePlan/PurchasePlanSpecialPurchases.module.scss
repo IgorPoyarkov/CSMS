@@ -67,16 +67,12 @@
   }
 
   &__col {
-    &--serial {
-      width: 40px;
-    }
-
     &--purchase {
-      width: 140px;
+      width: 160px;
     }
 
     &--kbk {
-      width: 230px;
+      width: 250px;
     }
 
     &--amount {
@@ -136,12 +132,6 @@
   }
 
   &__cell {
-    &--serial {
-      text-align: center;
-      font-variant-numeric: tabular-nums;
-      vertical-align: middle;
-    }
-
     &--kbk {
       vertical-align: middle;
       font-family: "Courier New", monospace;
@@ -182,59 +172,56 @@
     }
   }
 
-  // Группы: тип особой закупки и год внутри типа
+  // Вид закупки — схлопнутый список: заголовок раскрывает позиции внутри
   &__group-row td {
-    padding: 7px 8px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-primary);
+    padding: 0;
     background: var(--surface-raised);
   }
 
-  &__year-row td {
-    padding: 6px 8px;
-    background: var(--accent-soft);
-  }
-
-  &__year-line {
+  &__group-toggle {
+    box-sizing: border-box;
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 12px 24px;
-  }
-
-  &__year-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--accent-emphasis);
-  }
-
-  &__select--year {
-    width: 150px;
-    height: 30px;
-  }
-
-  &__year-ikz {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    font-size: 10px;
-    color: var(--text-secondary);
-  }
-
-  &__year-ikz-line {
-    display: flex;
+    align-items: center;
     gap: 8px;
-    font-variant-numeric: tabular-nums;
+    width: 100%;
+    min-height: 30px;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+    color: var(--text-primary);
+    background: transparent;
+    border: 0;
+    cursor: pointer;
 
-    b {
-      min-width: 32px;
-      color: var(--text-primary);
+    &:hover {
+      color: var(--accent);
+      background: var(--stripe);
     }
+
+    &:focus-visible {
+      outline: 1px solid var(--accent);
+      outline-offset: -1px;
+    }
+  }
+
+  &__group-chevron {
+    flex: 0 0 auto;
+    width: 10px;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  &__group-count {
+    margin-left: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: var(--surface-field);
+    border: 1px solid var(--border);
+    border-radius: 10px;
   }
 
   &__ikz-code {
@@ -346,20 +333,6 @@
     vertical-align: middle;
   }
 
-  &__ikz-parts {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 14px;
-    font-size: 10px;
-    color: var(--text-secondary);
-
-    b {
-      font-family: "Courier New", monospace;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-  }
-
   &__check {
     display: flex;
     align-items: center;
@@ -412,11 +385,37 @@
   }
 
   &__select--filter {
-    width: 180px;
+    width: 240px;
+  }
+
+  // Строка поиска и фильтра по виду закупки
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 12px;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--stripe);
+  }
+
+  &__input--search {
+    width: 320px;
+  }
+
+  &__found {
+    align-self: center;
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-secondary);
   }
 
   &__add,
   &__remove,
+  &__edit,
+  &__reset,
   &__save,
   &__wizard-add {
     box-sizing: border-box;
@@ -451,6 +450,16 @@
       background: var(--state-danger-soft);
       color: var(--state-danger);
     }
+  }
+
+  // «Изменить» компактнее «Убрать»: в узкой графе действий одна кнопка
+  // не должна растягивать строку
+  &__edit {
+    padding: 3px 4px;
+    font-size: 10px;
+    line-height: 1.2;
+    color: var(--accent-emphasis);
+    border-color: var(--border-strong);
   }
 
   &__save {

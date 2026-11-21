@@ -276,6 +276,16 @@ export default function PurchasePlanSpecialPurchases({
   // позиций с разными годами и, соответственно, разными ИКЗ.
   const [yearFilter, setYearFilter] = useState("");
 
+  // Дополнительная фильтрация: вид закупки и поиск по реквизитам позиции
+  const [typeFilter, setTypeFilter] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Виды закупки — схлопнутые списки: по умолчанию все закрыты, раскрываются
+  // по клику на заголовок. При включении поиска/фильтра раскрываются все.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
+
   // Справочник КОКС открывается только для позиций, где он действительно нужен
   const [koksPicker, setKoksPicker] = useState<{
     itemIndex: number;
@@ -412,18 +422,69 @@ export default function PurchasePlanSpecialPurchases({
       0,
     );
 
-  // Год — фильтр списка. Индексы сохраняются, чтобы правки попадали в
-  // исходный массив items, а не в его отфильтрованную копию.
+  // Год, вид закупки и поиск — фильтры списка. Индексы сохраняются, чтобы
+  // правки попадали в исходный массив items, а не в отфильтрованную копию.
+  const normalizedSearch = searchTerm.trim().toLowerCase().replace(/\s/g, "");
+  const filtersActive = Boolean(
+    yearFilter || typeFilter || normalizedSearch,
+  );
+
   const visibleRows = useMemo(
     () =>
       items
         .map((item, index) => ({ item, index }))
-        .filter(
-          ({ item }) =>
-            !yearFilter || String(item.publishYear ?? baseYear) === yearFilter,
-        ),
-    [items, yearFilter, baseYear],
+        .filter(({ item }) => {
+          if (
+            yearFilter &&
+            String(item.publishYear ?? baseYear) !== yearFilter
+          ) {
+            return false;
+          }
+          if (typeFilter && String(item.typeCode ?? "") !== typeFilter) {
+            return false;
+          }
+          if (!normalizedSearch) return true;
+
+          // Номер закупки, уникальный номер, КБК (в том числе с разрядами)
+          // и ИКЗ — всё, что пользователь видит в таблице и детализации
+          const kbkText = [
+            String(item.kbk ?? ""),
+            ...(item.kbkEntries ?? []).map(builtKbk),
+          ].join(" ");
+          const haystack = [
+            item.purchaseNumber,
+            item.positionNumber,
+            item.typeName,
+            kbkText,
+            formatKbk(String(item.kbk ?? "")),
+            item.ikz,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .replace(/\s/g, "");
+
+          return haystack.includes(normalizedSearch);
+        }),
+    [items, yearFilter, typeFilter, normalizedSearch, baseYear],
   );
+
+  // Схлопнутые группы раскрываются целиком, когда включён любой фильтр:
+  // иначе найденные позиции были бы спрятаны под заголовком вида закупки
+  function expandAllGroups() {
+    setExpandedGroups(
+      new Set(items.map((item) => item.typeCode || "no-type")),
+    );
+  }
+
+  function toggleGroup(code: string) {
+    const key = code || "no-type";
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const kbkTotal = (
     entry: PurchasePlanKbkEntry | undefined,
@@ -664,6 +725,8 @@ export default function PurchasePlanSpecialPurchases({
         mainMaxSerial + 1,
       ),
     );
+    // Новую позицию сразу видно: раскрываем её вид закупки
+    setExpandedGroups((prev) => new Set(prev).add(draftType.code));
     setIsAdding(false);
     setDraftType(null);
     setDraftYear(String(baseYear));
@@ -755,8 +818,8 @@ export default function PurchasePlanSpecialPurchases({
         Блок specialPurchasePositions по схеме ЕИС 17.0. Выберите основание из
         справочника и планируемый год размещения извещения (только три года
         планового периода), затем заполните номер закупки, КБК и, при
-        необходимости, КОКС. У каждой позиции ровно один расчётный ИКЗ; год
-        служит фильтром списка.
+        необходимости, КОКС. У каждой позиции ровно один расчётный ИКЗ; год,
+        вид закупки и поиск фильтруют список.
       </p>
 
       {!specialTypes?.fromNsi && (
@@ -780,7 +843,10 @@ export default function PurchasePlanSpecialPurchases({
             className={block("select", ["filter"])}
             aria-label="Фильтр по планируемому году размещения извещения"
             value={yearFilter}
-            onChange={(event) => setYearFilter(event.target.value)}
+            onChange={(event) => {
+              setYearFilter(event.target.value);
+              expandAllGroups();
+            }}
           >
             <option value="">Все годы</option>
             {yearOptions.map((option) => (
@@ -798,6 +864,58 @@ export default function PurchasePlanSpecialPurchases({
         >
           {isSaving ? "Сохранение..." : "Сохранить особые закупки"}
         </button>
+      </div>
+
+      <div className={block("filters")}>
+        <label className={block("filter")}>
+          <span>Поиск по позициям</span>
+          <input
+            className={block("input", ["search"])}
+            type="search"
+            placeholder="Номер закупки, КБК, уникальный номер, ИКЗ"
+            aria-label="Поиск по особым закупкам"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              expandAllGroups();
+            }}
+          />
+        </label>
+        <label className={block("filter")}>
+          <span>Вид закупки</span>
+          <select
+            className={block("select", ["filter"])}
+            aria-label="Фильтр по виду закупки"
+            value={typeFilter}
+            onChange={(event) => {
+              setTypeFilter(event.target.value);
+              expandAllGroups();
+            }}
+          >
+            <option value="">Все виды закупки</option>
+            {typeOptions.map((type) => (
+              <option key={type.code} value={type.code}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtersActive && (
+          <button
+            type="button"
+            className={block("reset")}
+            onClick={() => {
+              setYearFilter("");
+              setTypeFilter("");
+              setSearchTerm("");
+            }}
+          >
+            Сбросить фильтры
+          </button>
+        )}
+        <span className={block("found")}>
+          Позиций: {visibleRows.length}
+        </span>
       </div>
 
       {isAdding && (
@@ -851,7 +969,6 @@ export default function PurchasePlanSpecialPurchases({
         <div className={block("table-wrap")}>
           <table className={block("table")}>
             <colgroup>
-              <col className={block("col", ["serial"])} />
               <col className={block("col", ["purchase"])} />
               <col className={block("col", ["kbk"])} />
               {AMOUNT_FIELDS.map((field) => (
@@ -862,7 +979,6 @@ export default function PurchasePlanSpecialPurchases({
             </colgroup>
             <thead>
               <tr>
-                <th>№ п/п</th>
                 <th>Номер закупки, включенной в план-график закупок</th>
                 <th>Код бюджетной классификации</th>
                 {AMOUNT_FIELDS.map((field) => (
@@ -873,12 +989,32 @@ export default function PurchasePlanSpecialPurchases({
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => (
-                <Fragment key={group.code || "no-type"}>
+              {groups.map((group) => {
+                const groupKey = group.code || "no-type";
+                const isExpanded = expandedGroups.has(groupKey);
+
+                return (
+                <Fragment key={groupKey}>
                   <tr className={block("group-row")}>
-                    <td colSpan={9}>{group.name}</td>
+                    <td colSpan={8}>
+                      <button
+                        type="button"
+                        className={block("group-toggle")}
+                        aria-expanded={isExpanded}
+                        onClick={() => toggleGroup(group.code)}
+                      >
+                        <span className={block("group-chevron")}>
+                          {isExpanded ? "▾" : "▸"}
+                        </span>
+                        Вид закупки: {group.name}
+                        <span className={block("group-count")}>
+                          {group.rows.length}
+                        </span>
+                      </button>
+                    </td>
                   </tr>
-                  {group.rows.map(({ item, index }) => {
+                  {isExpanded &&
+                    group.rows.map(({ item, index }) => {
                         const entries = kbkEntriesOf(item);
                         const parts = ikzPartsOf(item);
                         const isExisting = initialIds.has(String(item.id));
@@ -887,9 +1023,6 @@ export default function PurchasePlanSpecialPurchases({
                         return (
                           <Fragment key={item.id ?? index}>
                             <tr>
-                              <td className={block("cell", ["serial"])}>
-                                {serialOf(item) ?? index + 1}
-                              </td>
                               <td>
                                 <input
                                   className={block("input", ["number"])}
@@ -937,7 +1070,7 @@ export default function PurchasePlanSpecialPurchases({
                                   {isExisting && !isModified && (
                                     <button
                                       type="button"
-                                      className={block("remove")}
+                                      className={block("edit")}
                                       onClick={() => openModification(index)}
                                     >
                                       Изменить
@@ -954,7 +1087,7 @@ export default function PurchasePlanSpecialPurchases({
                               </td>
                             </tr>
                             <tr className={block("detail-row")}>
-                              <td colSpan={8}>
+                              <td colSpan={7}>
                                 <div className={block("details")}>
                                   <div className={block("common-fields")}>
                                     <label
@@ -1244,33 +1377,6 @@ export default function PurchasePlanSpecialPurchases({
                                       </tr>
                                     </tfoot>
                                   </table>
-
-                                  <div className={block("ikz-parts")}>
-                                    <span>
-                                      Год: <b>{ikzPartsOf(item).year || "—"}</b>
-                                    </span>
-                                    <span>
-                                      ИКУ:{" "}
-                                      <b>{ikzPartsOf(item).customerCode || "—"}</b>
-                                    </span>
-                                    <span>
-                                      № закупки:{" "}
-                                      <b>
-                                        {ikzPartsOf(item).purchaseNumber || "—"}
-                                      </b>
-                                    </span>
-                                    <span>
-                                      Порядок:{" "}
-                                      <b>{ikzPartsOf(item).orderNumber}</b>
-                                    </span>
-                                    <span>
-                                      ОКПД2: <b>{ikzPartsOf(item).okpd2}</b>
-                                    </span>
-                                    <span>
-                                      КВР из КБК:{" "}
-                                      <b>{kvrOf(item) || "—"}</b>
-                                    </span>
-                                  </div>
 
                                   <label className={block("check")}>
                                     <input
@@ -1564,11 +1670,12 @@ export default function PurchasePlanSpecialPurchases({
                         );
                       })}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={7} className={block("cell", ["right"])}>
+                <td colSpan={6} className={block("cell", ["right"])}>
                   Итого по особым закупкам
                 </td>
                 <td className={block("cell", ["total"])}>
