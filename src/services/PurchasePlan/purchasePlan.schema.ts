@@ -262,10 +262,23 @@ export const PurchasePlanSpecialPurchaseSchema = z
       /^[0-9A-ZА-Я]{20}$/,
       "КБК состоит из 20 символов (разряды кода соединяются без пробелов)",
     ),
+    // Детализация КБК — та же, что у основной позиции: несколько кодов
+    // с собственными суммами по годам (KBKsInfo в XSD ЕИС 17.0)
+    kbkEntries: z.array(PurchasePlanKbkEntrySchema).optional(),
     koksCode: z.string().optional(),
+    koksName: z.string().optional(),
+    koksEntries: z.array(PurchasePlanKoksEntrySchema).optional(),
     publishYear: z.union([z.string(), z.number()]).optional(),
     purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
     modificationStatus: z.enum(["N", "E"]).optional(),
+    // Сведения об изменении — те же поля, что в карточке основной позиции
+    // (specialPurchasePositionModification в XSD ЕИС 17.0)
+    changeReasonCode: z.string().optional(),
+    changeReasonName: z.string().optional(),
+    modificationDecision: z
+      .enum(["notSpecified", "purchaseChanged", "purchaseCanceled"])
+      .optional(),
+    modificationDescription: z.string().optional(),
     // Закупка в отношении объекта капитального строительства / недвижимого
     // имущества без софинансирования из федерального бюджета (XSD ЕИС 17.0)
     isNotFederalFinancing: z.boolean().optional(),
@@ -313,7 +326,11 @@ export const emptyPurchasePlanSpecialPurchase = (
   extNumber: "",
   kvr: "",
   kbk: "",
+  // Как и в карточке основной позиции, детализация начинается с одной строки
+  kbkEntries: [{ kbk: "" }],
   koksCode: "",
+  koksName: "",
+  koksEntries: [],
   publishYear: String(planYear),
   purchaseNumber: "",
   modificationStatus: "N",

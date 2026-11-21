@@ -2,10 +2,13 @@ import { Fragment, useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
   buildIkzParts,
+  buildKbk,
   buildPositionUniqueNumber,
   emptyPurchasePlanSpecialPurchase,
+  splitKbk,
   toNumber,
   type PurchasePlan,
+  type PurchasePlanKbkEntry,
   type PurchasePlanPosition,
   type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -15,9 +18,11 @@ import {
 } from "../../services/SpecialPurchaseType/specialPurchaseType.api";
 import CustomSelect from "../UI/CustomSelect";
 import {
+  formatKbk,
   formatMoneyValue,
-  modificationStatusOptions,
+  modificationDecisionOptions,
   placementYearOptions,
+  tpChangeReasonOptions,
 } from "./purchasePlan.config";
 import styles from "./PurchasePlanSpecialPurchases.module.scss";
 
@@ -27,12 +32,13 @@ import styles from "./PurchasePlanSpecialPurchases.module.scss";
  *
  * Порядок работы с вкладкой:
  * 1) выбрать тип из справочника (пользователь видит только наименования);
- * 2) выбрать год осуществления закупки;
+ * 2) ниже выбрать год осуществления закупки (текущий год ПГ и ещё четыре);
  * 3) только после этого заполнить номер закупки, КБК и финансы.
  *
- * ИКЗ не вводится вручную — он собирается из тех же сведений, что и у основной
- * позиции: год размещения, ИНН/КПП (или ИКУ) заказчика, номер закупки,
- * сквозной порядковый номер, КВР из последних трёх разрядов КБК.
+ * ИКЗ рассчитывается из сведений и поэтому вынесен в строку года: в строке
+ * позиции на его месте показан КБК, а сами разряды КБК редактируются
+ * детализацией, как в карточке основной позиции. При нескольких КБК в ИКЗ
+ * вместо КВР из КБК ставится 000.
  */
 
 // Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
@@ -55,6 +61,26 @@ const AMOUNT_FIELDS = [
 ] as const;
 
 type AmountKey = (typeof AMOUNT_FIELDS)[number]["key"];
+
+// Разряды КБК — те же четыре поля, что в карточке основной позиции
+const KBK_PART_FIELDS = [
+  { key: "chapter", label: "Глава", placeholder: "200", length: 3 },
+  {
+    key: "section",
+    label: "Раздел (подраздел)",
+    placeholder: "1101",
+    length: 4,
+  },
+  {
+    key: "targetArticle",
+    label: "Целевая статья",
+    placeholder: "0000000000",
+    length: 10,
+  },
+  { key: "expenseType", label: "Вид расходов", placeholder: "244", length: 3 },
+] as const;
+
+type KbkPartKey = (typeof KBK_PART_FIELDS)[number]["key"];
 
 // В состоянии храним число без разделителей, показываем с разрядами —
 // так в графе помещаются суммы в миллиарды (как в карточке позиции)
@@ -131,6 +157,21 @@ const renumberSpecialItems = (
     }));
 };
 
+/** Строки детализации КБК: старые позиции с одиночным kbk не теряются. */
+const kbkEntriesOf = (
+  item: PurchasePlanSpecialPurchase,
+): PurchasePlanKbkEntry[] => {
+  if (item.kbkEntries?.length) return item.kbkEntries;
+
+  // У старых позиций был только готовый код — разложим его на разряды,
+  // чтобы детализация сразу была доступна для правки
+  return item.kbk ? [{ ...splitKbk(item.kbk), kbk: item.kbk }] : [{ kbk: "" }];
+};
+
+/** Итоговый код строки детализации: собранный из разрядов либо старый kbk. */
+const builtKbk = (entry: PurchasePlanKbkEntry): string =>
+  buildKbk(entry) || String(entry.kbk ?? "");
+
 export default function PurchasePlanSpecialPurchases({
   plan,
   positions,
@@ -142,6 +183,15 @@ export default function PurchasePlanSpecialPurchases({
 
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
   const yearOptions = placementYearOptions(baseYear);
+
+  // Подписи граф — как в карточке основной позиции формы ПГ
+  const amountHeaders: Record<AmountKey | "amountTotal", string> = {
+    amountCurrentYear: `Сумма на ${baseYear} год, руб.`,
+    amountPlanPeriodFirstYear: `Сумма на ${baseYear + 1} год, руб.`,
+    amountPlanPeriodSecondYear: `Сумма на ${baseYear + 2} год, руб.`,
+    amountSubsequentYears: "Сумма на последующие годы, руб.",
+    amountTotal: "Всего, руб.",
+  };
 
   // Сквозная нумерация: особые позиции продолжают ряд основных позиций.
   const mainMaxSerial = Math.max(
@@ -156,6 +206,16 @@ export default function PurchasePlanSpecialPurchases({
   // сквозной номер после основных позиций.
   const [items, setItems] = useState<PurchasePlanSpecialPurchase[]>(() =>
     renumberSpecialItems(plan.specialPurchases ?? [], mainMaxSerial + 1),
+  );
+
+  // Позиции, пришедшие из плана, при правке получают статус E и блок
+  // «Сведения об изменении» — как карточка основной позиции
+  const [initialIds] = useState<Set<string>>(
+    () =>
+      new Set((plan.specialPurchases ?? []).map((item) => String(item.id))),
+  );
+  const [modifiedIds, setModifiedIds] = useState<Set<string>>(
+    () => new Set(),
   );
 
   // Справочник НСИ — основной источник. Пока датасет не загружен, API
@@ -212,10 +272,64 @@ export default function PurchasePlanSpecialPurchases({
     return String(Math.max(0, ...used) + 1).padStart(4, "0").slice(-4);
   }, [positions, items]);
 
-  // КВР отдельно не вводится: это последние 3 разряда КБК
+  // Правка существующей позиции автоматически открывает блок изменения
+  function applyChange(
+    index: number,
+    updater: (item: PurchasePlanSpecialPurchase) => PurchasePlanSpecialPurchase,
+  ) {
+    const current = items[index];
+    const isExisting = Boolean(current && initialIds.has(String(current.id)));
+
+    if (isExisting) {
+      const id = String(current.id);
+      setModifiedIds((prev) =>
+        prev.has(id) ? prev : new Set(prev).add(id),
+      );
+    }
+
+    setItems((prev) =>
+      prev.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...updater(item),
+              ...(isExisting ? { modificationStatus: "E" as const } : {}),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function openModification(index: number) {
+    const item = items[index];
+    if (!item) return;
+
+    const id = String(item.id);
+    setModifiedIds((prev) => new Set(prev).add(id));
+    setItems((prev) =>
+      prev.map((current, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...current,
+              modificationStatus: "E",
+              modificationDecision:
+                current.modificationDecision ?? "purchaseChanged",
+            }
+          : current,
+      ),
+    );
+  }
+
+  // При нескольких КБК в ИКЗ вместо КВР из КБК идёт 000. Строка детализации
+  // считается добавленной сразу — заполнять её необязательно, чтобы признак
+  // «несколько кодов» проявился сразу после нажатия «Добавить КБК».
   const kvrOf = (item: PurchasePlanSpecialPurchase): string => {
-    const digits = String(item.kbk ?? "").replace(/\D/g, "");
-    return digits.length >= 3 ? digits.slice(-3) : "";
+    const entries = kbkEntriesOf(item);
+    if (entries.length > 1) return "000";
+
+    const code = builtKbk(entries[0] ?? {}) || String(item.kbk ?? "");
+    const kvr = code.replace(/\D/g, "").slice(-3);
+
+    return kvr.length === 3 ? kvr : "";
   };
 
   // Порядковый номер в ИКЗ считаем по всем записям плана с тем же номером
@@ -260,7 +374,7 @@ export default function PurchasePlanSpecialPurchases({
       okpd2Code: "",
       hasMultipleOkpd2: false,
       kvr: kvrOf(item),
-      kbk: item.kbk,
+      kbk: builtKbk(kbkEntriesOf(item)[0] ?? {}),
     });
 
   const sumYears = (item: PurchasePlanSpecialPurchase): number =>
@@ -268,6 +382,11 @@ export default function PurchasePlanSpecialPurchases({
       (total, field) => total + (toNumber(item[field.key]) ?? 0),
       0,
     );
+
+  const kbkTotal = (
+    entry: PurchasePlanKbkEntry | undefined,
+    key: AmountKey,
+  ): number => toNumber(entry?.[key]) ?? 0;
 
   const totalAmount = items.reduce(
     (total, item) => total + sumYears(item),
@@ -279,27 +398,109 @@ export default function PurchasePlanSpecialPurchases({
     key: K,
     value: PurchasePlanSpecialPurchase[K],
   ) {
-    setItems((prev) =>
-      prev.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [key]: value } : item,
-      ),
-    );
+    applyChange(index, (item) => ({ ...item, [key]: value }));
   }
 
   function updateAmount(index: number, key: AmountKey, raw: string) {
     const value = normalizeMoneyInput(raw);
 
-    setItems((prev) =>
-      prev.map((item, itemIndex) => {
-        if (itemIndex !== index) return item;
-        const next = { ...item, [key]: value };
-        const sum = sumYears(next);
-        return {
-          ...next,
-          amountTotal: sum ? String(Number(sum.toFixed(2))) : "",
-        };
-      }),
+    applyChange(index, (item) => {
+      const next = { ...item, [key]: value };
+      const sum = sumYears(next);
+      return {
+        ...next,
+        amountTotal: sum ? String(Number(sum.toFixed(2))) : "",
+      };
+    });
+  }
+
+  function syncKbkEntries(
+    item: PurchasePlanSpecialPurchase,
+    entries: PurchasePlanKbkEntry[],
+  ): PurchasePlanSpecialPurchase {
+    const normalized = entries.map((entry) => ({
+      ...entry,
+      kbk: builtKbk(entry),
+    }));
+
+    return {
+      ...item,
+      kbkEntries: normalized,
+      kbk: normalized[0]?.kbk || "",
+    };
+  }
+
+  function updateKbkPart(
+    index: number,
+    entryIndex: number,
+    key: KbkPartKey,
+    value: string,
+  ) {
+    const raw = key === "targetArticle" ? value.toUpperCase() : value.replace(/\D/g, "");
+
+    applyChange(index, (item) =>
+      syncKbkEntries(
+        item,
+        kbkEntriesOf(item).map((entry, current) =>
+          current === entryIndex ? { ...entry, [key]: raw } : entry,
+        ),
+      ),
     );
+  }
+
+  function updateKbkAmount(
+    index: number,
+    entryIndex: number,
+    key: AmountKey,
+    raw: string,
+  ) {
+    const value = normalizeMoneyInput(raw);
+
+    applyChange(index, (item) =>
+      syncKbkEntries(
+        item,
+        kbkEntriesOf(item).map((entry, current) => {
+          if (current !== entryIndex) return entry;
+          const next = { ...entry, [key]: value };
+          const sum = AMOUNT_FIELDS.reduce(
+            (total, field) => total + (toNumber(next[field.key]) ?? 0),
+            0,
+          );
+
+          return {
+            ...next,
+            amountTotal: sum ? String(Number(sum.toFixed(2))) : "",
+          };
+        }),
+      ),
+    );
+  }
+
+  function addKbk(index: number) {
+    applyChange(index, (item) =>
+      syncKbkEntries(item, [...kbkEntriesOf(item), { kbk: "" }]),
+    );
+  }
+
+  function removeKbk(index: number, entryIndex: number) {
+    applyChange(index, (item) => {
+      const entries = kbkEntriesOf(item);
+      const next =
+        entries.length > 1
+          ? entries.filter((_, current) => current !== entryIndex)
+          : [{ kbk: "" }];
+
+      return syncKbkEntries(item, next);
+    });
+  }
+
+  function updateYearGroup(
+    rows: Array<{ item: PurchasePlanSpecialPurchase; index: number }>,
+    year: string,
+  ) {
+    for (const row of rows) {
+      applyChange(row.index, (item) => ({ ...item, publishYear: year }));
+    }
   }
 
   function addItem() {
@@ -342,6 +543,8 @@ export default function PurchasePlanSpecialPurchases({
         .map((item) => {
           const sum = sumYears(item);
           const serial = serialOf(item);
+          const kbkEntries = kbkEntriesOf(item);
+
           return {
             ...item,
             serialNumber: serial !== null ? String(serial) : item.serialNumber,
@@ -351,6 +554,9 @@ export default function PurchasePlanSpecialPurchases({
                 : "") ||
               item.positionNumber ||
               "",
+            // Детализация КБК хранится вместе с одиночным кодом для ЕИС
+            kbkEntries,
+            kbk: builtKbk(kbkEntries[0] ?? {}) || "",
             // КВР и ИКЗ вычисляются из сведений и хранятся для XSD
             kvr: kvrOf(item),
             ikz: ikzPartsOf(item).code,
@@ -370,7 +576,13 @@ export default function PurchasePlanSpecialPurchases({
   const groups = useMemo(() => {
     const byType = new Map<
       string,
-      { name: string; years: Map<string, Array<{ item: PurchasePlanSpecialPurchase; index: number }>> }
+      {
+        name: string;
+        years: Map<
+          string,
+          Array<{ item: PurchasePlanSpecialPurchase; index: number }>
+        >;
+      }
     >();
 
     items.forEach((item, index) => {
@@ -422,9 +634,9 @@ export default function PurchasePlanSpecialPurchases({
 
       <p className={block("hint")}>
         Блок specialPurchasePositions по схеме ЕИС 17.0. Сначала выберите тип
-        закупки из справочника и год осуществления закупки, затем заполните
-        номер закупки, КБК и финансовое обеспечение. ИКЗ и КВР рассчитываются
-        автоматически.
+        закупки из справочника, затем год осуществления закупки, после этого
+        заполните номер закупки, КБК и финансовое обеспечение. ИКЗ рассчитывается
+        автоматически и показан в строке года.
       </p>
 
       {!specialTypes?.fromNsi && (
@@ -473,6 +685,7 @@ export default function PurchasePlanSpecialPurchases({
               className={block("select")}
               aria-label="Год осуществления закупки"
               value={draftYear}
+              disabled={!draftType}
               onChange={(event) => setDraftYear(event.target.value)}
             >
               {yearOptions.map((option) => (
@@ -503,26 +716,23 @@ export default function PurchasePlanSpecialPurchases({
           <table className={block("table")}>
             <colgroup>
               <col className={block("col", ["serial"])} />
-              <col className={block("col", ["ikz"])} />
               <col className={block("col", ["purchase"])} />
               <col className={block("col", ["kbk"])} />
-              <col className={block("col", ["amount"])} />
-              <col className={block("col", ["amount"])} />
-              <col className={block("col", ["amount"])} />
-              <col className={block("col", ["amount"])} />
+              {AMOUNT_FIELDS.map((field) => (
+                <col key={field.key} className={block("col", ["amount"])} />
+              ))}
               <col className={block("col", ["total"])} />
               <col className={block("col", ["action"])} />
             </colgroup>
             <thead>
               <tr>
                 <th>№ п/п</th>
-                <th>ИКЗ (формируется из сведений)</th>
-                <th>Номер закупки</th>
-                <th>КБК</th>
+                <th>Номер закупки, включенной в план-график закупок</th>
+                <th>Код бюджетной классификации</th>
                 {AMOUNT_FIELDS.map((field) => (
-                  <th key={field.key}>{field.label}</th>
+                  <th key={field.key}>{amountHeaders[field.key]}</th>
                 ))}
-                <th>Всего</th>
+                <th>{amountHeaders.amountTotal}</th>
                 <th className={block("th", ["action-head"])} />
               </tr>
             </thead>
@@ -530,35 +740,67 @@ export default function PurchasePlanSpecialPurchases({
               {groups.map((group) => (
                 <Fragment key={group.code || "no-type"}>
                   <tr className={block("group-row")}>
-                    <td colSpan={10}>{group.name}</td>
+                    <td colSpan={9}>{group.name}</td>
                   </tr>
                   {group.years.map((yearGroup) => (
                     <Fragment key={yearGroup.year}>
                       <tr className={block("year-row")}>
-                        <td colSpan={10}>
-                          Год осуществления закупки: {yearGroup.year}
+                        <td colSpan={9}>
+                          <div className={block("year-line")}>
+                            <label className={block("year-field")}>
+                              <span>Год осуществления закупки</span>
+                              <select
+                                className={block("select", ["year"])}
+                                aria-label="Год осуществления закупки"
+                                value={yearGroup.year}
+                                onChange={(event) =>
+                                  updateYearGroup(
+                                    yearGroup.rows,
+                                    event.target.value,
+                                  )
+                                }
+                              >
+                                {yearOptions.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <div className={block("year-ikz")}>
+                              <span>Идентификационный код закупки</span>
+                              {yearGroup.rows.map(({ item }) => {
+                                const parts = ikzPartsOf(item);
+
+                                return (
+                                  <div
+                                    key={item.id ?? item.serialNumber}
+                                    className={block("year-ikz-line")}
+                                  >
+                                    <b>{item.purchaseNumber || "—"}</b>
+                                    <span className={block("ikz-code")}>
+                                      {parts.code || "ИКЗ не собран"}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                       {yearGroup.rows.map(({ item, index }) => {
-                        const parts = ikzPartsOf(item);
+                        const entries = kbkEntriesOf(item);
+                        const isExisting = initialIds.has(String(item.id));
+                        const isModified = modifiedIds.has(String(item.id));
 
                         return (
                           <Fragment key={item.id ?? index}>
                             <tr>
                               <td className={block("cell", ["serial"])}>
                                 {serialOf(item) ?? index + 1}
-                              </td>
-                              <td>
-                                <div className={block("ikz")}>
-                                  <span className={block("ikz-code")}>
-                                    {parts.code || "ИКЗ не собран"}
-                                  </span>
-                                  {!parts.code && (
-                                    <span className={block("ikz-error")}>
-                                      Проверьте ИНН/КПП, номер закупки и КБК
-                                    </span>
-                                  )}
-                                </div>
                               </td>
                               <td>
                                 <input
@@ -576,24 +818,17 @@ export default function PurchasePlanSpecialPurchases({
                                   }
                                 />
                               </td>
-                              <td>
-                                <input
-                                  className={block("input", ["code"])}
-                                  placeholder="20 символов"
-                                  aria-label="КБК"
-                                  maxLength={20}
-                                  value={item.kbk ?? ""}
-                                  onChange={(event) =>
-                                    updateField(index, "kbk", event.target.value)
-                                  }
-                                />
+                              <td className={block("cell", ["kbk"])}>
+                                <span className={block("kbk-code")}>
+                                  {formatKbk(builtKbk(entries[0] ?? {}))}
+                                </span>
                               </td>
                               {AMOUNT_FIELDS.map((field) => (
                                 <td key={field.key}>
                                   <input
                                     className={block("input", ["money"])}
                                     placeholder="0,00"
-                                    aria-label={field.label}
+                                    aria-label={amountHeaders[field.key]}
                                     inputMode="decimal"
                                     value={displayMoneyInput(item[field.key])}
                                     onChange={(event) =>
@@ -610,70 +845,201 @@ export default function PurchasePlanSpecialPurchases({
                                 {formatMoneyValue(sumYears(item))}
                               </td>
                               <td className={block("cell", ["action"])}>
-                                <button
-                                  type="button"
-                                  className={block("remove")}
-                                  onClick={() => removeItem(index)}
-                                >
-                                  Убрать
-                                </button>
+                                <div className={block("row-actions")}>
+                                  {isExisting && !isModified && (
+                                    <button
+                                      type="button"
+                                      className={block("remove")}
+                                      onClick={() => openModification(index)}
+                                    >
+                                      Изменить
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className={block("remove")}
+                                    onClick={() => removeItem(index)}
+                                  >
+                                    Убрать
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                             <tr className={block("detail-row")}>
-                              <td colSpan={9}>
+                              <td colSpan={8}>
                                 <div className={block("details")}>
+                                  <div className={block("detail-title")}>
+                                    Детализация по кодам бюджетной классификации
+                                  </div>
+                                  <table className={block("kbk-table")}>
+                                    <colgroup>
+                                      {KBK_PART_FIELDS.map((part) => (
+                                        <col
+                                          key={part.key}
+                                          className={block("col", [part.key])}
+                                        />
+                                      ))}
+                                      {AMOUNT_FIELDS.map((field) => (
+                                        <col
+                                          key={field.key}
+                                          className={block("col", ["kbk-money"])}
+                                        />
+                                      ))}
+                                      <col className={block("col", ["action"])} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr>
+                                        <th colSpan={KBK_PART_FIELDS.length}>
+                                          Код бюджетной классификации
+                                        </th>
+                                        <th colSpan={AMOUNT_FIELDS.length}>
+                                          Объём финансового обеспечения
+                                        </th>
+                                        <th
+                                          rowSpan={2}
+                                          className={block("th", ["action-head"])}
+                                        />
+                                      </tr>
+                                      <tr>
+                                        {KBK_PART_FIELDS.map((part) => (
+                                          <th
+                                            key={part.key}
+                                            className={block("th", ["sub"])}
+                                          >
+                                            {part.label}
+                                          </th>
+                                        ))}
+                                        {AMOUNT_FIELDS.map((field) => (
+                                          <th
+                                            key={field.key}
+                                            className={block("th", ["sub"])}
+                                          >
+                                            {amountHeaders[field.key]}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {entries.map((entry, entryIndex) => (
+                                        <tr key={`${item.id}-kbk-${entryIndex}`}>
+                                          {KBK_PART_FIELDS.map((part) => (
+                                            <td key={part.key}>
+                                              <input
+                                                className={block("input", ["code"])}
+                                                placeholder={part.placeholder}
+                                                aria-label={`${part.label} КБК`}
+                                                maxLength={part.length}
+                                                value={String(entry[part.key] ?? "")}
+                                                onChange={(event) =>
+                                                  updateKbkPart(
+                                                    index,
+                                                    entryIndex,
+                                                    part.key,
+                                                    event.target.value,
+                                                  )
+                                                }
+                                              />
+                                            </td>
+                                          ))}
+                                          {AMOUNT_FIELDS.map((field) => (
+                                            <td key={field.key}>
+                                              <input
+                                                className={block("input", ["money"])}
+                                                placeholder="0,00"
+                                                aria-label={`${amountHeaders[field.key]} КБК`}
+                                                inputMode="decimal"
+                                                value={displayMoneyInput(entry[field.key])}
+                                                onChange={(event) =>
+                                                  updateKbkAmount(
+                                                    index,
+                                                    entryIndex,
+                                                    field.key,
+                                                    event.target.value,
+                                                  )
+                                                }
+                                              />
+                                            </td>
+                                          ))}
+                                          <td className={block("cell", ["action"])}>
+                                            <button
+                                              type="button"
+                                              className={block("remove")}
+                                              onClick={() =>
+                                                removeKbk(index, entryIndex)
+                                              }
+                                            >
+                                              Убрать
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                      <tr>
+                                        <td colSpan={KBK_PART_FIELDS.length + AMOUNT_FIELDS.length + 1}>
+                                          <button
+                                            type="button"
+                                            className={block("add")}
+                                            onClick={() => addKbk(index)}
+                                          >
+                                            Добавить КБК
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    </tbody>
+                                    <tfoot>
+                                      <tr>
+                                        <td colSpan={KBK_PART_FIELDS.length}>
+                                          Итого по кодам бюджетной классификации
+                                        </td>
+                                        {AMOUNT_FIELDS.map((field) => (
+                                          <td
+                                            key={field.key}
+                                            className={block("cell", ["total"])}
+                                          >
+                                            {formatMoneyValue(
+                                              entries.reduce(
+                                                (total, entry) =>
+                                                  total + kbkTotal(entry, field.key),
+                                                0,
+                                              ),
+                                            )}
+                                          </td>
+                                        ))}
+                                        <td />
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+
                                   <div className={block("ikz-parts")}>
                                     <span>
-                                      Год: <b>{parts.year || "—"}</b>
+                                      Год: <b>{ikzPartsOf(item).year || "—"}</b>
                                     </span>
                                     <span>
-                                      ИКУ: <b>{parts.customerCode || "—"}</b>
+                                      ИКУ:{" "}
+                                      <b>{ikzPartsOf(item).customerCode || "—"}</b>
                                     </span>
                                     <span>
                                       № закупки:{" "}
-                                      <b>{parts.purchaseNumber || "—"}</b>
+                                      <b>
+                                        {ikzPartsOf(item).purchaseNumber || "—"}
+                                      </b>
                                     </span>
                                     <span>
-                                      Порядок: <b>{parts.orderNumber}</b>
+                                      Порядок:{" "}
+                                      <b>{ikzPartsOf(item).orderNumber}</b>
                                     </span>
                                     <span>
-                                      ОКПД2: <b>{parts.okpd2}</b>
+                                      ОКПД2: <b>{ikzPartsOf(item).okpd2}</b>
                                     </span>
                                     <span>
-                                      КВР из КБК: <b>{parts.kvr || "—"}</b>
+                                      КВР из КБК:{" "}
+                                      <b>{kvrOf(item) || "—"}</b>
                                     </span>
                                   </div>
-                                  <label className={block("detail-field")}>
-                                    <span>Статус изменения</span>
-                                    <select
-                                      className={block("select")}
-                                      value={item.modificationStatus ?? "N"}
-                                      onChange={(event) =>
-                                        updateField(
-                                          index,
-                                          "modificationStatus",
-                                          event.target.value as "N" | "E",
-                                        )
-                                      }
-                                    >
-                                      {modificationStatusOptions.map(
-                                        (option) => (
-                                          <option
-                                            key={option.value}
-                                            value={option.value}
-                                          >
-                                            {option.label}
-                                          </option>
-                                        ),
-                                      )}
-                                    </select>
-                                  </label>
+
                                   <label className={block("check")}>
                                     <input
                                       type="checkbox"
-                                      checked={Boolean(
-                                        item.isNotFederalFinancing,
-                                      )}
+                                      checked={Boolean(item.isNotFederalFinancing)}
                                       onChange={(event) =>
                                         updateField(
                                           index,
@@ -682,8 +1048,131 @@ export default function PurchasePlanSpecialPurchases({
                                         )
                                       }
                                     />
-                                    Без федерального софинансирования
+                                    ОКС / недвижимость без софинансирования из
+                                    федерального бюджета
                                   </label>
+
+                                  {isModified && (
+                                    <div className={block("modification")}>
+                                      <div className={block("detail-title")}>
+                                        Сведения об изменении / отмене позиции
+                                        (positionModification)
+                                      </div>
+                                      <table className={block("mod-table")}>
+                                        <colgroup>
+                                          <col className={block("col", ["mod-label"])} />
+                                          <col className={block("col", ["mod-value"])} />
+                                        </colgroup>
+                                        <thead>
+                                          <tr>
+                                            <th>Наименование поля</th>
+                                            <th>Значение</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr>
+                                            <th scope="row">
+                                              Основание внесения изменений
+                                              (changeReason)
+                                            </th>
+                                            <td>
+                                              <select
+                                                className={block("select")}
+                                                value={item.changeReasonCode ?? ""}
+                                                onChange={(event) => {
+                                                  const code = event.target.value;
+                                                  const found =
+                                                    tpChangeReasonOptions.find(
+                                                      (option) =>
+                                                        option.code === code,
+                                                    );
+                                                  applyChange(index, (current) => ({
+                                                    ...current,
+                                                    changeReasonCode: code,
+                                                    changeReasonName:
+                                                      found?.name ?? "",
+                                                  }));
+                                                }}
+                                              >
+                                                <option value="">
+                                                  — Не выбрано —
+                                                </option>
+                                                {tpChangeReasonOptions.map(
+                                                  (option) => (
+                                                    <option
+                                                      key={option.code}
+                                                      value={option.code}
+                                                    >
+                                                      {option.code}. {option.name}
+                                                    </option>
+                                                  ),
+                                                )}
+                                              </select>
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <th scope="row">
+                                              Вынесенное решение (decision)
+                                            </th>
+                                            <td>
+                                              <div className={block("radio-row")}>
+                                                {modificationDecisionOptions.map(
+                                                  (option) => (
+                                                    <label
+                                                      key={option.value}
+                                                      className={block("radio")}
+                                                    >
+                                                      <input
+                                                        type="radio"
+                                                        name={`special-modification-${item.id}`}
+                                                        value={option.value}
+                                                        checked={
+                                                          (item.modificationDecision ??
+                                                            "notSpecified") ===
+                                                          option.value
+                                                        }
+                                                        onChange={() =>
+                                                          updateField(
+                                                            index,
+                                                            "modificationDecision",
+                                                            option.value,
+                                                          )
+                                                        }
+                                                      />
+                                                      <span>{option.label}</span>
+                                                    </label>
+                                                  ),
+                                                )}
+                                              </div>
+                                            </td>
+                                          </tr>
+                                          <tr>
+                                            <th scope="row">
+                                              Содержание изменений позиции
+                                              (description)
+                                            </th>
+                                            <td>
+                                              <textarea
+                                                className={block("textarea")}
+                                                rows={3}
+                                                placeholder="Обоснование корректировки или отмены позиции"
+                                                value={
+                                                  item.modificationDescription ?? ""
+                                                }
+                                                onChange={(event) =>
+                                                  updateField(
+                                                    index,
+                                                    "modificationDescription",
+                                                    event.target.value,
+                                                  )
+                                                }
+                                              />
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td />
@@ -698,7 +1187,7 @@ export default function PurchasePlanSpecialPurchases({
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={8} className={block("cell", ["right"])}>
+                <td colSpan={7} className={block("cell", ["right"])}>
                   Итого по особым закупкам
                 </td>
                 <td className={block("cell", ["total"])}>

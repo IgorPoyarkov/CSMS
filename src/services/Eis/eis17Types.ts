@@ -239,10 +239,20 @@ export interface EisTenderPlan2020SpecialPurchase {
   extNumber?: string;
   kvr?: string;
   kbk?: string;
-  koksCode?: string;
+  // Детализация КБК/КОКС и сведения об изменении — те же блоки XSD, что и
+  // у основной позиции, но под своими тегами specialPurchasePosition*
+  kbksInfo: EisTenderPlan2020KBKInfo[];
+  koksInfo: EisTenderPlan2020KOKSInfo[];
   publishYear?: number;
   purchaseNumber?: string;
   modificationStatus?: "N" | "E";
+  modification?: {
+    changeReasonCode?: string;
+    changeReasonName?: string;
+    decision: EisTpPositionDecision;
+    description?: string;
+    modificationNumber?: number;
+  };
   isNotFederalFinancing?: boolean;
   financeInfo: EisTenderPlan2020FinanceResources;
 }
@@ -808,25 +818,90 @@ export const mapPurchasePlanToEis17 = (
 
   const specialPurchases: EisTenderPlan2020SpecialPurchase[] = (
     plan.specialPurchases ?? []
-  ).map((sp) => ({
-    id: sp.id ? String(sp.id) : undefined,
-    // В черновике код типа может быть не заполнен: в DTO отдаём пустую
-    // строку, а ошибку выгрузки покажет validatePurchasePlanEis17
-    typeCode: sp.typeCode ?? "",
-    typeName: sp.typeName,
-    ikz: sp.ikz,
-    iku: sp.iku,
-    positionNumber: sp.positionNumber,
-    extNumber: sp.extNumber,
-    kvr: sp.kvr,
-    kbk: sp.kbk,
-    koksCode: sp.koksCode,
-    publishYear: Number(sp.publishYear) || planYearNum,
-    purchaseNumber: sp.purchaseNumber,
-    modificationStatus: sp.modificationStatus,
-    isNotFederalFinancing: sp.isNotFederalFinancing,
-    financeInfo: positionFinance(sp),
-  }));
+  ).map((sp) => {
+    const fin = positionFinance(sp);
+    const kbksInfo = positionKbkEntries(sp).map((entry) => {
+      // У старых особых закупок детализация по КБК отсутствует: суммы лежат
+      // сразу в позиции, поэтому в KBKYearsInfo переносим весь financeInfo,
+      // а не только итог (иначе годовые разряды становятся нулями)
+      const hasDetail = [
+        entry.amountTotal,
+        entry.amountCurrentYear,
+        entry.amountPlanPeriodFirstYear,
+        entry.amountPlanPeriodSecondYear,
+        entry.amountSubsequentYears,
+      ].some((value) => value !== undefined && String(value).trim() !== "");
+
+      return {
+        kbk: entry.kbk ?? "",
+        yearsInfo: hasDetail
+          ? {
+              total: moneyNum(entry.amountTotal) || fin.total,
+              currentYear: moneyNum(entry.amountCurrentYear),
+              firstYear: moneyNum(entry.amountPlanPeriodFirstYear),
+              secondYear: moneyNum(entry.amountPlanPeriodSecondYear),
+              subsecYears: moneyNum(entry.amountSubsequentYears),
+            }
+          : fin,
+      };
+    });
+
+    const detailKoksInfo = (sp.koksEntries ?? []).map((entry) => ({
+      koksCode: entry.koksCode,
+      koksName: entry.koksName || undefined,
+      yearsInfo: {
+        total: moneyNum(entry.amountTotal) || fin.total,
+        currentYear: moneyNum(entry.amountCurrentYear),
+        firstYear: moneyNum(entry.amountPlanPeriodFirstYear),
+        secondYear: moneyNum(entry.amountPlanPeriodSecondYear),
+        subsecYears: moneyNum(entry.amountSubsequentYears),
+      },
+    }));
+    const koksInfo = detailKoksInfo.length
+      ? detailKoksInfo
+      : sp.koksCode
+        ? [
+            {
+              koksCode: sp.koksCode,
+              koksName: sp.koksName || undefined,
+              yearsInfo: fin,
+            },
+          ]
+        : [];
+
+    const hasModification =
+      sp.modificationStatus === "E" || Boolean(sp.changeReasonCode);
+
+    return {
+      id: sp.id ? String(sp.id) : undefined,
+      // В черновике код типа может быть не заполнен: в DTO отдаём пустую
+      // строку, а ошибку выгрузки покажет validatePurchasePlanEis17
+      typeCode: sp.typeCode ?? "",
+      typeName: sp.typeName,
+      ikz: sp.ikz,
+      iku: sp.iku,
+      positionNumber: sp.positionNumber,
+      extNumber: sp.extNumber,
+      kvr: sp.kvr,
+      kbk: sp.kbk,
+      kbksInfo,
+      koksInfo,
+      publishYear: Number(sp.publishYear) || planYearNum,
+      purchaseNumber: sp.purchaseNumber,
+      modificationStatus: sp.modificationStatus,
+      modification: hasModification
+        ? {
+            changeReasonCode: sp.changeReasonCode || undefined,
+            changeReasonName: sp.changeReasonName || undefined,
+            decision: sp.modificationDecision ?? "notSpecified",
+            description: sp.modificationDescription || undefined,
+            modificationNumber: Number(plan.versionNumber) || undefined,
+          }
+        : undefined,
+      isNotFederalFinancing: sp.isNotFederalFinancing,
+      financeInfo: fin,
+    };
+  });
 
   return {
     schemaVersion: "17.0",
@@ -1638,6 +1713,40 @@ export const validatePurchasePlanEis17 = (
         `specialPurchases[${idx}].ikz`,
         `${label}: не указан ИКЗ особой закупки.`,
       );
+    } else if (!EIS_IKZ_PATTERN.test(String(special.ikz))) {
+      pushIssue(
+        "error",
+        `specialPurchases[${idx}].ikz`,
+        `${label}: ИКЗ особой закупки должен содержать ровно 36 цифр.`,
+      );
+    }
+    if (
+      String(special.kbk ?? "").trim() &&
+      !/^[0-9A-ZА-Я]{20}$/.test(String(special.kbk))
+    ) {
+      pushIssue(
+        "error",
+        `specialPurchases[${idx}].kbk`,
+        `${label}: КБК должен содержать 20 символов без разделителей.`,
+      );
+    }
+    // specialPurchasePositionModification обязателен при статусе E, причём
+    // changeReason и decision в нём обязательны (в основной позиции reason умо)
+    if (special.modificationStatus === "E" || special.changeReasonCode) {
+      if (!String(special.changeReasonCode ?? "").trim()) {
+        pushIssue(
+          "error",
+          `specialPurchases[${idx}].changeReasonCode`,
+          `${label}: при изменении позиции укажите основание внесения изменений (changeReason).`,
+        );
+      }
+      if (!special.modificationDecision) {
+        pushIssue(
+          "error",
+          `specialPurchases[${idx}].modificationDecision`,
+          `${label}: при изменении позиции укажите вынесенное решение (decision).`,
+        );
+      }
     }
     if (!String(special.purchaseNumber ?? "").trim()) {
       pushIssue(
@@ -2192,16 +2301,53 @@ const positionXml = (pos: EisTenderPlan2020Position): string => {
 
 // Позиция особой закупки (tenderPlan2020SpecialPurchasePositionType)
 const specialPurchaseXml = (sp: EisTenderPlan2020SpecialPurchase): string => {
-  const kbksXml = sp.kbk
-    ? `<KBKsInfo><KBKInfo><KBK>${escapeXml(sp.kbk)}</KBK>` +
-      `<KBKYearsInfo>${financeResourcesXml(sp.financeInfo)}</KBKYearsInfo>` +
-      `</KBKInfo></KBKsInfo>`
+  // KBKsInfo у особой позиции — брат financeInfo, а не его потомок
+  // (tenderPlan2020SpecialPurchasePositionType, IntegrationTPTypes.xsd)
+  const kbksXml = sp.kbksInfo.length
+    ? `<KBKsInfo>${sp.kbksInfo
+        .map(
+          (entry) =>
+            `<KBKInfo><KBK>${escapeXml(entry.kbk)}</KBK>` +
+            `<KBKYearsInfo>${financeResourcesXml(entry.yearsInfo)}</KBKYearsInfo>` +
+            `</KBKInfo>`,
+        )
+        .join("")}</KBKsInfo>`
     : "";
 
-  const koksXml = sp.koksCode
-    ? `<KOKSsInfo><KOKSInfo><KOKS><code>${escapeXml(sp.koksCode)}</code></KOKS>` +
-      `<KOKSYearsInfo>${financeResourcesXml(sp.financeInfo)}</KOKSYearsInfo>` +
-      `</KOKSInfo></KOKSsInfo>`
+  const koksXml = sp.koksInfo.length
+    ? `<KOKSsInfo>${sp.koksInfo
+        .map(
+          (entry) =>
+            `<KOKSInfo><KOKS><code>${escapeXml(entry.koksCode)}</code>` +
+            (entry.koksName
+              ? `<name>${escapeXml(entry.koksName)}</name>`
+              : "") +
+            `</KOKS>` +
+            `<KOKSYearsInfo>${financeResourcesXml(entry.yearsInfo)}</KOKSYearsInfo>` +
+            `</KOKSInfo>`,
+        )
+        .join("")}</KOKSsInfo>`
+    : "";
+
+  // changeReason обязателен в specialPurchasePositionModification при статусе E
+  const modification = sp.modification;
+  const modificationXml = modification
+    ? `<specialPurchasePositionModification>` +
+      (modification.changeReasonCode
+        ? `<changeReason><code>${escapeXml(modification.changeReasonCode)}</code>` +
+          (modification.changeReasonName
+            ? `<name>${escapeXml(modification.changeReasonName)}</name>`
+            : "") +
+          `</changeReason>`
+        : "") +
+      `<decision>${modification.decision}</decision>` +
+      (modification.description
+        ? `<description>${escapeXml(modification.description)}</description>`
+        : "") +
+      (modification.modificationNumber
+        ? `<modificationNumber>${modification.modificationNumber}</modificationNumber>`
+        : "") +
+      `</specialPurchasePositionModification>`
     : "";
 
   return (
@@ -2220,6 +2366,7 @@ const specialPurchaseXml = (sp: EisTenderPlan2020SpecialPurchase): string => {
     `<purchaseNumber>${escapeXml(sp.purchaseNumber ?? "")}</purchaseNumber>` +
     `<financeInfo>${financeResourcesXml(sp.financeInfo)}</financeInfo>` +
     kbksXml +
+    modificationXml +
     (sp.modificationStatus
       ? `<specialPurchasePositionModificationStatus>${sp.modificationStatus}</specialPurchasePositionModificationStatus>`
       : "") +

@@ -71,20 +71,16 @@
       width: 40px;
     }
 
-    &--ikz {
-      width: 220px;
-    }
-
     &--purchase {
-      width: 70px;
-    }
-
-    &--kbk {
       width: 140px;
     }
 
+    &--kbk {
+      width: 230px;
+    }
+
     &--amount {
-      width: 105px;
+      width: 120px;
     }
 
     &--total {
@@ -94,12 +90,45 @@
     &--action {
       width: 60px;
     }
+
+    // Разряды детализации КБК и таблица сведений об изменении
+    &--chapter {
+      width: 70px;
+    }
+
+    &--section {
+      width: 120px;
+    }
+
+    &--targetArticle {
+      width: 170px;
+    }
+
+    &--expenseType {
+      width: 80px;
+    }
+
+    &--kbk-money {
+      width: 120px;
+    }
+
+    &--mod-label {
+      width: 38%;
+    }
+
+    &--mod-value {
+      width: 62%;
+    }
   }
 
-  // Пустая ячейка в шапке над кнопкой «Убрать»
+  // Пустая ячейка в шапке над кнопками строк
   &__th--action-head {
     background: var(--surface-raised);
     border: 1px solid var(--border);
+  }
+
+  &__th--sub {
+    font-size: 10px;
   }
 
   &__cell {
@@ -107,6 +136,14 @@
       text-align: center;
       font-variant-numeric: tabular-nums;
       vertical-align: middle;
+    }
+
+    &--kbk {
+      vertical-align: middle;
+      font-family: "Courier New", monospace;
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+      word-break: break-all;
     }
 
     &--calculated {
@@ -151,18 +188,49 @@
   }
 
   &__year-row td {
-    padding: 5px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--accent-emphasis);
+    padding: 6px 8px;
     background: var(--accent-soft);
   }
 
-  &__ikz {
+  &__year-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 12px 24px;
+  }
+
+  &__year-field {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-emphasis);
+  }
+
+  &__select--year {
+    width: 150px;
+    height: 30px;
+  }
+
+  &__year-ikz {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     min-width: 0;
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  &__year-ikz-line {
+    display: flex;
+    gap: 8px;
+    font-variant-numeric: tabular-nums;
+
+    b {
+      min-width: 32px;
+      color: var(--text-primary);
+    }
   }
 
   &__ikz-code {
@@ -174,13 +242,14 @@
     color: var(--text-primary);
   }
 
-  &__ikz-error {
-    font-size: 10px;
-    color: var(--state-danger);
+  &__kbk-code {
+    display: block;
+    white-space: normal;
   }
 
   &__input,
-  &__select {
+  &__select,
+  &__textarea {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
@@ -218,7 +287,13 @@
     }
   }
 
-  // Разряды ИКЗ и признаки изменения унесены под строку
+  &__textarea {
+    height: auto;
+    min-height: 62px;
+    resize: vertical;
+  }
+
+  // Детализация КБК и сведения об изменении унесены под строку позиции
   &__detail-row {
     background: var(--surface-raised);
   }
@@ -227,6 +302,44 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  &__detail-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__kbk-table,
+  &__mod-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 11px;
+
+    th,
+    td {
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-raised);
+    }
+
+    tfoot td {
+      font-weight: 700;
+      text-align: right;
+    }
+  }
+
+  &__mod-table th[scope="row"] {
+    text-align: left;
+    vertical-align: middle;
   }
 
   &__ikz-parts {
@@ -243,18 +356,6 @@
     }
   }
 
-  &__detail-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: var(--text-secondary);
-
-    .special-purchases__select {
-      width: 220px;
-    }
-  }
-
   &__check {
     display: flex;
     align-items: center;
@@ -263,6 +364,28 @@
     line-height: 1.35;
     color: var(--text-secondary);
     cursor: pointer;
+  }
+
+  &__radio-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+
+  &__radio {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  &__row-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
   }
 
   &__actions {
@@ -323,7 +446,7 @@
     }
   }
 
-  // Шаг 1–2: выбор типа из справочника и года перед созданием строки
+  // Шаг 1–2: выбор типа из справочника и года под ним
   &__wizard {
     display: flex;
     flex-wrap: wrap;
