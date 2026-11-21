@@ -400,13 +400,24 @@ export default function PurchasePlanCard() {
           ? `Аукционный перечень (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022): при конкурентной закупке обязателен электронный аукцион`
           : undefined;
 
+        // Наименование по ОКПД2 бывает в разы длиннее остальных граф
+        // (до 191 символа в импорте ЕИС), поэтому текст обрезается
+        // многоточием по ширине графы, а полное значение доступно
+        // во всплывающей подсказке при наведении.
+        const okpd2Title = okpd2Name || position.okpd2Code || "";
+
         return (
           <span className={block("okpd2")}>
             {position.okpd2Code && (
               <span className={block("code")}>{position.okpd2Code}</span>
             )}
-            <span className={block("okpd2-name")}>
-              {okpd2Name || position.okpd2Code || "—"}
+            <span className={block("okpd2-line")}>
+              <span
+                className={block("okpd2-name")}
+                title={okpd2Title || undefined}
+              >
+                {okpd2Title || "—"}
+              </span>
               {normTip && (
                 <span
                   className={block("info")}

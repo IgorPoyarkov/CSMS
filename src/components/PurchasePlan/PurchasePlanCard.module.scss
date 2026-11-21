@@ -550,8 +550,18 @@
     color: var(--text-primary);
   }
 
+  // Графа «Наименование товара, работы, услуги по ОКПД2» не должна быть
+  // шире графы «Наименование объекта закупки» (240px): длинное наименование
+  // обрезается многоточием, полный текст — в подсказке при наведении.
   &__okpd2 {
     display: block;
+    max-width: 240px;
+  }
+
+  &__okpd2-line {
+    display: flex;
+    align-items: flex-start;
+    min-width: 0;
   }
 
   &__code {
@@ -574,7 +584,13 @@
 
   &__okpd2-name {
     display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
     color: var(--text-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
   }
 
   &__okpd2 &__code {
