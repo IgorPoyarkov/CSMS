@@ -466,35 +466,6 @@
     }
   }
 
-  // Кликабельные шапки граф: подпись и стрелка направления сортировки.
-  &__sort-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    width: 100%;
-    padding: 0;
-    font: inherit;
-    color: inherit;
-    text-align: center;
-    background: none;
-    border: 0;
-    cursor: pointer;
-  }
-
-  &__sort-icon {
-    flex: 0 0 auto;
-    font-size: 10px;
-    line-height: 1;
-    color: var(--text-secondary);
-    opacity: 0.6;
-
-    &--active {
-      color: var(--accent);
-      opacity: 1;
-    }
-  }
-
   &__table-wrap,
   &__table-wrapper {
     overflow-x: auto;
