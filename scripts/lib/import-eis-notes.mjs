@@ -454,6 +454,7 @@ const buildApprovedBlocks = (notice, position, subject) => {
  * @param {string} [options.importedAt] момент выгрузки
  * @param {Array} [options.existingNotes] уже есть в БД (для восстановления без повторной выгрузки)
  * @param {number} [options.year] оставляем извещения только этого года (0 — все)
+ * @param {number[]} [options.years] несколько разрешённых лет (приоритетнее `year`)
  */
 export function buildImportPurchaseNotes({
   plans = [],
@@ -463,6 +464,7 @@ export function buildImportPurchaseNotes({
   importedAt = "",
   existingNotes = [],
   year = 0,
+  years = [],
 }) {
   const notes = [...existingNotes];
   const positions = plans.flatMap((plan) =>
@@ -476,10 +478,13 @@ export function buildImportPurchaseNotes({
   let linked = 0;
 
   for (const notice of notices) {
-    if (year && noticeYear(notice) !== year) {
+    const noticeY = noticeYear(notice);
+    const allowed =
+      years.length > 0 ? years.includes(noticeY) : !year || noticeY === year;
+    if (!allowed) {
       skippedNotices.push({
         id: notice.id,
-        year: noticeYear(notice) ?? null,
+        year: noticeY ?? null,
       });
       continue;
     }

@@ -89,6 +89,11 @@ function parseArgs(argv) {
     plans: 3,
     notices: 3,
     tasks: 12,
+    // Явный диапазон дат ЕИС (ДД.ММ.ГГГГ). Если не задан — считаем от
+    // текущей даты назад на --years / --notice-years, как и раньше.
+    planFrom: "",
+    noticeFrom: "",
+    to: "",
     dryRun: false,
     refreshOrganization: false,
     enrichPlans: false,
@@ -124,7 +129,9 @@ function parseArgs(argv) {
 
 function fetchRaw(url) {
   let lastError;
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  // ЕИС режет частые запросы карточек 403-м. Пять попыток с нарастающей
+  // паузой позволяют догрузить все извещения без ручных повторов.
+  for (let attempt = 1; attempt <= 5; attempt++) {
     try {
       const result = execFileSync(
         CURL,
@@ -150,6 +157,8 @@ function fetchRaw(url) {
       const status = Number(buffer.subarray(cut + marker.length).toString("utf8").trim() || 0);
       if (status === 200) return buffer.subarray(0, cut);
       lastError = new Error(`ЕИС вернул HTTP ${status}: ${url}`);
+      sleep(status === 403 ? attempt * 5000 : attempt * 1200);
+      continue;
     } catch (error) {
       lastError = error;
     }
@@ -796,7 +805,7 @@ function enrichPlansFromXml(db) {
   return result;
 }
 
-async function fetchNoticesCsv(inn, from, to, limit) {
+export async function fetchNoticesCsv(inn, from, to, limit) {
   const searchHtml = fetchText(buildNoticeSearchUrl(inn, from, to));
   const total = parseTotalCount(searchHtml);
   sleep(500);
@@ -892,10 +901,10 @@ function paramValue(html, needle) {
   return found ? clean(found[2]) : "";
 }
 
-async function fetchNoticeDetail(number) {
+export async function fetchNoticeDetail(number) {
   const url = `${EIS}/epz/order/notice/printForm/view.html?regNumber=${number}`;
   const html = fetchText(url);
-  sleep(500);
+  sleep(900);
   const text = textOnly(html);
   const kbk = clean(
     (text.match(/Код бюджетной классификации Российской Федерации\s+Сумма контракта[\s\S]*?\b(\d{20})\b/) || [])[1],
@@ -1001,7 +1010,7 @@ function mapPlan(source, template, org, importInfo) {
   };
 }
 
-function mapNotice(item, detail, template, org, plans, importInfo) {
+export function mapNotice(item, detail, template, org, plans, importInfo) {
   const row = item.row;
   const ikz = clean(row["Идентификационный код закупки"]).replace(/^'/, "");
   const regNumber = item.number;
@@ -1136,7 +1145,7 @@ function mapNotice(item, detail, template, org, plans, importInfo) {
   return notice;
 }
 
-function mapProcurement(notice) {
+export function mapProcurement(notice) {
   return {
     id: notice.procurementId,
     "Идентификационный код закупки": notice.ikz,
@@ -1226,9 +1235,10 @@ async function main() {
   }
 
   const now = new Date();
-  const planFromDots = formatDots(shiftDate(now, args.years));
-  const noticeFromDots = formatDots(shiftDate(now, args.noticeYears));
-  const toDots = formatDots(now);
+  const planFromDots = args.planFrom || formatDots(shiftDate(now, args.years));
+  const noticeFromDots =
+    args.noticeFrom || formatDots(shiftDate(now, args.noticeYears));
+  const toDots = args.to || formatDots(now);
   const importInfo = {
     inn,
     importedAt: now.toISOString(),
@@ -1246,9 +1256,19 @@ async function main() {
   }
   const foundNotices = await fetchNoticesCsv(inn, noticeFromDots, toDots, args.notices);
   const noticeRows = [];
+  const detailFailures = [];
   for (const item of foundNotices.notices) {
-    const detail = await fetchNoticeDetail(item.number);
-    noticeRows.push({ item, detail });
+    try {
+      const detail = await fetchNoticeDetail(item.number);
+      noticeRows.push({ item, detail });
+    } catch (error) {
+      // При выгрузке за несколько лет часть карточек может быть недоступна —
+      // терять весь импорт из-за одной страницы нельзя.
+      detailFailures.push({
+        number: item.number,
+        error: String(error?.message ?? error),
+      });
+    }
   }
 
   // Шаблоны берём из текущей базы до очистки: так сохраняются все вложенные
@@ -1307,6 +1327,11 @@ async function main() {
     organization: org,
     employee,
     importedAt: now.toISOString(),
+    // СЗ создаём только по извещениям запрошенного диапазона лет.
+    years: [
+      Number.parseInt(noticeFromDots.slice(-4), 10),
+      Number.parseInt(toDots.slice(-4), 10),
+    ],
   });
   db.purchaseNotes = purchaseNotes.notes;
 
@@ -1338,8 +1363,10 @@ async function main() {
 
   const report = {
     ...summary,
+    detailFailures,
     tasksAdded: tasks.length,
     purchaseNotesCreated: purchaseNotes.created.length,
+    purchaseNotesSkipped: purchaseNotes.skippedNotices.length,
     contractsPreserved: preservedContracts,
     contractLinks: chain.notices,
     paymentLinks: chain.payments,
@@ -1350,8 +1377,12 @@ async function main() {
   console.log(JSON.stringify(report, null, 2));
 }
 
-main().catch((error) => {
-  console.error(`Ошибка импорта ЕИС: ${error.message}`);
-  if (process.env.EIS_IMPORT_DEBUG) console.error(error.stack);
-  process.exitCode = 1;
-});
+// Скрипт можно импортировать для точечного догруза отдельных карточек —
+// тогда main() не запускается, а вызывающая сторона использует экспорты.
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`Ошибка импорта ЕИС: ${error.message}`);
+    if (process.env.EIS_IMPORT_DEBUG) console.error(error.stack);
+    process.exitCode = 1;
+  });
+}
