@@ -927,12 +927,124 @@ function PaymentSummary({ contract }: { contract: ContractRegistryItem }) {
   );
 }
 
+// ─── Сортировка таблиц карточки контракта ──────────────────────────────────
+
+type SortDirection = "asc" | "desc";
+
+interface TableSort {
+  key: string;
+  dir: SortDirection;
+}
+
+/** Повторный клик по той же колонке меняет направление, новая — начинает с asc. */
+const toggleTableSort = (current: TableSort | null, key: string): TableSort =>
+  current?.key === key
+    ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+    : { key, dir: "asc" };
+
+/** Числа сравниваем как числа, даты ISO и текст — через localeCompare. */
+const compareSortValues = (a: unknown, b: unknown): number => {
+  const numA = typeof a === "number" ? a : Number.NaN;
+  const numB = typeof b === "number" ? b : Number.NaN;
+  if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+  const textA = a === null || a === undefined ? "" : String(a);
+  const textB = b === null || b === undefined ? "" : String(b);
+  return textA.localeCompare(textB, "ru", { numeric: true });
+};
+
+const sortTableRows = <T,>(
+  rows: T[],
+  sort: TableSort | null,
+  getValue: (row: T, key: string) => unknown,
+): T[] => {
+  if (!sort) return rows;
+  return [...rows].sort((a, b) => {
+    const result = compareSortValues(
+      getValue(a, sort.key),
+      getValue(b, sort.key),
+    );
+    return sort.dir === "asc" ? result : -result;
+  });
+};
+
+interface SortableThProps {
+  label: string;
+  sortKey: string;
+  sort: TableSort | null;
+  onSort: (key: string) => void;
+}
+
+/** Заголовок колонки: название и кнопка переключения направления. */
+function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
+  const direction = sort && sort.key === sortKey ? sort.dir : null;
+  return (
+    <th
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        className={styles.sortHeader}
+        onClick={() => onSort(sortKey)}
+        title={`Сортировать по «${label}»`}
+      >
+        <span>{label}</span>
+        <span
+          className={`${styles.sortIcon} ${
+            direction ? styles.sortIconActive : ""
+          }`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 // ─── Этапы ──────────────────────────────────────────────────────────────────
 
 function StagesSection({ contractId }: { contractId?: string | number }) {
   const { data: stages } = useContractStages(contractId);
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!stages || stages.length === 0) return null;
+
+  const handleSort = (key: string) =>
+    setSort((current) => toggleTableSort(current, key));
+
+  const rows = sortTableRows(stages, sort, (stage, key) => {
+    switch (key) {
+      case "number":
+        return Number(stage.stageNumber) || 0;
+      case "sid":
+        return stage.sid ?? "";
+      case "name":
+        return stage.name ?? "";
+      case "period":
+        return stage.startDate ?? "";
+      case "amount":
+        return Number(stage.amount) || 0;
+      case "years":
+        return (
+          (Number(stage.paymentsSumInfo?.currentYear) || 0) +
+          (Number(stage.paymentsSumInfo?.firstYear) || 0) +
+          (Number(stage.paymentsSumInfo?.secondYear) || 0) +
+          (Number(stage.paymentsSumInfo?.subsequentYears) || 0)
+        );
+      case "paid":
+        return Number(stage.paidAmount) || 0;
+      case "status":
+        return STAGE_LABELS[stage.status] ?? "";
+      default:
+        return "";
+    }
+  });
 
   return (
     <section className={styles.subSection}>
@@ -940,18 +1052,58 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>№</th>
-            <th>Идентификатор ЕИС (sid)</th>
-            <th>Наименование</th>
-            <th>Период</th>
-            <th>Сумма, ₽</th>
-            <th>По годам (paymentsSumInfo)</th>
-            <th>Оплачено, ₽</th>
-            <th>Статус</th>
+            <SortableTh
+              label="№"
+              sortKey="number"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Идентификатор ЕИС (sid)"
+              sortKey="sid"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Наименование"
+              sortKey="name"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Период"
+              sortKey="period"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Сумма, ₽"
+              sortKey="amount"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="По годам (paymentsSumInfo)"
+              sortKey="years"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Оплачено, ₽"
+              sortKey="paid"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Статус"
+              sortKey="status"
+              sort={sort}
+              onSort={handleSort}
+            />
           </tr>
         </thead>
         <tbody>
-          {stages.map((s: ContractStage) => (
+          {rows.map((s: ContractStage) => (
             <tr key={s.id}>
               <td>{s.stageNumber}</td>
               <td>{s.sid || "—"}</td>
@@ -990,8 +1142,39 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
 
 function PaymentsSection({ contractId }: { contractId?: string | number }) {
   const { data: payments } = useContractPayments(contractId);
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!payments || payments.length === 0) return null;
+
+  const handleSort = (key: string) =>
+    setSort((current) => toggleTableSort(current, key));
+
+  const rows = sortTableRows(payments, sort, (payment, key) => {
+    switch (key) {
+      case "document":
+        return payment.paymentDocumentNumber ?? "";
+      case "date":
+        return payment.paymentDate ?? "";
+      case "type":
+        return PAYMENT_LABELS[payment.paymentType] ?? "";
+      case "xsd":
+        return payment.paymentTypeCode || paymentXsdCodeFor(payment.paymentType);
+      case "amount":
+        return Number(payment.amount) || 0;
+      case "bank":
+        return payment.bankDocumentNumber ?? "";
+      case "registry":
+        return payment.regNumberExecution ?? "";
+      case "due":
+        return paymentDeadlineDate(payment) ?? "";
+      case "status":
+        return PAYMENT_STATUS_LABELS[payment.status] ?? "";
+      case "treasury":
+        return payment.treasuryExecution ? 1 : 0;
+      default:
+        return "";
+    }
+  });
 
   return (
     <section className={styles.subSection}>
@@ -999,20 +1182,70 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Документ</th>
-            <th>Дата</th>
-            <th>Тип</th>
-            <th>Код XSD</th>
-            <th>Сумма, ₽</th>
-            <th>Банковский документ</th>
-            <th>Реестровый номер исполнения</th>
-            <th>Срок оплаты</th>
-            <th>Статус</th>
-            <th>Казначейство</th>
+            <SortableTh
+              label="Документ"
+              sortKey="document"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Дата"
+              sortKey="date"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Тип"
+              sortKey="type"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Код XSD"
+              sortKey="xsd"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Сумма, ₽"
+              sortKey="amount"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Банковский документ"
+              sortKey="bank"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Реестровый номер исполнения"
+              sortKey="registry"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Срок оплаты"
+              sortKey="due"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Статус"
+              sortKey="status"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Казначейство"
+              sortKey="treasury"
+              sort={sort}
+              onSort={handleSort}
+            />
           </tr>
         </thead>
         <tbody>
-          {payments.map((p: ContractPayment) => (
+          {rows.map((p: ContractPayment) => (
             <tr key={p.id}>
               <td>{p.paymentDocumentNumber || "—"}</td>
               <td>{p.paymentDate || "—"}</td>
@@ -1042,10 +1275,33 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
 
 function PenaltiesSection({ contractId }: { contractId?: string | number }) {
   const { data: penalties } = useContractPenalties(contractId);
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!penalties || penalties.length === 0) return null;
 
   const total = totalPenalties(penalties);
+
+  const handleSort = (key: string) =>
+    setSort((current) => toggleTableSort(current, key));
+
+  const rows = sortTableRows(penalties, sort, (penalty, key) => {
+    switch (key) {
+      case "detected":
+        return penalty.detectedDate ?? "";
+      case "type":
+        return PENALTY_LABELS[penalty.type] ?? "";
+      case "description":
+        return penalty.description ?? "";
+      case "amount":
+        return Number(penalty.amount) || 0;
+      case "status":
+        return PENALTY_STATUS_LABELS[penalty.status] ?? "";
+      case "reference":
+        return penalty.reference ?? "";
+      default:
+        return "";
+    }
+  });
 
   return (
     <section className={styles.subSection}>
@@ -1055,16 +1311,46 @@ function PenaltiesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Выявлено</th>
-            <th>Тип</th>
-            <th>Нарушение</th>
-            <th>Сумма, ₽</th>
-            <th>Статус</th>
-            <th>Основание</th>
+            <SortableTh
+              label="Выявлено"
+              sortKey="detected"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Тип"
+              sortKey="type"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Нарушение"
+              sortKey="description"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Сумма, ₽"
+              sortKey="amount"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Статус"
+              sortKey="status"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Основание"
+              sortKey="reference"
+              sort={sort}
+              onSort={handleSort}
+            />
           </tr>
         </thead>
         <tbody>
-          {penalties.map((p: ContractPenalty) => (
+          {rows.map((p: ContractPenalty) => (
             <tr key={p.id}>
               <td>{p.detectedDate}</td>
               <td>{PENALTY_LABELS[p.type]}</td>
@@ -1084,8 +1370,31 @@ function PenaltiesSection({ contractId }: { contractId?: string | number }) {
 
 function DeliveriesSection({ contractId }: { contractId?: string | number }) {
   const { data: deliveries } = useContractDeliveries(contractId);
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!deliveries || deliveries.length === 0) return null;
+
+  const handleSort = (key: string) =>
+    setSort((current) => toggleTableSort(current, key));
+
+  const rows = sortTableRows(deliveries, sort, (delivery, key) => {
+    switch (key) {
+      case "date":
+        return delivery.deliveryDate ?? "";
+      case "name":
+        return delivery.itemName ?? "";
+      case "quantity":
+        return Number(delivery.quantity) || 0;
+      case "amount":
+        return Number(delivery.amount) || 0;
+      case "act":
+        return delivery.acceptanceActNumber ?? "";
+      case "result":
+        return DELIVERY_LABELS[delivery.result] ?? "";
+      default:
+        return "";
+    }
+  });
 
   return (
     <section className={styles.subSection}>
@@ -1093,16 +1402,46 @@ function DeliveriesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Дата</th>
-            <th>Наименование</th>
-            <th>Кол-во</th>
-            <th>Сумма, ₽</th>
-            <th>Акт</th>
-            <th>Результат</th>
+            <SortableTh
+              label="Дата"
+              sortKey="date"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Наименование"
+              sortKey="name"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Кол-во"
+              sortKey="quantity"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Сумма, ₽"
+              sortKey="amount"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Акт"
+              sortKey="act"
+              sort={sort}
+              onSort={handleSort}
+            />
+            <SortableTh
+              label="Результат"
+              sortKey="result"
+              sort={sort}
+              onSort={handleSort}
+            />
           </tr>
         </thead>
         <tbody>
-          {deliveries.map((d: ContractDelivery) => (
+          {rows.map((d: ContractDelivery) => (
             <tr key={d.id}>
               <td>{d.deliveryDate}</td>
               <td>{d.itemName}</td>
