@@ -86,6 +86,13 @@ const AMOUNT_FIELDS = [
 
 type AmountKey = (typeof AMOUNT_FIELDS)[number]["key"];
 
+// В блоке «Сведения о финансовом обеспечении» ЕИС показывает «Всего»
+// последней графой — после лет планового периода
+const EIS_AMOUNT_FIELDS = [
+  ...AMOUNT_FIELDS.filter((field) => field.key !== "amountTotal"),
+  AMOUNT_FIELDS[0],
+] as const;
+
 // Разряды КБК: глава 3, раздел/подраздел 4, целевая статья 10, вид расходов 3
 const KBK_PART_FIELDS = [
   { key: "chapter", label: "Глава", placeholder: "200", length: 3 },
@@ -487,6 +494,47 @@ export default function PurchasePlanPositionForm({
             {plan.customer.inn ? ` · ИНН ${plan.customer.inn}` : ""}
             {plan.customer.kpp ? ` · КПП ${plan.customer.kpp}` : ""}
           </p>
+
+          {/* Шапка карточки позиции в стиле ЕИС: ИКЗ, объект закупки,
+              объём финансового обеспечения и даты размещения */}
+          <div className={block("eis-summary")}>
+            <div className={block("summary-row")}>
+              <span className={block("summary-label")}>
+                Идентификационный код закупки (ИКЗ)
+              </span>
+              <span className={block("summary-value", ["mono"])}>
+                {ikzParts.code || position.identificationCode || "—"}
+              </span>
+            </div>
+            <div className={block("summary-row")}>
+              <span className={block("summary-label")}>Объект закупки</span>
+              <span className={block("summary-value")}>
+                {getValues("objectOfPurchase") || "—"}
+              </span>
+            </div>
+            <div className={block("summary-stats")}>
+              <div className={block("summary-stat")}>
+                <span className={block("summary-label")}>
+                  Объём финансового обеспечения
+                </span>
+                <span className={block("summary-amount")}>
+                  {formatMoney(getValues("amountTotal") || position.amountTotal)}
+                </span>
+              </div>
+              <div className={block("summary-stat")}>
+                <span className={block("summary-label")}>Размещено в ЕИС</span>
+                <span className={block("summary-date")}>
+                  {plan.publishDate || "—"}
+                </span>
+              </div>
+              <div className={block("summary-stat")}>
+                <span className={block("summary-label")}>Утверждено</span>
+                <span className={block("summary-date")}>
+                  {plan.approvalDate || "—"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <button type="button" className={block("back-btn")} onClick={onClose}>
@@ -531,11 +579,24 @@ export default function PurchasePlanPositionForm({
                   <span className={block("label")}>
                     Идентификационный код закупки (ИКЗ, 36 знаков)
                   </span>
-                  {ikzParts.code && (
-                    <span className={block("ikz-code-preview")}>
-                      {ikzParts.code}
-                    </span>
-                  )}
+                  <div className={block("ikz-actions")}>
+                    {ikzParts.code && (
+                      <button
+                        type="button"
+                        className={block("copy-btn")}
+                        onClick={() => {
+                          void navigator.clipboard?.writeText(ikzParts.code);
+                        }}
+                      >
+                        Скопировать
+                      </button>
+                    )}
+                    {ikzParts.code && (
+                      <span className={block("ikz-code-preview")}>
+                        {ikzParts.code}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className={block("table-wrap")}>
                   <table className={block("table", ["ikz"])}>
@@ -572,14 +633,12 @@ export default function PurchasePlanPositionForm({
                           ikzParts.okpd2,
                           ikzParts.kvr,
                         ].map((part, partIndex) => (
-                          <td key={partIndex}>
-                            <input
-                              className={block("input", ["readonly"])}
-                              value={part || "—"}
-                              readOnly
-                              disabled
-                              aria-label={`Разряд ИКЗ ${partIndex + 1}`}
-                            />
+                          <td
+                            key={partIndex}
+                            className={block("cell", ["ikz-part"])}
+                            aria-label={`Разряд ИКЗ ${partIndex + 1}`}
+                          >
+                            {part || "—"}
                           </td>
                         ))}
                       </tr>
@@ -996,7 +1055,7 @@ export default function PurchasePlanPositionForm({
                 <table className={block("table", ["amounts"])}>
                   <colgroup>
                     <col className={block("col", ["amount-label"])} />
-                    {AMOUNT_FIELDS.map((field) => (
+                    {EIS_AMOUNT_FIELDS.map((field) => (
                       <col
                         key={field.key}
                         className={block("col", ["amount-value"])}
@@ -1008,7 +1067,7 @@ export default function PurchasePlanPositionForm({
                       <th className={block("th", ["first"])}>
                         Планируемые платежи, рублей
                       </th>
-                      {AMOUNT_FIELDS.map((field) => (
+                      {EIS_AMOUNT_FIELDS.map((field) => (
                         <th key={field.key}>{amountHeaders[field.key]}</th>
                       ))}
                     </tr>
@@ -1018,7 +1077,7 @@ export default function PurchasePlanPositionForm({
                       <td className={block("cell", ["row-label"])}>
                         Сумма, рублей
                       </td>
-                      {AMOUNT_FIELDS.map((field) => (
+                      {EIS_AMOUNT_FIELDS.map((field) => (
                         <td key={field.key} className={block("cell", ["money"])}>
                           <CustomInput
                             configuration={{

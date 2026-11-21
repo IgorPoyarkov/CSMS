@@ -137,6 +137,47 @@ export const OrganizationRequisitesSchema = z.object({
   okfs: optionalText(2, "Укажите код ОКФС"),
   oktmo: optionalPattern(/^\d{8,11}$/, "Код ОКТМО состоит из 8–11 цифр"),
   oktmoPpo: optionalText(2, "Укажите публично-правовое образование по ОКТМО"),
+  // Публичные сведения карточки организации ЕИС. Используются для
+  // ведомственного нормирования и справочной информации, в UI пока не выводятся.
+  taxRegistrationDate: optionalText(
+    8,
+    "Укажите дату постановки на учёт в налоговом органе",
+  ),
+  organizationType: optionalText(2, "Укажите тип организации"),
+  okvedCodes: z.array(z.string()).optional(),
+  budgetCode: optionalText(5, "Укажите код бюджета"),
+  budgetName: optionalText(3, "Укажите наименование бюджета"),
+  fax: optionalText(5, "Укажите факс"),
+  timeZone: optionalText(3, "Укажите часовую зону"),
+  authority: z
+    .object({
+      code: z.string().optional(),
+      inn: z.string().optional(),
+      kpp: z.string().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  authorizedOrganization: z
+    .object({
+      code: z.string().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  authorizedBody: z
+    .object({
+      inn: z.string().optional(),
+      kpp: z.string().optional(),
+      name: z.string().optional(),
+    })
+    .optional(),
+  powers: z
+    .array(
+      z.object({
+        name: z.string(),
+        since: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export type OrganizationRequisites = z.infer<
@@ -188,4 +229,15 @@ export const organizationToCustomer = (
   okfs: organization.okfs,
   oktmo: organization.oktmo,
   oktmoPpo: organization.oktmoPpo,
+  taxRegistrationDate: organization.taxRegistrationDate,
+  organizationType: organization.organizationType,
+  okvedCodes: organization.okvedCodes,
+  budgetCode: organization.budgetCode,
+  budgetName: organization.budgetName,
+  fax: organization.fax,
+  timeZone: organization.timeZone,
+  authority: organization.authority,
+  authorizedOrganization: organization.authorizedOrganization,
+  authorizedBody: organization.authorizedBody,
+  powers: organization.powers,
 });
