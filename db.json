@@ -125,7 +125,24 @@
           "name": "Уполномоченное учреждение",
           "since": "2019-04-17"
         }
-      ]
+      ],
+      "procurementRequisites": {
+        "securityRequisites": {
+          "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
+          "recipientInn": "4629040439",
+          "recipientKpp": "463201001"
+        },
+        "budgetPart13Art44Requisites": {
+          "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
+          "recipientInn": "4629040439",
+          "recipientKpp": "463201001"
+        },
+        "defaultApplicationSecurityOrder": "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+        "defaultContractSecurityOrder": "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+        "defaultWarrantySecurityOrder": "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+        "updatedAt": "2026-11-21",
+        "updatedByName": "Пояркова Наталья Юрьевна"
+      }
     }
   ],
   "structuralUnits": [
@@ -338,7 +355,6 @@
       "totalAmount": "15290787502.36",
       "remarks": "Импорт из ЕИС по ИНН 4629040439: позиций 119, окно 21.11.2023 — 21.11.2026",
       "customer": {
-        "id": 6,
         "fullName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
         "shortName": "ОКУ \"КУРСКАВТОДОР\"",
         "inn": "4629040439",
@@ -350,13 +366,11 @@
         "email": "estimate@roadkursk.ru",
         "phone": "7-4712-749074",
         "responsiblePerson": "Долинская О. Л.",
-        "budgetLevel": "regional",
-        "registryNumber": "01442000018",
-        "isActive": true,
-        "oktmo": "38701000001",
         "consRegistryNum": "382Р1122",
         "okopf": "75204",
-        "okfs": "13"
+        "okfs": "13",
+        "oktmo": "38701000001",
+        "id": 6
       },
       "positions": [
         {
@@ -9569,12 +9583,63 @@
       ],
       "specialPurchases": [
         {
+          "id": "eissp-202601442000018001000001",
+          "typeCode": "P4_1_93",
+          "typeName": "Закупки в соответствии с п. 4 ч. 1 ст. 93 Федерального закона № 44-ФЗ",
+          "ikz": "262462904043946320100100180000000000",
+          "iku": "24629040439463201001",
+          "positionNumber": "202601442000018001000129",
+          "extNumber": "",
+          "kvr": "000",
+          "kbk": "84407051740110010244",
+          "publishYear": "2026",
+          "purchaseNumber": "0018",
+          "modificationStatus": "E",
+          "isNotFederalFinancing": false,
+          "amountTotal": "17429688.26",
+          "amountCurrentYear": "17316860.56",
+          "amountPlanPeriodFirstYear": "112827.70",
+          "amountPlanPeriodSecondYear": "0.00",
+          "amountSubsequentYears": "0.00",
+          "serialNumber": "129",
+          "modificationDecision": "purchaseChanged",
+          "kbkEntries": [
+            {
+              "chapter": "844",
+              "section": "0705",
+              "targetArticle": "1740110010",
+              "expenseType": "244",
+              "kbk": "84407051740110010244",
+              "amountTotal": "17429688.26",
+              "amountCurrentYear": "17316860.56",
+              "amountPlanPeriodFirstYear": "112827.70",
+              "amountPlanPeriodSecondYear": "0.00",
+              "amountSubsequentYears": "0.00"
+            },
+            {
+              "kbk": "84454673453453453534",
+              "chapter": "844",
+              "section": "5467",
+              "targetArticle": "3453453453",
+              "expenseType": "534",
+              "amountCurrentYear": "345345",
+              "amountTotal": "414758",
+              "amountPlanPeriodFirstYear": "34534",
+              "amountPlanPeriodSecondYear": "34534",
+              "amountSubsequentYears": "345"
+            }
+          ],
+          "changeReasonCode": "1",
+          "changeReasonName": "Изменение объёма финансового обеспечения для осуществления закупок (пункты 1–4 части 8 статьи 16 Закона N 44-ФЗ)",
+          "modificationDescription": "345вап"
+        },
+        {
           "id": "eissp-202601442000018001000019",
           "typeCode": "P4_1_93",
           "typeName": "Закупки в соответствии с п. 4 ч. 1 ст. 93 Федерального закона № 44-ФЗ",
           "ikz": "262462904043946320100100130000000414",
           "iku": "24629040439463201001",
-          "positionNumber": "202601442000018001000019",
+          "positionNumber": "202601442000018001000130",
           "extNumber": "",
           "kvr": "414",
           "kbk": "844040917201К7500414",
@@ -9586,27 +9651,56 @@
           "amountCurrentYear": "505651.99",
           "amountPlanPeriodFirstYear": "0.00",
           "amountPlanPeriodSecondYear": "0.00",
-          "amountSubsequentYears": "0.00"
+          "amountSubsequentYears": "0.00",
+          "serialNumber": "130",
+          "kbkEntries": [
+            {
+              "chapter": "844",
+              "section": "0409",
+              "targetArticle": "17201К7500",
+              "expenseType": "414",
+              "kbk": "844040917201К7500414",
+              "amountTotal": "505651.99",
+              "amountCurrentYear": "505651.99",
+              "amountPlanPeriodFirstYear": "0.00",
+              "amountPlanPeriodSecondYear": "0.00",
+              "amountSubsequentYears": "0.00"
+            }
+          ]
         },
         {
-          "id": "eissp-202601442000018001000001",
+          "id": "eissp-202601442000018001000002",
           "typeCode": "P4_1_93",
           "typeName": "Закупки в соответствии с п. 4 ч. 1 ст. 93 Федерального закона № 44-ФЗ",
-          "ikz": "262462904043946320100100180000000244",
+          "ikz": "272462904043946320100100190000000244",
           "iku": "24629040439463201001",
-          "positionNumber": "202601442000018001000001",
+          "positionNumber": "202601442000018001000131",
           "extNumber": "",
           "kvr": "244",
-          "kbk": "84407051740110010244",
-          "publishYear": "2026",
-          "purchaseNumber": "0018",
-          "modificationStatus": "E",
+          "kbk": "84404121720113400244",
+          "publishYear": "2027",
+          "purchaseNumber": "0019",
           "isNotFederalFinancing": false,
-          "amountTotal": "17429688.26",
-          "amountCurrentYear": "17316860.56",
-          "amountPlanPeriodFirstYear": "112827.70",
+          "amountTotal": "1298000",
+          "amountCurrentYear": "0.00",
+          "amountPlanPeriodFirstYear": "1298000.00",
           "amountPlanPeriodSecondYear": "0.00",
-          "amountSubsequentYears": "0.00"
+          "amountSubsequentYears": "0.00",
+          "serialNumber": "131",
+          "kbkEntries": [
+            {
+              "chapter": "844",
+              "section": "0412",
+              "targetArticle": "1720113400",
+              "expenseType": "244",
+              "kbk": "84404121720113400244",
+              "amountTotal": "1298000.00",
+              "amountCurrentYear": "0.00",
+              "amountPlanPeriodFirstYear": "1298000.00",
+              "amountPlanPeriodSecondYear": "0.00",
+              "amountSubsequentYears": "0.00"
+            }
+          ]
         },
         {
           "id": "eissp-202601442000018001000018",
@@ -9614,7 +9708,7 @@
           "typeName": "Услуги по содержанию и ремонту одного или нескольких нежилых помещений, переданных в безвозмездное пользование или оперативное управление заказчику, услуги по водо-, тепло-, газо- и энергоснабжению, услуги по охране, услуги по вывозу бытовых отходов в случае, если такие услуги оказываются другому лицу или другим лицам, пользующимся нежилыми помещениями, находящимися в здании, в котором расположены помещения, переданные заказчику в безвозмездное пользование или оперативное управление (п.23 ч.1 ст.93 Федерального закона №44-ФЗ)",
           "ikz": "262462904043946320100100200000000244",
           "iku": "24629040439463201001",
-          "positionNumber": "202601442000018001000018",
+          "positionNumber": "202601442000018001000132",
           "extNumber": "",
           "kvr": "244",
           "kbk": "8440409174019Д600244",
@@ -9625,26 +9719,22 @@
           "amountCurrentYear": "150104.16",
           "amountPlanPeriodFirstYear": "178711.77",
           "amountPlanPeriodSecondYear": "0.00",
-          "amountSubsequentYears": "0.00"
-        },
-        {
-          "id": "eissp-202601442000018001000002",
-          "typeCode": "P4_1_93",
-          "typeName": "Закупки в соответствии с п. 4 ч. 1 ст. 93 Федерального закона № 44-ФЗ",
-          "ikz": "272462904043946320100100190000000244",
-          "iku": "24629040439463201001",
-          "positionNumber": "202601442000018001000002",
-          "extNumber": "",
-          "kvr": "244",
-          "kbk": "84404121720113400244",
-          "publishYear": "2027",
-          "purchaseNumber": "0019",
-          "isNotFederalFinancing": false,
-          "amountTotal": "1298000.00",
-          "amountCurrentYear": "0.00",
-          "amountPlanPeriodFirstYear": "1298000.00",
-          "amountPlanPeriodSecondYear": "0.00",
-          "amountSubsequentYears": "0.00"
+          "amountSubsequentYears": "0.00",
+          "serialNumber": "132",
+          "kbkEntries": [
+            {
+              "chapter": "844",
+              "section": "0409",
+              "targetArticle": "174019Д600",
+              "expenseType": "244",
+              "kbk": "8440409174019Д600244",
+              "amountTotal": "328815.93",
+              "amountCurrentYear": "150104.16",
+              "amountPlanPeriodFirstYear": "178711.77",
+              "amountPlanPeriodSecondYear": "0.00",
+              "amountSubsequentYears": "0.00"
+            }
+          ]
         }
       ],
       "eisImport": {
@@ -18905,6 +18995,16 @@
       "Тип закупки": "Открытый конкурс в электронной форме на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ",
       "eisSourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000193",
       "contractId": "eis-2462904043926000090"
+    },
+    {
+      "Идентификационный код закупки": "262462904043946320100100010004211414",
+      "Наименование закупки": "Строительство автомобильной дороги от проспекта Надежды Плевицкой к общеобразовательной школе в г. Курске",
+      "Начальная (максимальная) цена контракта, руб": 68875102.05,
+      "Тип закупки": "Прочее",
+      "Уполномоченный орган (учреждение)": "Департамент здравоохранения города Москвы",
+      "Организатор совместной закупки": "",
+      "КБК": "8440409172019Д003414",
+      "id": "u-YvUmL"
     }
   ],
   "notices": [
@@ -19182,7 +19282,8 @@
           "planId": "eisp-202601442000018001",
           "positionId": "202601442000018001-106"
         }
-      }
+      },
+      "purchaseNoteId": 2
     },
     {
       "id": "eisn-0144200001826000194",
@@ -19458,7 +19559,8 @@
           "planId": "eisp-202601442000018001",
           "positionId": "202601442000018001-117"
         }
-      }
+      },
+      "purchaseNoteId": 3
     },
     {
       "id": "eisn-0144200001826000193",
@@ -19737,7 +19839,8 @@
           "positionId": "202601442000018001-59"
         }
       },
-      "contractId": "eis-2462904043926000090"
+      "contractId": "eis-2462904043926000090",
+      "purchaseNoteId": 4
     }
   ],
   "employeeEducations": [],
@@ -34373,7 +34476,559 @@
   "contractFunctions": [],
   "okpd2Refs": [],
   "legalActs": [],
-  "purchaseNotes": [],
+  "purchaseNotes": [
+    {
+      "organizationId": 6,
+      "purchasePlanId": "eisp-202601442000018001",
+      "purchasePlanNumber": "202601442000018001",
+      "positionId": "202601442000018001-1",
+      "positionSerialNumber": "0001",
+      "positionUniqueNumber": "202601442000018001000003",
+      "ikz": "262462904043946320100100010004211414",
+      "authorizedBodyName": "Департамент здравоохранения города Москвы",
+      "jointOrganizerName": "",
+      "kbk": "8440409172019Д003414",
+      "kbkDisagreement": false,
+      "kbkSuggested": "",
+      "kbkDisagreementComment": "",
+      "kbkDisagreementAuthor": "",
+      "budgetLevel": "Бюджет субъекта Российской Федерации",
+      "fundingSource": "Бюджет субъекта Российской Федерации",
+      "noteNumber": "1",
+      "noteDate": "2026-11-21",
+      "initiatorEmployeeId": 42,
+      "initiatorName": "Руководитель контрактной службы — Пояркова Наталья Юрьевна",
+      "basis": "",
+      "subject": "Строительство автомобильной дороги от проспекта Надежды Плевицкой к общеобразовательной школе в г. Курске",
+      "isIndeterminateVolume": false,
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Строительство автомобильной дороги от проспекта Надежды Плевицкой к общеобразовательной школе в г. Курске",
+          "okpd2Code": "42.11.20",
+          "okpd2Name": "Работы строительные по строительству автомагистралей, автомобильных дорог, в том числе улично-дорожной сети, и прочих автомобильных или пешеходных дорог, и взлетно-посадочных полос аэродромов",
+          "ktruCode": "",
+          "ktruName": "",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "",
+          "totalPrice": "68875102.05",
+          "nationalRegimeType": "none",
+          "isSupplyDuringWorks": false
+        }
+      ],
+      "okpd2Code": "42.11.20",
+      "okpd2Name": "Работы строительные по строительству автомагистралей, автомобильных дорог, в том числе улично-дорожной сети, и прочих автомобильных или пешеходных дорог, и взлетно-посадочных полос аэродромов",
+      "unit": "",
+      "quantity": "1",
+      "initialMaxPrice": "68875102.05",
+      "priceBasis": "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
+      "oozSetComplete": true,
+      "positionProcurementsComplete": true,
+      "nmckRequestStatus": "none",
+      "placingWayCode": "EOK20",
+      "procurementType": "Прочее",
+      "protocolName": "",
+      "protocolNumber": "",
+      "protocolPublishDate": "",
+      "appNumber": "",
+      "isStructuredForm": true,
+      "contractProjectFiles": [],
+      "hasAdvance": true,
+      "advancePercent": "",
+      "requiresTreasurySupport": true,
+      "treasurySupportType": "full",
+      "requiresBankSupport": false,
+      "deliveryTermMode": "relative",
+      "deliveryTermFromContractDate": true,
+      "deliveryStartOffsetDays": 0,
+      "desiredStartDate": "",
+      "desiredEndDate": "",
+      "executionTermDays": 30,
+      "acceptanceTermMode": "event",
+      "acceptanceEventBase": "с даты поступления заказчику документа о приёмке в ЕИС",
+      "acceptanceTermDays": 10,
+      "acceptanceDate": "",
+      "deliveryPlaces": [
+        {
+          "id": "1",
+          "country": "Российская Федерация",
+          "region": "",
+          "municipality": "",
+          "settlement": "",
+          "address": "",
+          "additionalInfo": ""
+        }
+      ],
+      "deliveryPlace": "Российская Федерация",
+      "nationalRegimeType": "none",
+      "advantageSmpPart3Art30": false,
+      "requiresSmpSubcontracting": false,
+      "unifiedRequirementsPart1Art31": true,
+      "unifiedRequirementsPart1Art31Text": "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
+      "requirementP1Part1Art31": false,
+      "requirementP1Part1Art31Text": "Наличие действующей лицензии / членства в СРО / свидетельства о допуске к видам работ, установленных законодательством Российской Федерации (п. 1 ч. 1 ст. 31 Закона № 44-ФЗ).",
+      "requirementsPart1_1Art31": true,
+      "pp1482ProductionFacilities": false,
+      "pp1482ProductionFacilitiesText": "",
+      "pp1482FinancialStability": false,
+      "pp1482FinancialStabilityText": "",
+      "pp1482Specialists": false,
+      "pp1482SpecialistsText": "",
+      "additionalRequirementsPart2Art31": false,
+      "additionalRequirementsPart2Art31Text": "",
+      "pp2571Positions": [],
+      "requirementsPart2_1Art31": false,
+      "requirementsPart2_1Art31Text": "Наличие опыта исполнения контракта (договора) стоимостью не менее 20 процентов НМЦК за последние 3 года до даты подачи заявки при НМЦК 20 млн рублей и более (ч. 2.1 ст. 31 Закона № 44-ФЗ).",
+      "pp2571Point4Requirement": false,
+      "pp2571Point4RequirementText": "Участник закупки подтверждает соответствие требованиям, предусмотренным пунктом 4 Постановления Правительства РФ от 29.12.2021 № 2571 (порядок оценки опыта исполнения контракта, в том числе с учетом правопреемства и без учёта штрафов/пеней, не превышающих установленный порог, либо подтверждение документами о приёмке по ЕИС / контрактам № 44-ФЗ и № 223-ФЗ).",
+      "sanctionsRnpRequirement": false,
+      "evaluationProcedureKind": "tender",
+      "evaluationObjectCategory": "goods",
+      "evaluationOkpd2Codes": [
+        "42.11.20"
+      ],
+      "evaluationCriteria": [
+        {
+          "id": "crit-price-0",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-expenses-1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-characteristics-2",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "indicators": [],
+          "note": ""
+        },
+        {
+          "id": "crit-qualification-3",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "indicators": [
+            {
+              "id": "ind-qualification-0",
+              "name": "Общая цена исполненных договоров, сопоставимых с предметом контракта",
+              "kind": "experience",
+              "weightPercent": 100,
+              "unit": "руб.",
+              "best": "min",
+              "scoring": "formula",
+              "scaleText": ""
+            }
+          ],
+          "note": ""
+        }
+      ],
+      "requiresApplicationSecurity": true,
+      "applicationSecurityPercent": "1",
+      "applicationSecurityOrder": "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+      "applicationSecurityRequisites": {
+        "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
+        "recipientInn": "4629040439",
+        "recipientKpp": "463201001"
+      },
+      "applicationSecurityBudgetRequisites": {
+        "recipientInn": "4629040439",
+        "recipientKpp": "463201001",
+        "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\""
+      },
+      "requiresContractSecurity": true,
+      "contractSecurityPercent": "5",
+      "contractSecurityOrder": "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+      "contractSecurityRequisites": {
+        "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
+        "recipientInn": "4629040439",
+        "recipientKpp": "463201001"
+      },
+      "requiresQualityWarranty": false,
+      "warrantyMaintenanceInfo": "",
+      "manufacturerWarrantyInfo": "",
+      "warrantyTermAndVolume": "",
+      "requiresWarrantySecurity": false,
+      "warrantySecurityPercent": "",
+      "warrantySecurityOrder": "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+      "warrantySecurityRequisites": {
+        "recipientName": "ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ \"КУРСКАВТОДОР\"",
+        "recipientInn": "4629040439",
+        "recipientKpp": "463201001"
+      },
+      "warrantyTermMonths": 12,
+      "allowUnilateralRefusalArt95": true,
+      "otherRequirements": "",
+      "status": "draft",
+      "approvalUpdatedAt": "2026-11-21",
+      "approvalUpdatedBy": "Пояркова Наталья Юрьевна",
+      "approvalComment": "",
+      "comment": "",
+      "createdAt": "2026-11-21",
+      "id": 1
+    },
+    {
+      "id": 2,
+      "organizationId": 6,
+      "purchasePlanId": "eisp-202601442000018001",
+      "purchasePlanNumber": "202601442000018001",
+      "positionId": "202601442000018001-106",
+      "positionSerialNumber": "0114",
+      "positionUniqueNumber": "202601442000018001000118",
+      "ikz": "262462904043946320100101140014931244",
+      "procurementId": "eis-0144200001826000201",
+      "noteNumber": "2",
+      "noteDate": "2026-11-20",
+      "initiatorName": "Бармин Руслан Валерьевич",
+      "subject": "Выполнение работ, связанных с осуществлением регулярных перевозок пассажиров и багажа автомобильным транспортом по регулируемым тарифам по муниципальным маршрутам города Курска № 75М, 76М",
+      "initialMaxPrice": "22662656.28",
+      "okpd2Code": "49.31.21.110",
+      "okpd2Name": "Услуги (работы) по регулярным перевозкам пассажиров автобусами в городском и пригородном сообщении",
+      "placingWayCode": "EA20",
+      "kbk": "84404081720312080244",
+      "evaluationCriteria": [
+        {
+          "id": "criterion-price",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-expenses-1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-characteristics-2",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "criterion-qualification",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "note": "",
+          "indicators": []
+        }
+      ],
+      "unifiedRequirementsPart1Art31": true,
+      "requirementsPart1_1Art31": false,
+      "additionalRequirementsPart2Art31": true,
+      "sanctionsRnpRequirement": true,
+      "advantageSmpPart3Art30": true,
+      "requiresApplicationSecurity": true,
+      "requiresContractSecurity": true,
+      "requiresQualityWarranty": true,
+      "requiresWarrantySecurity": true,
+      "requiresTreasurySupport": false,
+      "requiresBankSupport": false,
+      "unifiedRequirementsPart1Art31Text": "Единые требования, установленные ч. 1 ст. 31 Закона № 44-ФЗ",
+      "additionalRequirementsPart2Art31Text": "Дополнительные требования по ч. 2 ст. 31 и ПП РФ № 2571",
+      "warrantyMaintenanceInfo": "Гарантийные обязательства на дорожное покрытие",
+      "warrantyTermAndVolume": "24 месяца с даты приёмки",
+      "applicationSecurityOrder": "Денежные средства или независимая гарантия",
+      "contractSecurityOrder": "Независимая гарантия или денежные средства",
+      "warrantySecurityOrder": "Независимая гарантия",
+      "pp2571Positions": [
+        "Наличие опыта исполнения контракта на выполнение работ по ремонту автомобильных дорог"
+      ],
+      "applicationSecurityPercent": "1",
+      "contractSecurityPercent": "5",
+      "warrantySecurityPercent": "1",
+      "hasAdvance": true,
+      "allowUnilateralRefusalArt95": true,
+      "advancePercent": "30",
+      "budgetLevel": "regional",
+      "fundingSource": "Бюджет Курской области",
+      "deliveryTermMode": "relative",
+      "deliveryStartOffsetDays": 5,
+      "executionTermDays": 120,
+      "deliveryPlaces": [
+        {
+          "id": "place-1",
+          "country": "Российская Федерация",
+          "oksmCode": "643",
+          "region": "Курская область",
+          "municipality": "Советский район",
+          "settlement": "с. Архангельское",
+          "address": "Российская Федерация, обл. Курская, г.о. город Курск, г. Курск,",
+          "additionalInfo": ""
+        }
+      ],
+      "items": [
+        {
+          "id": "1",
+          "name": "Выполнение работ, связанных с осуществлением регулярных перевозок пассажиров и багажа автомобильным транспортом по регулируемым тарифам по муниципальным маршрутам города Курска № 75М, 76М",
+          "okpd2Code": "49.31.21.110",
+          "okpd2Name": "Услуги (работы) по регулярным перевозкам пассажиров автобусами в городском и пригородном сообщении",
+          "ktruCode": "49.31.21.110-00000054",
+          "ktruName": "",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "22662656.28",
+          "totalPrice": "22662656.28",
+          "nationalRegimeType": "none",
+          "isSupplyDuringWorks": false
+        }
+      ],
+      "status": "approved",
+      "comment": "Потребность создана из данных ЕИС при выгрузке 2026-11-21. Одобренные блоки перенесены в извещение при предзаполнении.",
+      "createdAt": "2026-11-20"
+    },
+    {
+      "id": 3,
+      "organizationId": 6,
+      "purchasePlanId": "eisp-202601442000018001",
+      "purchasePlanNumber": "202601442000018001",
+      "positionId": "202601442000018001-117",
+      "positionSerialNumber": "0126",
+      "positionUniqueNumber": "202601442000018001000131",
+      "ikz": "262462904043946320100101260010000244",
+      "procurementId": "eis-0144200001826000194",
+      "noteNumber": "3",
+      "noteDate": "2026-11-20",
+      "initiatorName": "Бармин Руслан Валерьевич",
+      "subject": "Выполнение работ по монтажу специальных технических средств автоматической фиксации нарушений правил дорожного движения",
+      "initialMaxPrice": "6590000.01",
+      "okpd2Code": "26.51.66.190",
+      "okpd2Name": "Инструменты, приборы и машины для измерения или контроля прочие, не включенные в другие группировки",
+      "placingWayCode": "ZK20",
+      "kbk": "00000000000000000000",
+      "evaluationCriteria": [
+        {
+          "id": "criterion-price",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-expenses-1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-characteristics-2",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "criterion-qualification",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "note": "",
+          "indicators": []
+        }
+      ],
+      "unifiedRequirementsPart1Art31": true,
+      "requirementsPart1_1Art31": false,
+      "additionalRequirementsPart2Art31": true,
+      "sanctionsRnpRequirement": true,
+      "advantageSmpPart3Art30": true,
+      "requiresApplicationSecurity": true,
+      "requiresContractSecurity": true,
+      "requiresQualityWarranty": true,
+      "requiresWarrantySecurity": true,
+      "requiresTreasurySupport": false,
+      "requiresBankSupport": false,
+      "unifiedRequirementsPart1Art31Text": "Единые требования, установленные ч. 1 ст. 31 Закона № 44-ФЗ",
+      "additionalRequirementsPart2Art31Text": "Дополнительные требования по ч. 2 ст. 31 и ПП РФ № 2571",
+      "warrantyMaintenanceInfo": "Гарантийные обязательства на дорожное покрытие",
+      "warrantyTermAndVolume": "24 месяца с даты приёмки",
+      "applicationSecurityOrder": "Денежные средства или независимая гарантия",
+      "contractSecurityOrder": "Независимая гарантия или денежные средства",
+      "warrantySecurityOrder": "Независимая гарантия",
+      "pp2571Positions": [
+        "Наличие опыта исполнения контракта на выполнение работ по ремонту автомобильных дорог"
+      ],
+      "applicationSecurityPercent": "1",
+      "contractSecurityPercent": "5",
+      "warrantySecurityPercent": "1",
+      "hasAdvance": true,
+      "allowUnilateralRefusalArt95": true,
+      "advancePercent": "30",
+      "budgetLevel": "regional",
+      "fundingSource": "Бюджет Курской области",
+      "deliveryTermMode": "relative",
+      "deliveryStartOffsetDays": 5,
+      "executionTermDays": 120,
+      "deliveryPlaces": [
+        {
+          "id": "place-1",
+          "country": "Российская Федерация",
+          "oksmCode": "643",
+          "region": "Курская область",
+          "municipality": "Советский район",
+          "settlement": "с. Архангельское",
+          "address": "Российская Федерация, обл. Курская, г.о. город Курск, г. Курск,",
+          "additionalInfo": ""
+        }
+      ],
+      "items": [
+        {
+          "id": "1",
+          "name": "Выполнение работ по монтажу специальных технических средств автоматической фиксации нарушений правил дорожного движения",
+          "okpd2Code": "26.51.66.190",
+          "okpd2Name": "Инструменты, приборы и машины для измерения или контроля прочие, не включенные в другие группировки",
+          "ktruCode": "26.51.66.190-00000023",
+          "ktruName": "",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "6590000.01",
+          "totalPrice": "6590000.01",
+          "nationalRegimeType": "none",
+          "isSupplyDuringWorks": false
+        }
+      ],
+      "status": "approved",
+      "comment": "Потребность создана из данных ЕИС при выгрузке 2026-11-21. Одобренные блоки перенесены в извещение при предзаполнении.",
+      "createdAt": "2026-11-20"
+    },
+    {
+      "id": 4,
+      "organizationId": 6,
+      "purchasePlanId": "eisp-202601442000018001",
+      "purchasePlanNumber": "202601442000018001",
+      "positionId": "202601442000018001-59",
+      "positionSerialNumber": "0066",
+      "positionUniqueNumber": "202601442000018001000067",
+      "ikz": "262462904043946320100100660044211414",
+      "procurementId": "eis-0144200001826000193",
+      "noteNumber": "4",
+      "noteDate": "2026-11-19",
+      "initiatorName": "Семанюк Сергей Иванович",
+      "subject": "Выполнение работ по строительству объекта капитального строительства: Автомобильная дорога ст. Свобода-Гремячка (на участке км 14+294 - км 16+594) в Золотухинском районе Курской области",
+      "initialMaxPrice": "122585125.63",
+      "okpd2Code": "42.11",
+      "okpd2Name": "Дороги автомобильные и автомагистрали; строительные работы по строительству автомобильных дорог и автомагистралей",
+      "placingWayCode": "OKP20",
+      "kbk": "00000000000000000000",
+      "evaluationCriteria": [
+        {
+          "id": "criterion-price",
+          "type": "price",
+          "enabled": true,
+          "weightPercent": 60,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-expenses-1",
+          "type": "expenses",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "crit-characteristics-2",
+          "type": "characteristics",
+          "enabled": false,
+          "weightPercent": 0,
+          "note": "",
+          "indicators": []
+        },
+        {
+          "id": "criterion-qualification",
+          "type": "qualification",
+          "enabled": true,
+          "weightPercent": 40,
+          "note": "",
+          "indicators": []
+        }
+      ],
+      "unifiedRequirementsPart1Art31": true,
+      "requirementsPart1_1Art31": false,
+      "additionalRequirementsPart2Art31": true,
+      "sanctionsRnpRequirement": true,
+      "advantageSmpPart3Art30": true,
+      "requiresApplicationSecurity": true,
+      "requiresContractSecurity": true,
+      "requiresQualityWarranty": true,
+      "requiresWarrantySecurity": true,
+      "requiresTreasurySupport": false,
+      "requiresBankSupport": false,
+      "unifiedRequirementsPart1Art31Text": "Единые требования, установленные ч. 1 ст. 31 Закона № 44-ФЗ",
+      "additionalRequirementsPart2Art31Text": "Дополнительные требования по ч. 2 ст. 31 и ПП РФ № 2571",
+      "warrantyMaintenanceInfo": "Гарантийные обязательства на дорожное покрытие",
+      "warrantyTermAndVolume": "24 месяца с даты приёмки",
+      "applicationSecurityOrder": "Денежные средства или независимая гарантия",
+      "contractSecurityOrder": "Независимая гарантия или денежные средства",
+      "warrantySecurityOrder": "Независимая гарантия",
+      "pp2571Positions": [
+        "Наличие опыта исполнения контракта на выполнение работ по ремонту автомобильных дорог"
+      ],
+      "applicationSecurityPercent": "1",
+      "contractSecurityPercent": "5",
+      "warrantySecurityPercent": "1",
+      "hasAdvance": true,
+      "allowUnilateralRefusalArt95": true,
+      "advancePercent": "30",
+      "budgetLevel": "regional",
+      "fundingSource": "Бюджет Курской области",
+      "deliveryTermMode": "relative",
+      "deliveryStartOffsetDays": 5,
+      "executionTermDays": 120,
+      "deliveryPlaces": [
+        {
+          "id": "place-1",
+          "country": "Российская Федерация",
+          "oksmCode": "643",
+          "region": "Курская область",
+          "municipality": "Советский район",
+          "settlement": "с. Архангельское",
+          "address": "Российская Федерация, обл. Курская, м.р-н Золотухинский, автомобильная дорога ст. Свобода-Гремячка",
+          "additionalInfo": ""
+        }
+      ],
+      "items": [
+        {
+          "id": "1",
+          "name": "Выполнение работ по строительству объекта капитального строительства: Автомобильная дорога ст. Свобода-Гремячка (на участке км 14+294 - км 16+594) в Золотухинском районе Курской области",
+          "okpd2Code": "42.11",
+          "okpd2Name": "Дороги автомобильные и автомагистрали; строительные работы по строительству автомобильных дорог и автомагистралей",
+          "ktruCode": "42.11.20.000-00000004",
+          "ktruName": "",
+          "unit": "",
+          "quantity": "1",
+          "unitPrice": "122585125.63",
+          "totalPrice": "122585125.63",
+          "nationalRegimeType": "none",
+          "isSupplyDuringWorks": false
+        }
+      ],
+      "status": "approved",
+      "comment": "Потребность создана из данных ЕИС при выгрузке 2026-11-21. Одобренные блоки перенесены в извещение при предзаполнении.",
+      "createdAt": "2026-11-19"
+    }
+  ],
   "smpRegistry": [],
   "contractSmpRecords": [],
   "accessRequests": [],
