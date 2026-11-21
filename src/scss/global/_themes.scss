@@ -1,8 +1,10 @@
 @import "variables";
 
-// Роли интерфейса для двух тем. Светлая — основная: заказчик работает в ЕИС,
-// где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге. Тёмная
-// включается переключателем (data-theme) и запоминается в localStorage.
+// Роли интерфейса для трёх тем. Светлая — основная: заказчик работает в ЕИС,
+// где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге. Тёмная —
+// та же схема на тёмно-зелёном. «Гроза» — отдельная холодная сиренево-синяя
+// палитра по референсу. Тема включается атрибутом data-theme на <html>
+// (переключатель в шапке) и запоминается в localStorage.
 //
 // Компилируется один раз: файл подключён только в global.scss, а не в каждый
 // модуль, поэтому :root не дублируется в выходном CSS.
@@ -17,15 +19,9 @@
 
   // Фон страницы ощутимо темнее панелей: иначе белые карточки и секции
   // сливаются с «бумагой» и границы разделов не читаются.
-  --surface-page: #{rgba(
-      $color-snowy-mint,
-      0.7
-    )}; // фон страницы: белая бумага с мятой дымкой, как в ЕИС
+  --surface-page: #{rgba($color-snowy-mint, 0.7)}; // фон страницы: белая бумага с мятой дымкой, как в ЕИС
   --surface-panel: #{$color-paper}; // карточки, панели, модальные окна
-  --surface-raised: #{rgba(
-      $color-snowy-mint,
-      0.75
-    )}; // вложенные блоки, шапки таблиц, подсветка строк
+  --surface-raised: #{rgba($color-snowy-mint, 0.75)}; // вложенные блоки, шапки таблиц, подсветка строк
   --surface-accent: #{$color-snowy-mint}; // активный элемент, подложка бейджа
   // Поля ввода держатся отдельной ролью: на белой карточке рамка поля должна
   // быть видна сама по себе, без подсказки цвета, поэтому она темнее обычных
@@ -103,4 +99,48 @@
   --state-danger-soft: rgba(214, 69, 69, 0.14);
   --state-warning: #d9a441;
   --state-warning-soft: rgba(217, 164, 65, 0.14);
+}
+
+// «Гроза»: холодная сиренево-синяя тема по референсу. Фон — почти чёрный
+// синий, панели — графит с фиолетовым подтоном, акцент — светлая лаванда.
+// Контраст основного текста к панели ≈ 11:1, вторичного — ≈ 7:1, ссылок на
+// панели — ≈ 7:1, поэтому мелкий текст и таблицы остаются читаемыми.
+[data-theme="storm"] {
+  color-scheme: dark;
+
+  --surface-page: #{$color-storm-ink};
+  --surface-panel: #{$color-storm-night};
+  --surface-raised: #{$color-storm-slate};
+  --surface-accent: #{$color-storm-indigo};
+  // Поля ввода светлее панели — граница на тёмном фоне одна не спасает
+  --surface-field: #{rgba($color-storm-mist, 0.1)};
+  --field-border: #{rgba($color-storm-mist, 0.44)};
+  --accent: #{$color-storm-mist};
+  --accent-hover: #{$color-storm-pale};
+  --accent-emphasis: #{$color-storm-pale};
+  --accent-soft: #{rgba($color-storm-haze, 0.22)};
+  --text-primary: #{$color-storm-pale};
+  --text-secondary: #{$color-storm-mist};
+  --text-on-accent: #{$color-storm-ink};
+  --placeholder: #{rgba($color-storm-mist, 0.62)};
+  --border: #{rgba($color-storm-mist, 0.2)};
+  --border-strong: #{rgba($color-storm-mist, 0.36)};
+  --stripe: #{rgba($color-storm-pale, 0.06)};
+  --overlay: #{rgba($color-storm-ink, 0.78)};
+  --shadow: #{rgba($color-storm-ink, 0.7)};
+  --glow: #{rgba($color-storm-haze, 0.55)};
+  // Светлая панель окна на тёмном фоне получает светлый контур — как в тёмной
+  --modal-border: #{rgba($color-storm-mist, 0.66)};
+  --modal-dot: #{$color-storm-mist};
+  --modal-dot-glow: #{rgba($color-storm-haze, 0.6)};
+
+  // Состояния выведены из той же холодной палитры, но остаются различимыми
+  // между собой и от акцента: зелёный успех, коралловая ошибка, янтарное
+  // предупреждение — на синем фоне они не сливаются.
+  --state-success: #9fd8b8;
+  --state-success-soft: rgba(159, 216, 184, 0.18);
+  --state-danger: #e0736f;
+  --state-danger-soft: rgba(224, 115, 111, 0.16);
+  --state-warning: #e0b26a;
+  --state-warning-soft: rgba(224, 178, 106, 0.16);
 }

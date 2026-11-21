@@ -13,6 +13,17 @@ $color-snowy-mint: #daf1de;
 // таблиц и полей, как это сделано в ЕИС.
 $color-paper: #ffffff;
 
+// Палитра темы «Гроза»: холодный сиренево-синий ряд из референса
+// (от почти чёрного синего до светло-лавандовой бумаги). Это отдельная
+// схема, а не оттенки зелёной палитры сайта, поэтому имена свои.
+$color-storm-ink: #12141f;
+$color-storm-night: #232739;
+$color-storm-slate: #383e5c;
+$color-storm-indigo: #4f5580;
+$color-storm-haze: #7b81a8;
+$color-storm-mist: #afb4ce;
+$color-storm-pale: #e4e6f0;
+
 // Typography
 $ff-main: "Poppins", "Arial", sans-serif;
 $ff-accent: "Montserrat", "Arial", sans-serif;

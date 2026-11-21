@@ -1,36 +1,54 @@
 import { useState, useEffect, useCallback } from "react";
 
-// Простой хук: читает тему из localStorage (или prefers-color-scheme),
-// записывает в documentElement data-theme, возвращает текущее значение
-// и функцию переключения.
-// CSS-переменные из _themes.scss автоматически перестраиваются.
+// Хук темы: читает выбор из localStorage (или системную схему), пишет его
+// в documentElement атрибутом data-theme и возвращает текущее значение
+// вместе с функцией переключения.
+//
+// Тем три:
+//   light — светлая, как сайт ЕИС (по умолчанию);
+//   dark  — тёмная зелёная, та же схема сайта;
+//   storm — «Гроза», холодная сиренево-синяя палитра по референсу.
+// CSS-переменные из _themes.scss перестраиваются сами, компонентам ничего
+// менять не нужно: они работают с ролями var(--surface-*), var(--text-*).
 
 const STORAGE_KEY = "csms-theme";
 
+export type ThemeName = "light" | "dark" | "storm";
+
+// Порядок обхода кнопкой в шапке: светлая → тёмная → «Гроза» → светлая.
+const THEME_ORDER: ThemeName[] = ["light", "dark", "storm"];
+
+const isThemeName = (value: string | null): value is ThemeName =>
+  value === "light" || value === "dark" || value === "storm";
+
 const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
 
-export const getTheme = (): "light" | "dark" => {
+export const getTheme = (): ThemeName => {
   const stored = localStorage.getItem(STORAGE_KEY);
 
-  if (stored === "light" || stored === "dark") {
+  if (isThemeName(stored)) {
     return stored;
   }
 
   return prefersDark.matches ? "dark" : "light";
 };
 
-export const applyTheme = (theme: "light" | "dark"): void => {
+export const applyTheme = (theme: ThemeName): void => {
   document.documentElement.setAttribute("data-theme", theme);
   localStorage.setItem(STORAGE_KEY, theme);
 };
 
-type UseThemeReturn = [
-  "light" | "dark",
-  () => void,
-];
+/** Следующая тема по кругу — для кнопки в шапке. */
+export const nextTheme = (theme: ThemeName): ThemeName => {
+  const index = THEME_ORDER.indexOf(theme);
+
+  return THEME_ORDER[(index + 1) % THEME_ORDER.length];
+};
+
+type UseThemeReturn = [ThemeName, () => void];
 
 export default function useTheme(): UseThemeReturn {
-  const [theme, setTheme] = useState<"light" | "dark">(() => getTheme());
+  const [theme, setTheme] = useState<ThemeName>(() => getTheme());
 
   // Синхронизирую с системной темой при первом рендере, если пользователь
   // ещё не выбрал явно — это позволяет избежать белого экрана при SSR
@@ -39,7 +57,9 @@ export default function useTheme(): UseThemeReturn {
     applyTheme(theme);
   }, [theme]);
 
-  // Слушаю системные переключения, если пользователь не выбрал явно
+  // Слушаю системные переключения, если пользователь не выбрал явно.
+  // Системная схема знает только светлую и тёмную, поэтому «Гроза»
+  // не сбрасывается: это всегда осознанный выбор в шапке.
   useEffect(() => {
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -56,7 +76,7 @@ export default function useTheme(): UseThemeReturn {
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light";
+      const next = nextTheme(prev);
 
       applyTheme(next);
 
