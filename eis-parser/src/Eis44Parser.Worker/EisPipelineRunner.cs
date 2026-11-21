@@ -26,19 +26,23 @@ public sealed class EisPipelineRunner(
     public async Task<PipelineRunResult> RunOnceAsync(CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
-        var enqueued = await PollAsync(settings, cancellationToken).ConfigureAwait(false);
+        var (enqueued, pollFailed) = await PollAsync(settings, cancellationToken).ConfigureAwait(false);
         var (processed, failed) = await DrainAsync(settings, cancellationToken).ConfigureAwait(false);
 
+        var totalFailed = failed + pollFailed;
         logger.LogInformation(
             "Проход конвейера ЕИС: поставлено в очередь {Enqueued}, обработано {Processed}, ошибок {Failed}",
-            enqueued, processed, failed);
+            enqueued, processed, totalFailed);
 
-        return new PipelineRunResult(enqueued, processed, failed);
+        return new PipelineRunResult(enqueued, processed, totalFailed);
     }
 
-    private async Task<int> PollAsync(EisClientOptions settings, CancellationToken cancellationToken)
+    private async Task<(int Enqueued, int Failed)> PollAsync(
+        EisClientOptions settings,
+        CancellationToken cancellationToken)
     {
         var count = 0;
+        var failed = 0;
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         foreach (var region in settings.RegionCodes)
@@ -72,13 +76,14 @@ public sealed class EisPipelineRunner(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
+                failed++;
                 logger.LogError(exception,
                     "Не удалось опросить срез {Region}/{Subsystem}/{DocumentType}/{Date}",
                     region, subsystem, documentType, date);
             }
         }
 
-        return count;
+        return (count, failed);
     }
 
     private async Task<(int Processed, int Failed)> DrainAsync(

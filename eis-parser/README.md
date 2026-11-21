@@ -111,7 +111,11 @@ WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 4. **Хранение** (`EisPipelineRepository`): сырой XML — в `raw_documents`,
    нормализованные сущности — в `purchases`, `purchase_items`, `contracts`,
    `participants`. Upsert по естественным ключам (номер закупки, regNum).
-   Схема PostgreSQL — `sql/001_pipeline.sql`.
+   Схема PostgreSQL — `sql/001_pipeline.sql`, SQLite — `sql/001_pipeline.sqlite.sql`.
+   Оба скрипта встроены в сборку и применяются `EisPipelineSchema.EnsureAsync`
+   при запуске: старый файл БД с таблицей `Tenders` досоздаёт таблицы конвейера,
+   `EnsureCreated` в одиночку этого не делает. Имена колонок EF-маппинга совпадают
+   с DDL (snake_case).
 
 Один проход: `dotnet run --project src/Eis44Parser.Worker -- --pipeline-once`.
 Старый `--once` оставляет прежнее поведение (опрос + таблица `Tenders`).

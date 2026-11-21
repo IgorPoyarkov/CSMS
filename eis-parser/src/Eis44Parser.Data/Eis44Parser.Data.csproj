@@ -4,6 +4,15 @@
     <ProjectReference Include="..\Eis44Parser.Core\Eis44Parser.Core.csproj" />
   </ItemGroup>
 
+  <!-- Скрипты конвейера встраиваются в сборку: воркер должен уметь создать
+       таблицы в уже существующей БД, где EnsureCreated их не добавит. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\sql\001_pipeline.sql"
+                      LogicalName="Eis44Parser.Data.Sql.Postgres.sql" />
+    <EmbeddedResource Include="..\..\sql\001_pipeline.sqlite.sql"
+                      LogicalName="Eis44Parser.Data.Sql.Sqlite.sql" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />

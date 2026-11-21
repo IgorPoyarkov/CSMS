@@ -169,6 +169,7 @@ if (validateOnly)
     var options = scope.ServiceProvider.GetRequiredService<IOptions<EisClientOptions>>().Value;
     var db = scope.ServiceProvider.GetRequiredService<EisDbContext>();
     await db.Database.EnsureCreatedAsync();
+    await EisPipelineSchema.EnsureAsync(db);
 
     Console.WriteLine($"Провайдер БД: {provider}");
     Console.WriteLine($"Туннель ЕИС: {options.BaseTunnelUrl}{options.ServicePath}");
@@ -186,8 +187,9 @@ if (pipelineOnce)
     try
     {
         using var scope = host.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<EisDbContext>()
-            .Database.EnsureCreatedAsync();
+        var db = scope.ServiceProvider.GetRequiredService<EisDbContext>();
+        await db.Database.EnsureCreatedAsync();
+        await EisPipelineSchema.EnsureAsync(db);
 
         var result = await host.Services.GetRequiredService<EisPipelineRunner>()
             .RunOnceAsync(CancellationToken.None);
