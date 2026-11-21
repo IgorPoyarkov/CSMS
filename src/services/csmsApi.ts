@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { AxiosError, AxiosInstance } from "axios";
+import { CSMS_API_BASE_URL } from "./apiBaseUrl";
 
 /**
  * Общий клиент csms-api (backend на .NET, PostgreSQL).
@@ -7,14 +8,13 @@ import type { AxiosError, AxiosInstance } from "axios";
  * Модули изменения контрактов и электронного актирования живут не в
  * json-server, а в csms-api. В dev без явного адреса идём через прокси Vite
  * (/api → localhost:5099): браузер видит один origin, и CORS-блокировка не
- * возникает. В production поведение прежнее — абсолютный адрес csms-api.
+ * возникает. В production адрес берётся из VITE_EIS_API_URL, иначе запросы
+ * идут на тот же origin (общий прокси/ reverse-proxy).
  *
  * ВАЖНО: это не замена `src/services/axios.instance.ts` для json-server —
  * у того другая база и другой набор эндпоинтов.
  */
-const BASE_URL =
-  import.meta.env.VITE_EIS_API_URL ||
-  (import.meta.env.DEV ? "" : "http://localhost:5099");
+const BASE_URL = CSMS_API_BASE_URL;
 
 export const csmsApiBaseUrl = BASE_URL;
 

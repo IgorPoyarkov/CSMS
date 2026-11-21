@@ -1,12 +1,13 @@
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 
 /**
  * Клиент правил НПА из csms-api. Агент сам скачивает официальные акты и
  * публикует версии правил, фронт только читает готовый результат. Ошибка
  * сервиса не должна ломать формы, поэтому запросы не ретраятся.
  */
-const BASE_URL = import.meta.env.VITE_EIS_API_URL || "http://localhost:5099";
+const BASE_URL = CSMS_API_BASE_URL;
 
 export const npaApi = axios.create({
   baseURL: BASE_URL,

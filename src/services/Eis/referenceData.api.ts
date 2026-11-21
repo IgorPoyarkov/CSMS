@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import axios from "axios";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 
 /**
  * Клиент справочников НСИ того же шлюза csms-api, что и пакеты ЕИС.
@@ -12,10 +13,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // В dev без явного адреса идём через прокси Vite (/api → localhost:5099):
 // браузер видит один origin, и CORS-блокировка не возникает. В production
-// поведение прежнее — абсолютный адрес csms-api.
-const BASE_URL =
-  import.meta.env.VITE_EIS_API_URL ||
-  (import.meta.env.DEV ? "" : "http://localhost:5099");
+// адрес задаёт VITE_EIS_API_URL, иначе используется тот же origin.
+const BASE_URL = CSMS_API_BASE_URL;
 
 export const referenceApi = axios.create({
   baseURL: BASE_URL,

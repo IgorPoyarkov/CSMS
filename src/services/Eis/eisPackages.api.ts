@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 import {
   eisPackageSchema,
   createEisPackageInputSchema,
@@ -19,7 +20,7 @@ import {
  * и своя обработка ошибок (409 с текстом на русском вместо 400/500).
  */
 
-const BASE_URL = import.meta.env.VITE_EIS_API_URL || "http://localhost:5099";
+const BASE_URL = CSMS_API_BASE_URL;
 
 export const EIS_GATEWAY_URL = BASE_URL;
 

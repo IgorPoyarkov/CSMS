@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
+import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 import { PP2604_OFFLINE_MAPPING } from "../BidEvaluation/bidEvaluation.schema";
 import type { Pp2604Mapping } from "./pp2604.schema";
 
@@ -8,7 +9,7 @@ import type { Pp2604Mapping } from "./pp2604.schema";
  * готовой версией. Фронт не скачивает акт и не выводит связи сам: при
  * недоступности API проверки работают на офлайн-снимке из схемы.
  */
-const BASE_URL = import.meta.env.VITE_EIS_API_URL || "http://localhost:5099";
+const BASE_URL = CSMS_API_BASE_URL;
 
 export const pp2604Api = axios.create({
   baseURL: BASE_URL,

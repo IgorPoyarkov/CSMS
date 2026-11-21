@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 
 /**
  * Клиент контура доступа csms-api (PostgreSQL + API). Это не json-server:
@@ -8,10 +9,7 @@ import { z } from "zod";
  * только читает готовый профиль. При отсутствии токена или недоступном API
  * вызывающие переходят на прежний json-server-режим.
  */
-const BASE_URL =
-  import.meta.env.VITE_ACCESS_API_URL ||
-  import.meta.env.VITE_EIS_API_URL ||
-  "http://localhost:5099";
+const BASE_URL = import.meta.env.VITE_ACCESS_API_URL || CSMS_API_BASE_URL;
 
 export const ACCESS_TOKEN_KEY = "csms_access_token";
 
