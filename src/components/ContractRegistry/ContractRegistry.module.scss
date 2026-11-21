@@ -1718,6 +1718,143 @@
   color: var(--text-secondary);
 }
 
+/* ===== Папки реестра по годам заключения ===== */
+
+// Реестр разложен по папкам: слева корешки годов, справа раскрытая папка
+// с таблицей. Раскрытая занимает всю оставшуюся ширину — как один лист
+// реестра, поэтому пагинация работает внутри неё.
+.folderLayout {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.folderRail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  // Корешки остаются на виду, пока прокручивается длинная таблица
+  position: sticky;
+  top: 16px;
+}
+
+.folderTab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px 9px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s,
+    transform 0.2s;
+
+  // Корешок папки: цветная полоса слева, как ярлык на картонной папке
+  &::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    left: 0;
+    width: 4px;
+    border-radius: 0 3px 3px 0;
+    background: var(--border-strong);
+    transition: background-color 0.2s;
+  }
+
+  &:hover {
+    border-color: var(--accent);
+    transform: translateX(2px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.folderTabActive {
+  background: var(--surface-accent);
+  border-color: var(--accent);
+
+  &::before {
+    background: var(--accent);
+  }
+}
+
+.folderTabYear {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.folderTabMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.folderMain {
+  min-width: 0;
+}
+
+.folderHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 8px;
+}
+
+.folderTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.folderMeta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+// Узкий экран: рейл уходит под фильтры горизонтальной лентой, чтобы таблица
+// не сжималась до нечитаемых колонок
+@media (max-width: 1100px) {
+  .folderLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .folderRail {
+    position: static;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .folderTab {
+    flex: 0 0 148px;
+    padding-left: 14px;
+
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
 /* ===== Мобильные экраны ===== */
 
 // Поле КБК имело min-width 280px и задавало минимальную ширину всей
@@ -1725,6 +1862,11 @@
 @media (max-width: 600px) {
   .container {
     padding: 16px 12px;
+  }
+
+  // Корешки уже: на 375px в ленту влезает два с половиной года
+  .folderTab {
+    flex-basis: 132px;
   }
 
   .title {

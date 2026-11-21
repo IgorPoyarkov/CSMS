@@ -99,6 +99,49 @@ const formatMoney = (value: string | number | undefined | null): string => {
 };
 
 /**
+ * Папка реестра: контракты одного года заключения. Год берётся из
+ * `contractDate` — даты подписания контракта; записи без даты собираются
+ * в отдельную папку «Без даты заключения».
+ */
+interface ContractFolder {
+  year: string;
+  title: string;
+  contracts: ContractRegistryItem[];
+  total: number;
+}
+
+/** Корешок «Весь реестр»: прежний общий список остаётся доступен. */
+const FOLDER_ALL = "__all__";
+const FOLDER_NO_YEAR = "__none__";
+
+const contractFolderYear = (contract: ContractRegistryItem): string => {
+  const year = (contract.contractDate ?? "").slice(0, 4);
+  return /^\d{4}$/.test(year) ? year : FOLDER_NO_YEAR;
+};
+
+const folderTitle = (year: string): string =>
+  year === FOLDER_NO_YEAR ? "Без даты заключения" : `${year} год`;
+
+/** Компактная сумма для узкого корешка: 1,25 млрд ₽ вместо 1 250 000 000,00. */
+const formatMoneyShort = (value: number): string => {
+  if (!value) return "0 ₽";
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toLocaleString("ru-RU", {
+      maximumFractionDigits: 2,
+    })} млрд ₽`;
+  }
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString("ru-RU", {
+      maximumFractionDigits: 2,
+    })} млн ₽`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round(value / 1_000).toLocaleString("ru-RU")} тыс. ₽`;
+  }
+  return `${value.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ₽`;
+};
+
+/**
  * Группа реестра по виду способа закупки. Способ берётся из извещения,
  * привязанного к контракту (`procurementId`), а если извещения в системе
  * нет — из загруженной закупки ЕИС (поле «Тип закупки»).
@@ -510,17 +553,70 @@ export default function ContractRegistryPage() {
     });
   }, [filteredContracts, kbkByContract, selectedKbks, tableSort]);
 
+  // ─── Папки по годам заключения ────────────────────────────────────────────
+  // Раскладка идёт после фильтров и сортировки: внутри папки сохраняется
+  // выбранный порядок граф, а суммы и счётчики считаются по её контрактам.
+  const contractFolders = useMemo<ContractFolder[]>(() => {
+    const buckets = new Map<string, ContractRegistryItem[]>();
+    visibleContracts.forEach((contract) => {
+      const year = contractFolderYear(contract);
+      const bucket = buckets.get(year);
+      if (bucket) bucket.push(contract);
+      else buckets.set(year, [contract]);
+    });
+
+    return [...buckets.entries()]
+      .map(([year, folderContracts]) => ({
+        year,
+        title: folderTitle(year),
+        contracts: folderContracts,
+        total: folderContracts.reduce(
+          (sum, contract) => sum + (Number(contract.contractPrice) || 0),
+          0,
+        ),
+      }))
+      .sort((a, b) => {
+        // Свежие годы сверху, записи без даты — в конце
+        if (a.year === FOLDER_NO_YEAR) return 1;
+        if (b.year === FOLDER_NO_YEAR) return -1;
+        return b.year.localeCompare(a.year);
+      });
+  }, [visibleContracts]);
+
+  // null — раскрыта самая свежая папка; FOLDER_ALL — общий список
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const showAllFolders = openFolder === FOLDER_ALL;
+  const activeFolder = showAllFolders
+    ? null
+    : (contractFolders.find((folder) => folder.year === openFolder) ??
+      contractFolders[0] ??
+      null);
+  const activeContracts: ContractRegistryItem[] = showAllFolders
+    ? visibleContracts
+    : (activeFolder?.contracts ?? []);
+  const activeContractsTotal = activeContracts.reduce(
+    (sum, contract) => sum + (Number(contract.contractPrice) || 0),
+    0,
+  );
+
+  // Клик по корешку раскрывает папку; повторный клик возвращает самую свежую
+  const openContractFolder = (year: string) => {
+    setOpenFolder(year === openFolder ? null : year);
+    // Новая папка — своя первая страница
+    setPage(1);
+  };
+
   // ─── Пагинация ────────────────────────────────────────────────────────────
   const totalPages =
     pageSize === "all"
       ? 1
-      : Math.max(1, Math.ceil(visibleContracts.length / Number(pageSize)));
+      : Math.max(1, Math.ceil(activeContracts.length / Number(pageSize)));
   const safePage = Math.min(page, totalPages);
   const start = pageSize === "all" ? 0 : (safePage - 1) * Number(pageSize);
   const pagedContracts =
     pageSize === "all"
-      ? visibleContracts
-      : visibleContracts.slice(start, start + Number(pageSize));
+      ? activeContracts
+      : activeContracts.slice(start, start + Number(pageSize));
 
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
@@ -553,6 +649,9 @@ export default function ContractRegistryPage() {
           контракту. Контракты без привязки к извещению в группу не попадают.
         </p>
       )}
+      <p className={styles.groupHint}>
+        Контракты разложены по папкам — по году заключения.
+      </p>
 
       {/* ─── Панель фильтров и сортировки ──────────────────────────────────── */}
       <div className={styles.toolbar}>
@@ -764,7 +863,7 @@ export default function ContractRegistryPage() {
         />
       </div>
 
-      {pagedContracts.length === 0 ? (
+      {visibleContracts.length === 0 ? (
         <div className={styles.empty}>
           Контрактов по заданным условиям не найдено
         </div>
@@ -788,123 +887,192 @@ export default function ContractRegistryPage() {
             </div>
           )}
 
-          <div className={styles.contractsTableWrap}>
-            <table className={`${styles.table} ${styles.contractsTable}`}>
-              {/* Ширины колонок фиксированы: фильтрация не должна их менять */}
-              <colgroup>
-                <col className={styles.colNumber} />
-                <col className={styles.colSupplier} />
-                <col className={styles.colPrice} />
-                <col className={styles.colAdvance} />
-                <col className={styles.colDate} />
-                <col className={styles.colExecution} />
-                <col className={styles.colStatus} />
-                <col className={styles.colExpand} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <SortableTh
-                    label="Номер"
-                    sortKey="number"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Поставщик"
-                    sortKey="supplier"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Цена, ₽"
-                    sortKey="price"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Аванс, ₽"
-                    sortKey="advance"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Заключён"
-                    sortKey="date"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Срок исполнения"
-                    sortKey="execution"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Статус"
-                    sortKey="status"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <th className={styles.expandCell}>
-                    <span className="visually-hidden">Развернуть</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedContracts.map((contract) => (
-                  <ContractRow
-                    key={contract.id}
-                    contract={contract}
-                    expanded={expandedId === contract.id}
-                    onToggle={() => toggleExpand(contract.id)}
-                    onSupplierClick={toggleSupplierFilter}
-                    activeSupplier={supplierFilter}
-                    onDelete={() => {
-                      if (
-                        contract.id &&
-                        confirm("Удалить контракт из реестра?")
-                      ) {
-                        deleteContract(contract.id);
-                      }
-                    }}
-                    formatDate={formatDate}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* Папки по годам заключения: слева корешки, справа раскрытая папка */}
+          <div className={styles.folderLayout}>
+            <nav
+              className={styles.folderRail}
+              aria-label="Папки реестра по годам заключения"
+            >
+              <button
+                type="button"
+                className={`${styles.folderTab} ${
+                  showAllFolders ? styles.folderTabActive : ""
+                }`}
+                aria-current={showAllFolders ? "true" : undefined}
+                onClick={() => openContractFolder(FOLDER_ALL)}
+              >
+                <span className={styles.folderTabYear}>Все</span>
+                <span className={styles.folderTabMeta}>
+                  {visibleContracts.length} контр. ·{" "}
+                  {formatMoneyShort(
+                    visibleContracts.reduce(
+                      (sum, contract) =>
+                        sum + (Number(contract.contractPrice) || 0),
+                      0,
+                    ),
+                  )}
+                </span>
+              </button>
 
-          {/* ─── Пагинация ──────────────────────────────────────────────────── */}
-          {totalPages > 1 && (
-            <div className={styles.pager}>
-              <button
-                type="button"
-                className={styles.pagerButton}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={safePage === 1}
-              >
-                Назад
-              </button>
-              <span className={styles.pagerInfo}>
-                {start + 1}–
-                {Math.min(
-                  start + pagedContracts.length,
-                  visibleContracts.length,
-                )}{" "}
-                из {visibleContracts.length}
-              </span>
-              <button
-                type="button"
-                className={styles.pagerButton}
-                onClick={() =>
-                  setPage((current) => Math.min(totalPages, current + 1))
-                }
-                disabled={safePage === totalPages}
-              >
-                Вперёд
-              </button>
+              {contractFolders.map((folder) => {
+                const isActive =
+                  !showAllFolders && activeFolder?.year === folder.year;
+                return (
+                  <button
+                    key={folder.year}
+                    type="button"
+                    className={`${styles.folderTab} ${
+                      isActive ? styles.folderTabActive : ""
+                    }`}
+                    aria-current={isActive ? "true" : undefined}
+                    onClick={() => openContractFolder(folder.year)}
+                  >
+                    <span className={styles.folderTabYear}>
+                      {folder.year === FOLDER_NO_YEAR ? "—" : folder.year}
+                    </span>
+                    <span className={styles.folderTabMeta}>
+                      {folder.contracts.length} контр. ·{" "}
+                      {formatMoneyShort(folder.total)}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+
+            <div className={styles.folderMain}>
+              <div className={styles.folderHeader}>
+                <h3 className={styles.folderTitle}>
+                  {showAllFolders
+                    ? "Весь реестр"
+                    : (activeFolder?.title ?? "Реестр контрактов")}
+                </h3>
+                <p className={styles.folderMeta}>
+                  {activeContracts.length} контр. ·{" "}
+                  {formatMoneyShort(activeContractsTotal)}
+                </p>
+              </div>
+
+              <div className={styles.contractsTableWrap}>
+                <table className={`${styles.table} ${styles.contractsTable}`}>
+                  {/* Ширины колонок фиксированы: фильтрация не должна их менять */}
+                  <colgroup>
+                    <col className={styles.colNumber} />
+                    <col className={styles.colSupplier} />
+                    <col className={styles.colPrice} />
+                    <col className={styles.colAdvance} />
+                    <col className={styles.colDate} />
+                    <col className={styles.colExecution} />
+                    <col className={styles.colStatus} />
+                    <col className={styles.colExpand} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <SortableTh
+                        label="Номер"
+                        sortKey="number"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Поставщик"
+                        sortKey="supplier"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Цена, ₽"
+                        sortKey="price"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Аванс, ₽"
+                        sortKey="advance"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Заключён"
+                        sortKey="date"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Срок исполнения"
+                        sortKey="execution"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <SortableTh
+                        label="Статус"
+                        sortKey="status"
+                        sort={tableSort}
+                        onSort={handleTableSort}
+                      />
+                      <th className={styles.expandCell}>
+                        <span className="visually-hidden">Развернуть</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedContracts.map((contract) => (
+                      <ContractRow
+                        key={contract.id}
+                        contract={contract}
+                        expanded={expandedId === contract.id}
+                        onToggle={() => toggleExpand(contract.id)}
+                        onSupplierClick={toggleSupplierFilter}
+                        activeSupplier={supplierFilter}
+                        onDelete={() => {
+                          if (
+                            contract.id &&
+                            confirm("Удалить контракт из реестра?")
+                          ) {
+                            deleteContract(contract.id);
+                          }
+                        }}
+                        formatDate={formatDate}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ─── Пагинация ──────────────────────────────────────────────────── */}
+              {totalPages > 1 && (
+                <div className={styles.pager}>
+                  <button
+                    type="button"
+                    className={styles.pagerButton}
+                    onClick={() =>
+                      setPage((current) => Math.max(1, current - 1))
+                    }
+                    disabled={safePage === 1}
+                  >
+                    Назад
+                  </button>
+                  <span className={styles.pagerInfo}>
+                    {start + 1}–
+                    {Math.min(
+                      start + pagedContracts.length,
+                      activeContracts.length,
+                    )}{" "}
+                    из {activeContracts.length}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.pagerButton}
+                    onClick={() =>
+                      setPage((current) => Math.min(totalPages, current + 1))
+                    }
+                    disabled={safePage === totalPages}
+                  >
+                    Вперёд
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </>
       )}
     </div>
