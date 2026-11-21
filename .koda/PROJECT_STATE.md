@@ -3633,12 +3633,14 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   браузер 1440/390 в светлой и тёмной темах — итоги сходятся, модалка
   открывается/закрывается, скриншоты в `.tmp/shots/plan-kbk-*`. Проверка
   через игнорируемый скрипт `.tmp/probe-plan-totals-kbk.mjs`.
-- **Чужая поломка (не чинилась):** `npx tsc -b` теперь падает в
-  `src/services/Eis/eis17Types.ts(160,7)`: `TS6133 'decisionXml' is declared
-  but its value is never read` — хелпер добавлен коммитом `9ef3441`, но
-  нигде не применяется. Это чужая незавершённая работа; удалять или
-  подключать её должен автор правки.
+- **Ошибка типов в HEAD (уже исправлена):** на момент проверки
+  `npx tsc -b` падал в `src/services/Eis/eis17Types.ts(160,7)`:
+  `TS6133 'decisionXml' is declared but its value is never read` — хелпер
+  добавлен коммитом `9ef3441`, но не применялся. Параллельная сессия
+  подключила его в `positionXml` и `specialPurchaseXml` (выгрузка
+  `<decision><purchaseChanged|purchaseCanceled>true</…></decision>` вместо
+  текстового значения), после чего `tsc -b` снова exit 0.
 - **Не тронуто:** `scripts/mobile-audit.mjs`, `ContractRegistry*`,
   `PurchasePlanSpecialPurchases.*` (незакоммиченные правки параллельной
-  сессии) — закоммичены отдельным коммитом без изменений.
+  сессии) — закоммичены отдельными коммитами без изменений.
 

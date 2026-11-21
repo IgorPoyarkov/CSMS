@@ -156,6 +156,13 @@ const decisionOf = (
       ? "purchaseCanceled"
       : "purchaseChanged";
 
+// В XSD decision — choice из трёх булевых элементов fixed="true", а не текст.
+// Значение уже нормализовано в DTO, но подстраховываемся от старых записей
+const decisionXml = (decision: string): string => {
+  const resolved = decisionOf(decision, false);
+  return `<decision><${resolved}>true</${resolved}></decision>`;
+};
+
 export interface EisTenderPlan2020FinanceResources {
   total: number;
   currentYear: number;
@@ -2194,7 +2201,7 @@ const positionXml = (pos: EisTenderPlan2020Position): string => {
             : "") +
           `</changeReason>`
         : "") +
-      `<decision>${modification.decision}</decision>` +
+      decisionXml(modification.decision) +
       (modification.description
         ? `<description>${escapeXml(modification.description)}</description>`
         : "") +
@@ -2360,7 +2367,7 @@ const specialPurchaseXml = (sp: EisTenderPlan2020SpecialPurchase): string => {
             : "") +
           `</changeReason>`
         : "") +
-      `<decision>${modification.decision}</decision>` +
+      decisionXml(modification.decision) +
       (modification.description
         ? `<description>${escapeXml(modification.description)}</description>`
         : "") +
