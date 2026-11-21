@@ -484,8 +484,6 @@ export default function ContractRegistryPage() {
       switch (key) {
         case "number":
           return contract.contractNumber ?? "";
-        case "name":
-          return contract.contractName ?? "";
         case "supplier":
           return contract.supplierName ?? "";
         case "price":
@@ -763,7 +761,6 @@ export default function ContractRegistryPage() {
               {/* Ширины колонок фиксированы: фильтрация не должна их менять */}
               <colgroup>
                 <col className={styles.colNumber} />
-                <col className={styles.colName} />
                 <col className={styles.colSupplier} />
                 <col className={styles.colPrice} />
                 <col className={styles.colNmck} />
@@ -778,12 +775,6 @@ export default function ContractRegistryPage() {
                   <SortableTh
                     label="Номер"
                     sortKey="number"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="Наименование"
-                    sortKey="name"
                     sort={tableSort}
                     onSort={handleTableSort}
                   />
@@ -904,9 +895,10 @@ interface ContractRowProps {
 }
 
 /**
- * Строка таблицы контрактов: сводные данные — в колонках общего заголовка,
+ * Строка таблицы контрактов: наименование — отдельной полноширинной строкой
+ * (по нему чаще всего ищут контракт), реквизиты — в колонках общего заголовка,
  * подробности (ЕИС, платежи, этапы, неустойки, поставки, СМП) — в отдельной
- * строке, которая раскрывается по клику на строку или на шеврон.
+ * строке, которая раскрывается по клику на название, реквизиты или шеврон.
  */
 function ContractRow({
   contract,
@@ -920,15 +912,21 @@ function ContractRow({
   return (
     <>
       <tr
-        className={`${styles.contractRow} ${
+        className={`${styles.contractTitleRow} ${
           overdue ? styles.contractRowOverdue : ""
         } ${expanded ? styles.contractRowExpanded : ""}`}
         onClick={onToggle}
       >
+        <td colSpan={9}>{contract.contractName}</td>
+      </tr>
+
+      <tr
+        className={`${styles.contractRow} ${
+          expanded ? styles.contractRowExpanded : ""
+        }`}
+        onClick={onToggle}
+      >
         <td className={styles.contractNumber}>{contract.contractNumber}</td>
-        <td className={styles.contractNameCell}>
-          <span className={styles.contractName}>{contract.contractName}</span>
-        </td>
         <td>{contract.supplierName}</td>
         <td className={styles.moneyCell}>
           {formatMoney(contract.contractPrice)}
@@ -972,7 +970,7 @@ function ContractRow({
 
       {expanded && (
         <tr className={styles.expandedRow}>
-          <td colSpan={10} className={styles.expandedCell}>
+          <td colSpan={9} className={styles.expandedCell}>
             <div className={styles.cardBody}>
               <ContractEisSection contract={contract} />
               <PaymentSummary contract={contract} />

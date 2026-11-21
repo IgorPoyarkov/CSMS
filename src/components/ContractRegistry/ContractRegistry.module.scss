@@ -36,12 +36,6 @@
   white-space: nowrap;
 }
 
-.contractName {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
 .statusBadge {
   padding: 3px 12px;
   border-radius: 12px;
@@ -254,43 +248,59 @@
 
 /* Ширины колонок таблицы контрактов (сумма — 100%) */
 .colNumber {
-  width: 8%;
-}
-
-.colName {
-  width: 15%;
+  width: 9%;
 }
 
 .colSupplier {
-  width: 13%;
+  width: 17%;
 }
 
 .colPrice {
-  width: 9%;
+  width: 11%;
 }
 
 .colNmck {
-  width: 9%;
+  width: 11%;
 }
 
 .colAdvance {
-  width: 9%;
+  width: 11%;
 }
 
 .colDate {
-  width: 10%;
+  width: 11%;
 }
 
 .colExecution {
-  width: 13%;
+  width: 15%;
 }
 
 .colStatus {
-  width: 10%;
+  width: 11%;
 }
 
 .colExpand {
   width: 4%;
+}
+
+/* Название контракта — отдельная полноширинная строка над реквизитами */
+.contractTitleRow {
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: var(--surface-raised);
+  }
+
+  td {
+    padding: 10px 10px 6px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-primary);
+    // Линию рисует только строка реквизитов, иначе между ними двойная
+    border-bottom: none;
+  }
 }
 
 .contractRow {
@@ -308,10 +318,6 @@
 
 .contractRowExpanded {
   background: var(--surface-raised);
-}
-
-.contractNameCell {
-  font-weight: 600;
 }
 
 .moneyCell {
