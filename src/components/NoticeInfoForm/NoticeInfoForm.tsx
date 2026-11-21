@@ -1360,15 +1360,19 @@ const NoticeInfoForm = () => {
         );
       }
     } else if (matchedNote) {
+      // Решающие значения блока приходят из СЗ, но характеристики объекта и
+      // КТРУ, загруженные из ЕИС, не должны затираться пустыми строками:
+      // извещение хранит технические детали, СЗ — одобренные решения.
+      const currentDescription = getValues("objectDescription");
       setValue("objectDescription", {
-        objectName: matchedNote.subject,
-        okpd2Code: matchedNote.okpd2Code ?? "",
-        okpd2Name: matchedNote.okpd2Name ?? "",
-        consumerProperties: "",
-        qualityCharacteristics: "",
-        functionalProperties: "",
-        environmentalCharacteristics: "",
-        otherRequirements: matchedNote.otherRequirements ?? "",
+        ...currentDescription,
+        objectName: matchedNote.subject || currentDescription?.objectName || "",
+        okpd2Code: matchedNote.okpd2Code || currentDescription?.okpd2Code || "",
+        okpd2Name: matchedNote.okpd2Name || currentDescription?.okpd2Name || "",
+        otherRequirements:
+          matchedNote.otherRequirements ||
+          currentDescription?.otherRequirements ||
+          "",
       });
     }
 

@@ -29,6 +29,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
+import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -1296,6 +1297,19 @@ async function main() {
   db.procurements = procurements;
   db.notices = notices;
 
+  // Публичные данные ЕИС не содержат СЗ, а pruneDb() очищает purchaseNotes.
+  // Восстанавливаем потребности по позициям с извещениями: СЗ — источник
+  // одобренных блоков для предзаполнения извещения, без неё цепочка ПГ → СЗ →
+  // извещение остаётся с разрывом после каждой выгрузки.
+  const purchaseNotes = buildImportPurchaseNotes({
+    plans,
+    notices,
+    organization: org,
+    employee,
+    importedAt: now.toISOString(),
+  });
+  db.purchaseNotes = purchaseNotes.notes;
+
   // Связи строим после очистки старых процедур: только так у контрактов
   // останутся актуальные procurementId. Из извещений одновременно берём
   // ответственных лиц — они получают задачи по своим закупкам.
@@ -1325,6 +1339,7 @@ async function main() {
   const report = {
     ...summary,
     tasksAdded: tasks.length,
+    purchaseNotesCreated: purchaseNotes.created.length,
     contractsPreserved: preservedContracts,
     contractLinks: chain.notices,
     paymentLinks: chain.payments,
