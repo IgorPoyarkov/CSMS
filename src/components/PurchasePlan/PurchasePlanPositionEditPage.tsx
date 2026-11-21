@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
-import PurchasePlanPositionForm from "./PurchasePlanPositionForm";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import PurchasePlanPositionModal from "./PurchasePlanPositionModal";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
   usePurchasePlan,
@@ -12,20 +12,19 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import { roundMoney } from "../../services/Nmck/marketNmck";
 import useUtils from "../../hooks/useUtils";
-import styles from "./PurchasePlanPositionForm.module.scss";
+import styles from "./PurchasePlanPositionModal.module.scss";
 
 /**
- * Редактирование / добавление конкретной позиции плана-графике — страница
- * (роут), а не модалка: карточка позиции из просмотра плана-графиков
- * (Tasks 7, п. 4) повторяется составом полей, но живёт по адресу
- * `/purchase-plans/:id/positions/:positionId/edit` или `/new`.
+ * Редактирование / добавление конкретной позиции плана-графика — отдельная
+ * страница карточки позиции (роут `/purchase-plans/:id/positions/:positionId/edit`
+ * или `/new`), оформленная по образцу карточки позиции ЕИС pg2020.
  */
 export default function PurchasePlanPositionEditPage() {
   const { id } = useParams<{ id: string }>();
   const { positionId } = useParams<{ positionId?: string }>();
   const navigate = useNavigate();
   const { bem } = useUtils();
-  const block = bem(styles, "position-form");
+  const block = bem(styles, "position-modal");
   const { data: organization, isLoading: isOrgLoading } = useCurrentOrganization();
   const organizationId = organization?.id;
   const {
@@ -49,18 +48,14 @@ export default function PurchasePlanPositionEditPage() {
 
   if (!organizationId) {
     return (
-      <div className={block()}>
+      <div className={block("state-card")}>
         <p className={block("status", ["error"])}>
           К вашей учётной записи не привязана организация-заказчик, поэтому
           планы-графики недоступны. Обратитесь к администратору системы.
         </p>
-        <button
-          type="button"
-          className={block("back")}
-          onClick={() => navigate("/purchase-plans")}
-        >
-          К списку планов-графиков
-        </button>
+        <Link to="/purchase-plans" className={block("back-link")}>
+          ← К списку планов-графиков
+        </Link>
       </div>
     );
   }
@@ -71,34 +66,29 @@ export default function PurchasePlanPositionEditPage() {
 
   if (isError || !plan) {
     return (
-      <div className={block()}>
+      <div className={block("state-card")}>
         <p className={block("status", ["error"])}>
           План-график недоступен: {String(error)}
         </p>
-        <button
-          type="button"
-          className={block("back")}
-          onClick={() => navigate("/purchase-plans")}
-        >
-          К списку планов-графиков
-        </button>
+        <Link to="/purchase-plans" className={block("back-link")}>
+          ← К списку планов-графиков
+        </Link>
       </div>
     );
   }
 
   if (positionId && !position) {
     return (
-      <div className={block()}>
+      <div className={block("state-card")}>
         <p className={block("status")}>
-          Запись плана-графиков не найдена в этом плане-графике.
+          Запись плана-графика не найдена в этом плане-графике.
         </p>
-        <button
-          type="button"
-          className={block("back")}
-          onClick={() => navigate(`/purchase-plans/${plan.id}`)}
+        <Link
+          to={`/purchase-plans/${plan.id}?tab=positions`}
+          className={block("back-link")}
         >
-          К плану-графику
-        </button>
+          ← К позициям плана-графика
+        </Link>
       </div>
     );
   }
@@ -129,7 +119,7 @@ export default function PurchasePlanPositionEditPage() {
         id: plan.id as string | number,
         data: { ...plan, totalAmount: nextTotalAmount, positions: nextPositions },
       },
-      { onSuccess: () => navigate(`/purchase-plans/${plan.id}`) },
+      { onSuccess: () => navigate(`/purchase-plans/${plan.id}?tab=positions`) },
     );
   }
 
@@ -154,19 +144,20 @@ export default function PurchasePlanPositionEditPage() {
           positions: plan.positions.filter((_, itemIndex) => itemIndex !== index),
         },
       },
-      { onSuccess: () => navigate(`/purchase-plans/${plan.id}`) },
+      { onSuccess: () => navigate(`/purchase-plans/${plan.id}?tab=positions`) },
     );
   }
 
   return (
-    <PurchasePlanPositionForm
+    <PurchasePlanPositionModal
+      asPage
       plan={plan}
       position={currentPosition}
       index={position ? plan.positions.indexOf(position) : plan.positions.length}
       positions={plan.positions}
       isNew={isNew}
       isSaving={isSaving}
-      onClose={() => navigate(`/purchase-plans/${plan.id}`)}
+      onClose={() => navigate(`/purchase-plans/${plan.id}?tab=positions`)}
       onSave={savePosition}
       onDelete={!isNew ? deletePosition : undefined}
     />
