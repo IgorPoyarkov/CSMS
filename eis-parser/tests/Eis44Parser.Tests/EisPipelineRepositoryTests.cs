@@ -77,4 +77,52 @@ public sealed class EisPipelineRepositoryTests
         Assert.Equal(archive.Sha256, stored.ArchiveSha256);
         Assert.Null(await repository.ClaimNextAsync());
     }
+
+    [Fact]
+    public async Task ContractProcedureDoesNotOverwriteContract()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<EisDbContext>().UseSqlite(connection).Options;
+        using var db = new EisDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var repository = new EisPipelineRepository(db);
+
+        var candidate = new ArchiveCandidate(
+            "https://example.test/export.zip", "31", EisSubsystems.Priz, "contract", null, null);
+        Assert.True(await repository.EnqueueAsync(candidate));
+        var claimed = await repository.ClaimNextAsync();
+        Assert.NotNull(claimed);
+        var archive = new ArchiveFile(candidate.ArchiveUrl, "/tmp/export.zip", new string('a', 64), 1024);
+        await repository.MarkDownloadedAsync(claimed!.Id, archive);
+
+        await repository.PersistDocumentAsync(claimed.Id, new ParsedEisDocument
+        {
+            FileName = "export.xml#1-contract",
+            DocumentSha256 = new string('b', 64),
+            Kind = EisDocumentKind.Contract,
+            RegNumber = "2462904043925000011",
+            PurchaseNumber = "0144200001825000020",
+            Ikz = "252462904043946320100100260074211244",
+            SupplierInn = "4621009123",
+            Price = 271_568_111.92m,
+        });
+
+        // В настоящем export.zip 207 этапов с тем же regNum, но без ИКЗ и цены.
+        await repository.PersistDocumentAsync(claimed.Id, new ParsedEisDocument
+        {
+            FileName = "export.xml#2-contractProcedure",
+            DocumentSha256 = new string('c', 64),
+            Kind = EisDocumentKind.ContractProcedure,
+            RegNumber = "2462904043925000011",
+            PurchaseNumber = "2462904043925000011",
+        });
+
+        var contract = await db.Contracts.SingleAsync();
+        Assert.Equal("252462904043946320100100260074211244", contract.Ikz);
+        Assert.Equal(271_568_111.92m, contract.ContractPrice);
+        Assert.Equal("4621009123", contract.SupplierInn);
+        Assert.Equal(2, await db.RawDocuments.CountAsync());
+        Assert.Equal(1, await db.Participants.CountAsync());
+    }
 }

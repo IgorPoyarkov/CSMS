@@ -38,7 +38,29 @@ public sealed class ArchiveProcessor(
             await using var entryStream = entry.Open();
             var document = await XDocument.LoadAsync(entryStream, LoadOptions.None, cancellationToken)
                 .ConfigureAwait(false);
-            documents.Add(parser.Parse(document, entry.FullName));
+
+            // Реальный getDocsIP отдаёт один export.xml с сотнями документов внутри
+            // (<export><contract/><contractProcedure/>...</export>). В более старых
+            // архивах один файл содержал ровно один документ — оставляем тот путь.
+            var root = document.Root;
+            if (root?.Name.LocalName.Equals("export", StringComparison.OrdinalIgnoreCase) == true &&
+                root.Elements().Count() > 1)
+            {
+                var index = 0;
+                foreach (var child in root.Elements())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    index++;
+                    var childDocument = new XDocument(new XElement(child));
+                    documents.Add(parser.Parse(
+                        childDocument,
+                        $"{entry.FullName}#{index}-{child.Name.LocalName}"));
+                }
+            }
+            else
+            {
+                documents.Add(parser.Parse(document, entry.FullName));
+            }
         }
 
         if (documents.Count == 0)

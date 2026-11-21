@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальный проект электронного контракта (ЕИС, печатная форма, схема 16.2). -->
+<ns7:cpContractProject schemeVersion="16.2" xmlns="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns6="http://zakupki.gov.ru/oos/KOTypes/1" xmlns:ns5="http://zakupki.gov.ru/oos/types/1" xmlns:ns7="http://zakupki.gov.ru/oos/printform/1" xmlns:ns2="http://zakupki.gov.ru/oos/base/1" xmlns:ns4="http://zakupki.gov.ru/oos/EPtypes/1" xmlns:ns3="http://zakupki.gov.ru/oos/common/1">
+    <id>59987807</id>
+    <versionNumber>1</versionNumber>
+    <foundationInfo>
+        <purchaseNumber>0144200001826000147</purchaseNumber>
+        <ETP>
+            <ns2:code>ETP_RAD</ns2:code>
+            <ns2:name>АО "РАД"</ns2:name>
+            <ns2:url>https://gz.lot-online.ru</ns2:url>
+        </ETP>
+        <placingWay>
+            <ns2:code>OKP20</ns2:code>
+            <ns2:name>Открытый конкурс в электронной форме</ns2:name>
+        </placingWay>
+        <purchaseCode>262462904043946320100100710017112414</purchaseCode>
+        <protocolInfo>
+            <name>Протокол подведения итогов определения поставщика (подрядчика, исполнителя) от 29.09.2026 №ИЭОК1</name>
+            <number>ИЭОК1</number>
+            <publishDTInEIS>2026-09-29T11:04:18</publishDTInEIS>
+        </protocolInfo>
+    </foundationInfo>
+    <customerInfo>
+        <ns3:regNum>01442000018</ns3:regNum>
+        <ns3:fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</ns3:fullName>
+        <ns3:factAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</ns3:factAddress>
+        <ns3:INN>4629040439</ns3:INN>
+        <ns3:KPP>463201001</ns3:KPP>
+    </customerInfo>
+    <placerInfo>
+        <responsibleOrg>
+            <ns2:regNum>01442000018</ns2:regNum>
+            <ns2:consRegistryNum>382Р1122</ns2:consRegistryNum>
+            <ns2:fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</ns2:fullName>
+        </responsibleOrg>
+        <responsibleRole>CU</responsibleRole>
+    </placerInfo>
+    <participantInfo>
+        <legalEntityRFInfo>
+            <fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ПРОЕКТНАЯ КОМПАНИЯ "ОРЕЛАВТОБАН"</fullName>
+            <INN>5752072709</INN>
+            <KPP>575201001</KPP>
+        </legalEntityRFInfo>
+        <contractorRegistryNum>20021597</contractorRegistryNum>
+    </participantInfo>
+    <quantityUndefined>false</quantityUndefined>
+    <contractInfo>
+        <isStructuredForm>true</isStructuredForm>
+        <subject>Выполнение проектно-изыскательских работ по объекту капитального строительства: "Линии наружного электроосвещения автомобильной дороги "Тросна - Калиновка" - Михайловка на участке км 6+200 - км 8+110"</subject>
+        <concludeContractRight>false</concludeContractRight>
+        <price>1600000.00</price>
+        <currency>
+            <ns2:code>RUB</ns2:code>
+            <ns2:name>РОССИЙСКИЙ РУБЛЬ</ns2:name>
+        </currency>
+        <number>147ПИР_26</number>
+    </contractInfo>
+    <isContractPriceFormula>false</isContractPriceFormula>
+    <appNumber>1</appNumber>
+    <commonInfo>
+        <number>01442000018260001470001</number>
+        <docNumber>0144200001826000147000101</docNumber>
+        <href>https://zakupki.gov.ru/epz/order/notice/rpec/common-info.html?regNumber=01442000018260001470001</href>
+    </commonInfo>
+    <electronicContractInfo>
+        <printFormInfo>
+            <publishedContentId>01A0F1AF02677FBDA0227DF797473AED</publishedContentId>
+            <fileName>Электронный контракт.xml</fileName>
+            <docDescription>Электронный контракт</docDescription>
+            <url>https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpec/file.html?uid=01A0F1AF02677FBDA0227DF797473AED</url>
+            <fileSize>14186</fileSize>
+            <fileFingerPrint>2Wf5uwN3qNLOEKXHI5C/5WkCjiw1VrmDdTgAklz78BY=</fileFingerPrint>
+        </printFormInfo>
+        <printFormHTMLInfo>
+            <ns3:publishedContentId>01A0F1AF02817306BB6804095E228528</ns3:publishedContentId>
+            <ns3:fileName>Печатная форма электронного контракта.html</ns3:fileName>
+            <ns3:fileSize>60298</ns3:fileSize>
+            <ns3:docDescription>Печатная форма электронного контракта</ns3:docDescription>
+            <ns3:docDate>2026-09-30T12:39:33</ns3:docDate>
+            <ns3:url>https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpec/file.html?uid=01A0F1AF02817306BB6804095E228528</ns3:url>
+        </printFormHTMLInfo>
+        <attachmentsInfo>
+            <attachmentInfo>
+                <publishedContentId>01A0F1AE339F7DB3816A8590679468CA</publishedContentId>
+                <fileName>ГК № 147ПИР_26.zip</fileName>
+                <docDescription>ГК № 147ПИР_26</docDescription>
+                <url>https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpec/file.html?uid=01A0F1AE339F7DB3816A8590679468CA</url>
+                <fileSize>287156</fileSize>
+                <fileFingerPrint>F5YzdxKi1Ld+BxBe5jITzdJCxj07p6k6hMBDNXC3zUY=</fileFingerPrint>
+            </attachmentInfo>
+        </attachmentsInfo>
+    </electronicContractInfo>
+</ns7:cpContractProject>

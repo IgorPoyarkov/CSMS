@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<self:FAM_PaymOrderCr xmlns:self="http://www.roskazna.ru/eb/domain/FAM_PaymOrderCr/formular"
+                      xmlns:tdr="http://www.roskazna.ru/eb/services/transferDocumentService/types"
+                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                      xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                      xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+                      xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+                      Version="4.0"
+                      metaType="formular"
+                      xsi:schemaLocation="http://www.roskazna.ru/eb/domain/FAM_PaymOrderCr/formular formulars.xsd">
+   <AccDoc_Guid>57abc382-0a2d-0a1a-e063-0a2c2c17c599</AccDoc_Guid>
+   <AccDoc_DocNum>99235</AccDoc_DocNum>
+   <AccDoc_DocDate>2026-07-28</AccDoc_DocDate>
+   <AddInfo_ED2_EDNo>219635</AddInfo_ED2_EDNo>
+   <AddInfo_ED2_EDDate>2026-07-28</AddInfo_ED2_EDDate>
+   <AddInfo_ED2_EDAuthor>3807001906</AddInfo_ED2_EDAuthor>
+   <AddInfo_OperType>01</AddInfo_OperType>
+   <AddInfo_PayOrder>5</AddInfo_PayOrder>
+   <AddInfo_ReceiptDate>2026-07-28</AddInfo_ReceiptDate>
+   <AddInfo_ChargeOffDate>2026-07-28</AddInfo_ChargeOffDate>
+   <BasicRequisites_PayType>ЭДИ</BasicRequisites_PayType>
+   <BasicRequisites_EDType code="ED101" value="Платежное поручение"/>
+   <BasicRequisites_PaySum>1892932.32</BasicRequisites_PaySum>
+   <TtlPrt_SECRECY>0</TtlPrt_SECRECY>
+   <Payer_INN>4629040439</Payer_INN>
+   <Payer_KPP>463201001</Payer_KPP>
+   <Payer_Name>МИНИСТЕРСТВО ФИНАНСОВ И БЮДЖЕТНОГО КОНТРОЛЯ КУРСКОЙ ОБЛАСТИ (ОКУ "КУРСКАВТОДОР")</Payer_Name>
+   <Payer_BIK>013807906</Payer_BIK>
+   <Payer_CorrAcc>40102810545370000038</Payer_CorrAcc>
+   <Payer_BankName>ОКЦ № 3 ГУ Банка России по ЦФО//УФК ПО КУРСКОЙ ОБЛАСТИ, г Курск</Payer_BankName>
+   <Payer_CheckAcc>03221643380000004400</Payer_CheckAcc>
+   <Recip_INN>4621009123</Recip_INN>
+   <Recip_KPP>462101001</Recip_KPP>
+   <Recip_Name>ООО "ТЕРРА"</Recip_Name>
+   <Recip_BIK>044525161</Recip_BIK>
+   <Recip_CorrAcc>30101810945250000161</Recip_CorrAcc>
+   <Recip_BankName>КБ "ЛОКО-БАНК" (АО) г Москва</Recip_BankName>
+   <Recip_CheckAcc>40702810800156554000</Recip_CheckAcc>
+   <DepInfo_PayPurpose>Оказание услуг по содержанию а/д регион. и (или) межмуницип.знач. в Советском,Черемисиновском,Щигровском р.КО контракт № 63С_26 от 01.06.2026, Документ о приемке № 17/07/01 от 27.07.2026, в т.ч. НДС 341348,45</DepInfo_PayPurpose>
+   <DepInfo_PayDate>2026-07-28</DepInfo_PayDate>
+   <MarksCS_DateFAH>2026-07-28</MarksCS_DateFAH>
+   <StmInfrmtn_NmbBO>382Р112226440000132</StmInfrmtn_NmbBO>
+   <StmInfrmtn_ReestrNumGK>2462904043926000033</StmInfrmtn_ReestrNumGK>
+   <StmInfrmtn_ReestrType>02</StmInfrmtn_ReestrType>
+   <StmInfrmtn_IdDoc>777768338</StmInfrmtn_IdDoc>
+   <StmInfrmtn_ParentDocGUID>76dd4ec6-6495-442b-bba2-849e0e53a06d</StmInfrmtn_ParentDocGUID>
+   <FAHTeh>
+      <FAHTeh_ITEM>
+         <KBK>8440409172019Д002244</KBK>
+         <Sum>1892932.32</Sum>
+         <NumbDO>382Р112226440000132000001</NumbDO>
+         <FAH_AvDO>0</FAH_AvDO>
+      </FAHTeh_ITEM>
+   </FAHTeh>
+</self:FAM_PaymOrderCr>

@@ -120,6 +120,122 @@ public sealed class EisDocumentParserRealXmlTests
     }
 
     [Fact]
+    public void ParsesElectronicContractProject()
+    {
+        var document = Load("cp-contract-project-real.xml");
+
+        var result = _parser.Parse(document, "cpContractProject.xml");
+
+        // Проект электронного контракта (16.2): основание в foundationInfo,
+        // цена и предмет в contractInfo, исполнитель в корневом participantInfo.
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal("16.2", result.SchemeVersion);
+        Assert.Equal("0144200001826000147", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100100710017112414", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("5752072709", result.SupplierInn);
+        Assert.Equal("575201001", result.SupplierKpp);
+        Assert.Contains("ОРЕЛАВТОБАН", result.SupplierName, StringComparison.Ordinal);
+        Assert.Equal(1_600_000.00m, result.Price);
+        Assert.Equal("2026-09-29T11:04:18", result.PublishDate);
+        Assert.Contains("проектно-изыскательских работ", result.ObjectInfo, StringComparison.Ordinal);
+        Assert.Equal(
+            "https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpec/file.html?uid=01A0F1AF02677FBDA0227DF797473AED",
+            result.PrintFormUrl);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public void ParsesElectronicContractWithProductInfo()
+    {
+        var document = Load("cp-electronic-contract-real.xml");
+
+        var result = _parser.Parse(document, "cpElectronicContract.xml");
+
+        // Подписанный электронный контракт: позиция лежит в <productsInfo><productInfo>.
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal("16.2", result.SchemeVersion);
+        Assert.Equal("0144200001826000147", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100100710017112414", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("5752072709", result.SupplierInn);
+        Assert.Contains("ОРЕЛАВТОБАН", result.SupplierName, StringComparison.Ordinal);
+        Assert.Equal(1_600_000.00m, result.Price);
+        Assert.Equal("2026-09-29T00:00:00.000+03:00", result.PublishDate);
+        Assert.Contains("проектно-изыскательских работ", result.ObjectInfo, StringComparison.Ordinal);
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal("71.12.14.000-00000007", item.KtruCode);
+        Assert.Equal("71.12.14", item.Okpd2Code);
+        Assert.Contains("Разработка проектной документации", item.ItemName, StringComparison.Ordinal);
+        Assert.Equal(1m, item.Quantity);
+        Assert.Equal(1_600_000.00m, item.Price);
+    }
+
+    [Theory]
+    [InlineData("cp-electronic-contract-16-1-real.xml", "16.1")]
+    [InlineData("cp-electronic-contract-amended-real.xml", "16.2")]
+    public void ParsesRealElectronicContractsWithNineItems(string fileName, string schemeVersion)
+    {
+        var document = Load(fileName);
+
+        var result = _parser.Parse(document, fileName);
+
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal(schemeVersion, result.SchemeVersion);
+        Assert.Equal("0144200001826000063", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100100400014211244", result.Ikz);
+        Assert.Equal("4621009123", result.SupplierInn);
+        Assert.Contains("ТЕРРА", result.SupplierName, StringComparison.Ordinal);
+        Assert.Equal("2026-05-20T00:00:00.000+03:00", result.PublishDate);
+        // Итог контракта лежит в contractPriceInfo, а не в первой позиции.
+        Assert.Equal(202_006_953.29m, result.Price);
+        Assert.Equal(9, result.Items.Count);
+        Assert.All(result.Items, item => Assert.Equal("42.11.20.300", item.Okpd2Code));
+    }
+
+    [Fact]
+    public void KeepsContractDeltaAsRaw()
+    {
+        var document = Load("cp-delta-real.xml");
+
+        var result = _parser.Parse(document, "cpDelta.xml");
+
+        // cpDelta (изменение контракта) пока не маппится в отдельную сущность.
+        Assert.Equal(EisDocumentKind.Unknown, result.Kind);
+        Assert.Equal("16.2", result.SchemeVersion);
+        Assert.Equal("262462904043946320100100400014211244", result.Ikz);
+        Assert.Equal("4621009123", result.SupplierInn);
+        Assert.False(string.IsNullOrWhiteSpace(result.RawXml));
+    }
+
+    [Fact]
+    public void KeepsRoskaznaPaymentOrderAsRaw()
+    {
+        var document = Load("fam-payment-order-real.xml");
+
+        var result = _parser.Parse(document, "FAM_PaymOrderCr.xml");
+
+        Assert.Equal(EisDocumentKind.Unknown, result.Kind);
+        Assert.False(string.IsNullOrWhiteSpace(result.RawXml));
+    }
+
+    [Fact]
+    public void KeepsEsmvPaymentApplicationAsRaw()
+    {
+        var document = Load("esmv-appl-cash-flow-real.xml");
+
+        var result = _parser.Parse(document, "applCashFlow.xml");
+
+        // Платёжное заявление не является контрактом: в БД уйдёт только сырой XML.
+        Assert.Equal(EisDocumentKind.Unknown, result.Kind);
+        Assert.Equal("4.1", result.SchemeVersion);
+        Assert.Equal("4621009123", result.SupplierInn);
+        Assert.Contains("ТЕРРА", result.SupplierName, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(result.RawXml));
+    }
+
+    [Fact]
     public void KeepsRoskaznaBudgetObligationNoticeForLaterParsing()
     {
         var document = Load("exp-notice-bo-real.xml");

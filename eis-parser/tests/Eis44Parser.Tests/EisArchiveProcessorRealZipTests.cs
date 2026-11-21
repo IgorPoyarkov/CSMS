@@ -24,7 +24,8 @@ public sealed class EisArchiveProcessorRealZipTests
         var result = await processor.ProcessAsync(archive);
 
         Assert.Equal(10, result.Documents.Count);
-        Assert.All(result.Documents, document => Assert.Equal(EisDocumentKind.Contract, document.Kind));
+        Assert.Single(result.Documents, document => document.Kind == EisDocumentKind.Contract);
+        Assert.Equal(9, result.Documents.Count(document => document.Kind == EisDocumentKind.ContractProcedure));
 
         var contract = Assert.Single(result.Documents,
             document => document.FileName.StartsWith("contract_", StringComparison.Ordinal));
@@ -44,5 +45,33 @@ public sealed class EisArchiveProcessorRealZipTests
         Assert.StartsWith("Выполнение работ по ремонту автомобильной дороги", item.ItemName, StringComparison.Ordinal);
         Assert.Equal(1m, item.Quantity);
         Assert.Equal(271_568_111.92m, item.Price);
+    }
+
+    [Fact]
+    public async Task SplitsMultiDocumentExportFromGetDocsIp()
+    {
+        // Усечённая копия настоящего export.zip из getDocsIP: в одном XML лежат
+        // 2 контракта и 2 contractProcedure. Полный файл — 217 документов, 8,4 МБ.
+        var path = Path.Combine(AppContext.BaseDirectory, "test-data", "export-multidoc.zip");
+        var archive = new ArchiveFile(
+            "file://export-multidoc.zip",
+            path,
+            "fixture",
+            new FileInfo(path).Length);
+        var processor = new ArchiveProcessor(new EisDocumentParser(), NullLogger<ArchiveProcessor>.Instance);
+
+        var result = await processor.ProcessAsync(archive);
+
+        Assert.Equal(4, result.Documents.Count);
+        Assert.Equal(2, result.Documents.Count(document => document.Kind == EisDocumentKind.Contract));
+        Assert.Equal(2, result.Documents.Count(document => document.Kind == EisDocumentKind.ContractProcedure));
+        Assert.Single(result.Documents, document => document.FileName.Contains("#1-", StringComparison.Ordinal));
+        Assert.All(result.Documents, document =>
+            Assert.StartsWith("export.xml#", document.FileName, StringComparison.Ordinal));
+        Assert.Equal(4, result.Documents.Select(document => document.DocumentSha256).Distinct().Count());
+
+        var contract = result.Documents.First(document => document.FileName.EndsWith("-contract", StringComparison.Ordinal));
+        Assert.False(string.IsNullOrWhiteSpace(contract.RegNumber));
+        Assert.False(string.IsNullOrWhiteSpace(contract.Ikz));
     }
 }

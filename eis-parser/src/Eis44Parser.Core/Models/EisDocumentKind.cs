@@ -14,4 +14,8 @@ public enum EisDocumentKind
 
     /// <summary>Справочник НСИ (разбирается отдельным NsiXmlParser).</summary>
     Nsi = 3,
+
+    /// <summary>Этап исполнения контракта (contractProcedure): хранится как сырой XML,
+    /// но не должен перезаписывать основную запись контракта в БД.</summary>
+    ContractProcedure = 4,
 }

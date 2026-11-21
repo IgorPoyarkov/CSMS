@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns4:cpDelta schemeVersion="16.2" xmlns="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns4="http://zakupki.gov.ru/lkp-eis/printform/1" xmlns:ns3="http://zakupki.gov.ru/oos/base/1">
+    <versionNumber>1</versionNumber>
+    <revisionNumber>2</revisionNumber>
+    <isStructuredForm>true</isStructuredForm>
+    <numberAdd>014420000182600006300010001</numberAdd>
+    <ordinalNumberAdd>1</ordinalNumberAdd>
+    <contractNumber>63С_26</contractNumber>
+    <purchaseCode>262462904043946320100100400014211244</purchaseCode>
+    <customerInfo>
+        <regNum>01442000018</regNum>
+        <consRegistryNum>382Р1122</consRegistryNum>
+        <fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</fullName>
+        <shortName>ОКУ "КУРСКАВТОДОР"</shortName>
+        <postAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</postAddress>
+        <factAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</factAddress>
+        <INN>4629040439</INN>
+        <KPP>463201001</KPP>
+        <OKOPFInfo>
+            <code>75204</code>
+            <singularName>Государственные казенные учреждения субъектов Российской Федерации</singularName>
+        </OKOPFInfo>
+        <contactPersonInfo>
+            <ns2:lastName>Русанов</ns2:lastName>
+            <ns2:firstName>Дмитрий</ns2:firstName>
+            <ns2:middleName>Сергеевич</ns2:middleName>
+        </contactPersonInfo>
+        <email>avtodor@roadkursk.ru</email>
+        <contactPhone>7-4712-749074 доб.507</contactPhone>
+        <specializedOrgContactPersonInfo/>
+    </customerInfo>
+    <participantInfo>
+        <legalEntityRFInfo>
+            <fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ТЕРРА"</fullName>
+            <shortName>ООО "ТЕРРА"</shortName>
+            <INN>4621009123</INN>
+            <KPP>462101001</KPP>
+            <factAddress>306600, КУРСКАЯ ОБЛАСТЬ, Р-Н СОВЕТСКИЙ, РП. КШЕНСКИЙ, УЛ. КУРСКАЯ, Д. 6</factAddress>
+            <postAddress>306600, Курская область, Советский район, рп. Кшенский, ул. Курская д.6</postAddress>
+            <email>coordinator@terra46.ru</email>
+            <contactPhone>7 4712787994</contactPhone>
+            <informationPersonsInfo>
+                <informationPersonInfo>
+                    <nameInfo>
+                        <ns2:lastName>СУРГУЧ</ns2:lastName>
+                        <ns2:firstName>СЕРГЕЙ</ns2:firstName>
+                        <ns2:middleName>АНАТОЛЬЕВИЧ</ns2:middleName>
+                    </nameInfo>
+                    <INN>670900561803</INN>
+                    <position>ГЕНЕРАЛЬНЫЙ ДИРЕКТОР</position>
+                </informationPersonInfo>
+            </informationPersonsInfo>
+        </legalEntityRFInfo>
+        <contractorRegistryNum>19043267</contractorRegistryNum>
+        <status>
+            <ns3:code>50</ns3:code>
+            <ns3:name>Поставщик (подрядчик, исполнитель), который в соответствии с контрактом обязан привлечь к исполнению контракта субподрядчиков, соисполнителей из числа субъектов малого предпринимательства, социально ориентированных некоммерческих организаций</ns3:name>
+        </status>
+    </participantInfo>
+    <contractSubjectInfo blockCode="1" blockName="изменены поля в блоке">
+        <productsInfo>
+            <productsInfoElectronicContract/>
+        </productsInfo>
+    </contractSubjectInfo>
+    <printFormFieldsInfo>
+        <attachmentsInfo>
+            <attachmentInfo rowCode="2" rowName="добавлено">
+                <publishedContentId>019FA77893D679728C0AB06437BBE96E</publishedContentId>
+                <fileName>Приложение к эл. ДС № 1.zip</fileName>
+                <docDescription>Приложение к эл. ДС № 1</docDescription>
+                <contentId>019FA77893D679728C0AB06437BBE96E</contentId>
+                <fileSize>108666</fileSize>
+            </attachmentInfo>
+        </attachmentsInfo>
+    </printFormFieldsInfo>
+</ns4:cpDelta>

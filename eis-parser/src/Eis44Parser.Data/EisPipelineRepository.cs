@@ -147,6 +147,10 @@ public sealed class EisPipelineRepository(EisDbContext db) : IEisPipelineReposit
             case EisDocumentKind.Contract:
                 await UpsertContractAsync(document, raw.Id, cancellationToken).ConfigureAwait(false);
                 break;
+            // Этапы исполнения хранятся в raw_documents, но не перезаписывают
+            // основную запись контракта: у них нет ИКЗ, цены и поставщика.
+            case EisDocumentKind.ContractProcedure:
+                break;
         }
     }
 

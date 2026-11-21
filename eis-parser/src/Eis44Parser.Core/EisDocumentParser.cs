@@ -22,8 +22,10 @@ public sealed class EisDocumentParser
     private static readonly string[] CustomerScopes =
         ["responsibleOrgInfo", "customer", "customerInfo", "mainInfo", "accountBudgetAdmin"];
 
+    // legalEntityRFInfo идёт первым: внутри participantInfo могут встречаться
+    // и другие <name> (например, status/name «Субъект малого предпринимательства»).
     private static readonly string[] SupplierScopes =
-        ["supplier", "supplierInfo", "participantInfo", "legalEntityRFInfo", "postavshik"];
+        ["legalEntityRFInfo", "supplier", "supplierInfo", "participantInfo", "postavshik"];
 
     /// <summary>Разобрать один XML-файл архива.</summary>
     public ParsedEisDocument Parse(XDocument document, string fileName)
@@ -56,13 +58,12 @@ public sealed class EisDocumentParser
             Ikz = GetValue(root, "IKZ", "ikz", "purchaseCode", "InfDcBs_RmAct"),
             CustomerInn = GetPartyValue(root, CustomerScopes, "INN"),
             CustomerKpp = GetPartyValue(root, CustomerScopes, "KPP"),
-            CustomerName = GetPartyValue(root, CustomerScopes, "name", "fullName", "shortName"),
+            CustomerName = GetPartyValue(root, CustomerScopes, "fullName", "shortName", "name"),
             // В проектах доп. соглашений исполнитель лежит в participantInfo.
             SupplierInn = GetPartyValue(root, SupplierScopes, "INN"),
             SupplierKpp = GetPartyValue(root, SupplierScopes, "KPP"),
-            SupplierName = GetPartyValue(root, SupplierScopes, "name", "fullName", "shortName"),
-            Price = ParseMoney(GetValue(
-                root, "contractPrice", "nmck", "initialMaxPrice", "maxPrice", "price", "InfDcBs_SmSbsds")),
+            SupplierName = GetPartyValue(root, SupplierScopes, "fullName", "shortName", "name"),
+            Price = ParseMoney(GetPrice(root)),
             PublishDate = GetValue(
                 root, "publishDTInEIS", "publishDate", "signDate", "contractDate", "dateCreate", "DtSgnng"),
             ObjectInfo = GetValue(root, "purchaseObjectInfo", "contractSubject", "objectInfo", "subject", "name"),
@@ -157,7 +158,9 @@ public sealed class EisDocumentParser
                      candidate.Name.LocalName.Equals("product", StringComparison.OrdinalIgnoreCase) ||
                      candidate.Name.LocalName.Equals("purchaseItem", StringComparison.OrdinalIgnoreCase) ||
                      // Реальные извещения ЕИС: <purchaseObjectsInfo><purchaseObject>.
-                     candidate.Name.LocalName.Equals("purchaseObject", StringComparison.OrdinalIgnoreCase)))
+                     candidate.Name.LocalName.Equals("purchaseObject", StringComparison.OrdinalIgnoreCase) ||
+                      // Электронные контракты ЕИС: <productsInfo><productInfo>.
+                      candidate.Name.LocalName.Equals("productInfo", StringComparison.OrdinalIgnoreCase)))
         {
             var ktru = GetClassifierCode(element, "KTRU");
             var okpd2 = GetClassifierCode(element, "OKPD2");
@@ -192,7 +195,10 @@ public sealed class EisDocumentParser
     private static string? GetClassifierCode(XElement item, string classifier)
     {
         var node = item.DescendantsAndSelf()
-            .FirstOrDefault(element => element.Name.LocalName.Equals(classifier, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(element =>
+                element.Name.LocalName.Equals(classifier, StringComparison.OrdinalIgnoreCase) ||
+                // В электронных контрактах ЕИС теги называются OKPD2Info/KTRUInfo.
+                element.Name.LocalName.Equals(classifier + "Info", StringComparison.OrdinalIgnoreCase));
 
         if (node is null)
         {
@@ -225,6 +231,14 @@ public sealed class EisDocumentParser
         if (rootName.Contains("nsi", StringComparison.OrdinalIgnoreCase))
         {
             return EisDocumentKind.Nsi;
+        }
+
+        // contractProcedure — этап исполнения с тем же regNum, что у контракта.
+        // Если считать его обычным контрактом, 207 этапов перезапишут основную
+        // запись пустыми полями (нет ИКЗ, цены и поставщика).
+        if (rootName.Contains("contractProcedure", StringComparison.OrdinalIgnoreCase))
+        {
+            return EisDocumentKind.ContractProcedure;
         }
 
         // Сначала contract: cpContractProjectLKP содержит и contract, и project,
@@ -277,6 +291,33 @@ public sealed class EisDocumentParser
         }
 
         return null;
+    }
+
+    /// <summary>Цена документа, а не цена первой позиции: в cpElectronicContract
+    /// первые &lt;price&gt; принадлежат позициям, а итог — в contractPriceInfo.</summary>
+    private static string? GetPrice(XElement? root)
+    {
+        if (root is null)
+        {
+            return null;
+        }
+
+        // Контейнеры цены в порядке приоритета: в электронном контракте итог
+        // лежит в contractPriceInfo, в проекте — в contractInfo, в извещении —
+        // в maxPriceInfo. Иначе первым попадётся <price> позиции товара.
+        string[] priceScopes = ["contractPriceInfo", "contractInfo", "maxPriceInfo"];
+        foreach (var scope in priceScopes)
+        {
+            var node = root.DescendantsAndSelf()
+                .FirstOrDefault(element => element.Name.LocalName.Equals(scope, StringComparison.OrdinalIgnoreCase));
+            var value = GetValue(node, "price", "maxPrice", "contractPrice");
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return GetValue(root, "contractPrice", "nmck", "initialMaxPrice", "maxPrice", "price", "InfDcBs_SmSbsds");
     }
 
     private static decimal? ParseMoney(string? value)

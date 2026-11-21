@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns6:cpElectronicContract schemeVersion="16.1" xmlns="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns6="http://zakupki.gov.ru/oos/printform/1" xmlns:ns5="http://zakupki.gov.ru/oos/EPtypes/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns4="http://zakupki.gov.ru/oos/types/1" xmlns:ns3="http://zakupki.gov.ru/oos/base/1">
+    <versionNumber>1</versionNumber>
+    <contractNumber>63С_26</contractNumber>
+    <docType>1</docType>
+    <mainDocInfo>
+        <id>53789186</id>
+    </mainDocInfo>
+    <customerInfo>
+        <ns2:regNum>01442000018</ns2:regNum>
+        <ns2:consRegistryNum>382Р1122</ns2:consRegistryNum>
+        <ns2:fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</ns2:fullName>
+        <ns2:shortName>ОКУ "КУРСКАВТОДОР"</ns2:shortName>
+        <ns2:postAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</ns2:postAddress>
+        <ns2:factAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</ns2:factAddress>
+        <ns2:INN>4629040439</ns2:INN>
+        <ns2:KPP>463201001</ns2:KPP>
+        <OKOPFInfo>
+            <ns3:code>75204</ns3:code>
+            <ns3:singularName>Государственные казенные учреждения субъектов Российской Федерации</ns3:singularName>
+        </OKOPFInfo>
+        <contactPersonInfo>
+            <ns2:lastName>Русанов</ns2:lastName>
+            <ns2:firstName>Дмитрий</ns2:firstName>
+            <ns2:middleName>Сергеевич</ns2:middleName>
+        </contactPersonInfo>
+        <email>avtodor@roadkursk.ru</email>
+        <contactPhone>7-4712-749074 доб.507</contactPhone>
+        <customerAccountsDetailsInfo>
+            <customerAccountDetailsInfo>
+                <ns2:sid>257136136</ns2:sid>
+                <ns2:accountType>01</ns2:accountType>
+                <ns2:personalAccountNumber>03442Р11220</ns2:personalAccountNumber>
+                <ns2:creditOrgName>УФК ПО КУРСКОЙ ОБЛАСТИ</ns2:creditOrgName>
+                <ns2:detailsCreditOrgText>ОКЦ № 3 ГУ Банка России по ЦФО // УФК ПО КУРСКОЙ ОБЛАСТИ, г. Курск</ns2:detailsCreditOrgText>
+                <ns2:bankAccountNumber>03221643380000004400</ns2:bankAccountNumber>
+                <ns2:bik>013807906</ns2:bik>
+                <ns2:corrAccountNumber>40102810545370000038</ns2:corrAccountNumber>
+            </customerAccountDetailsInfo>
+        </customerAccountsDetailsInfo>
+    </customerInfo>
+    <participantInfo>
+        <legalEntityRFInfo>
+            <fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ТЕРРА"</fullName>
+            <shortName>ООО "ТЕРРА"</shortName>
+            <INN>4621009123</INN>
+            <KPP>462101001</KPP>
+            <factAddress>306600, КУРСКАЯ ОБЛАСТЬ, Р-Н СОВЕТСКИЙ, РП. КШЕНСКИЙ, УЛ. КУРСКАЯ, Д. 6</factAddress>
+            <postAddress>306600, Курская область, Советский район, рп. Кшенский, ул. Курская д.6</postAddress>
+            <email>coordinator@terra46.ru</email>
+            <contactPhone>7 4712787994</contactPhone>
+            <informationPersonsInfo>
+                <informationPersonInfo>
+                    <nameInfo>
+                        <ns2:lastName>СУРГУЧ</ns2:lastName>
+                        <ns2:firstName>СЕРГЕЙ</ns2:firstName>
+                        <ns2:middleName>АНАТОЛЬЕВИЧ</ns2:middleName>
+                    </nameInfo>
+                    <INN>670900561803</INN>
+                    <position>ГЕНЕРАЛЬНЫЙ ДИРЕКТОР</position>
+                </informationPersonInfo>
+            </informationPersonsInfo>
+        </legalEntityRFInfo>
+        <contractorRegistryNum>19043267</contractorRegistryNum>
+        <status>
+            <ns3:code>50</ns3:code>
+            <ns3:name>Поставщик (подрядчик, исполнитель), который в соответствии с контрактом обязан привлечь к исполнению контракта субподрядчиков, соисполнителей из числа субъектов малого предпринимательства, социально ориентированных некоммерческих организаций</ns3:name>
+        </status>
+        <participantAccountsDetailsInfo>
+            <electronicContractAccountsDetailsInfo>
+                <electronicContractAccountDetailsInfo>
+                    <ns2:sid>257136135</ns2:sid>
+                    <ns2:accountType>03</ns2:accountType>
+                    <ns2:creditOrgName>КБ "ЛОКО-Банк" (АО)</ns2:creditOrgName>
+                    <ns2:detailsCreditOrgText>КБ "ЛОКО-Банк" (АО), г. Москва</ns2:detailsCreditOrgText>
+                    <ns2:bankAccountNumber>40702810800156554000</ns2:bankAccountNumber>
+                    <ns2:bik>044525161</ns2:bik>
+                    <ns2:corrAccountNumber>30101810945250000161</ns2:corrAccountNumber>
+                    <ns2:counterparty160Name>ООО "ТЕРРА"</ns2:counterparty160Name>
+                    <organizationType>L</organizationType>
+                </electronicContractAccountDetailsInfo>
+            </electronicContractAccountsDetailsInfo>
+        </participantAccountsDetailsInfo>
+    </participantInfo>
+    <foundationInfo>
+        <placingWay>
+            <ns3:code>OK20</ns3:code>
+            <ns3:name>Открытый конкурс в электронной форме</ns3:name>
+        </placingWay>
+        <purchaseCode>262462904043946320100100400014211244</purchaseCode>
+        <purchaseNumber>0144200001826000063</purchaseNumber>
+        <protocolInfo>
+            <name>Протокол подведения итогов определения поставщика (подрядчика, исполнителя)</name>
+            <number>ИЭОК1</number>
+            <publishDTInEIS>2026-05-20T00:00:00.000+03:00</publishDTInEIS>
+        </protocolInfo>
+    </foundationInfo>
+    <contractSubjectInfo>
+        <contractSubject>Оказание услуг по содержанию автомобильных дорог регионального и (или) межмуниципального значения в Советском, Черемисиновском, Щигровском районах Курской области</contractSubject>
+        <productsInfo>
+            <productsInfoElectronicContract>
+                <productInfo>
+                    <sid>121019081</sid>
+                    <protocolObjectSid>123218407</protocolObjectSid>
+                    <purchaseObjectSid>211092388</purchaseObjectSid>
+                    <indexNum>1</indexNum>
+                    <name>Работы по содержанию полосы отвода, земляного полотна и системе водоотвода</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>821350.45</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121019082</sid>
+                    <protocolObjectSid>123218408</protocolObjectSid>
+                    <purchaseObjectSid>211092389</purchaseObjectSid>
+                    <indexNum>2</indexNum>
+                    <name>Работы по содержанию дорожных одежд</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>129597.61</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121019083</sid>
+                    <protocolObjectSid>123218409</protocolObjectSid>
+                    <purchaseObjectSid>211092390</purchaseObjectSid>
+                    <indexNum>3</indexNum>
+                    <name>Работы по содержанию искусственных и защитных дорожных сооружений</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>1302992.36</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121019084</sid>
+                    <protocolObjectSid>123218410</protocolObjectSid>
+                    <purchaseObjectSid>211092391</purchaseObjectSid>
+                    <indexNum>4</indexNum>
+                    <name>Работы по содержанию элементов обустройства и благоустройства автомобильных дорог</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>2172292.85</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121019085</sid>
+                    <protocolObjectSid>123218411</protocolObjectSid>
+                    <purchaseObjectSid>211092392</purchaseObjectSid>
+                    <indexNum>5</indexNum>
+                    <name>Зимнее содержание автомобильных дорог, искусственных сооружений и других элементов автомобильных дорог</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>34341.02</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121025366</sid>
+                    <protocolObjectSid>123218412</protocolObjectSid>
+                    <purchaseObjectSid>211092393</purchaseObjectSid>
+                    <indexNum>6</indexNum>
+                    <name>Озеленение</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>702512.68</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121025367</sid>
+                    <protocolObjectSid>123218413</protocolObjectSid>
+                    <purchaseObjectSid>211092394</purchaseObjectSid>
+                    <indexNum>7</indexNum>
+                    <name>Погрузочно-разгрузочные работы</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>431.95</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121025368</sid>
+                    <protocolObjectSid>123218414</protocolObjectSid>
+                    <purchaseObjectSid>211092395</purchaseObjectSid>
+                    <indexNum>8</indexNum>
+                    <name>Транспортные работы</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>7914.56</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <productInfo>
+                    <sid>121025369</sid>
+                    <protocolObjectSid>123218415</protocolObjectSid>
+                    <purchaseObjectSid>211092396</purchaseObjectSid>
+                    <indexNum>9</indexNum>
+                    <name>Проект организации дорожного движения на автомобильных дорогах</name>
+                    <OKPD2Info>
+                        <ns3:OKPDCode>42.11.20.300</ns3:OKPDCode>
+                        <ns3:OKPDName>Работы по содержанию автомобильных дорог</ns3:OKPDName>
+                    </OKPD2Info>
+                    <hierarchyType>ND</hierarchyType>
+                    <type>SERVICE</type>
+                    <OKEIInfo>
+                        <ns3:code>876</ns3:code>
+                        <ns3:nationalCode>усл. ед</ns3:nationalCode>
+                        <ns3:name>Условная единица</ns3:name>
+                    </OKEIInfo>
+                    <indicationSubjects>Q</indicationSubjects>
+                    <price>50020.00</price>
+                    <VATRateInfo>
+                        <ns3:VATCode>R22</ns3:VATCode>
+                        <ns3:VATName>22%</ns3:VATName>
+                    </VATRateInfo>
+                    <isProhibitionForeignPurchaseObjects>false</isProhibitionForeignPurchaseObjects>
+                </productInfo>
+                <quantityUndefined>true</quantityUndefined>
+            </productsInfoElectronicContract>
+        </productsInfo>
+    </contractSubjectInfo>
+    <contractConditionsInfo>
+        <contractExecutionTermsInfo>
+            <notRelativeTermsInfo>
+                <isFromConclusionDate>true</isFromConclusionDate>
+                <endDate>2027-08-16</endDate>
+            </notRelativeTermsInfo>
+        </contractExecutionTermsInfo>
+        <stagesInfo>
+            <stageInfo>
+                <sid>45039416</sid>
+                <purchaseStageSid>19934766</purchaseStageSid>
+                <termsInfo>
+                    <notRelativeTermsInfo>
+                        <isFromConclusionDate>true</isFromConclusionDate>
+                        <endDate>2027-08-16</endDate>
+                    </notRelativeTermsInfo>
+                </termsInfo>
+                <paymentsSumInfo>
+                    <paymentsSum>202006953.29</paymentsSum>
+                    <advancePaymentSumInfo>
+                        <sum>0.00</sum>
+                    </advancePaymentSumInfo>
+                    <budgetFinancingsInfo>
+                        <sid>54135216</sid>
+                        <KBK>8440409172019Д002244</KBK>
+                        <paymentYearsInfo>
+                            <paymentYearInfo>
+                                <paymentYear>2026</paymentYear>
+                                <paymentSum>75763584.93</paymentSum>
+                            </paymentYearInfo>
+                            <paymentYearInfo>
+                                <paymentYear>2027</paymentYear>
+                                <paymentSum>126243368.36</paymentSum>
+                            </paymentYearInfo>
+                        </paymentYearsInfo>
+                    </budgetFinancingsInfo>
+                </paymentsSumInfo>
+            </stageInfo>
+        </stagesInfo>
+        <deliveryPlaceInfo>
+            <byGARInfo>
+                <ns2:sid>37698591</ns2:sid>
+                <ns2:countryInfo>
+                    <ns3:countryCode>643</ns3:countryCode>
+                    <ns3:countryFullName>Российская Федерация</ns3:countryFullName>
+                </ns2:countryInfo>
+                <ns2:GARInfo>
+                    <ns2:GARGuid>08de0b4a-3a8d-45f6-a01e-0d475da076f6</ns2:GARGuid>
+                    <ns2:GARAddress>обл. Курская, м.р-н Щигровский</ns2:GARAddress>
+                </ns2:GARInfo>
+                <ns2:deliveryPlace>автомобильные дороги согласно приложения № 1 к контракту</ns2:deliveryPlace>
+            </byGARInfo>
+            <byGARInfo>
+                <ns2:sid>37698592</ns2:sid>
+                <ns2:countryInfo>
+                    <ns3:countryCode>643</ns3:countryCode>
+                    <ns3:countryFullName>Российская Федерация</ns3:countryFullName>
+                </ns2:countryInfo>
+                <ns2:GARInfo>
+                    <ns2:GARGuid>7fb61616-5d7b-4d0e-b6b3-27021680ff27</ns2:GARGuid>
+                    <ns2:GARAddress>обл. Курская, м.р-н Советский</ns2:GARAddress>
+                </ns2:GARInfo>
+                <ns2:deliveryPlace>автомобильные дороги согласно приложения № 1 к контракту</ns2:deliveryPlace>
+            </byGARInfo>
+            <byGARInfo>
+                <ns2:sid>37698593</ns2:sid>
+                <ns2:countryInfo>
+                    <ns3:countryCode>643</ns3:countryCode>
+                    <ns3:countryFullName>Российская Федерация</ns3:countryFullName>
+                </ns2:countryInfo>
+                <ns2:GARInfo>
+                    <ns2:GARGuid>ef1fe159-691f-47de-a4dd-4d286c898441</ns2:GARGuid>
+                    <ns2:GARAddress>обл. Курская, м.р-н Черемисиновский</ns2:GARAddress>
+                </ns2:GARInfo>
+                <ns2:deliveryPlace>автомобильные дороги согласно приложения № 1 к контракту</ns2:deliveryPlace>
+            </byGARInfo>
+        </deliveryPlaceInfo>
+        <contractGuaranteeInfo>
+            <isContractGuarantee>true</isContractGuarantee>
+            <part>0.5</part>
+            <amount>1010034.77</amount>
+            <procedureInfo>В соответствии с разделом 5 прикрепленного Документа (проект контракта), сформированного без использования ЕИС</procedureInfo>
+        </contractGuaranteeInfo>
+        <subcontractorsAttractionConditionsInfo>
+            <subcontractorsAttractionVolume>25.0</subcontractorsAttractionVolume>
+            <responsibility>В виде штрафа в размере 5% от объема привлечения субподрядчиков, соисполнителей из числа СМП, СОНО</responsibility>
+        </subcontractorsAttractionConditionsInfo>
+        <otherConditionsInfo>
+            <oneSideRejection>true</oneSideRejection>
+        </otherConditionsInfo>
+        <isExecutionStagesTerms>true</isExecutionStagesTerms>
+    </contractConditionsInfo>
+    <contractFinancingInfo>
+        <financingSourcesInfo>
+            <budgetFinancingsInfo>
+                <budgetInfo>
+                    <ns3:code>44020540</ns3:code>
+                    <ns3:name>Бюджет Курской области</ns3:name>
+                </budgetInfo>
+                <budgetLevel>20</budgetLevel>
+            </budgetFinancingsInfo>
+            <bankSupportContractRequiredInfo>
+                <ns2:bankSupportContractRequired>false</ns2:bankSupportContractRequired>
+            </bankSupportContractRequiredInfo>
+        </financingSourcesInfo>
+        <contractPriceInfo>
+            <priceType>MP</priceType>
+            <price>202006953.29</price>
+            <currencyInfo>
+                <ns3:code>RUB</ns3:code>
+                <ns3:name>РОССИЙСКИЙ РУБЛЬ</ns3:name>
+            </currencyInfo>
+        </contractPriceInfo>
+        <paymentProcedureInfo>
+            <holdCashCondition>true</holdCashCondition>
+            <amountsReducedByTaxes>true</amountsReducedByTaxes>
+        </paymentProcedureInfo>
+        <paymentsInfo>
+            <paymentYearsInfo>
+                <paymentYearInfo>
+                    <paymentYear>2026</paymentYear>
+                    <paymentSum>75763584.93</paymentSum>
+                </paymentYearInfo>
+                <paymentYearInfo>
+                    <paymentYear>2027</paymentYear>
+                    <paymentSum>126243368.36</paymentSum>
+                </paymentYearInfo>
+                <paymentsSum>202006953.29</paymentsSum>
+            </paymentYearsInfo>
+        </paymentsInfo>
+    </contractFinancingInfo>
+    <attachmentsInfo>
+        <attachmentInfo>
+            <publishedContentId>EEBBA974C9F8420F96E6D771AAD115AC</publishedContentId>
+            <fileName>ГК № 63С_26.rar</fileName>
+            <docDescription>ГК № 63С_26</docDescription>
+            <contentId>EEBBA974C9F8420F96E6D771AAD115AC</contentId>
+            <fileSize>3181783</fileSize>
+        </attachmentInfo>
+    </attachmentsInfo>
+    <printFormFieldsInfo>
+        <revisionNumber>1</revisionNumber>
+        <isEstimateContract>false</isEstimateContract>
+    </printFormFieldsInfo>
+</ns6:cpElectronicContract>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальное платёжное заявление Казначейства (ESMV 4.1): сохраняется как сырой XML. -->
+<ns2:applCashFlow schemeVersion="4.1" xmlns="http://zakupki.gov.ru/esmv/types" xmlns:ns2="http://zakupki.gov.ru/esmv/1">
+    <mainInfo>
+        <id>c20b8442-950b-48d7-b0a0-88c7176899ee</id>
+        <number>E26022779512.01</number>
+        <versionNumber>1</versionNumber>
+        <createDate>2026-09-23T16:55:31</createDate>
+        <orderTypeInfo>
+            <code>PC</code>
+            <name>Оплата контрагенту</name>
+        </orderTypeInfo>
+        <consRegistryNum>382Р1122</consRegistryNum>
+        <clientName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</clientName>
+        <personalAccount>03442Р11220</personalAccount>
+        <GRBS>
+            <code>844</code>
+            <name>Министерство транспорта и автомобильных дорог Курской области</name>
+        </GRBS>
+        <TOFK>
+            <code>4400</code>
+            <name>Управление Федерального казначейства по Курской области</name>
+        </TOFK>
+        <PBS>
+            <orgCode>382Р1122</orgCode>
+            <name>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</name>
+            <accountNumber>03442Р11220</accountNumber>
+            <OKPOCode>11083615</OKPOCode>
+        </PBS>
+        <budget>
+            <code>44020540</code>
+            <name>Бюджет Курской области</name>
+        </budget>
+        <financeDepartment>
+            <OKPOCode>02288152</OKPOCode>
+            <name>МИНИСТЕРСТВО ФИНАНСОВ И БЮДЖЕТНОГО КОНТРОЛЯ КУРСКОЙ ОБЛАСТИ</name>
+        </financeDepartment>
+        <executionDate>2026-09-24</executionDate>
+        <budgetObligationNumber>382Р112226440000132</budgetObligationNumber>
+        <budgetObligationId>52b39ebc-2201-45be-82dd-5d639ee4df41</budgetObligationId>
+        <reestrType>02</reestrType>
+        <docAcceptanceSid>789778266</docAcceptanceSid>
+        <privacyLevel>0</privacyLevel>
+    </mainInfo>
+    <docDetailsInfo>
+        <regNum>2462904043926000033</regNum>
+        <paymentPriority>5</paymentPriority>
+        <paymentKind>0</paymentKind>
+        <amount>7104343.63</amount>
+        <currency>
+            <code>RUB</code>
+            <digitalCode>643</digitalCode>
+            <name>РОССИЙСКИЙ РУБЛЬ</name>
+        </currency>
+        <amountRUR>0</amountRUR>
+        <paymantPurpose>Оказание услуг по содерж. а/д регион. и (или) межмуницип. знач. в Советском,Черемисиновском,Щигровском р. КО контракт № 63С_26 от 01.06.2026, Документ о приемке № 17/09/01 от 23.09.2026, в т.ч. НДС 1281111,16</paymantPurpose>
+    </docDetailsInfo>
+    <foundationDocsInfo>
+        <foundationDocInfo>
+            <kind>Контракт</kind>
+            <number>63С_26</number>
+            <date>2026-06-01</date>
+            <subject>Оказание услуг по содержанию автомобильных дорог регионального и (или) межмуниципального значения в Советском, Черемисиновском, Щигровском районах Курской области</subject>
+        </foundationDocInfo>
+        <foundationDocInfo>
+            <kind>Документ о приемке</kind>
+            <number>17/09/01</number>
+            <date>2026-09-23</date>
+            <subject>42.11.20.300 Работы по содержанию полосы отвода, земляного полотна и системе водоотвода</subject>
+        </foundationDocInfo>
+        <foundationDocInfo>
+            <kind>ДО</kind>
+            <number>382Р112226440000132000003</number>
+        </foundationDocInfo>
+    </foundationDocsInfo>
+    <supplierInfo>
+        <name>ООО "ТЕРРА"</name>
+        <nameForPO>ООО "ТЕРРА"</nameForPO>
+        <INN>4621009123</INN>
+        <KPP>462101001</KPP>
+        <bankDetailsInfo>
+            <accountNumber>40702810800156554000</accountNumber>
+            <name>КБ "ЛОКО-Банк" (АО), г. Москва</name>
+            <BIK>044525161</BIK>
+            <corrNumber>30101810945250000161</corrNumber>
+        </bankDetailsInfo>
+    </supplierInfo>
+    <explanationInfo>
+        <explanationLineInfo>
+            <lineNumber>1</lineNumber>
+            <fundsKind>1</fundsKind>
+            <payerInfo>
+                <KBK>8440409172019Д002244</KBK>
+                <KBKType>10</KBKType>
+            </payerInfo>
+            <amount>7104343.63</amount>
+            <amountRUR>0</amountRUR>
+            <paymantPurpose>Оказание услуг по содерж. а/д регион. и (или) межмуницип. знач. в Советском,Черемисиновском,Щигровском р. КО контракт № 63С_26 от 01.06.2026, Документ о приемке № 17/09/01 от 23.09.2026</paymantPurpose>
+        </explanationLineInfo>
+    </explanationInfo>
+</ns2:applCashFlow>
