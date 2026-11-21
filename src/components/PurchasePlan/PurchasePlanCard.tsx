@@ -379,8 +379,16 @@ export default function PurchasePlanCard() {
           "—"
         );
       case "objectOfPurchase":
+        // Наименование объекта (объектов) закупки начинается на уровне
+        // наименования по ОКПД2, а не на уровне кода ОКПД2: если код показан,
+        // компенсируем высоту его строки и нижний отступ.
         return (
-          <span className={block("object")}>
+          <span
+            className={block(
+              "object",
+              position.okpd2Code ? ["with-code"] : [],
+            )}
+          >
             {position.objectOfPurchase || "—"}
           </span>
         );
