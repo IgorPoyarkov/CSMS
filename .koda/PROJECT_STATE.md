@@ -3202,3 +3202,26 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `262462904043946320100100210020000414` (КВР из КБК — 414). Сохранение в
   браузере не выполнялось, `db.json` остался без изменений; чужие WIP-файлы
   (`PurchasePlanForm*`, `scripts/mobile-audit.mjs`) и `Лес 3D.jpg` не трогались.
+
+## 87. Форма плана-графика: раздел «3. Записи плана-графика» удалён (2026-11-21)
+
+- **Форма** (`/purchase-plans/new`, `/purchase-plans/:id/edit`): удалён
+  fieldset с заголовком «3. Записи плана-графика (N)» — вместе с подсказкой о
+  пустом списке, списком записей, полями `positionFields`, выбором ОКПД2,
+  чекбоксом общественного обсуждения и кнопкой «Добавить запись». После
+  раздела 2 сразу идёт футер с «Отмена» / «Сохранить план-график», пустых
+  мест нет.
+- **Связанный код:** из формы убраны `useFieldArray`/`positions`,
+  `Okpd2Select`, `useOkpd2Dictionary`/`findOkpd2ByCode`, функция
+  `okpd2NormControlHint`, `watch`, `emptyPurchasePlanPosition`,
+  `positionFields`, `okpd2FieldLabels` и `formatMoney`. В
+  `purchasePlan.config.ts` удалён мёртвый экспорт `positionFields` и импорт
+  `PurchasePlanPosition`; `okpd2FieldLabels` оставлен — его использует
+  карточка позиции. Схема плана, сохранение, версии, разделы 1–2 и маршруты
+  позиций не менялись.
+- **Стили:** удалены `&__positions`, `&__position`, `&__position-header`,
+  `&__position-title`, `&__remove-button`, `&__add-button`, `&--okpd2` и
+  `&--norm`; `&__checkbox`, `&__hint--warning` и остальное оставлены.
+- **Проверки:** `tsc -b` без ошибок, `oxlint` по двум файлам — 0/0,
+  `vite build` — зелёный. В браузере `/purchase-plans/new`: разделы 1 и 2 на
+  месте, раздела 3 нет, футер с кнопками сразу после раздела 2.

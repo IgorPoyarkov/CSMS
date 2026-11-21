@@ -2,7 +2,6 @@ import type { ConfigurationInput } from "../UI/CustomInput";
 import {
   toNumber,
   type PurchasePlan,
-  type PurchasePlanPosition,
   type PurchasePlanPositionStatus,
   type PurchasePlanStatus,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -313,93 +312,8 @@ export const planHeaderFields: ConfigurationInput<PurchasePlan>[] = [
   },
 ];
 
-// Поля записи плана-графика в порядке граф формы ПГ (приказ 145/206н)
-export const positionFields: ConfigurationInput<PurchasePlanPosition>[] = [
-  {
-    label: { value: "№ п/п" },
-    input: { name: "serialNumber", placeholder: "1" },
-  },
-  {
-    label: { value: "Уникальный номер позиции (формируется системой)" },
-    input: { name: "uniqueNumber", placeholder: "202601442000018001000127" },
-  },
-  {
-    label: { value: "Номер закупки, включенной в план-график" },
-    input: { name: "purchaseNumber", placeholder: "0001" },
-  },
-  {
-    label: { value: "Идентификационный код закупки (ИКЗ)" },
-    input: {
-      name: "identificationCode",
-      placeholder: "3160300000357000000100000015П166",
-    },
-  },
-  {
-    label: { value: "Объект закупки" },
-    input: {
-      name: "objectOfPurchase",
-      placeholder: "Поставка медицинского оборудования",
-    },
-  },
-  {
-    label: { value: "Планируемый год размещения извещения" },
-    input: { name: "plannedPlacementYear", placeholder: "2026" },
-  },
-  {
-    label: { value: "Объём финансового обеспечения, всего, ₽" },
-    input: { name: "amountTotal", placeholder: "1250000.00" },
-  },
-  {
-    label: { value: "Планируемые платежи на текущий финансовый год, ₽" },
-    input: { name: "amountCurrentYear" },
-  },
-  {
-    label: { value: "Планируемые платежи на первый год планового периода, ₽" },
-    input: { name: "amountPlanPeriodFirstYear" },
-  },
-  {
-    label: { value: "Планируемые платежи на второй год планового периода, ₽" },
-    input: { name: "amountPlanPeriodSecondYear" },
-  },
-  {
-    label: { value: "Планируемые платежи на последующие годы, ₽" },
-    input: { name: "amountSubsequentYears" },
-  },
-  {
-    label: { value: "Уполномоченный орган (учреждение)" },
-    input: {
-      name: "authorizedBodyName",
-      placeholder: "Департамент здравоохранения города Москвы",
-    },
-  },
-  {
-    label: { value: "Организатор совместного конкурса (аукциона)" },
-    input: { name: "jointOrganizerName" },
-  },
-  {
-    label: { value: "Наименование объекта закупки" },
-    input: {
-      name: "objectName",
-      placeholder: "Аппарат ультразвуковой диагностики экспертного класса",
-    },
-  },
-
-  // КБК нужен для группировки записей ПГ по расходам и поиска по ним
-  {
-    label: { value: "КБК" },
-    input: {
-      name: "kbk",
-      placeholder: "20011000000000000000",
-    },
-  },
-  {
-    label: { value: "Дата размещения записи (прохождения контроля)" },
-    input: { name: "statusDate", type: "date" },
-  },
-];
-
 // Поля ОКПД2 заполняются выбором из справочника (Okpd2Select), а не вводом с
-// клавиатуры, поэтому они вынесены из positionFields и рисуются отдельно
+// клавиатуры, поэтому подписи вынесены отдельно от полей ввода
 export const okpd2FieldLabels = {
   code: "Код ОКПД2",
   name: "Наименование товара, работы, услуги по ОКПД2",

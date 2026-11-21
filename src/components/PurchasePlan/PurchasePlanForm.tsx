@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  FormProvider,
-  get,
-  useFieldArray,
-  useForm,
-  useWatch,
-} from "react-hook-form";
+import { FormProvider, get, useForm, useWatch } from "react-hook-form";
 import type { FieldError } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
@@ -21,7 +15,6 @@ import {
 } from "../../services/PurchasePlan/purchasePlanVersion.api";
 import {
   emptyPurchasePlan,
-  emptyPurchasePlanPosition,
   PurchasePlanSchema,
   type PurchasePlan,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -29,19 +22,11 @@ import { organizationToCustomer } from "../../services/Organization/organization
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
 import CustomInput from "../UI/CustomInput";
-import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import {
-  findOkpd2ByCode,
-  useOkpd2Dictionary,
-} from "../../services/Okpd2Ref/okpd2Ref.api";
-import {
-  okpd2FieldLabels,
   ownerRoleOptions,
   pfhdTypeOptions,
   planHeaderFields,
-  positionFields,
   purchasePlanStatusOptions,
-  formatMoney,
 } from "./purchasePlan.config";
 import styles from "./PurchasePlanForm.module.scss";
 
@@ -80,14 +65,8 @@ export default function PurchasePlanForm() {
     handleSubmit,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = methods;
-
-  const positions = useFieldArray({ control, name: "positions" });
-
-  // Справочник ОКПД2 нужен и для выбора позиции, и для контроля нормирования
-  const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
   // Сообщение об ошибке вложенного поля (select, checkbox) берём по пути,
   // чтобы не разматывать deep-тип FieldErrors вручную.
@@ -132,23 +111,6 @@ export default function PurchasePlanForm() {
     !contractService;
   const canSave =
     Boolean(organizationId && customer?.fullName) && !needsContractService;
-
-  function okpd2NormControlHint(code: string | undefined) {
-    const matched = findOkpd2ByCode(okpd2Refs, code);
-
-    if (!matched?.isNormed) {
-      return null;
-    }
-
-    return (
-      <span className={block("hint", ["norm"])}>
-        Код {matched.code} подлежит обязательному нормированию.
-        {matched.normLimit
-          ? ` Предельная цена единицы — ${formatMoney(matched.normLimit)}; превышение допускается только с обоснованием, подписанным главным подписантом.`
-          : " Требования к позиции устанавливаются общими правилами определения требований."}
-      </span>
-    );
-  }
 
   async function onSubmit(data: PurchasePlan) {
     const nextVerNum =
@@ -352,7 +314,9 @@ export default function PurchasePlanForm() {
 
           <fieldset className={block("section")}>
             <div className={block("section-head")}>
-              <h2 className={block("section-title")}>2. Сведения о заказчике</h2>
+              <h2 className={block("section-title")}>
+                2. Сведения о заказчике
+              </h2>
             </div>
 
             {isEdit && isPlanLoadError && (
@@ -576,107 +540,6 @@ export default function PurchasePlanForm() {
               </p>
             </fieldset>
           )}
-
-          <fieldset className={block("section")}>
-            <div className={block("section-head")}>
-              <h2 className={block("section-title")}>
-                3. Записи плана-графика ({positions.fields.length})
-              </h2>
-            </div>
-
-            {positions.fields.length === 0 && (
-              <p className={block("hint")}>
-                Записи плана-графика не внесены — добавьте закупку кнопкой ниже.
-              </p>
-            )}
-
-            {errorMessage("positions.message") && (
-              <p className={block("error")}>
-                {errorMessage("positions.message")}
-              </p>
-            )}
-
-            <ul className={block("positions")}>
-              {positions.fields.map((field, index) => (
-                <li key={field.id} className={block("position")}>
-                  <div className={block("position-header")}>
-                    <span className={block("position-title")}>
-                      Запись плана-графика № {index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      className={block("remove-button")}
-                      onClick={() => positions.remove(index)}
-                    >
-                      Удалить запись
-                    </button>
-                  </div>
-
-                  <div className={block("grid")}>
-                    {positionFields.map((fieldConfig) => (
-                      <CustomInput
-                        key={`${index}-${fieldConfig.input.name}`}
-                        configuration={fieldConfig}
-                        prefixPath={`positions.${index}`}
-                      />
-                    ))}
-
-                    <div className={block("field", ["okpd2"])}>
-                      <label
-                        className={block("label")}
-                        htmlFor={`okpd2-${index}`}
-                      >
-                        {okpd2FieldLabels.code}
-                      </label>
-                      <Okpd2Select
-                        id={`okpd2-${index}`}
-                        code={watch(`positions.${index}.okpd2Code`)}
-                        name={watch(`positions.${index}.okpd2Name`)}
-                        onSelect={(item) => {
-                          setValue(
-                            `positions.${index}.okpd2Code`,
-                            item?.code ?? "",
-                            { shouldValidate: true },
-                          );
-                          setValue(
-                            `positions.${index}.okpd2Name`,
-                            item?.name ?? "",
-                            { shouldValidate: true },
-                          );
-                        }}
-                      />
-                      {errorMessage(`positions.${index}.okpd2Code`) && (
-                        <span className={block("error")}>
-                          {errorMessage(`positions.${index}.okpd2Code`)}
-                        </span>
-                      )}
-                      {okpd2NormControlHint(
-                        watch(`positions.${index}.okpd2Code`),
-                      )}
-                    </div>
-
-                    <label className={block("checkbox")}>
-                      <input
-                        type="checkbox"
-                        {...register(
-                          `positions.${index}.isPublicDiscussionRequired`,
-                        )}
-                      />
-                      Закупка подлежит обязательному общественному обсуждению
-                    </label>
-                  </div>
-                </li>
-              ))}
-            </ul>
-
-            <button
-              type="button"
-              className={block("add-button")}
-              onClick={() => positions.append(emptyPurchasePlanPosition())}
-            >
-              Добавить запись плана-графика
-            </button>
-          </fieldset>
 
           <footer className={block("footer")}>
             {needsContractService && (
