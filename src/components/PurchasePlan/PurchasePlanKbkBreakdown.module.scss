@@ -41,7 +41,27 @@
 .table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 13px;
+
+  // Жёсткая сетка: «КБК» + «Записей» = 30%, как первая графа таблицы итогов,
+  // поэтому «Всего» и годы стоят под одноимёнными графами соседнего блока
+  th:nth-child(1) {
+    width: 22%;
+  }
+
+  th:nth-child(2) {
+    width: 8%;
+  }
+
+  th:nth-child(n + 3) {
+    width: 14%;
+  }
+
+  // Суммы не переносятся: ниже 960px таблица уезжает вбок, а не наезжает
+  @media (min-width: 701px) {
+    min-width: 960px;
+  }
 
   th,
   td {
@@ -339,6 +359,13 @@
 // экране уменьшаем кегль и отступы — иначе таблицы уезжают вбок
 @media (max-width: 700px) {
   .table {
+    // Выравнивание граф с таблицей итогов здесь не нужно: часть колонок скрыта
+    table-layout: auto;
+
+    th:nth-child(n) {
+      width: auto;
+    }
+
     th:nth-child(2),
     td:nth-child(2),
     th:nth-child(n + 4),
@@ -403,4 +430,3 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
-
