@@ -739,12 +739,31 @@ function syncNoticeTasks(db, byNotice) {
 }
 
 /** Применить все связи к db.json. Возвращает отчёт для импортера и CLI. */
+/**
+ * Контракты, выгруженные из публичного реестра, несут `customerOrganizationId`,
+ * но поле `organizationId` остаётся пустым. Без него списки с фильтром по
+ * текущей организации (реестр контрактов, цепочки ЕИС) не показывают загрузку.
+ */
+function assignCustomerOrganization(db) {
+  let assigned = 0;
+  for (const contract of db.contractRegistry ?? []) {
+    const customerId = contract.customerOrganizationId;
+    if (customerId == null || customerId === "") continue;
+    if (contract.organizationId != null && contract.organizationId !== "") continue;
+    contract.organizationId = customerId;
+    assigned++;
+  }
+  return assigned;
+}
+
 export function applyEisChain(db) {
+  const organizationAssigned = assignCustomerOrganization(db);
   const staff = syncNoticeResponsibleStaff(db);
   const notices = linkNoticesToContracts(db);
   const payments = linkContractPayments(db);
   const taskUpdates = syncNoticeTasks(db, staff.byNotice);
   return {
+    organizationAssigned,
     notices,
     payments,
     staff: {

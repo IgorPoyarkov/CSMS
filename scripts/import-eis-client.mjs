@@ -14,6 +14,12 @@
  *   node scripts/import-eis-client.mjs --inn 4629040439 --years 3 \
  *     --notice-years 2 --plans 3 --notices 3 --tasks 12
  *   node scripts/import-eis-client.mjs --dry-run
+ *   node scripts/import-eis-client.mjs --inn 4629040439 --refresh-organization
+ *
+ * Реквизиты заказчика берутся из публичной карточки организации ЕИС:
+ * поиск по ИНН → info.html (реквизиты) и other.html (контакты). При full-import
+ * они обновляются автоматически, отдельный флаг обновляет только организацию
+ * и снимки заказчика в уже импортированных планах/извещениях.
  */
 
 import fs from "node:fs";
@@ -81,11 +87,16 @@ function parseArgs(argv) {
     notices: 3,
     tasks: 12,
     dryRun: false,
+    refreshOrganization: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === "--dry-run") {
       args.dryRun = true;
+      continue;
+    }
+    if (flag === "--refresh-organization") {
+      args.refreshOrganization = true;
       continue;
     }
     if (!flag.startsWith("--")) continue;
@@ -170,6 +181,101 @@ function textOnly(html) {
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " "),
   );
+}
+
+// Публичная карточка организации: по ИНН находим реестровый номер, затем
+// читаем реквизиты (info.html) и контакты (other.html). Никаких закрытых
+// сервисов ЕИС и токенов здесь не используется.
+const ORG_SEARCH_URL =
+  "https://zakupki.gov.ru/epz/organization/search/results.html";
+const ORG_INFO_URL =
+  "https://zakupki.gov.ru/epz/organization/view/info.html?reestrNumber=";
+const ORG_OTHER_URL =
+  "https://zakupki.gov.ru/epz/organization/view/other.html?reestrNumber=";
+
+/**
+ * Для отладки и повторного прогона при нестабильной сети можно подложить
+ * уже скачанные страницы через EIS_ORG_*_HTML — обычный прогон их не использует.
+ */
+function readOrganizationHtml(url, envName) {
+  const cache = process.env[envName];
+  if (cache && fs.existsSync(cache)) {
+    return fs.readFileSync(cache, "utf8");
+  }
+  return fetchText(url);
+}
+
+/** Разбирает пары «заголовок — значение» карточки организации ЕИС. */
+function parseOrganizationValues(html) {
+  const values = new Map();
+  const sectionPattern =
+    /<span class="section__title[^"]*">\s*([\s\S]*?)\s*<\/span>\s*<span class="section__info[^"]*">\s*([\s\S]*?)\s*<\/span>/g;
+  for (const match of html.matchAll(sectionPattern)) {
+    values.set(clean(match[1]), clean(match[2]));
+  }
+  const bodyPattern =
+    /<div class="registry-entry__body-title">\s*([\s\S]*?)\s*<\/div>\s*<div class="registry-entry__body-value">\s*([\s\S]*?)\s*<\/div>/g;
+  for (const match of html.matchAll(bodyPattern)) {
+    const key = clean(match[1]);
+    if (key && !values.has(key)) values.set(key, clean(match[2]));
+  }
+  return values;
+}
+
+function findOrganizationNumber(inn) {
+  const url = `${ORG_SEARCH_URL}?searchString=${encodeURIComponent(inn)}`;
+  const cards = readOrganizationHtml(url, "EIS_ORG_SEARCH_HTML")
+    .split(/<div class="registry-entry__header-mid__number">/)
+    .slice(1);
+  const numbers = [];
+  for (const card of cards) {
+    const number = card.match(/view\/info\.html\?reestrNumber=(\d+)/)?.[1];
+    if (!number) continue;
+    const values = parseOrganizationValues(card.slice(0, 5000));
+    if (values.get("ИНН") === inn) numbers.push(number);
+  }
+  if (!numbers.length) {
+    throw new Error(`В публичном реестре ЕИС не найдена организация с ИНН ${inn}`);
+  }
+  return numbers[0];
+}
+
+function fetchOrganization(inn) {
+  const reestrNumber = findOrganizationNumber(inn);
+  const info = parseOrganizationValues(
+    readOrganizationHtml(`${ORG_INFO_URL}${reestrNumber}`, "EIS_ORG_INFO_HTML"),
+  );
+  const other = parseOrganizationValues(
+    readOrganizationHtml(`${ORG_OTHER_URL}${reestrNumber}`, "EIS_ORG_OTHER_HTML"),
+  );
+  const value = (key, values = info) => values.get(key) || "";
+  const fullName = value("Полное наименование");
+  if (!fullName || value("ИНН") !== inn) {
+    throw new Error(`Карточка ЕИС ${reestrNumber} не подтвердила ИНН ${inn}`);
+  }
+  return {
+    registryNumber: reestrNumber,
+    fullName,
+    shortName: value("Сокращенное наименование"),
+    inn,
+    kpp: value("КПП"),
+    ogrn: value("ОГРН"),
+    oktmo: value("ОКТМО"),
+    consRegistryNum: value("Код по Сводному реестру"),
+    legalAddress: value("Место нахождения"),
+    postalAddress: value("Почтовый адрес", other),
+    email: value("Контактный адрес электронной почты", other),
+    phone: value("Телефон", other),
+    responsiblePerson: value("Контактное лицо", other),
+  };
+}
+
+/** Пустые значения не перезаписывают шаблон; неподтверждённый телефон ответственного убираем. */
+function applyOrganizationRequisites(target, publicOrg) {
+  for (const [key, value] of Object.entries(publicOrg)) {
+    if (value) target[key] = value;
+  }
+  delete target.responsiblePhone;
 }
 
 function dateFromDots(value) {
@@ -792,6 +898,30 @@ async function main() {
   if (!employee) throw new Error("В db.json нет связанного работника пользователя");
 
   const inn = args.inn || org.inn;
+  const publicOrg = fetchOrganization(inn);
+  applyOrganizationRequisites(org, publicOrg);
+  if (args.refreshOrganization) {
+    const snapshots = [
+      ...(db.purchasePlans ?? []).map((plan) => plan.customer),
+      ...(db.notices ?? []).map((notice) => notice.customer),
+    ].filter(
+      (customer) =>
+        customer && (customer.id === org.id || customer.inn === inn),
+    );
+    for (const snapshot of snapshots) {
+      applyOrganizationRequisites(snapshot, publicOrg);
+    }
+    fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+    console.log(
+      JSON.stringify(
+        { organization: org, snapshotsUpdated: snapshots.length },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
   const now = new Date();
   const planFromDots = formatDots(shiftDate(now, args.years));
   const noticeFromDots = formatDots(shiftDate(now, args.noticeYears));
@@ -836,7 +966,10 @@ async function main() {
     noticesFound: foundNotices.total,
     noticesImported: notices.length,
     noticeNumbers: notices.map((notice) => notice.generalInfo.noticeNumber),
-    tasksAdded: tasks.length,
+    organization: {
+      registryNumber: publicOrg.registryNumber,
+      fullName: publicOrg.fullName,
+    },
   };
 
   if (args.dryRun) {
@@ -889,6 +1022,7 @@ async function main() {
 
   const report = {
     ...summary,
+    tasksAdded: tasks.length,
     contractsPreserved: preservedContracts,
     contractLinks: chain.notices,
     paymentLinks: chain.payments,
