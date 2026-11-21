@@ -244,12 +244,7 @@ const collectKbkGroups = (
 type SortDirection = "asc" | "desc";
 
 type KbkSortKey =
-  | "kbk"
-  | "total"
-  | "current"
-  | "first"
-  | "second"
-  | "subsequent";
+  "kbk" | "total" | "current" | "first" | "second" | "subsequent";
 
 interface TableSort {
   key: KbkSortKey;
@@ -314,7 +309,7 @@ function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
           }`}
           aria-hidden="true"
         >
-          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
+          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "⇅"}
         </span>
       </button>
     </th>
@@ -445,7 +440,9 @@ export default function PurchasePlanKbkBreakdown({
                   <td className={styles.num}>
                     {formatMoneyValue(group.current)}
                   </td>
-                  <td className={styles.num}>{formatMoneyValue(group.first)}</td>
+                  <td className={styles.num}>
+                    {formatMoneyValue(group.first)}
+                  </td>
                   <td className={styles.num}>
                     {formatMoneyValue(group.second)}
                   </td>
@@ -461,15 +458,11 @@ export default function PurchasePlanKbkBreakdown({
                 {/* Запись с несколькими КБК попадает в несколько строк, поэтому
                     сумму по графе не подсчитываем */}
                 <td className={styles.count}>—</td>
-                <td className={styles.num}>
-                  {formatMoneyValue(totals.total)}
-                </td>
+                <td className={styles.num}>{formatMoneyValue(totals.total)}</td>
                 <td className={styles.num}>
                   {formatMoneyValue(totals.current)}
                 </td>
-                <td className={styles.num}>
-                  {formatMoneyValue(totals.first)}
-                </td>
+                <td className={styles.num}>{formatMoneyValue(totals.first)}</td>
                 <td className={styles.num}>
                   {formatMoneyValue(totals.second)}
                 </td>
@@ -602,8 +595,7 @@ function KbkRecordsModal({
                 // Кликабельны только записи, у которых есть куда перейти
                 const canOpen =
                   Boolean(onOpenRecord) &&
-                  (record.kind === "special" ||
-                    record.recordId !== undefined);
+                  (record.kind === "special" || record.recordId !== undefined);
 
                 return (
                   <tr
@@ -693,4 +685,3 @@ function KbkRecordsModal({
     document.body,
   );
 }
-
