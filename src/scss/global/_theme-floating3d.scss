@@ -1,20 +1,55 @@
 // Тема «Парящие 3D-элементы»: объём, глубина и движение.
 //
 // Всё скоупится атрибутом [data-theme="floating3d"], поэтому светлая, тёмная,
-// «Гроза» и «Зима» не меняются. Приём простой и предсказуемый:
-//   • контейнерам задаётся перспектива — карточки внутри получают глубину;
-//   • панели получают многослойную тень и подсветку верхней грани;
-//   • на hover/focus-within панель чуть приподнимается и наклоняется;
-//   • контролы и кнопки получают ту же логику «поднятия».
+// «Гроза» и «Зима» не меняются. Приём:
+//   • контейнерам задаётся перспектива — панели внутри получают глубину;
+//   • карточки получают блик сверху, подсветку грани и многослойную тень;
+//   • на hover/focus-within панель приподнимается и слегка наклоняется;
+//   • поля, кнопки, навигация, аватары и нативные контролы получают ту же
+//     логику «поднятия», но с меньшей амплитудой;
+//   • точка правки профиля пульсирует свечением.
 //
-// Наклон измеряется долями градуса, а подъём — единицами пикселей: этого
-// достаточно для эффекта парения, но текст не «плывёт», а сетка не прыгает.
-// При prefers-reduced-motion движение отключается полностью — остаются
-// только тени и подсветка граней.
+// Амплитуды подобраны так, чтобы эффект читался, но текст не «плыл»:
+// наклон — доли-единицы градуса, подъём — единицы пикселей. При
+// prefers-reduced-motion движение и анимации отключаются полностью.
 
 $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 
+// Свечение точки правки профиля: мягкая пульсация без резких скачков.
+@keyframes float3d-dot-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(178, 227, 42, 0.4),
+      0 4px 10px rgba(3, 28, 4, 0.55),
+      0 0 10px rgba(178, 227, 42, 0.25);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(178, 227, 42, 0.7),
+      0 8px 18px rgba(3, 28, 4, 0.6),
+      0 0 20px rgba(178, 227, 42, 0.55);
+  }
+}
+
 [data-theme="floating3d"] {
+  // Свет «сверху»: страница перестаёт быть плоской заливкой, панели
+  // воспринимаются как объекты над ней.
+  body {
+    background-image:
+      radial-gradient(
+        1200px 620px at 50% -12%,
+        rgba(178, 227, 42, 0.1),
+        transparent 65%
+      ),
+      radial-gradient(
+        900px 520px at 50% 112%,
+        rgba(135, 197, 58, 0.07),
+        transparent 60%
+      );
+  }
+
   // Перспектива задаётся контейнерам, а не body: transform или perspective
   // на body сделали бы его containing block для fixed-элементов, и модалки
   // с декором поехали бы относительно страницы.
@@ -22,16 +57,25 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   section,
   article,
   aside,
-  fieldset {
-    perspective: 1400px;
+  fieldset,
+  [class*="__card__"],
+  li[class*="card"] {
+    perspective: 900px;
   }
 
-  // Панели: объёмная тень и подсветка грани. Это только оформление —
-  // размеры и отступы не меняются, поэтому вёрстка остаётся прежней.
+  // Карточки: блик по верхней грани, подсветка контура и три слоя тени.
+  // Градиент лежит поверх фона компонента и не влияет на читаемость.
   section,
   article,
   aside,
-  fieldset {
+  fieldset,
+  li[class*="card"] {
+    background-image: linear-gradient(
+      160deg,
+      rgba(233, 245, 228, 0.07),
+      rgba(233, 245, 228, 0) 46%
+    );
+    border-top-color: var(--edge-highlight);
     box-shadow: var(--shadow-3d);
     transition:
       transform 260ms $float-ease,
@@ -39,84 +83,70 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       border-color 260ms $float-ease;
   }
 
-  // Парение: подъём по Z и едва заметный наклон. focus-within повторяет
-  // hover для клавиатуры, поэтому эффект доступен и без мыши.
+  // Парение: подъём по Z и умеренный наклон. focus-within повторяет hover
+  // для клавиатуры, поэтому эффект доступен и без мыши.
   section:hover,
   article:hover,
   aside:hover,
   fieldset:hover,
+  li[class*="card"]:hover,
   section:focus-within,
   article:focus-within,
   aside:focus-within,
-  fieldset:focus-within {
-    transform: translateZ(10px) rotateX(0.7deg) rotateY(-0.7deg);
+  fieldset:focus-within,
+  li[class*="card"]:focus-within {
+    transform: translateZ(14px) rotateX(1.2deg) rotateY(-1.2deg);
+    border-top-color: var(--accent);
     box-shadow: var(--shadow-3d-hover);
   }
 
-  // Нативные контролы: тот же объём, что у панелей, но слабее — иначе
-  // чекбоксы «выпрыгивают» из строки формы.
-  input[type="checkbox"],
-  input[type="radio"] {
-    box-shadow:
-      0 1px 0 var(--edge-highlight),
-      0 3px 8px rgba(3, 28, 4, 0.55);
-    transition:
-      transform 160ms $float-ease,
-      box-shadow 160ms $float-ease,
-      border-color 160ms $float-ease,
-      background-color 160ms $float-ease;
-  }
-
-  input[type="checkbox"]:hover,
-  input[type="radio"]:hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 var(--edge-highlight),
-      0 6px 14px rgba(3, 28, 4, 0.6),
-      0 0 0 3px rgba(178, 227, 42, 0.16);
-  }
-
-  input[type="checkbox"]:checked,
-  input[type="radio"]:checked {
-    box-shadow:
-      0 0 0 1px rgba(3, 28, 4, 0.5),
-      0 0 12px rgba(178, 227, 42, 0.4),
-      0 4px 10px rgba(3, 28, 4, 0.5);
-  }
-
-  // Ползунок приводим к акценту темы; геометрию не трогаем, чтобы не
-  // ломать нативное поведение в разных браузерах.
-  input[type="range"] {
-    accent-color: var(--accent);
-  }
-
-  input[type="range"]:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-    border-radius: 6px;
-  }
-
+  // Поля ввода: объём задаётся внутренней тенью (углубление) и светлой
+  // нижней гранью. На фокусе поле приподнимается и получает лаймовый ореол.
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ),
+  textarea,
   select {
     box-shadow:
-      inset 0 1px 0 var(--edge-highlight),
-      0 2px 8px rgba(3, 28, 4, 0.45);
+      inset 0 1px 2px rgba(3, 28, 4, 0.55),
+      inset 0 -1px 0 rgba(233, 245, 228, 0.07),
+      0 1px 0 rgba(233, 245, 228, 0.05);
     transition:
-      box-shadow 160ms $float-ease,
-      border-color 160ms $float-ease;
+      box-shadow 180ms $float-ease,
+      border-color 180ms $float-ease,
+      transform 180ms $float-ease;
   }
 
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):hover,
+  textarea:hover,
   select:hover {
     border-color: var(--accent);
-    box-shadow:
-      inset 0 1px 0 var(--edge-highlight),
-      0 6px 16px rgba(3, 28, 4, 0.5),
-      0 0 0 3px rgba(178, 227, 42, 0.12);
   }
 
-  // Кнопки: мягкий подъём и свечение грани, нажатие возвращает в плоскость.
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):focus,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="file"]
+    ):focus-visible,
+  textarea:focus,
+  textarea:focus-visible,
+  select:focus,
+  select:focus-visible {
+    transform: translateZ(3px);
+    box-shadow:
+      inset 0 1px 2px rgba(3, 28, 4, 0.5),
+      0 0 0 3px rgba(178, 227, 42, 0.18),
+      0 8px 18px rgba(3, 28, 4, 0.45);
+  }
+
+  // Кнопки: объёмная тень, подъём на hover, «вдавливание» на нажатии.
   button {
     box-shadow:
-      inset 0 1px 0 rgba(233, 245, 228, 0.14),
+      inset 0 1px 0 rgba(233, 245, 228, 0.16),
+      inset 0 -2px 0 rgba(3, 28, 4, 0.35),
       0 4px 10px rgba(3, 28, 4, 0.5);
     transition:
       transform 160ms $float-ease,
@@ -128,18 +158,172 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
 
   button:not(:disabled):hover,
   button:not(:disabled):focus-visible {
-    transform: translateY(-1px) translateZ(4px);
+    transform: translateY(-2px) translateZ(6px);
     box-shadow:
-      inset 0 1px 0 rgba(233, 245, 228, 0.2),
-      0 8px 18px rgba(3, 28, 4, 0.55),
-      0 0 16px rgba(178, 227, 42, 0.18);
+      inset 0 1px 0 rgba(178, 227, 42, 0.45),
+      inset 0 -2px 0 rgba(3, 28, 4, 0.35),
+      0 10px 20px rgba(3, 28, 4, 0.55),
+      0 0 18px rgba(178, 227, 42, 0.22);
   }
 
   button:not(:disabled):active {
     transform: translateY(0) translateZ(0);
     box-shadow:
-      inset 0 2px 6px rgba(3, 28, 4, 0.55),
+      inset 0 2px 6px rgba(3, 28, 4, 0.6),
+      inset 0 1px 0 rgba(233, 245, 228, 0.05),
       0 2px 6px rgba(3, 28, 4, 0.4);
+  }
+
+  // Навигация в шапке: пункты превращаются в «таблетки» с бликом и подъёмом.
+  header nav [class*="__link"],
+  header nav [class*="theme-toggle"] {
+    box-shadow:
+      inset 0 1px 0 rgba(233, 245, 228, 0.12),
+      0 2px 6px rgba(3, 28, 4, 0.4);
+    transition:
+      transform 200ms $float-ease,
+      box-shadow 200ms $float-ease,
+      background-color 200ms $float-ease,
+      border-color 200ms $float-ease,
+      color 200ms $float-ease;
+  }
+
+  header nav [class*="__link"]:hover,
+  header nav [class*="theme-toggle"]:hover,
+  header nav [class*="__link"]:focus-visible,
+  header nav [class*="theme-toggle"]:focus-visible {
+    transform: translateY(-2px) translateZ(6px);
+    box-shadow:
+      inset 0 1px 0 rgba(178, 227, 42, 0.4),
+      0 10px 20px rgba(3, 28, 4, 0.55),
+      0 0 18px rgba(178, 227, 42, 0.2);
+  }
+
+  // Активный пункт навигации светится сильнее — видно, где пользователь.
+  header nav [class*="link--active"] {
+    box-shadow:
+      inset 0 1px 0 rgba(178, 227, 42, 0.55),
+      0 0 0 1px rgba(178, 227, 42, 0.35),
+      0 8px 18px rgba(3, 28, 4, 0.5),
+      0 0 20px rgba(178, 227, 42, 0.25);
+  }
+
+  // Модальные окна: глубокий отрыв от страницы и лаймовый контур.
+  [class*="__window"] {
+    box-shadow:
+      inset 0 1px 0 rgba(233, 245, 228, 0.16),
+      0 12px 28px rgba(3, 28, 4, 0.6),
+      0 40px 80px rgba(3, 28, 4, 0.55),
+      0 0 32px rgba(178, 227, 42, 0.16);
+  }
+
+  // Аватары: круглая «медаль» с ободком и свечением, чуть поднимается.
+  [class*="avatar-image"],
+  [class*="avatar-placeholder"] {
+    box-shadow:
+      0 0 0 1px var(--accent),
+      0 10px 22px rgba(3, 28, 4, 0.6),
+      0 0 22px rgba(178, 227, 42, 0.16);
+    transition:
+      transform 220ms $float-ease,
+      box-shadow 220ms $float-ease;
+  }
+
+  [class*="avatar-image"]:hover,
+  [class*="avatar-placeholder"]:hover {
+    transform: translateZ(8px) scale(1.03);
+    box-shadow:
+      0 0 0 1px var(--accent),
+      0 14px 28px rgba(3, 28, 4, 0.62),
+      0 0 26px rgba(178, 227, 42, 0.28);
+  }
+
+  // Точка «Редактировать профиль»: живая, но не отвлекающая. Мягкая
+  // пульсация свечения, блик по градиенту и внятные состояния.
+  button[class*="avatar__edit"] {
+    background-image: linear-gradient(
+      140deg,
+      rgba(178, 227, 42, 0.28),
+      rgba(178, 227, 42, 0) 62%
+    );
+    box-shadow:
+      0 0 0 1px rgba(178, 227, 42, 0.4),
+      0 4px 10px rgba(3, 28, 4, 0.55),
+      0 0 10px rgba(178, 227, 42, 0.25);
+    animation: float3d-dot-pulse 2.8s ease-in-out infinite;
+    transition:
+      transform 200ms $float-ease,
+      background-color 200ms $float-ease,
+      border-color 200ms $float-ease,
+      color 200ms $float-ease;
+  }
+
+  button[class*="avatar__edit"]:hover {
+    transform: translateZ(8px) scale(1.14);
+    animation-play-state: paused;
+    box-shadow:
+      0 0 0 1px var(--accent),
+      0 10px 20px rgba(3, 28, 4, 0.6),
+      0 0 24px rgba(178, 227, 42, 0.6);
+  }
+
+  button[class*="avatar__edit"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    animation-play-state: paused;
+  }
+
+  button[class*="avatar__edit"]:active {
+    transform: translateZ(2px) scale(0.96);
+    box-shadow:
+      inset 0 2px 6px rgba(3, 28, 4, 0.6),
+      0 0 0 1px rgba(178, 227, 42, 0.5);
+  }
+
+  // Нативные контролы: тот же объём, что у панелей, но слабее — иначе
+  // чекбоксы «выпрыгивают» из строки формы.
+  input[type="checkbox"],
+  input[type="radio"] {
+    box-shadow:
+      inset 0 1px 0 rgba(233, 245, 228, 0.18),
+      inset 0 -1px 0 rgba(3, 28, 4, 0.5),
+      0 3px 8px rgba(3, 28, 4, 0.55);
+    transition:
+      transform 160ms $float-ease,
+      box-shadow 160ms $float-ease,
+      border-color 160ms $float-ease,
+      background-color 160ms $float-ease;
+  }
+
+  input[type="checkbox"]:hover,
+  input[type="radio"]:hover {
+    transform: translateY(-1px) translateZ(3px);
+    box-shadow:
+      inset 0 1px 0 rgba(178, 227, 42, 0.4),
+      0 6px 14px rgba(3, 28, 4, 0.6),
+      0 0 0 3px rgba(178, 227, 42, 0.16);
+  }
+
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 0 0 1px rgba(3, 28, 4, 0.5),
+      0 0 12px rgba(178, 227, 42, 0.45),
+      0 4px 10px rgba(3, 28, 4, 0.5);
+  }
+
+  // Ползунок приводим к акценту темы; геометрию не трогаем, чтобы не
+  // ломать нативное поведение в разных браузерах.
+  input[type="range"] {
+    accent-color: var(--accent);
+    filter: drop-shadow(0 2px 4px rgba(3, 28, 4, 0.6));
+  }
+
+  input[type="range"]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
   }
 
   // Фокус одинаковый у кнопок, полей, ссылок и нативных контролов: контрастная
@@ -167,25 +351,39 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
     article,
     aside,
     fieldset,
-    input[type="checkbox"],
-    input[type="radio"],
+    li[class*="card"],
+    input,
+    textarea,
     select,
-    button {
+    button,
+    header nav [class*="__link"],
+    header nav [class*="theme-toggle"],
+    [class*="avatar-image"],
+    [class*="avatar-placeholder"] {
       transition: none;
+      animation: none;
     }
 
     section:hover,
     article:hover,
     aside:hover,
     fieldset:hover,
+    li[class*="card"]:hover,
     section:focus-within,
     article:focus-within,
     aside:focus-within,
     fieldset:focus-within,
-    input[type="checkbox"]:hover,
-    input[type="radio"]:hover,
+    li[class*="card"]:focus-within,
+    input:focus,
+    textarea:focus,
+    select:focus,
     button:not(:disabled):hover,
-    button:not(:disabled):focus-visible {
+    button:not(:disabled):focus-visible,
+    header nav [class*="__link"]:hover,
+    header nav [class*="theme-toggle"]:hover,
+    [class*="avatar-image"]:hover,
+    [class*="avatar-placeholder"]:hover,
+    button[class*="avatar__edit"]:hover {
       transform: none;
     }
   }
