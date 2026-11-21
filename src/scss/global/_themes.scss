@@ -1,10 +1,11 @@
 @import "variables";
 
-// Роли интерфейса для трёх тем. Светлая — основная: заказчик работает в ЕИС,
-// где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге. Тёмная —
-// та же схема на тёмно-зелёном. «Гроза» — отдельная холодная сиренево-синяя
-// палитра по референсу. Тема включается атрибутом data-theme на <html>
-// (переключатель в шапке) и запоминается в localStorage.
+// Роли интерфейса для четырёх тем. Светлая — основная: заказчик работает
+// в ЕИС, где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге.
+// Тёмная — та же схема на тёмно-зелёном. «Гроза» — отдельная холодная
+// сиренево-синяя палитра по референсу. «Зима» — светлая морозная
+// серо-голубая палитра по референсу. Тема включается атрибутом data-theme
+// на <html> (переключатель в шапке) и запоминается в localStorage.
 //
 // Компилируется один раз: файл подключён только в global.scss, а не в каждый
 // модуль, поэтому :root не дублируется в выходном CSS.
@@ -143,4 +144,44 @@
   --state-danger-soft: rgba(224, 115, 111, 0.16);
   --state-warning: #e0b26a;
   --state-warning-soft: rgba(224, 178, 106, 0.16);
+}
+
+// «Зима»: светлая морозная тема по референсу. Панели почти белые, страница —
+// ледяная дымка (полупрозрачный оттенок поверх белого, как в светлой теме),
+// текст и акцент — тёмный серо-синий, состояния — приглушённые, без ярких
+// акцентов. Контраст основного текста к панели ≈ 7.5:1, вторичного к странице
+// ≈ 4.6:1, ссылок — от 5.4:1, поэтому мелкий текст и таблицы читаются.
+[data-theme="winter"] {
+  color-scheme: light;
+
+  --surface-page: #{rgba($color-winter-ice, 0.4)};
+  --surface-panel: #{$color-winter-snow};
+  --surface-raised: #{$color-winter-drift};
+  --surface-accent: #{$color-winter-ice};
+  --surface-field: #{rgba($color-winter-slate, 0.05)};
+  --field-border: #{rgba($color-winter-slate, 0.5)};
+  --accent: #{$color-winter-slate};
+  --accent-hover: #2f3d49;
+  --accent-emphasis: #{$color-winter-slate};
+  --accent-soft: #{rgba($color-winter-blue, 0.28)};
+  --text-primary: #{$color-winter-slate};
+  --text-secondary: #{$color-winter-steel};
+  --text-on-accent: #{$color-winter-snow};
+  --placeholder: #{rgba($color-winter-slate, 0.55)};
+  --border: #{rgba($color-winter-slate, 0.42)};
+  --border-strong: #{rgba($color-winter-slate, 0.6)};
+  --stripe: #{rgba($color-winter-ice, 0.55)};
+  --overlay: #{rgba($color-winter-slate, 0.45)};
+  --shadow: #{rgba($color-winter-slate, 0.18)};
+  --glow: #{rgba($color-winter-blue, 0.35)};
+  --modal-border: #{rgba($color-winter-slate, 0.6)};
+  --modal-dot: #{$color-winter-slate};
+  --modal-dot-glow: #{rgba($color-winter-blue, 0.45)};
+
+  --state-success: #3f6b55;
+  --state-success-soft: #{rgba($color-winter-sage, 0.24)};
+  --state-danger: #a8463f;
+  --state-danger-soft: rgba(168, 70, 63, 0.12);
+  --state-warning: #8a6a2f;
+  --state-warning-soft: rgba(201, 162, 39, 0.22);
 }

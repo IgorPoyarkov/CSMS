@@ -12,18 +12,21 @@ import styles from "./Header.module.scss";
 
 interface HeaderProps {}
 
-// Кнопка темы переключает их по кругу: светлая → тёмная → «Гроза».
+// Кнопка темы переключает их по кругу:
+// светлая → тёмная → «Гроза» → «Зима» → светлая.
 // Иконка показывает следующую тему, title и aria-label называют её словами.
 const THEME_ICONS: Record<ThemeName, string> = {
   light: "🌙",
   dark: "⛈️",
-  storm: "☀️",
+  storm: "❄️",
+  winter: "☀️",
 };
 
 const THEME_TITLES: Record<ThemeName, string> = {
   light: "Тёмная тема",
   dark: "Тема «Гроза»",
-  storm: "Светлая тема",
+  storm: "Зимняя тема",
+  winter: "Светлая тема",
 };
 
 // В шапке достаточно фамилии и инициалов: полностью ФИО видно в подсказке,
