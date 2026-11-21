@@ -113,11 +113,6 @@ export default function PurchasePlanList() {
     );
   }, [sortedPlans, searchQuery]);
 
-  const overallAmount = filteredPlans.reduce(
-    (total, plan) => total + planTotalAmount(plan),
-    0,
-  );
-
   const totalPages =
     pageSize === "all"
       ? 1
@@ -144,16 +139,6 @@ export default function PurchasePlanList() {
       <header className={block("header")}>
         <div className={block("header-info")}>
           <h1 className={block("title")}>Планы-графики закупок (44-ФЗ)</h1>
-          <p className={block("summary")}>
-            Показано: <strong>{filteredPlans.length}</strong>
-            {filteredPlans.length !== allPlans.length
-              ? ` из ${allPlans.length}`
-              : ""}{" "}
-            · Совокупный объём:{" "}
-            <strong className={block("num")}>
-              {formatMoney(overallAmount)}
-            </strong>
-          </p>
           <p className={block("current-organization")}>
             {organization
               ? `${organization.shortName || organization.fullName} (ИНН ${organization.inn}${organization.kpp ? `, КПП ${organization.kpp}` : ""})`
@@ -282,7 +267,6 @@ export default function PurchasePlanList() {
               <thead>
                 <tr>
                   <th>Номер плана-графика</th>
-                  <th>Заказчик</th>
                   <th>Период</th>
                   <th>Статус</th>
                   <th>Записей ПГ</th>
@@ -302,15 +286,6 @@ export default function PurchasePlanList() {
                       >
                         {plan.planNumber || "без номера"}
                       </button>
-                    </td>
-                    <td>
-                      <span className={block("customer")}>
-                        {plan.customer.shortName || plan.customer.fullName}
-                      </span>
-                      <span className={block("requisites")}>
-                        ИНН {plan.customer.inn}
-                        {plan.customer.kpp ? ` / КПП ${plan.customer.kpp}` : ""}
-                      </span>
                     </td>
                     <td className={block("num")}>{plan.planYear}</td>
                     <td>
