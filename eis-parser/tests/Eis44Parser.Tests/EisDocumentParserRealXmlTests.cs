@@ -81,6 +81,24 @@ public sealed class EisDocumentParserRealXmlTests
     }
 
     [Fact]
+    public void ParsesContractProjectAdditionalAgreement()
+    {
+        var document = Load("cp-contract-project-lkp-real.xml");
+
+        var result = _parser.Parse(document, "cpContractProjectLKP.xml");
+
+        // В корне одновременно есть contract и project — это контрактный документ.
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal("16.3", result.SchemeVersion);
+        Assert.Equal("262462904043946320100100080014211244", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("4621009123", result.SupplierInn);
+        Assert.Contains("ТЕРРА", result.SupplierName, StringComparison.Ordinal);
+        Assert.StartsWith("2026-11-21", result.PublishDate, StringComparison.Ordinal);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
     public void KeepsRoskaznaBudgetObligationNoticeForLaterParsing()
     {
         var document = Load("exp-notice-bo-real.xml");

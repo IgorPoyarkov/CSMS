@@ -74,8 +74,10 @@ if (parseFilePath is not null)
         Console.WriteLine($"Файл: {parsed.FileName}");
         Console.WriteLine($"Тип: {parsed.Kind}, схема: {parsed.SchemeVersion}");
         Console.WriteLine($"Номер закупки: {parsed.PurchaseNumber}");
+        Console.WriteLine($"Реестровый номер: {parsed.RegNumber}");
         Console.WriteLine($"ИКЗ: {parsed.Ikz}");
         Console.WriteLine($"Заказчик: {parsed.CustomerName} | ИНН {parsed.CustomerInn} | КПП {parsed.CustomerKpp}");
+        Console.WriteLine($"Поставщик: {parsed.SupplierName} | ИНН {parsed.SupplierInn} | КПП {parsed.SupplierKpp}");
         Console.WriteLine($"Сумма: {parsed.Price}, дата: {parsed.PublishDate}");
         Console.WriteLine($"Объект: {parsed.ObjectInfo}");
         Console.WriteLine($"Позиций: {parsed.Items.Count}");

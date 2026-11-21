@@ -22,12 +22,21 @@ public sealed class EisDocumentParser
     private static readonly string[] CustomerScopes =
         ["responsibleOrgInfo", "customer", "customerInfo", "mainInfo", "accountBudgetAdmin"];
 
+    private static readonly string[] SupplierScopes =
+        ["supplier", "supplierInfo", "participantInfo", "legalEntityRFInfo", "postavshik"];
+
     /// <summary>Разобрать один XML-файл архива.</summary>
     public ParsedEisDocument Parse(XDocument document, string fileName)
     {
         ArgumentNullException.ThrowIfNull(document);
 
         var root = document.Root;
+        // В архивах ЕИС корень — универсальный <export>, а тип документа задаёт
+        // первый вложенный элемент: <contract>, <contractProcedure> и т.п.
+        var documentElement = root?.Name.LocalName.Equals("export", StringComparison.OrdinalIgnoreCase) == true
+            ? root.Elements().FirstOrDefault()
+            : root;
+        var regNumber = GetOwnValue(documentElement, "regNum");
         var code = document.ToString(SaveOptions.DisableFormatting);
 
         return new ParsedEisDocument
@@ -36,24 +45,27 @@ public sealed class EisDocumentParser
             DocumentSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant(),
             // У документов Казначейства версия лежит в атрибуте versionID.
             SchemeVersion = GetValue(root, "schemeVersion", "versionID") ?? "unknown",
-            Kind = DetectKind(root?.Name.LocalName),
+            Kind = DetectKind(documentElement?.Name.LocalName),
             PurchaseNumber = FirstNonEmpty(
                 GetValue(root, "purchaseNumber", "notificationNumber"),
-                IsRegistryNumber(GetValue(root, "regNum")) ? GetValue(root, "regNum") : null),
-            RegNumber = GetValue(root, "regNum"),
+                IsRegistryNumber(regNumber) ? regNumber : null),
+            // regNum контракта — непосредственный ребёнок <contract>, а не regNum заказчика.
+            RegNumber = regNumber,
             // В извещениях ЕИС ИКЗ лежит в <IKZInfo><purchaseCode>, у Казначейства —
             // в <InfDcBs_RmAct>; непосредственного тега <IKZ> в печатной форме нет.
             Ikz = GetValue(root, "IKZ", "ikz", "purchaseCode", "InfDcBs_RmAct"),
             CustomerInn = GetPartyValue(root, CustomerScopes, "INN"),
             CustomerKpp = GetPartyValue(root, CustomerScopes, "KPP"),
             CustomerName = GetPartyValue(root, CustomerScopes, "name", "fullName", "shortName"),
-            SupplierInn = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "INN"),
-            SupplierKpp = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "KPP"),
-            SupplierName = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "name", "fullName", "shortName"),
+            // В проектах доп. соглашений исполнитель лежит в participantInfo.
+            SupplierInn = GetPartyValue(root, SupplierScopes, "INN"),
+            SupplierKpp = GetPartyValue(root, SupplierScopes, "KPP"),
+            SupplierName = GetPartyValue(root, SupplierScopes, "name", "fullName", "shortName"),
             Price = ParseMoney(GetValue(
                 root, "contractPrice", "nmck", "initialMaxPrice", "maxPrice", "price", "InfDcBs_SmSbsds")),
-            PublishDate = GetValue(root, "publishDTInEIS", "publishDate", "signDate", "contractDate", "DtSgnng"),
-            ObjectInfo = GetValue(root, "purchaseObjectInfo", "objectInfo", "subject", "name"),
+            PublishDate = GetValue(
+                root, "publishDTInEIS", "publishDate", "signDate", "contractDate", "dateCreate", "DtSgnng"),
+            ObjectInfo = GetValue(root, "purchaseObjectInfo", "contractSubject", "objectInfo", "subject", "name"),
             PrintFormUrl = GetPrintFormUrl(root),
             Items = ParseItems(root),
             RawXml = code,
@@ -95,6 +107,30 @@ public sealed class EisDocumentParser
         return null;
     }
 
+    /// <summary>Значение из непосредственных детей: у контракта рядом с regNum
+    /// лежат regNum заказчика, а у позиции — название классификатора.</summary>
+    private static string? GetOwnValue(XElement? element, params string[] localNames)
+    {
+        if (element is null)
+        {
+            return null;
+        }
+
+        foreach (var localName in localNames)
+        {
+            var value = element.Elements()
+                .FirstOrDefault(child => child.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase))
+                ?.Value;
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return null;
+    }
+
     private static string? GetPrintFormUrl(XElement? root)
     {
         var printForm = root?.DescendantsAndSelf()
@@ -125,7 +161,10 @@ public sealed class EisDocumentParser
         {
             var ktru = GetClassifierCode(element, "KTRU");
             var okpd2 = GetClassifierCode(element, "OKPD2");
-            var name = GetValue(element, "name", "itemName", "productName");
+            // Сначала собственный <name> позиции: внутри <product>/<purchaseObject>
+            // раньше него встречается <name> классификатора ОКПД2.
+            var name = GetOwnValue(element, "name", "itemName", "productName")
+                ?? GetValue(element, "name", "itemName", "productName");
 
             if (ktru is null && okpd2 is null && name is null)
             {
@@ -188,16 +227,18 @@ public sealed class EisDocumentParser
             return EisDocumentKind.Nsi;
         }
 
-        if (rootName.Contains("project", StringComparison.OrdinalIgnoreCase) ||
-            rootName.Contains("notification", StringComparison.OrdinalIgnoreCase) ||
-            rootName.Contains("tenderPlan", StringComparison.OrdinalIgnoreCase) ||
-            rootName.Contains("plan", StringComparison.OrdinalIgnoreCase))
+        // Сначала contract: cpContractProjectLKP содержит и contract, и project,
+        // но это проект доп. соглашения, а не извещение о закупке.
+        if (rootName.Contains("contract", StringComparison.OrdinalIgnoreCase))
         {
-            return EisDocumentKind.Purchase;
+            return EisDocumentKind.Contract;
         }
 
-        return rootName.Contains("contract", StringComparison.OrdinalIgnoreCase)
-            ? EisDocumentKind.Contract
+        return rootName.Contains("project", StringComparison.OrdinalIgnoreCase) ||
+               rootName.Contains("notification", StringComparison.OrdinalIgnoreCase) ||
+               rootName.Contains("tenderPlan", StringComparison.OrdinalIgnoreCase) ||
+               rootName.Contains("plan", StringComparison.OrdinalIgnoreCase)
+            ? EisDocumentKind.Purchase
             : EisDocumentKind.Unknown;
     }
 
