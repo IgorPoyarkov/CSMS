@@ -466,6 +466,35 @@
     }
   }
 
+  // Кликабельные шапки граф: подпись и стрелка направления сортировки.
+  &__sort-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: center;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  &__sort-icon {
+    flex: 0 0 auto;
+    font-size: 10px;
+    line-height: 1;
+    color: var(--text-secondary);
+    opacity: 0.6;
+
+    &--active {
+      color: var(--accent);
+      opacity: 1;
+    }
+  }
+
   &__table-wrap,
   &__table-wrapper {
     overflow-x: auto;
@@ -475,9 +504,12 @@
     overflow: visible;
   }
 
-  // Таблица позиций ПГ в точном 2-строчном виде формы ПГ ЕИС
+  // Таблица позиций ПГ в точном 2-строчном виде формы ПГ ЕИС.
+  // Фиксированная раскладка по процентам держит все 8 граф внутри карточки:
+  // горизонтальной прокрутки на рабочей ширине нет.
   &__table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 13px;
 
@@ -501,10 +533,42 @@
     }
 
     th[data-col="number"] {
-      width: 94px;
-      min-width: 94px;
       padding: 8px 6px;
       font-size: 10px;
+    }
+  }
+
+  // Процентная сетка граф в точной сумме 100%: 10+8+23+23+10+8+8+10.
+  // Первые две колонки вместе образуют графу ИКЗ во второй строке шапки.
+  // Последним 10% нужно, чтобы кнопка «Действия» не вылезала за край.
+  &__col {
+    &--year {
+      width: 10%;
+    }
+
+    &--number {
+      width: 8%;
+    }
+
+    &--object {
+      width: 23%;
+    }
+
+    &--okpd2 {
+      width: 23%;
+    }
+
+    &--amount {
+      width: 10%;
+    }
+
+    &--status,
+    &--discussion {
+      width: 8%;
+    }
+
+    &--actions {
+      width: 10%;
     }
   }
 
@@ -522,15 +586,6 @@
     }
   }
 
-  &__th--narrow {
-    width: 1%;
-  }
-
-  &__th--year {
-    width: 112px;
-    min-width: 112px;
-  }
-
   &__cell {
     &--center {
       text-align: center;
@@ -544,7 +599,8 @@
     }
 
     &--wide {
-      min-width: 270px;
+      // Ширина графы задаётся colgroup, текст переносится по словам.
+      overflow-wrap: anywhere;
     }
 
     // Графа «Статус» и «Обязательное общественное обсуждение»:
@@ -556,13 +612,12 @@
     // Графа «Наименование товара, работы, услуги по ОКПД2»: ширина под
     // перенос длинного наименования без обрезки многоточием.
     &--okpd2 {
-      min-width: 246px;
+      overflow-wrap: anywhere;
     }
 
     &--actions {
       text-align: center;
       vertical-align: middle !important;
-      width: 100px;
     }
   }
 

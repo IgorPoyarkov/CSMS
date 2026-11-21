@@ -67,6 +67,30 @@ const ROW_COLUMNS = [
 
 type ColumnKey = (typeof ROW_COLUMNS)[number];
 
+/**
+ * Сортировка списка позиций: только те графы, которые просили сделать
+ * кликабельными в карточке ПГ. ИКЗ живёт во второй строке шапки, но сортируется
+ * так же, как обычные колонки.
+ */
+type PositionSortKey =
+  | "plannedPlacementYear"
+  | "purchaseNumber"
+  | "objectOfPurchase"
+  | "identificationCode"
+  | "okpd2Name"
+  | "amountTotal";
+
+type PositionSort = { key: PositionSortKey; dir: "asc" | "desc" };
+
+// Повторный клик по той же графе переворачивает направление, новая — asc.
+const togglePositionSort = (
+  current: PositionSort | null,
+  key: PositionSortKey,
+): PositionSort =>
+  current?.key === key
+    ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+    : { key, dir: "asc" };
+
 const AMOUNT_COLUMNS = ["amountTotal"] as const;
 
 const NARROW_COLUMNS: ColumnKey[] = [
@@ -101,6 +125,52 @@ type PlanCardTab =
   | "versions"
   | "events";
 
+/** Кликабельная шапка графы: подпись, стрелка и доступное aria-sort. */
+function SortableTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  ...rest
+}: {
+  label: string;
+  sortKey: PositionSortKey;
+  sort: PositionSort | null;
+  onSort: (key: PositionSortKey) => void;
+} & React.ThHTMLAttributes<HTMLTableCellElement>) {
+  const direction = sort?.key === sortKey ? sort.dir : null;
+
+  return (
+    <th
+      {...rest}
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        className={styles["sort-btn"]}
+        onClick={() => onSort(sortKey)}
+        title={`Сортировать по «${label}»`}
+      >
+        <span>{label}</span>
+        <span
+          className={`${styles["sort-icon"]} ${
+            direction ? styles["sort-icon-active"] : ""
+          }`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 export default function PurchasePlanCard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -131,6 +201,7 @@ export default function PurchasePlanCard() {
   const block = bem(styles, "purchase-plan-card");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [sort, setSort] = useState<PositionSort | null>(null);
   const [pageSize, setPageSize] = useState<PageSizeValue>(PAGE_SIZES[0]);
   const [page, setPage] = useState(1);
 
@@ -154,6 +225,11 @@ export default function PurchasePlanCard() {
     document.addEventListener("click", closeMenus);
     return () => document.removeEventListener("click", closeMenus);
   }, []);
+
+  function handlePositionSort(key: PositionSortKey) {
+    setSort((current) => togglePositionSort(current, key));
+    setPage(1);
+  }
 
   function handleSaveSpecialPurchases(items: PurchasePlanSpecialPurchase[]) {
     if (!plan?.id) return;
@@ -189,10 +265,7 @@ export default function PurchasePlanCard() {
   }
 
   const positions = useMemo(() => plan?.positions ?? [], [plan]);
-  const specialPurchases = useMemo(
-    () => plan?.specialPurchases ?? [],
-    [plan],
-  );
+  const specialPurchases = useMemo(() => plan?.specialPurchases ?? [], [plan]);
 
   // Агрегаты для вкладки «Итоговые показатели» (без изменения данных ПГ)
   const financialTotals = useMemo(() => {
@@ -245,7 +318,7 @@ export default function PurchasePlanCard() {
     const query = searchQuery.trim().toLowerCase();
     const compactQuery = query.replace(/\s/g, "");
 
-    return positions.filter((position) => {
+    const filtered = positions.filter((position) => {
       if (!query) {
         return true;
       }
@@ -273,7 +346,50 @@ export default function PurchasePlanCard() {
         (position.identificationCode ?? "").toLowerCase().includes(compactQuery)
       );
     });
-  }, [positions, searchQuery]);
+
+    if (!sort) {
+      return filtered;
+    }
+
+    // Значение графы для сортировки. Год, номер закупки и сумму сравниваем
+    // как числа, остальное — как текст; пустые строки уходят вниз при любом
+    // направлении сортировки.
+    const sortValue = (position: PurchasePlanPosition) => {
+      switch (sort.key) {
+        case "plannedPlacementYear":
+        case "purchaseNumber":
+          return toNumber(position[sort.key]) ?? "";
+        case "amountTotal":
+          return toNumber(position.amountTotal) ?? "";
+        case "okpd2Name":
+          return (
+            position.okpd2Name ||
+            findOkpd2ByCode(okpd2Refs, position.okpd2Code)?.name ||
+            ""
+          );
+        default:
+          return position[sort.key] ?? "";
+      }
+    };
+
+    return [...filtered].sort((left, right) => {
+      const a = sortValue(left);
+      const b = sortValue(right);
+      const aEmpty = a === "" || a === null || a === undefined;
+      const bEmpty = b === "" || b === null || b === undefined;
+
+      if (aEmpty || bEmpty) {
+        return aEmpty === bEmpty ? 0 : aEmpty ? 1 : -1;
+      }
+
+      const result =
+        typeof a === "number" && typeof b === "number"
+          ? a - b
+          : String(a).localeCompare(String(b), "ru", { numeric: true });
+
+      return sort.dir === "asc" ? result : -result;
+    });
+  }, [positions, searchQuery, sort, okpd2Refs]);
 
   const isPaged = pageSize !== ALL_PAGES;
   const totalPages = isPaged
@@ -335,8 +451,7 @@ export default function PurchasePlanCard() {
   const { customer } = plan;
   const planId = plan.id as string | number;
   const baseYear = Number(plan.planYear) || 2026;
-  const periodSecondYear =
-    plan.planPeriodSecondYear || String(baseYear + 2);
+  const periodSecondYear = plan.planPeriodSecondYear || String(baseYear + 2);
   const ownerRoleLabel =
     ownerRoleOptions.find((o) => o.value === (plan.ownerRole ?? "CU"))?.label ??
     "CU";
@@ -415,10 +530,7 @@ export default function PurchasePlanCard() {
         // компенсируем высоту его строки и нижний отступ.
         return (
           <span
-            className={block(
-              "object",
-              position.okpd2Code ? ["with-code"] : [],
-            )}
+            className={block("object", position.okpd2Code ? ["with-code"] : [])}
           >
             {position.objectOfPurchase || "—"}
           </span>
@@ -449,9 +561,7 @@ export default function PurchasePlanCard() {
               <span className={block("code")}>{position.okpd2Code}</span>
             )}
             <span className={block("okpd2-line")}>
-              <span className={block("okpd2-name")}>
-                {okpd2Name || "—"}
-              </span>
+              <span className={block("okpd2-name")}>{okpd2Name || "—"}</span>
               {normTip && (
                 <span
                   className={block("info")}
@@ -486,9 +596,7 @@ export default function PurchasePlanCard() {
 
         return (
           <div className={block("status-stack")}>
-            <span
-              className={block("status-tag", [status, "compact", "plain"])}
-            >
+            <span className={block("status-tag", [status, "compact", "plain"])}>
               {positionStatusLabel(status)}
             </span>
             {position.statusDate && (
@@ -786,7 +894,9 @@ export default function PurchasePlanCard() {
             <div className={block("kpi-item")}>
               <dt>Размещение в ЕИС</dt>
               <dd>
-                {plan.publishDate ? formatDate(plan.publishDate) : "не размещён"}
+                {plan.publishDate
+                  ? formatDate(plan.publishDate)
+                  : "не размещён"}
               </dd>
             </div>
             <div className={block("kpi-item")}>
@@ -884,7 +994,10 @@ export default function PurchasePlanCard() {
         </button>
         <button
           type="button"
-          className={block("tab", activeTab === "attachments" ? ["active"] : [])}
+          className={block(
+            "tab",
+            activeTab === "attachments" ? ["active"] : [],
+          )}
           onClick={() => setActiveTab("attachments")}
         >
           Вложения
@@ -965,26 +1078,52 @@ export default function PurchasePlanCard() {
                   }
                 >
                   <table className={block("table")}>
+                    <colgroup>
+                      <col className={block("col", ["year"])} />
+                      <col className={block("col", ["number"])} />
+                      <col className={block("col", ["object"])} />
+                      <col className={block("col", ["okpd2"])} />
+                      <col className={block("col", ["amount"])} />
+                      <col className={block("col", ["status"])} />
+                      <col className={block("col", ["discussion"])} />
+                      <col className={block("col", ["actions"])} />
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th rowSpan={2} className={block("th", ["year"])}>
-                          Планируемый год размещения извещения, направления
-                          приглашения, заключения контракта с единственным
-                          поставщиком (подрядчиком, исполнителем)
-                        </th>
-                        <th
-                          className={block("th", ["narrow"])}
+                        <SortableTh
+                          label="Планируемый год размещения извещения, направления приглашения, заключения контракта с единственным поставщиком (подрядчиком, исполнителем)"
+                          sortKey="plannedPlacementYear"
+                          sort={sort}
+                          onSort={handlePositionSort}
+                          rowSpan={2}
+                        />
+                        <SortableTh
+                          label="Номер закупки, включенной в план-график"
+                          sortKey="purchaseNumber"
+                          sort={sort}
+                          onSort={handlePositionSort}
                           data-col="number"
-                        >
-                          Номер закупки, включенной в план-график
-                        </th>
-                        <th>Наименование объекта (объектов) закупки</th>
-                        <th rowSpan={2}>
-                          Наименование товара, работы, услуги по ОКПД2
-                        </th>
-                        <th rowSpan={2}>
-                          Объём финансового обеспечения, всего (рублей)
-                        </th>
+                        />
+                        <SortableTh
+                          label="Наименование объекта (объектов) закупки"
+                          sortKey="objectOfPurchase"
+                          sort={sort}
+                          onSort={handlePositionSort}
+                        />
+                        <SortableTh
+                          label="Наименование товара, работы, услуги по ОКПД2"
+                          sortKey="okpd2Name"
+                          sort={sort}
+                          onSort={handlePositionSort}
+                          rowSpan={2}
+                        />
+                        <SortableTh
+                          label="Объём финансового обеспечения, всего (рублей)"
+                          sortKey="amountTotal"
+                          sort={sort}
+                          onSort={handlePositionSort}
+                          rowSpan={2}
+                        />
                         <th rowSpan={2} className={block("th", ["narrow"])}>
                           Статус
                         </th>
@@ -994,7 +1133,13 @@ export default function PurchasePlanCard() {
                         <th rowSpan={2}>Действия</th>
                       </tr>
                       <tr>
-                        <th colSpan={2}>Идентификационный код закупки</th>
+                        <SortableTh
+                          label="Идентификационный код закупки"
+                          sortKey="identificationCode"
+                          sort={sort}
+                          onSort={handlePositionSort}
+                          colSpan={2}
+                        />
                       </tr>
                     </thead>
                     <tbody>
@@ -1139,8 +1284,7 @@ export default function PurchasePlanCard() {
               <div className={block("info-item")}>
                 <dt>Код по СПЗ / Сводному реестру</dt>
                 <dd className={block("mono")}>
-                  {customer.regNum || "—"} /{" "}
-                  {customer.consRegistryNum || "—"}
+                  {customer.regNum || "—"} / {customer.consRegistryNum || "—"}
                 </dd>
               </div>
               <div className={block("info-item")}>
@@ -1319,7 +1463,8 @@ export default function PurchasePlanCard() {
           </div>
           {planVersions.length === 0 ? (
             <p className={block("status")}>
-              Сохранённых версий пока нет — зафиксируйте снимок в истории версий.
+              Сохранённых версий пока нет — зафиксируйте снимок в истории
+              версий.
             </p>
           ) : (
             <div className={block("table-wrap")}>
