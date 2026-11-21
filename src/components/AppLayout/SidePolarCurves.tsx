@@ -5,16 +5,17 @@ import styles from "./SidePolarCurves.module.scss";
  * Декоративные полярные кривые по бокам от контента.
  *
  * Кривая r = exp(sin θ) − 2·cos(4θ) + sin⁵((2θ − π) / 24) на θ ∈ [0, 24π]
- * рисуется целиком приглушённым контуром, а по ней бегут шесть световых
- * сегментов с хвостами. Сегменты распределены по контуру равномерно и
- * движутся с одинаковой скоростью: точки кривой заранее пересемплированы
- * по длине дуги, поэтому свет не «дёргается» на крутых участках.
+ * рисуется целиком приглушённым контуром, а по ней летят светящиеся точки
+ * с короткими хвостами — как кометы. Каждая летит со своей скоростью,
+ * поэтому со временем они перестраиваются. Точки кривой заранее
+ * пересемплированы по длине дуги, поэтому свет не «дёргается» на крутых
+ * участках.
  *
  * Правая и левая версии — зеркальные копии, обе рисуются в одном
  * requestAnimationFrame, поэтому синхронны по времени.
  *
  * Компонент чисто декоративный: canvas не принимает события мыши, не участвует
- * в потоке документа и не влияет на клики. При prefers-reduced-motion сегменты
+ * в потоке документа и не влияет на клики. При prefers-reduced-motion кометы
  * показываются неподвижно.
  */
 
@@ -25,17 +26,15 @@ const DENSE_SAMPLES = 6000;
 const ARC_SAMPLES = 1800;
 // Отдельная, более частая выборка только для расчёта габаритов кривой.
 const BOUNDS_SAMPLES = 8000;
-// Полный оборот световых сегментов по контуру.
-const SEGMENT_CYCLE_MS = 16_000;
-const SEGMENT_COUNT = 6;
-// Длина хвоста сегмента как доля длины контура.
-const SEGMENT_TAIL = 0.055;
+// Базовое время полного оборота кометы по контуру.
+const COMET_CYCLE_MS = 16_000;
+// Сколько комет летит по контуру одновременно.
+const COMET_COUNT = 36;
 // Хвост рисуется несколькими кусками с нарастающей яркостью.
-const SEGMENT_CHUNKS = 8;
+const COMET_CHUNKS = 5;
 const PADDING = 14;
 const MAX_DPR = 2.5;
 const BASE_ALPHA = 0.13;
-const HEAD_RADIUS = 1.7;
 
 interface Point {
   x: number;
@@ -60,6 +59,31 @@ interface SurfaceGeometry {
   // Точки контура в экранных координатах, равномерные по длине дуги.
   points: Point[];
 }
+
+interface Comet {
+  // Начальное смещение по контуру, 0..1.
+  offset: number;
+  // Множитель скорости: кометы летят с разной скоростью.
+  speed: number;
+  // Длина хвоста как доля длины контура.
+  tail: number;
+  // Радиус головы в CSS-пикселях.
+  radius: number;
+}
+
+// Детерминированный «разброс» без Math.random: произведения на золотое
+// сечение и √2 дают равномерную, но не регулярную последовательность.
+const COMETS: Comet[] = Array.from({ length: COMET_COUNT }, (_, index) => {
+  const spread = (index * 0.6180339887498949) % 1;
+  const jitter = (index * 0.4142135623730951) % 1;
+
+  return {
+    offset: index / COMET_COUNT,
+    speed: 0.75 + spread * 0.55,
+    tail: 0.012 + jitter * 0.022,
+    radius: 1.1 + jitter * 0.9,
+  };
+});
 
 const polarPoint = (theta: number): Point => {
   const r =
@@ -291,10 +315,10 @@ const drawBaseCurve = (
   ctx.restore();
 };
 
-const drawSegments = (
+const drawComets = (
   surface: CanvasSurface,
   geometry: SurfaceGeometry,
-  phase: number,
+  elapsed: number,
   color: string,
 ) => {
   const { ctx } = surface;
@@ -305,48 +329,56 @@ const drawSegments = (
   }
 
   const lastIndex = points.length - 1;
-  const tailLength = Math.max(6, Math.round(points.length * SEGMENT_TAIL));
 
-  for (let index = 0; index < SEGMENT_COUNT; index += 1) {
-    const fraction = (phase + index / SEGMENT_COUNT) % 1;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  COMETS.forEach((comet) => {
+    // У каждой кометы своя скорость, поэтому строй со временем перестраивается.
+    const fraction =
+      ((elapsed / COMET_CYCLE_MS) * comet.speed + comet.offset) % 1;
     const head = fraction * lastIndex;
+    const tailLength = Math.max(4, Math.round(points.length * comet.tail));
 
-    ctx.save();
-    ctx.strokeStyle = color;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
+    for (let chunk = 0; chunk < COMET_CHUNKS; chunk += 1) {
+      const from = chunk / COMET_CHUNKS;
+      const to = (chunk + 1) / COMET_CHUNKS;
 
-    for (let chunk = 0; chunk < SEGMENT_CHUNKS; chunk += 1) {
-      const from = chunk / SEGMENT_CHUNKS;
-      const to = (chunk + 1) / SEGMENT_CHUNKS;
-      const startPosition = head - tailLength * (1 - from);
-      const endPosition = head - tailLength * (1 - to);
+      strokeChunk(
+        ctx,
+        points,
+        head - tailLength * (1 - from),
+        head - tailLength * (1 - to),
+      );
 
-      strokeChunk(ctx, points, startPosition, endPosition);
-
-      // Чем ближе кусок к голове, тем он ярче и толще — эффект хвоста кометы.
-      ctx.globalAlpha = 0.08 + 0.72 * to * to;
-      ctx.lineWidth = 0.8 + 1.7 * to;
+      // Чем ближе кусок к голове, тем он ярче и толще — хвост кометы.
+      ctx.globalAlpha = 0.1 + 0.7 * to * to;
+      ctx.lineWidth = 0.7 + 1.2 * to;
       ctx.stroke();
     }
 
     const headPoint = sampleAt(points, head);
 
-    ctx.globalAlpha = 0.95;
+    ctx.globalAlpha = 0.9;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(headPoint.x, headPoint.y, HEAD_RADIUS, 0, Math.PI * 2);
+    ctx.arc(headPoint.x, headPoint.y, comet.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-  }
+    // Свечение нужно только голове, дальше рисуем обычные штрихи.
+    ctx.shadowBlur = 0;
+  });
+
+  ctx.restore();
 };
 
 const drawScene = (
   surface: CanvasSurface,
   geometry: SurfaceGeometry,
-  phase: number,
+  elapsed: number,
   color: string,
 ) => {
   const { ctx, width, height } = surface;
@@ -357,7 +389,7 @@ const drawScene = (
 
   ctx.clearRect(0, 0, width, height);
   drawBaseCurve(surface, geometry, color);
-  drawSegments(surface, geometry, phase, color);
+  drawComets(surface, geometry, elapsed, color);
 };
 
 export default function SidePolarCurves() {
@@ -392,9 +424,9 @@ export default function SidePolarCurves() {
       }
     };
 
-    const renderFrame = (phase: number) => {
-      drawScene(leftSurface, leftGeometry, phase, color);
-      drawScene(rightSurface, rightGeometry, phase, color);
+    const renderFrame = (elapsed: number) => {
+      drawScene(leftSurface, leftGeometry, elapsed, color);
+      drawScene(rightSurface, rightGeometry, elapsed, color);
     };
 
     const tick = (now: number) => {
@@ -402,7 +434,7 @@ export default function SidePolarCurves() {
         return;
       }
 
-      renderFrame(((now - startedAt) / SEGMENT_CYCLE_MS) % 1);
+      renderFrame(now - startedAt);
       frameId = requestAnimationFrame(tick);
     };
 
@@ -410,7 +442,7 @@ export default function SidePolarCurves() {
       stopAnimation();
 
       if (motionQuery.matches) {
-        // Без анимации показываем сегменты в фиксированных позициях.
+        // Без анимации показываем кометы в стартовых позициях.
         renderFrame(0);
         return;
       }
