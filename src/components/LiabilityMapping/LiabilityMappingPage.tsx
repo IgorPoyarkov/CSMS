@@ -6,6 +6,11 @@ import {
   useMapLiabilityDuty,
 } from "../../services/LiabilityMapping/liabilityMapping.api";
 import type { LiabilityMappingOverviewItem } from "../../services/LiabilityMapping/liabilityMapping.schema";
+import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
+import {
+  searchKtru,
+  useKtruDictionary,
+} from "../../services/KtruRef/ktruRef.api";
 import styles from "./LiabilityMappingPage.module.scss";
 
 const degreeLabels: Record<string, string> = {
@@ -27,6 +32,11 @@ const formatDateTime = (value: string | null): string => {
 const formatScore = (value: number): string =>
   `${Math.round(value * 100)}%`;
 
+// Постоянные пустые массивы: `?? []` на каждом рендере создавал бы новую
+// ссылку и лишний раз пересчитывал useMemo (предупреждение react-hooks).
+const EMPTY_OVERVIEW: LiabilityMappingOverviewItem[] = [];
+const EMPTY_KTRU: KtruRef[] = [];
+
 const LiabilityMappingPage = () => {
   const { bem } = useUtils();
   const page = bem(styles, "liability-mapping");
@@ -34,10 +44,12 @@ const LiabilityMappingPage = () => {
   const [activeDutyId, setActiveDutyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("");
+  const [ktruSearch, setKtruSearch] = useState("");
+  const ktruQuery = useKtruDictionary();
   const resultQuery = useLiabilityResult(activeDutyId);
   const mapMutation = useMapLiabilityDuty();
 
-  const items = overviewQuery.data ?? [];
+  const items = overviewQuery.data ?? EMPTY_OVERVIEW;
   const sections = useMemo(
     () => [...new Set(items.map((item) => item.sectionTitle))].sort(),
     [items],
@@ -61,6 +73,11 @@ const LiabilityMappingPage = () => {
       review: items.reduce((sum, item) => sum + item.reviewCount, 0),
     }),
     [items],
+  );
+
+  const ktruItems = useMemo(
+    () => searchKtru(ktruQuery.data ?? EMPTY_KTRU, ktruSearch, undefined, 20),
+    [ktruQuery.data, ktruSearch],
   );
 
   const active = items.find((item) => item.dutyId === activeDutyId) ?? null;
@@ -316,6 +333,46 @@ const LiabilityMappingPage = () => {
           )}
         </section>
       </div>
+
+      <section className={page("ktru")}>
+        <div className={page("ktru-head")}>
+          <div>
+            <h2 className={page("ktru-title")}>
+              КТРУ для описания объекта закупки
+            </h2>
+            <p className={page("ktru-subtitle")}>
+              Снимок НСИ из ЕИС ({ktruQuery.data?.length ?? 0} позиций).
+              Код, ОКПД2, наименование и единица измерения подставляются
+              в формы закупки из каталога.
+            </p>
+          </div>
+          <input
+            className={page("search")}
+            placeholder="Код КТРУ, ОКПД2 или наименование"
+            value={ktruSearch}
+            onChange={(event) => setKtruSearch(event.target.value)}
+          />
+        </div>
+        <div className={page("ktru-list")}>
+          {ktruItems.map((item) => (
+            <div className={page("ktru-row")} key={item.ktruCode}>
+              <span className={page("ktru-code")}>{item.ktruCode}</span>
+              <span className={page("ktru-name")}>{item.name}</span>
+              <span className={page("ktru-meta")}>
+                ОКПД2 {item.okpd2Code}
+                {item.unit ? ` · ${item.unit}` : ""}
+              </span>
+            </div>
+          ))}
+          {ktruItems.length === 0 && (
+            <div className={page("empty")}>
+              {ktruQuery.isLoading
+                ? "Загрузка справочника КТРУ…"
+                : "По запросу ничего не найдено. Измените поисковый запрос."}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 };

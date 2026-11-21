@@ -366,4 +366,79 @@
     line-height: 18px;
     color: var(--text-secondary);
   }
+
+  // КТРУ из снимка НСИ: те же данные, которые подставляются в формы закупки.
+  &__ktru {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-panel);
+  }
+
+  &__ktru-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &__ktru-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__ktru-subtitle {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--text-secondary);
+  }
+
+  &__ktru-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  &__ktru-row {
+    display: grid;
+    grid-template-columns: 210px minmax(0, 1fr) 210px;
+    gap: 12px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-field);
+    font-size: 12px;
+
+    @media (max-width: 800px) {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+  }
+
+  &__ktru-code {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  &__ktru-name {
+    color: var(--text-primary);
+  }
+
+  &__ktru-meta {
+    color: var(--text-secondary);
+    text-align: right;
+
+    @media (max-width: 800px) {
+      text-align: left;
+    }
+  }
 }

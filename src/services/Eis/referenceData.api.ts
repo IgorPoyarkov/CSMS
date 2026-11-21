@@ -17,7 +17,7 @@ const BASE_URL =
   import.meta.env.VITE_EIS_API_URL ||
   (import.meta.env.DEV ? "" : "http://localhost:5099");
 
-const referenceApi = axios.create({
+export const referenceApi = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
@@ -62,6 +62,8 @@ export interface ReferenceItemInfo {
   name: string;
   parentCode?: string | null;
   actual?: boolean;
+  /** Исходная позиция НСИ: у КТРУ в нём единица измерения и характеристики. */
+  payloadJson?: string;
 }
 
 export interface ReferenceItemQuery {
@@ -98,6 +100,8 @@ export const readReferenceItems = (data: unknown): ReferenceItemInfo[] => {
         parentCode:
           typeof item.parentCode === "string" ? item.parentCode : undefined,
         actual: typeof item.actual === "boolean" ? item.actual : undefined,
+        payloadJson:
+          typeof item.payloadJson === "string" ? item.payloadJson : undefined,
       },
     ];
   });
@@ -143,6 +147,8 @@ export const useReferenceDatasetEvents = (enabled: boolean) => {
       void queryClient.invalidateQueries({ queryKey: referenceDatasetsQueryKey });
       // ОКПД2-справочник фронта строится по этому снимку НСИ.
       void queryClient.invalidateQueries({ queryKey: ["okpd2Refs"] });
+      // КТРУ теперь тоже берётся из НСИ, а не только из db.json.
+      void queryClient.invalidateQueries({ queryKey: ["ktruRefs"] });
     };
 
     events.addEventListener("ready", invalidate);
