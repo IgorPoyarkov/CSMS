@@ -839,7 +839,7 @@ export default function PurchasePlanPositionForm({
                   </label>
                   <input
                     id="position-purchase-number"
-                    className={block("input", ["mono", "plain"])}
+                    className={block("input", ["plain"])}
                     inputMode="numeric"
                     maxLength={4}
                     placeholder="0001"
@@ -856,10 +856,39 @@ export default function PurchasePlanPositionForm({
                     {errorText("purchaseNumber")}
                   </span>
                 )}
+                {/* Год размещения извещения — сразу под номером закупки */}
+                <div className={block("field-inline")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-placement-year"
+                  >
+                    Планируемый год размещения извещения
+                  </label>
+                  <select
+                    id="position-placement-year"
+                    className={block("select", ["plain"])}
+                    {...register("plannedPlacementYear", {
+                      validate: (value) =>
+                        Number(value) >= baseYear ||
+                        `Планируемый год размещения извещения не может быть раньше первого года планирования (${baseYear})`,
+                    })}
+                  >
+                    {placementYearOptions(baseYear).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errorText("plannedPlacementYear") && (
+                    <span className={block("error")}>
+                      {errorText("plannedPlacementYear")}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Уполномоченный орган и организатор совместной закупки —
-                  столбиком под номером закупки */}
+                  столбиком под номером закупки и годом размещения */}
               <div className={block("cell", ["wide", "flags-stack"])}>
                 <label className={block("checkbox")}>
                   <input type="checkbox" {...register("hasAuthorizedBody")} />
@@ -912,38 +941,6 @@ export default function PurchasePlanPositionForm({
                     />
                   </div>
                 )}
-              </div>
-
-              {/* Планируемый год размещения извещения — последнее поле раздела 1 */}
-              <div className={block("cell", ["wide"])}>
-                <div className={block("field-inline")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-placement-year"
-                  >
-                    Планируемый год размещения извещения
-                  </label>
-                  <select
-                    id="position-placement-year"
-                    className={block("select", ["plain"])}
-                    {...register("plannedPlacementYear", {
-                      validate: (value) =>
-                        Number(value) >= baseYear ||
-                        `Планируемый год размещения извещения не может быть раньше первого года планирования (${baseYear})`,
-                    })}
-                  >
-                    {placementYearOptions(baseYear).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errorText("plannedPlacementYear") && (
-                    <span className={block("error")}>
-                      {errorText("plannedPlacementYear")}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
 

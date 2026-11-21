@@ -288,12 +288,16 @@
     color: var(--text-secondary);
   }
 
-  // Лейбл и значение в одной строке; поля строго друг над другом
+  // Лейбл и значение в одной строке; поля строго друг над другом.
+  // Ширина ограничена: пары «лейбл — поле» равноудалены от левого края
+  // ячейки и не растягиваются до правого края формы.
   &__field-inline {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 96px;
     align-items: center;
     gap: 12px;
+    width: 560px;
+    max-width: 100%;
     min-height: 34px;
   }
 
@@ -338,12 +342,15 @@
       opacity: 1;
     }
 
-    // Поле фиксированной ширины: 4 цифры стоят друг над другом
+    // Поле фиксированной ширины: 4 цифры стоят друг над другом.
+    // Правый паддинг учитывает стрелку селекта года, чтобы текст номера
+    // и год в селекте заканчивались на одной вертикали.
     &--plain {
       box-sizing: border-box;
       width: 96px;
-      padding: 6px 8px;
+      padding: 6px 24px 6px 8px;
       font-weight: 600;
+      font-variant-numeric: tabular-nums;
       text-align: right;
     }
 
@@ -395,6 +402,7 @@
       width: 96px;
       padding: 6px 8px;
       font-weight: 600;
+      font-variant-numeric: tabular-nums;
       text-align: right;
     }
 
