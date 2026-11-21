@@ -1331,21 +1331,9 @@ export const validatePurchasePlanEis17 = (
     issues.push({ severity, field, message });
   };
 
-  // Раздел 1 формы ПГ: единица измерения — рубль по ОКЕИ 383
-  if ((plan.okeiCode ?? "").trim() !== "383") {
-    pushIssue(
-      "error",
-      "okeiCode",
-      "Единица измерения плана-графика — рубль по ОКЕИ 383 (Раздел 1 формы ПГ, п. 2 Положения N 1279).",
-    );
-  }
-  if (!(plan.okeiName ?? "").trim()) {
-    pushIssue(
-      "warning",
-      "okeiName",
-      "Не заполнено наименование единицы измерения — по ОКЕИ 383 ожидается «рубль».",
-    );
-  }
+  // В XSD tenderPlan2020 поля OKEI нет: суммы всегда в рублях, а океиCode /
+  // океиName — только подсказки интерфейса. Требовать их от публичного плана
+  // неверно — это давало ложную ошибку XML-проверки на всех импортированных ПГ.
 
   if (!plan.ownerRole) {
     pushIssue(
@@ -1594,22 +1582,21 @@ export const validatePurchasePlanEis17 = (
       );
     }
 
-    if (pos.isNotFederalFinancing && !pos.isConstructionWorks) {
-      pushIssue(
-        "warning",
-        `positions[${idx}].isNotFederalFinancing`,
-        `${label}: признак «без софинансирования из федерального бюджета» относится к закупкам работ по строительству/ОКС.`,
-      );
-    }
+    // IntegrationTPTypes.xsd прямо допускает isNotFederalFinancing вместе с
+    // isConstructionWorks — это не ошибка и не предупреждение.
 
+    // XSD: KOKSsInfo обязателен для ПГ 2022+ со стройкой. Исключение —
+    // isNotFederalFinancing: заказчик явно отметил, что федерального
+    // софинансирования объекта нет, и ЕИС игнорирует блок КОКС.
     if (
       pos.isConstructionWorks &&
+      !pos.isNotFederalFinancing &&
       (!pos.koksEntries || pos.koksEntries.length === 0)
     ) {
       pushIssue(
         "warning",
         `positions[${idx}].koksEntries`,
-        `${label}: отмечено строительство/ОКС, но не заполнена детализация по КОКС (KOKSsInfo).`,
+        `${label}: отмечено строительство/ОКС, но не заполнена детализация по КОКС (KOKSsInfo). Для ПГ 2022+ блок обязателен, если не установлен признак «без федерального софинансирования».`,
       );
     }
   });

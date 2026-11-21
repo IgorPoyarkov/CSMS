@@ -586,11 +586,40 @@ function parseKbk(block) {
   };
 }
 
+/**
+ * ОКПД2 в публичном XML бывает как прямым тегом commonInfo/OKPD2Info, так и
+ * в alternate-ветке commonInfo/undefined/OKPD2s (несколько кодов сразу).
+ * Второй случай раньше терялся, из-за чего позиция не проходила XML-проверку.
+ */
+function parseOkpd2(commonInfo) {
+  return xmlBlocks(commonInfo, "(?:ns\\d+:)?OKPD2Info")
+    .map((block) => ({
+      okpd2Code: xmlValue(block, "OKPDCode"),
+      okpd2Name: xmlValue(block, "OKPDName"),
+    }))
+    .filter((item) => item.okpd2Code);
+}
+
+/** Детализация по КОКС из блока KOKSsInfo (IntegrationTPTypes.xsd). */
+function parseKoks(block) {
+  return xmlBlocks(block, "KOKSInfo")
+    .map((info) => {
+      const koks = xmlInner(info, "KOKS");
+      return {
+        koksCode: xmlValue(koks, "code"),
+        koksName: xmlValue(koks, "name"),
+        ...planFinance(xmlInner(info, "KOKSYearsInfo")),
+      };
+    })
+    .filter((entry) => entry.koksCode);
+}
+
 function parsePlanXml(xml) {
   const positions = new Map();
   for (const block of xmlBlocks(xml, "position")) {
     const ikz = xmlValue(block, "IKZ");
     if (!/^\d{36}$/.test(ikz)) continue;
+    const common = xmlInner(block, "commonInfo");
     const kbkEntries = xmlBlocks(xmlInner(block, "KBKsInfo"), "KBKInfo")
       .map(parseKbk)
       .filter(Boolean);
@@ -600,6 +629,8 @@ function parsePlanXml(xml) {
     const modification = xmlInner(block, "positionModification");
     const reason = xmlInner(modification, "changeReason");
     const flag = (tag) => /true/i.test(xmlValue(block, tag));
+    const okpd2Items = parseOkpd2(common);
+    const koksEntries = parseKoks(block);
 
     positions.set(ikz, {
       identificationCode: ikz,
@@ -615,6 +646,14 @@ function parsePlanXml(xml) {
       kvr,
       kvrName: xmlValue(kvrBlock, "name"),
       kvrEntries: kvr ? [{ kvr, ...finance }] : [],
+      ...(okpd2Items.length
+        ? {
+            okpd2Items,
+            okpd2Code: okpd2Items[0].okpd2Code,
+            okpd2Name: okpd2Items[0].okpd2Name,
+          }
+        : {}),
+      koksEntries,
       isEnergyServiceContract: flag("isEnergyServiceContract"),
       isConstructionWorks: flag("isConstructionWorks"),
       isNotFederalFinancing: flag("isNotFederalFinancing"),
@@ -664,7 +703,23 @@ function parsePlanXml(xml) {
   const totals = xmlInner(xml, "outcomeIndicators");
   const totalAmount = money(xmlValue(xmlInner(totals, "totalsInfo"), "total")).toFixed(2);
 
-  return { positions, specialPurchases, totalAmount };
+  // Реквизиты заказчика и роль владельца версии есть только в XML; в HTML
+  // карточка показывает их в свободной форме, без кодов ОКОПФ/ОКФС.
+  const customerInfo = xmlInner(xml, "customerInfo");
+  const okopf = xmlValue(xmlInner(customerInfo, "OKOPF"), "code");
+  const okfs = xmlValue(xmlInner(customerInfo, "OKFS"), "code");
+  const ownerRole = xmlValue(xmlInner(xml, "ownerInfo"), "ownerRole");
+
+  return {
+    positions,
+    specialPurchases,
+    totalAmount,
+    customer: {
+      ...(okopf ? { okopf } : {}),
+      ...(okfs ? { okfs } : {}),
+    },
+    ownerRole: ["CU", "OA"].includes(ownerRole) ? ownerRole : "",
+  };
 }
 
 function fetchPlanXml(planNumber, generalHtml) {
@@ -705,6 +760,16 @@ function enrichPlansFromXml(db) {
     const xml = fetchPlanXml(plan.planNumber, generalHtml);
     if (!xml) continue;
     const parsed = parsePlanXml(xml);
+    // Роль владельца и коды ОКОПФ/ОКФС приходят из публичного XML; остальные
+    // непубличные поля заказчика (адрес, контакты) не перезаписываем.
+    if (parsed.ownerRole) plan.ownerRole = parsed.ownerRole;
+    if (parsed.customer && Object.keys(parsed.customer).length > 0) {
+      plan.customer = { ...(plan.customer ?? {}), ...parsed.customer };
+    }
+    // В XSD tenderPlan2020 поля OKEI нет, но карточка и шаблон ПГ показывают
+    // рубль — заполняем значение по умолчанию только там, где его нет.
+    plan.okeiCode = plan.okeiCode || "383";
+    plan.okeiName = plan.okeiName || "рубль";
     let patched = 0;
     for (const position of plan.positions ?? []) {
       const data = parsed.positions.get(position.identificationCode);
@@ -923,8 +988,12 @@ function mapPlan(source, template, org, importInfo) {
     remarks: `Импорт из ЕИС по ИНН ${importInfo.inn}: позиций ${positions.length}, окно ${importInfo.planFrom} — ${importInfo.to}`,
     customer: {
       ...structuredClone(org),
+      ...(source.customer ?? {}),
       fullName: source.customerName || org.fullName,
     },
+    ownerRole: source.ownerRole || "CU",
+    okeiCode: "383",
+    okeiName: "рубль",
     positions,
     specialPurchases: source.specialPurchases ?? [],
     eisImport: importInfo,

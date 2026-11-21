@@ -46,8 +46,8 @@ import styles from "./PurchasePlanCard.module.scss";
  * (zakupki.gov.ru / pg2020):
  * - хлебные крошки и двуколоночная шапка cardMainInfo с реквизитами,
  *   статусом и совокупным объёмом финансирования;
- * - 4 вкладки ЕИС: Позиции плана-графика, Особые закупки, Общая информация,
- *   Итоговые показатели;
+ * - 7 вкладок ЕИС pg2020: Общая информация, Позиции, Особые закупки,
+ *   Итоговые показатели, Вложения, Журнал версий, Журнал событий;
  * - двухстрочный макет таблицы позиций с ИКЗ во второй строке и tabular-nums.
  */
 const ROW_COLUMNS = [
@@ -76,7 +76,14 @@ const WIDE_COLUMNS: ColumnKey[] = ["objectOfPurchase"];
 const PAGE_SIZES = [10, 25, 50] as const;
 const ALL_PAGES = "all";
 
-type PlanCardTab = "positions" | "special" | "general" | "totals";
+type PlanCardTab =
+  | "general"
+  | "positions"
+  | "special"
+  | "totals"
+  | "attachments"
+  | "versions"
+  | "events";
 
 export default function PurchasePlanCard() {
   const { id } = useParams<{ id: string }>();
@@ -103,7 +110,7 @@ export default function PurchasePlanCard() {
   >(null);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [showEisXml, setShowEisXml] = useState(false);
-  const [activeTab, setActiveTab] = useState<PlanCardTab>("positions");
+  const [activeTab, setActiveTab] = useState<PlanCardTab>("general");
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "purchase-plan-card");
 
@@ -320,6 +327,41 @@ export default function PurchasePlanCard() {
   const pfhdLabel =
     pfhdTypeOptions.find((o) => o.value === (plan.pfhdType ?? "IND"))?.label ??
     "IND";
+
+  // Журнал событий: только реальные даты карточки, без выдуманных записей.
+  const planEvents: Array<{ date: string; title: string; details?: string }> =
+    [];
+  if (plan.approvalDate) {
+    planEvents.push({
+      date: plan.approvalDate,
+      title: "План-график утверждён",
+      details: plan.approvalAuthor || undefined,
+    });
+  }
+  if (plan.publishDate) {
+    planEvents.push({
+      date: plan.publishDate,
+      title: "План-график размещён в ЕИС",
+    });
+  }
+  const modifiedPositions = positions
+    .filter((item) => item.statusDate && item.modificationDescription)
+    .sort((a, b) => String(b.statusDate).localeCompare(String(a.statusDate)))
+    .slice(0, 5);
+  for (const item of modifiedPositions) {
+    planEvents.push({
+      date: String(item.statusDate),
+      title: `Изменение позиции ${item.serialNumber ?? ""}`.trim(),
+      details: item.modificationDescription,
+    });
+  }
+  planEvents.sort((a, b) => b.date.localeCompare(a.date));
+
+  const versionKindLabel: Record<string, string> = {
+    draft: "Черновик",
+    approved: "Утверждённая редакция",
+    published: "Опубликована в ЕИС",
+  };
 
   function renderCell(
     key: ColumnKey,
@@ -758,8 +800,15 @@ export default function PurchasePlanCard() {
           );
         })()}
 
-      {/* Вкладки ЕИС pg2020 */}
+      {/* Вкладки ЕИС pg2020 в порядке официальной карточки */}
       <nav className={block("tabs")} aria-label="Разделы плана-графика">
+        <button
+          type="button"
+          className={block("tab", activeTab === "general" ? ["active"] : [])}
+          onClick={() => setActiveTab("general")}
+        >
+          Общая информация
+        </button>
         <button
           type="button"
           className={block("tab", activeTab === "positions" ? ["active"] : [])}
@@ -776,17 +825,31 @@ export default function PurchasePlanCard() {
         </button>
         <button
           type="button"
-          className={block("tab", activeTab === "general" ? ["active"] : [])}
-          onClick={() => setActiveTab("general")}
-        >
-          Общая информация
-        </button>
-        <button
-          type="button"
           className={block("tab", activeTab === "totals" ? ["active"] : [])}
           onClick={() => setActiveTab("totals")}
         >
           Итоговые показатели
+        </button>
+        <button
+          type="button"
+          className={block("tab", activeTab === "attachments" ? ["active"] : [])}
+          onClick={() => setActiveTab("attachments")}
+        >
+          Вложения
+        </button>
+        <button
+          type="button"
+          className={block("tab", activeTab === "versions" ? ["active"] : [])}
+          onClick={() => setActiveTab("versions")}
+        >
+          Журнал версий ({planVersions.length})
+        </button>
+        <button
+          type="button"
+          className={block("tab", activeTab === "events" ? ["active"] : [])}
+          onClick={() => setActiveTab("events")}
+        >
+          Журнал событий
         </button>
       </nav>
 
@@ -1143,6 +1206,120 @@ export default function PurchasePlanCard() {
               </tfoot>
             </table>
           </div>
+        </section>
+      )}
+
+      {activeTab === "attachments" && (
+        <section className={block("section")}>
+          <div className={block("section-head")}>
+            <h2 className={block("section-title")}>Вложения плана-графика</h2>
+          </div>
+          <p className={block("status")}>
+            Публичная карточка ЕИС не отдаёт вложения. Доступны печатная форма
+            XML 17.0 и ссылка на официальную карточку плана-графика.
+          </p>
+          <div className={block("attachments")}>
+            <button
+              type="button"
+              className={block("add-btn")}
+              onClick={() =>
+                downloadText(
+                  buildTenderPlan2020XmlPreview(plan),
+                  `tenderPlan2020_${plan.planNumber || "draft"}.xml`,
+                  "application/xml;charset=utf-8",
+                )
+              }
+            >
+              Скачать XML 17.0
+            </button>
+            {plan.eisUrl && (
+              <a
+                className={block("eis-link")}
+                href={plan.eisUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Открыть карточку в ЕИС ↗
+              </a>
+            )}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "versions" && (
+        <section className={block("section")}>
+          <div className={block("section-head")}>
+            <h2 className={block("section-title")}>Журнал версий</h2>
+            <button
+              type="button"
+              className={block("add-btn")}
+              onClick={() => setIsVersionsOpen(true)}
+            >
+              Сравнить редакции
+            </button>
+          </div>
+          {planVersions.length === 0 ? (
+            <p className={block("status")}>
+              Сохранённых версий пока нет — зафиксируйте снимок в истории версий.
+            </p>
+          ) : (
+            <div className={block("table-wrap")}>
+              <table className={block("journal-table")}>
+                <thead>
+                  <tr>
+                    <th>Редакция</th>
+                    <th>Дата</th>
+                    <th>Тип</th>
+                    <th>Комментарий</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...planVersions]
+                    .sort((a, b) => b.versionNumber - a.versionNumber)
+                    .map((version) => (
+                      <tr key={version.id ?? version.versionNumber}>
+                        <td>
+                          v.{version.versionNumber} — {version.versionLabel}
+                        </td>
+                        <td>{formatDate(version.createdAt)}</td>
+                        <td>
+                          {versionKindLabel[version.snapshotStatus] ??
+                            version.snapshotStatus}
+                        </td>
+                        <td>{version.comment || "—"}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === "events" && (
+        <section className={block("section")}>
+          <div className={block("section-head")}>
+            <h2 className={block("section-title")}>Журнал событий</h2>
+          </div>
+          {planEvents.length === 0 ? (
+            <p className={block("status")}>Событий по плану-графику нет.</p>
+          ) : (
+            <ol className={block("events")}>
+              {planEvents.map((event, index) => (
+                <li key={`${event.date}-${index}`} className={block("event")}>
+                  <time className={block("event-date")}>
+                    {formatDate(event.date)}
+                  </time>
+                  <div>
+                    <strong>{event.title}</strong>
+                    {event.details && (
+                      <p className={block("event-details")}>{event.details}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
       )}
 

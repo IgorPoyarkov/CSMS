@@ -333,9 +333,12 @@ const FINANCE_AMOUNT_KEYS = [
 ] as const;
 
 const POSITION_DETAIL_GROUPS = [
-  { key: "kbkEntries", label: "КБК", codeKey: "kbk" },
-  { key: "kvrEntries", label: "КВР", codeKey: "kvr" },
-  { key: "koksEntries", label: "КОКС", codeKey: "koksCode" },
+  { key: "kbkEntries", label: "КБК", codeKey: "kbk", checkSum: true },
+  { key: "kvrEntries", label: "КВР", codeKey: "kvr", checkSum: true },
+  // КОКС в публичном XML — справочная детализация по объектам: суммы по коду
+  // относятся ко всему плану, а не к отдельной позиции. XSD не требует их
+  // совпадения с графами позиции, поэтому проверяем только заполненность кода.
+  { key: "koksEntries", label: "КОКС", codeKey: "koksCode", checkSum: false },
 ] as const;
 
 interface PositionFinanceDetailSource {
@@ -351,9 +354,9 @@ interface PositionFinanceDetailSource {
 
 /**
  * Сверка детализации с итоговыми графами объёма финансового обеспечения:
- * суммы по КБК, КВР и КОКС должны совпадать с суммами по годам, а строка с
- * суммой обязана иметь код. Это правило п. 16, подп. "е" Положения N 1279 и
- * контроль XSD ЕИС 17.0 (KBKsInfo / KVRsInfo / KOKSsInfo).
+ * суммы по КБК и КВР должны совпадать с суммами по годам, а строка с суммой
+ * обязана иметь код (КБК, КВР, КОКС). Это правило п. 16, подп. "е" Положения
+ * N 1279 и контроль XSD ЕИС 17.0 (KBKsInfo / KVRsInfo / KOKSsInfo).
  */
 const refinePositionFinanceDetails = (
   position: PositionFinanceDetailSource,
@@ -381,6 +384,8 @@ const refinePositionFinanceDetails = (
         });
       }
     });
+
+    if (!group.checkSum) continue;
 
     for (const amount of FINANCE_AMOUNT_KEYS) {
       const positionAmount = toNumber(position[amount.key]);
