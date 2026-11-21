@@ -6,6 +6,18 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
+import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import type { PurchaseNote } from "../../services/PurchaseNote/purchaseNote.schema";
+import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import type { NoticeInfoFormValues } from "../../services/Procurements/noticeInfo.schema";
+import { useGetProcurements } from "../../services/Procurements/procurement.api";
+import {
+  normalizeNoticeStatus,
+  noticeStatusLabel,
+  type NoticeStatus,
+  type Procurement,
+} from "../../services/Procurements/procurement.schema";
 import {
   positionKbkEntries,
   toNumber,
@@ -13,6 +25,7 @@ import {
   type PurchasePlanPosition,
   type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
+import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import { formatKbk, formatMoneyValue } from "./purchasePlan.config";
 import styles from "./PurchasePlanKbkBreakdown.module.scss";
 
@@ -56,10 +69,14 @@ interface KbkRecordUsage {
   key: string;
   kind: "position" | "special";
   // Идентификатор записи в плане-графике: по нему открывается позиция ПГ
+  // и находятся её служебные записки
   recordId?: string | number;
   title: string;
-  documentNumber: string;
+  // ИКЗ нужен не для показа, а чтобы найти извещения закупки по этой записи
   ikz: string;
+  // Уникальный номер позиции плана-графика: по нему извещение связано
+  // с позицией, даже когда ИКЗ ещё не совпал по разрядам
+  positionUniqueNumber?: string;
   // Сколько всего КБК у записи: при нескольких кодах сумма по одному коду
   // не равна объёму финансового обеспечения записи
   kbkCount: number;
@@ -208,8 +225,8 @@ const collectKbkGroups = (
         position.objectName ||
         position.okpd2Name ||
         "Позиция плана-графика без наименования",
-      documentNumber: position.uniqueNumber || position.purchaseNumber || "",
       ikz: position.identificationCode || "",
+      positionUniqueNumber: position.uniqueNumber || "",
     });
   });
 
@@ -219,7 +236,6 @@ const collectKbkGroups = (
       kind: "special",
       recordId: item.id,
       title: item.typeName || "Особая закупка без основания",
-      documentNumber: item.positionNumber || item.purchaseNumber || "",
       ikz: item.ikz || "",
     });
   });
@@ -477,6 +493,7 @@ export default function PurchasePlanKbkBreakdown({
 
       {openGroup && (
         <KbkRecordsModal
+          plan={plan}
           group={openGroup}
           showRecordTotal={showRecordTotal}
           onClose={closeModal}
@@ -487,7 +504,228 @@ export default function PurchasePlanKbkBreakdown({
   );
 }
 
+// Извещение, найденное для записи плана-графика
+interface RecordNotice {
+  // Идентификатор закупки: по нему открывается карточка извещения
+  procurementId: string | number;
+  number: string | null;
+  status: NoticeStatus;
+  name: string;
+}
+
+// Документы записи: извещения закупки и служебные записки по ней
+interface RecordDocs {
+  notices: RecordNotice[];
+  notes: PurchaseNote[];
+}
+
+// Пустой набор — для записей, по которым ещё ничего не заведено
+const EMPTY_RECORD_DOCS: RecordDocs = { notices: [], notes: [] };
+
+/**
+ * Подбор документов записи. Извещение связано с позицией плана-графика двумя
+ * ключами: уникальным номером позиции (`notices[].generalInfo.
+ * positionUniqueNumber` = `positions[].uniqueNumber`) и ИКЗ
+ * (`procurements[].ikz` = `positions[].identificationCode`). Номер позиции
+ * надёжнее — ИКЗ мог быть сформирован позже, поэтому смотрим оба ключа и
+ * склеиваем найденное по номеру закупки. Служебная записка ищется по номеру
+ * позиции, а у особых закупок и старых записок — по тому же ИКЗ.
+ * Отменённые извещения и аннулированные СЗ не выводим: работать по ним уже
+ * нельзя, а окно читают как список действующих процедур.
+ */
+const collectRecordDocs = (
+  record: KbkRecordUsage,
+  procurements: Procurement[],
+  notices: NoticeInfoFormValues[],
+  notes: PurchaseNote[],
+  organizationId?: string | number,
+): RecordDocs => {
+  const procurementById = new Map(
+    procurements.map((item) => [String(item.id), item]),
+  );
+  const found = new Map<string, RecordNotice>();
+
+  const addNotice = (procurementId: string | number) => {
+    const key = String(procurementId);
+
+    if (found.has(key)) {
+      return;
+    }
+
+    const procurement = procurementById.get(key);
+    // Номер извещения — главный признак публикации; статус берём из закупки,
+    // а если её нет в списке, выводим по наличию номера
+    const status = normalizeNoticeStatus(
+      procurement?.noticeStatus,
+      Boolean(procurement?.noticeNumber),
+    );
+
+    if (status === "cancelled") {
+      return;
+    }
+
+    found.set(key, {
+      procurementId: procurement?.id ?? procurementId,
+      number: procurement?.noticeNumber ?? null,
+      status,
+      name: procurement?.name ?? "",
+    });
+  };
+
+  notices.forEach((notice) => {
+    const generalInfo = notice.generalInfo;
+    // Извещение другого заказчика к записи этого плана не относится
+    const noticeOrganizationId = notice.contactInfo?.organizationId;
+    const otherOrganization =
+      organizationId !== undefined &&
+      noticeOrganizationId !== undefined &&
+      String(noticeOrganizationId) !== String(organizationId);
+    const byPosition =
+      Boolean(record.positionUniqueNumber) &&
+      generalInfo?.positionUniqueNumber === record.positionUniqueNumber;
+    const byIkz = Boolean(record.ikz) && generalInfo?.ikz === record.ikz;
+
+    if (otherOrganization || (!byPosition && !byIkz)) {
+      return;
+    }
+
+    const procurementId = notice.procurementId ?? notice.id;
+
+    if (procurementId === undefined || procurementId === null) {
+      return;
+    }
+
+    addNotice(procurementId);
+
+    // В сохранённой форме номер может быть уже присвоен, а в списке закупок
+    // запись ещё не обновлена — показываем номер из формы
+    const saved = found.get(String(procurementId));
+
+    if (saved && !saved.number && generalInfo?.noticeNumber) {
+      found.set(String(procurementId), {
+        ...saved,
+        number: generalInfo.noticeNumber,
+        status: "published",
+      });
+    }
+  });
+
+  procurements.forEach((procurement) => {
+    if (record.ikz && procurement.ikz === record.ikz) {
+      addNotice(procurement.id ?? procurement.ikz);
+    }
+  });
+
+  const positionId = record.recordId;
+
+  return {
+    notices: [...found.values()],
+    notes: notes.filter((note) => {
+      if (note.status === "cancelled") {
+        return false;
+      }
+
+      const byPosition =
+        positionId !== undefined &&
+        note.positionId !== undefined &&
+        note.positionId !== null &&
+        String(note.positionId) === String(positionId);
+
+      return byPosition || (Boolean(record.ikz) && note.ikz === record.ikz);
+    }),
+  };
+};
+
+interface RecordDocLinksProps {
+  docs: RecordDocs;
+  record: KbkRecordUsage;
+  // Идентификатор плана: если у самой записки он не заполнен, карточка
+  // открывается в текущем плане-графике
+  planId?: string | number;
+  // Вариант под наименованием для узких экранов, где графа скрыта
+  underTitle?: boolean;
+}
+
+/**
+ * Ссылки на извещения и служебные записки записи. ИКЗ в таблице не нужен:
+ * он служит только ключом связи, а переход нужен в карточку документа.
+ */
+function RecordDocLinks({
+  docs,
+  record,
+  planId,
+  underTitle = false,
+}: RecordDocLinksProps) {
+  if (docs.notices.length === 0 && docs.notes.length === 0) {
+    // Под наименованием пустой список не занимает места
+    return underTitle ? null : <span className={styles["doc-empty"]}>—</span>;
+  }
+
+  return (
+    <ul
+      className={`${styles["doc-links"]} ${
+        underTitle ? styles["doc-links-under-title"] : ""
+      }`}
+    >
+      {docs.notices.map((notice) => (
+        <li key={`notice-${notice.procurementId}`}>
+          <Link
+            className={styles["doc-link"]}
+            to={`/procurement-processing/${notice.procurementId}/notice-info`}
+            title={
+              notice.name
+                ? `Открыть карточку извещения: ${notice.name}`
+                : "Открыть карточку извещения"
+            }
+            // Строка записи сама кликабельна: переход по ссылке не должен
+            // превращаться в переход к позиции плана-графика
+            onClick={(event) => event.stopPropagation()}
+          >
+            {notice.number ? `Извещение № ${notice.number}` : "Извещение"}
+            {!notice.number && (
+              <span className={styles["doc-status"]}>
+                {noticeStatusLabel(notice.status)}
+              </span>
+            )}
+          </Link>
+        </li>
+      ))}
+      {docs.notes.map((note) => {
+        // Карточка СЗ открывается страницей формирования потребности позиции
+        const notePlanId = note.purchasePlanId ?? planId;
+        const notePositionId = note.positionId ?? record.recordId;
+        const hasCard =
+          notePlanId !== undefined &&
+          notePlanId !== null &&
+          notePlanId !== "" &&
+          notePositionId !== undefined &&
+          notePositionId !== null &&
+          notePositionId !== "";
+
+        return (
+          <li key={`note-${note.id}`}>
+            <Link
+              className={styles["doc-link"]}
+              to={
+                hasCard
+                  ? `/purchase-plans/${notePlanId}/positions/${notePositionId}/requirement?noteId=${note.id ?? ""}`
+                  : "/purchase-notes"
+              }
+              title={`Открыть служебную записку № ${note.noteNumber}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              {`СЗ № ${note.noteNumber}`}
+              <PurchaseNoteStatusBadge status={note.status} compact />
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 interface KbkRecordsModalProps {
+  plan: PurchasePlan;
   group: KbkGroup;
   showRecordTotal: boolean;
   onClose: () => void;
@@ -495,11 +733,45 @@ interface KbkRecordsModalProps {
 }
 
 function KbkRecordsModal({
+  plan,
   group,
   showRecordTotal,
   onClose,
   onOpenRecord,
 }: KbkRecordsModalProps) {
+  // Извещения и служебные записки приходят отдельными запросами: в плане-графике
+  // их нет, а связь с записями идёт через номер позиции и ИКЗ
+  const { data: procurements = [] } = useGetProcurements();
+  const { data: notices = [] } = useNotices();
+  const { data: purchaseNotes = [] } = usePurchaseNotes(plan.organizationId);
+
+  // Документы считаем один раз на запись: они нужны и в графе, и под
+  // наименованием на узких экранах
+  const docsByRecord = useMemo(() => {
+    const map = new Map<string, RecordDocs>();
+
+    group.records.forEach((record) => {
+      map.set(
+        record.key,
+        collectRecordDocs(
+          record,
+          procurements,
+          notices,
+          purchaseNotes,
+          plan.organizationId,
+        ),
+      );
+    });
+
+    return map;
+  }, [
+    group.records,
+    procurements,
+    notices,
+    purchaseNotes,
+    plan.organizationId,
+  ]);
+
   // Escape закрывает окно, как и остальные модальные формы проекта
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -585,7 +857,7 @@ function KbkRecordsModal({
               <tr>
                 <th>№</th>
                 <th>Наименование записи</th>
-                <th>ИКЗ / номер записи</th>
+                <th>Извещение / СЗ</th>
                 <th>Сумма по КБК, руб.</th>
                 {showRecordTotal && <th>Всего по записи, руб.</th>}
               </tr>
@@ -596,6 +868,7 @@ function KbkRecordsModal({
                 const canOpen =
                   Boolean(onOpenRecord) &&
                   (record.kind === "special" || record.recordId !== undefined);
+                const docs = docsByRecord.get(record.key) ?? EMPTY_RECORD_DOCS;
 
                 return (
                   <tr
@@ -613,6 +886,12 @@ function KbkRecordsModal({
                     onKeyDown={
                       canOpen
                         ? (event: ReactKeyboardEvent) => {
+                            // Enter на ссылке внутри строки открывает документ,
+                            // а не саму запись
+                            if (event.target !== event.currentTarget) {
+                              return;
+                            }
+
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
                               openRecord(record);
@@ -629,10 +908,14 @@ function KbkRecordsModal({
                       {record.kind === "special" && (
                         <span className={styles.badge}>Особая закупка</span>
                       )}
-                      {/* На узких экранах колонка ИКЗ скрыта, номер остаётся здесь */}
-                      <span className={styles["record-ref"]}>
-                        {record.documentNumber || "Номер записи не указан"}
-                      </span>
+                      {/* На узких экранах графа «Извещение / СЗ» скрыта —
+                          ссылки на документы остаются здесь */}
+                      <RecordDocLinks
+                        docs={docs}
+                        record={record}
+                        planId={plan.id}
+                        underTitle
+                      />
                       {/* Запись с несколькими КБК: на телефоне колонка «Всего
                           по записи» скрыта, поэтому объём показываем подписью */}
                       {record.kbkCount > 1 && (
@@ -652,12 +935,11 @@ function KbkRecordsModal({
                       )}
                     </td>
                     <td>
-                      <span className={styles.mono}>
-                        {record.documentNumber || "—"}
-                      </span>
-                      {record.ikz && (
-                        <span className={styles.sub}>{record.ikz}</span>
-                      )}
+                      <RecordDocLinks
+                        docs={docs}
+                        record={record}
+                        planId={plan.id}
+                      />
                     </td>
                     <td className={styles.num}>
                       {formatMoneyValue(record.amounts.total)}

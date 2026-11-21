@@ -175,14 +175,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sub {
-  display: block;
-  font-family: "Courier New", monospace;
-  font-size: 11px;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-
 // Модальное окно со списком записей выбранного КБК.
 // z-index выше мобильной шапки (90), иначе на телефоне она остаётся поверх
 // затемнения и перехватывает клики
@@ -259,15 +251,33 @@
 
 .modal-body {
   flex: 1;
-  padding: 18px 22px;
+  // Верхний отступ задаём таблице, а не контейнеру: padding скролл-контейнера
+  // прокручивается вместе с содержимым, и над прилипшей шапкой оставалась
+  // полоса, через которую были видны строки
+  padding: 0 22px 18px;
   overflow: auto;
 }
 
 // Список записей: наименование занимает свободное место, суммы — справа
 .records-table {
   width: 100%;
+  margin-top: 18px;
   border-collapse: collapse;
   font-size: 13px;
+
+  // Номер и суммы не должны разъезжаться от длинных номеров извещений
+  th:nth-child(1) {
+    width: 48px;
+  }
+
+  // Графа документов шире остальных: в ней номера извещений и СЗ
+  th:nth-child(3) {
+    width: 30%;
+  }
+
+  th:nth-child(n + 4) {
+    width: 15%;
+  }
 
   th,
   td {
@@ -283,7 +293,18 @@
     font-size: 12px;
     font-weight: 700;
     text-align: center;
-    background: var(--surface-raised);
+    // В светлой теме --surface-raised полупрозрачный: сквозь прилипшую шапку
+    // при скролле просвечивали строки. Накладываем оттенок на непрозрачную
+    // панель, чтобы шапка перекрывала содержимое.
+    background-color: var(--surface-panel);
+    background-image: linear-gradient(
+      var(--surface-raised),
+      var(--surface-raised)
+    );
+    // У прилипшей ячейки при border-collapse: collapse нижняя граница
+    // остаётся на месте таблицы и «уезжает» — отбиваем шапку тенью
+    border-bottom-color: transparent;
+    box-shadow: inset 0 -1px 0 var(--border);
     color: var(--text-secondary);
   }
 
@@ -326,15 +347,51 @@
   overflow-wrap: anywhere;
 }
 
-// Номер записи под наименованием — только для узких экранов, где колонка
-// «ИКЗ / номер записи» скрыта
-.record-ref {
+// Ссылки на документы записи: извещения закупки и служебные записки по ней
+.doc-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+// На узких экранах графа скрыта — те же ссылки показываем под наименованием
+.doc-links-under-title {
   display: none;
-  margin-top: 4px;
-  font-family: "Courier New", monospace;
+  margin-top: 6px;
+}
+
+.doc-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+
+  &:hover {
+    text-decoration-style: solid;
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+// Статус извещения без номера («На подготовке»): номер ещё не присвоен
+.doc-status {
   font-size: 11px;
   color: var(--text-secondary);
-  overflow-wrap: anywhere;
+}
+
+.doc-empty {
+  color: var(--text-secondary);
 }
 // Объём записи целиком — только для узких экранов, где колонка
 // «Всего по записи» скрыта, а у записи несколько КБК
@@ -409,7 +466,10 @@
     }
   }
 
-  .record-ref,
+  .doc-links-under-title {
+    display: flex;
+  }
+
   .record-total-note {
     display: block;
   }
@@ -419,7 +479,11 @@
   }
 
   .modal-body {
-    padding: 12px 14px;
+    padding: 0 14px 12px;
+  }
+
+  .records-table {
+    margin-top: 12px;
   }
 }
 

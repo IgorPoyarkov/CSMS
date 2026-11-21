@@ -3840,3 +3840,48 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   ячейка 101 px, кнопка 72 px, поля слева и справа по 15 px, `text-align: center`.
   «Сохранить» не нажималось, `db.json` не менялся.
 
+## 108. Окно записей КБК: прилипшая шапка и ссылки на извещения/СЗ (2026-11-22)
+
+- **Шапка «тянулась»:** `th` уже был `position: sticky`, но фон брался из
+  `--surface-raised`, а в светлой теме это `rgba(snowy-mint, 0.75)` — сквозь
+  шапку просвечивали прокручиваемые строки. Теперь `background-color:
+  var(--surface-panel)` (непрозрачная панель) + `background-image:
+  linear-gradient(var(--surface-raised), var(--surface-raised))` — оттенок
+  сохранился, просвечивания нет; в тёмных темах `--surface-raised` непрозрачен,
+  вид не изменился. Нижнюю границу у прилипшей ячейки при `border-collapse:
+  collapse` Chrome не прокручивает — она заменена `box-shadow: inset 0 -1px 0
+  var(--border)`.
+- **Полоса над шапкой:** верхний отступ был `padding-top` у `.modal-body`, а
+  padding скролл-контейнера остаётся на месте — в 18 px над шапкой были видны
+  строки. Отступ перенесён на таблицу (`.records-table { margin-top: 18px }`,
+  на телефоне 12 px), у `.modal-body` `padding: 0 22px 18px`.
+- **Вместо ИКЗ — документы:** графа «ИКЗ / номер записи» заменена на
+  «Извещение / СЗ». Ссылка на извещение ведёт в
+  `/procurement-processing/:procurementId/notice-info`, на СЗ — в
+  `/purchase-plans/:planId/positions/:positionId/requirement?noteId=:id`
+  (как из реестра СЗ). ИКЗ больше не выводится, поле `documentNumber` из
+  `KbkRecordUsage` убрано.
+- **Ключи связи (важно):** в сиде ИКЗ извещения и позиции часто НЕ совпадают
+  по последним разрядам, поэтому извещения ищутся двумя ключами —
+  `notices[].generalInfo.positionUniqueNumber` = `positions[].uniqueNumber`
+  (основной) и `procurements[].ikz` = `positions[].identificationCode`
+  (дополнительный); найденное склеивается по номеру закупки. Номер извещения
+  берётся из закупки, а если там ещё пусто — из сохранённой формы `notices`.
+  СЗ ищутся по `positionId`, у особых закупок — по ИКЗ. Отменённые извещения
+  и аннулированные СЗ не показываются; извещение без номера выводится как
+  «Извещение · На подготовке».
+- **Клики:** строка записи по-прежнему открывает позицию/вкладку особых
+  закупок, а ссылки внутри неё — документ: `stopPropagation` на клик и
+  `onKeyDown` у `tr` срабатывает только при `event.target ===
+  event.currentTarget`. На `max-width: 700px` графа документов скрыта, те же
+  ссылки показываются под наименованием (`doc-links-under-title`).
+- **Проверки:** `.tmp/probe-kbk-modal.mjs` (CDP, headless; `TAG`, `WIDTH`,
+  `SCROLL`) — 1440/1024/390 px: `th` после скролла на `top = 0`, шапка
+  непрозрачная, `overflow dialog/body = 0`; клик по извещению уводит на
+  `/procurement-processing/eis-0144200001826000193/notice-info` (модалка
+  закрыта), по СЗ — на `.../positions/202601442000018001-1/requirement?noteId=1`.
+  `prettier --check`, `tsc -b`, `oxlint src` (0 ошибок), `vite build` — exit 0.
+- **Чужая незавершённая работа на момент правки:** `PurchasePlanCard.tsx`
+  (сортировка позиций со старым `↕` 9 px), `PurchasePlanPositionForm.module.scss`,
+  `db.json` — не трогались, не коммитились.
+
