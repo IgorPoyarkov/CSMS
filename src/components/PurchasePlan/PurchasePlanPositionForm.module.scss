@@ -978,4 +978,47 @@
       color: var(--state-danger);
     }
   }
+
+  /* Список КВР выводится порталом в body: координаты берутся от нажатого
+     поля, поэтому окно всегда оказывается под кликом и не обрезается
+     переполнением таблицы. */
+  &__kvr-list {
+    position: fixed;
+    z-index: 70;
+    max-height: 260px;
+    padding: 4px 0;
+    overflow-y: auto;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: 0 6px 16px var(--shadow);
+  }
+
+  &__kvr-option {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.35;
+    text-align: left;
+    color: var(--text-primary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+
+    &:hover,
+    &--active {
+      color: var(--accent-emphasis);
+      background: var(--accent-soft);
+    }
+  }
+
+  &__kvr-empty {
+    display: block;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
 }

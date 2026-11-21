@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import {
   get,
   useFieldArray,
@@ -172,6 +179,20 @@ export default function PurchasePlanPositionForm({
   // Индекс строки КОКС, для которой открыт справочник nsiKOKS
   const [koksPickerIndex, setKoksPickerIndex] = useState<number | null>(null);
 
+  /* КВР: нативный datalist рисует список там, где ему вздумалось, поэтому
+     подставляем свой выпадающий список строго под нажатое поле. В состоянии
+     храним строку КБК и координаты якоря — они пересчитываются при каждом
+     открытии, а портал выводит список вне таблицы, чтобы его не обрезало. */
+  const [kvrDropdown, setKvrDropdown] = useState<{
+    entryIndex: number;
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const [kvrActiveIndex, setKvrActiveIndex] = useState(0);
+  const kvrAnchorRef = useRef<HTMLInputElement | null>(null);
+  const kvrListRef = useRef<HTMLDivElement | null>(null);
+
   // Детализация по КБК всегда начинается с одной строки: заказчику не нужно
   // нажимать «Добавить», чтобы увидеть поля разрядов
   const initialKbkEntries = (
@@ -247,6 +268,95 @@ export default function PurchasePlanPositionForm({
   const jointOrganizerName = useWatch({ control, name: "jointOrganizerName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
   const koksEntriesValues = useWatch({ control, name: "koksEntries" });
+
+  // Подсказки КВР фильтруются по введённому коду, как у нативного datalist
+  const kvrFilter = kvrDropdown
+    ? String(kbkEntriesValues?.[kvrDropdown.entryIndex]?.expenseType ?? "")
+    : "";
+  const kvrVisibleOptions = useMemo(
+    () =>
+      kvrOptions.filter(
+        (option) =>
+          !kvrFilter ||
+          option.value.includes(kvrFilter) ||
+          option.label.includes(kvrFilter),
+      ),
+    [kvrFilter],
+  );
+
+  function openKvrDropdown(entryIndex: number, anchor: HTMLInputElement) {
+    const rect = anchor.getBoundingClientRect();
+    // Список шире поля: подписи КВР длинные, но он не должен уйти за экран
+    const width = Math.max(rect.width, 360);
+    setKvrDropdown({
+      entryIndex,
+      top: rect.bottom + 2,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+      width,
+    });
+    kvrAnchorRef.current = anchor;
+    setKvrActiveIndex(0);
+  }
+
+  function selectKvrOption(entryIndex: number, value: string) {
+    setValue(`kbkEntries.${entryIndex}.expenseType`, value, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setKvrDropdown(null);
+  }
+
+  function handleKvrKeyDown(
+    event: ReactKeyboardEvent<HTMLInputElement>,
+    entryIndex: number,
+  ) {
+    if (event.key === "Escape") {
+      setKvrDropdown(null);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!kvrDropdown) {
+        openKvrDropdown(entryIndex, event.currentTarget);
+        return;
+      }
+      if (!kvrVisibleOptions.length) return;
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setKvrActiveIndex(
+        (current) =>
+          (current + step + kvrVisibleOptions.length) %
+          kvrVisibleOptions.length,
+      );
+      return;
+    }
+    if (event.key === "Enter" && kvrDropdown && kvrVisibleOptions.length) {
+      event.preventDefault();
+      const option = kvrVisibleOptions[kvrActiveIndex] ?? kvrVisibleOptions[0];
+      selectKvrOption(entryIndex, option.value);
+    }
+  }
+
+  // Закрываем список по клику вне него, уходу фокуса и прокрутке/ресайзу
+  useEffect(() => {
+    if (!kvrDropdown) return;
+    function closeOnOutside(event: Event) {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (kvrListRef.current?.contains(target)) return;
+      if (kvrAnchorRef.current?.contains(target)) return;
+      setKvrDropdown(null);
+    }
+    document.addEventListener("mousedown", closeOnOutside);
+    document.addEventListener("focusin", closeOnOutside);
+    window.addEventListener("scroll", closeOnOutside, true);
+    window.addEventListener("resize", closeOnOutside);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutside);
+      document.removeEventListener("focusin", closeOnOutside);
+      window.removeEventListener("scroll", closeOnOutside, true);
+      window.removeEventListener("resize", closeOnOutside);
+    };
+  }, [kvrDropdown]);
   const amountSubsequentYears = useWatch({
     control,
     name: "amountSubsequentYears",
@@ -717,7 +827,9 @@ export default function PurchasePlanPositionForm({
                 )}
               </div>
 
-              <div className={block("cell")}>
+              {/* Ячейка на всю ширину: правая вертикальная граница не
+                  проходит сразу после поля с номером закупки */}
+              <div className={block("cell", ["wide"])}>
                 <div className={block("field-inline")}>
                   <label
                     className={block("label")}
@@ -744,38 +856,10 @@ export default function PurchasePlanPositionForm({
                     {errorText("purchaseNumber")}
                   </span>
                 )}
-                <div className={block("field-inline")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-placement-year"
-                  >
-                    Планируемый год размещения извещения
-                  </label>
-                  <select
-                    id="position-placement-year"
-                    className={block("select", ["plain"])}
-                    {...register("plannedPlacementYear", {
-                      validate: (value) =>
-                        Number(value) >= baseYear ||
-                        `Планируемый год размещения извещения не может быть раньше первого года планирования (${baseYear})`,
-                    })}
-                  >
-                    {placementYearOptions(baseYear).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  {errorText("plannedPlacementYear") && (
-                    <span className={block("error")}>
-                      {errorText("plannedPlacementYear")}
-                    </span>
-                  )}
-                </div>
               </div>
 
               {/* Уполномоченный орган и организатор совместной закупки —
-                  столбиком под номером закупки и годом размещения */}
+                  столбиком под номером закупки */}
               <div className={block("cell", ["wide", "flags-stack"])}>
                 <label className={block("checkbox")}>
                   <input type="checkbox" {...register("hasAuthorizedBody")} />
@@ -828,6 +912,38 @@ export default function PurchasePlanPositionForm({
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Планируемый год размещения извещения — последнее поле раздела 1 */}
+              <div className={block("cell", ["wide"])}>
+                <div className={block("field-inline")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-placement-year"
+                  >
+                    Планируемый год размещения извещения
+                  </label>
+                  <select
+                    id="position-placement-year"
+                    className={block("select", ["plain"])}
+                    {...register("plannedPlacementYear", {
+                      validate: (value) =>
+                        Number(value) >= baseYear ||
+                        `Планируемый год размещения извещения не может быть раньше первого года планирования (${baseYear})`,
+                    })}
+                  >
+                    {placementYearOptions(baseYear).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errorText("plannedPlacementYear") && (
+                    <span className={block("error")}>
+                      {errorText("plannedPlacementYear")}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1108,26 +1224,55 @@ export default function PurchasePlanPositionForm({
                   <tbody>
                     {kbkEntries.fields.map((field, entryIndex) => (
                       <tr key={field.id}>
-                        {KBK_PART_FIELDS.map((part) => (
-                          <td key={part.key}>
-                            {/* Разряды КБК — обычные поля формы: так они
-                                заполняются в любой строке, а не только в первой */}
-                            <input
-                              className={block("input", ["mono"])}
-                              placeholder={part.placeholder}
-                              aria-label={part.label}
-                              maxLength={part.length}
-                              list={
-                                part.key === "expenseType"
-                                  ? "kvr-options"
-                                  : undefined
-                              }
-                              {...register(
-                                `kbkEntries.${entryIndex}.${part.key}`,
-                              )}
-                            />
-                          </td>
-                        ))}
+                        {KBK_PART_FIELDS.map((part) => {
+                          // register вызываем для каждой ячейки: у КВР поверх
+                          // него навешиваем свой список подсказок
+                          const fieldRegistration = register(
+                            `kbkEntries.${entryIndex}.${part.key}`,
+                          );
+                          const isKvr = part.key === "expenseType";
+                          return (
+                            <td key={part.key}>
+                              {/* Разряды КБК — обычные поля формы: так они
+                                  заполняются в любой строке, а не только в первой */}
+                              <input
+                                className={block("input", ["mono"])}
+                                placeholder={part.placeholder}
+                                aria-label={part.label}
+                                maxLength={part.length}
+                                {...fieldRegistration}
+                                onFocus={(event) => {
+                                  if (isKvr)
+                                    openKvrDropdown(
+                                      entryIndex,
+                                      event.currentTarget,
+                                    );
+                                }}
+                                onClick={(event) => {
+                                  if (isKvr)
+                                    openKvrDropdown(
+                                      entryIndex,
+                                      event.currentTarget,
+                                    );
+                                }}
+                                onBlur={(event) => {
+                                  fieldRegistration.onBlur?.(event);
+                                  if (isKvr) {
+                                    setKvrDropdown((current) =>
+                                      current?.entryIndex === entryIndex
+                                        ? null
+                                        : current,
+                                    );
+                                  }
+                                }}
+                                onKeyDown={(event) => {
+                                  if (isKvr)
+                                    handleKvrKeyDown(event, entryIndex);
+                                }}
+                              />
+                            </td>
+                          );
+                        })}
                         {EIS_AMOUNT_FIELDS.map((amount) => (
                           <td
                             key={amount.key}
@@ -1189,13 +1334,6 @@ export default function PurchasePlanPositionForm({
                 </table>
               </div>
 
-              <datalist id="kvr-options">
-                {kvrOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </datalist>
               <p className={block("hint")}>
                 Кодов может быть сколько угодно: суммы по годам указываются,
                 только когда закупка разнесена по кодам.
@@ -1510,6 +1648,44 @@ export default function PurchasePlanPositionForm({
           onSelect={handleKoksSelect}
         />
       )}
+
+      {/* Свои подсказки КВР: портал ставит их под нажатое поле, а не туда,
+          где браузер решил бы показать нативный datalist */}
+      {kvrDropdown &&
+        createPortal(
+          <div
+            ref={kvrListRef}
+            className={block("kvr-list")}
+            style={{
+              top: kvrDropdown.top,
+              left: kvrDropdown.left,
+              width: kvrDropdown.width,
+            }}
+          >
+            {kvrVisibleOptions.length ? (
+              kvrVisibleOptions.map((option, optionIndex) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={block(
+                    "kvr-option",
+                    optionIndex === kvrActiveIndex ? ["active"] : [],
+                  )}
+                  // Клик не должен снимать фокус с поля до срабатывания onClick
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    selectKvrOption(kvrDropdown.entryIndex, option.value)
+                  }
+                >
+                  {option.label}
+                </button>
+              ))
+            ) : (
+              <span className={block("kvr-empty")}>Совпадений нет</span>
+            )}
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
