@@ -136,11 +136,89 @@ const matchesKbkFilter = (
 // Сколько контрактов показывать на странице
 const PAGE_SIZES = [5, 10, 25, "all"] as const;
 
-/** Сортировка: по году заключения (возр/убыв), по цене, по статусу. */
-type SortCriterion = "year" | "price" | "status" | "none";
+/** Сортировка таблицы контрактов: колонка и направление. */
+type SortDirection = "asc" | "desc";
+
+interface TableSort {
+  key: string;
+  dir: SortDirection;
+}
 
 /** Фильтр по статусу: по умолчанию — на исполнении. */
 type StatusFilter = ContractRegistryItem["status"] | "all";
+
+// ─── Сортировка таблицы контрактов ─────────────────────────────────────────
+
+/** Повторный клик по той же колонке меняет направление, новая — начинает с asc. */
+const toggleTableSort = (current: TableSort | null, key: string): TableSort =>
+  current?.key === key
+    ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+    : { key, dir: "asc" };
+
+/** Числа сравниваем как числа, даты ISO и текст — через localeCompare. */
+const compareSortValues = (a: unknown, b: unknown): number => {
+  const numA = typeof a === "number" ? a : Number.NaN;
+  const numB = typeof b === "number" ? b : Number.NaN;
+  if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+  const textA = a === null || a === undefined ? "" : String(a);
+  const textB = b === null || b === undefined ? "" : String(b);
+  return textA.localeCompare(textB, "ru", { numeric: true });
+};
+
+const sortTableRows = <T,>(
+  rows: T[],
+  sort: TableSort | null,
+  getValue: (row: T, key: string) => unknown,
+): T[] => {
+  if (!sort) return rows;
+  return [...rows].sort((a, b) => {
+    const result = compareSortValues(
+      getValue(a, sort.key),
+      getValue(b, sort.key),
+    );
+    return sort.dir === "asc" ? result : -result;
+  });
+};
+
+interface SortableThProps {
+  label: string;
+  sortKey: string;
+  sort: TableSort | null;
+  onSort: (key: string) => void;
+}
+
+/** Заголовок колонки: название и кнопка переключения направления. */
+function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
+  const direction = sort && sort.key === sortKey ? sort.dir : null;
+  return (
+    <th
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        className={styles.sortHeader}
+        onClick={() => onSort(sortKey)}
+        title={`Сортировать по «${label}»`}
+      >
+        <span>{label}</span>
+        <span
+          className={`${styles.sortIcon} ${
+            direction ? styles.sortIconActive : ""
+          }`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
 
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
@@ -234,8 +312,11 @@ export default function ContractRegistryPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] =
     useState<StatusFilter>("in_execution");
-  const [sortCriterion, setSortCriterion] = useState<SortCriterion>("year");
-  const [sortAsc, setSortAsc] = useState(false);
+  // Сортировка по общему заголовку таблицы: свежие контракты сверху
+  const [tableSort, setTableSort] = useState<TableSort | null>({
+    key: "date",
+    dir: "desc",
+  });
   // КБК: одно поле на поиск, выбор из списка и ручной ввод. Текст сразу
   // сужает список, Enter добавляет код — из пула или введённый вручную.
   const [selectedKbks, setSelectedKbks] = useState<string[]>([]);
@@ -398,31 +479,32 @@ export default function ContractRegistryPage() {
       matchesKbkFilter(kbkByContract.get(String(contract.id)), selectedKbks),
     );
 
-    // ─── Сортировка ─────────────────────────────────────────────────────────
-    const statusOrder: Record<string, number> = {
-      signed: 0,
-      in_execution: 1,
-      suspended: 2,
-      completed: 3,
-      terminated: 4,
-    };
-
-    return [...result].sort((a, b) => {
-      let cmp = 0;
-      if (sortCriterion === "year") {
-        const ya = (a.contractDate ?? "").slice(0, 4);
-        const yb = (b.contractDate ?? "").slice(0, 4);
-        cmp = ya.localeCompare(yb);
-      } else if (sortCriterion === "price") {
-        cmp =
-          (parseFloat(a.contractPrice) || 0) -
-          (parseFloat(b.contractPrice) || 0);
-      } else if (sortCriterion === "status") {
-        cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+    // ─── Сортировка по колонке общего заголовка ────────────────────────────
+    return sortTableRows(result, tableSort, (contract, key) => {
+      switch (key) {
+        case "number":
+          return contract.contractNumber ?? "";
+        case "name":
+          return contract.contractName ?? "";
+        case "supplier":
+          return contract.supplierName ?? "";
+        case "price":
+          return Number(contract.contractPrice) || 0;
+        case "nmck":
+          return Number(contract.initialMaxPrice) || 0;
+        case "advance":
+          return Number(contract.advanceAmount) || 0;
+        case "date":
+          return contract.contractDate ?? "";
+        case "execution":
+          return contract.executionEndDate ?? "";
+        case "status":
+          return STATUS_LABELS[contract.status] ?? "";
+        default:
+          return "";
       }
-      return sortAsc ? cmp : -cmp;
     });
-  }, [filteredContracts, kbkByContract, selectedKbks, sortCriterion, sortAsc]);
+  }, [filteredContracts, kbkByContract, selectedKbks, tableSort]);
 
   // ─── Пагинация ────────────────────────────────────────────────────────────
   const totalPages =
@@ -442,6 +524,9 @@ export default function ContractRegistryPage() {
     if (id === undefined) return;
     setExpandedId((prev) => (prev === id ? null : id));
   };
+
+  const handleTableSort = (key: string) =>
+    setTableSort((current) => toggleTableSort(current, key));
 
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
@@ -655,32 +740,6 @@ export default function ContractRegistryPage() {
               />
             </div>
           </div>
-
-          {/* Сортировка: критерий */}
-          <div className={styles.toolbarFiltersGroup}>
-            <label className={styles.toolbarLabel}>Сортировка</label>
-            <div className={styles.toolbarSortRow}>
-              <select
-                className={styles.toolbarSelect}
-                value={sortCriterion}
-                onChange={(e) =>
-                  setSortCriterion(e.target.value as SortCriterion)
-                }
-              >
-                <option value="year">Год заключения</option>
-                <option value="price">Цена контракта</option>
-                <option value="status">Статус</option>
-              </select>
-              <button
-                className={styles.toolbarSortToggle}
-                type="button"
-                onClick={() => setSortAsc((v) => !v)}
-                title={sortAsc ? "По возрастанию" : "По убыванию"}
-              >
-                {sortAsc ? "▲" : "▼"}
-              </button>
-            </div>
-          </div>
         </div>
 
         <PageSizePicker
@@ -699,21 +758,89 @@ export default function ContractRegistryPage() {
         </div>
       ) : (
         <>
-          <div className={styles.list}>
-            {pagedContracts.map((contract) => (
-              <ContractCard
-                key={contract.id}
-                contract={contract}
-                expanded={expandedId === contract.id}
-                onToggle={() => toggleExpand(contract.id)}
-                onDelete={() => {
-                  if (contract.id && confirm("Удалить контракт из реестра?")) {
-                    deleteContract(contract.id);
-                  }
-                }}
-                formatDate={formatDate}
-              />
-            ))}
+          <div className={styles.contractsTableWrap}>
+            <table className={`${styles.table} ${styles.contractsTable}`}>
+              <thead>
+                <tr>
+                  <SortableTh
+                    label="Номер"
+                    sortKey="number"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Наименование"
+                    sortKey="name"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Поставщик"
+                    sortKey="supplier"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Цена, ₽"
+                    sortKey="price"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="НМЦК, ₽"
+                    sortKey="nmck"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Аванс, ₽"
+                    sortKey="advance"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Заключён"
+                    sortKey="date"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Срок исполнения"
+                    sortKey="execution"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <SortableTh
+                    label="Статус"
+                    sortKey="status"
+                    sort={tableSort}
+                    onSort={handleTableSort}
+                  />
+                  <th className={styles.expandCell}>
+                    <span className="visually-hidden">Развернуть</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedContracts.map((contract) => (
+                  <ContractRow
+                    key={contract.id}
+                    contract={contract}
+                    expanded={expandedId === contract.id}
+                    onToggle={() => toggleExpand(contract.id)}
+                    onDelete={() => {
+                      if (
+                        contract.id &&
+                        confirm("Удалить контракт из реестра?")
+                      ) {
+                        deleteContract(contract.id);
+                      }
+                    }}
+                    formatDate={formatDate}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* ─── Пагинация ──────────────────────────────────────────────────── */}
@@ -753,9 +880,9 @@ export default function ContractRegistryPage() {
   );
 }
 
-// ─── Карточка контракта ─────────────────────────────────────────────────────
+// ─── Строка таблицы контрактов ──────────────────────────────────────────────
 
-interface ContractCardProps {
+interface ContractRowProps {
   contract: ContractRegistryItem;
   expanded: boolean;
   onToggle: () => void;
@@ -763,139 +890,149 @@ interface ContractCardProps {
   formatDate: (date?: string) => string;
 }
 
-function ContractCard({
+/**
+ * Строка таблицы контрактов: сводные данные — в колонках общего заголовка,
+ * подробности (ЕИС, платежи, этапы, неустойки, поставки, СМП) — в отдельной
+ * строке, которая раскрывается по клику на строку или на шеврон.
+ */
+function ContractRow({
   contract,
   expanded,
   onToggle,
   onDelete,
   formatDate,
-}: ContractCardProps) {
+}: ContractRowProps) {
   const overdue = isContractOverdue(contract);
 
   return (
-    <div className={`${styles.card} ${overdue ? styles.cardOverdue : ""}`}>
-      <div className={styles.cardHeader} onClick={onToggle}>
-        <div className={styles.cardHeaderLeft}>
-          <span className={styles.contractNumber}>
-            {contract.contractNumber}
-          </span>
+    <>
+      <tr
+        className={`${styles.contractRow} ${
+          overdue ? styles.contractRowOverdue : ""
+        } ${expanded ? styles.contractRowExpanded : ""}`}
+        onClick={onToggle}
+      >
+        <td className={styles.contractNumber}>{contract.contractNumber}</td>
+        <td className={styles.contractNameCell}>
           <span className={styles.contractName}>{contract.contractName}</span>
-        </div>
-        <div className={styles.cardHeaderRight}>
-          <span
-            className={`${styles.statusBadge} ${styles[`status_${contract.status}`]}`}
+        </td>
+        <td>{contract.supplierName}</td>
+        <td className={styles.moneyCell}>
+          {formatMoney(contract.contractPrice)}
+        </td>
+        <td className={styles.moneyCell}>
+          {formatMoney(contract.initialMaxPrice)}
+        </td>
+        <td className={styles.moneyCell}>
+          {formatMoney(contract.advanceAmount)}
+        </td>
+        <td className={styles.nowrapCell}>
+          {formatDate(contract.contractDate)}
+        </td>
+        <td className={styles.nowrapCell}>
+          {formatDate(contract.executionStartDate)} —{" "}
+          {formatDate(contract.executionEndDate)}
+        </td>
+        <td>
+          <span className={styles.statusCell}>
+            <span
+              className={`${styles.statusBadge} ${styles[`status_${contract.status}`]}`}
+            >
+              {STATUS_LABELS[contract.status]}
+            </span>
+            {overdue && <span className={styles.overdueBadge}>Просрочен</span>}
+          </span>
+        </td>
+        <td className={styles.expandCell}>
+          <button
+            type="button"
+            className={styles.chevronButton}
+            aria-expanded={expanded}
+            aria-label={expanded ? "Свернуть контракт" : "Развернуть контракт"}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggle();
+            }}
           >
-            {STATUS_LABELS[contract.status]}
-          </span>
-          {overdue && <span className={styles.overdueBadge}>Просрочен</span>}
-          <span className={styles.chevron}>{expanded ? "▲" : "▼"}</span>
-        </div>
-      </div>
-
-      <div className={styles.cardSummary}>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Поставщик</span>
-          <span className={styles.summaryValue}>{contract.supplierName}</span>
-        </div>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Цена контракта</span>
-          <span className={styles.summaryValue}>
-            {formatMoney(contract.contractPrice)} ₽
-          </span>
-        </div>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>НМЦК</span>
-          <span className={styles.summaryValue}>
-            {formatMoney(contract.initialMaxPrice)} ₽
-          </span>
-        </div>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Аванс</span>
-          <span className={styles.summaryValue}>
-            {formatMoney(contract.advanceAmount)} ₽
-          </span>
-        </div>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Заключён</span>
-          <span className={styles.summaryValue}>
-            {formatDate(contract.contractDate)}
-          </span>
-        </div>
-        <div className={styles.summaryItem}>
-          <span className={styles.summaryLabel}>Срок исполнения</span>
-          <span className={styles.summaryValue}>
-            {formatDate(contract.executionStartDate)} —{" "}
-            {formatDate(contract.executionEndDate)}
-          </span>
-        </div>
-      </div>
+            {expanded ? "▲" : "▼"}
+          </button>
+        </td>
+      </tr>
 
       {expanded && (
-        <div className={styles.cardBody}>
-          <ContractEisSection contract={contract} />
-          <PaymentSummary contract={contract} />
-          <ContractEventsSection contractId={contract.id ?? ""} />
-          <StagesSection contractId={contract.id} />
-          <PaymentsSection contractId={contract.id} />
-          <PenaltiesSection contractId={contract.id} />
-          <DeliveriesSection contractId={contract.id} />
-          {contract.subcontractingSmpNoteNumber && (
-            <SmpSection
-              contractId={contract.id ?? ""}
-              contractPrice={contract.contractPrice}
-              smpRequiredPercent={contract.smpRequiredPercent}
-              subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
-            />
-          )}
+        <tr className={styles.expandedRow}>
+          <td colSpan={10} className={styles.expandedCell}>
+            <div className={styles.cardBody}>
+              <ContractEisSection contract={contract} />
+              <PaymentSummary contract={contract} />
+              <ContractEventsSection contractId={contract.id ?? ""} />
+              <StagesSection contractId={contract.id} />
+              <PaymentsSection contractId={contract.id} />
+              <PenaltiesSection contractId={contract.id} />
+              <DeliveriesSection contractId={contract.id} />
+              {contract.subcontractingSmpNoteNumber && (
+                <SmpSection
+                  contractId={contract.id ?? ""}
+                  contractPrice={contract.contractPrice}
+                  smpRequiredPercent={contract.smpRequiredPercent}
+                  subcontractingSmpNoteNumber={
+                    contract.subcontractingSmpNoteNumber
+                  }
+                />
+              )}
 
-          <div className={styles.cardFooter}>
-            <div className={styles.meta}>
-              {contractIkzError(contract.ikz) && (
-                <span className={styles.cellDanger}>
-                  {contractIkzError(contract.ikz)}
-                </span>
-              )}
-              {contract.eisPublishDate && (
-                <span>
-                  Опубликован в ЕИС: {formatDate(contract.eisPublishDate)}
-                </span>
-              )}
-              {contract.treasuryPublishDate && (
-                <span>
-                  В Казначействе: {formatDate(contract.treasuryPublishDate)}
-                </span>
-              )}
-              {contract.signedByName && (
-                <span>Подписал: {contract.signedByName}</span>
-              )}
+              <div className={styles.cardFooter}>
+                <div className={styles.meta}>
+                  {contractIkzError(contract.ikz) && (
+                    <span className={styles.cellDanger}>
+                      {contractIkzError(contract.ikz)}
+                    </span>
+                  )}
+                  {contract.eisPublishDate && (
+                    <span>
+                      Опубликован в ЕИС: {formatDate(contract.eisPublishDate)}
+                    </span>
+                  )}
+                  {contract.treasuryPublishDate && (
+                    <span>
+                      В Казначействе: {formatDate(contract.treasuryPublishDate)}
+                    </span>
+                  )}
+                  {contract.signedByName && (
+                    <span>Подписал: {contract.signedByName}</span>
+                  )}
+                </div>
+                <div className={styles.footerActions}>
+                  {/* Изменение или расторжение по ст. 95: снимок контракта
+                      подставляется в форму из этой же карточки */}
+                  <Link
+                    className={styles.btnSecondary}
+                    to={`/contract-changes/new?contractId=${String(
+                      contract.id ?? "",
+                    )}`}
+                  >
+                    Изменение / расторжение
+                  </Link>
+                  {/* Электронное актирование по ст. 94: снимок контракта
+                      подставляется в форму приёмки из этой же карточки */}
+                  <Link
+                    className={styles.btnSecondary}
+                    to={`/acceptances/new?contractId=${String(
+                      contract.id ?? "",
+                    )}`}
+                  >
+                    Приёмка
+                  </Link>
+                  <button className={styles.btnDanger} onClick={onDelete}>
+                    Удалить
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className={styles.footerActions}>
-              {/* Изменение или расторжение по ст. 95: снимок контракта
-                  подставляется в форму из этой же карточки */}
-              <Link
-                className={styles.btnSecondary}
-                to={`/contract-changes/new?contractId=${String(
-                  contract.id ?? "",
-                )}`}
-              >
-                Изменение / расторжение
-              </Link>
-              {/* Электронное актирование по ст. 94: снимок контракта
-                  подставляется в форму приёмки из этой же карточки */}
-              <Link
-                className={styles.btnSecondary}
-                to={`/acceptances/new?contractId=${String(contract.id ?? "")}`}
-              >
-                Приёмка
-              </Link>
-              <button className={styles.btnDanger} onClick={onDelete}>
-                Удалить
-              </button>
-            </div>
-          </div>
-        </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
@@ -927,124 +1064,12 @@ function PaymentSummary({ contract }: { contract: ContractRegistryItem }) {
   );
 }
 
-// ─── Сортировка таблиц карточки контракта ──────────────────────────────────
-
-type SortDirection = "asc" | "desc";
-
-interface TableSort {
-  key: string;
-  dir: SortDirection;
-}
-
-/** Повторный клик по той же колонке меняет направление, новая — начинает с asc. */
-const toggleTableSort = (current: TableSort | null, key: string): TableSort =>
-  current?.key === key
-    ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
-    : { key, dir: "asc" };
-
-/** Числа сравниваем как числа, даты ISO и текст — через localeCompare. */
-const compareSortValues = (a: unknown, b: unknown): number => {
-  const numA = typeof a === "number" ? a : Number.NaN;
-  const numB = typeof b === "number" ? b : Number.NaN;
-  if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
-  const textA = a === null || a === undefined ? "" : String(a);
-  const textB = b === null || b === undefined ? "" : String(b);
-  return textA.localeCompare(textB, "ru", { numeric: true });
-};
-
-const sortTableRows = <T,>(
-  rows: T[],
-  sort: TableSort | null,
-  getValue: (row: T, key: string) => unknown,
-): T[] => {
-  if (!sort) return rows;
-  return [...rows].sort((a, b) => {
-    const result = compareSortValues(
-      getValue(a, sort.key),
-      getValue(b, sort.key),
-    );
-    return sort.dir === "asc" ? result : -result;
-  });
-};
-
-interface SortableThProps {
-  label: string;
-  sortKey: string;
-  sort: TableSort | null;
-  onSort: (key: string) => void;
-}
-
-/** Заголовок колонки: название и кнопка переключения направления. */
-function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
-  const direction = sort && sort.key === sortKey ? sort.dir : null;
-  return (
-    <th
-      aria-sort={
-        direction === "asc"
-          ? "ascending"
-          : direction === "desc"
-            ? "descending"
-            : "none"
-      }
-    >
-      <button
-        type="button"
-        className={styles.sortHeader}
-        onClick={() => onSort(sortKey)}
-        title={`Сортировать по «${label}»`}
-      >
-        <span>{label}</span>
-        <span
-          className={`${styles.sortIcon} ${
-            direction ? styles.sortIconActive : ""
-          }`}
-          aria-hidden="true"
-        >
-          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
-        </span>
-      </button>
-    </th>
-  );
-}
-
 // ─── Этапы ──────────────────────────────────────────────────────────────────
 
 function StagesSection({ contractId }: { contractId?: string | number }) {
   const { data: stages } = useContractStages(contractId);
-  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!stages || stages.length === 0) return null;
-
-  const handleSort = (key: string) =>
-    setSort((current) => toggleTableSort(current, key));
-
-  const rows = sortTableRows(stages, sort, (stage, key) => {
-    switch (key) {
-      case "number":
-        return Number(stage.stageNumber) || 0;
-      case "sid":
-        return stage.sid ?? "";
-      case "name":
-        return stage.name ?? "";
-      case "period":
-        return stage.startDate ?? "";
-      case "amount":
-        return Number(stage.amount) || 0;
-      case "years":
-        return (
-          (Number(stage.paymentsSumInfo?.currentYear) || 0) +
-          (Number(stage.paymentsSumInfo?.firstYear) || 0) +
-          (Number(stage.paymentsSumInfo?.secondYear) || 0) +
-          (Number(stage.paymentsSumInfo?.subsequentYears) || 0)
-        );
-      case "paid":
-        return Number(stage.paidAmount) || 0;
-      case "status":
-        return STAGE_LABELS[stage.status] ?? "";
-      default:
-        return "";
-    }
-  });
 
   return (
     <section className={styles.subSection}>
@@ -1052,58 +1077,18 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <SortableTh
-              label="№"
-              sortKey="number"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Идентификатор ЕИС (sid)"
-              sortKey="sid"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Наименование"
-              sortKey="name"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Период"
-              sortKey="period"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Сумма, ₽"
-              sortKey="amount"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="По годам (paymentsSumInfo)"
-              sortKey="years"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Оплачено, ₽"
-              sortKey="paid"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Статус"
-              sortKey="status"
-              sort={sort}
-              onSort={handleSort}
-            />
+            <th>№</th>
+            <th>Идентификатор ЕИС (sid)</th>
+            <th>Наименование</th>
+            <th>Период</th>
+            <th>Сумма, ₽</th>
+            <th>По годам (paymentsSumInfo)</th>
+            <th>Оплачено, ₽</th>
+            <th>Статус</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((s: ContractStage) => (
+          {stages.map((s: ContractStage) => (
             <tr key={s.id}>
               <td>{s.stageNumber}</td>
               <td>{s.sid || "—"}</td>
@@ -1142,39 +1127,8 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
 
 function PaymentsSection({ contractId }: { contractId?: string | number }) {
   const { data: payments } = useContractPayments(contractId);
-  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!payments || payments.length === 0) return null;
-
-  const handleSort = (key: string) =>
-    setSort((current) => toggleTableSort(current, key));
-
-  const rows = sortTableRows(payments, sort, (payment, key) => {
-    switch (key) {
-      case "document":
-        return payment.paymentDocumentNumber ?? "";
-      case "date":
-        return payment.paymentDate ?? "";
-      case "type":
-        return PAYMENT_LABELS[payment.paymentType] ?? "";
-      case "xsd":
-        return payment.paymentTypeCode || paymentXsdCodeFor(payment.paymentType);
-      case "amount":
-        return Number(payment.amount) || 0;
-      case "bank":
-        return payment.bankDocumentNumber ?? "";
-      case "registry":
-        return payment.regNumberExecution ?? "";
-      case "due":
-        return paymentDeadlineDate(payment) ?? "";
-      case "status":
-        return PAYMENT_STATUS_LABELS[payment.status] ?? "";
-      case "treasury":
-        return payment.treasuryExecution ? 1 : 0;
-      default:
-        return "";
-    }
-  });
 
   return (
     <section className={styles.subSection}>
@@ -1182,70 +1136,20 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <SortableTh
-              label="Документ"
-              sortKey="document"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Дата"
-              sortKey="date"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Тип"
-              sortKey="type"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Код XSD"
-              sortKey="xsd"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Сумма, ₽"
-              sortKey="amount"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Банковский документ"
-              sortKey="bank"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Реестровый номер исполнения"
-              sortKey="registry"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Срок оплаты"
-              sortKey="due"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Статус"
-              sortKey="status"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Казначейство"
-              sortKey="treasury"
-              sort={sort}
-              onSort={handleSort}
-            />
+            <th>Документ</th>
+            <th>Дата</th>
+            <th>Тип</th>
+            <th>Код XSD</th>
+            <th>Сумма, ₽</th>
+            <th>Банковский документ</th>
+            <th>Реестровый номер исполнения</th>
+            <th>Срок оплаты</th>
+            <th>Статус</th>
+            <th>Казначейство</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((p: ContractPayment) => (
+          {payments.map((p: ContractPayment) => (
             <tr key={p.id}>
               <td>{p.paymentDocumentNumber || "—"}</td>
               <td>{p.paymentDate || "—"}</td>
@@ -1275,33 +1179,10 @@ function PaymentsSection({ contractId }: { contractId?: string | number }) {
 
 function PenaltiesSection({ contractId }: { contractId?: string | number }) {
   const { data: penalties } = useContractPenalties(contractId);
-  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!penalties || penalties.length === 0) return null;
 
   const total = totalPenalties(penalties);
-
-  const handleSort = (key: string) =>
-    setSort((current) => toggleTableSort(current, key));
-
-  const rows = sortTableRows(penalties, sort, (penalty, key) => {
-    switch (key) {
-      case "detected":
-        return penalty.detectedDate ?? "";
-      case "type":
-        return PENALTY_LABELS[penalty.type] ?? "";
-      case "description":
-        return penalty.description ?? "";
-      case "amount":
-        return Number(penalty.amount) || 0;
-      case "status":
-        return PENALTY_STATUS_LABELS[penalty.status] ?? "";
-      case "reference":
-        return penalty.reference ?? "";
-      default:
-        return "";
-    }
-  });
 
   return (
     <section className={styles.subSection}>
@@ -1311,46 +1192,16 @@ function PenaltiesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <SortableTh
-              label="Выявлено"
-              sortKey="detected"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Тип"
-              sortKey="type"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Нарушение"
-              sortKey="description"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Сумма, ₽"
-              sortKey="amount"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Статус"
-              sortKey="status"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Основание"
-              sortKey="reference"
-              sort={sort}
-              onSort={handleSort}
-            />
+            <th>Выявлено</th>
+            <th>Тип</th>
+            <th>Нарушение</th>
+            <th>Сумма, ₽</th>
+            <th>Статус</th>
+            <th>Основание</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((p: ContractPenalty) => (
+          {penalties.map((p: ContractPenalty) => (
             <tr key={p.id}>
               <td>{p.detectedDate}</td>
               <td>{PENALTY_LABELS[p.type]}</td>
@@ -1370,31 +1221,8 @@ function PenaltiesSection({ contractId }: { contractId?: string | number }) {
 
 function DeliveriesSection({ contractId }: { contractId?: string | number }) {
   const { data: deliveries } = useContractDeliveries(contractId);
-  const [sort, setSort] = useState<TableSort | null>(null);
 
   if (!deliveries || deliveries.length === 0) return null;
-
-  const handleSort = (key: string) =>
-    setSort((current) => toggleTableSort(current, key));
-
-  const rows = sortTableRows(deliveries, sort, (delivery, key) => {
-    switch (key) {
-      case "date":
-        return delivery.deliveryDate ?? "";
-      case "name":
-        return delivery.itemName ?? "";
-      case "quantity":
-        return Number(delivery.quantity) || 0;
-      case "amount":
-        return Number(delivery.amount) || 0;
-      case "act":
-        return delivery.acceptanceActNumber ?? "";
-      case "result":
-        return DELIVERY_LABELS[delivery.result] ?? "";
-      default:
-        return "";
-    }
-  });
 
   return (
     <section className={styles.subSection}>
@@ -1402,46 +1230,16 @@ function DeliveriesSection({ contractId }: { contractId?: string | number }) {
       <table className={styles.table}>
         <thead>
           <tr>
-            <SortableTh
-              label="Дата"
-              sortKey="date"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Наименование"
-              sortKey="name"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Кол-во"
-              sortKey="quantity"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Сумма, ₽"
-              sortKey="amount"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Акт"
-              sortKey="act"
-              sort={sort}
-              onSort={handleSort}
-            />
-            <SortableTh
-              label="Результат"
-              sortKey="result"
-              sort={sort}
-              onSort={handleSort}
-            />
+            <th>Дата</th>
+            <th>Наименование</th>
+            <th>Кол-во</th>
+            <th>Сумма, ₽</th>
+            <th>Акт</th>
+            <th>Результат</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((d: ContractDelivery) => (
+          {deliveries.map((d: ContractDelivery) => (
             <tr key={d.id}>
               <td>{d.deliveryDate}</td>
               <td>{d.itemName}</td>
