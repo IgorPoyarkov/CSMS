@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальный проект дополнительного соглашения к другому контракту (ЕИС, печатная форма):
+     отличия от cp-contract-project-lkp-real.xml — ИКЗ, исполнитель и поля numberAdd/docNumberAdd. -->
+<ns8:cpContractProjectLKP schemeVersion="16.3" xmlns="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns6="http://zakupki.gov.ru/oos/types/1" xmlns:ns5="http://zakupki.gov.ru/oos/KOTypes/1" xmlns:ns8="http://zakupki.gov.ru/oos/printform/1" xmlns:ns7="http://zakupki.gov.ru/oos/TPtypes/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns4="http://zakupki.gov.ru/oos/EPtypes/1" xmlns:ns3="http://zakupki.gov.ru/oos/base/1">
+    <id>62750317</id>
+    <versionNumber>1</versionNumber>
+    <commonProjectInfo>
+        <additionalAgreement>
+            <commonInfo>
+                <number>01442000018260001750001</number>
+                <docNumber>0144200001826000175000102</docNumber>
+                <purchaseCode>262462904043946320100101030014211244</purchaseCode>
+                <numberAdd>014420000182600017500010001</numberAdd>
+                <docNumberAdd>01442000018260001750001000105</docNumberAdd>
+                <dateCreate>2026-11-21T03:42:24+03:00</dateCreate>
+                <differenceTime>180</differenceTime>
+                <nameZone>MSK (UTC+3) Москва</nameZone>
+            </commonInfo>
+            <participantInfo>
+                <ns2:legalEntityRFInfo>
+                    <ns2:fullName>АКЦИОНЕРНОЕ ОБЩЕСТВО "ФАТЕЖСКОЕ ДОРОЖНОЕ РЕМОНТНО-СТРОИТЕЛЬНОЕ УПРАВЛЕНИЕ"</ns2:fullName>
+                    <ns2:INN>4611014131</ns2:INN>
+                    <ns2:KPP>461101001</ns2:KPP>
+                    <ns2:address>307100, КУРСКАЯ ОБЛАСТЬ, Г. ФАТЕЖ, УЛ. ЗАГОРОДНЯЯ, ДВЛД. 119</ns2:address>
+                </ns2:legalEntityRFInfo>
+                <ns2:contractorRegistryNum>19010413</ns2:contractorRegistryNum>
+            </participantInfo>
+            <additionalAgreementInfo>
+                <changeInfo>
+                    <changeReasonInfo>
+                        <reasons>
+                            <reason>
+                                <ns3:code>900</ns3:code>
+                                <ns3:name>Иные случаи внесения изменений в условия контракта</ns3:name>
+                            </reason>
+                        </reasons>
+                    </changeReasonInfo>
+                    <isStructuredForm>true</isStructuredForm>
+                </changeInfo>
+            </additionalAgreementInfo>
+        </additionalAgreement>
+    </commonProjectInfo>
+    <customerInfo>
+        <ns2:regNum>01442000018</ns2:regNum>
+        <ns2:consRegistryNum>382Р1122</ns2:consRegistryNum>
+        <ns2:fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</ns2:fullName>
+        <ns2:factAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</ns2:factAddress>
+        <ns2:INN>4629040439</ns2:INN>
+        <ns2:KPP>463201001</ns2:KPP>
+    </customerInfo>
+    <placerInfo>
+        <ns2:responsibleOrg>
+            <ns3:regNum>01442000018</ns3:regNum>
+            <ns3:consRegistryNum>382Р1122</ns3:consRegistryNum>
+            <ns3:fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</ns3:fullName>
+        </ns2:responsibleOrg>
+        <ns2:responsibleRole>CU</ns2:responsibleRole>
+    </placerInfo>
+    <electronicContractInfo>
+        <ns2:contractInfo>
+            <ns2:currency>
+                <ns3:code>RUB</ns3:code>
+                <ns3:name>Российский рубль</ns3:name>
+            </ns2:currency>
+        </ns2:contractInfo>
+    </electronicContractInfo>
+    <deltaInfo/>
+</ns8:cpContractProjectLKP>

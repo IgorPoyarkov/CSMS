@@ -99,6 +99,27 @@ public sealed class EisDocumentParserRealXmlTests
     }
 
     [Fact]
+    public void ParsesAnotherContractProjectWithDifferentSupplier()
+    {
+        var document = Load("cp-contract-project-lkp-fatezh-real.xml");
+
+        var result = _parser.Parse(document, "cpContractProjectLKP-fatezh.xml");
+
+        // Второй проект доп. соглашения того же заказчика: другой ИКЗ и подрядчик.
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal("262462904043946320100101030014211244", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("4611014131", result.SupplierInn);
+        Assert.Equal("461101001", result.SupplierKpp);
+        Assert.Contains("ФАТЕЖСКОЕ ДОРОЖНОЕ РЕМОНТНО-СТРОИТЕЛЬНОЕ УПРАВЛЕНИЕ", result.SupplierName, StringComparison.Ordinal);
+        Assert.StartsWith("2026-11-21", result.PublishDate, StringComparison.Ordinal);
+        Assert.Empty(result.Items);
+        // Поля numberAdd/docNumberAdd пока не маппятся, но сырой XML сохраняется целиком.
+        Assert.Contains("numberAdd", result.RawXml, StringComparison.Ordinal);
+        Assert.Contains("docNumberAdd", result.RawXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void KeepsRoskaznaBudgetObligationNoticeForLaterParsing()
     {
         var document = Load("exp-notice-bo-real.xml");
