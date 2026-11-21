@@ -312,4 +312,75 @@
     font-size: 13px;
     color: var(--text-secondary);
   }
+
+  @media (max-width: 600px) {
+    gap: 14px;
+    padding: 16px 14px;
+
+    &__title {
+      font-size: 19px;
+    }
+
+    &__summary,
+    &__note {
+      font-size: 13px;
+    }
+
+    &__toolbar {
+      gap: 12px;
+    }
+
+    // Заголовок и select в одну строку не влезают: длинные названия видов актов
+    // («Федеральный закон от ...») задавали минимальную ширину панели фильтров
+    &__control {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    &__control-caption {
+      white-space: normal;
+    }
+
+    &__search,
+    &__select {
+      width: 100%;
+      min-width: 0;
+    }
+
+    &__table-wrapper {
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    &__table {
+      font-size: 13px;
+
+      th,
+      td {
+        padding: 8px 10px;
+      }
+    }
+
+    &__cell {
+      min-width: 0;
+      max-width: none;
+    }
+
+    &__code,
+    &__npa-time {
+      white-space: normal;
+    }
+
+    &__pager {
+      gap: 8px;
+    }
+
+    &__pager-button {
+      flex: 1 1 auto;
+      min-height: 44px;
+    }
+  }
 }

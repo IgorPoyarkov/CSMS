@@ -54,6 +54,8 @@ eis-parser/src/Eis44Parser.Core/Models/Generated/
 # Локальные скриншоты и временные файлы
 screenshots/
 test.txt
+# Отчёт и скриншоты scripts/mobile-audit.mjs — генерируются при каждом прогоне
+.mobile-audit/
 
 # Архивы со схемами/альбомами ЕИС — скачиваются локально, не в git
 *.zip

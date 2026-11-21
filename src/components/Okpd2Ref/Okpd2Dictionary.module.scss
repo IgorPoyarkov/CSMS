@@ -205,4 +205,40 @@
     border: 1px solid var(--border);
     border-radius: 10px;
   }
+
+  // ─── Мобильные экраны ─────────────────────────────────────────────────────
+  // Подпись проверки кода не переносилась (nowrap) и растягивала страницу до
+  // 510px при экране 320px
+  @media (max-width: 600px) {
+    gap: 16px;
+    padding: 16px 14px;
+
+    &__title {
+      font-size: 19px;
+    }
+
+    &__toolbar {
+      gap: 12px;
+    }
+
+    &__control {
+      align-items: flex-start;
+      min-width: 0;
+    }
+
+    &__control-caption {
+      white-space: normal;
+    }
+
+    &__search {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    &__table-wrapper {
+      // Таблица шире экрана — это нормально, но скролл не должен «протекать»
+      // на страницу при свайпе до края
+      overscroll-behavior-x: contain;
+    }
+  }
 }

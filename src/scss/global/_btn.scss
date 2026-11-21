@@ -62,3 +62,17 @@
     transition: transform $transition-300;
   }
 }
+
+// На узких экранах подпись кнопки не должна вылезать за вьюпорт:
+// width: max-content с длинным текстом шире 320px
+@media (max-width: 480px) {
+  .btn {
+    // max-content с длинной подписью шире 320px и задавал минимальную ширину
+    // всей странице, поэтому на узких экранах кнопка сжимается по словам
+    width: auto;
+    max-width: 100%;
+    padding: 15px 20px;
+    white-space: normal;
+    text-align: center;
+  }
+}

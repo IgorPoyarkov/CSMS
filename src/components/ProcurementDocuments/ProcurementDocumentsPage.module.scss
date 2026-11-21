@@ -450,3 +450,41 @@
   color: var(--text-primary);
   font-size: 12.5px;
 }
+
+// ─── Мобильные экраны ─────────────────────────────────────────────────────────
+// minmax(260px, 1fr) при ширине 320px давал одну колонку, но её минимальный
+// размер считался по содержимому (длинные option у select) и выталкивал
+// страницу на 35px за вьюпорт
+@media (max-width: 600px) {
+  .page {
+    padding: 16px 12px;
+  }
+
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card {
+    padding: 16px 14px;
+  }
+
+  .title {
+    font-size: 19px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .paper {
+    padding: 16px 14px;
+  }
+
+  // Длинные ИКЗ и номера в преамбуле не переносились и задавали минимальную
+  // ширину листу предпросмотра
+  .paper-p,
+  .highlighted-box {
+    overflow-wrap: anywhere;
+  }
+}

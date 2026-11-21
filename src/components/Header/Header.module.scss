@@ -6,6 +6,16 @@
   background-color: var(--surface-panel);
   border-bottom: 1px solid var(--border);
   padding: 20px;
+  // Шапка не должна упираться в скругления и вырез экрана в альбомной
+  // ориентации: отступ растёт до безопасной зоны, если она шире
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+
+  // Верхняя панель мобильной шапки (бургер, название, тема). На десктопе она
+  // не нужна — там все пункты видны списком
+  &__bar {
+    display: none;
+  }
 
   &-navigation {
     display: flex;
@@ -91,6 +101,12 @@
     &__link--button {
       font-family: inherit;
       cursor: pointer;
+    }
+
+    // Стрелка-кнопка для раскрытия подменю на тач-экранах: там нет наведения,
+    // а тап по самому пункту уводит на страницу реестра
+    &__submenu-toggle {
+      display: none;
     }
 
     // Выпадающий список «Реестр контрактов»: конкурентные способы и ЕП
@@ -325,6 +341,226 @@
       height: 100%;
       object-fit: cover;
       border: 1px solid var(--border-strong);
+    }
+  }
+
+  // ─── Мобильная шапка ──────────────────────────────────────────────────────
+  // Ниже 900px шестнадцать пунктов меню в строку не встают: на 375px они
+  // растягивались на тринадцать строк и вытесняли содержимое страницы за
+  // пределы первого экрана. Оставляем компактную панель с бургером, а пункты
+  // открываем выпадающей панелью — те же ссылки, только в столбик.
+  @media (max-width: 900px) {
+    position: relative;
+    z-index: 90;
+    padding: 8px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+
+    &__bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    &__burger {
+      display: inline-flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      justify-content: center;
+      gap: 4px;
+      width: 44px;
+      height: 44px;
+      padding: 0 10px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      cursor: pointer;
+
+      span {
+        display: block;
+        height: 2px;
+        border-radius: 1px;
+        background: var(--text-primary);
+        transition:
+          transform $transition-300,
+          opacity $transition-300;
+      }
+
+      // Открытая панель: бургер превращается в крестик
+      &--open {
+        span:nth-child(1) {
+          transform: translateY(6px) rotate(45deg);
+        }
+
+        span:nth-child(2) {
+          opacity: 0;
+        }
+
+        span:nth-child(3) {
+          transform: translateY(-6px) rotate(-45deg);
+        }
+      }
+    }
+
+    &__brand {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      min-width: 0;
+      // Ссылка-логотип должна попадаться пальцем не хуже кнопок в панели
+      min-height: 44px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.02em;
+    }
+
+    &__theme-toggle {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    &-navigation {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 5;
+      // Панель не выше экрана, остальное — внутренняя прокрутка
+      max-height: calc(100dvh - 64px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 12px 16px max(28px, env(safe-area-inset-bottom));
+      background: var(--surface-panel);
+      border-bottom: 1px solid var(--border-strong);
+      box-shadow: 0 16px 32px var(--shadow);
+
+      &--open {
+        display: block;
+      }
+
+      &__list {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      &__item {
+        width: 100%;
+      }
+
+      &__link {
+        width: 100%;
+        justify-content: flex-start;
+        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 15px;
+        white-space: normal;
+      }
+
+      // Тема уже есть в верхней панели — в списке она дублировалась бы
+      &__theme-toggle {
+        display: none;
+      }
+
+      &__submenu-wrap {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      &__submenu-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        margin-left: auto;
+        padding: 0;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      // Выпадающий список внутри панели становится обычным вложенным списком:
+      // absolute-позиционирование в скроллящейся панели уводит пункты за край
+      &__submenu {
+        position: static;
+        width: 100%;
+        min-width: 0;
+        margin: 0 0 6px;
+        padding: 2px 0 2px 12px;
+        border: none;
+        border-left: 2px solid var(--accent-soft);
+        border-radius: 0;
+        box-shadow: none;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &__submenu-link {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 8px 12px;
+      }
+
+      &__profile-wrap {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      &__profile {
+        width: 100%;
+        justify-content: flex-start;
+        min-height: 44px;
+      }
+
+      &__profile-arrow {
+        margin-left: auto;
+      }
+
+      // Меню профиля тоже раскрывается в потоке, под кнопкой
+      &__profile-menu {
+        display: none;
+        position: static;
+        width: 100%;
+        min-width: 0;
+        margin: 6px 0 0;
+        padding: 4px 0;
+        border: none;
+        box-shadow: none;
+        transform: none;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &__profile-wrap--open > &__profile-menu {
+        display: block;
+      }
+
+      &__profile-menu-link {
+        min-height: 44px;
+        padding: 12px 14px;
+        text-align: left;
+      }
     }
   }
 }

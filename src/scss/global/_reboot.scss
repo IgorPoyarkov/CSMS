@@ -7,14 +7,28 @@
 html {
   scroll-behavior: smooth;
   min-height: 100vh;
+  min-height: 100dvh;
+  // iOS в альбомной ориентации сам увеличивает шрифт: типографика начинает
+  // расходиться с макетом на глаз, поэтому автоподгонку выключаем
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+// Плавная прокрутка — движение, от которого можно отказаться
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  padding: 0;
+  // Вырез и скругления экрана: контент не должен заезжать под них
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   font-size: 16px;
   line-height: 24px;
   font-family: $ff-main;

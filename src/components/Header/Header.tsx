@@ -43,6 +43,11 @@ const shortName = (human: BaseHuman): string => {
   return `${surname} ${initials}`.trim() || "Профиль";
 };
 
+// На тач-экранах браузер синтезирует mouseenter/mouseleave после касания:
+// без этой проверки меню профиля и подменю открывались и тут же закрывались
+const canHover = () =>
+  typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches;
+
 const Header = ({}: HeaderProps) => {
   const { data: user, isLoading } = useFetchCurrentUser();
   // Учётная запись и запись штатного расписания связаны полем userId, поэтому
@@ -80,12 +85,44 @@ const Header = ({}: HeaderProps) => {
   // Справка по агентам: та же логика — не уводим пользователя с его страницы
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
+  // Мобильная шапка: список пунктов занимал почти весь первый экран, поэтому
+  // ниже 900px он прячется за бургер (Header.module.scss)
+  const [isNavOpen, setIsNavOpen] = useState(false);
+
+  // Перешли на другой раздел — панель надо закрыть, иначе она висит поверх
+  // новой страницы
+  useEffect(() => {
+    setIsNavOpen(false);
+  }, [location.pathname, location.search]);
+
+  // Открытая панель на мобильном — это модальное состояние: страница под ней
+  // не прокручивается, Escape закрывает
+  useEffect(() => {
+    if (!isNavOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsNavOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isNavOpen]);
+
   const openProfile = () => {
     if (isHoverDisabled) return;
+    if (!canHover()) return;
     setIsProfileOpen(true);
   };
 
   const closeProfileOnLeave = () => {
+    if (!canHover()) return;
     setIsProfileOpen(false);
     setIsHoverDisabled(false);
   };
@@ -153,7 +190,40 @@ const Header = ({}: HeaderProps) => {
 
   return (
     <header className={header()}>
-      <nav className={nav()}>
+      {/* Верхняя панель мобильной шапки: скрыта на десктопе стилями */}
+      <div className={header("bar")}>
+        <button
+          type="button"
+          className={header("burger", isNavOpen ? ["open"] : [])}
+          aria-label={isNavOpen ? "Закрыть меню разделов" : "Открыть меню разделов"}
+          aria-expanded={isNavOpen}
+          aria-controls="header-navigation"
+          onClick={() => setIsNavOpen((open) => !open)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+
+        <NavLink className={header("brand")} to={"/"} onClick={() => setIsNavOpen(false)}>
+          ЦСМС
+        </NavLink>
+
+        <button
+          type="button"
+          className={header("theme-toggle")}
+          onClick={toggleTheme}
+          title={toggleLabel}
+          aria-label={toggleLabel}
+        >
+          {THEME_ICONS[theme]}
+        </button>
+      </div>
+
+      <nav
+        id="header-navigation"
+        className={nav("", isNavOpen ? ["open"] : [])}
+      >
         <ul className={nav("list")}>
           {/* В шапке — только сквозной контур закупки: главная, план-график,
               потребность, извещения, контракты и реестр контрактов. */}
@@ -206,8 +276,8 @@ const Header = ({}: HeaderProps) => {
             <div
               ref={registryRef}
               className={nav("submenu-wrap", isRegistryOpen ? ["open"] : [])}
-              onMouseEnter={() => setIsRegistryOpen(true)}
-              onMouseLeave={() => setIsRegistryOpen(false)}
+              onMouseEnter={() => canHover() && setIsRegistryOpen(true)}
+              onMouseLeave={() => canHover() && setIsRegistryOpen(false)}
             >
               <NavLink
                 className={nav("link", [
@@ -222,6 +292,17 @@ const Header = ({}: HeaderProps) => {
                 <span className={nav("link-name")}>Реестр контрактов</span>
                 <span className={nav("submenu-arrow")}>▼</span>
               </NavLink>
+              {/* На тач-экранах подменю раскрывает отдельная кнопка: тап по
+                  самому пункту уводит на страницу реестра */}
+              <button
+                type="button"
+                className={nav("submenu-toggle")}
+                aria-label="Показать виды реестра контрактов"
+                aria-expanded={isRegistryOpen}
+                onClick={() => setIsRegistryOpen((open) => !open)}
+              >
+                ▼
+              </button>
               {isRegistryOpen && (
                 <ul className={nav("submenu")}>
                   <li>

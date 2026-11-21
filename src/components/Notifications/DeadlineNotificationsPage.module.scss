@@ -270,3 +270,15 @@
   color: var(--text-secondary);
   font-size: 14px;
 }
+
+@media (max-width: 900px) {
+  // Переключатель «показывать закрытые» — чекбокс с подписью: высоту задаём
+  // label, чтобы по нему можно было попасть пальцем
+  .toggle-label {
+    min-height: 44px;
+  }
+
+  .ack-btn {
+    min-height: 44px;
+  }
+}

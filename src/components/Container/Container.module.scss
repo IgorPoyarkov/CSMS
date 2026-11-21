@@ -5,9 +5,27 @@
   max-width: 1172px;
   margin: 0 auto;
   padding: 0 0 120px;
+  // dvh, а не vh: на мобильных адресная строка съедает высоту и 100vh
+  // оказывается выше видимой области
   min-height: 100vh;
+  min-height: 100dvh;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   position: relative;
+
+  // Страницы внутри — flex-элементы, у которых часто стоит margin: 0 auto.
+  // Auto-margin по поперечной оси отключает stretch, поэтому ширина считается
+  // по содержимому: длинные option у select или широкие таблицы выносили
+  // страницу за вьюпорт. width: 100% делает ширину определённой и возвращает
+  // политику «ширина = контейнер», а min-width: 0 разрешает сжатие.
+  > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  @media (max-width: 600px) {
+    // Нижний отступ нужен только чтобы контент не упирался в край экрана
+    padding-bottom: max(64px, env(safe-area-inset-bottom));
+  }
 }
