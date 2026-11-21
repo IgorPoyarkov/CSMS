@@ -1306,25 +1306,6 @@ export default function PurchasePlanSpecialPurchases({
                                         />
                                       </div>
                                     )}
-                                    <label className={block("check")}>
-                                      <input
-                                        type="checkbox"
-                                        checked={Boolean(
-                                          item.hasKoks ||
-                                            item.koksEntries?.length ||
-                                            item.koksCode,
-                                        )}
-                                        onChange={(event) =>
-                                          updateField(
-                                            index,
-                                            "hasKoks",
-                                            event.target.checked,
-                                          )
-                                        }
-                                      />
-                                      Код объекта капитального строительства /
-                                      недвижимого имущества
-                                    </label>
                                   </div>
 
                                   <div className={block("detail-title")}>
@@ -1468,21 +1449,44 @@ export default function PurchasePlanSpecialPurchases({
                                     </tfoot>
                                   </table>
 
-                                  <label className={block("check")}>
-                                    <input
-                                      type="checkbox"
-                                      checked={Boolean(item.isNotFederalFinancing)}
-                                      onChange={(event) =>
-                                        updateField(
-                                          index,
-                                          "isNotFederalFinancing",
-                                          event.target.checked,
-                                        )
-                                      }
-                                    />
-                                    ОКС / недвижимость без софинансирования из
-                                    федерального бюджета
-                                  </label>
+                                  {/* Признак КОКС переносим сразу после КБК —
+                                      рядом с остальными флагами по ОКС/НИ */}
+                                  <div className={block("option-fields")}>
+                                    <label className={block("check")}>
+                                      <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                          item.hasKoks ||
+                                            item.koksEntries?.length ||
+                                            item.koksCode,
+                                        )}
+                                        onChange={(event) =>
+                                          updateField(
+                                            index,
+                                            "hasKoks",
+                                            event.target.checked,
+                                          )
+                                        }
+                                      />
+                                      Код объекта капитального строительства /
+                                      недвижимого имущества
+                                    </label>
+                                    <label className={block("check")}>
+                                      <input
+                                        type="checkbox"
+                                        checked={Boolean(item.isNotFederalFinancing)}
+                                        onChange={(event) =>
+                                          updateField(
+                                            index,
+                                            "isNotFederalFinancing",
+                                            event.target.checked,
+                                          )
+                                        }
+                                      />
+                                      ОКС / недвижимость без софинансирования из
+                                      федерального бюджета
+                                    </label>
+                                  </div>
 
                                   {item.hasKoks && (
                                     <div className={block("koks-detail")}>
