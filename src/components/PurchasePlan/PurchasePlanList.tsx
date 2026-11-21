@@ -8,10 +8,11 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
+import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { useFetchCurrentUser } from "../../services/Users/user.api";
 import { type PurchasePlan } from "../../services/PurchasePlan/purchasePlan.schema";
 import {
-  formatMoney,
+  formatMoneyValue,
   planTotalAmount,
   purchasePlanStatusLabel,
 } from "./purchasePlan.config";
@@ -22,6 +23,9 @@ import styles from "./PurchasePlanList.module.scss";
 // Пагинация: по умолчанию 10, далее 25, 50 и все записи сразу
 const PAGE_SIZES = [10, 25, 50, "all"] as const;
 type PageSize = (typeof PAGE_SIZES)[number];
+
+// Строка реквизитов заказчика в шапке реестра (выводятся только заполненные)
+type CustomerDetail = { label: string; value?: string; wide?: boolean };
 
 export default function PurchasePlanList() {
   const { data: user } = useFetchCurrentUser();
@@ -128,22 +132,62 @@ export default function PurchasePlanList() {
   const hasNoOrganization =
     !isOrganizationLoading && !isOrganizationError && !organization;
 
+  // Реквизиты заказчика в шапке: пустые поля не выводим, а полное
+  // наименование уже показано строкой выше
+  const customerDetails = useMemo<CustomerDetail[]>(() => {
+    if (!organization) return [];
+
+    const items: CustomerDetail[] = [
+      { label: "ИНН", value: organization.inn },
+      { label: "КПП", value: organization.kpp },
+      { label: "ОГРН", value: organization.ogrn },
+      { label: "ОКТМО", value: organization.oktmo },
+      {
+        label: "Уровень бюджета",
+        value: organization.budgetLevel
+          ? ORGANIZATION_BUDGET_LEVEL_LABELS[organization.budgetLevel]
+          : "",
+      },
+      { label: "Реестровый номер в ЕИС", value: organization.registryNumber },
+      {
+        label: "Юридический адрес",
+        value: organization.legalAddress,
+        wide: true,
+      },
+      { label: "Электронная почта", value: organization.email },
+      { label: "Телефон", value: organization.phone },
+    ];
+
+    return items.filter((item) => (item.value ?? "").trim() !== "");
+  }, [organization]);
+
   return (
     <section className={block()}>
-      <nav className={block("breadcrumbs")} aria-label="Навигация">
-        <span className={block("crumb-current")}>
-          Реестр планов-графиков закупок (44-ФЗ)
-        </span>
-      </nav>
-
       <header className={block("header")}>
         <div className={block("header-info")}>
           <h1 className={block("title")}>Планы-графики закупок (44-ФЗ)</h1>
           <p className={block("current-organization")}>
             {organization
-              ? `${organization.shortName || organization.fullName} (ИНН ${organization.inn}${organization.kpp ? `, КПП ${organization.kpp}` : ""})`
+              ? organization.fullName
               : "Организация-заказчик не определена"}
           </p>
+          {organization && customerDetails.length > 0 && (
+            <dl className={block("customer-details")}>
+              {customerDetails.map((item) => (
+                <div
+                  key={item.label}
+                  className={
+                    item.wide
+                      ? block("customer-detail", ["wide"])
+                      : block("customer-detail")
+                  }
+                >
+                  <dt className={block("customer-label")}>{item.label}</dt>
+                  <dd className={block("customer-value")}>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
         <div className={block("header-actions")}>
           <button
@@ -268,10 +312,10 @@ export default function PurchasePlanList() {
                 <tr>
                   <th>Номер плана-графика</th>
                   <th>Период</th>
-                  <th>Статус</th>
                   <th>Записей ПГ</th>
-                  <th>Совокупный объём</th>
+                  <th>Совокупный объём, ₽</th>
                   <th>Утверждён</th>
+                  <th>Статус</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -288,17 +332,17 @@ export default function PurchasePlanList() {
                       </button>
                     </td>
                     <td className={block("num")}>{plan.planYear}</td>
+                    <td className={block("num")}>{plan.positions.length}</td>
+                    <td className={block("num")}>
+                      {formatMoneyValue(planTotalAmount(plan))}
+                    </td>
+                    <td className={block("num")}>
+                      {formatDate(plan.approvalDate) || "—"}
+                    </td>
                     <td>
                       <span className={block("status-tag", [plan.status])}>
                         {purchasePlanStatusLabel(plan.status)}
                       </span>
-                    </td>
-                    <td className={block("num")}>{plan.positions.length}</td>
-                    <td className={block("num")}>
-                      {formatMoney(planTotalAmount(plan))}
-                    </td>
-                    <td className={block("num")}>
-                      {formatDate(plan.approvalDate)}
                     </td>
                     <td>
                       <details

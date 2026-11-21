@@ -7,19 +7,6 @@
   gap: 16px;
   width: 100%;
 
-  &__breadcrumbs {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  &__crumb-current {
-    color: var(--text-primary);
-    font-weight: 500;
-  }
-
   &__header {
     display: flex;
     flex-wrap: wrap;
@@ -50,6 +37,39 @@
     margin: 0;
     font-size: 13px;
     color: var(--text-secondary);
+  }
+
+  // Реквизиты заказчика: сетка «подпись — значение», адрес занимает всю строку
+  &__customer-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px 24px;
+    max-width: 860px;
+    margin: 10px 0 0;
+  }
+
+  &__customer-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    &--wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__customer-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &__customer-value {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
   }
 
   &__header-actions {
@@ -206,7 +226,7 @@
     th,
     td {
       padding: 9px 10px;
-      text-align: left;
+      text-align: center;
       vertical-align: middle;
       border: 1px solid var(--border);
     }
@@ -246,10 +266,11 @@
     white-space: nowrap;
   }
 
+  // Статус — плашка без обводки: цвет фона и текста различает состояния
   &__status-tag {
     display: inline-block;
     padding: 2px 8px;
-    border: 1px solid var(--border);
+    border: none;
     border-radius: 3px;
     font-size: 11px;
     font-weight: 600;
@@ -259,18 +280,15 @@
 
     &--published {
       background: var(--state-success-soft);
-      border-color: var(--state-success);
     }
 
     &--changed {
       background: var(--accent-soft);
-      border-color: var(--accent);
       color: var(--accent-emphasis);
     }
 
     &--removed {
       background: var(--state-danger-soft);
-      border-color: var(--state-danger);
       color: var(--state-danger);
     }
   }
