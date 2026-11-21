@@ -3422,3 +3422,18 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `KoksPickerModal`, `updateKoksCode`, `updateKoksAmount`, `addKoks`,
   `removeKoks`, `pickKoks`) — к этой правке отношения не имеет.
 
+## 94. Таблица позиций ПГ: год размещения и номер закупки по центру (2026-11-21)
+
+- В `MIDDLE_COLUMNS` (`PurchasePlanCard.tsx`) добавлены `plannedPlacementYear`
+  и `purchaseNumber`: по горизонтали эти графы уже центрировались
+  (`cell--center`), теперь получают и `cell--middle` — вертикальный центр.
+- CDP-замер (1440×900, план `eisp-202601442000018001`): обе ячейки
+  `text-align: center` + `vertical-align: middle`, ширины граф не изменились
+  (112 и 94px), таблица 1126 = контейнер 1126, скролла нет.
+- Проверки: `tsc -b` — 0 ошибок, `oxlint` по файлу 0/0, `vite build` зелёный.
+- Наблюдение для следующей сессии: пока владелец WIP-файлов
+  `PurchasePlanSpecialPurchases.*` их не дописал, SCSS-модуль этого компонента
+  ломал Sass (`Expected identifier` → 500 → белая страница), а `tsc -b` падал
+  на 8 неиспользуемых объявлениях в `.tsx`. После дописывания проверки снова
+  чистые, ничего чинить не потребовалось.
+

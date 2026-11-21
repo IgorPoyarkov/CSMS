@@ -74,9 +74,11 @@ const NARROW_COLUMNS: ColumnKey[] = [
 const WIDE_COLUMNS: ColumnKey[] = ["objectOfPurchase"];
 
 // Графы, содержимое которых центрируется и по горизонтали (cell--center),
-// и по вертикали (cell--middle): статус, обязательное общественное
-// обсуждение и объём финансового обеспечения.
+// и по вертикали (cell--middle): год размещения, номер закупки, статус,
+// обязательное общественное обсуждение и объём финансового обеспечения.
 const MIDDLE_COLUMNS: ColumnKey[] = [
+  "plannedPlacementYear",
+  "purchaseNumber",
   "status",
   "isPublicDiscussionRequired",
   "amountTotal",
