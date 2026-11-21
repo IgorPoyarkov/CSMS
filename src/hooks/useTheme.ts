@@ -4,28 +4,33 @@ import { useState, useEffect, useCallback } from "react";
 // в documentElement атрибутом data-theme и возвращает текущее значение
 // вместе с функцией переключения.
 //
-// Тем пять:
+// Тем шесть:
 //   light      — светлая, как сайт ЕИС (по умолчанию);
 //   dark       — тёмная зелёная, та же схема сайта;
 //   storm      — «Гроза», холодная сиренево-синяя палитра по референсу;
 //   winter     — «Зима», светлая морозная серо-голубая палитра по референсу;
 //   floating3d — «Парящие 3D-элементы», тёмный лес с лаймовым акцентом
-//                и объёмными панелями.
+//                и объёмными панелями;
+//   modern     — «Современные закупки», ночной индиго-графит с неоновым
+//                контуром, кометой и магнитным расхождением коротких списков.
 // CSS-переменные из _themes.scss перестраиваются сами, компонентам ничего
 // менять не нужно: они работают с ролями var(--surface-*), var(--text-*).
 
 const STORAGE_KEY = "csms-theme";
 
-export type ThemeName = "light" | "dark" | "storm" | "winter" | "floating3d";
+export type ThemeName =
+  "light" | "dark" | "storm" | "winter" | "floating3d" | "modern";
 
 // Порядок обхода кнопкой в шапке:
-// светлая → тёмная → «Гроза» → «Зима» → «Парящие 3D» → светлая.
+// светлая → тёмная → «Гроза» → «Зима» → «Парящие 3D» → «Современные
+// закупки» → светлая.
 const THEME_ORDER: ThemeName[] = [
   "light",
   "dark",
   "storm",
   "winter",
   "floating3d",
+  "modern",
 ];
 
 const isThemeName = (value: string | null): value is ThemeName =>
@@ -33,7 +38,8 @@ const isThemeName = (value: string | null): value is ThemeName =>
   value === "dark" ||
   value === "storm" ||
   value === "winter" ||
-  value === "floating3d";
+  value === "floating3d" ||
+  value === "modern";
 
 const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
 

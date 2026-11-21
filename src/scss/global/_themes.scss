@@ -243,3 +243,68 @@
   --state-warning: #e5c158;
   --state-warning-soft: rgba(229, 193, 88, 0.16);
 }
+
+// «Современные закупки»: тёмная неоновая тема. Роли интерфейса — та же схема
+// сайта, но на ночном индиго-графите: панели выглядят стеклянными, ссылки и
+// фокус — циановые. Геометрия объёма, комета по контуру больших блоков и
+// магнитное расхождение коротких списков живут в _theme-modern.scss и
+// включаются только этим атрибутом; остальные темы файл не затрагивает.
+[data-theme="modern"] {
+  color-scheme: dark;
+
+  --surface-page: #{$color-modern-void};
+  --surface-panel: #{$color-modern-abyss};
+  --surface-raised: #{$color-modern-slate};
+  --surface-accent: #{$color-modern-glass};
+  --surface-field: #{rgba($color-modern-paper, 0.05)};
+  --field-border: #{rgba($color-modern-cyan, 0.32)};
+  --accent: #{$color-modern-cyan};
+  --accent-hover: #67e8f9;
+  --accent-emphasis: #{$color-modern-cyan};
+  --accent-soft: #{rgba($color-modern-indigo, 0.22)};
+  --text-primary: #{$color-modern-paper};
+  --text-secondary: #{$color-modern-mist};
+  --text-on-accent: #{$color-modern-void};
+  --placeholder: #{rgba($color-modern-mist, 0.6)};
+  --border: #{rgba($color-modern-cyan, 0.2)};
+  --border-strong: #{rgba($color-modern-cyan, 0.38)};
+  --stripe: #{rgba($color-modern-paper, 0.04)};
+  --overlay: #{rgba($color-modern-void, 0.84)};
+  --shadow: #{rgba($color-modern-void, 0.8)};
+  --glow: #{rgba($color-modern-cyan, 0.5)};
+  --modal-border: #{rgba($color-modern-cyan, 0.48)};
+  --modal-dot: #{$color-modern-cyan};
+  --modal-dot-glow: #{rgba($color-modern-cyan, 0.6)};
+
+  // Объём: блик по верхней грани плюс три слоя тени. Неон в тени появляется
+  // только на hover — иначе страница светится целиком и контур кометы теряется.
+  --edge-highlight: #{rgba($color-modern-paper, 0.16)};
+  --shadow-3d:
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 #{rgba($color-modern-void, 0.6)},
+    0 2px 6px #{rgba($color-modern-void, 0.55)},
+    0 14px 28px #{rgba($color-modern-void, 0.45)},
+    0 32px 64px #{rgba($color-modern-void, 0.38)};
+  --shadow-3d-hover:
+    inset 0 1px 0 #{rgba($color-modern-cyan, 0.42)},
+    inset 0 -1px 0 #{rgba($color-modern-void, 0.65)},
+    0 4px 12px #{rgba($color-modern-void, 0.6)},
+    0 20px 40px #{rgba($color-modern-void, 0.5)},
+    0 46px 88px #{rgba($color-modern-void, 0.42)},
+    0 0 34px #{rgba($color-modern-cyan, 0.2)};
+
+  // Декор: наклон подъёма от правого нижнего угла, скорость обхода кометой
+  // контура и три цвета неона (голова кометы — циан, хвост — магента).
+  --panel-tilt: -0.45deg;
+  --comet-duration: 8s;
+  --neon-a: #{$color-modern-cyan};
+  --neon-b: #{$color-modern-indigo};
+  --neon-c: #{$color-modern-magenta};
+
+  --state-success: #34d399;
+  --state-success-soft: rgba(52, 211, 153, 0.16);
+  --state-danger: #fb7185;
+  --state-danger-soft: rgba(251, 113, 133, 0.16);
+  --state-warning: #fbbf24;
+  --state-warning-soft: rgba(251, 191, 36, 0.16);
+}

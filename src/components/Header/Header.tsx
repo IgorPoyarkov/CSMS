@@ -13,14 +13,16 @@ import styles from "./Header.module.scss";
 interface HeaderProps {}
 
 // Кнопка темы переключает их по кругу:
-// светлая → тёмная → «Гроза» → «Зима» → «Парящие 3D» → светлая.
+// светлая → тёмная → «Гроза» → «Зима» → «Парящие 3D» → «Современные
+// закупки» → светлая.
 // Иконка показывает следующую тему, title и aria-label называют её словами.
 const THEME_ICONS: Record<ThemeName, string> = {
   light: "🌙",
   dark: "⛈️",
   storm: "❄️",
   winter: "🧊",
-  floating3d: "☀️",
+  floating3d: "🌌",
+  modern: "☀️",
 };
 
 const THEME_TITLES: Record<ThemeName, string> = {
@@ -28,7 +30,8 @@ const THEME_TITLES: Record<ThemeName, string> = {
   dark: "Тема «Гроза»",
   storm: "Зимняя тема",
   winter: "Тема «Парящие 3D»",
-  floating3d: "Светлая тема",
+  floating3d: "Тема «Современные закупки»",
+  modern: "Светлая тема",
 };
 
 // В шапке достаточно фамилии и инициалов: полностью ФИО видно в подсказке,
@@ -195,7 +198,9 @@ const Header = ({}: HeaderProps) => {
         <button
           type="button"
           className={header("burger", isNavOpen ? ["open"] : [])}
-          aria-label={isNavOpen ? "Закрыть меню разделов" : "Открыть меню разделов"}
+          aria-label={
+            isNavOpen ? "Закрыть меню разделов" : "Открыть меню разделов"
+          }
           aria-expanded={isNavOpen}
           aria-controls="header-navigation"
           onClick={() => setIsNavOpen((open) => !open)}
@@ -205,7 +210,11 @@ const Header = ({}: HeaderProps) => {
           <span />
         </button>
 
-        <NavLink className={header("brand")} to={"/"} onClick={() => setIsNavOpen(false)}>
+        <NavLink
+          className={header("brand")}
+          to={"/"}
+          onClick={() => setIsNavOpen(false)}
+        >
           ЦСМС
         </NavLink>
 
