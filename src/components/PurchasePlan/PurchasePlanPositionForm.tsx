@@ -1070,7 +1070,7 @@ export default function PurchasePlanPositionForm({
                 {kbkEntries.fields.length})
               </h3>
 
-              <div className={block("table-wrap", ["with-actions"])}>
+              <div className={block("table-wrap")}>
                 <table className={block("table", ["kbk"])}>
                   <colgroup>
                     <col className={block("col", ["chapter"])} />
@@ -1091,6 +1091,7 @@ export default function PurchasePlanPositionForm({
                       <th colSpan={EIS_AMOUNT_FIELDS.length}>
                         Объём финансового обеспечения
                       </th>
+                      <th />
                     </tr>
                     <tr>
                       {KBK_PART_FIELDS.map((part) => (
@@ -1159,7 +1160,7 @@ export default function PurchasePlanPositionForm({
                       </tr>
                     ))}
                     <tr>
-                      <td colSpan={4 + EIS_AMOUNT_FIELDS.length}>
+                      <td colSpan={4 + AMOUNT_FIELDS.length + 1}>
                         <button
                           type="button"
                           className={block("add")}
@@ -1183,6 +1184,7 @@ export default function PurchasePlanPositionForm({
                           {formatMoneyValue(kbkTotals[field.key])}
                         </td>
                       ))}
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
@@ -1243,7 +1245,7 @@ export default function PurchasePlanPositionForm({
                   Детализация по кодам КОКС — ОКС/ОНИ (
                   {koksEntries.fields.length})
                 </h3>
-                <div className={block("table-wrap", ["with-actions"])}>
+                <div className={block("table-wrap")}>
                   <table className={block("table", ["koks"])}>
                     <colgroup>
                       <col className={block("col", ["koks-code"])} />
@@ -1261,6 +1263,7 @@ export default function PurchasePlanPositionForm({
                         {EIS_AMOUNT_FIELDS.map((field) => (
                           <th key={field.key}>{amountHeaders[field.key]}</th>
                         ))}
+                        <th />
                       </tr>
                     </thead>
                     <tbody>
@@ -1323,7 +1326,7 @@ export default function PurchasePlanPositionForm({
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td colSpan={1 + EIS_AMOUNT_FIELDS.length}>
+                        <td colSpan={1 + AMOUNT_FIELDS.length + 1}>
                           <button
                             type="button"
                             className={block("add")}

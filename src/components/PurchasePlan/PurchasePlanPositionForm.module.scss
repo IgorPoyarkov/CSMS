@@ -510,7 +510,8 @@
   }
 
   &__table {
-    width: 100%;
+    // Все таблицы карточки имеют одинаковую ширину
+    width: 1100px;
     border-collapse: collapse;
     font-size: 12px;
 
@@ -601,42 +602,12 @@
   &__table--kbk,
   &__table--koks {
     table-layout: fixed;
-    min-width: 0;
   }
 
   // В КОКС кнопка справочника стоит рядом с кодом, а не над ним: поля
   // сумм остаются на одном уровне с полем кода
   &__table--koks td {
     vertical-align: top;
-  }
-
-  // Кнопки «Убрать» вынесены за правый край таблицы: колонки в таблице нет,
-  // ячейка нулевой ширины служит только точкой привязки для кнопки
-  &__table-wrap--with-actions {
-    padding-right: 92px;
-  }
-
-  &__table--kbk {
-    width: 1028px;
-  }
-
-  &__table--koks {
-    width: 978px;
-  }
-
-  &__table td#{&}__cell--action {
-    position: relative;
-    width: 0;
-    padding: 0;
-    border: none;
-    background: transparent;
-
-    button {
-      position: absolute;
-      top: 50%;
-      left: 8px;
-      transform: translateY(-50%);
-    }
   }
 
   // Строка «Итого по кодам бюджетной классификации» выделена заливкой
@@ -717,12 +688,11 @@
     }
 
     &--kbk-money {
-      width: 130px;
+      width: 128px;
     }
 
-    // Нулевая колонка только для привязки кнопки «Убрать» вне таблицы
     &--action {
-      width: 8px;
+      width: 78px;
     }
 
     &--mod-label {
