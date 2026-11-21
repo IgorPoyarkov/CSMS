@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { linkNoticesToContracts } from "./link-eis-chain.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -960,9 +961,18 @@ async function main() {
   db.procurements = procurements;
   db.notices = notices;
   db.tasks = tasks;
-  db.eisImportSummary = summary;
+  // Связь извещение → контракт ищем по ИКЗ после очистки старых процедур:
+  // только так в контрактах останутся ссылки на актуальные procurementId.
+  const contractLinks = linkNoticesToContracts(db);
+  db.eisImportSummary = { ...summary, contractLinks };
   fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
-  console.log(JSON.stringify({ ...summary, contractsPreserved: preservedContracts }, null, 2));
+  console.log(
+    JSON.stringify(
+      { ...summary, contractsPreserved: preservedContracts, contractLinks },
+      null,
+      2,
+    ),
+  );
 }
 
 main().catch((error) => {

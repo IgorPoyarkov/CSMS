@@ -9294,7 +9294,8 @@
       "Номер извещения": "0144200001826000193",
       "Начальная (максимальная) цена контракта, руб": 122585125.63,
       "Тип закупки": "Открытый конкурс в электронной форме на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ",
-      "eisSourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000193"
+      "eisSourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000193",
+      "contractId": "eis-2462904043926000090"
     }
   ],
   "notices": [
@@ -9554,7 +9555,11 @@
         "to": "21.11.2026",
         "method": "Электронный аукцион",
         "sourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000201",
-        "planNumber": "202601442000018001"
+        "planNumber": "202601442000018001",
+        "contractLink": {
+          "status": "not_found",
+          "candidates": 0
+        }
       }
     },
     {
@@ -9813,7 +9818,11 @@
         "to": "21.11.2026",
         "method": "Запрос котировок в электронной форме",
         "sourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000194",
-        "planNumber": "202601442000018001"
+        "planNumber": "202601442000018001",
+        "contractLink": {
+          "status": "not_found",
+          "candidates": 0
+        }
       }
     },
     {
@@ -10072,8 +10081,13 @@
         "to": "21.11.2026",
         "method": "Открытый конкурс в электронной форме на проведение работ по строительству, реконструкции, кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ",
         "sourceUrl": "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000193",
-        "planNumber": "202601442000018001"
-      }
+        "planNumber": "202601442000018001",
+        "contractLink": {
+          "contractId": "eis-2462904043926000090",
+          "method": "ikzPositionAndPrice"
+        }
+      },
+      "contractId": "eis-2462904043926000090"
     }
   ],
   "employeeEducations": [],
@@ -11863,7 +11877,7 @@
       "source": "zakupki-contract-search",
       "customerInn": "4629040439",
       "customerOrganizationId": 6,
-      "procurementId": null
+      "procurementId": "eis-0144200001826000193"
     },
     {
       "id": "eis-2463205448823000025",
@@ -19995,6 +20009,26 @@
       "0144200001826000194",
       "0144200001826000193"
     ],
-    "tasksAdded": 12
+    "tasksAdded": 12,
+    "contractLinks": [
+      {
+        "notice": "0144200001826000201",
+        "contractId": null,
+        "method": "not_found",
+        "candidates": 0
+      },
+      {
+        "notice": "0144200001826000194",
+        "contractId": null,
+        "method": "not_found",
+        "candidates": 0
+      },
+      {
+        "notice": "0144200001826000193",
+        "contractId": "eis-2462904043926000090",
+        "method": "ikzPositionAndPrice",
+        "candidates": 1
+      }
+    ]
   }
 }
