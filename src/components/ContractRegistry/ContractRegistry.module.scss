@@ -209,7 +209,10 @@
 /* ===== Таблица контрактов: общий заголовок и раскрывающиеся строки ===== */
 
 .contractsTableWrap {
+  // Только горизонтальная прокрутка: при overflow-x: auto браузер включал и
+  // вертикальную, и субпиксельный 1px переполнения рисовал полосу у таблицы
   overflow-x: auto;
+  overflow-y: hidden;
   background: var(--surface-panel);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1720,60 +1723,84 @@
 
 /* ===== Папки реестра по годам заключения ===== */
 
-// Реестр разложен по папкам: слева корешки годов, справа раскрытая папка
-// с таблицей. Раскрытая занимает всю оставшуюся ширину — как один лист
-// реестра, поэтому пагинация работает внутри неё.
-.folderLayout {
+// Стартовый экран реестра — только крупные папки по годам: сетка в два ряда
+// по четыре плитки под фильтрами. Таблица появляется после выбора папки:
+// все папки уезжают вправо за контейнер, а лист контрактов раскрывается от
+// центральной горизонтальной линии к краям и занимает всю ширину реестра.
+.folderStage {
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  // clip, а не hidden: у стадии не появляется собственных полос прокрутки
+  overflow: clip;
 }
 
-.folderRail {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  // Корешки остаются на виду, пока прокручивается длинная таблица
-  position: sticky;
-  top: 16px;
+.folderGrid {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+  // Плитки не тянутся до высоты раскрытого листа: ячейка общая, а высота
+  // сетки должна оставаться в два ряда
+  align-self: start;
+  transition:
+    transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease;
 }
 
-.folderTab {
+// Папка выбрана — плитки уходят вправо за правую границу реестра
+.folderStageOpen .folderGrid {
+  transform: translateX(calc(100% + 48px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.folderCard {
   position: relative;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
-  padding: 9px 12px 9px 16px;
+  min-height: 148px;
+  padding: 14px 18px 16px 22px;
   font-family: inherit;
-  font-size: 13px;
-  text-align: left;
   color: var(--text-primary);
+  text-align: left;
   background: var(--surface-panel);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition:
     border-color 0.2s,
-    background-color 0.2s,
-    transform 0.2s;
+    transform 0.2s,
+    box-shadow 0.2s;
 
-  // Корешок папки: цветная полоса слева, как ярлык на картонной папке
+  // Ярлык папки: цветная полоса по левому краю
   &::before {
     content: "";
     position: absolute;
-    top: 7px;
-    bottom: 7px;
+    top: 0;
+    bottom: 0;
     left: 0;
-    width: 4px;
-    border-radius: 0 3px 3px 0;
+    width: 6px;
+    border-radius: 12px 0 0 12px;
     background: var(--border-strong);
     transition: background-color 0.2s;
   }
 
   &:hover {
     border-color: var(--accent);
-    transform: translateX(2px);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+
+    &::before {
+      background: var(--accent);
+    }
+
+    .folderCardArrow {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 
   &:focus-visible {
@@ -1782,7 +1809,8 @@
   }
 }
 
-.folderTabActive {
+// «Сводный реестр» — та же плитка, но с акцентом: за ней весь список
+.folderCardAll {
   background: var(--surface-accent);
   border-color: var(--accent);
 
@@ -1791,28 +1819,100 @@
   }
 }
 
-.folderTabYear {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
-
-.folderTabMeta {
-  font-size: 11px;
+.folderCardLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
   color: var(--text-secondary);
 }
 
-.folderMain {
+.folderCardYear {
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.folderCardMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.folderCardArrow {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+
+// Лист контрактов раскрывается на месте папок: от центральной горизонтальной
+// линии к верхнему и нижнему краям, на всю ширину реестра
+.folderPanel {
+  grid-area: 1 / 1;
   min-width: 0;
+  animation: folderReveal 0.55s cubic-bezier(0.3, 0, 0.2, 1) 0.16s both;
+}
+
+@keyframes folderReveal {
+  from {
+    clip-path: inset(50% 0 50% 0 round 12px);
+    opacity: 0.3;
+  }
+
+  to {
+    clip-path: inset(0 0 0 0 round 12px);
+    opacity: 1;
+  }
 }
 
 .folderHeader {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 12px;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 10px;
+}
+
+// Возврат к папкам: подпись и стрелка влево, чтобы лист не выглядел тупиком
+.folderBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 2px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+
+  &:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 .folderTitle {
@@ -1829,29 +1929,36 @@
   font-variant-numeric: tabular-nums;
 }
 
-// Узкий экран: рейл уходит под фильтры горизонтальной лентой, чтобы таблица
-// не сжималась до нечитаемых колонок
+// Планшет: папки идут по три в ряд, лист контрактов — на всю ширину
 @media (max-width: 1100px) {
-  .folderLayout {
-    grid-template-columns: minmax(0, 1fr);
+  .folderGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
   }
 
-  .folderRail {
-    position: static;
-    flex-direction: row;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: thin;
+  .folderCard {
+    min-height: 132px;
   }
 
-  .folderTab {
-    flex: 0 0 148px;
-    padding-left: 14px;
+  .folderCardYear {
+    font-size: 26px;
+  }
+}
 
-    &:hover {
-      transform: none;
-    }
+// Панель с фильтрами уже не вмещает четыре крупные плитки
+@media (max-width: 820px) {
+  .folderGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folderGrid {
+    transition: none;
+  }
+
+  .folderPanel {
+    animation: none;
   }
 }
 
@@ -1864,9 +1971,28 @@
     padding: 16px 12px;
   }
 
-  // Корешки уже: на 375px в ленту влезает два с половиной года
-  .folderTab {
-    flex-basis: 132px;
+  // Плитки папок на телефоне: два столбца, крупная цифра года остаётся
+  .folderGrid {
+    gap: 10px;
+  }
+
+  .folderCard {
+    min-height: 116px;
+    padding: 12px 14px 14px 18px;
+  }
+
+  .folderCardYear {
+    padding-top: 8px;
+    font-size: 24px;
+  }
+
+  .folderCardMeta {
+    font-size: 11px;
+  }
+
+  .folderCardArrow {
+    right: 12px;
+    bottom: 12px;
   }
 
   .title {
