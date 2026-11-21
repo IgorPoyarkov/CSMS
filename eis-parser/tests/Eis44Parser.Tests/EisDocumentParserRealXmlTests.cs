@@ -43,6 +43,44 @@ public sealed class EisDocumentParserRealXmlTests
     }
 
     [Fact]
+    public void ParsesConstructionCompetitionOfOlderScheme()
+    {
+        var document = Load("epNotificationEOK2020-construction-real.xml");
+
+        var result = _parser.Parse(document, "epNotificationEOK2020-OKB20.xml");
+
+        // Второй вариант открытого конкурса: схема 16.2, способ OKB20
+        // (строительство), другой префикс printform. Маппинг тот же.
+        Assert.Equal(EisDocumentKind.Purchase, result.Kind);
+        Assert.Equal("16.2", result.SchemeVersion);
+        // В IKZInfo лежит вложенный purchaseNumber=0066 — нужен номер из commonInfo.
+        Assert.Equal("0144200001826000128", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100100660024211414", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("463201001", result.CustomerKpp);
+        Assert.Contains("КУРСКАВТОДОР", result.CustomerName, StringComparison.Ordinal);
+        Assert.Equal(122_585_125.63m, result.Price);
+        Assert.Equal("2026-08-12T09:44:03.906+03:00", result.PublishDate);
+        Assert.Contains("Свобода-Гремячка", result.ObjectInfo, StringComparison.Ordinal);
+        Assert.Equal(
+            "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000128",
+            result.PrintFormUrl);
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal("42.11.20.000-00000004", item.KtruCode);
+        Assert.Equal("42.11.20", item.Okpd2Code);
+        Assert.Contains("строительству автомобильной дороги", item.ItemName, StringComparison.Ordinal);
+        Assert.Equal(1m, item.Quantity);
+        Assert.Equal(122_585_125.63m, item.Price);
+
+        // Критерии оценки и казначейское сопровождение пока не маппятся в поля,
+        // но сырой XML сохраняется целиком для последующей доработки.
+        Assert.Contains("OKB20", result.RawXml, StringComparison.Ordinal);
+        Assert.Contains("criteriaInfo", result.RawXml, StringComparison.Ordinal);
+        Assert.Contains("bankSupportContractRequiredInfo", result.RawXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParsesNestedKtruAndOkpd2FromRealAuction()
     {
         var document = Load("epNotificationEF2020-real.xml");
@@ -207,6 +245,35 @@ public sealed class EisDocumentParserRealXmlTests
         Assert.Contains("Разработка проектной документации", item.ItemName, StringComparison.Ordinal);
         Assert.Equal(1m, item.Quantity);
         Assert.Equal(1_600_000.00m, item.Price);
+    }
+
+    [Fact]
+    public void ParsesContractWithDeepProductInfoAndOkpd2Only()
+    {
+        var document = Load("cp-electronic-contract-gaz-resurs-real.xml");
+
+        var result = _parser.Parse(document, "cpElectronicContract-118R.xml");
+
+        Assert.Equal(EisDocumentKind.Contract, result.Kind);
+        Assert.Equal("16.2", result.SchemeVersion);
+        Assert.Equal("0144200001826000118", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100100490024211244", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("3662225435", result.SupplierInn);
+        Assert.Equal("366601001", result.SupplierKpp);
+        Assert.Contains("ГАЗ РЕСУРС", result.SupplierName, StringComparison.Ordinal);
+        Assert.Equal(383_021_243.01m, result.Price);
+        // Дата PUBLISH взята из protocolInfo/publishDTInEIS — в XML нет даты подписания контракта.
+        Assert.Equal("2026-07-28T00:00:00.000+03:00", result.PublishDate);
+        Assert.Contains("Конышевка", result.ObjectInfo, StringComparison.Ordinal);
+
+        var item = Assert.Single(result.Items);
+        // productsInfoElectronicContract — дополнительный уровень вложенности.
+        Assert.Null(item.KtruCode);
+        Assert.Equal("42.11.20.200", item.Okpd2Code);
+        Assert.Contains("ремонту автомобильной дороги", item.ItemName, StringComparison.Ordinal);
+        Assert.Equal(1m, item.Quantity);
+        Assert.Equal(383_021_243.01m, item.Price);
     }
 
     [Theory]
