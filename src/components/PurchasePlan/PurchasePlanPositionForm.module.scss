@@ -118,36 +118,9 @@
     color: var(--text-primary);
   }
 
-  &__caption {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.4;
-    color: var(--text-secondary);
-  }
-
-  // Шапка карточки позиции по образцу ЕИС: ИКЗ, объект закупки, объём
-  // финансового обеспечения и даты — без дублирования полей формы
+  // Даты под заголовком: без подложки и рамок
   &__eis-summary {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--surface-raised);
-  }
-
-  &__summary-row {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 12px;
-    align-items: start;
-
-    @media (max-width: 720px) {
-      grid-template-columns: 1fr;
-      gap: 2px;
-    }
+    margin-top: 8px;
   }
 
   &__summary-label {
@@ -157,44 +130,17 @@
     color: var(--text-secondary);
   }
 
-  &__summary-value {
-    font-size: 13px;
-    line-height: 1.45;
-    color: var(--text-primary);
-    word-break: break-word;
-
-    &--mono {
-      font-family: "Courier New", monospace;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.03em;
-    }
-  }
-
   &__summary-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 4px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border);
-
-    @media (max-width: 720px) {
-      grid-template-columns: 1fr;
-    }
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 28px;
   }
 
   &__summary-stat {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  &__summary-amount {
-    font-size: 17px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    color: var(--text-primary);
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
   }
 
   &__summary-date {
@@ -318,11 +264,37 @@
     }
   }
 
+  // Расчётная графа «Всего»: только чтение, без поля ввода
+  &__calc-total {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 34px;
+    padding: 0 6px;
+    text-align: right;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--text-primary);
+    background: var(--stripe);
+  }
+
   &__label {
     font-size: 12px;
     font-weight: 600;
     line-height: 1.35;
     color: var(--text-secondary);
+  }
+
+  // Лейбл и значение без рамки — на одной строке
+  &__field-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 34px;
   }
 
   &__subcontrol {
@@ -365,6 +337,25 @@
       cursor: default;
       opacity: 1;
     }
+
+    // Без рамки: лейбл и поле на одном уровне
+    &--plain {
+      flex: none;
+      width: 96px;
+      border: none;
+      background: transparent;
+      font-weight: 600;
+      text-align: right;
+    }
+
+    // Денежные суммы с разрядами, по правому краю, вмещают миллиарды
+    &--money {
+      padding: 4px 6px;
+      font-size: 11px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
   }
 
   &__value {
@@ -398,6 +389,15 @@
 
     &--compact {
       max-width: 320px;
+    }
+
+    &--plain {
+      flex: none;
+      width: 96px;
+      border: none;
+      background: transparent;
+      font-weight: 600;
+      text-align: right;
     }
 
     &:focus-visible {
@@ -442,20 +442,14 @@
     }
   }
 
-  // Шапка блока ИКЗ и нередактируемый 36-значный код
-  &__ikz-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
+  // Полный код и кнопка копирования — под таблицей ИКЗ, справа
   &__ikz-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
+    margin-top: 8px;
   }
 
   &__copy-btn {
@@ -570,14 +564,18 @@
     }
   }
 
-  // Таблица ИКЗ: 6 разрядов без переносов и ручного ввода
+  // Таблица ИКЗ: ширины граф заданы по длине значений, длинные заголовки
+  // переносятся в несколько строк над разрядом и не растягивают колонки
   &__table--ikz {
-    min-width: 720px;
+    table-layout: fixed;
+    min-width: 520px;
 
     th {
       padding: 6px;
       font-size: 11px;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      vertical-align: bottom;
     }
 
     td {
@@ -590,7 +588,7 @@
   // колонка названия + 5 равных граф по годам
   &__table--amounts {
     table-layout: fixed;
-    min-width: 820px;
+    min-width: 1000px;
 
     th,
     td {
@@ -605,7 +603,13 @@
   &__table--kbk,
   &__table--koks {
     table-layout: fixed;
-    min-width: 920px;
+    min-width: 1100px;
+  }
+
+  // В КОКС кнопка справочника стоит рядом с кодом, а не над ним: поля
+  // сумм остаются на одном уровне с полем кода
+  &__table--koks td {
+    vertical-align: top;
   }
 
   // positionModification: поля транспонированы под заголовки XSD —
@@ -627,27 +631,27 @@
 
   &__col {
     &--ikz-year {
-      width: 6ch;
+      width: 4ch;
     }
 
     &--ikz-customer {
-      width: 24ch;
+      width: 22ch;
     }
 
     &--ikz-purchase {
-      width: 10ch;
+      width: 6ch;
     }
 
     &--ikz-order {
-      width: 9ch;
+      width: 5ch;
     }
 
     &--ikz-okpd2 {
-      width: 9ch;
+      width: 6ch;
     }
 
     &--ikz-kvr {
-      width: 9ch;
+      width: 5ch;
     }
 
     &--amount-label {
@@ -675,11 +679,11 @@
     }
 
     &--koks-code {
-      width: 220px;
+      width: 320px;
     }
 
     &--kbk-money {
-      width: 112px;
+      width: 130px;
     }
 
     &--action {
@@ -722,6 +726,11 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--surface-raised);
+
+    // В конце формы блок отделяем от последнего раздела
+    &--bottom {
+      margin-top: 18px;
+    }
   }
 
   &__mod-title {
@@ -732,12 +741,26 @@
   }
 
   &__koks-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    gap: 4px 8px;
+
+    input {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    > button {
+      grid-column: 2;
+      grid-row: 1;
+    }
   }
 
   &__koks-name {
+    grid-column: 1 / -1;
+    grid-row: 2;
     font-size: 11px;
     line-height: 1.3;
     color: var(--text-secondary);
@@ -821,6 +844,13 @@
     @media (max-width: 760px) {
       grid-template-columns: 1fr;
     }
+  }
+
+  // Два признака под номером закупки и годом — строго в столбик
+  &__flags-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   &__checkbox {

@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  get,
   useFieldArray,
   useForm,
   useWatch,
@@ -7,7 +8,6 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
-import CustomInput from "../UI/CustomInput";
 import CustomSelect from "../UI/CustomSelect";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
@@ -32,9 +32,11 @@ import {
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import {
   formatMoney,
+  formatMoneyValue,
   kvrOptions,
   modificationDecisionOptions,
   okpd2FieldLabels,
+  placementYearOptions,
   positionStatusLabel,
   publicDiscussionOptions,
   tpChangeReasonOptions,
@@ -88,6 +90,42 @@ const AMOUNT_FIELDS = [
 
 type AmountKey = (typeof AMOUNT_FIELDS)[number]["key"];
 
+type FinanceValues = Record<string, string | number | undefined | null>;
+
+// «Всего» не вводится вручную: это сумма планируемых платежей по годам
+const financeTotal = (entry: FinanceValues | null | undefined): number =>
+  AMOUNT_FIELDS.filter((field) => field.key !== "amountTotal").reduce(
+    (sum, field) => sum + (toNumber(entry?.[field.key]) ?? 0),
+    0,
+  );
+
+// В форме храним число без разделителей (десятичная точка), а показываем
+// с разрядами и запятой — так в графе помещаются суммы в миллиарды
+const normalizeAmountInput = (value: string): string => {
+  const raw = value.replace(/[\s\u00a0]/g, "").replace(",", ".");
+  const [integer, ...fraction] = raw.split(".");
+  const digits = integer.replace(/\D/g, "").slice(0, 15);
+
+  if (!fraction.length) {
+    return digits;
+  }
+
+  return `${digits}.${fraction.join("").replace(/\D/g, "").slice(0, 2)}`;
+};
+
+const displayAmountInput = (value: string | number | undefined): string => {
+  const raw = String(value ?? "").replace(",", ".");
+
+  if (!raw) {
+    return "";
+  }
+
+  const [integer, fraction] = raw.split(".");
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+  return fraction !== undefined ? `${grouped},${fraction}` : grouped;
+};
+
 // В блоке «Сведения о финансовом обеспечении» ЕИС показывает «Всего»
 // последней графой — после лет планового периода
 const EIS_AMOUNT_FIELDS = [
@@ -128,9 +166,8 @@ export default function PurchasePlanPositionForm({
   const block = bem(styles, "position-form");
   // Год формирования ПГ: от него считаются графы «Сумма на … год»
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
-  // Год размещения извещения в карточке не редактируется: для ИКЗ берём
-  // сохранённое значение позиции или год формирования плана-графика
-  const ikzYear = position.plannedPlacementYear || plan.planYear;
+  // Год размещения извещения выбирается селектом в разделе «Сведения о закупке»;
+  // он сразу влияет на разряд года в ИКЗ
   // Справочник ОКПД2 даёт признак обязательного нормирования и предельную цену
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
@@ -149,7 +186,7 @@ export default function PurchasePlanPositionForm({
       ...position,
       serialNumber: position.serialNumber || String(index + 1),
       purchaseNumber: position.purchaseNumber || nextPurchaseNumber(positions),
-      // Год в интерфейсе не показывается, но остаётся в записи для XSD
+      // Год размещения извещения редактируется селектом и входит в ИКЗ
       plannedPlacementYear:
         position.plannedPlacementYear || String(plan.planYear || CURRENT_YEAR),
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
@@ -201,6 +238,13 @@ export default function PurchasePlanPositionForm({
   });
   const hasAuthorizedBody = useWatch({ control, name: "hasAuthorizedBody" });
   const hasJointOrganizer = useWatch({ control, name: "hasJointOrganizer" });
+  const plannedPlacementYear = useWatch({
+    control,
+    name: "plannedPlacementYear",
+  });
+  // Год ИКЗ берём из формы: селект в карточке меняет первый разряд кода
+  const ikzYear =
+    plannedPlacementYear || position.plannedPlacementYear || plan.planYear;
   const authorizedBodyName = useWatch({ control, name: "authorizedBodyName" });
   const jointOrganizerName = useWatch({ control, name: "jointOrganizerName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
@@ -208,6 +252,15 @@ export default function PurchasePlanPositionForm({
   const amountSubsequentYears = useWatch({
     control,
     name: "amountSubsequentYears",
+  });
+  const amountCurrentYear = useWatch({ control, name: "amountCurrentYear" });
+  const amountPlanPeriodFirstYear = useWatch({
+    control,
+    name: "amountPlanPeriodFirstYear",
+  });
+  const amountPlanPeriodSecondYear = useWatch({
+    control,
+    name: "amountPlanPeriodSecondYear",
   });
   // ИКУ заказчика в карточке не вводится: он уже есть у заказчика. Берём
   // сохранённое значение; если его нет, ИКУ соберётся из ИНН и КПП
@@ -300,11 +353,11 @@ export default function PurchasePlanPositionForm({
 
   // Заголовки граф финансового обеспечения — как в форме ЕИС
   const amountHeaders: Record<AmountKey, string> = {
-    amountTotal: "Всего",
-    amountCurrentYear: `Сумма на ${baseYear} год`,
-    amountPlanPeriodFirstYear: `Сумма на ${baseYear + 1} год`,
-    amountPlanPeriodSecondYear: `Сумма на ${baseYear + 2} год`,
-    amountSubsequentYears: "Сумма на последующие годы",
+    amountTotal: "Всего, руб.",
+    amountCurrentYear: `Сумма на ${baseYear} год, руб.`,
+    amountPlanPeriodFirstYear: `Сумма на ${baseYear + 1} год, руб.`,
+    amountPlanPeriodSecondYear: `Сумма на ${baseYear + 2} год, руб.`,
+    amountSubsequentYears: "Сумма на последующие годы, руб.",
   };
 
   // Итоги по кодам бюджетной классификации — строка «Итого» под таблицей
@@ -320,6 +373,56 @@ export default function PurchasePlanPositionForm({
 
     return totals;
   }, [kbkEntriesValues]);
+
+  // «Всего» во всех таблицах расчётное и не редактируется заказчиком
+  const calculatedYearAmounts = {
+    amountCurrentYear,
+    amountPlanPeriodFirstYear,
+    amountPlanPeriodSecondYear,
+    amountSubsequentYears,
+  };
+  const calculatedAmountTotal = financeTotal(calculatedYearAmounts);
+
+  useEffect(() => {
+    const hasYears = [
+      amountCurrentYear,
+      amountPlanPeriodFirstYear,
+      amountPlanPeriodSecondYear,
+      amountSubsequentYears,
+    ].some((value) => toNumber(value) !== null);
+    const totalText = hasYears ? String(calculatedAmountTotal) : "";
+
+    if ((getValues("amountTotal") ?? "") !== totalText) {
+      setValue("amountTotal", totalText, { shouldValidate: true });
+    }
+  }, [
+    amountCurrentYear,
+    amountPlanPeriodFirstYear,
+    amountPlanPeriodSecondYear,
+    amountSubsequentYears,
+    calculatedAmountTotal,
+    getValues,
+    setValue,
+  ]);
+
+  useEffect(() => {
+    for (const [name, entries] of [
+      ["kbkEntries", kbkEntriesValues],
+      ["koksEntries", koksEntriesValues],
+    ] as const) {
+      (entries ?? []).forEach((entry, index) => {
+        const hasYears = AMOUNT_FIELDS.some(
+          (field) =>
+            field.key !== "amountTotal" && toNumber(entry?.[field.key]) !== null,
+        );
+        const totalText = hasYears ? String(financeTotal(entry)) : "";
+
+        if ((entry?.amountTotal ?? "") !== totalText) {
+          setValue(`${name}.${index}.amountTotal`, totalText);
+        }
+      });
+    }
+  }, [kbkEntriesValues, koksEntriesValues, setValue]);
 
   // Три признака ЕИС взаимоисключающие: энергосервис, кредит, ОКС.
   // «Информация, не подлежащая размещению» (notPublishedOnEIS) от них не зависит.
@@ -435,6 +538,34 @@ export default function PurchasePlanPositionForm({
   const errorText = (path: string): string | undefined =>
     (errors as Record<string, { message?: string }>)[path]?.message;
 
+  // Суммы с разрядами: значение хранится без пробелов, показывается с ними
+  const renderAmountInput = (
+    name: string,
+    value: string | number | undefined,
+  ) => {
+    const error = get(errors, name) as { message?: string } | undefined;
+
+    return (
+      <>
+        <input
+          className={block("input", ["money"])}
+          inputMode="decimal"
+          placeholder="0,00"
+          value={displayAmountInput(value)}
+          onChange={(event) =>
+            setValue(name as Parameters<typeof setValue>[0],
+              normalizeAmountInput(event.target.value),
+              { shouldValidate: true, shouldDirty: true },
+            )
+          }
+        />
+        {error?.message && (
+          <span className={block("error")}>{error.message}</span>
+        )}
+      </>
+    );
+  };
+
   const positionStatus = position.status ?? "planned";
 
   return (
@@ -479,38 +610,10 @@ export default function PurchasePlanPositionForm({
               : `Позиция плана-графика № ${purchaseNumber || position.purchaseNumber || "0000"} (ПГ № ${plan.planNumber || "без номера"})`}
           </h1>
 
-          <p className={block("caption")}>
-            Заказчик: {plan.customer.shortName || plan.customer.fullName}
-            {plan.customer.inn ? ` · ИНН ${plan.customer.inn}` : ""}
-            {plan.customer.kpp ? ` · КПП ${plan.customer.kpp}` : ""}
-          </p>
-
-          {/* Шапка карточки позиции в стиле ЕИС: ИКЗ, объект закупки,
-              объём финансового обеспечения и даты размещения */}
+          {/* В шапке оставляем только верхнюю строку и даты: ИКЗ, объект
+              и сумма есть в соответствующих разделах формы */}
           <div className={block("eis-summary")}>
-            <div className={block("summary-row")}>
-              <span className={block("summary-label")}>
-                Идентификационный код закупки (ИКЗ)
-              </span>
-              <span className={block("summary-value", ["mono"])}>
-                {ikzParts.code || position.identificationCode || "—"}
-              </span>
-            </div>
-            <div className={block("summary-row")}>
-              <span className={block("summary-label")}>Объект закупки</span>
-              <span className={block("summary-value")}>
-                {getValues("objectOfPurchase") || "—"}
-              </span>
-            </div>
             <div className={block("summary-stats")}>
-              <div className={block("summary-stat")}>
-                <span className={block("summary-label")}>
-                  Объём финансового обеспечения
-                </span>
-                <span className={block("summary-amount")}>
-                  {formatMoney(getValues("amountTotal") || position.amountTotal)}
-                </span>
-              </div>
               <div className={block("summary-stat")}>
                 <span className={block("summary-label")}>Размещено в ЕИС</span>
                 <span className={block("summary-date")}>
@@ -565,34 +668,12 @@ export default function PurchasePlanPositionForm({
               </div>
 
               <div className={block("cell", ["wide"])}>
-                <div className={block("ikz-head")}>
-                  <span className={block("label")}>
-                    Идентификационный код закупки (ИКЗ, 36 знаков)
-                  </span>
-                  <div className={block("ikz-actions")}>
-                    {ikzParts.code && (
-                      <button
-                        type="button"
-                        className={block("copy-btn")}
-                        onClick={() => {
-                          void navigator.clipboard?.writeText(ikzParts.code);
-                        }}
-                      >
-                        Скопировать
-                      </button>
-                    )}
-                    {ikzParts.code && (
-                      <span className={block("ikz-code-preview")}>
-                        {ikzParts.code}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {/* Полный ИКЗ уже показан в шапке карточки, поэтому над
+                    таблицей дублирующий заголовок не выводим */}
                 <div className={block("table-wrap")}>
                   <table className={block("table", ["ikz"])}>
-                    {/* Ширины граф пропорциональны числу символов разряда:
-                        год 2, ИКУ 20, номер закупки 4, порядковый 3,
-                        ОКПД2 4, КВР 3 (всего 36) */}
+                    {/* Ширины граф — по числу символов в значениях; длинные
+                        заголовки переносятся и колонки не растягивают */}
                     <colgroup>
                       <col className={block("col", ["ikz-year"])} />
                       <col className={block("col", ["ikz-customer"])} />
@@ -635,6 +716,19 @@ export default function PurchasePlanPositionForm({
                     </tbody>
                   </table>
                 </div>
+                {ikzParts.code && (
+                  <div className={block("ikz-actions")}>
+                    <button
+                      type="button"
+                      className={block("copy-btn")}
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(ikzParts.code);
+                      }}
+                    >
+                      Скопировать
+                    </button>
+                  </div>
+                )}
                 {!ikzParts.code && (
                   <span className={block("error")}>
                     ИКЗ не собран: проверьте ИНН/КПП заказчика, номер закупки и
@@ -650,6 +744,67 @@ export default function PurchasePlanPositionForm({
               </div>
 
               <div className={block("cell")}>
+                <div className={block("field-inline")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-purchase-number"
+                  >
+                    Номер закупки, включенной в план-график закупок
+                  </label>
+                  <input
+                    id="position-purchase-number"
+                    className={block("input", ["mono", "plain"])}
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="0001"
+                    {...register("purchaseNumber")}
+                  />
+                </div>
+                {purchaseNumberTaken && (
+                  <span className={block("error")}>
+                    Номер уже используется в этом плане-графике
+                  </span>
+                )}
+                {errorText("purchaseNumber") && (
+                  <span className={block("error")}>
+                    {errorText("purchaseNumber")}
+                  </span>
+                )}
+                <p className={block("hint")}>
+                  Не более 9999 — до четырёх цифр. Номер закупки входит в ИКЗ
+                  (разряды 23–26).
+                </p>
+                <div className={block("field-inline")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-placement-year"
+                  >
+                    Планируемый год размещения извещения
+                  </label>
+                  <select
+                    id="position-placement-year"
+                    className={block("select", ["plain"])}
+                    {...register("plannedPlacementYear")}
+                  >
+                    {placementYearOptions(
+                      Math.min(baseYear, Number(plannedPlacementYear) || baseYear),
+                    ).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errorText("plannedPlacementYear") && (
+                    <span className={block("error")}>
+                      {errorText("plannedPlacementYear")}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Уполномоченный орган и организатор совместной закупки —
+                  столбиком под номером закупки и годом размещения */}
+              <div className={block("cell", ["wide", "flags-stack"])}>
                 <label className={block("checkbox")}>
                   <input type="checkbox" {...register("hasAuthorizedBody")} />
                   <span>Есть уполномоченный орган (учреждение)</span>
@@ -675,9 +830,6 @@ export default function PurchasePlanPositionForm({
                     />
                   </div>
                 )}
-              </div>
-
-              <div className={block("cell")}>
                 <label className={block("checkbox")}>
                   <input type="checkbox" {...register("hasJointOrganizer")} />
                   <span>Есть организатор совместной закупки</span>
@@ -705,126 +857,8 @@ export default function PurchasePlanPositionForm({
                   </div>
                 )}
               </div>
-
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-purchase-number"
-                >
-                  Номер закупки, включенной в план-график закупок
-                </label>
-                <input
-                  id="position-purchase-number"
-                  className={block("input", ["mono"])}
-                  inputMode="numeric"
-                  maxLength={4}
-                  placeholder="0001"
-                  {...register("purchaseNumber")}
-                />
-                {purchaseNumberTaken && (
-                  <span className={block("error")}>
-                    Номер уже используется в этом плане-графике
-                  </span>
-                )}
-                {errorText("purchaseNumber") && (
-                  <span className={block("error")}>
-                    {errorText("purchaseNumber")}
-                  </span>
-                )}
-                <p className={block("hint")}>
-                  Не более 9999 — до четырёх цифр. Номер закупки входит в ИКЗ
-                  (разряды 23–26).
-                </p>
-              </div>
             </div>
 
-            {/* Блок изменений доступен ТОЛЬКО когда позиция изменяется (!isNew):
-                при создании новой позиции решения об изменении/отмене ещё нет.
-                Поля транспонированы под заголовки XSD: слева название поля,
-                справа — значение. */}
-            {!isNew && (
-              <div className={block("mod-box")}>
-                <h3 className={block("mod-title")}>
-                  Сведения об изменении / отмене позиции (positionModification)
-                </h3>
-                <div className={block("table-wrap")}>
-                  <table className={block("table", ["modification"])}>
-                    <colgroup>
-                      <col className={block("col", ["mod-label"])} />
-                      <col className={block("col", ["mod-value"])} />
-                    </colgroup>
-                    <thead>
-                      <tr>
-                        <th>Наименование поля</th>
-                        <th>Значение</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <th scope="row">
-                          Основание внесения изменений (changeReason)
-                        </th>
-                        <td>
-                          <select
-                            id="position-change-reason"
-                            className={block("select")}
-                            {...register("changeReasonCode", {
-                              onChange: (e) => {
-                                const found = tpChangeReasonOptions.find(
-                                  (item) => item.code === e.target.value,
-                                );
-                                setValue("changeReasonName", found?.name ?? "");
-                              },
-                            })}
-                          >
-                            <option value="">— Не выбрано —</option>
-                            {tpChangeReasonOptions.map((item) => (
-                              <option key={item.code} value={item.code}>
-                                {item.code}. {item.name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                      <tr>
-                        <th scope="row">Вынесенное решение (decision)</th>
-                        <td>
-                          <div className={block("radio-row")}>
-                            {modificationDecisionOptions.map((option) => (
-                              <label
-                                key={option.value}
-                                className={block("radio")}
-                              >
-                                <input
-                                  type="radio"
-                                  value={option.value}
-                                  {...register("modificationDecision")}
-                                />
-                                <span>{option.label}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <th scope="row">
-                          Содержание изменений позиции (description)
-                        </th>
-                        <td>
-                          <textarea
-                            id="position-modification-description"
-                            className={block("textarea")}
-                            rows={3}
-                            placeholder="Обоснование корректировки или отмены позиции"
-                            {...register("modificationDescription")}
-                          />
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </fieldset>
 
           {/* Раздел 2: Информация об объекте закупки (без КТРУ) */}
@@ -1000,7 +1034,7 @@ export default function PurchasePlanPositionForm({
 
             <div className={block("subblock", ["first"])}>
               <h3 className={block("subtitle")}>
-                Объём финансового обеспечения закупки (рублей)
+                Объём финансового обеспечения закупки
               </h3>
               <div className={block("table-wrap")}>
                 <table className={block("table", ["amounts"])}>
@@ -1016,7 +1050,7 @@ export default function PurchasePlanPositionForm({
                   <thead>
                     <tr>
                       <th className={block("th", ["first"])}>
-                        Планируемые платежи, рублей
+                        Планируемые платежи
                       </th>
                       {EIS_AMOUNT_FIELDS.map((field) => (
                         <th key={field.key}>{amountHeaders[field.key]}</th>
@@ -1026,15 +1060,22 @@ export default function PurchasePlanPositionForm({
                   <tbody>
                     <tr>
                       <td className={block("cell", ["row-label"])}>
-                        Сумма, рублей
+                        Сумма
                       </td>
                       {EIS_AMOUNT_FIELDS.map((field) => (
                         <td key={field.key} className={block("cell", ["money"])}>
-                          <CustomInput
-                            configuration={{
-                              input: { name: field.key, placeholder: "0.00" },
-                            }}
-                          />
+                          {field.key === "amountTotal" ? (
+                            <span className={block("calc-total")}>
+                              {formatMoneyValue(calculatedAmountTotal)}
+                            </span>
+                          ) : (
+                            renderAmountInput(
+                              field.key,
+                              calculatedYearAmounts[
+                                field.key as keyof typeof calculatedYearAmounts
+                              ],
+                            )
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -1064,7 +1105,7 @@ export default function PurchasePlanPositionForm({
                     <col className={block("col", ["section"])} />
                     <col className={block("col", ["target"])} />
                     <col className={block("col", ["expense"])} />
-                    {AMOUNT_FIELDS.map((field) => (
+                    {EIS_AMOUNT_FIELDS.map((field) => (
                       <col
                         key={field.key}
                         className={block("col", ["kbk-money"])}
@@ -1075,10 +1116,10 @@ export default function PurchasePlanPositionForm({
                   <thead>
                     <tr>
                       <th colSpan={4}>Код бюджетной классификации</th>
-                      {AMOUNT_FIELDS.map((field) => (
-                        <th key={field.key}>{amountHeaders[field.key]}</th>
-                      ))}
-                      <th>Действие</th>
+                      <th colSpan={EIS_AMOUNT_FIELDS.length}>
+                        Объём финансового обеспечения
+                      </th>
+                      <th rowSpan={2}>Действие</th>
                     </tr>
                     <tr>
                       {KBK_PART_FIELDS.map((part) => (
@@ -1086,8 +1127,11 @@ export default function PurchasePlanPositionForm({
                           {part.label}
                         </th>
                       ))}
-                      <th colSpan={AMOUNT_FIELDS.length} />
-                      <th />
+                      {EIS_AMOUNT_FIELDS.map((field) => (
+                        <th key={field.key} className={block("th", ["sub"])}>
+                          {amountHeaders[field.key]}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -1113,19 +1157,23 @@ export default function PurchasePlanPositionForm({
                             />
                           </td>
                         ))}
-                        {AMOUNT_FIELDS.map((amount) => (
+                        {EIS_AMOUNT_FIELDS.map((amount) => (
                           <td
                             key={amount.key}
                             className={block("cell", ["money"])}
                           >
-                            <CustomInput
-                              configuration={{
-                                input: {
-                                  name: `kbkEntries.${entryIndex}.${amount.key}`,
-                                  placeholder: "0.00",
-                                },
-                              }}
-                            />
+                            {amount.key === "amountTotal" ? (
+                              <span className={block("calc-total")}>
+                                {formatMoneyValue(
+                                  financeTotal(kbkEntriesValues?.[entryIndex]),
+                                )}
+                              </span>
+                            ) : (
+                              renderAmountInput(
+                                `kbkEntries.${entryIndex}.${amount.key}`,
+                                kbkEntriesValues?.[entryIndex]?.[amount.key],
+                              )
+                            )}
                           </td>
                         ))}
                         <td className={block("cell", ["action"])}>
@@ -1156,12 +1204,12 @@ export default function PurchasePlanPositionForm({
                       <td colSpan={4} className={block("cell", ["right"])}>
                         Итого по кодам бюджетной классификации
                       </td>
-                      {AMOUNT_FIELDS.map((field) => (
+                      {EIS_AMOUNT_FIELDS.map((field) => (
                         <td
                           key={field.key}
                           className={block("cell", ["total"])}
                         >
-                          {formatMoney(kbkTotals[field.key])}
+                          {formatMoneyValue(kbkTotals[field.key])}
                         </td>
                       ))}
                       <td />
@@ -1229,7 +1277,7 @@ export default function PurchasePlanPositionForm({
                   <table className={block("table", ["koks"])}>
                     <colgroup>
                       <col className={block("col", ["koks-code"])} />
-                      {AMOUNT_FIELDS.map((field) => (
+                      {EIS_AMOUNT_FIELDS.map((field) => (
                         <col
                           key={field.key}
                           className={block("col", ["kbk-money"])}
@@ -1240,7 +1288,7 @@ export default function PurchasePlanPositionForm({
                     <thead>
                       <tr>
                         <th>Код КОКС (ОКС/ОНИ)</th>
-                        {AMOUNT_FIELDS.map((field) => (
+                        {EIS_AMOUNT_FIELDS.map((field) => (
                           <th key={field.key}>{amountHeaders[field.key]}</th>
                         ))}
                         <th>Действие</th>
@@ -1273,19 +1321,23 @@ export default function PurchasePlanPositionForm({
                               )}
                             </div>
                           </td>
-                          {AMOUNT_FIELDS.map((amount) => (
+                          {EIS_AMOUNT_FIELDS.map((amount) => (
                             <td
                               key={amount.key}
                               className={block("cell", ["money"])}
                             >
-                              <CustomInput
-                                configuration={{
-                                  input: {
-                                    name: `koksEntries.${entryIndex}.${amount.key}`,
-                                    placeholder: "0.00",
-                                  },
-                                }}
-                              />
+                              {amount.key === "amountTotal" ? (
+                                <span className={block("calc-total")}>
+                                  {formatMoneyValue(
+                                    financeTotal(koksEntriesValues?.[entryIndex]),
+                                  )}
+                                </span>
+                              ) : (
+                                renderAmountInput(
+                                  `koksEntries.${entryIndex}.${amount.key}`,
+                                  koksEntriesValues?.[entryIndex]?.[amount.key],
+                                )
+                              )}
                             </td>
                           ))}
                           <td className={block("cell", ["action"])}>
@@ -1360,6 +1412,93 @@ export default function PurchasePlanPositionForm({
               </div>
             </div>
           </fieldset>
+
+          {/* Сведения об изменении / отмене позиции вынесены в самый низ формы:
+              при создании новой позиции блока нет. Поля транспонированы под
+              заголовки XSD — слева название поля, справа значение. */}
+          {!isNew && (
+            <div className={block("mod-box", ["bottom"])}>
+              <h3 className={block("mod-title")}>
+                Сведения об изменении / отмене позиции (positionModification)
+              </h3>
+              <div className={block("table-wrap")}>
+                <table className={block("table", ["modification"])}>
+                  <colgroup>
+                    <col className={block("col", ["mod-label"])} />
+                    <col className={block("col", ["mod-value"])} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Наименование поля</th>
+                      <th>Значение</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">
+                        Основание внесения изменений (changeReason)
+                      </th>
+                      <td>
+                        <select
+                          id="position-change-reason"
+                          className={block("select")}
+                          {...register("changeReasonCode", {
+                            onChange: (e) => {
+                              const found = tpChangeReasonOptions.find(
+                                (item) => item.code === e.target.value,
+                              );
+                              setValue("changeReasonName", found?.name ?? "");
+                            },
+                          })}
+                        >
+                          <option value="">— Не выбрано —</option>
+                          {tpChangeReasonOptions.map((item) => (
+                            <option key={item.code} value={item.code}>
+                              {item.code}. {item.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Вынесенное решение (decision)</th>
+                      <td>
+                        <div className={block("radio-row")}>
+                          {modificationDecisionOptions.map((option) => (
+                            <label
+                              key={option.value}
+                              className={block("radio")}
+                            >
+                              <input
+                                type="radio"
+                                value={option.value}
+                                {...register("modificationDecision")}
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">
+                        Содержание изменений позиции (description)
+                      </th>
+                      <td>
+                        <textarea
+                          id="position-modification-description"
+                          className={block("textarea")}
+                          rows={3}
+                          placeholder="Обоснование корректировки или отмены позиции"
+                          {...register("modificationDescription")}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <footer className={block("footer")}>
             {errorText("objectOfPurchase") && (
