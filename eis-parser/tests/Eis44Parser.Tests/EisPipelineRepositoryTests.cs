@@ -125,4 +125,35 @@ public sealed class EisPipelineRepositoryTests
         Assert.Equal(2, await db.RawDocuments.CountAsync());
         Assert.Equal(1, await db.Participants.CountAsync());
     }
+
+    [Fact]
+    public async Task TenderPlanIsStoredAsRawWithoutPurchase()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<EisDbContext>().UseSqlite(connection).Options;
+        using var db = new EisDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var repository = new EisPipelineRepository(db);
+
+        var candidate = new ArchiveCandidate(
+            "https://example.test/plan.zip", "31", EisSubsystems.Rpgz, EisDocumentTypes.TenderPlan2020, null, null);
+        Assert.True(await repository.EnqueueAsync(candidate));
+        var claimed = await repository.ClaimNextAsync();
+        Assert.NotNull(claimed);
+
+        // <purchaseNumber> плана-графика — это 0001, 0002…, а не номер закупки.
+        await repository.PersistDocumentAsync(claimed!.Id, new ParsedEisDocument
+        {
+            FileName = "tenderPlan2020.xml",
+            DocumentSha256 = new string('d', 64),
+            Kind = EisDocumentKind.TenderPlan,
+            PurchaseNumber = "0001",
+            CustomerInn = "4629040439",
+        });
+
+        Assert.Equal(0, await db.Purchases.CountAsync());
+        Assert.Equal(1, await db.RawDocuments.CountAsync());
+        Assert.Equal("TenderPlan", await db.RawDocuments.Select(r => r.DocumentKind).SingleAsync());
+    }
 }

@@ -354,6 +354,23 @@ public sealed class EisDocumentParserRealXmlTests
         Assert.False(string.IsNullOrWhiteSpace(result.RawXml));
     }
 
+    [Fact]
+    public void KeepsTenderPlan2020AsRawOnly()
+    {
+        var document = Load("tenderPlan2020-real.xml");
+
+        var result = _parser.Parse(document, "tenderPlan2020.xml");
+
+        // Настоящий публичный XML плана-графика: корень <tenderPlan2020>,
+        // схема 16.3. Его <purchaseNumber> — номера позиций (0001, 0002…),
+        // поэтому план не должен попадать в таблицу purchases.
+        Assert.Equal(EisDocumentKind.TenderPlan, result.Kind);
+        Assert.Equal("16.3", result.SchemeVersion);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Contains("202601442000018001", result.RawXml, StringComparison.Ordinal);
+        Assert.Contains("<versionNumber>48</versionNumber>", result.RawXml, StringComparison.Ordinal);
+    }
+
     private static XDocument Load(string fileName) =>
         XDocument.Load(Path.Combine(AppContext.BaseDirectory, "test-data", fileName));
 }

@@ -2269,13 +2269,22 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   парсинг не включать: конвейер разбирает только XML. То же относится ко второму
   файлу `Печатная_форма_19.11.2026_ЭЦП`.
 - **Где брать XML план-графика:** XLSX-архив из карточки содержит только печатную
-  форму; сырой `<tenderPlan2020>` нужно скачивать отдельно — кнопкой XML в
-  карточке реестра планов графиков (искать по реестровому номеру
-  `202601442000018001` из `controlObjectsInfo/controlObjectInfo/number` в
-  control99, версия 48.0 от 19.11.2026) либо через `getDocsIP` с
-  `subsystemType=RPGZ` (`getDocsByReestrNumberRequest` с тем же `reestrNumber`
-  или `getDocsByOrgRegionRequest` с типом из `nsiDocumentTypes`). Превью из
-  `PurchasePlanCard.tsx` — локальная генерация, не выгрузка ЕИС.
+  форму. Публичный сырой XML найден без токена: карточка
+  `/epz/orderplan/pg2020/general-info.html?plan-number=202601442000018001`
+  (реестровый номер из `controlObjectsInfo/controlObjectInfo/number` в control99,
+  версия 48.0 от 19.11.2026) → вкладка «Вложения» → взять `printFormId` из ссылки
+  печатной формы и заменить `view.html` на `viewXml.html`:
+  `https://zakupki.gov.ru/epz/orderplan/os/printForm/viewXml.html?printFormId=212758858`.
+  Корень `<ns9:tenderPlan2020>` схемы 16.3, 384 КБ, 120 позиций. Через `getDocsIP`
+  план выгружается подсистемой `RPGZ` (`getDocsByReestrNumberRequest` с тем же
+  `reestrNumber` или `getDocsByOrgRegionRequest` с типом из `nsiDocumentTypes`).
+  Превью из `PurchasePlanCard.tsx` — локальная генерация, не выгрузка ЕИС.
+- **Маппинг плана-графика (2026-11-21):** фикстура `tenderPlan2020-real.xml` +
+  тест; добавлен `EisDocumentKind.TenderPlan`. Раньше корень `tenderPlan2020`
+  попадал в `Purchase`, и `<purchaseNumber>` позиций (`0001`, `0002`…) создавал
+  мусорную запись в `purchases`. Теперь план сохраняется только в `raw_documents`
+  (аналогично `contractProcedure`), отдельной сущности `plans` пока нет.
+  Всего 46 тестов.
 - **Все три конкурентных способа с реальными XML (2026-11-21):** открытый конкурс
   в электронной форме (`epNotificationEOK2020`, 0144200001826000192), электронный
   аукцион (`epNotificationEF2020`, 0144200001826000201) и электронный запрос

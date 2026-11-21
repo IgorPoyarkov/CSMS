@@ -144,12 +144,26 @@ WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 а не XML, поэтому `ArchiveProcessor` его не разбирает — архив сохраняется сырым
 на диске и в таблице `archives`, а маппинг XML-документов от него не зависит.
 Полный разбор XLSX в нормализованные сущности — отдельная задача с новой схемой
-БД. Сырого `<tenderPlan2020>` в таком архиве нет: XML плана-графика скачивают
-отдельной кнопкой в карточке реестра планов графиков, а через `getDocsIP` его
-выгружают подсистемой `RPGZ` (по реестровому номеру — `getDocsByReestrNumberRequest`
-с `reestrNumber`, либо по региону с типом документа из справочника
-`nsiDocumentTypes`). Превью XML из `PurchasePlanCard.tsx` строится из локальных
-данных CSMS и не является выгрузкой ЕИС.
+БД. Сырого `<tenderPlan2020>` в таком архиве нет.
+
+Публичный XML плана-графика доступен без токена: открыть карточку
+`/epz/orderplan/pg2020/general-info.html?plan-number=202601442000018001`,
+вкладку «Вложения», взять `printFormId` из ссылки печатной формы и заменить в
+ней `view.html` на `viewXml.html`:
+
+```
+https://zakupki.gov.ru/epz/orderplan/os/printForm/viewXml.html?printFormId=212758858
+```
+
+Корень такого файла — `<ns9:tenderPlan2020>` схемы 16.3 (фикстура
+`test-data/tenderPlan2020-real.xml`). Парсер помечает его как
+`EisDocumentKind.TenderPlan` и сохраняет только в `raw_documents`: `<purchaseNumber>`
+у плана — это номера позиций (`0001`, `0002`…), а реестровый номер лежит в
+`<planNumber>`, поэтому запись в `purchases` была бы мусором. Через `getDocsIP`
+план выгружают подсистемой `RPGZ` (по реестровому номеру —
+`getDocsByReestrNumberRequest` с `reestrNumber`, либо по региону с типом документа
+из справочника `nsiDocumentTypes`). Превью XML из `PurchasePlanCard.tsx` строится
+из локальных данных CSMS и не является выгрузкой ЕИС.
 
 Файлы с расширением `.ЭЦП`/`.sig`, приходящие из карточек, — отсоединённые
 подписи CMS/PKCS#7 в base64: самого документа в них нет, а в сертификате

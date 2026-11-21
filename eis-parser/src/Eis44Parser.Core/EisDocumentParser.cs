@@ -248,9 +248,16 @@ public sealed class EisDocumentParser
             return EisDocumentKind.Contract;
         }
 
+        // План-график — не закупка: его <purchaseNumber> нумеруют позиции
+        // (0001, 0002…), а реестровый номер лежит в <planNumber>. Пока нет
+        // отдельной сущности plans, сохраняем только сырой XML.
+        if (rootName.Contains("tenderPlan", StringComparison.OrdinalIgnoreCase))
+        {
+            return EisDocumentKind.TenderPlan;
+        }
+
         return rootName.Contains("project", StringComparison.OrdinalIgnoreCase) ||
                rootName.Contains("notification", StringComparison.OrdinalIgnoreCase) ||
-               rootName.Contains("tenderPlan", StringComparison.OrdinalIgnoreCase) ||
                rootName.Contains("plan", StringComparison.OrdinalIgnoreCase)
             ? EisDocumentKind.Purchase
             : EisDocumentKind.Unknown;

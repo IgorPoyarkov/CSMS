@@ -18,4 +18,9 @@ public enum EisDocumentKind
     /// <summary>Этап исполнения контракта (contractProcedure): хранится как сырой XML,
     /// но не должен перезаписывать основную запись контракта в БД.</summary>
     ContractProcedure = 4,
+
+    /// <summary>План-график (tenderPlan2020): хранится как сырой XML. Его
+    /// &lt;purchaseNumber&gt; — это номера позиций (0001, 0002…), а не закупок,
+    /// поэтому запись в purchases была бы мусором.</summary>
+    TenderPlan = 5,
 }

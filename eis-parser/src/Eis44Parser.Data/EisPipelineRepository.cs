@@ -151,6 +151,10 @@ public sealed class EisPipelineRepository(EisDbContext db) : IEisPipelineReposit
             // основную запись контракта: у них нет ИКЗ, цены и поставщика.
             case EisDocumentKind.ContractProcedure:
                 break;
+            // Планы-графики тоже пока только сырой XML: их purchaseNumber —
+            // номера позиций, запись в purchases была бы неверной.
+            case EisDocumentKind.TenderPlan:
+                break;
         }
     }
 
