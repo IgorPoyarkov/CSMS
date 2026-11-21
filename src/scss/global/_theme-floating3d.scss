@@ -50,17 +50,37 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       );
   }
 
-  // Перспектива задаётся контейнерам, а не body: transform или perspective
-  // на body сделали бы его containing block для fixed-элементов, и модалки
-  // с декором поехали бы относительно страницы.
-  main,
-  section,
-  article,
-  aside,
-  fieldset,
-  [class*="__card__"],
-  li[class*="card"] {
-    perspective: 900px;
+  // Перспектива и наклон включаются только пока не открыто модальное окно.
+  // И perspective, и transform делают элемент containing block для
+  // position: fixed: окно перестаёт позиционироваться от вьюпорта, уезжает
+  // вместе с формой, а его бегущая точка идёт по проецированной рамке.
+  // :has() есть во всех актуальных браузерах; где его нет — правило просто
+  // не применяется, и тема работает как раньше.
+  body:not(:has([class*="__window"])) {
+    main,
+    section,
+    article,
+    aside,
+    fieldset,
+    [class*="__card__"],
+    li[class*="card"] {
+      perspective: 900px;
+    }
+
+    section:hover,
+    article:hover,
+    aside:hover,
+    fieldset:hover,
+    li[class*="card"]:hover,
+    section:focus-within,
+    article:focus-within,
+    aside:focus-within,
+    fieldset:focus-within,
+    li[class*="card"]:focus-within {
+      transform: translateZ(14px) rotateX(1.2deg) rotateY(-1.2deg);
+      border-top-color: var(--accent);
+      box-shadow: var(--shadow-3d-hover);
+    }
   }
 
   // Карточки: блик по верхней грани, подсветка контура и три слоя тени.
@@ -83,22 +103,6 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       border-color 260ms $float-ease;
   }
 
-  // Парение: подъём по Z и умеренный наклон. focus-within повторяет hover
-  // для клавиатуры, поэтому эффект доступен и без мыши.
-  section:hover,
-  article:hover,
-  aside:hover,
-  fieldset:hover,
-  li[class*="card"]:hover,
-  section:focus-within,
-  article:focus-within,
-  aside:focus-within,
-  fieldset:focus-within,
-  li[class*="card"]:focus-within {
-    transform: translateZ(14px) rotateX(1.2deg) rotateY(-1.2deg);
-    border-top-color: var(--accent);
-    box-shadow: var(--shadow-3d-hover);
-  }
 
   // Поля ввода: объём задаётся внутренней тенью (углубление) и светлой
   // нижней гранью. На фокусе поле приподнимается и получает лаймовый ореол.

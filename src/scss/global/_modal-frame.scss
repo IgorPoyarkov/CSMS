@@ -5,9 +5,15 @@
 // панель тёмной темы — светлый. По периметру формы бежит точка-маркер, которая
 // обходит рамку по часовой стрелке: она показывает, что окно активно.
 //
-// Точка едет по padding-боксу окна, поэтому угол её траектории совпадает с
-// углом рамки с точностью до толщины борта.
-@mixin modal-frame($dot-size: 8px, $duration: 6s) {
+// Точка идёт по offset-path, а не по top/left. Причины:
+//   • top/left — это layout-свойства: каждый кадр пересчитывается раскладка
+//     всего окна с формой, тени и свечение перерисовываются, и на медленном
+//     кадре предыдущее положение свечения остаётся видимым — «хвост кометы»;
+//   • прямоугольный путь по углам padding-box не совпадает со скруглённой
+//     рамкой (border-radius), поэтому на углах точка уходила с линии;
+//   • offset-distance анимируется без layout, а rect(... round ...) описывает
+//     тот же скруглённый контур, что и рамка.
+@mixin modal-frame($dot-size: 8px, $duration: 6s, $radius: 10px) {
   position: relative;
   border: 1px solid var(--modal-border);
 
@@ -24,44 +30,69 @@
     box-shadow:
       0 0 0 3px var(--modal-dot-glow),
       0 0 10px 2px var(--modal-dot-glow);
-    transform: translate(-50%, -50%);
     pointer-events: none;
+    // Путь повторяет скругление рамки, точка едет центром по контуру
+    offset-path: rect(0 100% 100% 0 round #{$radius});
+    offset-anchor: center;
+    offset-rotate: 0deg;
+    offset-distance: 0%;
     animation: modal-frame-travel $duration linear infinite;
   }
 
   @keyframes modal-frame-travel {
-    0% {
-      top: 0;
-      left: 0;
+    from {
+      offset-distance: 0%;
     }
 
-    25% {
-      top: 0;
-      left: 100%;
+    to {
+      offset-distance: 100%;
+    }
+  }
+
+  // Браузеры без rect() в offset-path: прежняя прямоугольная траектория.
+  // На углах она срезает скругление, но анимация остаётся рабочей.
+  @supports not (offset-path: rect(0 0 0 0)) {
+    &::before {
+      transform: translate(-50%, -50%);
+      animation-name: modal-frame-travel-legacy;
     }
 
-    50% {
-      top: 100%;
-      left: 100%;
-    }
+    @keyframes modal-frame-travel-legacy {
+      0% {
+        top: 0;
+        left: 0;
+      }
 
-    75% {
-      top: 100%;
-      left: 0;
-    }
+      25% {
+        top: 0;
+        left: 100%;
+      }
 
-    100% {
-      top: 0;
-      left: 0;
+      50% {
+        top: 100%;
+        left: 100%;
+      }
+
+      75% {
+        top: 100%;
+        left: 0;
+      }
+
+      100% {
+        top: 0;
+        left: 0;
+      }
     }
   }
 
   // Бегущая точка — чистая украшалка: при уменьшенном движении она замирает
-  // на середине левой стороны и не мельтешит
+  // на середине пути и не мельтешит
   @media (prefers-reduced-motion: reduce) {
     &::before {
-      top: 50%;
       animation: none;
+      offset-distance: 50%;
+      top: 50%;
+      left: 0;
     }
   }
 }
