@@ -373,9 +373,17 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `--surface-page` поднят до 0.7, чтобы белая панель отделялась от «бумаги».
 - **Модалки**: `--modal-border` / `--modal-dot` / `--modal-dot-glow` + миксин
   `modal-frame` (`src/scss/global/_modal-frame.scss`) — рамка инвертирована к
-  фону окна, по периметру бежит точка (keyframes по `top`/`left` 0→100 %),
-  `prefers-reduced-motion` её останавливает. Используют `ProfileEditModal` и
-  `TaskAssignModal`.
+  фону окна, по периметру бежит точка. Точка едет по `offset-path:
+  rect(0 100% 100% 0 round 10px)` (анимация `offset-distance`), а не по
+  `top`/`left`: layout-анимация перерисовывала окно с тенью и оставляла
+  «хвост кометы», а прямоугольный путь срезал скругления. Для браузеров без
+  `rect()` в `offset-path` есть fallback `@supports not`, `prefers-reduced-motion`
+  замораживает точку на 50 % пути. ⚠️ Имена `@keyframes` в CSS-модулях
+  хешируются — в сторонних проверочных страницах ссылаться на них нельзя.
+- **3D-тема** (`_theme-floating3d.scss`): `perspective` и `transform` на
+  `main/section/article/...` включаются только под
+  `body:not(:has([class*="__window"]))`. Иначе они делают предка containing
+  block для `position: fixed`, и открытая модалка уезжает от вьюпорта.
 - ⚠️ Токена `--on-accent` нет — светлый текст на акценте даёт
   `--text-on-accent` (было 8 мест с опечаткой, исправлено).
 - Поля и селекты: `min-width: 0` и `max-width: 100%` в `_reboot.scss` +
