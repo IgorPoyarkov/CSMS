@@ -327,6 +327,8 @@ export default function ContractRegistryPage() {
   const kbkDropdownRef = useRef<HTMLDivElement | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  // Поставщик выбирается кликом по его названию в строке контракта
+  const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
 
   // Выборка до фильтра по КБК: по ней же строим список доступных КБК,
   // чтобы в подсказках не оставался единственный уже выбранный код
@@ -360,6 +362,11 @@ export default function ContractRegistryPage() {
       result = result.filter((c) => (c.contractDate ?? "") <= dateTo);
     }
 
+    // ─── Фильтрация по поставщику (клик по названию в строке) ──────────────
+    if (supplierFilter) {
+      result = result.filter((c) => (c.supplierName ?? "") === supplierFilter);
+    }
+
     return result;
   }, [
     contracts,
@@ -368,6 +375,7 @@ export default function ContractRegistryPage() {
     statusFilter,
     dateFrom,
     dateTo,
+    supplierFilter,
   ]);
 
   // КБК текущего пула контрактов — тот самый список, из которого выбирают:
@@ -525,6 +533,14 @@ export default function ContractRegistryPage() {
 
   const handleTableSort = (key: string) =>
     setTableSort((current) => toggleTableSort(current, key));
+
+  // Клик по поставщику включает фильтр по нему, повторный — снимает
+  const toggleSupplierFilter = (supplier: string | undefined) => {
+    const value = (supplier ?? "").trim();
+    if (!value) return;
+    setSupplierFilter((prev) => (prev === value ? null : value));
+    setPage(1);
+  };
 
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
@@ -756,6 +772,24 @@ export default function ContractRegistryPage() {
         </div>
       ) : (
         <>
+          {supplierFilter && (
+            <div className={styles.activeFilter}>
+              <span>
+                Поставщик: <strong>{supplierFilter}</strong>
+              </span>
+              <button
+                type="button"
+                className={styles.activeFilterClear}
+                onClick={() => {
+                  setSupplierFilter(null);
+                  setPage(1);
+                }}
+              >
+                Сбросить
+              </button>
+            </div>
+          )}
+
           <div className={styles.contractsTableWrap}>
             <table className={`${styles.table} ${styles.contractsTable}`}>
               {/* Ширины колонок фиксированы: фильтрация не должна их менять */}
@@ -832,6 +866,8 @@ export default function ContractRegistryPage() {
                     contract={contract}
                     expanded={expandedId === contract.id}
                     onToggle={() => toggleExpand(contract.id)}
+                    onSupplierClick={toggleSupplierFilter}
+                    activeSupplier={supplierFilter}
                     onDelete={() => {
                       if (
                         contract.id &&
@@ -891,6 +927,8 @@ interface ContractRowProps {
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onSupplierClick: (supplier: string | undefined) => void;
+  activeSupplier: string | null;
   formatDate: (date?: string) => string;
 }
 
@@ -905,6 +943,8 @@ function ContractRow({
   expanded,
   onToggle,
   onDelete,
+  onSupplierClick,
+  activeSupplier,
   formatDate,
 }: ContractRowProps) {
   const overdue = isContractOverdue(contract);
@@ -927,7 +967,28 @@ function ContractRow({
         onClick={onToggle}
       >
         <td className={styles.contractNumber}>{contract.contractNumber}</td>
-        <td>{contract.supplierName}</td>
+        <td>
+          {contract.supplierName ? (
+            <button
+              type="button"
+              className={`${styles.supplierButton} ${
+                activeSupplier === contract.supplierName
+                  ? styles.supplierButtonActive
+                  : ""
+              }`}
+              aria-pressed={activeSupplier === contract.supplierName}
+              title="Показать контракты этого поставщика"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSupplierClick(contract.supplierName);
+              }}
+            >
+              {contract.supplierName}
+            </button>
+          ) : (
+            "—"
+          )}
+        </td>
         <td className={styles.moneyCell}>
           {formatMoney(contract.contractPrice)}
         </td>
