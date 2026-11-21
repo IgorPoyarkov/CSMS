@@ -15,6 +15,7 @@
  *     --notice-years 2 --plans 3 --notices 3 --tasks 12
  *   node scripts/import-eis-client.mjs --dry-run
  *   node scripts/import-eis-client.mjs --inn 4629040439 --refresh-organization
+ *   node scripts/import-eis-client.mjs --enrich-plans
  *
  * Реквизиты заказчика берутся из публичной карточки организации ЕИС:
  * поиск по ИНН → info.html (реквизиты) и other.html (контакты). При full-import
@@ -23,6 +24,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -88,6 +90,7 @@ function parseArgs(argv) {
     tasks: 12,
     dryRun: false,
     refreshOrganization: false,
+    enrichPlans: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -97,6 +100,10 @@ function parseArgs(argv) {
     }
     if (flag === "--refresh-organization") {
       args.refreshOrganization = true;
+      continue;
+    }
+    if (flag === "--enrich-plans") {
+      args.enrichPlans = true;
       continue;
     }
     if (!flag.startsWith("--")) continue;
@@ -421,6 +428,10 @@ async function fetchPlan(planNumber) {
   const generalHtml = fetchText(
     `${base}/general-info.html?plan-number=${planNumber}`,
   );
+  const planXml = fetchPlanXml(planNumber, generalHtml);
+  const xmlData = planXml
+    ? parsePlanXml(planXml)
+    : { positions: new Map(), specialPurchases: [] };
   sleep(400);
   // Позиции отдаются страницами по 50, поэтому обходим все страницы:
   // план на 119 позиций должен попасть в базу целиком, а не первые 10.
@@ -496,6 +507,9 @@ async function fetchPlan(planNumber) {
       publicDiscussion,
       positionNumber: ikz.slice(22, 26),
       eisUrl: `${base}/position/general-info.html?plan-number=${planNumber}&position-number=${uniqueNumber}`,
+      // КБК, КВР, ИКУ и особые закупки есть только в публичном XML: без них
+      // ИКЗ теряет последние 3 разряда (КВР) и не собирается целиком.
+      ...(xmlData.positions.get(ikz) ?? {}),
     });
   }
   const seen = new Set();
@@ -514,8 +528,206 @@ async function fetchPlan(planNumber) {
     status: /Размещ/.test(statusRaw) ? "published" : "draft",
     customerName: customerName || undefined,
     positions: uniquePositions,
+    specialPurchases: xmlData.specialPurchases,
+    totalAmount: xmlData.totalAmount,
     eisUrl: `${base}/general-info.html?plan-number=${planNumber}`,
   };
+}
+
+// ─── Публичный XML плана-графика ────────────────────────────────────────────
+// Карточка ЕИС отдаёт только HTML: в ней нет ни детализации КБК, ни блока
+// specialPurchasePositions. Оба блока есть в публичной печатной форме XML —
+// берём printFormId из той же карточки и скачиваем viewXml.html без токена.
+// XML кэшируется в tmp, чтобы повторный запуск не ходил в ЕИС зря.
+
+const PLAN_XML_CACHE = path.join(os.tmpdir(), "csms-eis-plan-xml");
+
+function xmlBlocks(xml, tag) {
+  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "g");
+  return [...String(xml ?? "").matchAll(re)].map((match) => match[1]);
+}
+
+/** Внутреннее содержимое тега без очистки — для вложенных блоков XML. */
+function xmlInner(block, tag) {
+  if (!block) return "";
+  const re = new RegExp(
+    `<(?:[A-Za-z0-9]+:)?${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:[A-Za-z0-9]+:)?${tag}>`,
+  );
+  const match = String(block).match(re);
+  return match ? match[1] : "";
+}
+
+/** Текст листового тега. Для контейнеров использовать xmlInner. */
+function xmlValue(block, tag) {
+  return clean(xmlInner(block, tag));
+}
+
+function planFinance(block) {
+  const amount = (tag) => money(xmlValue(block, tag)).toFixed(2);
+  return {
+    amountTotal: amount("total"),
+    amountCurrentYear: amount("currentYear"),
+    amountPlanPeriodFirstYear: amount("firstYear"),
+    amountPlanPeriodSecondYear: amount("secondYear"),
+    amountSubsequentYears: amount("subsecYears"),
+  };
+}
+
+function parseKbk(block) {
+  const kbk = xmlValue(block, "KBK");
+  if (!kbk) return null;
+  return {
+    kbk,
+    chapter: kbk.slice(0, 3),
+    section: kbk.slice(3, 7),
+    targetArticle: kbk.slice(7, 17),
+    expenseType: kbk.slice(17, 20),
+    ...planFinance(xmlInner(block, "KBKYearsInfo")),
+  };
+}
+
+function parsePlanXml(xml) {
+  const positions = new Map();
+  for (const block of xmlBlocks(xml, "position")) {
+    const ikz = xmlValue(block, "IKZ");
+    if (!/^\d{36}$/.test(ikz)) continue;
+    const kbkEntries = xmlBlocks(xmlInner(block, "KBKsInfo"), "KBKInfo")
+      .map(parseKbk)
+      .filter(Boolean);
+    const kvrBlock = xmlInner(block, "KVRInfo");
+    const kvr = xmlValue(kvrBlock, "code");
+    const finance = planFinance(xmlInner(block, "financeInfo"));
+    const modification = xmlInner(block, "positionModification");
+    const reason = xmlInner(modification, "changeReason");
+    const flag = (tag) => /true/i.test(xmlValue(block, tag));
+
+    positions.set(ikz, {
+      identificationCode: ikz,
+      // Графы объёма финансирования из financeInfo: они должны совпадать
+      // с суммой KBKYearsInfo/KVR, иначе superRefine позиции не пройдёт.
+      ...finance,
+      iku: xmlValue(block, "IKU"),
+      uniqueNumber: xmlValue(block, "positionNumber"),
+      purchaseNumber: xmlValue(block, "purchaseNumber"),
+      plannedPlacementYear: xmlValue(block, "publishYear"),
+      kbk: kbkEntries[0]?.kbk ?? "",
+      kbkEntries,
+      kvr,
+      kvrName: xmlValue(kvrBlock, "name"),
+      kvrEntries: kvr ? [{ kvr, ...finance }] : [],
+      isEnergyServiceContract: flag("isEnergyServiceContract"),
+      isConstructionWorks: flag("isConstructionWorks"),
+      isNotFederalFinancing: flag("isNotFederalFinancing"),
+      ...(modification
+        ? {
+            modificationStatus: "E",
+            changeReasonCode: xmlValue(reason, "code"),
+            changeReasonName: xmlValue(reason, "name"),
+            modificationDescription: xmlValue(modification, "description"),
+          }
+        : {}),
+    });
+  }
+
+  const specialPurchases = xmlBlocks(xml, "specialPurchasePosition").map(
+    (block, index) => {
+      const type = xmlInner(block, "type");
+      const kbk = xmlValue(xmlInner(block, "KBKsInfo"), "KBK");
+      const kvr = xmlValue(xmlInner(block, "KVRInfo"), "code");
+      const modification = xmlInner(
+        block,
+        "specialPurchasePositionModification",
+      );
+      return {
+        id: `eissp-${xmlValue(block, "positionNumber") || index + 1}`,
+        typeCode: xmlValue(type, "code"),
+        typeName: xmlValue(type, "name"),
+        ikz: xmlValue(block, "IKZ"),
+        iku: xmlValue(block, "IKU"),
+        positionNumber: xmlValue(block, "positionNumber"),
+        extNumber: xmlValue(block, "extNumber"),
+        kvr,
+        kbk,
+        publishYear: xmlValue(block, "publishYear"),
+        purchaseNumber: xmlValue(block, "purchaseNumber"),
+        ...(modification ? { modificationStatus: "E" } : {}),
+        isNotFederalFinancing: /true/i.test(
+          xmlValue(block, "isNotFederalFinancing"),
+        ),
+        ...planFinance(xmlInner(block, "financeInfo")),
+      };
+    },
+  );
+
+  // Итог плана в XML включает особые закупки; HTML-карточка показывает только
+  // сумму обычных позиций, поэтому берём общую сумму из totalsInfo.
+  const totals = xmlInner(xml, "outcomeIndicators");
+  const totalAmount = money(xmlValue(xmlInner(totals, "totalsInfo"), "total")).toFixed(2);
+
+  return { positions, specialPurchases, totalAmount };
+}
+
+function fetchPlanXml(planNumber, generalHtml) {
+  fs.mkdirSync(PLAN_XML_CACHE, { recursive: true });
+  const cacheFile = path.join(PLAN_XML_CACHE, `${planNumber}.xml`);
+  if (fs.existsSync(cacheFile)) {
+    return fs.readFileSync(cacheFile, "utf8");
+  }
+  const match = String(generalHtml).match(/printForm\/view\.html\?printFormId=(\d+)/);
+  if (!match) {
+    console.error(`План ${planNumber}: в карточке нет ссылки на печатную форму`);
+    return null;
+  }
+  const xml = fetchText(
+    `${EIS}/epz/orderplan/os/printForm/viewXml.html?printFormId=${match[1]}`,
+  );
+  if (!xml.includes("tenderPlan2020")) {
+    throw new Error(`План ${planNumber}: ЕИС вернул не XML плана-графика`);
+  }
+  fs.writeFileSync(cacheFile, xml, "utf8");
+  return xml;
+}
+
+/** Точечное обогащение уже импортированных планов данными публичного XML. */
+function enrichPlansFromXml(db) {
+  const result = { plans: 0, positions: 0, specialPurchases: 0 };
+  for (const plan of db.purchasePlans ?? []) {
+    if (!plan.planNumber) continue;
+    // Если XML уже в кэше, карточка не нужна — обогащение работает офлайн.
+    const cached = fs.existsSync(
+      path.join(PLAN_XML_CACHE, `${plan.planNumber}.xml`),
+    );
+    const generalHtml = cached
+      ? ""
+      : fetchText(
+          `${EIS}/epz/orderplan/pg2020/general-info.html?plan-number=${plan.planNumber}`,
+        );
+    const xml = fetchPlanXml(plan.planNumber, generalHtml);
+    if (!xml) continue;
+    const parsed = parsePlanXml(xml);
+    let patched = 0;
+    for (const position of plan.positions ?? []) {
+      const data = parsed.positions.get(position.identificationCode);
+      if (!data) continue;
+      Object.assign(position, data);
+      patched++;
+    }
+    if (parsed.specialPurchases.length) {
+      plan.specialPurchases = parsed.specialPurchases;
+    }
+    // outcomeIndicators/totalsInfo уже включает особые закупки.
+    if (Number(parsed.totalAmount) > 0) {
+      plan.totalAmount = parsed.totalAmount;
+    }
+    result.plans++;
+    result.positions += patched;
+    result.specialPurchases += parsed.specialPurchases.length;
+    console.error(
+      `План ${plan.planNumber}: XML-позиций ${parsed.positions.size}, обновлено ${patched}, особых закупок ${parsed.specialPurchases.length}`,
+    );
+    sleep(400);
+  }
+  return result;
 }
 
 async function fetchNoticesCsv(inn, from, to, limit) {
@@ -653,36 +865,49 @@ async function fetchNoticeDetail(number) {
 function mapPlan(source, template, org, importInfo) {
   const positions = source.positions.map((position, index) => ({
     ...structuredClone(template),
+    // Поля публичного XML (КБК, КВР, ИКУ, признаки, изменения) уже подмешаны
+    // в position внутри fetchPlan: HTML-карточка ЕИС их не показывает.
+    ...position,
     id: `${source.planNumber}-${index + 1}`,
     serialNumber: position.positionNumber,
     identificationCode: position.ikz,
     objectOfPurchase: position.objectOfPurchase,
-    plannedPlacementYear: position.planYear,
-    amountTotal: position.amount,
-    amountCurrentYear: position.amount,
-    amountPlanPeriodFirstYear: "0",
-    amountPlanPeriodSecondYear: "0",
-    amountSubsequentYears: "0",
+    plannedPlacementYear: position.plannedPlacementYear ?? position.planYear,
     isPublicDiscussionRequired: position.publicDiscussion,
     okpd2Code: position.okpd2Code,
     okpd2Name: position.okpd2Name,
     objectName: position.okpd2Name,
     ktrCode: position.okpd2Code,
     nmck: position.amount,
-    // Публичная карточка не содержит КБК позиции; оставляем поле пустым,
-    // иначе из шаблона демо-плана тянутся чужие суммы и валидация падает.
-    kbk: "",
-    kbkEntries: [],
+    // Суммы из XML точнее «Сумм по годам» из HTML-карточки.
+    amountTotal: position.amountTotal ?? position.amount,
+    amountCurrentYear: position.amountCurrentYear ?? position.amount,
+    amountPlanPeriodFirstYear: position.amountPlanPeriodFirstYear ?? "0",
+    amountPlanPeriodSecondYear: position.amountPlanPeriodSecondYear ?? "0",
+    amountSubsequentYears: position.amountSubsequentYears ?? "0",
+    kbk: position.kbk ?? "",
+    kbkEntries: position.kbkEntries ?? [],
+    kvr: position.kvr ?? "",
+    kvrName: position.kvrName ?? "",
+    kvrEntries: position.kvrEntries ?? [],
+    iku: position.iku ?? "",
+    purchaseNumber: position.purchaseNumber ?? position.positionNumber,
     uniqueNumber: position.uniqueNumber,
     status: position.statusLabel === "Отменена" ? "cancelled" : "placed",
     statusDate: position.statusDate,
     eisUrl: position.eisUrl,
     remarks: `Импорт ЕИС; ИКЗ ${position.ikz}`,
   }));
-  const total = positions.reduce(
-    (sum, position) => sum + money(position.amountTotal),
-    0,
-  );
+  const total = source.totalAmount
+    ? money(source.totalAmount)
+    : positions.reduce(
+        (sum, position) => sum + money(position.amountTotal),
+        0,
+      ) +
+      (source.specialPurchases ?? []).reduce(
+        (sum, purchase) => sum + money(purchase.amountTotal),
+        0,
+      );
   return {
     id: `eisp-${source.planNumber}`,
     organizationId: org.id,
@@ -701,7 +926,7 @@ function mapPlan(source, template, org, importInfo) {
       fullName: source.customerName || org.fullName,
     },
     positions,
-    specialPurchases: [],
+    specialPurchases: source.specialPurchases ?? [],
     eisImport: importInfo,
   };
 }
@@ -897,6 +1122,13 @@ async function main() {
   const employee = db.employees.find((item) => item.userId === 7)
     ?? db.employees.find((item) => item.email === "poyarkova_nyy@mail.ru");
   if (!employee) throw new Error("В db.json нет связанного работника пользователя");
+
+  if (args.enrichPlans) {
+    const stats = enrichPlansFromXml(db);
+    fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+    console.log(JSON.stringify(stats, null, 2));
+    return;
+  }
 
   const inn = args.inn || org.inn;
   const publicOrg = fetchOrganization(inn);
