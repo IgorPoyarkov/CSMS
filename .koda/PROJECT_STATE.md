@@ -380,10 +380,13 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   `rect()` в `offset-path` есть fallback `@supports not`, `prefers-reduced-motion`
   замораживает точку на 50 % пути. ⚠️ Имена `@keyframes` в CSS-модулях
   хешируются — в сторонних проверочных страницах ссылаться на них нельзя.
-- **3D-тема** (`_theme-floating3d.scss`): `perspective` и `transform` на
-  `main/section/article/...` включаются только под
-  `body:not(:has([class*="__window"]))`. Иначе они делают предка containing
-  block для `position: fixed`, и открытая модалка уезжает от вьюпорта.
+- **3D-тема** (`_theme-floating3d.scss`): без `perspective` и
+  `rotateX`/`rotateY`. Наклон на вложенных контейнерах перекашивал текст, а
+  `translateZ` на hover давал рывок масштаба. Объём держится на многослойных
+  тенях, блике верхней грани и подсветке контура; подъём — только
+  `translateY(-1px)` у кнопок и ссылок. `transform` у панелей не меняется,
+  поэтому предок не становится containing block для `position: fixed` и
+  модалки не уезжают от вьюпорта.
 - ⚠️ Токена `--on-accent` нет — светлый текст на акценте даёт
   `--text-on-accent` (было 8 мест с опечаткой, исправлено).
 - Поля и селекты: `min-width: 0` и `max-width: 100%` в `_reboot.scss` +
