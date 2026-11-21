@@ -72,14 +72,20 @@ export const useKtruDictionary = () =>
 
       try {
         // /nsiKTRU/all не отдаёт payloadJson, а он нужен для единицы измерения
-        // и характеристик; /items с большим take возвращает полные записи.
-        const { data } = await referenceApi.get(
-          "/api/references/nsiKTRU/items",
-          { params: { take: 1000 } },
-        );
-        for (const reference of readReferenceItems(data)) {
-          const item = fromReferenceItem(reference);
-          if (item) merged.set(item.ktruCode, item);
+        // и характеристик; /items отдаёт не больше 500 записей за запрос,
+        // поэтому обходим страницы, пока не вернётся короткая выдача.
+        const pageSize = 500;
+        for (let skip = 0; skip < 5000; skip += pageSize) {
+          const { data } = await referenceApi.get(
+            "/api/references/nsiKTRU/items",
+            { params: { take: pageSize, skip } },
+          );
+          const page = readReferenceItems(data);
+          for (const reference of page) {
+            const item = fromReferenceItem(reference);
+            if (item) merged.set(item.ktruCode, item);
+          }
+          if (page.length < pageSize) break;
         }
       } catch {
         // Снимок КТРУ не загружен — используем локальный оверлей.
