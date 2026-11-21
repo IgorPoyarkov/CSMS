@@ -63,6 +63,41 @@ public sealed class EisDocumentParserRealXmlTests
         Assert.Equal(43.20m, item.Price);
     }
 
+    [Fact]
+    public void ParsesRealElectronicRequestForQuotations()
+    {
+        var document = Load("epNotificationEZK2020-real.xml");
+
+        var result = _parser.Parse(document, "epNotificationEZK2020.xml");
+
+        Assert.Equal(EisDocumentKind.Purchase, result.Kind);
+        Assert.Equal("16.3", result.SchemeVersion);
+        // В ИКЗInfo лежит вложенный purchaseNumber=0126 — нужен номер из commonInfo.
+        Assert.Equal("0144200001826000194", result.PurchaseNumber);
+        Assert.Equal("262462904043946320100101260010000244", result.Ikz);
+        Assert.Equal("4629040439", result.CustomerInn);
+        Assert.Equal("463201001", result.CustomerKpp);
+        Assert.Contains("КУРСКАВТОДОР", result.CustomerName, StringComparison.Ordinal);
+        Assert.Equal(6_590_000.01m, result.Price);
+        Assert.Equal("2026-11-19T15:40:45.631+03:00", result.PublishDate);
+        Assert.Contains("автоматической фиксации", result.ObjectInfo, StringComparison.Ordinal);
+        Assert.Equal(
+            "https://zakupki.gov.ru/epz/order/notice/printForm/view.html?regNumber=0144200001826000194",
+            result.PrintFormUrl);
+
+        Assert.Equal(2, result.Items.Count);
+        var product = result.Items[0];
+        Assert.Equal("26.51.66.190-00000023", product.KtruCode);
+        Assert.Equal("26.51.66.190", product.Okpd2Code);
+        Assert.Equal(3m, product.Quantity);
+        Assert.Equal(1_610_000.00m, product.Price);
+        var work = result.Items[1];
+        Assert.Null(work.KtruCode);
+        Assert.Equal("33.20.39.900", work.Okpd2Code);
+        Assert.Equal(3m, work.Quantity);
+        Assert.Equal(586_666.67m, work.Price);
+    }
+
     [Theory]
     [InlineData("control99-notice-compliance-real.xml", "2026-11-19T16:06:41+03:00")]
     [InlineData("control99-begin-message-real.xml", "2026-11-19T14:08:36+03:00")]
