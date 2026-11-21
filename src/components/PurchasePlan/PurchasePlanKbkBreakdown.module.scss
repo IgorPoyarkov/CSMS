@@ -174,6 +174,13 @@
   color: var(--text-secondary);
 }
 
+// Подсказка о переходе к записи под заголовком окна
+.modal-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .close-btn {
   flex: none;
   width: 32px;
@@ -225,6 +232,28 @@
     background: var(--stripe);
   }
 
+  // Строка записи кликабельна: ведёт на страницу позиции ПГ или на вкладку
+  // «Особые закупки». Специфичность выше общего hover, иначе подсветка
+  // остаётся полосатой и переход не читается
+  tbody tr.record-row {
+    cursor: pointer;
+
+    .record-title {
+      text-decoration: underline dotted;
+      text-underline-offset: 2px;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: var(--accent-soft);
+    }
+
+    &:focus-visible {
+      outline: 1px solid var(--accent);
+      outline-offset: -1px;
+    }
+  }
+
   tfoot td {
     font-weight: 700;
     background: var(--surface-raised);
@@ -256,6 +285,16 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+// Признак перехода к записи: на телефоне hover нет, поэтому ссылка видна
+.record-open {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  overflow-wrap: anywhere;
 }
 
 // а в окне кода пропадают «№» и ИКЗ (номер уходит под наименование). Суммы

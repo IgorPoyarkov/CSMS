@@ -32,7 +32,9 @@ import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
-import PurchasePlanKbkBreakdown from "./PurchasePlanKbkBreakdown";
+import PurchasePlanKbkBreakdown, {
+  type KbkRecordTarget,
+} from "./PurchasePlanKbkBreakdown";
 import PurchasePlanSpecialPurchases from "./PurchasePlanSpecialPurchases";
 import { usePurchasePlanVersions } from "../../services/PurchasePlan/purchasePlanVersion.api";
 import {
@@ -341,6 +343,21 @@ export default function PurchasePlanCard() {
   const pfhdLabel =
     pfhdTypeOptions.find((o) => o.value === (plan.pfhdType ?? "IND"))?.label ??
     "IND";
+
+  // Клик по записи в разбивке по КБК: у позиции плана-графика своя страница,
+  // у особой закупки отдельной страницы нет — открываем вкладку с её таблицей
+  function handleOpenKbkRecord(target: KbkRecordTarget) {
+    if (target.kind === "special") {
+      setActiveTab("special");
+      return;
+    }
+
+    if (target.id === undefined) {
+      return;
+    }
+
+    navigate(`/purchase-plans/${planId}/positions/${target.id}/edit`);
+  }
 
   // Журнал событий: только реальные даты карточки, без выдуманных записей.
   const planEvents: Array<{ date: string; title: string; details?: string }> =
@@ -1243,7 +1260,11 @@ export default function PurchasePlanCard() {
             </table>
           </div>
 
-          <PurchasePlanKbkBreakdown plan={plan} baseYear={baseYear} />
+          <PurchasePlanKbkBreakdown
+            plan={plan}
+            baseYear={baseYear}
+            onOpenRecord={handleOpenKbkRecord}
+          />
         </section>
       )}
 

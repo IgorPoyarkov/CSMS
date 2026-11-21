@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   positionKbkEntries,
@@ -23,6 +29,16 @@ import styles from "./PurchasePlanKbkBreakdown.module.scss";
 interface PurchasePlanKbkBreakdownProps {
   plan: PurchasePlan;
   baseYear: number;
+  // Клик по записи в окне кода: карточка сама решает, куда вести — позиция
+  // плана-графика открывается своей страницей, особая закупка — вкладкой
+  // «Особые закупки»
+  onOpenRecord?: (target: KbkRecordTarget) => void;
+}
+
+// Запись, выбранная в окне кода, и точка перехода к ней
+export interface KbkRecordTarget {
+  kind: "position" | "special";
+  id?: string | number;
 }
 
 // Суммы по графам формы ПГ: всего, текущий год, плановый период и
@@ -39,6 +55,8 @@ interface KbkAmounts {
 interface KbkRecordUsage {
   key: string;
   kind: "position" | "special";
+  // Идентификатор записи в плане-графике: по нему открывается позиция ПГ
+  recordId?: string | number;
   title: string;
   documentNumber: string;
   ikz: string;
@@ -184,6 +202,7 @@ const collectKbkGroups = (
     addEntries(position, {
       key: `position-${position.id ?? index}`,
       kind: "position",
+      recordId: position.id,
       title:
         position.objectOfPurchase ||
         position.objectName ||
@@ -198,6 +217,7 @@ const collectKbkGroups = (
     addEntries(item, {
       key: `special-${item.id ?? index}`,
       kind: "special",
+      recordId: item.id,
       title: item.typeName || "Особая закупка без основания",
       documentNumber: item.positionNumber || item.purchaseNumber || "",
       ikz: item.ikz || "",
@@ -222,6 +242,7 @@ const collectKbkGroups = (
 export default function PurchasePlanKbkBreakdown({
   plan,
   baseYear,
+  onOpenRecord,
 }: PurchasePlanKbkBreakdownProps) {
   const [openKbk, setOpenKbk] = useState<string | null>(null);
 
@@ -341,6 +362,7 @@ export default function PurchasePlanKbkBreakdown({
           group={openGroup}
           showRecordTotal={showRecordTotal}
           onClose={closeModal}
+          onOpenRecord={onOpenRecord}
         />
       )}
     </div>
@@ -351,12 +373,14 @@ interface KbkRecordsModalProps {
   group: KbkGroup;
   showRecordTotal: boolean;
   onClose: () => void;
+  onOpenRecord?: (target: KbkRecordTarget) => void;
 }
 
 function KbkRecordsModal({
   group,
   showRecordTotal,
   onClose,
+  onOpenRecord,
 }: KbkRecordsModalProps) {
   // Escape закрывает окно, как и остальные модальные формы проекта
   useEffect(() => {
@@ -370,6 +394,25 @@ function KbkRecordsModal({
 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
+
+  // Переход к записи: окно закрываем сами — при смене вкладки компонент
+  // размонтируется, а при переходе на страницу позиции модалка не должна
+  // оставаться в истории
+  const openRecord = (record: KbkRecordUsage) => {
+    if (!onOpenRecord) {
+      return;
+    }
+
+    if (record.kind === "position" && record.recordId === undefined) {
+      return;
+    }
+
+    onClose();
+    onOpenRecord({
+      kind: record.kind,
+      id: record.recordId,
+    });
+  };
 
   // Портал в body: контент страницы лежит в своём контексте наложения
   // (AppLayout .content), из-за чего fixed-окно внутри карточки оставалось
@@ -402,6 +445,11 @@ function KbkRecordsModal({
               Записей: {group.records.length} · всего{" "}
               {formatMoneyValue(group.total)} ₽
             </p>
+            {onOpenRecord && (
+              <p className={styles["modal-hint"]}>
+                Нажмите на запись, чтобы открыть её
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -425,46 +473,86 @@ function KbkRecordsModal({
               </tr>
             </thead>
             <tbody>
-              {group.records.map((record, index) => (
-                <tr key={record.key}>
-                  <td className={styles.count}>{index + 1}</td>
-                  <td>
-                    <span className={styles["record-title"]}>
-                      {record.title}
-                    </span>
-                    {record.kind === "special" && (
-                      <span className={styles.badge}>Особая закупка</span>
-                    )}
-                    {/* На узких экранах колонка ИКЗ скрыта, номер остаётся здесь */}
-                    <span className={styles["record-ref"]}>
-                      {record.documentNumber || "Номер записи не указан"}
-                    </span>
-                    {/* Запись с несколькими КБК: на телефоне колонка «Всего
-                        по записи» скрыта, поэтому объём показываем подписью */}
-                    {record.kbkCount > 1 && (
-                      <span className={styles["record-total-note"]}>
-                        Всего по записи: {formatMoneyValue(record.recordTotal)} ₽
+              {group.records.map((record, index) => {
+                // Кликабельны только записи, у которых есть куда перейти
+                const canOpen =
+                  Boolean(onOpenRecord) &&
+                  (record.kind === "special" ||
+                    record.recordId !== undefined);
+
+                return (
+                  <tr
+                    key={record.key}
+                    className={canOpen ? styles["record-row"] : undefined}
+                    tabIndex={canOpen ? 0 : undefined}
+                    title={
+                      canOpen
+                        ? record.kind === "special"
+                          ? "Открыть особую закупку"
+                          : "Открыть позицию плана-графика"
+                        : undefined
+                    }
+                    onClick={canOpen ? () => openRecord(record) : undefined}
+                    onKeyDown={
+                      canOpen
+                        ? (event: ReactKeyboardEvent) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openRecord(record);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
+                    <td className={styles.count}>{index + 1}</td>
+                    <td>
+                      <span className={styles["record-title"]}>
+                        {record.title}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    <span className={styles.mono}>
-                      {record.documentNumber || "—"}
-                    </span>
-                    {record.ikz && (
-                      <span className={styles.sub}>{record.ikz}</span>
-                    )}
-                  </td>
-                  <td className={styles.num}>
-                    {formatMoneyValue(record.amounts.total)}
-                  </td>
-                  {showRecordTotal && (
-                    <td className={styles.num}>
-                      {formatMoneyValue(record.recordTotal)}
+                      {record.kind === "special" && (
+                        <span className={styles.badge}>Особая закупка</span>
+                      )}
+                      {/* На узких экранах колонка ИКЗ скрыта, номер остаётся здесь */}
+                      <span className={styles["record-ref"]}>
+                        {record.documentNumber || "Номер записи не указан"}
+                      </span>
+                      {/* Запись с несколькими КБК: на телефоне колонка «Всего
+                          по записи» скрыта, поэтому объём показываем подписью */}
+                      {record.kbkCount > 1 && (
+                        <span className={styles["record-total-note"]}>
+                          Всего по записи:{" "}
+                          {formatMoneyValue(record.recordTotal)} ₽
+                        </span>
+                      )}
+                      {/* На телефоне нет hover, поэтому переход показываем
+                          ссылкой под наименованием */}
+                      {canOpen && (
+                        <span className={styles["record-open"]}>
+                          {record.kind === "special"
+                            ? "Открыть особую закупку →"
+                            : "Открыть позицию →"}
+                        </span>
+                      )}
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td>
+                      <span className={styles.mono}>
+                        {record.documentNumber || "—"}
+                      </span>
+                      {record.ikz && (
+                        <span className={styles.sub}>{record.ikz}</span>
+                      )}
+                    </td>
+                    <td className={styles.num}>
+                      {formatMoneyValue(record.amounts.total)}
+                    </td>
+                    {showRecordTotal && (
+                      <td className={styles.num}>
+                        {formatMoneyValue(record.recordTotal)}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr>
