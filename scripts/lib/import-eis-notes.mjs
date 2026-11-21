@@ -69,6 +69,128 @@ const nextNumber = (items, field) =>
     return Number.isFinite(value) && value > max ? value : max;
   }, 0) + 1;
 
+/**
+ * Заглушки по умолчанию — те же значения, что emptyPurchaseNote() в схеме СЗ.
+ * Чего нет в выгруженном извещении, остаётся от заглушки: форма извещения и
+ * XML всегда получают заполненную структуру, а не разрозненные пустые поля.
+ */
+const DEFAULT_NOTE_FIELDS = {
+  basis: "",
+  kbkDisagreement: false,
+  kbkSuggested: "",
+  kbkDisagreementComment: "",
+  kbkDisagreementAuthor: "",
+  budgetLevel: "",
+  fundingSource: "Бюджет субъекта Российской Федерации",
+  isIndeterminateVolume: false,
+  oozSetComplete: true,
+  positionProcurementsComplete: true,
+  unit: "",
+  quantity: "1",
+  priceBasis:
+    "Метод сопоставимых рыночных цен (анализ рынка) в соответствии со ст. 22 Закона № 44-ФЗ",
+  nmckFileName: "",
+  objectDescriptionFileName: "",
+  nmckRequestStatus: "none",
+  procurementType: "Прочее",
+  protocolName: "",
+  protocolNumber: "",
+  protocolPublishDate: "",
+  appNumber: "",
+  isStructuredForm: true,
+  contractProjectFiles: [],
+  hasAdvance: false,
+  advancePercent: "",
+  paymentProcedure: "postpayment",
+  paymentTermDays: 7,
+  requiresTreasurySupport: false,
+  treasurySupportType: "",
+  requiresBankSupport: false,
+  deliveryTermMode: "relative",
+  deliveryTermFromContractDate: true,
+  deliveryStartOffsetDays: 0,
+  executionTermDays: 30,
+  acceptanceTermMode: "event",
+  acceptanceEventBase: "с даты поступления заказчику документа о приёмке в ЕИС",
+  acceptanceTermDays: 10,
+  deliveryPlace: "",
+  deliveryPlaces: [
+    {
+      id: "1",
+      country: "Российская Федерация",
+      region: "",
+      municipality: "",
+      settlement: "",
+      address: "",
+      additionalInfo: "",
+    },
+  ],
+  nationalRegimeType: "none",
+  advantageSmpPart3Art30: false,
+  requiresSmpSubcontracting: false,
+  smpRequiredPercent: undefined,
+  unifiedRequirementsPart1Art31: true,
+  unifiedRequirementsPart1Art31Text:
+    "Соответствие требованиям ч. 1 ст. 31 Закона № 44-ФЗ (непроведение ликвидации/банкротства, неприостановление деятельности, отсутствие недоимки по налогам, судимости и конфликта интересов).",
+  requirementP1Part1Art31: false,
+  requirementP1Part1Art31Text:
+    "Наличие действующей лицензии / членства в СРО / свидетельства о допуске к видам работ, установленных законодательством Российской Федерации (п. 1 ч. 1 ст. 31 Закона № 44-ФЗ).",
+  requirementsPart1_1Art31: true,
+  pp1482ProductionFacilities: false,
+  pp1482ProductionFacilitiesText: "",
+  pp1482FinancialStability: false,
+  pp1482FinancialStabilityText: "",
+  pp1482Specialists: false,
+  pp1482SpecialistsText: "",
+  additionalRequirementsPart2Art31: false,
+  additionalRequirementsPart2Art31Text: "",
+  pp2571Positions: [],
+  requirementsPart2_1Art31: false,
+  requirementsPart2_1Art31Text:
+    "Наличие опыта исполнения контракта (договора) стоимостью не менее 20 процентов НМЦК за последние 3 года до даты подачи заявки при НМЦК 20 млн рублей и более (ч. 2.1 ст. 31 Закона № 44-ФЗ).",
+  pp2571Point4Requirement: false,
+  pp2571Point4RequirementText:
+    "Участник закупки подтверждает соответствие требованиям, предусмотренным пунктом 4 Постановления Правительства РФ от 29.12.2021 № 2571 (порядок оценки опыта исполнения контракта, в том числе с учетом правопреемства и без учёта штрафов/пеней, не превышающих установленный порог, либо подтверждение документами о приёмке по ЕИС / контрактам № 44-ФЗ и № 223-ФЗ).",
+  sanctionsRnpRequirement: false,
+  requiresApplicationSecurity: true,
+  applicationSecurityPercent: "1",
+  applicationSecurityOrder:
+    "Денежные средства перечисляются участником на специальный счёт (либо предоставляется независимая гарантия по ст. 45 Закона № 44-ФЗ)",
+  requiresContractSecurity: true,
+  contractSecurityPercent: "5",
+  contractSecurityOrder:
+    "Денежные средства перечисляются на указанный счёт заказчика до заключения контракта либо предоставляется независимая гарантия (ст. 96 Закона № 44-ФЗ)",
+  requiresQualityWarranty: false,
+  warrantyMaintenanceInfo: "",
+  manufacturerWarrantyInfo: "",
+  warrantyTermAndVolume: "",
+  requiresWarrantySecurity: false,
+  warrantySecurityPercent: "",
+  warrantySecurityOrder:
+    "Предоставляется поставщиком до оформления документа о приёмке поставленного товара / выполненной работы (ч. 7.1 ст. 94 Закона № 44-ФЗ)",
+  warrantyTermMonths: 12,
+  allowUnilateralRefusalArt95: true,
+  otherRequirements: "",
+  approvalUpdatedAt: "",
+  approvalUpdatedBy: "",
+  approvalComment: "",
+  comment: "",
+};
+
+/** Год извещения: публикация → ИКЗ → номер позиции ПГ. */
+const noticeYear = (notice) => {
+  for (const value of [
+    notice?.generalInfo?.publishDTInEIS,
+    notice?.contractConditions?.ikzYear,
+    notice?.eisImport?.planNumber,
+    notice?.generalInfo?.positionUniqueNumber,
+  ]) {
+    const match = text(value).match(/^(\d{4})/);
+    if (match) return Number(match[1]);
+  }
+  return undefined;
+};
+
 // Шесть слотов критериев в извещении → четыре типа критериев в СЗ (п. 3
 // Положения N 2604). lifecycle_cost и energy_service_expenses слота в СЗ не
 // имеют — они остаются выключенными и не переносятся.
@@ -331,6 +453,7 @@ const buildApprovedBlocks = (notice, position, subject) => {
  * @param {object} options.employee ответственный работник
  * @param {string} [options.importedAt] момент выгрузки
  * @param {Array} [options.existingNotes] уже есть в БД (для восстановления без повторной выгрузки)
+ * @param {number} [options.year] оставляем извещения только этого года (0 — все)
  */
 export function buildImportPurchaseNotes({
   plans = [],
@@ -339,6 +462,7 @@ export function buildImportPurchaseNotes({
   employee = {},
   importedAt = "",
   existingNotes = [],
+  year = 0,
 }) {
   const notes = [...existingNotes];
   const positions = plans.flatMap((plan) =>
@@ -348,9 +472,18 @@ export function buildImportPurchaseNotes({
   let noteId = nextNumber(notes, "id");
   let noteNumber = nextNumber(notes, "noteNumber");
   const created = [];
+  const skippedNotices = [];
   let linked = 0;
 
   for (const notice of notices) {
+    if (year && noticeYear(notice) !== year) {
+      skippedNotices.push({
+        id: notice.id,
+        year: noticeYear(notice) ?? null,
+      });
+      continue;
+    }
+
     const noticeIkz = text(notice.generalInfo?.ikz) || text(notice.ikz);
     const uniqueNumber = text(notice.generalInfo?.positionUniqueNumber);
     const entry =
@@ -396,6 +529,9 @@ export function buildImportPurchaseNotes({
       "Контрактная служба";
 
     const note = {
+      // Заглушки по умолчанию: чего нет в извещении, то остаётся стандартным
+      // значением СЗ — структура не ломается, предзаполнение всегда полноценное.
+      ...DEFAULT_NOTE_FIELDS,
       id: noteId++,
       organizationId: plan.organizationId ?? organization.id,
       purchasePlanId: plan.id,
@@ -428,7 +564,7 @@ export function buildImportPurchaseNotes({
       status: "approved",
       comment: `Потребность создана из данных ЕИС при выгрузке${
         importedAt ? ` ${importedAt.slice(0, 10)}` : ""
-      }. Одобренные блоки перенесены в извещение при предзаполнении.`,
+      }. Одобренные блоки перенесены в извещение при предзаполнении. Незаполненные значения — заглушки по умолчанию.`,
       createdAt: noteDate,
     };
 
@@ -438,5 +574,5 @@ export function buildImportPurchaseNotes({
     linked += 1;
   }
 
-  return { notes, created, linked };
+  return { notes, created, linked, skippedNotices };
 }
