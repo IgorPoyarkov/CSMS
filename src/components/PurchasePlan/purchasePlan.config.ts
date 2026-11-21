@@ -191,11 +191,12 @@ export const planPeriodLabels = (planYear: string | number) => {
 
 /**
  * Годы для селекта «Планируемый год размещения извещения»: текущий и
- * следующие 10 лет — как в карточке позиции ПГ личного кабинета ЕИС.
+ * следующие 4 года (всего 5). Этого достаточно и для основных, и для особых
+ * позиций ПГ; лишние года в выпадающем списке только мешают выбору.
  */
 export const placementYearOptions = (
   fromYear: number = new Date().getFullYear(),
-  span = 10,
+  span = 4,
 ): Option<string>[] =>
   Array.from({ length: span + 1 }, (_, index) => {
     const year = fromYear + index;

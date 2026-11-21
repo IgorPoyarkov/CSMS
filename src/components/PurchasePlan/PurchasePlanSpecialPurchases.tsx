@@ -1,19 +1,19 @@
-import {
-  Fragment,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
-import { createPortal } from "react-dom";
+import { Fragment, useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
+  buildIkzParts,
+  buildPositionUniqueNumber,
   emptyPurchasePlanSpecialPurchase,
   toNumber,
   type PurchasePlan,
+  type PurchasePlanPosition,
   type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
+import {
+  useSpecialPurchaseTypes,
+  type SpecialPurchaseType,
+} from "../../services/SpecialPurchaseType/specialPurchaseType.api";
+import CustomSelect from "../UI/CustomSelect";
 import {
   formatMoneyValue,
   modificationStatusOptions,
@@ -25,12 +25,14 @@ import styles from "./PurchasePlanSpecialPurchases.module.scss";
  * Особые закупки плана-графика (tenderPlan2020SpecialPurchasePositionType,
  * IntegrationTPTypes.xsd, Альбом ЕИС 17.0).
  *
- * В ЕИС 17.0 особые закупки передаются блоком specialPurchasePositions:
- * у каждой позиции есть тип из справочника nsiSpecialPurchases2020, ИКЗ,
- * ИКУ, реестровый номер позиции, планируемый год размещения извещения,
- * номер закупки, КВР/КБК, КОКС и финансовое обеспечение по годам.
- * Устаревший блок specialPurchases при приёме игнорируется, поэтому
- * редактор повторяет структуру актуальной позиции.
+ * Порядок работы с вкладкой:
+ * 1) выбрать тип из справочника (пользователь видит только наименования);
+ * 2) выбрать год осуществления закупки;
+ * 3) только после этого заполнить номер закупки, КБК и финансы.
+ *
+ * ИКЗ не вводится вручную — он собирается из тех же сведений, что и у основной
+ * позиции: год размещения, ИНН/КПП (или ИКУ) заказчика, номер закупки,
+ * сквозной порядковый номер, КВР из последних трёх разрядов КБК.
  */
 
 // Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
@@ -38,11 +40,13 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 interface PurchasePlanSpecialPurchasesProps {
   plan: PurchasePlan;
+  positions: PurchasePlanPosition[];
   isSaving: boolean;
   onSave: (items: PurchasePlanSpecialPurchase[]) => void;
 }
 
-// Графы финансового обеспечения: те же годы, что и у записи ПГ
+// Графы финансового обеспечения: текущий + два года планового периода
+// и последующие годы. Плюс расчётная графа «Всего» — всего пять лет/столбцов.
 const AMOUNT_FIELDS = [
   { key: "amountCurrentYear", label: "Текущий год" },
   { key: "amountPlanPeriodFirstYear", label: "1-й год план." },
@@ -79,8 +83,57 @@ const displayMoneyInput = (value: string | number | undefined): string => {
   return fraction !== undefined ? `${grouped},${fraction}` : grouped;
 };
 
+/** Порядковый номер из уникального номера позиции, если поле не заполнено. */
+const serialOf = (
+  item: PurchasePlanSpecialPurchase | PurchasePlanPosition,
+): number | null => {
+  const direct = toNumber(item.serialNumber);
+  if (direct !== null) return direct;
+
+  const unique =
+    "uniqueNumber" in item
+      ? item.uniqueNumber
+      : (item as PurchasePlanSpecialPurchase).positionNumber;
+
+  return toNumber(String(unique ?? "").slice(-6));
+};
+
+/**
+ * Привести особые позиции к порядку «тип → год → старый номер» и присвоить
+ * сквозные номера после основных позиций. Порядок совпадает с таблицей.
+ */
+const renumberSpecialItems = (
+  list: PurchasePlanSpecialPurchase[],
+  firstSerial: number,
+): PurchasePlanSpecialPurchase[] => {
+  const typeRank = new Map<string, number>();
+
+  for (const item of list) {
+    const code = String(item.typeCode ?? "");
+    if (!typeRank.has(code)) typeRank.set(code, typeRank.size);
+  }
+
+  return [...list]
+    .sort((a, b) => {
+      const rankA = typeRank.get(String(a.typeCode ?? "")) ?? 0;
+      const rankB = typeRank.get(String(b.typeCode ?? "")) ?? 0;
+      if (rankA !== rankB) return rankA - rankB;
+
+      const yearA = Number(a.publishYear) || 0;
+      const yearB = Number(b.publishYear) || 0;
+      if (yearA !== yearB) return yearA - yearB;
+
+      return (serialOf(a) ?? 0) - (serialOf(b) ?? 0);
+    })
+    .map((item, index) => ({
+      ...item,
+      serialNumber: String(firstSerial + index),
+    }));
+};
+
 export default function PurchasePlanSpecialPurchases({
   plan,
+  positions,
   isSaving,
   onSave,
 }: PurchasePlanSpecialPurchasesProps) {
@@ -90,123 +143,136 @@ export default function PurchasePlanSpecialPurchases({
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
   const yearOptions = placementYearOptions(baseYear);
 
-  // Локальная копия списка: правки уходят на сервер кнопкой «Сохранить»
-  const [items, setItems] = useState<PurchasePlanSpecialPurchase[]>(
-    plan.specialPurchases ?? [],
+  // Сквозная нумерация: особые позиции продолжают ряд основных позиций.
+  const mainMaxSerial = Math.max(
+    0,
+    ...positions
+      .map(serialOf)
+      .filter((value): value is number => value !== null),
   );
 
-  /* Типы, уже использованные в плане: свой список подсказок вместо datalist,
-     который браузер показывает в произвольном месте. */
-  const usedTypes = useMemo(() => {
-    const seen = new Map<string, string>();
+  // Локальная копия списка: правки уходят на сервер кнопкой «Сохранить».
+  // Строки идут в том же порядке, в каком показываются в таблице, и получают
+  // сквозной номер после основных позиций.
+  const [items, setItems] = useState<PurchasePlanSpecialPurchase[]>(() =>
+    renumberSpecialItems(plan.specialPurchases ?? [], mainMaxSerial + 1),
+  );
+
+  // Справочник НСИ — основной источник. Пока датасет не загружен, API
+  // возвращает резервный перечень; типы из самого плана добавляем к нему,
+  // чтобы сохранённые позиции всегда оставались доступны в списке.
+  const { data: specialTypes } = useSpecialPurchaseTypes();
+  const typesFromPlan = useMemo(() => {
+    const seen = new Map<string, SpecialPurchaseType>();
 
     for (const item of items) {
       if (item.typeCode && !seen.has(item.typeCode)) {
-        seen.set(item.typeCode, item.typeName || item.typeCode);
+        seen.set(item.typeCode, {
+          code: item.typeCode,
+          name: item.typeName || item.typeCode,
+        });
       }
     }
 
-    return [...seen.entries()].map(([code, name]) => ({ code, name }));
+    return [...seen.values()];
   }, [items]);
+  const typeOptions = useMemo(() => {
+    const seen = new Map<string, SpecialPurchaseType>();
 
-  const [typeDropdown, setTypeDropdown] = useState<{
-    index: number;
-    top: number;
-    left: number;
-    width: number;
-  } | null>(null);
-  const [typeActiveIndex, setTypeActiveIndex] = useState(0);
-  const typeAnchorRef = useRef<HTMLInputElement | null>(null);
-  const typeListRef = useRef<HTMLDivElement | null>(null);
+    for (const type of specialTypes?.items ?? []) {
+      seen.set(type.code, type);
+    }
+    for (const type of typesFromPlan) {
+      if (!seen.has(type.code)) seen.set(type.code, type);
+    }
 
-  const typeFilter = typeDropdown
-    ? String(items[typeDropdown.index]?.typeCode ?? "")
-    : "";
-  const visibleTypes = useMemo(
-    () =>
-      usedTypes.filter(
-        (item) =>
-          !typeFilter ||
-          item.code.includes(typeFilter) ||
-          item.name.includes(typeFilter),
-      ),
-    [typeFilter, usedTypes],
-  );
+    return [...seen.values()];
+  }, [specialTypes, typesFromPlan]);
 
-  function openTypeDropdown(index: number, anchor: HTMLInputElement) {
-    const rect = anchor.getBoundingClientRect();
-    const width = Math.max(rect.width, 320);
-    setTypeDropdown({
-      index,
-      top: rect.bottom + 2,
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
-      width,
-    });
-    typeAnchorRef.current = anchor;
-    setTypeActiveIndex(0);
-  }
+  const [isAdding, setIsAdding] = useState(false);
+  const [draftType, setDraftType] = useState<SpecialPurchaseType | null>(null);
+  const [draftYear, setDraftYear] = useState(String(baseYear));
 
-  function selectType(index: number, code: string, name: string) {
-    setItems((prev) =>
-      prev.map((item, itemIndex) =>
-        itemIndex === index
-          ? { ...item, typeCode: code, typeName: name || item.typeName }
-          : item,
-      ),
+  // Сквозная нумерация: основные и особые позиции делят один ряд номеров
+  const nextSerial = useMemo(() => {
+    const used = [
+      ...positions.map(serialOf),
+      ...items.map(serialOf),
+    ].filter((value): value is number => value !== null);
+
+    return Math.max(0, ...used) + 1;
+  }, [positions, items]);
+
+  // Номер закупки по умолчанию — следующий после всех записей плана
+  const nextPurchaseNumber = useMemo(() => {
+    const used = [...positions, ...items]
+      .map((item) => toNumber(item.purchaseNumber))
+      .filter((value): value is number => value !== null);
+
+    return String(Math.max(0, ...used) + 1).padStart(4, "0").slice(-4);
+  }, [positions, items]);
+
+  // КВР отдельно не вводится: это последние 3 разряда КБК
+  const kvrOf = (item: PurchasePlanSpecialPurchase): string => {
+    const digits = String(item.kbk ?? "").replace(/\D/g, "");
+    return digits.length >= 3 ? digits.slice(-3) : "";
+  };
+
+  // Порядковый номер в ИКЗ считаем по всем записям плана с тем же номером
+  // закупки — как в карточке основной позиции, но с учётом особых закупок
+  const purchaseOrderNumberOf = (item: PurchasePlanSpecialPurchase): string => {
+    const number = String(item.purchaseNumber ?? "").replace(/\D/g, "");
+
+    if (!number) return "000";
+
+    const samePurchase = [
+      ...positions.map((position) => ({
+        id: position.id,
+        number: String(position.purchaseNumber ?? "").replace(/\D/g, ""),
+      })),
+      ...items.map((current) => ({
+        id: current.id,
+        number: String(current.purchaseNumber ?? "").replace(/\D/g, ""),
+      })),
+    ].filter((entry) => entry.number === number);
+
+    if (samePurchase.length <= 1) return "000";
+
+    const selfIndex = samePurchase.findIndex(
+      (entry) => String(entry.id) === String(item.id),
     );
-    setTypeDropdown(null);
-  }
+    const order = selfIndex >= 0 ? selfIndex + 1 : samePurchase.length + 1;
 
-  function handleTypeKeyDown(
-    event: ReactKeyboardEvent<HTMLInputElement>,
-    index: number,
-  ) {
-    if (event.key === "Escape") {
-      setTypeDropdown(null);
-      return;
-    }
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      if (!typeDropdown) {
-        openTypeDropdown(index, event.currentTarget);
-        return;
-      }
-      if (!visibleTypes.length) return;
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setTypeActiveIndex(
-        (current) =>
-          (current + step + visibleTypes.length) % visibleTypes.length,
-      );
-      return;
-    }
-    if (event.key === "Enter" && typeDropdown && visibleTypes.length) {
-      event.preventDefault();
-      const item = visibleTypes[typeActiveIndex] ?? visibleTypes[0];
-      selectType(index, item.code, item.name);
-    }
-  }
+    return String(order).padStart(3, "0").slice(-3);
+  };
 
-  // Закрываем список по клику вне него, уходу фокуса и прокрутке/ресайзу
-  useEffect(() => {
-    if (!typeDropdown) return;
-    function closeOnOutside(event: Event) {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (typeListRef.current?.contains(target)) return;
-      if (typeAnchorRef.current?.contains(target)) return;
-      setTypeDropdown(null);
-    }
-    document.addEventListener("mousedown", closeOnOutside);
-    document.addEventListener("focusin", closeOnOutside);
-    window.addEventListener("scroll", closeOnOutside, true);
-    window.addEventListener("resize", closeOnOutside);
-    return () => {
-      document.removeEventListener("mousedown", closeOnOutside);
-      document.removeEventListener("focusin", closeOnOutside);
-      window.removeEventListener("scroll", closeOnOutside, true);
-      window.removeEventListener("resize", closeOnOutside);
-    };
-  }, [typeDropdown]);
+  // ИКЗ собирается из сведений, пользователь его не редактирует
+  const ikzPartsOf = (item: PurchasePlanSpecialPurchase) =>
+    buildIkzParts({
+      planYear: item.publishYear,
+      inn: plan.customer.inn,
+      kpp: plan.customer.kpp,
+      iku: item.iku,
+      purchaseNumber: item.purchaseNumber,
+      purchaseOrderNumber: purchaseOrderNumberOf(item),
+      serialNumber: item.serialNumber,
+      // У особой закупки нет ОКПД2 — в ИКЗ идут нули, как при нескольких кодах
+      okpd2Code: "",
+      hasMultipleOkpd2: false,
+      kvr: kvrOf(item),
+      kbk: item.kbk,
+    });
+
+  const sumYears = (item: PurchasePlanSpecialPurchase): number =>
+    AMOUNT_FIELDS.reduce(
+      (total, field) => total + (toNumber(item[field.key]) ?? 0),
+      0,
+    );
+
+  const totalAmount = items.reduce(
+    (total, item) => total + sumYears(item),
+    0,
+  );
 
   function updateField<K extends keyof PurchasePlanSpecialPurchase>(
     index: number,
@@ -220,8 +286,6 @@ export default function PurchasePlanSpecialPurchases({
     );
   }
 
-  // «Всего» расчётное: как и в карточке позиции, хранится в данных для XSD,
-  // но не редактируется вручную
   function updateAmount(index: number, key: AmountKey, raw: string) {
     const value = normalizeMoneyInput(raw);
 
@@ -239,291 +303,402 @@ export default function PurchasePlanSpecialPurchases({
   }
 
   function addItem() {
-    setItems((prev) => [...prev, emptyPurchasePlanSpecialPurchase(baseYear)]);
+    if (!draftType) return;
+
+    const item = emptyPurchasePlanSpecialPurchase(baseYear);
+
+    setItems((prev) =>
+      renumberSpecialItems(
+        [
+          ...prev,
+          {
+            ...item,
+            serialNumber: String(nextSerial),
+            positionNumber: buildPositionUniqueNumber(
+              plan.planNumber,
+              nextSerial,
+            ),
+            typeCode: draftType.code,
+            typeName: draftType.name,
+            publishYear: draftYear,
+            purchaseNumber: nextPurchaseNumber,
+          },
+        ],
+        mainMaxSerial + 1,
+      ),
+    );
+    setIsAdding(false);
+    setDraftType(null);
+    setDraftYear(String(baseYear));
   }
 
   function removeItem(index: number) {
     setItems((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
   }
 
-  function sumYears(item: PurchasePlanSpecialPurchase): number {
-    return AMOUNT_FIELDS.reduce(
-      (total, field) => total + (toNumber(item[field.key]) ?? 0),
-      0,
+  function saveItems() {
+    onSave(
+      items
+        .map((item) => {
+          const sum = sumYears(item);
+          const serial = serialOf(item);
+          return {
+            ...item,
+            serialNumber: serial !== null ? String(serial) : item.serialNumber,
+            positionNumber:
+              (serial !== null
+                ? buildPositionUniqueNumber(plan.planNumber, serial)
+                : "") ||
+              item.positionNumber ||
+              "",
+            // КВР и ИКЗ вычисляются из сведений и хранятся для XSD
+            kvr: kvrOf(item),
+            ikz: ikzPartsOf(item).code,
+            amountTotal: sum ? String(Number(sum.toFixed(2))) : "",
+          };
+        })
+        .filter(
+          (item) =>
+            String(item.purchaseNumber ?? "") ||
+            String(item.kbk ?? "") ||
+            String(item.amountTotal ?? ""),
+        ),
     );
   }
 
-  const totalAmount = items.reduce(
-    (total, item) => total + sumYears(item),
-    0,
-  );
+  // Группируем по типу, внутри типа — по году размещения
+  const groups = useMemo(() => {
+    const byType = new Map<
+      string,
+      { name: string; years: Map<string, Array<{ item: PurchasePlanSpecialPurchase; index: number }>> }
+    >();
+
+    items.forEach((item, index) => {
+      const code = item.typeCode || "";
+      const name = item.typeName || "Тип не выбран";
+      const year = String(item.publishYear ?? baseYear);
+
+      if (!byType.has(code)) {
+        byType.set(code, { name, years: new Map() });
+      }
+      const group = byType.get(code)!;
+      if (group.name === "Тип не выбран" && name !== "Тип не выбран") {
+        group.name = name;
+      }
+      if (!group.years.has(year)) {
+        group.years.set(year, []);
+      }
+      group.years.get(year)!.push({ item, index });
+    });
+
+    const sortedGroups = [...byType.entries()].map(([code, group]) => {
+      const years = [...group.years.entries()]
+        .map(([year, rows]) => ({
+          year,
+          rows: [...rows].sort(
+            (a, b) => (serialOf(a.item) ?? 0) - (serialOf(b.item) ?? 0),
+          ),
+        }))
+        .sort((a, b) => Number(a.year) - Number(b.year));
+
+      return {
+        code,
+        name: group.name,
+        years,
+        firstSerial: years[0]?.rows[0]
+          ? (serialOf(years[0].rows[0].item) ?? 0)
+          : 0,
+      };
+    });
+
+    return sortedGroups
+      .sort((a, b) => a.firstSerial - b.firstSerial)
+      .map(({ code, name, years }) => ({ code, name, years }));
+  }, [items, baseYear]);
 
   return (
     <fieldset className={block("section")}>
       <legend>Особые закупки</legend>
 
       <p className={block("hint")}>
-        Блок specialPurchasePositions по схеме ЕИС 17.0
-        (tenderPlan2020SpecialPurchasePositionType). Тип закупки выбирается из
-        справочника nsiSpecialPurchases2020; ИКЗ контролируется на соответствие
-        году размещения, ИКУ, номеру закупки и КВР.
+        Блок specialPurchasePositions по схеме ЕИС 17.0. Сначала выберите тип
+        закупки из справочника и год осуществления закупки, затем заполните
+        номер закупки, КБК и финансовое обеспечение. ИКЗ и КВР рассчитываются
+        автоматически.
       </p>
+
+      {!specialTypes?.fromNsi && (
+        <p className={block("reference-note")}>
+          Официальный справочник НСИ пока не загружен — показан резервный
+          перечень типов из ч. 1 ст. 93 44-ФЗ.
+        </p>
+      )}
+
+      <div className={block("actions")}>
+        <button
+          type="button"
+          className={block("add")}
+          onClick={() => setIsAdding((current) => !current)}
+        >
+          {isAdding ? "Скрыть выбор типа" : "+ Добавить особую закупку"}
+        </button>
+        <button
+          type="button"
+          className={block("save")}
+          disabled={isSaving}
+          onClick={saveItems}
+        >
+          {isSaving ? "Сохранение..." : "Сохранить особые закупки"}
+        </button>
+      </div>
+
+      {isAdding && (
+        <div className={block("wizard")}>
+          <label className={block("wizard-field")}>
+            <span>Тип особой закупки</span>
+            <CustomSelect
+              listData={typeOptions}
+              selectedValue={draftType?.code ?? ""}
+              placeholder="Выберите тип из справочника"
+              getKey={(type) => type.code}
+              getLabel={(type) => type.name}
+              searchable
+              searchPlaceholder="Поиск по наименованию типа…"
+              onClick={(_code, type) => setDraftType(type)}
+            />
+          </label>
+          <label className={block("wizard-field", ["year"])}>
+            <span>Год осуществления закупки</span>
+            <select
+              className={block("select")}
+              aria-label="Год осуществления закупки"
+              value={draftYear}
+              onChange={(event) => setDraftYear(event.target.value)}
+            >
+              {yearOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={block("wizard-add")}
+            disabled={!draftType}
+            onClick={addItem}
+          >
+            Создать позицию
+          </button>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <p className={block("status")}>
-          Особые закупки не внесены. Если план-график содержит закупки,
-          размещаемые в соответствии с ч. 1 ст. 93 44-ФЗ, добавьте их отдельными
-          позициями особой закупки.
+          Особые закупки не внесены. Выберите тип и год кнопкой выше — после
+          этого появится строка для заполнения номера закупки, КБК и сумм.
         </p>
       ) : (
         <div className={block("table-wrap")}>
           <table className={block("table")}>
-            {/* Все графы фиксированы: таблица одинаковой ширины с таблицами
-                карточки позиции и не даёт горизонтальной полосы */}
             <colgroup>
-              <col className={block("col", ["num"])} />
-              <col className={block("col", ["type"])} />
-              <col className={block("col", ["code"])} />
-              <col className={block("col", ["year"])} />
-              <col className={block("col", ["number"])} />
-              <col className={block("col", ["kvr"])} />
-              <col className={block("col", ["amounts"])} />
+              <col className={block("col", ["serial"])} />
+              <col className={block("col", ["ikz"])} />
+              <col className={block("col", ["purchase"])} />
+              <col className={block("col", ["kbk"])} />
+              <col className={block("col", ["amount"])} />
+              <col className={block("col", ["amount"])} />
+              <col className={block("col", ["amount"])} />
+              <col className={block("col", ["amount"])} />
+              <col className={block("col", ["total"])} />
               <col className={block("col", ["action"])} />
             </colgroup>
             <thead>
               <tr>
-                <th>№</th>
-                <th>Тип особой закупки</th>
-                <th>ИКЗ / ИКУ</th>
-                <th>Год размещения</th>
-                <th>№ закупки</th>
-                <th>КВР / КБК</th>
-                <th>Финансовое обеспечение, руб.</th>
+                <th>№ п/п</th>
+                <th>ИКЗ (формируется из сведений)</th>
+                <th>Номер закупки</th>
+                <th>КБК</th>
+                {AMOUNT_FIELDS.map((field) => (
+                  <th key={field.key}>{field.label}</th>
+                ))}
+                <th>Всего</th>
                 <th className={block("th", ["action-head"])} />
               </tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
-                <Fragment key={item.id ?? index}>
-                  <tr>
-                    <td className={block("cell", ["center"])}>{index + 1}</td>
-                    <td>
-                      <div className={block("stack")}>
-                        <input
-                          className={block("input", ["code"])}
-                          placeholder="Код типа"
-                          aria-label="Код типа особой закупки"
-                          value={item.typeCode}
-                          onFocus={(event) =>
-                            openTypeDropdown(index, event.currentTarget)
-                          }
-                          onClick={(event) =>
-                            openTypeDropdown(index, event.currentTarget)
-                          }
-                          onBlur={() =>
-                            setTypeDropdown((current) =>
-                              current?.index === index ? null : current,
-                            )
-                          }
-                          onKeyDown={(event) =>
-                            handleTypeKeyDown(event, index)
-                          }
-                          onChange={(event) =>
-                            updateField(index, "typeCode", event.target.value)
-                          }
-                        />
-                        <input
-                          className={block("input")}
-                          placeholder="Наименование типа"
-                          aria-label="Наименование типа особой закупки"
-                          value={item.typeName ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "typeName", event.target.value)
-                          }
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <div className={block("stack")}>
-                        <input
-                          className={block("input", ["code"])}
-                          placeholder="ИКЗ, 36 цифр"
-                          aria-label="ИКЗ особой закупки"
-                          maxLength={36}
-                          value={item.ikz ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "ikz", event.target.value)
-                          }
-                        />
-                        <input
-                          className={block("input", ["code"])}
-                          placeholder="ИКУ, 20 цифр"
-                          aria-label="ИКУ особой закупки"
-                          maxLength={20}
-                          value={item.iku ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "iku", event.target.value)
-                          }
-                        />
-                        <input
-                          className={block("input")}
-                          placeholder="Реестровый номер"
-                          aria-label="Реестровый номер позиции"
-                          value={item.positionNumber ?? ""}
-                          onChange={(event) =>
-                            updateField(
-                              index,
-                              "positionNumber",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <select
-                        className={block("select")}
-                        aria-label="Год размещения"
-                        value={String(item.publishYear ?? baseYear)}
-                        onChange={(event) =>
-                          updateField(index, "publishYear", event.target.value)
-                        }
-                      >
-                        {yearOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        className={block("input", ["number"])}
-                        placeholder="0001"
-                        aria-label="Номер закупки"
-                        maxLength={4}
-                        value={item.purchaseNumber ?? ""}
-                        onChange={(event) =>
-                          updateField(
-                            index,
-                            "purchaseNumber",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </td>
-                    <td>
-                      <div className={block("stack")}>
-                        <input
-                          className={block("input", ["number"])}
-                          placeholder="КВР, 3 цифры"
-                          aria-label="КВР"
-                          maxLength={3}
-                          value={item.kvr ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "kvr", event.target.value)
-                          }
-                        />
-                        <input
-                          className={block("input", ["code"])}
-                          placeholder="КБК, 20 цифр"
-                          aria-label="КБК"
-                          maxLength={20}
-                          value={item.kbk ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "kbk", event.target.value)
-                          }
-                        />
-                        <input
-                          className={block("input", ["code"])}
-                          placeholder="КОКС (ОКС/ОНИ)"
-                          aria-label="КОКС"
-                          maxLength={20}
-                          value={item.koksCode ?? ""}
-                          onChange={(event) =>
-                            updateField(index, "koksCode", event.target.value)
-                          }
-                        />
-                      </div>
-                    </td>
-                    <td>
-                      <div className={block("amounts")}>
-                        {AMOUNT_FIELDS.map((field) => (
-                          <input
-                            key={field.key}
-                            className={block("input", ["money"])}
-                            placeholder="0,00"
-                            aria-label={field.label}
-                            inputMode="decimal"
-                            value={displayMoneyInput(item[field.key])}
-                            onChange={(event) =>
-                              updateAmount(index, field.key, event.target.value)
-                            }
-                          />
-                        ))}
-                        <span className={block("calc-total")}>
-                          {formatMoneyValue(toNumber(item.amountTotal) ?? 0)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className={block("cell", ["action"])}>
-                      <button
-                        type="button"
-                        className={block("remove")}
-                        onClick={() => removeItem(index)}
-                      >
-                        Убрать
-                      </button>
-                    </td>
+              {groups.map((group) => (
+                <Fragment key={group.code || "no-type"}>
+                  <tr className={block("group-row")}>
+                    <td colSpan={10}>{group.name}</td>
                   </tr>
-                  {/* Детали изменения позиции — под строкой, как в карточке */}
-                  <tr className={block("detail-row")}>
-                    <td colSpan={7}>
-                      <div className={block("details")}>
-                        <label className={block("detail-field")}>
-                          <span>Статус изменения</span>
-                          <select
-                            className={block("select")}
-                            value={item.modificationStatus ?? "N"}
-                            onChange={(event) =>
-                              updateField(
-                                index,
-                                "modificationStatus",
-                                event.target.value as "N" | "E",
-                              )
-                            }
-                          >
-                            {modificationStatusOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className={block("check")}>
-                          <input
-                            type="checkbox"
-                            checked={Boolean(item.isNotFederalFinancing)}
-                            onChange={(event) =>
-                              updateField(
-                                index,
-                                "isNotFederalFinancing",
-                                event.target.checked,
-                              )
-                            }
-                          />
-                          Без федерального софинансирования
-                        </label>
-                      </div>
-                    </td>
-                    <td />
-                  </tr>
+                  {group.years.map((yearGroup) => (
+                    <Fragment key={yearGroup.year}>
+                      <tr className={block("year-row")}>
+                        <td colSpan={10}>
+                          Год осуществления закупки: {yearGroup.year}
+                        </td>
+                      </tr>
+                      {yearGroup.rows.map(({ item, index }) => {
+                        const parts = ikzPartsOf(item);
+
+                        return (
+                          <Fragment key={item.id ?? index}>
+                            <tr>
+                              <td className={block("cell", ["serial"])}>
+                                {serialOf(item) ?? index + 1}
+                              </td>
+                              <td>
+                                <div className={block("ikz")}>
+                                  <span className={block("ikz-code")}>
+                                    {parts.code || "ИКЗ не собран"}
+                                  </span>
+                                  {!parts.code && (
+                                    <span className={block("ikz-error")}>
+                                      Проверьте ИНН/КПП, номер закупки и КБК
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <input
+                                  className={block("input", ["number"])}
+                                  placeholder="0001"
+                                  aria-label="Номер закупки"
+                                  maxLength={4}
+                                  value={item.purchaseNumber ?? ""}
+                                  onChange={(event) =>
+                                    updateField(
+                                      index,
+                                      "purchaseNumber",
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  className={block("input", ["code"])}
+                                  placeholder="20 символов"
+                                  aria-label="КБК"
+                                  maxLength={20}
+                                  value={item.kbk ?? ""}
+                                  onChange={(event) =>
+                                    updateField(index, "kbk", event.target.value)
+                                  }
+                                />
+                              </td>
+                              {AMOUNT_FIELDS.map((field) => (
+                                <td key={field.key}>
+                                  <input
+                                    className={block("input", ["money"])}
+                                    placeholder="0,00"
+                                    aria-label={field.label}
+                                    inputMode="decimal"
+                                    value={displayMoneyInput(item[field.key])}
+                                    onChange={(event) =>
+                                      updateAmount(
+                                        index,
+                                        field.key,
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </td>
+                              ))}
+                              <td className={block("cell", ["calculated"])}>
+                                {formatMoneyValue(sumYears(item))}
+                              </td>
+                              <td className={block("cell", ["action"])}>
+                                <button
+                                  type="button"
+                                  className={block("remove")}
+                                  onClick={() => removeItem(index)}
+                                >
+                                  Убрать
+                                </button>
+                              </td>
+                            </tr>
+                            <tr className={block("detail-row")}>
+                              <td colSpan={9}>
+                                <div className={block("details")}>
+                                  <div className={block("ikz-parts")}>
+                                    <span>
+                                      Год: <b>{parts.year || "—"}</b>
+                                    </span>
+                                    <span>
+                                      ИКУ: <b>{parts.customerCode || "—"}</b>
+                                    </span>
+                                    <span>
+                                      № закупки:{" "}
+                                      <b>{parts.purchaseNumber || "—"}</b>
+                                    </span>
+                                    <span>
+                                      Порядок: <b>{parts.orderNumber}</b>
+                                    </span>
+                                    <span>
+                                      ОКПД2: <b>{parts.okpd2}</b>
+                                    </span>
+                                    <span>
+                                      КВР из КБК: <b>{parts.kvr || "—"}</b>
+                                    </span>
+                                  </div>
+                                  <label className={block("detail-field")}>
+                                    <span>Статус изменения</span>
+                                    <select
+                                      className={block("select")}
+                                      value={item.modificationStatus ?? "N"}
+                                      onChange={(event) =>
+                                        updateField(
+                                          index,
+                                          "modificationStatus",
+                                          event.target.value as "N" | "E",
+                                        )
+                                      }
+                                    >
+                                      {modificationStatusOptions.map(
+                                        (option) => (
+                                          <option
+                                            key={option.value}
+                                            value={option.value}
+                                          >
+                                            {option.label}
+                                          </option>
+                                        ),
+                                      )}
+                                    </select>
+                                  </label>
+                                  <label className={block("check")}>
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(
+                                        item.isNotFederalFinancing,
+                                      )}
+                                      onChange={(event) =>
+                                        updateField(
+                                          index,
+                                          "isNotFederalFinancing",
+                                          event.target.checked,
+                                        )
+                                      }
+                                    />
+                                    Без федерального софинансирования
+                                  </label>
+                                </div>
+                              </td>
+                              <td />
+                            </tr>
+                          </Fragment>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
                 </Fragment>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={6} className={block("cell", ["right"])}>
+                <td colSpan={8} className={block("cell", ["right"])}>
                   Итого по особым закупкам
                 </td>
                 <td className={block("cell", ["total"])}>
@@ -535,64 +710,6 @@ export default function PurchasePlanSpecialPurchases({
           </table>
         </div>
       )}
-
-      <div className={block("actions")}>
-        <button type="button" className={block("add")} onClick={addItem}>
-          Добавить особую закупку
-        </button>
-        <button
-          type="button"
-          className={block("save")}
-          disabled={isSaving}
-          // Пустые строки (добавлены, но не заполнены) не сохраняем: иначе они
-          // копятся в записи плана и мешают выгрузке в ЕИС
-          onClick={() =>
-            onSave(
-              items.filter((item) => String(item.typeCode ?? "").trim() !== ""),
-            )
-          }
-        >
-          {isSaving ? "Сохранение..." : "Сохранить особые закупки"}
-        </button>
-      </div>
-
-      {/* Свой список типов: портал ставит его под нажатым полем */}
-      {typeDropdown &&
-        createPortal(
-          <div
-            ref={typeListRef}
-            className={block("type-list")}
-            style={{
-              top: typeDropdown.top,
-              left: typeDropdown.left,
-              width: typeDropdown.width,
-            }}
-          >
-            {visibleTypes.length ? (
-              visibleTypes.map((item, optionIndex) => (
-                <button
-                  key={item.code}
-                  type="button"
-                  className={block(
-                    "type-option",
-                    optionIndex === typeActiveIndex ? ["active"] : [],
-                  )}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() =>
-                    selectType(typeDropdown.index, item.code, item.name)
-                  }
-                >
-                  {item.code} — {item.name}
-                </button>
-              ))
-            ) : (
-              <span className={block("type-empty")}>
-                Ранее использованных типов нет — введите код вручную
-              </span>
-            )}
-          </div>,
-          document.body,
-        )}
     </fieldset>
   );
 }

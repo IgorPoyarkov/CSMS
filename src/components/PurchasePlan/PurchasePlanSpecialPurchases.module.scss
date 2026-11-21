@@ -16,15 +16,22 @@
     color: var(--text-secondary);
   }
 
-  &__hint {
+  &__hint,
+  &__reference-note {
     margin: 0 0 10px;
     font-size: 12px;
     line-height: 1.35;
     color: var(--text-secondary);
   }
 
+  &__reference-note {
+    padding: 6px 8px;
+    border-left: 2px solid var(--accent);
+    background: var(--stripe);
+  }
+
   &__status {
-    margin: 0;
+    margin: 10px 0 0;
     font-size: 13px;
     color: var(--text-secondary);
   }
@@ -34,15 +41,14 @@
   }
 
   &__table {
-    // Таблица той же ширины, что и таблицы карточки позиции: на большом
-    // экране горизонтальной полосы прокрутки нет
+    // Таблица той же ширины, что и таблицы карточки позиции
     width: 1100px;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 12px;
 
     th {
-      padding: 7px 8px;
+      padding: 7px 6px;
       font-size: 11px;
       font-weight: 600;
       line-height: 1.3;
@@ -54,55 +60,62 @@
     }
 
     td {
-      padding: 6px 8px;
+      padding: 6px;
       vertical-align: top;
       border: 1px solid var(--border);
     }
   }
 
   &__col {
-    &--num {
-      width: 34px;
+    &--serial {
+      width: 40px;
     }
 
-    &--type {
-      width: 140px;
+    &--ikz {
+      width: 220px;
     }
 
-    &--code {
-      width: 140px;
-    }
-
-    &--year {
-      width: 80px;
-    }
-
-    &--number {
+    &--purchase {
       width: 70px;
     }
 
-    &--kvr {
-      width: 120px;
+    &--kbk {
+      width: 140px;
     }
 
-    &--amounts {
-      width: 466px;
+    &--amount {
+      width: 105px;
+    }
+
+    &--total {
+      width: 150px;
     }
 
     &--action {
-      width: 50px;
+      width: 60px;
     }
   }
 
-  // Пустая ячейка в шапке над кнопкой «Убрать» оформлена как остальные
+  // Пустая ячейка в шапке над кнопкой «Убрать»
   &__th--action-head {
     background: var(--surface-raised);
     border: 1px solid var(--border);
   }
 
   &__cell {
-    &--center {
+    &--serial {
       text-align: center;
+      font-variant-numeric: tabular-nums;
+      vertical-align: middle;
+    }
+
+    &--calculated {
+      text-align: right;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      vertical-align: middle;
+      background: var(--stripe);
     }
 
     &--right {
@@ -128,11 +141,42 @@
     }
   }
 
-  &__stack {
+  // Группы: тип особой закупки и год внутри типа
+  &__group-row td {
+    padding: 7px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--surface-raised);
+  }
+
+  &__year-row td {
+    padding: 5px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-emphasis);
+    background: var(--accent-soft);
+  }
+
+  &__ikz {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
+  }
+
+  &__ikz-code {
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+  }
+
+  &__ikz-error {
+    font-size: 10px;
+    color: var(--state-danger);
   }
 
   &__input,
@@ -174,39 +218,29 @@
     }
   }
 
-  &__amounts {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 4px;
-    min-width: 0;
-  }
-
-  // Расчётная графа «Всего»: только чтение, как в карточке позиции
-  &__calc-total {
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    height: 34px;
-    padding: 0 6px;
-    font-size: 11px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    color: var(--text-primary);
-    background: var(--stripe);
-  }
-
-  // Статус изменения и признак софинансирования унесены под строку
+  // Разряды ИКЗ и признаки изменения унесены под строку
   &__detail-row {
     background: var(--surface-raised);
   }
 
   &__details {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__ikz-parts {
+    display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 16px;
+    gap: 4px 14px;
+    font-size: 10px;
+    color: var(--text-secondary);
+
+    b {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
   }
 
   &__detail-field {
@@ -217,7 +251,7 @@
     color: var(--text-secondary);
 
     .special-purchases__select {
-      width: 180px;
+      width: 220px;
     }
   }
 
@@ -235,12 +269,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin-top: 10px;
+    margin-bottom: 10px;
   }
 
   &__add,
   &__remove,
-  &__save {
+  &__save,
+  &__wizard-add {
     box-sizing: border-box;
     height: 34px;
     padding: 6px 12px;
@@ -288,44 +323,30 @@
     }
   }
 
-  /* Список типов выводится порталом в body и ставится под нажатым полем */
-  &__type-list {
-    position: fixed;
-    z-index: 70;
-    max-height: 260px;
-    padding: 4px 0;
-    overflow-y: auto;
-    background: var(--surface-panel);
+  // Шаг 1–2: выбор типа из справочника и года перед созданием строки
+  &__wizard {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 10px;
     border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    box-shadow: 0 6px 16px var(--shadow);
+    border-radius: 6px;
+    background: var(--stripe);
   }
 
-  &__type-option {
-    display: block;
-    width: 100%;
-    padding: 7px 10px;
-    font-family: inherit;
-    font-size: 12px;
-    line-height: 1.35;
-    text-align: left;
-    color: var(--text-primary);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    overflow-wrap: anywhere;
-
-    &:hover,
-    &--active {
-      color: var(--accent-emphasis);
-      background: var(--accent-soft);
-    }
-  }
-
-  &__type-empty {
-    display: block;
-    padding: 8px 10px;
-    font-size: 12px;
+  &__wizard-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1 1 420px;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-secondary);
+
+    &--year {
+      flex: 0 0 180px;
+    }
   }
 }

@@ -985,6 +985,7 @@ export default function PurchasePlanCard() {
       {activeTab === "special" && (
         <PurchasePlanSpecialPurchases
           plan={plan}
+          positions={positions}
           isSaving={isUpdatingPlan}
           onSave={handleSaveSpecialPurchases}
         />

@@ -233,6 +233,15 @@ export type PurchasePlanKoksEntry = z.infer<typeof PurchasePlanKoksEntrySchema>;
 export const PurchasePlanSpecialPurchaseSchema = z
   .object({
     id: idSchema(),
+    // «№ п/п» из единого пространства позиций ПГ: основные и особые записи
+    // нумеруются сквозно, тот же номер входит в уникальный номер позиции
+    serialNumber: z
+      .union([z.string(), z.number()])
+      .refine(
+        (value) => toNumber(value) === null || Number(value) >= 1,
+        "Номер позиции должен быть натуральным числом",
+      )
+      .optional(),
     typeCode: optionalText(1, "Укажите код особой закупки"),
     typeName: z.string().optional(),
     ikz: optionalPattern(/^\d{36}$/, "ИКЗ особой закупки состоит из 36 цифр"),
@@ -295,6 +304,7 @@ export const emptyPurchasePlanSpecialPurchase = (
   planYear: string | number,
 ): PurchasePlanSpecialPurchase => ({
   id: `special-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+  serialNumber: "",
   typeCode: "",
   typeName: "",
   ikz: "",
