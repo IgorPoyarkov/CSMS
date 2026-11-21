@@ -37,12 +37,13 @@
   }
 
   &__table-wrap {
-    overflow-x: auto;
+    overflow: hidden;
+    border-radius: 6px;
   }
 
   &__table {
-    // Таблица той же ширины, что и таблицы карточки позиции
-    width: 1100px;
+    // Таблица занимает всю ширину блока — как строка фильтров над ней
+    width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
     font-size: 12px;
@@ -170,7 +171,6 @@
 
   // Ячейки с полями и кнопками центрируем по вертикали: общее правило
   // таблицы (vertical-align: top) иначе перебивает модификаторы ячеек
-  &__table td.special-purchases__cell--kbk,
   &__table td.special-purchases__cell--calculated,
   &__table td.special-purchases__cell--action,
   &__table td.special-purchases__cell--right,
@@ -580,17 +580,14 @@
     }
   }
 
-  &__readonly {
-    box-sizing: border-box;
-    min-height: 34px;
-    padding: 7px 8px;
+  // Уникальный номер — просто текст рядом с лейблом, без рамки поля
+  &__plain-value {
+    min-width: 0;
     font-family: "Courier New", monospace;
     font-size: 12px;
     font-weight: 400;
+    overflow-wrap: anywhere;
     color: var(--text-primary);
-    background: var(--surface-field);
-    border: 1px solid var(--border);
-    border-radius: 4px;
   }
 
   &__ikz-block {

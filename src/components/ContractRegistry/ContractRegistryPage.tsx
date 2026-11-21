@@ -496,8 +496,6 @@ export default function ContractRegistryPage() {
           return contract.supplierName ?? "";
         case "price":
           return Number(contract.contractPrice) || 0;
-        case "nmck":
-          return Number(contract.initialMaxPrice) || 0;
         case "advance":
           return Number(contract.advanceAmount) || 0;
         case "date":
@@ -797,7 +795,6 @@ export default function ContractRegistryPage() {
                 <col className={styles.colNumber} />
                 <col className={styles.colSupplier} />
                 <col className={styles.colPrice} />
-                <col className={styles.colNmck} />
                 <col className={styles.colAdvance} />
                 <col className={styles.colDate} />
                 <col className={styles.colExecution} />
@@ -821,12 +818,6 @@ export default function ContractRegistryPage() {
                   <SortableTh
                     label="Цена, ₽"
                     sortKey="price"
-                    sort={tableSort}
-                    onSort={handleTableSort}
-                  />
-                  <SortableTh
-                    label="НМЦК, ₽"
-                    sortKey="nmck"
                     sort={tableSort}
                     onSort={handleTableSort}
                   />
@@ -957,7 +948,7 @@ function ContractRow({
         } ${expanded ? styles.contractRowExpanded : ""}`}
         onClick={onToggle}
       >
-        <td colSpan={9}>{contract.contractName}</td>
+        <td colSpan={8}>{contract.contractName}</td>
       </tr>
 
       <tr
@@ -991,9 +982,6 @@ function ContractRow({
         </td>
         <td className={styles.moneyCell}>
           {formatMoney(contract.contractPrice)}
-        </td>
-        <td className={styles.moneyCell}>
-          {formatMoney(contract.initialMaxPrice)}
         </td>
         <td className={styles.moneyCell}>
           {formatMoney(contract.advanceAmount)}
@@ -1031,7 +1019,7 @@ function ContractRow({
 
       {expanded && (
         <tr className={styles.expandedRow}>
-          <td colSpan={9} className={styles.expandedCell}>
+          <td colSpan={8} className={styles.expandedCell}>
             <div className={styles.cardBody}>
               <ContractEisSection contract={contract} />
               <PaymentSummary contract={contract} />

@@ -1201,7 +1201,7 @@ export default function PurchasePlanSpecialPurchases({
                                         Уникальный номер позиции в
                                         плане-графике закупок
                                       </span>
-                                      <span className={block("readonly")}>
+                                      <span className={block("plain-value")}>
                                         {item.positionNumber ||
                                           "Будет сформирован при сохранении позиции"}
                                       </span>
@@ -1794,7 +1794,7 @@ export default function PurchasePlanSpecialPurchases({
                 <td className={block("cell", ["total"])}>
                   {formatMoneyValue(totalAmount)}
                 </td>
-                <td />
+                <td className={block("cell", ["right"])} />
               </tr>
             </tfoot>
           </table>

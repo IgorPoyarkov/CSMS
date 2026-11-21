@@ -74,7 +74,8 @@ const args = new Map(
 if (args.has("help")) {
   console.log(
     "node scripts/mobile-audit.mjs [--routes=/a,/b] [--widths=320,375,430] " +
-      "[--theme=light|dark|storm|winter|floating3d] [--shots] [--base=URL] [--settle=1200]",
+      "[--theme=light|dark|storm|winter|floating3d] [--user=email] [--shots] " +
+      "[--full] [--small] [--base=URL] [--settle=1200]",
   );
   process.exit(0);
 }
@@ -84,6 +85,13 @@ const routes = parseList(args.get("routes"), DEFAULT_ROUTES);
 const theme = args.get("theme") ?? "light";
 const withShots = args.has("shots");
 const showSmall = args.has("small");
+// Вход «как заказчик»: реестры показывают данные только при сохранённом email
+// (useFetchCurrentUser читает user_email из localStorage). Пароль не нужен —
+// пользователь берётся из json-server по email.
+const auditUser = args.get("user") ?? "";
+// Полностраничный снимок: на длинных реестрах вьюпорт показывает только верх,
+// а интересное (таблица, пагинация, карточки) — ниже
+const fullShots = args.has("full");
 // Отладочный режим: выполнить своё выражение на каждой странице и напечатать
 // результат. Нужен, когда непонятно, какой узел раздвигает макет
 const evalScript = args.get("eval");
@@ -325,6 +333,22 @@ const MEASURE = String.raw`
 
 // ─── Прогон ─────────────────────────────────────────────────────────────────
 
+/** Снимок всей страницы: clip по contentSize из Page.getLayoutMetrics */
+const captureFullPage = async (session) => {
+  const { contentSize } = await session.send("Page.getLayoutMetrics");
+  return session.send("Page.captureScreenshot", {
+    format: "png",
+    captureBeyondViewport: true,
+    clip: {
+      x: 0,
+      y: 0,
+      width: Math.ceil(contentSize.width),
+      height: Math.ceil(contentSize.height),
+      scale: 1,
+    },
+  });
+};
+
 const run = async () => {
   const session = await createSession();
   await session.send("Page.enable");
@@ -332,9 +356,17 @@ const run = async () => {
   await session.send("Emulation.setEmulatedMedia", {
     features: [{ name: "prefers-reduced-motion", value: "reduce" }],
   });
-  // Тема задаётся до первой отрисовки: useTheme читает localStorage при старте
+  // Тема и учётка задаются до первой отрисовки: useTheme и
+  // useFetchCurrentUser читают localStorage при старте
   await session.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: `try { localStorage.setItem("csms-theme", ${JSON.stringify(theme)}); } catch (e) {}`,
+    source: `try {
+      localStorage.setItem("csms-theme", ${JSON.stringify(theme)});
+      ${
+        auditUser
+          ? `localStorage.setItem("user_email", ${JSON.stringify(auditUser)});`
+          : ""
+      }
+    } catch (e) {}`,
   });
 
   if (withShots) await mkdir(shotDir, { recursive: true });
@@ -414,13 +446,15 @@ const run = async () => {
       }
 
       if (withShots) {
-        const shot = await session.send("Page.captureScreenshot", {
-          format: "png",
-          captureBeyondViewport: false,
-        });
+        const shot = fullShots
+          ? await captureFullPage(session)
+          : await session.send("Page.captureScreenshot", {
+              format: "png",
+              captureBeyondViewport: false,
+            });
         const slug = route === "/" ? "home" : route.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "");
         await writeFile(
-          join(shotDir, `${slug}-${width}x${height}.png`),
+          join(shotDir, `${slug}-${width}x${height}${fullShots ? "-full" : ""}.png`),
           Buffer.from(shot.data, "base64"),
         );
       }
