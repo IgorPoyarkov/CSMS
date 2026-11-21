@@ -108,6 +108,10 @@
       width: 80px;
     }
 
+    &--koks {
+      width: 320px;
+    }
+
     &--kbk-money {
       width: 120px;
     }
@@ -391,8 +395,24 @@
   &__actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-end;
     gap: 8px;
     margin-bottom: 10px;
+  }
+
+  // Фильтр по году размещения извещения: год не создаёт ИКЗ, а только
+  // ограничивает список позиций под выбранным основанием
+  &__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  &__select--filter {
+    width: 180px;
   }
 
   &__add,
@@ -446,7 +466,168 @@
     }
   }
 
-  // Шаг 1–2: выбор типа из справочника и года под ним
+  // Общие сведения позиции: уникальный номер, год, один ИКЗ и доп. флаги
+  &__common-fields {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 8px 14px;
+  }
+
+  &__detail-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+
+    &--wide {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__readonly {
+    box-sizing: border-box;
+    min-height: 34px;
+    padding: 7px 8px;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-primary);
+    background: var(--surface-field);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  &__ikz-block {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface-field);
+  }
+
+  &__ikz-code--single {
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+    color: var(--text-primary);
+  }
+
+  &__ikz-parts-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 10px;
+
+    th,
+    td {
+      padding: 4px;
+      text-align: center;
+      word-break: break-word;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-raised);
+    }
+
+    td {
+      font-family: "Courier New", monospace;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+      background: var(--surface-raised);
+    }
+  }
+
+  &__option-fields {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  &__subcontrol {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: min(100%, 520px);
+    margin-left: 20px;
+  }
+
+  &__koks-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__koks-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 11px;
+
+    th,
+    td {
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--surface-raised);
+    }
+
+    tfoot td {
+      text-align: left;
+    }
+  }
+
+  &__koks-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__koks-cell .special-purchases__input {
+    flex: 1 1 200px;
+  }
+
+  &__koks-name {
+    flex: 1 1 100%;
+    font-size: 10px;
+    color: var(--text-secondary);
+  }
+
+  &__pick {
+    box-sizing: border-box;
+    height: 34px;
+    padding: 4px 8px;
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--text-primary);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+  }
+
+  // Шаг 1–2: выбор основания из справочника и года размещения
   &__wizard {
     display: flex;
     flex-wrap: wrap;

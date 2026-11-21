@@ -243,6 +243,8 @@ export interface EisTenderPlan2020SpecialPurchase {
   // у основной позиции, но под своими тегами specialPurchasePosition*
   kbksInfo: EisTenderPlan2020KBKInfo[];
   koksInfo: EisTenderPlan2020KOKSInfo[];
+  // Централизованная закупка (centralizedPurchaseInfo в XSD ЕИС 17.0)
+  centralizedPurchaseOrg?: string;
   publishYear?: number;
   purchaseNumber?: string;
   modificationStatus?: "N" | "E";
@@ -857,17 +859,22 @@ export const mapPurchasePlanToEis17 = (
         subsecYears: moneyNum(entry.amountSubsequentYears),
       },
     }));
-    const koksInfo = detailKoksInfo.length
-      ? detailKoksInfo
-      : sp.koksCode
-        ? [
-            {
-              koksCode: sp.koksCode,
-              koksName: sp.koksName || undefined,
-              yearsInfo: fin,
-            },
-          ]
-        : [];
+    // КОКС заполняем только при необходимости: пользователь снимает флаг —
+    // блок KOKSsInfo в XML уходить не должен
+    const koksInfo =
+      sp.hasKoks === false
+        ? []
+        : detailKoksInfo.length
+          ? detailKoksInfo
+          : sp.koksCode
+            ? [
+                {
+                  koksCode: sp.koksCode,
+                  koksName: sp.koksName || undefined,
+                  yearsInfo: fin,
+                },
+              ]
+            : [];
 
     const hasModification =
       sp.modificationStatus === "E" || Boolean(sp.changeReasonCode);
@@ -886,6 +893,9 @@ export const mapPurchasePlanToEis17 = (
       kbk: sp.kbk,
       kbksInfo,
       koksInfo,
+      centralizedPurchaseOrg: sp.hasCentralizedPurchase
+        ? sp.centralizedPurchaseOrg || undefined
+        : undefined,
       publishYear: Number(sp.publishYear) || planYearNum,
       purchaseNumber: sp.purchaseNumber,
       modificationStatus: sp.modificationStatus,
@@ -2369,6 +2379,12 @@ const specialPurchaseXml = (sp: EisTenderPlan2020SpecialPurchase): string => {
     modificationXml +
     (sp.modificationStatus
       ? `<specialPurchasePositionModificationStatus>${sp.modificationStatus}</specialPurchasePositionModificationStatus>`
+      : "") +
+    (sp.centralizedPurchaseOrg
+      ? `<centralizedPurchaseInfo><centralizedPurchaseOrgInfo>` +
+        `<regNum>00000000000</regNum>` +
+        `<fullName>${escapeXml(sp.centralizedPurchaseOrg)}</fullName>` +
+        `</centralizedPurchaseOrgInfo></centralizedPurchaseInfo>`
       : "") +
     (sp.isNotFederalFinancing
       ? `<isNotFederalFinancing>true</isNotFederalFinancing>`

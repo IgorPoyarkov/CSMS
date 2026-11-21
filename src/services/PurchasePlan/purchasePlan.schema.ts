@@ -268,8 +268,13 @@ export const PurchasePlanSpecialPurchaseSchema = z
     koksCode: z.string().optional(),
     koksName: z.string().optional(),
     koksEntries: z.array(PurchasePlanKoksEntrySchema).optional(),
+    // КОКС/ОНИ заполняем только при необходимости — как в карточке позиции
+    hasKoks: z.boolean().optional(),
     publishYear: z.union([z.string(), z.number()]).optional(),
     purchaseNumber: optionalPattern(/^\d{1,4}$/, "До 4 цифр"),
+    // Централизованная закупка (centralizedPurchaseInfo в XSD ЕИС 17.0)
+    hasCentralizedPurchase: z.boolean().optional(),
+    centralizedPurchaseOrg: z.string().optional(),
     modificationStatus: z.enum(["N", "E"]).optional(),
     // Сведения об изменении — те же поля, что в карточке основной позиции
     // (specialPurchasePositionModification в XSD ЕИС 17.0)
@@ -331,8 +336,11 @@ export const emptyPurchasePlanSpecialPurchase = (
   koksCode: "",
   koksName: "",
   koksEntries: [],
+  hasKoks: false,
   publishYear: String(planYear),
   purchaseNumber: "",
+  hasCentralizedPurchase: false,
+  centralizedPurchaseOrg: "",
   modificationStatus: "N",
   isNotFederalFinancing: false,
   amountTotal: "",

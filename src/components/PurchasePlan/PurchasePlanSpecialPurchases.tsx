@@ -9,6 +9,7 @@ import {
   toNumber,
   type PurchasePlan,
   type PurchasePlanKbkEntry,
+  type PurchasePlanKoksEntry,
   type PurchasePlanPosition,
   type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
@@ -16,6 +17,9 @@ import {
   useSpecialPurchaseTypes,
   type SpecialPurchaseType,
 } from "../../services/SpecialPurchaseType/specialPurchaseType.api";
+import type { KoksRef } from "../../services/KoksRef/koksRef.api";
+import { AUTHORIZED_BODIES } from "./purchasePlan.mock";
+import KoksPickerModal from "./KoksPickerModal";
 import CustomSelect from "../UI/CustomSelect";
 import {
   formatKbk,
@@ -31,14 +35,15 @@ import styles from "./PurchasePlanSpecialPurchases.module.scss";
  * IntegrationTPTypes.xsd, Альбом ЕИС 17.0).
  *
  * Порядок работы с вкладкой:
- * 1) выбрать тип из справочника (пользователь видит только наименования);
- * 2) ниже выбрать год осуществления закупки (текущий год ПГ и ещё четыре);
- * 3) только после этого заполнить номер закупки, КБК и финансы.
+ * 1) выбрать основание (тип) из справочника — видны только наименования;
+ * 2) выбрать планируемый год размещения извещения (только 3 года планового
+ *    периода) и создать позицию;
+ * 3) заполнить номер закупки, КБК, при необходимости КОКС и финансы.
  *
- * ИКЗ рассчитывается из сведений и поэтому вынесен в строку года: в строке
- * позиции на его месте показан КБК, а сами разряды КБК редактируются
- * детализацией, как в карточке основной позиции. При нескольких КБК в ИКЗ
- * вместо КВР из КБК ставится 000.
+ * У одной позиции ровно один ИКЗ: он показан в её детализации рядом с
+ * уникальным номером позиции. Год — это фильтр списка, а не источник
+ * нескольких ИКЗ под одним заголовком. При нескольких КБК в ИКЗ вместо КВР
+ * из КБК ставится 000.
  */
 
 // Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
@@ -165,7 +170,19 @@ const kbkEntriesOf = (
 
   // У старых позиций был только готовый код — разложим его на разряды,
   // чтобы детализация сразу была доступна для правки
-  return item.kbk ? [{ ...splitKbk(item.kbk), kbk: item.kbk }] : [{ kbk: "" }];
+  return item.kbk
+    ? [
+        {
+          ...splitKbk(item.kbk),
+          kbk: item.kbk,
+          amountTotal: item.amountTotal ?? "",
+          amountCurrentYear: item.amountCurrentYear ?? "",
+          amountPlanPeriodFirstYear: item.amountPlanPeriodFirstYear ?? "",
+          amountPlanPeriodSecondYear: item.amountPlanPeriodSecondYear ?? "",
+          amountSubsequentYears: item.amountSubsequentYears ?? "",
+        },
+      ]
+    : [{ kbk: "" }];
 };
 
 /** Итоговый код строки детализации: собранный из разрядов либо старый kbk. */
@@ -182,7 +199,9 @@ export default function PurchasePlanSpecialPurchases({
   const block = bem(styles, "special-purchases");
 
   const baseYear = Number(plan.planYear) || CURRENT_YEAR;
-  const yearOptions = placementYearOptions(baseYear);
+  // Для особых закупок доступны только три года планового периода: позицию
+  // и ИКЗ нельзя завести за его пределами (в отличие от основной карточки).
+  const yearOptions = placementYearOptions(baseYear, 2);
 
   // Подписи граф — как в карточке основной позиции формы ПГ
   const amountHeaders: Record<AmountKey | "amountTotal", string> = {
@@ -252,6 +271,16 @@ export default function PurchasePlanSpecialPurchases({
   const [isAdding, setIsAdding] = useState(false);
   const [draftType, setDraftType] = useState<SpecialPurchaseType | null>(null);
   const [draftYear, setDraftYear] = useState(String(baseYear));
+
+  // Год работает как фильтр списка: под одним основанием может быть несколько
+  // позиций с разными годами и, соответственно, разными ИКЗ.
+  const [yearFilter, setYearFilter] = useState("");
+
+  // Справочник КОКС открывается только для позиций, где он действительно нужен
+  const [koksPicker, setKoksPicker] = useState<{
+    itemIndex: number;
+    entryIndex: number;
+  } | null>(null);
 
   // Сквозная нумерация: основные и особые позиции делят один ряд номеров
   const nextSerial = useMemo(() => {
@@ -383,13 +412,26 @@ export default function PurchasePlanSpecialPurchases({
       0,
     );
 
+  // Год — фильтр списка. Индексы сохраняются, чтобы правки попадали в
+  // исходный массив items, а не в его отфильтрованную копию.
+  const visibleRows = useMemo(
+    () =>
+      items
+        .map((item, index) => ({ item, index }))
+        .filter(
+          ({ item }) =>
+            !yearFilter || String(item.publishYear ?? baseYear) === yearFilter,
+        ),
+    [items, yearFilter, baseYear],
+  );
+
   const kbkTotal = (
     entry: PurchasePlanKbkEntry | undefined,
     key: AmountKey,
   ): number => toNumber(entry?.[key]) ?? 0;
 
-  const totalAmount = items.reduce(
-    (total, item) => total + sumYears(item),
+  const totalAmount = visibleRows.reduce(
+    (total, { item }) => total + sumYears(item),
     0,
   );
 
@@ -398,7 +440,26 @@ export default function PurchasePlanSpecialPurchases({
     key: K,
     value: PurchasePlanSpecialPurchase[K],
   ) {
-    applyChange(index, (item) => ({ ...item, [key]: value }));
+    applyChange(index, (item) => {
+      const next = { ...item, [key]: value };
+
+      // Снимая флаг централизованной закупки, очищаем выбранный орган,
+      // чтобы в XML не ушёл лишний centralizedPurchaseInfo
+      if (key === "hasCentralizedPurchase" && !value) {
+        next.centralizedPurchaseOrg = "";
+      }
+      // Так же очищаем КОКС, если потребность в детализации отпала
+      if (key === "hasKoks" && !value) {
+        next.koksEntries = [];
+        next.koksCode = "";
+        next.koksName = "";
+      }
+      if (key === "hasKoks" && value && !item.koksEntries?.length) {
+        next.koksEntries = [{ koksCode: "" }];
+      }
+
+      return next;
+    });
   }
 
   function updateAmount(index: number, key: AmountKey, raw: string) {
@@ -494,13 +555,88 @@ export default function PurchasePlanSpecialPurchases({
     });
   }
 
-  function updateYearGroup(
-    rows: Array<{ item: PurchasePlanSpecialPurchase; index: number }>,
-    year: string,
-  ) {
-    for (const row of rows) {
-      applyChange(row.index, (item) => ({ ...item, publishYear: year }));
+  /** Старые позиции с одиночным КОКС тоже открываются в детализации. */
+  const koksEntriesOf = (
+    item: PurchasePlanSpecialPurchase,
+  ): PurchasePlanKoksEntry[] => {
+    if (item.koksEntries?.length) return item.koksEntries;
+    if (item.koksCode) {
+      return [
+        {
+          koksCode: item.koksCode,
+          koksName: item.koksName ?? "",
+          amountTotal: item.amountTotal ?? "",
+        },
+      ];
     }
+
+    return [];
+  };
+
+  function updateKoksCode(index: number, entryIndex: number, raw: string) {
+    applyChange(index, (item) => ({
+      ...item,
+      koksEntries: koksEntriesOf(item).map((entry, current) =>
+        current === entryIndex ? { ...entry, koksCode: raw } : entry,
+      ),
+    }));
+  }
+
+  function updateKoksAmount(
+    index: number,
+    entryIndex: number,
+    key: AmountKey,
+    raw: string,
+  ) {
+    const value = normalizeMoneyInput(raw);
+
+    applyChange(index, (item) => ({
+      ...item,
+      koksEntries: koksEntriesOf(item).map((entry, current) => {
+        if (current !== entryIndex) return entry;
+        const next = { ...entry, [key]: value };
+        const sum = AMOUNT_FIELDS.reduce(
+          (total, field) => total + (toNumber(next[field.key]) ?? 0),
+          0,
+        );
+
+        return {
+          ...next,
+          amountTotal: sum ? String(Number(sum.toFixed(2))) : "",
+        };
+      }),
+    }));
+  }
+
+  function addKoks(index: number) {
+    applyChange(index, (item) => ({
+      ...item,
+      koksEntries: [...koksEntriesOf(item), { koksCode: "" }],
+    }));
+  }
+
+  function removeKoks(index: number, entryIndex: number) {
+    applyChange(index, (item) => ({
+      ...item,
+      koksEntries: koksEntriesOf(item).filter(
+        (_, current) => current !== entryIndex,
+      ),
+    }));
+  }
+
+  function pickKoks(code: string, name: string) {
+    if (!koksPicker) return;
+    const { itemIndex, entryIndex } = koksPicker;
+
+    applyChange(itemIndex, (item) => ({
+      ...item,
+      koksEntries: koksEntriesOf(item).map((entry, current) =>
+        current === entryIndex
+          ? { ...entry, koksCode: code, koksName: name }
+          : entry,
+      ),
+    }));
+    setKoksPicker(null);
   }
 
   function addItem() {
@@ -572,71 +708,55 @@ export default function PurchasePlanSpecialPurchases({
     );
   }
 
-  // Группируем по типу, внутри типа — по году размещения
+  // Позиции группируются только по основанию (типу) закупки. Год выбирается
+  // фильтром выше и хранится в самой позиции: у неё один ИКЗ на весь срок.
   const groups = useMemo(() => {
     const byType = new Map<
       string,
       {
         name: string;
-        years: Map<
-          string,
-          Array<{ item: PurchasePlanSpecialPurchase; index: number }>
-        >;
+        rows: Array<{ item: PurchasePlanSpecialPurchase; index: number }>;
       }
     >();
 
-    items.forEach((item, index) => {
-      const code = item.typeCode || "";
-      const name = item.typeName || "Тип не выбран";
-      const year = String(item.publishYear ?? baseYear);
+    for (const row of visibleRows) {
+      const code = row.item.typeCode || "";
+      const name = row.item.typeName || "Основание не выбрано";
 
       if (!byType.has(code)) {
-        byType.set(code, { name, years: new Map() });
+        byType.set(code, { name, rows: [] });
       }
       const group = byType.get(code)!;
-      if (group.name === "Тип не выбран" && name !== "Тип не выбран") {
+      if (group.name === "Основание не выбрано" && name !== "Основание не выбрано") {
         group.name = name;
       }
-      if (!group.years.has(year)) {
-        group.years.set(year, []);
-      }
-      group.years.get(year)!.push({ item, index });
-    });
+      group.rows.push(row);
+    }
 
-    const sortedGroups = [...byType.entries()].map(([code, group]) => {
-      const years = [...group.years.entries()]
-        .map(([year, rows]) => ({
-          year,
-          rows: [...rows].sort(
-            (a, b) => (serialOf(a.item) ?? 0) - (serialOf(b.item) ?? 0),
-          ),
-        }))
-        .sort((a, b) => Number(a.year) - Number(b.year));
-
-      return {
+    return [...byType.entries()]
+      .map(([code, group]) => ({
         code,
         name: group.name,
-        years,
-        firstSerial: years[0]?.rows[0]
-          ? (serialOf(years[0].rows[0].item) ?? 0)
-          : 0,
-      };
-    });
-
-    return sortedGroups
-      .sort((a, b) => a.firstSerial - b.firstSerial)
-      .map(({ code, name, years }) => ({ code, name, years }));
-  }, [items, baseYear]);
+        rows: [...group.rows].sort(
+          (a, b) => (serialOf(a.item) ?? 0) - (serialOf(b.item) ?? 0),
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          (serialOf(a.rows[0]?.item) ?? 0) - (serialOf(b.rows[0]?.item) ?? 0),
+      );
+  }, [visibleRows]);
 
   return (
     <fieldset className={block("section")}>
       <legend>Особые закупки</legend>
 
       <p className={block("hint")}>
-        Блок specialPurchasePositions по схеме ЕИС 17.0. Сначала выберите тип
-        закупки из справочника, затем год осуществления закупки, после этого
-        заполните номер закупки, КБК и финансовое обеспечение. ИКЗ рассчитывается
-        автоматически и показан в строке года.
+        Блок specialPurchasePositions по схеме ЕИС 17.0. Выберите основание из
+        справочника и планируемый год размещения извещения (только три года
+        планового периода), затем заполните номер закупки, КБК и, при
+        необходимости, КОКС. У каждой позиции ровно один расчётный ИКЗ; год
+        служит фильтром списка.
       </p>
 
       {!specialTypes?.fromNsi && (
@@ -654,6 +774,22 @@ export default function PurchasePlanSpecialPurchases({
         >
           {isAdding ? "Скрыть выбор типа" : "+ Добавить особую закупку"}
         </button>
+        <label className={block("filter")}>
+          <span>Планируемый год размещения извещения</span>
+          <select
+            className={block("select", ["filter"])}
+            aria-label="Фильтр по планируемому году размещения извещения"
+            value={yearFilter}
+            onChange={(event) => setYearFilter(event.target.value)}
+          >
+            <option value="">Все годы</option>
+            {yearOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           className={block("save")}
@@ -667,11 +803,11 @@ export default function PurchasePlanSpecialPurchases({
       {isAdding && (
         <div className={block("wizard")}>
           <label className={block("wizard-field")}>
-            <span>Тип особой закупки</span>
+            <span>Основание особой закупки</span>
             <CustomSelect
               listData={typeOptions}
               selectedValue={draftType?.code ?? ""}
-              placeholder="Выберите тип из справочника"
+              placeholder="Выберите основание из справочника"
               getKey={(type) => type.code}
               getLabel={(type) => type.name}
               searchable
@@ -680,10 +816,10 @@ export default function PurchasePlanSpecialPurchases({
             />
           </label>
           <label className={block("wizard-field", ["year"])}>
-            <span>Год осуществления закупки</span>
+            <span>Планируемый год размещения извещения</span>
             <select
               className={block("select")}
-              aria-label="Год осуществления закупки"
+              aria-label="Планируемый год размещения извещения"
               value={draftYear}
               disabled={!draftType}
               onChange={(event) => setDraftYear(event.target.value)}
@@ -742,57 +878,9 @@ export default function PurchasePlanSpecialPurchases({
                   <tr className={block("group-row")}>
                     <td colSpan={9}>{group.name}</td>
                   </tr>
-                  {group.years.map((yearGroup) => (
-                    <Fragment key={yearGroup.year}>
-                      <tr className={block("year-row")}>
-                        <td colSpan={9}>
-                          <div className={block("year-line")}>
-                            <label className={block("year-field")}>
-                              <span>Год осуществления закупки</span>
-                              <select
-                                className={block("select", ["year"])}
-                                aria-label="Год осуществления закупки"
-                                value={yearGroup.year}
-                                onChange={(event) =>
-                                  updateYearGroup(
-                                    yearGroup.rows,
-                                    event.target.value,
-                                  )
-                                }
-                              >
-                                {yearOptions.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <div className={block("year-ikz")}>
-                              <span>Идентификационный код закупки</span>
-                              {yearGroup.rows.map(({ item }) => {
-                                const parts = ikzPartsOf(item);
-
-                                return (
-                                  <div
-                                    key={item.id ?? item.serialNumber}
-                                    className={block("year-ikz-line")}
-                                  >
-                                    <b>{item.purchaseNumber || "—"}</b>
-                                    <span className={block("ikz-code")}>
-                                      {parts.code || "ИКЗ не собран"}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                      {yearGroup.rows.map(({ item, index }) => {
+                  {group.rows.map(({ item, index }) => {
                         const entries = kbkEntriesOf(item);
+                        const parts = ikzPartsOf(item);
                         const isExisting = initialIds.has(String(item.id));
                         const isModified = modifiedIds.has(String(item.id));
 
@@ -868,6 +956,154 @@ export default function PurchasePlanSpecialPurchases({
                             <tr className={block("detail-row")}>
                               <td colSpan={8}>
                                 <div className={block("details")}>
+                                  <div className={block("common-fields")}>
+                                    <label
+                                      className={block("detail-field", ["wide"])}
+                                    >
+                                      <span>
+                                        Уникальный номер позиции в
+                                        плане-графике закупок
+                                      </span>
+                                      <span className={block("readonly")}>
+                                        {item.positionNumber ||
+                                          "Будет сформирован при сохранении позиции"}
+                                      </span>
+                                    </label>
+                                    <label className={block("detail-field")}>
+                                      <span>
+                                        Планируемый год размещения извещения
+                                      </span>
+                                      <select
+                                        className={block("select")}
+                                        aria-label="Планируемый год размещения извещения позиции"
+                                        value={String(item.publishYear ?? baseYear)}
+                                        onChange={(event) =>
+                                          updateField(
+                                            index,
+                                            "publishYear",
+                                            event.target.value,
+                                          )
+                                        }
+                                      >
+                                        {yearOptions.map((option) => (
+                                          <option
+                                            key={option.value}
+                                            value={option.value}
+                                          >
+                                            {option.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                  </div>
+
+                                  {/* У позиции ровно один ИКЗ — он собирается
+                                      из сведений этой же позиции */}
+                                  <div className={block("ikz-block")}>
+                                    <div className={block("detail-title")}>
+                                      Идентификационный код закупки
+                                    </div>
+                                    <div className={block("ikz-code", ["single"])}>
+                                      {parts.code || "ИКЗ не собран"}
+                                    </div>
+                                    <table className={block("ikz-parts-table")}>
+                                      <thead>
+                                        <tr>
+                                          {[
+                                            "Год",
+                                            "Идентификационный код заказчика",
+                                            "Номер закупки, включенной в план-график закупок",
+                                            "Порядковый номер закупки",
+                                            "Код позиции ОКПД2",
+                                            "Код вида расходов",
+                                          ].map((label) => (
+                                            <th key={label}>{label}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr>
+                                          {[
+                                            parts.year,
+                                            parts.customerCode,
+                                            parts.purchaseNumber,
+                                            parts.orderNumber,
+                                            parts.okpd2,
+                                            parts.kvr,
+                                          ].map((value, partIndex) => (
+                                            <td key={partIndex}>
+                                              {value || "—"}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  <div className={block("option-fields")}>
+                                    <label className={block("check")}>
+                                      <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                          item.hasCentralizedPurchase,
+                                        )}
+                                        onChange={(event) =>
+                                          updateField(
+                                            index,
+                                            "hasCentralizedPurchase",
+                                            event.target.checked,
+                                          )
+                                        }
+                                      />
+                                      Централизованная закупка
+                                    </label>
+                                    {item.hasCentralizedPurchase && (
+                                      <div className={block("subcontrol")}>
+                                        <span className={block("detail-title")}>
+                                          Наименование уполномоченного органа
+                                          (учреждения)
+                                        </span>
+                                        <CustomSelect
+                                          listData={AUTHORIZED_BODIES}
+                                          selectedValue={
+                                            item.centralizedPurchaseOrg ?? ""
+                                          }
+                                          placeholder="Выберите уполномоченный орган"
+                                          getKey={(body) => body.name}
+                                          getLabel={(body) => body.name}
+                                          searchable
+                                          searchPlaceholder="Поиск уполномоченного органа…"
+                                          onClick={(name) =>
+                                            updateField(
+                                              index,
+                                              "centralizedPurchaseOrg",
+                                              String(name),
+                                            )
+                                          }
+                                        />
+                                      </div>
+                                    )}
+                                    <label className={block("check")}>
+                                      <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                          item.hasKoks ||
+                                            item.koksEntries?.length ||
+                                            item.koksCode,
+                                        )}
+                                        onChange={(event) =>
+                                          updateField(
+                                            index,
+                                            "hasKoks",
+                                            event.target.checked,
+                                          )
+                                        }
+                                      />
+                                      Код объекта капитального строительства /
+                                      недвижимого имущества
+                                    </label>
+                                  </div>
+
                                   <div className={block("detail-title")}>
                                     Детализация по кодам бюджетной классификации
                                   </div>
@@ -1052,6 +1288,153 @@ export default function PurchasePlanSpecialPurchases({
                                     федерального бюджета
                                   </label>
 
+                                  {item.hasKoks && (
+                                    <div className={block("koks-detail")}>
+                                      <div className={block("detail-title")}>
+                                        Детализация по кодам КОКС — ОКС/ОНИ
+                                      </div>
+                                      <table className={block("koks-table")}>
+                                        <colgroup>
+                                          <col
+                                            className={block("col", ["koks"])}
+                                          />
+                                          {AMOUNT_FIELDS.map((field) => (
+                                            <col
+                                              key={field.key}
+                                              className={block("col", [
+                                                "kbk-money",
+                                              ])}
+                                            />
+                                          ))}
+                                          <col
+                                            className={block("col", ["action"])}
+                                          />
+                                        </colgroup>
+                                        <thead>
+                                          <tr>
+                                            <th>Код КОКС (ОКС/ОНИ)</th>
+                                            {AMOUNT_FIELDS.map((field) => (
+                                              <th key={field.key}>
+                                                {amountHeaders[field.key]}
+                                              </th>
+                                            ))}
+                                            <th />
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {koksEntriesOf(item).map(
+                                            (entry, entryIndex) => (
+                                              <tr
+                                                key={`${item.id}-koks-${entryIndex}`}
+                                              >
+                                                <td>
+                                                  <div
+                                                    className={block("koks-cell")}
+                                                  >
+                                                    <input
+                                                      className={block("input", [
+                                                        "code",
+                                                      ])}
+                                                      placeholder="25000000000000000000"
+                                                      aria-label="Код КОКС"
+                                                      value={entry.koksCode ?? ""}
+                                                      onChange={(event) =>
+                                                        updateKoksCode(
+                                                          index,
+                                                          entryIndex,
+                                                          event.target.value,
+                                                        )
+                                                      }
+                                                    />
+                                                    <button
+                                                      type="button"
+                                                      className={block("pick")}
+                                                      onClick={() =>
+                                                        setKoksPicker({
+                                                          itemIndex: index,
+                                                          entryIndex,
+                                                        })
+                                                      }
+                                                    >
+                                                      Выбрать из справочника
+                                                    </button>
+                                                    {entry.koksName && (
+                                                      <span
+                                                        className={block(
+                                                          "koks-name",
+                                                        )}
+                                                      >
+                                                        {entry.koksName}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                                {AMOUNT_FIELDS.map((field) => (
+                                                  <td key={field.key}>
+                                                    <input
+                                                      className={block("input", [
+                                                        "money",
+                                                      ])}
+                                                      placeholder="0,00"
+                                                      aria-label={`${amountHeaders[field.key]} КОКС`}
+                                                      inputMode="decimal"
+                                                      value={displayMoneyInput(
+                                                        entry[field.key],
+                                                      )}
+                                                      onChange={(event) =>
+                                                        updateKoksAmount(
+                                                          index,
+                                                          entryIndex,
+                                                          field.key,
+                                                          event.target.value,
+                                                        )
+                                                      }
+                                                    />
+                                                  </td>
+                                                ))}
+                                                <td
+                                                  className={block("cell", [
+                                                    "action",
+                                                  ])}
+                                                >
+                                                  <button
+                                                    type="button"
+                                                    className={block("remove")}
+                                                    onClick={() =>
+                                                      removeKoks(
+                                                        index,
+                                                        entryIndex,
+                                                      )
+                                                    }
+                                                  >
+                                                    Убрать
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            ),
+                                          )}
+                                        </tbody>
+                                        <tfoot>
+                                          <tr>
+                                            <td
+                                              colSpan={
+                                                AMOUNT_FIELDS.length + 2
+                                              }
+                                            >
+                                              <button
+                                                type="button"
+                                                className={block("add")}
+                                                onClick={() => addKoks(index)}
+                                              >
+                                                Добавить КОКС
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  )}
+
                                   {isModified && (
                                     <div className={block("modification")}>
                                       <div className={block("detail-title")}>
@@ -1180,8 +1563,6 @@ export default function PurchasePlanSpecialPurchases({
                           </Fragment>
                         );
                       })}
-                    </Fragment>
-                  ))}
                 </Fragment>
               ))}
             </tbody>
@@ -1198,6 +1579,13 @@ export default function PurchasePlanSpecialPurchases({
             </tfoot>
           </table>
         </div>
+      )}
+
+      {koksPicker && (
+        <KoksPickerModal
+          onClose={() => setKoksPicker(null)}
+          onSelect={(code: KoksRef) => pickKoks(code.code, code.name)}
+        />
       )}
     </fieldset>
   );
