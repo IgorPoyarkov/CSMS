@@ -1066,8 +1066,7 @@ export default function PurchasePlanPositionForm({
 
             <div className={block("subblock")}>
               <h3 className={block("subtitle")}>
-                Детализация по кодам бюджетной классификации (КБК:{" "}
-                {kbkEntries.fields.length})
+                Детализация по кодам бюджетной классификации
               </h3>
 
               <div className={block("table-wrap")}>
@@ -1091,7 +1090,7 @@ export default function PurchasePlanPositionForm({
                       <th colSpan={EIS_AMOUNT_FIELDS.length}>
                         Объём финансового обеспечения
                       </th>
-                      <th />
+                      <th rowSpan={2} className={block("th", ["action-head"])} />
                     </tr>
                     <tr>
                       {KBK_PART_FIELDS.map((part) => (
@@ -1242,8 +1241,7 @@ export default function PurchasePlanPositionForm({
             {(isConstructionWorks || koksEntries.fields.length > 0) && (
               <div className={block("subblock")}>
                 <h3 className={block("subtitle")}>
-                  Детализация по кодам КОКС — ОКС/ОНИ (
-                  {koksEntries.fields.length})
+                  Детализация по кодам КОКС — ОКС/ОНИ
                 </h3>
                 <div className={block("table-wrap")}>
                   <table className={block("table", ["koks"])}>
