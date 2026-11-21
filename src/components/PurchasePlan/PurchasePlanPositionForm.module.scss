@@ -595,7 +595,9 @@
       font-size: 11px;
       white-space: normal;
       overflow-wrap: anywhere;
-      vertical-align: bottom;
+      // Многострочные заголовки граф центрируем по высоте строки, чтобы
+      // они не были прижаты к разрядам ИКЗ снизу
+      vertical-align: middle;
     }
 
     td {
