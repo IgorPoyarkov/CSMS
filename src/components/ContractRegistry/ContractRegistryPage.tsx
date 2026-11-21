@@ -1,4 +1,10 @@
-import { useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   totalPaid,
@@ -21,14 +27,15 @@ import {
   useContractPenalties,
   useContractDeliveries,
   useDeleteContract,
-  lookupContractByNumber,
-  normalizeContractNumber,
-  MIN_CONTRACT_NUMBER_LENGTH,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
+import { positionKbkCodes } from "../../services/PurchasePlan/purchasePlan.schema";
+import { ikzPositionKey } from "../../services/Eis/eisIdentifiers";
 import useUtils from "../../hooks/useUtils";
+import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import SmpSection from "./ContractSmpSection";
 import ContractEventsSection from "./ContractEventsSection";
 import ContractEisSection from "./ContractEisSection";
@@ -91,9 +98,6 @@ const formatMoney = (value: string | number | undefined | null): string => {
   });
 };
 
-/** id DOM-узла карточки — чтобы прокрутить страницу к подгруженному контракту. */
-const contractCardDomId = (id: string | number) => `contract-card-${id}`;
-
 /**
  * Группа реестра по виду способа закупки. Способ берётся из извещения,
  * привязанного к контракту (`procurementId`), а если извещения в системе
@@ -111,12 +115,32 @@ const CONTRACT_GROUP_TITLES: Record<ContractGroup, string> = {
 const isSingleSupplierWay = (way: string): boolean =>
   /EP93/i.test(way) || /единственн/i.test(way);
 
-type LookupNoticeTone = "pending" | "success" | "warning" | "danger";
+/** Занести КБК закупки в справочник, пустые коды пропускаем. */
+const mapProcurementKbk = (
+  target: Map<string, string>,
+  procurementId: string | number | null | undefined,
+  kbk: string | null | undefined,
+): void => {
+  if (procurementId === undefined || procurementId === null || !kbk) return;
+  target.set(String(procurementId), kbk);
+};
 
-interface LookupNotice {
-  tone: LookupNoticeTone;
-  text: string;
-}
+/** КБК контракта: хотя бы один выбранный код должен встречаться в его коде. */
+const matchesKbkFilter = (
+  codes: string[] | undefined,
+  selected: string[],
+): boolean =>
+  selected.length === 0 ||
+  Boolean(codes?.some((code) => selected.includes(code)));
+
+// Сколько контрактов показывать на странице
+const PAGE_SIZES = [5, 10, 25, "all"] as const;
+
+/** Сортировка: по году заключения (возр/убыв), по цене, по статусу. */
+type SortCriterion = "year" | "price" | "status" | "none";
+
+/** Фильтр по статусу: по умолчанию — на исполнении. */
+type StatusFilter = ContractRegistryItem["status"] | "all";
 
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
@@ -136,6 +160,7 @@ export default function ContractRegistryPage() {
 
   const { data: procurements } = useGetProcurements();
   const { data: notices } = useNotices();
+  const { data: plans } = usePurchasePlans(orgId);
 
   // Способ закупки по id закупки: сначала извещение системы, затем запись ЕИС
   const placingWayByProcurement = useMemo(() => {
@@ -154,19 +179,262 @@ export default function ContractRegistryPage() {
     return map;
   }, [procurements, notices]);
 
-  const visibleContracts = useMemo(() => {
-    const list = contracts ?? [];
-    if (group === "all") return list;
-    return list.filter((contract) => {
-      const way = placingWayByProcurement.get(
+  // КБК контракта. Основной источник — запись плана-графика: ИКЗ позиции и ИКЗ
+  // карточки реестра сходятся по стабильной части кода (год, ИНН/КПП заказчика,
+  // код позиции плана), поэтому связка работает даже без ссылки на закупку.
+  // Запасной путь — КБК закупки или извещения по procurementId.
+  const kbkByContract = useMemo(() => {
+    const kbkByPlanIkz = new Map<string, string[]>();
+    (plans ?? []).forEach((plan) => {
+      (plan.positions ?? []).forEach((position) => {
+        const key = ikzPositionKey(position.identificationCode ?? "");
+        if (!key) return;
+        const codes = positionKbkCodes(position);
+        if (codes.length === 0) return;
+        const prev = kbkByPlanIkz.get(key) ?? [];
+        kbkByPlanIkz.set(key, [...new Set([...prev, ...codes])]);
+      });
+    });
+
+    const kbkByProcurement = new Map<string, string>();
+    (procurements ?? []).forEach((procurement) => {
+      if (procurement.id !== undefined && procurement.id !== null) {
+        mapProcurementKbk(kbkByProcurement, procurement.id, procurement.kbk);
+      }
+    });
+    (notices ?? []).forEach((notice) => {
+      mapProcurementKbk(
+        kbkByProcurement,
+        notice.procurementId,
+        notice.generalInfo?.kbk,
+      );
+    });
+
+    const map = new Map<string, string[]>();
+    (contracts ?? []).forEach((contract) => {
+      if (contract.id === undefined || contract.id === null) return;
+      const fromPlan = kbkByPlanIkz.get(
+        ikzPositionKey(contract.ikz ?? "") ?? "",
+      );
+      const fromProcurement = kbkByProcurement.get(
         String(contract.procurementId ?? ""),
       );
-      if (!way) return false;
-      return group === "single"
-        ? isSingleSupplierWay(way)
-        : !isSingleSupplierWay(way);
+      const codes = fromPlan?.length
+        ? fromPlan
+        : fromProcurement
+          ? [fromProcurement]
+          : [];
+      if (codes.length > 0) map.set(String(contract.id), codes);
     });
-  }, [contracts, group, placingWayByProcurement]);
+    return map;
+  }, [contracts, plans, procurements, notices]);
+
+  // ─── Состояния фильтров, сортировки и пагинации ───────────────────────────
+  const [pageSize, setPageSize] = useState<PageSizeValue>(10);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>("in_execution");
+  const [sortCriterion, setSortCriterion] = useState<SortCriterion>("year");
+  const [sortAsc, setSortAsc] = useState(false);
+  // КБК: одно поле на поиск, выбор из списка и ручной ввод. Текст сразу
+  // сужает список, Enter добавляет код — из пула или введённый вручную.
+  const [selectedKbks, setSelectedKbks] = useState<string[]>([]);
+  const [kbkQuery, setKbkQuery] = useState("");
+  const [kbkOpen, setKbkOpen] = useState(false);
+  const [kbkActive, setKbkActive] = useState(0);
+  const kbkInputRef = useRef<HTMLInputElement | null>(null);
+  const kbkDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Выборка до фильтра по КБК: по ней же строим список доступных КБК,
+  // чтобы в подсказках не оставался единственный уже выбранный код
+  const filteredContracts = useMemo(() => {
+    const list = contracts ?? [];
+    let result: ContractRegistryItem[];
+    if (group === "all") {
+      result = list;
+    } else {
+      result = list.filter((contract) => {
+        const way = placingWayByProcurement.get(
+          String(contract.procurementId ?? ""),
+        );
+        if (!way) return false;
+        return group === "single"
+          ? isSingleSupplierWay(way)
+          : !isSingleSupplierWay(way);
+      });
+    }
+
+    // ─── Фильтрация по статусу (по умолчанию — на исполнении) ──────────────
+    if (statusFilter !== "all") {
+      result = result.filter((c) => c.status === statusFilter);
+    }
+
+    // ─── Фильтрация по периоду заключения ──────────────────────────────────
+    if (dateFrom) {
+      result = result.filter((c) => (c.contractDate ?? "") >= dateFrom);
+    }
+    if (dateTo) {
+      result = result.filter((c) => (c.contractDate ?? "") <= dateTo);
+    }
+
+    return result;
+  }, [
+    contracts,
+    group,
+    placingWayByProcurement,
+    statusFilter,
+    dateFrom,
+    dateTo,
+  ]);
+
+  // КБК текущего пула контрактов — тот самый список, из которого выбирают:
+  // код + сколько контрактов в выборке на нём стоят
+  const kbkOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredContracts.forEach((contract) => {
+      (kbkByContract.get(String(contract.id)) ?? []).forEach((kbk) => {
+        counts.set(kbk, (counts.get(kbk) ?? 0) + 1);
+      });
+    });
+    return [...counts.entries()]
+      .map(([kbk, count]) => ({ kbk, count }))
+      .sort((a, b) => a.kbk.localeCompare(b.kbk) || b.count - a.count);
+  }, [filteredContracts, kbkByContract]);
+
+  // Поиск сужает сам список кодов, а не выборку контрактов. Порядок тот же,
+  // что и в kbkOptions: по коду, затем по числу контрактов.
+  const kbkNeedle = kbkQuery.trim().toLowerCase().replace(/ё/g, "е");
+  const shownKbkOptions = kbkNeedle
+    ? kbkOptions.filter((option) =>
+        option.kbk.toLowerCase().replace(/ё/g, "е").includes(kbkNeedle),
+      )
+    : kbkOptions;
+
+  // Код, которого нет в пуле, всё равно можно применить: строка «Добавить»
+  // ведёт себя как обычный вариант списка, поэтому клавиатура работает едино.
+  const kbkManualCode = kbkQuery.trim();
+  const kbkManualVisible =
+    kbkManualCode.length > 0 &&
+    !kbkOptions.some((option) => option.kbk === kbkManualCode);
+  const kbkOptionCount = shownKbkOptions.length + (kbkManualVisible ? 1 : 0);
+
+  // Активная строка списка должна оставаться в зоне видимости при стрелках
+  useEffect(() => {
+    if (!kbkOpen) return;
+    kbkDropdownRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${kbkActive}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [kbkActive, kbkOpen]);
+
+  function setKbkSelected(code: string) {
+    setSelectedKbks((prev) =>
+      prev.includes(code)
+        ? prev.filter((value) => value !== code)
+        : [...prev, code],
+    );
+    setPage(1);
+  }
+
+  function addKbk(code: string) {
+    const value = code.trim();
+    if (!value) return;
+    setSelectedKbks((prev) => (prev.includes(value) ? prev : [...prev, value]));
+    setKbkQuery("");
+    setKbkActive(0);
+    setPage(1);
+  }
+
+  function removeKbk(code: string) {
+    setSelectedKbks((prev) => prev.filter((value) => value !== code));
+    setPage(1);
+  }
+
+  function handleKbkKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setKbkOpen(true);
+      setKbkActive((current) =>
+        Math.min(current + 1, Math.max(kbkOptionCount - 1, 0)),
+      );
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setKbkActive((current) => Math.max(current - 1, 0));
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (kbkOpen && kbkOptionCount > 0) {
+        if (kbkActive < shownKbkOptions.length) {
+          setKbkSelected(shownKbkOptions[kbkActive].kbk);
+        } else {
+          addKbk(kbkManualCode);
+        }
+        return;
+      }
+      addKbk(kbkManualCode);
+      return;
+    }
+    if (event.key === "Escape") {
+      setKbkOpen(false);
+      setKbkActive(0);
+      return;
+    }
+    if (
+      event.key === "Backspace" &&
+      kbkQuery === "" &&
+      selectedKbks.length > 0
+    ) {
+      removeKbk(selectedKbks[selectedKbks.length - 1]);
+    }
+  }
+
+  const visibleContracts = useMemo(() => {
+    // ─── Фильтрация по КБК: выбранные из списка коды ───────────────────────
+    const result = filteredContracts.filter((contract) =>
+      matchesKbkFilter(kbkByContract.get(String(contract.id)), selectedKbks),
+    );
+
+    // ─── Сортировка ─────────────────────────────────────────────────────────
+    const statusOrder: Record<string, number> = {
+      signed: 0,
+      in_execution: 1,
+      suspended: 2,
+      completed: 3,
+      terminated: 4,
+    };
+
+    return [...result].sort((a, b) => {
+      let cmp = 0;
+      if (sortCriterion === "year") {
+        const ya = (a.contractDate ?? "").slice(0, 4);
+        const yb = (b.contractDate ?? "").slice(0, 4);
+        cmp = ya.localeCompare(yb);
+      } else if (sortCriterion === "price") {
+        cmp =
+          (parseFloat(a.contractPrice) || 0) -
+          (parseFloat(b.contractPrice) || 0);
+      } else if (sortCriterion === "status") {
+        cmp = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+      }
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [filteredContracts, kbkByContract, selectedKbks, sortCriterion, sortAsc]);
+
+  // ─── Пагинация ────────────────────────────────────────────────────────────
+  const totalPages =
+    pageSize === "all"
+      ? 1
+      : Math.max(1, Math.ceil(visibleContracts.length / Number(pageSize)));
+  const safePage = Math.min(page, totalPages);
+  const start = pageSize === "all" ? 0 : (safePage - 1) * Number(pageSize);
+  const pagedContracts =
+    pageSize === "all"
+      ? visibleContracts
+      : visibleContracts.slice(start, start + Number(pageSize));
 
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
@@ -174,102 +442,6 @@ export default function ContractRegistryPage() {
     if (id === undefined) return;
     setExpandedId((prev) => (prev === id ? null : id));
   };
-
-  // ─── Подгрузка сведений из реестра по реестровому номеру контракта ────────
-  const [numberInput, setNumberInput] = useState("");
-  const [notice, setNotice] = useState<LookupNotice | null>(null);
-  const [isLooking, setIsLooking] = useState(false);
-  // Карточка, полученная подгрузкой, — подсвечиваем её до сброса поиска
-  const [loadedId, setLoadedId] = useState<string | number | null>(null);
-
-  /** Подгрузка по конкретному номеру: вызывают и форма, и подсказки списка. */
-  const runLookup = async (rawNumber: string) => {
-    if (!orgId) {
-      setNotice({
-        tone: "danger",
-        text: "Организация не определена — подгрузка сведений недоступна.",
-      });
-      return;
-    }
-    const needle = normalizeContractNumber(rawNumber);
-    if (needle.length < MIN_CONTRACT_NUMBER_LENGTH) {
-      setLoadedId(null);
-      setNotice(
-        needle
-          ? {
-              tone: "danger",
-              text: `Реестровый номер должен содержать не менее ${MIN_CONTRACT_NUMBER_LENGTH} символов.`,
-            }
-          : null,
-      );
-      return;
-    }
-    setIsLooking(true);
-    setNotice({
-      tone: "pending",
-      text: `Ищем контракт ${needle} в реестре...`,
-    });
-    try {
-      const result = await lookupContractByNumber(needle, orgId);
-      const found = result.contract;
-      if (found && found.id !== undefined) {
-        setExpandedId(found.id);
-        setLoadedId(found.id);
-        setNotice({
-          tone: "success",
-          text: `Подгружены сведения контракта ${found.contractNumber}${
-            result.matchedBy === "partial"
-              ? " (номер совпал с введённым частично)"
-              : ""
-          }: ${found.contractName}`,
-        });
-        // Прокрутку делаем после раскрытия карточки, иначе промахнёмся по позиции
-        const cardId = contractCardDomId(found.id);
-        requestAnimationFrame(() => {
-          document
-            .getElementById(cardId)
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
-        return;
-      }
-      setLoadedId(null);
-      setNotice(
-        result.anotherOrganization
-          ? {
-              tone: "warning",
-              text: `Контракт ${needle} в реестре есть, но относится к другому заказчику — его сведения вам недоступны.`,
-            }
-          : {
-              tone: "danger",
-              text: `Контракт с реестровым номером ${needle} не найден. Можно ввести часть номера или выбрать контракт из списка ниже.`,
-            },
-      );
-    } catch {
-      setLoadedId(null);
-      setNotice({
-        tone: "danger",
-        text: "Не удалось подгрузить сведения из реестра контрактов.",
-      });
-    } finally {
-      setIsLooking(false);
-    }
-  };
-
-  const handleLookup = (event: FormEvent) => {
-    event.preventDefault();
-    void runLookup(numberInput);
-  };
-
-  const handleLookupReset = () => {
-    setNumberInput("");
-    setNotice(null);
-    setLoadedId(null);
-  };
-
-  // Номера контрактов своей организации — подсказки, если номер ввели с ошибкой
-  const knownNumbers = (contracts ?? [])
-    .map((contract) => contract.contractNumber)
-    .filter(Boolean);
 
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
@@ -279,120 +451,303 @@ export default function ContractRegistryPage() {
     <div className={styles.container}>
       <h2 className={styles.title}>{CONTRACT_GROUP_TITLES[group]}</h2>
       {group !== "all" && (
-        <p className={styles.lookupHint}>
+        <p className={styles.groupHint}>
           Группа определяется по способу закупки из извещения, привязанного к
           контракту. Контракты без привязки к извещению в группу не попадают.
         </p>
       )}
 
-      <section className={styles.lookup}>
-        <h3 className={styles.lookupTitle}>
-          Подгрузка сведений из реестра контрактов
-        </h3>
-        <form className={styles.lookupRow} onSubmit={handleLookup}>
-          <div className={styles.lookupField}>
-            <label
-              className={styles.lookupLabel}
-              htmlFor="registry-contract-number"
+      {/* ─── Панель фильтров и сортировки ──────────────────────────────────── */}
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarFilters}>
+          {/* Статус */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label className={styles.toolbarLabel}>Статус</label>
+            <select
+              className={styles.toolbarSelect}
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as StatusFilter);
+                setPage(1);
+              }}
             >
-              Реестровый номер контракта
-            </label>
-            <input
-              id="registry-contract-number"
-              className={styles.lookupInput}
-              value={numberInput}
-              onChange={(event) => setNumberInput(event.target.value)}
-              placeholder="Например: 0346200000626000001 или его часть"
-              autoComplete="off"
-            />
+              <option value="all">все</option>
+              <option value="signed">Заключён</option>
+              <option value="in_execution">Исполняется</option>
+              <option value="completed">Завершён</option>
+              <option value="terminated">Расторгнут</option>
+              <option value="suspended">Приостановлен</option>
+            </select>
           </div>
-          <button
-            type="submit"
-            className={styles.lookupSubmit}
-            disabled={isLooking}
-          >
-            {isLooking ? "Подгружаем..." : "Подгрузить"}
-          </button>
-          {(numberInput || notice) && (
-            <button
-              type="button"
-              className={styles.lookupReset}
-              onClick={handleLookupReset}
-            >
-              Сбросить
-            </button>
-          )}
-        </form>
-        <p className={styles.lookupHint}>
-          По номеру подтягиваются сведения контракта вашей организации: этапы,
-          платежи, неустойки, поставки и объём субподряда СМП. Достаточно части
-          номера.
-        </p>
-        {notice && (
-          <div
-            className={`${styles.lookupNotice} ${styles[`lookupNotice_${notice.tone}`]}`}
-            role="status"
-          >
-            {notice.text}
-          </div>
-        )}
-        {knownNumbers.length > 0 && (
-          <div className={styles.lookupSuggestions}>
-            <span className={styles.lookupSuggestionsLabel}>
-              Контракты вашей организации:
-            </span>
-            {knownNumbers.map((number) => (
-              <button
-                key={number}
-                type="button"
-                className={`${styles.lookupSuggestion} ${
-                  normalizeContractNumber(numberInput) === number
-                    ? styles.lookupSuggestion_active
-                    : ""
-                }`}
-                onClick={() => {
-                  setNumberInput(number);
-                  void runLookup(number);
-                }}
-              >
-                {number}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
 
-      {visibleContracts.length === 0 ? (
-        <div className={styles.empty}>
-          {group === "all"
-            ? "Контрактов нет"
-            : "В этой группе контрактов нет — способ закупки определяется по извещению, привязанному к контракту"}
-        </div>
-      ) : (
-        <div className={styles.list}>
-          {visibleContracts.map((contract) => (
-            <ContractCard
-              key={contract.id}
-              contract={contract}
-              expanded={expandedId === contract.id}
-              highlighted={
-                loadedId !== null && String(contract.id) === String(loadedId)
-              }
-              domId={
-                contract.id === undefined
-                  ? undefined
-                  : contractCardDomId(contract.id)
-              }
-              onToggle={() => toggleExpand(contract.id)}
-              onDelete={() => {
-                if (contract.id && confirm("Удалить контракт из реестра?")) {
-                  deleteContract(contract.id);
+          {/* КБК: комбинированное поле — поиск, выбор из пула и ручной ввод */}
+          <div className={styles.kbkBlock}>
+            <label className={styles.toolbarLabel} htmlFor="contract-kbk">
+              КБК
+            </label>
+            <div
+              className={styles.kbkCombobox}
+              onBlur={(event) => {
+                if (
+                  !event.currentTarget.contains(
+                    event.relatedTarget as Node | null,
+                  )
+                ) {
+                  setKbkOpen(false);
                 }
               }}
-              formatDate={formatDate}
-            />
-          ))}
+            >
+              <div className={styles.kbkField}>
+                <input
+                  id="contract-kbk"
+                  ref={kbkInputRef}
+                  className={styles.kbkSearch}
+                  type="text"
+                  role="combobox"
+                  aria-expanded={kbkOpen}
+                  aria-controls="contract-kbk-options"
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    kbkOpen && kbkOptionCount > 0
+                      ? `contract-kbk-option-${kbkActive}`
+                      : undefined
+                  }
+                  placeholder="Введите или выберите КБК…"
+                  value={kbkQuery}
+                  onChange={(event) => {
+                    setKbkQuery(event.target.value);
+                    setKbkOpen(true);
+                    setKbkActive(0);
+                  }}
+                  onFocus={() => setKbkOpen(true)}
+                  onKeyDown={handleKbkKeyDown}
+                  autoComplete="off"
+                />
+                <span className={styles.kbkCounter}>
+                  {selectedKbks.length > 0
+                    ? `Выбрано: ${selectedKbks.length}`
+                    : `Кодов в пуле: ${kbkOptions.length}`}
+                </span>
+              </div>
+
+              {kbkOpen && (
+                <div
+                  id="contract-kbk-options"
+                  ref={kbkDropdownRef}
+                  className={styles.kbkDropdown}
+                  role="listbox"
+                  aria-label="КБК текущего пула контрактов"
+                >
+                  {shownKbkOptions.map(({ kbk, count }, index) => {
+                    const isSelected = selectedKbks.includes(kbk);
+                    return (
+                      <button
+                        key={kbk}
+                        type="button"
+                        id={`contract-kbk-option-${index}`}
+                        data-index={index}
+                        role="option"
+                        aria-selected={isSelected}
+                        className={`${styles.kbkOption} ${
+                          index === kbkActive ? styles.kbkOptionActive : ""
+                        }`}
+                        onMouseEnter={() => setKbkActive(index)}
+                        onClick={() => {
+                          setKbkSelected(kbk);
+                          kbkInputRef.current?.focus();
+                        }}
+                      >
+                        <span className={styles.kbkOptionMark}>
+                          {isSelected ? "✓" : ""}
+                        </span>
+                        <span className={styles.kbkCode}>{kbk}</span>
+                        <span className={styles.kbkCount}>{count}</span>
+                      </button>
+                    );
+                  })}
+
+                  {kbkManualVisible && (
+                    <button
+                      type="button"
+                      id={`contract-kbk-option-${shownKbkOptions.length}`}
+                      data-index={shownKbkOptions.length}
+                      role="option"
+                      aria-selected={false}
+                      className={`${styles.kbkOption} ${
+                        kbkActive === shownKbkOptions.length
+                          ? styles.kbkOptionActive
+                          : ""
+                      }`}
+                      onMouseEnter={() => setKbkActive(shownKbkOptions.length)}
+                      onClick={() => addKbk(kbkManualCode)}
+                    >
+                      <span className={styles.kbkOptionMark}>+</span>
+                      <span className={styles.kbkCode}>
+                        Добавить код «{kbkManualCode}»
+                      </span>
+                    </button>
+                  )}
+
+                  {kbkOptionCount === 0 && (
+                    <span className={styles.kbkEmpty}>
+                      {kbkOptions.length === 0
+                        ? "В текущей выборке контрактов КБК не определены: код берётся из записи плана-графика по ИКЗ либо из связанной закупки."
+                        : "По введённому фрагменту кодов нет — нажмите Enter, чтобы применить его как код."}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {selectedKbks.length > 0 && (
+              <div className={styles.kbkChips}>
+                {selectedKbks.map((code) => (
+                  <span key={code} className={styles.kbkChip}>
+                    <span className={styles.kbkCode}>{code}</span>
+                    <button
+                      type="button"
+                      className={styles.kbkChipRemove}
+                      aria-label={`Убрать КБК ${code}`}
+                      onClick={() => removeKbk(code)}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  className={styles.kbkClear}
+                  onClick={() => {
+                    setSelectedKbks([]);
+                    setPage(1);
+                  }}
+                >
+                  Сбросить выбор
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Период заключения */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label className={styles.toolbarLabel}>Период заключения</label>
+            <div className={styles.toolbarDateRange}>
+              <input
+                className={styles.toolbarInput}
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="От"
+              />
+              <span>–</span>
+              <input
+                className={styles.toolbarInput}
+                type="date"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="До"
+              />
+            </div>
+          </div>
+
+          {/* Сортировка: критерий */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label className={styles.toolbarLabel}>Сортировка</label>
+            <div className={styles.toolbarSortRow}>
+              <select
+                className={styles.toolbarSelect}
+                value={sortCriterion}
+                onChange={(e) =>
+                  setSortCriterion(e.target.value as SortCriterion)
+                }
+              >
+                <option value="year">Год заключения</option>
+                <option value="price">Цена контракта</option>
+                <option value="status">Статус</option>
+              </select>
+              <button
+                className={styles.toolbarSortToggle}
+                type="button"
+                onClick={() => setSortAsc((v) => !v)}
+                title={sortAsc ? "По возрастанию" : "По убыванию"}
+              >
+                {sortAsc ? "▲" : "▼"}
+              </button>
+            </div>
+          </div>
         </div>
+
+        <PageSizePicker
+          sizes={PAGE_SIZES}
+          value={pageSize}
+          onChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      </div>
+
+      {pagedContracts.length === 0 ? (
+        <div className={styles.empty}>
+          Контрактов по заданным условиям не найдено
+        </div>
+      ) : (
+        <>
+          <div className={styles.list}>
+            {pagedContracts.map((contract) => (
+              <ContractCard
+                key={contract.id}
+                contract={contract}
+                expanded={expandedId === contract.id}
+                onToggle={() => toggleExpand(contract.id)}
+                onDelete={() => {
+                  if (contract.id && confirm("Удалить контракт из реестра?")) {
+                    deleteContract(contract.id);
+                  }
+                }}
+                formatDate={formatDate}
+              />
+            ))}
+          </div>
+
+          {/* ─── Пагинация ──────────────────────────────────────────────────── */}
+          {totalPages > 1 && (
+            <div className={styles.pager}>
+              <button
+                type="button"
+                className={styles.pagerButton}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={safePage === 1}
+              >
+                Назад
+              </button>
+              <span className={styles.pagerInfo}>
+                {start + 1}–
+                {Math.min(
+                  start + pagedContracts.length,
+                  visibleContracts.length,
+                )}{" "}
+                из {visibleContracts.length}
+              </span>
+              <button
+                type="button"
+                className={styles.pagerButton}
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={safePage === totalPages}
+              >
+                Вперёд
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -403,9 +758,6 @@ export default function ContractRegistryPage() {
 interface ContractCardProps {
   contract: ContractRegistryItem;
   expanded: boolean;
-  /** Карточка получена подгрузкой по реестровому номеру — выделяем её. */
-  highlighted: boolean;
-  domId?: string;
   onToggle: () => void;
   onDelete: () => void;
   formatDate: (date?: string) => string;
@@ -414,8 +766,6 @@ interface ContractCardProps {
 function ContractCard({
   contract,
   expanded,
-  highlighted,
-  domId,
   onToggle,
   onDelete,
   formatDate,
@@ -423,12 +773,7 @@ function ContractCard({
   const overdue = isContractOverdue(contract);
 
   return (
-    <div
-      id={domId}
-      className={`${styles.card} ${overdue ? styles.cardOverdue : ""} ${
-        highlighted ? styles.cardHighlighted : ""
-      }`}
-    >
+    <div className={`${styles.card} ${overdue ? styles.cardOverdue : ""}`}>
       <div className={styles.cardHeader} onClick={onToggle}>
         <div className={styles.cardHeaderLeft}>
           <span className={styles.contractNumber}>
