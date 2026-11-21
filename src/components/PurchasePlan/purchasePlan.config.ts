@@ -106,7 +106,7 @@ const moneyFormatter = new Intl.NumberFormat("ru-RU", {
 export const formatMoney = (value: string | number | undefined): string => {
   const amount = toNumber(value);
 
-  return amount === null ? "—" : `${moneyFormatter.format(amount)} ₽`;
+  return amount === null ? "—" : `${moneyFormatter.format(amount)} руб.`;
 };
 
 /**
@@ -297,7 +297,7 @@ export const planHeaderFields: ConfigurationInput<PurchasePlan>[] = [
     },
   },
   {
-    label: { value: "Совокупный объём закупок, ₽" },
+    label: { value: "Совокупный объём закупок, руб." },
     input: { name: "totalAmount", placeholder: "12500000.00" },
   },
   {

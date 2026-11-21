@@ -239,18 +239,111 @@ const collectKbkGroups = (
     );
 };
 
+// Сортировка сводки: графа и направление. По количеству записей графу не
+// сортируем — это счётчик, а не объём; сортируются код и все суммы.
+type SortDirection = "asc" | "desc";
+
+type KbkSortKey =
+  | "kbk"
+  | "total"
+  | "current"
+  | "first"
+  | "second"
+  | "subsequent";
+
+interface TableSort {
+  key: KbkSortKey;
+  dir: SortDirection;
+}
+
+/** Повторный клик по графе меняет направление, новая графа начинает с asc. */
+const toggleTableSort = (
+  current: TableSort | null,
+  key: KbkSortKey,
+): TableSort =>
+  current?.key === key
+    ? { key, dir: current.dir === "asc" ? "desc" : "asc" }
+    : { key, dir: "asc" };
+
+/** Код сравниваем как текст, суммы — как числа. */
+const compareSortValues = (a: string | number, b: string | number): number =>
+  typeof a === "number" && typeof b === "number"
+    ? a - b
+    : String(a).localeCompare(String(b), "ru", { numeric: true });
+
+const sortGroups = (groups: KbkGroup[], sort: TableSort | null): KbkGroup[] => {
+  if (!sort) return groups;
+
+  return [...groups].sort((left, right) => {
+    const result = compareSortValues(left[sort.key], right[sort.key]);
+    return sort.dir === "asc" ? result : -result;
+  });
+};
+
+interface SortableThProps {
+  label: string;
+  sortKey: KbkSortKey;
+  sort: TableSort | null;
+  onSort: (key: KbkSortKey) => void;
+}
+
+/** Заголовок сортируемой графы: название и значок направления. */
+function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
+  const direction = sort && sort.key === sortKey ? sort.dir : null;
+
+  return (
+    <th
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+    >
+      <button
+        type="button"
+        className={styles["sort-header"]}
+        onClick={() => onSort(sortKey)}
+        title={`Сортировать по «${label}»`}
+      >
+        <span>{label}</span>
+        <span
+          className={`${styles["sort-icon"]} ${
+            direction ? styles["sort-icon-active"] : ""
+          }`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? "▲" : direction === "desc" ? "▼" : "↕"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 export default function PurchasePlanKbkBreakdown({
   plan,
   baseYear,
   onOpenRecord,
 }: PurchasePlanKbkBreakdownProps) {
   const [openKbk, setOpenKbk] = useState<string | null>(null);
+  // Порядок по умолчанию — как коды идут в плане-графике
+  const [sort, setSort] = useState<TableSort | null>(null);
 
   const groups = useMemo(
     () => collectKbkGroups(plan.positions ?? [], plan.specialPurchases ?? []),
     [plan.positions, plan.specialPurchases],
   );
 
+  const sortedGroups = useMemo(() => sortGroups(groups, sort), [groups, sort]);
+
+  const handleSort = useCallback(
+    (key: KbkSortKey) => setSort((current) => toggleTableSort(current, key)),
+    [],
+  );
+
+  // Итоги считаем по исходным группам: сортировка порядок строк меняет,
+  // но не суммы
   const totals = useMemo(
     () => groups.reduce((acc, group) => addAmounts(acc, group), EMPTY_AMOUNTS),
     [groups],
@@ -278,7 +371,8 @@ export default function PurchasePlanKbkBreakdown({
         </h3>
         <p className={styles.hint}>
           Позиции плана-графика и особые закупки. Нажмите на код, чтобы увидеть
-          записи с этим КБК и их суммы
+          записи с этим КБК и их суммы. Заголовок графы сортирует таблицу по
+          этой графе
         </p>
       </div>
 
@@ -291,17 +385,48 @@ export default function PurchasePlanKbkBreakdown({
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>КБК</th>
+                <SortableTh
+                  label="КБК"
+                  sortKey="kbk"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                {/* По количеству записей не сортируем: это счётчик, а не объём */}
                 <th>Записей</th>
-                <th>Всего, ₽</th>
-                <th>{baseYear} год, ₽</th>
-                <th>{baseYear + 1} год, ₽</th>
-                <th>{baseYear + 2} год, ₽</th>
-                <th>Последующие годы, ₽</th>
+                <SortableTh
+                  label="Всего, руб."
+                  sortKey="total"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label={`${baseYear} год, руб.`}
+                  sortKey="current"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label={`${baseYear + 1} год, руб.`}
+                  sortKey="first"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label={`${baseYear + 2} год, руб.`}
+                  sortKey="second"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableTh
+                  label="Последующие годы, руб."
+                  sortKey="subsequent"
+                  sort={sort}
+                  onSort={handleSort}
+                />
               </tr>
             </thead>
             <tbody>
-              {groups.map((group) => (
+              {sortedGroups.map((group) => (
                 <tr key={group.kbk}>
                   <td>
                     <button
@@ -443,7 +568,7 @@ function KbkRecordsModal({
             </h3>
             <p className={styles["modal-sub"]}>
               Записей: {group.records.length} · всего{" "}
-              {formatMoneyValue(group.total)} ₽
+              {formatMoneyValue(group.total)} руб.
             </p>
             {onOpenRecord && (
               <p className={styles["modal-hint"]}>
@@ -468,8 +593,8 @@ function KbkRecordsModal({
                 <th>№</th>
                 <th>Наименование записи</th>
                 <th>ИКЗ / номер записи</th>
-                <th>Сумма по КБК, ₽</th>
-                {showRecordTotal && <th>Всего по записи, ₽</th>}
+                <th>Сумма по КБК, руб.</th>
+                {showRecordTotal && <th>Всего по записи, руб.</th>}
               </tr>
             </thead>
             <tbody>
@@ -521,7 +646,7 @@ function KbkRecordsModal({
                       {record.kbkCount > 1 && (
                         <span className={styles["record-total-note"]}>
                           Всего по записи:{" "}
-                          {formatMoneyValue(record.recordTotal)} ₽
+                          {formatMoneyValue(record.recordTotal)} руб.
                         </span>
                       )}
                       {/* На телефоне нет hover, поэтому переход показываем

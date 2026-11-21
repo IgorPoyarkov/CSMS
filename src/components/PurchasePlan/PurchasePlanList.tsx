@@ -313,7 +313,7 @@ export default function PurchasePlanList() {
                   <th>Номер плана-графика</th>
                   <th>Период</th>
                   <th>Записей ПГ</th>
-                  <th>Совокупный объём, ₽</th>
+                  <th>Совокупный объём, руб.</th>
                   <th>Утверждён</th>
                   <th>Статус</th>
                   <th>Действия</th>

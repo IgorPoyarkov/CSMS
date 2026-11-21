@@ -1192,11 +1192,11 @@ export default function PurchasePlanCard() {
               <thead>
                 <tr>
                   <th>Раздел показателей</th>
-                  <th>Всего, ₽</th>
-                  <th>{baseYear} год, ₽</th>
-                  <th>{baseYear + 1} год, ₽</th>
-                  <th>{baseYear + 2} год, ₽</th>
-                  <th>Последующие годы, ₽</th>
+                  <th>Всего, руб.</th>
+                  <th>{baseYear} год, руб.</th>
+                  <th>{baseYear + 1} год, руб.</th>
+                  <th>{baseYear + 2} год, руб.</th>
+                  <th>Последующие годы, руб.</th>
                 </tr>
               </thead>
               <tbody>

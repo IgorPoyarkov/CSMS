@@ -73,6 +73,43 @@
   }
 }
 
+// Заголовок сортируемой графы: кнопка со значком направления, как в реестре
+// контрактов — вся ячейка остаётся центрированной
+.sort-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+}
+
+.sort-icon {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 1;
+  opacity: 0.45;
+}
+
+.sort-icon-active {
+  color: var(--accent);
+  opacity: 1;
+}
+
 // КБК — кликабельный код: маска с неразрывными пробелами не переносится
 .kbk-btn {
   display: inline-block;

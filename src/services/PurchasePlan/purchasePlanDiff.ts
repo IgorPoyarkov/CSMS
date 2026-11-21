@@ -114,11 +114,11 @@ const POSITION_COMPARED_FIELDS: {
   { key: "okpd2Code", label: "Код ОКПД2" },
   { key: "okpd2Name", label: "Наименование ОКПД2" },
   { key: "kbk", label: "КБК" },
-  { key: "amountTotal", label: "Финансирование, всего (₽)" },
-  { key: "amountCurrentYear", label: "Текущий год (₽)" },
-  { key: "amountPlanPeriodFirstYear", label: "1-й плановый год (₽)" },
-  { key: "amountPlanPeriodSecondYear", label: "2-й плановый год (₽)" },
-  { key: "amountSubsequentYears", label: "Последующие годы (₽)" },
+  { key: "amountTotal", label: "Финансирование, всего (руб.)" },
+  { key: "amountCurrentYear", label: "Текущий год (руб.)" },
+  { key: "amountPlanPeriodFirstYear", label: "1-й плановый год (руб.)" },
+  { key: "amountPlanPeriodSecondYear", label: "2-й плановый год (руб.)" },
+  { key: "amountSubsequentYears", label: "Последующие годы (руб.)" },
   {
     key: "status",
     label: "Статус позиции",
@@ -178,7 +178,7 @@ export const diffPurchasePlans = (
     { key: "approvalDate", label: "Дата утверждения" },
     { key: "approvalAuthor", label: "Утвердил" },
     { key: "publishDate", label: "Дата публикации в ЕИС" },
-    { key: "totalAmount", label: "Совокупный объём (₽)" },
+    { key: "totalAmount", label: "Совокупный объём (руб.)" },
     { key: "remarks", label: "Примечание" },
   ];
 

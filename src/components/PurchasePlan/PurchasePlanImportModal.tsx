@@ -428,7 +428,7 @@ export default function PurchasePlanImportModal({
                   {totalImportedAmount.toLocaleString("ru-RU", {
                     minimumFractionDigits: 2,
                   })}{" "}
-                  ₽
+                  руб.
                 </strong>
               </div>
 
@@ -439,7 +439,7 @@ export default function PurchasePlanImportModal({
                       <th>#</th>
                       <th>Объект закупки / ИКЗ</th>
                       <th>ОКПД2 / КБК</th>
-                      <th>Всего, ₽</th>
+                      <th>Всего, руб.</th>
                       <th>Проверка 44-ФЗ</th>
                     </tr>
                   </thead>
@@ -577,7 +577,7 @@ export default function PurchasePlanImportModal({
                   {totalImportedAmount.toLocaleString("ru-RU", {
                     minimumFractionDigits: 2,
                   })}{" "}
-                  ₽
+                  руб.
                 </strong>
                 . Автоматически сохранится стартовая версия в истории изменений.
               </div>
