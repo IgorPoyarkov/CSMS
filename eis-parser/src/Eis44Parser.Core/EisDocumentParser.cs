@@ -17,6 +17,11 @@ namespace Eis44Parser.Core;
 /// </summary>
 public sealed class EisDocumentParser
 {
+    // В печатной форме ИНН/КПП заказчика находятся в purchaseResponsibleInfo,
+    // а внутри customerRequirementInfo они относятся к бюджетному аккумулятору.
+    private static readonly string[] CustomerScopes =
+        ["responsibleOrgInfo", "customer", "customerInfo", "mainInfo", "accountBudgetAdmin"];
+
     /// <summary>Разобрать один XML-файл архива.</summary>
     public ParsedEisDocument Parse(XDocument document, string fileName)
     {
@@ -29,21 +34,25 @@ public sealed class EisDocumentParser
         {
             FileName = fileName,
             DocumentSha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code))).ToLowerInvariant(),
-            SchemeVersion = GetValue(root, "schemeVersion") ?? "unknown",
+            // У документов Казначейства версия лежит в атрибуте versionID.
+            SchemeVersion = GetValue(root, "schemeVersion", "versionID") ?? "unknown",
             Kind = DetectKind(root?.Name.LocalName),
             PurchaseNumber = FirstNonEmpty(
                 GetValue(root, "purchaseNumber", "notificationNumber"),
                 IsRegistryNumber(GetValue(root, "regNum")) ? GetValue(root, "regNum") : null),
             RegNumber = GetValue(root, "regNum"),
-            Ikz = GetValue(root, "IKZ", "ikz"),
-            CustomerInn = GetPartyValue(root, ["customer", "customerInfo", "mainInfo"], "INN"),
-            CustomerKpp = GetPartyValue(root, ["customer", "customerInfo", "mainInfo"], "KPP"),
-            CustomerName = GetPartyValue(root, ["customer", "customerInfo", "mainInfo"], "name", "fullName", "shortName"),
+            // В извещениях ЕИС ИКЗ лежит в <IKZInfo><purchaseCode>, у Казначейства —
+            // в <InfDcBs_RmAct>; непосредственного тега <IKZ> в печатной форме нет.
+            Ikz = GetValue(root, "IKZ", "ikz", "purchaseCode", "InfDcBs_RmAct"),
+            CustomerInn = GetPartyValue(root, CustomerScopes, "INN"),
+            CustomerKpp = GetPartyValue(root, CustomerScopes, "KPP"),
+            CustomerName = GetPartyValue(root, CustomerScopes, "name", "fullName", "shortName"),
             SupplierInn = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "INN"),
             SupplierKpp = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "KPP"),
             SupplierName = GetPartyValue(root, ["supplier", "supplierInfo", "postavshik"], "name", "fullName", "shortName"),
-            Price = ParseMoney(GetValue(root, "contractPrice", "nmck", "initialMaxPrice", "maxPrice", "price")),
-            PublishDate = GetValue(root, "publishDTInEIS", "publishDate", "signDate", "contractDate"),
+            Price = ParseMoney(GetValue(
+                root, "contractPrice", "nmck", "initialMaxPrice", "maxPrice", "price", "InfDcBs_SmSbsds")),
+            PublishDate = GetValue(root, "publishDTInEIS", "publishDate", "signDate", "contractDate", "DtSgnng"),
             ObjectInfo = GetValue(root, "purchaseObjectInfo", "objectInfo", "subject", "name"),
             PrintFormUrl = GetPrintFormUrl(root),
             Items = ParseItems(root),
@@ -61,10 +70,14 @@ public sealed class EisDocumentParser
             return null;
         }
 
+        var elements = root.DescendantsAndSelf();
         foreach (var scope in scopes)
         {
-            var element = root.DescendantsAndSelf()
-                .FirstOrDefault(candidate =>
+            // Точное совпадение LocalName надёжнее подстроки: в реальном XML
+            // customerRequirementsInfo — обёртка, а не сам заказчик.
+            var element = elements.FirstOrDefault(candidate =>
+                    candidate.Name.LocalName.Equals(scope, StringComparison.OrdinalIgnoreCase))
+                ?? elements.FirstOrDefault(candidate =>
                     candidate.Name.LocalName.Contains(scope, StringComparison.OrdinalIgnoreCase));
 
             if (element is null)
@@ -79,14 +92,15 @@ public sealed class EisDocumentParser
             }
         }
 
-        // В извещениях заказчик часто лежит без обёртки customer.
-        return scopes.FirstOrDefault() == "customer" ? GetValue(root, fields) : null;
+        return null;
     }
 
     private static string? GetPrintFormUrl(XElement? root)
     {
         var printForm = root?.DescendantsAndSelf()
-            .FirstOrDefault(element => element.Name.LocalName.Equals("printForm", StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(element =>
+                element.Name.LocalName.Equals("printForm", StringComparison.OrdinalIgnoreCase) ||
+                element.Name.LocalName.Equals("printFormInfo", StringComparison.OrdinalIgnoreCase));
 
         return printForm?
             .Attributes()
@@ -105,7 +119,9 @@ public sealed class EisDocumentParser
                      candidate.Name.LocalName.Equals("item", StringComparison.OrdinalIgnoreCase) ||
                      candidate.Name.LocalName.Equals("position", StringComparison.OrdinalIgnoreCase) ||
                      candidate.Name.LocalName.Equals("product", StringComparison.OrdinalIgnoreCase) ||
-                     candidate.Name.LocalName.Equals("purchaseItem", StringComparison.OrdinalIgnoreCase)))
+                     candidate.Name.LocalName.Equals("purchaseItem", StringComparison.OrdinalIgnoreCase) ||
+                     // Реальные извещения ЕИС: <purchaseObjectsInfo><purchaseObject>.
+                     candidate.Name.LocalName.Equals("purchaseObject", StringComparison.OrdinalIgnoreCase)))
         {
             var ktru = GetClassifierCode(element, "KTRU");
             var okpd2 = GetClassifierCode(element, "OKPD2");
@@ -144,8 +160,17 @@ public sealed class EisDocumentParser
             return null;
         }
 
-        return GetValue(node, "code", "codeOKPD2", "codeKTRU") ??
-            (node.Value.Length is > 0 and < 40 ? node.Value.Trim() : null);
+        // В печатной форме код лежит в <OKPDCode>/<KTRUCode>, в экспорте —
+        // в <code>. Не берём node.Value целиком: он склеил бы код с названием.
+        var code = GetValue(node, "code", "OKPDCode", "KTRUCode", "OKPD2Code", "codeOKPD2", "codeKTRU");
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            return code;
+        }
+
+        return !node.HasElements && node.Value.Length is > 0 and < 40
+            ? node.Value.Trim()
+            : null;
     }
 
     private static bool IsRegistryNumber(string? value) =>

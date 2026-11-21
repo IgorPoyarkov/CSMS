@@ -120,6 +120,13 @@ WSDL и XSD: `https://zakupki.gov.ru?wsdl` и `?xsd=getDocsIP-ws-api.xsd`.
 Один проход: `dotnet run --project src/Eis44Parser.Worker -- --pipeline-once`.
 Старый `--once` оставляет прежнее поведение (опрос + таблица `Tenders`).
 
+В `test-data/` лежат реальные XML из карточек закупок (ЕОК, электронный
+аукцион с вложенными КТРУ/ОКПД2, уведомление о контроле, извещение Казначейства
+о бюджетном обязательстве). По ним написаны тесты маппинга: в реальном XML ИКЗ
+находится в `IKZInfo/purchaseCode`, заказчик — в `purchaseResponsibleInfo`,
+а позиция — в `purchaseObjectsInfo/purchaseObject`. Команда `--parse-file`
+показывает, что именно распознал парсер, без токена и туннеля.
+
 ### Что говорит XSD 17.0 (в спецификации из поисковой выдачи есть ошибки)
 
 - `selectionParams/getDocsByOrgRegionRequest` — строго `orgRegion`,
@@ -173,6 +180,9 @@ cd eis-parser
 dotnet restore
 dotnet build
 dotnet test
+
+# Разобрать один реальный XML без ЕИС и токена:
+dotnet run --project src/Eis44Parser.Worker -- --parse-file test-data\epNotificationEF2020-real.xml
 
 # Проверить конфигурацию и создать БД без обращения к ЕИС:
 dotnet run --project src/Eis44Parser.Worker -- --validate

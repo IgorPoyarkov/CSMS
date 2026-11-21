@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальное уведомление о соответствии контролируемой информации
+     (ЕИС, печатная форма, схема 16.3) по закупке 0144200001826000192. -->
+<ns3:control99NoticeCompliance schemeVersion="16.3" xmlns="http://zakupki.gov.ru/oos/types/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns3="http://zakupki.gov.ru/oos/printform/1">
+  <refId>44532062</refId>
+  <refVersionNumber>1</refVersionNumber>
+  <refEditionNumber>1</refEditionNumber>
+  <documentType>notificationAcceptableBO</documentType>
+  <docNumber>2122</docNumber>
+  <docDate>2026-11-19T14:50:38+03:00</docDate>
+  <signDate>2026-11-19T16:06:41+03:00</signDate>
+  <controlAuthorityInfo>
+    <regNum>01441000001</regNum>
+    <consRegistryNum>00112147</consRegistryNum>
+    <fullName>УПРАВЛЕНИЕ ФЕДЕРАЛЬНОГО КАЗНАЧЕЙСТВА ПО КУРСКОЙ ОБЛАСТИ</fullName>
+    <INN>4629015471</INN>
+    <KPP>463201001</KPP>
+    <IKU>14629015471463201001</IKU>
+  </controlAuthorityInfo>
+  <customerInfo>
+    <regNum>01442000018</regNum>
+    <consRegistryNum>382Р1122</consRegistryNum>
+    <fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</fullName>
+    <INN>4629040439</INN>
+    <KPP>463201001</KPP>
+  </customerInfo>
+  <controlObjectsInfo>
+    <controlObjectInfo>
+      <name>Принимаемое бюджетное обязательство для регионального (муниципального) заказчика</name>
+      <date>2026-11-19T14:50:31</date>
+    </controlObjectInfo>
+    <controlObjectInfo>
+      <name>Извещение (приглашение)</name>
+      <date>2026-11-19T14:50:35</date>
+      <number>0144200001826000192</number>
+    </controlObjectInfo>
+  </controlObjectsInfo>
+  <responsibleInfo>
+    <name>Провоторова Ольга Леонидовна</name>
+    <position>Главный казначей</position>
+    <signDate>2026-11-19T16:06:41+03:00</signDate>
+  </responsibleInfo>
+  <universalExtractControlResults>
+    <result>
+      <controIPassed>true</controIPassed>
+    </result>
+    <universalExtractControlResult>
+      <controlResult>
+        <controIPassed>true</controIPassed>
+      </controlResult>
+      <name>Принимаемое бюджетное обязательство для регионального (муниципального) заказчика и Извещение (приглашение)</name>
+    </universalExtractControlResult>
+  </universalExtractControlResults>
+</ns3:control99NoticeCompliance>

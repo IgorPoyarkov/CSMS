@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальное извещение о постановке на учёт бюджетного обязательства
+     (Казначейство, EXP_Notice_BO/formular 2.0). ИКЗ совпадает с закупкой
+     0144200001826000192 — используется для проверки связи документов. -->
+<self:EXP_Notice_BO xmlns:self="http://www.roskazna.ru/eb/domain/EXP_Notice_BO/formular" xmlns:tdr="http://www.roskazna.ru/eb/services/transferDocumentService/types" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" metaType="formular" versionID="2.0" xsi:schemaLocation="http://www.roskazna.ru/eb/domain/EXP_Notice_BO/formular formulars.xsd">
+<RcpBdjt_DtDc>2026-11-20</RcpBdjt_DtDc>
+<RcpBdjt_CdTOFK>4400</RcpBdjt_CdTOFK>
+<RcpBdjt_NmTOFK>Управление Федерального казначейства по Курской области</RcpBdjt_NmTOFK>
+<RcpBdjt_CdGRBS>382Р1122</RcpBdjt_CdGRBS>
+<RcpBdjt_NmRcp>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</RcpBdjt_NmRcp>
+<RcpBdjt_NmBdgt>Бюджет Курской области</RcpBdjt_NmBdgt>
+<RcpBdjt_CdOKTMO>38701000001</RcpBdjt_CdOKTMO>
+<RcpBdjt_NmFnOrg>МИНИСТЕРСТВО ФИНАНСОВ И БЮДЖЕТНОГО КОНТРОЛЯ КУРСКОЙ ОБЛАСТИ</RcpBdjt_NmFnOrg>
+<RcpBdjt_CdOKPOFn>02288152</RcpBdjt_CdOKPOFn>
+<InfDcBs_RmAct>262462904043946320100101130014211244</InfDcBs_RmAct>
+<InfDcBs_SmSbsds>7169815.60</InfDcBs_SmSbsds>
+<InfDcBs_DtDcmnt>2026-11-19</InfDcBs_DtDcmnt>
+<InfDcBs_NmbrDcmnt>990000000233</InfDcBs_NmbrDcmnt>
+<InfDcBs_DtRgs>2026-11-20</InfDcBs_DtRgs>
+<InfDcBs_NmbrChng>0</InfDcBs_NmbrChng>
+<InfDcBs_RegisNmbrBO>382Р112226440001258</InfDcBs_RegisNmbrBO>
+<PstRspns>Главный казначей</PstRspns>
+<NmRspns>Провоторова Ольга Леонидовна</NmRspns>
+<Telephone>(4712) 363916</Telephone>
+<DtSgnng>2026-11-20</DtSgnng>
+<Inf_MSC_Infrmtn>
+<GUID>60af3997-3483-071c-e063-0a2c2c1756f4</GUID>
+<DocInfo_GUIDDoc>cafc4126-4a14-44da-b563-60c2e8cd4a9f</DocInfo_GUIDDoc>
+</Inf_MSC_Infrmtn>
+</self:EXP_Notice_BO>

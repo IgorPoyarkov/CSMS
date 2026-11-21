@@ -23,4 +23,10 @@
     <ProjectReference Include="..\..\src\Eis44Parser.Data\Eis44Parser.Data.csproj" />
   </ItemGroup>
 
+  <!-- Реальные XML из карточки закупки: копируются рядом с тестовой сборкой. -->
+  <ItemGroup>
+    <None Include="..\..\test-data\*.xml" Link="test-data\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

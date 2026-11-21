@@ -3,6 +3,7 @@ using Eis44Parser.Core.Abstractions;
 using Eis44Parser.Core.Models;
 using Eis44Parser.Data;
 using Eis44Parser.Worker;
+using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Options;
 // --check — проверить токен и доступность локального ГОСТ-туннеля,
 // --import-nsi — выгрузить справочник НСИ (КТРУ) и опубликовать в csms-api,
 // --pipeline-once — один проход четырёхэтапного конвейера (очередь архивов),
+// --parse-file <путь> — разобрать один XML без ЕИС и токена,
 // --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnoreCase);
@@ -54,6 +56,40 @@ if (checkOnly)
     catch (InvalidOperationException exception)
     {
         Console.Error.WriteLine(exception.Message);
+        return 1;
+    }
+}
+
+// Разбор отдельного реального XML без обращения к ЕИС: удобно проверять
+// новые образцы документов, пока токен доступа ещё не выдан.
+var parseFilePath = GetArgumentValue(args, "--parse-file");
+if (parseFilePath is not null)
+{
+    try
+    {
+        using var stream = File.OpenRead(parseFilePath);
+        var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
+        var parsed = new EisDocumentParser().Parse(document, Path.GetFileName(parseFilePath));
+
+        Console.WriteLine($"Файл: {parsed.FileName}");
+        Console.WriteLine($"Тип: {parsed.Kind}, схема: {parsed.SchemeVersion}");
+        Console.WriteLine($"Номер закупки: {parsed.PurchaseNumber}");
+        Console.WriteLine($"ИКЗ: {parsed.Ikz}");
+        Console.WriteLine($"Заказчик: {parsed.CustomerName} | ИНН {parsed.CustomerInn} | КПП {parsed.CustomerKpp}");
+        Console.WriteLine($"Сумма: {parsed.Price}, дата: {parsed.PublishDate}");
+        Console.WriteLine($"Объект: {parsed.ObjectInfo}");
+        Console.WriteLine($"Позиций: {parsed.Items.Count}");
+        foreach (var item in parsed.Items)
+        {
+            Console.WriteLine($"  {item.LineNo}: КТРУ {item.KtruCode} | ОКПД2 {item.Okpd2Code} | {item.ItemName}");
+            Console.WriteLine($"     количество {item.Quantity}, цена {item.Price}");
+        }
+
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка разбора XML: {exception.Message}");
         return 1;
     }
 }
@@ -221,3 +257,10 @@ if (runOnce)
 
 await host.RunAsync();
 return 0;
+
+/// <summary>Прочитать значение аргумента вида --parse-file path\to\file.xml.</summary>
+static string? GetArgumentValue(string[] arguments, string name)
+{
+    var index = Array.FindIndex(arguments, value => value.Equals(name, StringComparison.OrdinalIgnoreCase));
+    return index >= 0 && index + 1 < arguments.Length ? arguments[index + 1] : null;
+}
