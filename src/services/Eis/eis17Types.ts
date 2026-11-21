@@ -214,6 +214,13 @@ export interface EisTenderPlan2020Position {
   kbksInfo: EisTenderPlan2020KBKInfo[];
   kvrsInfo: EisTenderPlan2020KVRInfo[];
   koksInfo: EisTenderPlan2020KOKSInfo[];
+  // Только при сумме на последующие годы: правовой акт из блока
+  // purchasesSubsecYearsInfo (IntegrationTPTypes.xsd).
+  purchasesSubsecYearsInfo?: {
+    legalAct: string;
+    kvrCode?: string;
+    financeInfo: EisTenderPlan2020FinanceResources;
+  };
   isEnergyServiceContract: boolean;
   isProvisionLendingServices: boolean;
   isConstructionWorks: boolean;
@@ -705,16 +712,19 @@ export const mapPurchasePlanToEis17 = (
       },
     }));
 
-    const kvrsInfo = (pos.kvrEntries ?? []).map((entry) => ({
-      kvrCode: entry.kvr ?? "",
-      yearsInfo: {
-        total: moneyNum(entry.amountTotal),
-        currentYear: moneyNum(entry.amountCurrentYear),
-        firstYear: moneyNum(entry.amountPlanPeriodFirstYear),
-        secondYear: moneyNum(entry.amountPlanPeriodSecondYear),
-        subsecYears: moneyNum(entry.amountSubsequentYears),
-      },
-    }));
+    // Детализация по КВР в карточке позиции убрана: для казённого учреждения
+    // (тип 08) XSD не допускает блок KVRsInfo, а КВР позиции берётся из КБК.
+    const kvrsInfo: EisTenderPlan2020KVRInfo[] = [];
+
+    // purchasesSubsecYearsInfo нужен только при сумме на последующие годы
+    const subsecYearsAct = pos.subsecYearsLegalAct?.trim();
+    const purchasesSubsecYearsInfo = subsecYearsAct && fin.subsecYears > 0
+      ? {
+          legalAct: subsecYearsAct,
+          kvrCode: pos.kvr || (pos.kbk ? pos.kbk.slice(-3) : undefined),
+          financeInfo: fin,
+        }
+      : undefined;
 
     const koksInfo = (pos.koksEntries ?? []).map((entry) => ({
       koksCode: entry.koksCode,
@@ -787,6 +797,7 @@ export const mapPurchasePlanToEis17 = (
       kbksInfo,
       kvrsInfo,
       koksInfo,
+      purchasesSubsecYearsInfo,
       isEnergyServiceContract: Boolean(pos.isEnergyServiceContract),
       isProvisionLendingServices: Boolean(pos.isProvisionLendingServices),
       isConstructionWorks: Boolean(pos.isConstructionWorks),
@@ -2102,6 +2113,22 @@ const positionXml = (pos: EisTenderPlan2020Position): string => {
         .join("")}</KOKSsInfo>`
     : "";
 
+  // Сведения о закупке за пределами планового периода: правовой акт
+  // (purchasesSubsecYearsInfo/actInfo/docInfo в XSD ЕИС 17.0).
+  const subsecYearsInfo = pos.purchasesSubsecYearsInfo;
+  const subsecYearsXml = subsecYearsInfo
+    ? `<purchasesSubsecYearsInfo><actInfo>` +
+      `<docInfo><docType>Правовой акт</docType>` +
+      `<docName>${escapeXml(subsecYearsInfo.legalAct)}</docName></docInfo>` +
+      `<actFinanceInfo><KVR><code>${escapeXml(
+        subsecYearsInfo.kvrCode || "000",
+      )}</code></KVR>` +
+      `<financeInfo>${financeResourcesXml(
+        subsecYearsInfo.financeInfo,
+      )}</financeInfo></actFinanceInfo>` +
+      `</actInfo></purchasesSubsecYearsInfo>`
+    : "";
+
   // Признаки isProvisionLendingServices / isConstructionWorks /
   // isNotFederalFinancing в XSD объявлены с fixed="true": передаём только true
   return (
@@ -2147,6 +2174,7 @@ const positionXml = (pos: EisTenderPlan2020Position): string => {
     `</commonInfo>` +
     `<financeInfo>${financeResourcesXml(pos.financeInfo)}${kbksXml}</financeInfo>` +
     kvrsXml +
+    subsecYearsXml +
     `<isEnergyServiceContract>${pos.isEnergyServiceContract}</isEnergyServiceContract>` +
     (pos.isProvisionLendingServices
       ? `<isProvisionLendingServices>true</isProvisionLendingServices>`

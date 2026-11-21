@@ -52,10 +52,12 @@ import styles from "./PurchasePlanPositionForm.module.scss";
  * - Идентификационный код закупки (ИКЗ) и уникальный номер формируются
  *   системой автоматически и защищены от ручного редактирования;
  * - Блок сведений об изменении / отмене позиции (positionModification)
- *   доступен только при изменении существующей позиции (!isNew);
+ *   доступен только при изменении существующей позиции (!isNew); его поля
+ *   транспонированы: слева заголовок XSD, справа — значение;
  * - Объём финансового обеспечения (ровной горизонтальной строкой),
- *   детализация по КБК / КВР / КОКС и особые признаки закупки объединены
- *   в единый финансово-классификационный раздел.
+ *   детализация по КБК / КОКС и особые признаки закупки объединены
+ *   в единый финансово-классификационный раздел. Детализация КВР и поля
+ *   старого блока execution/basementInfo из ПГ 2020 исключены.
  */
 
 // Текущий год фиксируем при загрузке модуля: вызывать Date в рендере нельзя
@@ -152,12 +154,12 @@ export default function PurchasePlanPositionForm({
         position.plannedPlacementYear || String(plan.planYear || CURRENT_YEAR),
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
-      modificationStatus: position.modificationStatus ?? (isNew ? "N" : "E"),
+      modificationStatus: isNew ? "N" : "E",
       modificationDecision: position.modificationDecision ?? "notSpecified",
       hasAuthorizedBody: Boolean(position.hasAuthorizedBody),
       hasJointOrganizer: Boolean(position.hasJointOrganizer),
       kbkEntries: initialKbkEntries,
-      kvrEntries: position.kvrEntries ?? [],
+      kvrEntries: [],
       koksEntries: position.koksEntries ?? [],
       okpd2Items: position.okpd2Items ?? [],
     },
@@ -172,7 +174,6 @@ export default function PurchasePlanPositionForm({
     formState: { errors },
   } = methods;
   const kbkEntries = useFieldArray({ control, name: "kbkEntries" });
-  const kvrEntries = useFieldArray({ control, name: "kvrEntries" });
   const koksEntries = useFieldArray({ control, name: "koksEntries" });
   // Дополнительные коды ОКПД2: один основной селект и любое число добавленных
   const okpd2Items = useFieldArray({ control, name: "okpd2Items" });
@@ -203,8 +204,11 @@ export default function PurchasePlanPositionForm({
   const authorizedBodyName = useWatch({ control, name: "authorizedBodyName" });
   const jointOrganizerName = useWatch({ control, name: "jointOrganizerName" });
   const kbkEntriesValues = useWatch({ control, name: "kbkEntries" });
-  const kvrEntriesValues = useWatch({ control, name: "kvrEntries" });
   const koksEntriesValues = useWatch({ control, name: "koksEntries" });
+  const amountSubsequentYears = useWatch({
+    control,
+    name: "amountSubsequentYears",
+  });
   // ИКУ заказчика в карточке не вводится: он уже есть у заказчика. Берём
   // сохранённое значение; если его нет, ИКУ соберётся из ИНН и КПП
   const iku = position.iku;
@@ -317,20 +321,6 @@ export default function PurchasePlanPositionForm({
     return totals;
   }, [kbkEntriesValues]);
 
-  // Итоги по КВР — строка «Итого» под таблицей детализации
-  const kvrTotals = useMemo(() => {
-    const totals = {} as Record<AmountKey, number>;
-
-    for (const field of AMOUNT_FIELDS) {
-      totals[field.key] = (kvrEntriesValues ?? []).reduce(
-        (sum, entry) => sum + (toNumber(entry?.[field.key]) ?? 0),
-        0,
-      );
-    }
-
-    return totals;
-  }, [kvrEntriesValues]);
-
   // Три признака ЕИС взаимоисключающие: энергосервис, кредит, ОКС.
   // «Информация, не подлежащая размещению» (notPublishedOnEIS) от них не зависит.
   const exclusiveFlags = [
@@ -389,10 +379,10 @@ export default function PurchasePlanPositionForm({
       kbk: entry.kbk || buildKbk(entry),
     }));
     const saveKbk = kbkEntriesData[0]?.kbk || data.kbk || "";
-    // КВР — из детализации по КВР, иначе из КБК (последние 3 разряда)
+    // КВР берём из КБК (последние 3 разряда), отдельная детализация КВР
+    // в карточке позиции больше не показывается.
     const saveKvr =
-      data.kvrEntries?.[0]?.kvr ||
-      (saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "");
+      saveKbk.length >= 3 ? saveKbk.slice(-3) : data.kvr || "";
 
     // Несколько кодов ОКПД2 сохраняются массивом okpd2Items: это и есть
     // «склеенный» набор для бэка, а в ИКЗ ставится «0000»
@@ -749,72 +739,89 @@ export default function PurchasePlanPositionForm({
             </div>
 
             {/* Блок изменений доступен ТОЛЬКО когда позиция изменяется (!isNew):
-                при создании новой позиции решения об изменении/отмене ещё нет */}
+                при создании новой позиции решения об изменении/отмене ещё нет.
+                Поля транспонированы под заголовки XSD: слева название поля,
+                справа — значение. */}
             {!isNew && (
               <div className={block("mod-box")}>
                 <h3 className={block("mod-title")}>
                   Сведения об изменении / отмене позиции (positionModification)
                 </h3>
-                <div className={block("fields")}>
-                  <div className={block("cell")}>
-                    <label
-                      className={block("label")}
-                      htmlFor="position-change-reason"
-                    >
-                      Основание внесения изменений
-                    </label>
-                    <select
-                      id="position-change-reason"
-                      className={block("select")}
-                      {...register("changeReasonCode", {
-                        onChange: (e) => {
-                          const found = tpChangeReasonOptions.find(
-                            (item) => item.code === e.target.value,
-                          );
-                          setValue("changeReasonName", found?.name ?? "");
-                        },
-                      })}
-                    >
-                      <option value="">— Не выбрано —</option>
-                      {tpChangeReasonOptions.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.code}. {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={block("cell")}>
-                    <span className={block("label")}>
-                      Вынесенное решение (decision)
-                    </span>
-                    <div className={block("radio-row")}>
-                      {modificationDecisionOptions.map((option) => (
-                        <label key={option.value} className={block("radio")}>
-                          <input
-                            type="radio"
-                            value={option.value}
-                            {...register("modificationDecision")}
+                <div className={block("table-wrap")}>
+                  <table className={block("table", ["modification"])}>
+                    <colgroup>
+                      <col className={block("col", ["mod-label"])} />
+                      <col className={block("col", ["mod-value"])} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>Наименование поля</th>
+                        <th>Значение</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <th scope="row">
+                          Основание внесения изменений (changeReason)
+                        </th>
+                        <td>
+                          <select
+                            id="position-change-reason"
+                            className={block("select")}
+                            {...register("changeReasonCode", {
+                              onChange: (e) => {
+                                const found = tpChangeReasonOptions.find(
+                                  (item) => item.code === e.target.value,
+                                );
+                                setValue("changeReasonName", found?.name ?? "");
+                              },
+                            })}
+                          >
+                            <option value="">— Не выбрано —</option>
+                            {tpChangeReasonOptions.map((item) => (
+                              <option key={item.code} value={item.code}>
+                                {item.code}. {item.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Вынесенное решение (decision)</th>
+                        <td>
+                          <div className={block("radio-row")}>
+                            {modificationDecisionOptions.map((option) => (
+                              <label
+                                key={option.value}
+                                className={block("radio")}
+                              >
+                                <input
+                                  type="radio"
+                                  value={option.value}
+                                  {...register("modificationDecision")}
+                                />
+                                <span>{option.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">
+                          Содержание изменений позиции (description)
+                        </th>
+                        <td>
+                          <textarea
+                            id="position-modification-description"
+                            className={block("textarea")}
+                            rows={3}
+                            placeholder="Обоснование корректировки или отмены позиции"
+                            {...register("modificationDescription")}
                           />
-                          <span>{option.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className={block("cell", ["wide"])}>
-                    <label
-                      className={block("label")}
-                      htmlFor="position-modification-description"
-                    >
-                      Содержание изменений позиции
-                    </label>
-                    <textarea
-                      id="position-modification-description"
-                      className={block("textarea")}
-                      rows={3}
-                      placeholder="Обоснование корректировки или отмены позиции"
-                      {...register("modificationDescription")}
-                    />
-                  </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
@@ -912,138 +919,82 @@ export default function PurchasePlanPositionForm({
                 />
               </div>
             </div>
-          </fieldset>
 
-          {/* Раздел 3: Срок осуществления закупки и обоснование (XSD ЕИС 17.0) */}
-          <fieldset className={block("section")}>
-            <div className={block("section-head")}>
-              <h2 className={block("section-title")}>
-                3. Срок осуществления закупки и обоснование
-              </h2>
-            </div>
-
-            <div className={block("fields")}>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-execution-start"
-                >
-                  Срок осуществления закупки — начало
-                </label>
-                <input
-                  id="position-execution-start"
-                  className={block("input")}
-                  type="date"
-                  {...register("executionTermStartDate")}
-                />
-                {errorText("executionTermStartDate") && (
-                  <span className={block("error")}>
-                    {errorText("executionTermStartDate")}
+            {/* Специальные признаки закупки из tenderPlan2020PositionType */}
+            <div className={block("subblock")}>
+              <h3 className={block("subtitle")}>
+                Специальные признаки закупки (ЕИС 17.0)
+              </h3>
+              <div className={block("flags-grid")}>
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isEnergyServiceContract)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isEnergyServiceContract",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>
+                    Планируется заключение энергосервисного контракта (ст. 108
+                    44-ФЗ)
                   </span>
-                )}
-              </div>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-execution-end"
-                >
-                  Срок осуществления закупки — окончание
                 </label>
-                <input
-                  id="position-execution-end"
-                  className={block("input")}
-                  type="date"
-                  {...register("executionTermEndDate")}
-                />
-                {errorText("executionTermEndDate") && (
-                  <span className={block("error")}>
-                    {errorText("executionTermEndDate")}
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isProvisionLendingServices)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isProvisionLendingServices",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>
+                    Закупка на оказание услуг по предоставлению кредита
                   </span>
-                )}
-              </div>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-periodicity-type"
-                >
-                  Периодичность осуществления закупки
                 </label>
-                <select
-                  id="position-periodicity-type"
-                  className={block("select")}
-                  {...register("periodicityType")}
-                >
-                  <option value="">— Не указана —</option>
-                  <option value="W">W — неделя</option>
-                  <option value="B">B — две недели</option>
-                  <option value="M">M — месяц</option>
-                  <option value="Q">Q — квартал</option>
-                  <option value="S">S — полгода</option>
-                  <option value="Y">Y — год</option>
-                </select>
-                <p className={block("hint")}>
-                  Заполняется вместе со сроком либо вместо него, если закупка
-                  носит регулярный характер.
-                </p>
-              </div>
-              <div className={block("cell")}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-periodicity-text"
-                >
-                  Иная периодичность (текстом)
-                </label>
-                <input
-                  id="position-periodicity-text"
-                  className={block("input")}
-                  placeholder="Например, по заявкам заказчика"
-                  {...register("periodicityText")}
-                />
-              </div>
-              <div className={block("cell", ["wide"])}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-basement-info"
-                >
-                  Обоснование закупки (basementInfo)
-                </label>
-                <textarea
-                  id="position-basement-info"
-                  className={block("textarea")}
-                  rows={3}
-                  placeholder="Обоснование необходимости закупки по позиции плана-графика"
-                  {...register("basementInfo")}
-                />
-                {errorText("basementInfo") && (
-                  <span className={block("error")}>
-                    {errorText("basementInfo")}
+                <label className={block("checkbox")}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(isConstructionWorks)}
+                    onChange={(event) =>
+                      setExclusiveFlag(
+                        "isConstructionWorks",
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span>
+                    Закупка в отношении ОКС / недвижимого имущества (КОКС, пп.
+                    «а» п. 18 Положения № 1279)
                   </span>
-                )}
-              </div>
-              <div className={block("cell", ["wide"])}>
-                <label
-                  className={block("label")}
-                  htmlFor="position-basement-legal-act"
-                >
-                  Правовой акт-основание
                 </label>
-                <input
-                  id="position-basement-legal-act"
-                  className={block("input")}
-                  placeholder="Например, приказ о подготовке закупки"
-                  {...register("basementLegalAct")}
-                />
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("isNotFederalFinancing")} />
+                  <span>
+                    ОКС / недвижимость без софинансирования из федерального
+                    бюджета
+                  </span>
+                </label>
+                <label className={block("checkbox")}>
+                  <input type="checkbox" {...register("notPublishedOnEIS")} />
+                  <span>Не подлежит размещению на официальном сайте ЕИС</span>
+                </label>
               </div>
             </div>
           </fieldset>
 
-          {/* Раздел 4: Объём финансового обеспечения (одной ровной строкой),
-              детализация по КБК / КВР / КОКС и особые признаки закупки */}
+          {/* Раздел 3: Объём финансового обеспечения (одной ровной строкой)
+              и детализация по КБК / КОКС */}
           <fieldset className={block("section")}>
             <div className={block("section-head")}>
               <h2 className={block("section-title")}>
-                4. Объём финансового обеспечения закупки, детализация (КБК,
-                КВР, КОКС) и особые признаки
+                3. Объём финансового обеспечения закупки и детализация (КБК,
+                КОКС)
               </h2>
             </div>
 
@@ -1232,107 +1183,41 @@ export default function PurchasePlanPositionForm({
               </p>
             </div>
 
-            <div className={block("subblock")}>
-              <h3 className={block("subtitle")}>
-                Детализация по кодам видов расходов (КВР:{" "}
-                {kvrEntries.fields.length})
-              </h3>
-
-              <div className={block("table-wrap")}>
-                <table className={block("table", ["kvr"])}>
-                  <colgroup>
-                    <col className={block("col", ["expense"])} />
-                    {AMOUNT_FIELDS.map((field) => (
-                      <col
-                        key={field.key}
-                        className={block("col", ["kbk-money"])}
-                      />
-                    ))}
-                    <col className={block("col", ["action"])} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>КВР</th>
-                      {AMOUNT_FIELDS.map((field) => (
-                        <th key={field.key}>{amountHeaders[field.key]}</th>
-                      ))}
-                      <th>Действие</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kvrEntries.fields.map((field, entryIndex) => (
-                      <tr key={field.id}>
-                        <td>
-                          <input
-                            className={block("input", ["mono"])}
-                            placeholder="244"
-                            aria-label="Код вида расходов"
-                            maxLength={3}
-                            list="kvr-options"
-                            {...register(`kvrEntries.${entryIndex}.kvr`)}
-                          />
-                        </td>
-                        {AMOUNT_FIELDS.map((amount) => (
-                          <td
-                            key={amount.key}
-                            className={block("cell", ["money"])}
-                          >
-                            <CustomInput
-                              configuration={{
-                                input: {
-                                  name: `kvrEntries.${entryIndex}.${amount.key}`,
-                                  placeholder: "0.00",
-                                },
-                              }}
-                            />
-                          </td>
-                        ))}
-                        <td className={block("cell", ["action"])}>
-                          <button
-                            type="button"
-                            className={block("remove")}
-                            onClick={() => kvrEntries.remove(entryIndex)}
-                          >
-                            Убрать
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td colSpan={1 + AMOUNT_FIELDS.length + 1}>
-                        <button
-                          type="button"
-                          className={block("add")}
-                          onClick={() => kvrEntries.append({ kvr: "" })}
-                        >
-                          Добавить КВР
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <td className={block("cell", ["right"])}>Итого по КВР</td>
-                      {AMOUNT_FIELDS.map((field) => (
-                        <td
-                          key={field.key}
-                          className={block("cell", ["total"])}
-                        >
-                          {formatMoney(kvrTotals[field.key])}
-                        </td>
-                      ))}
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
+            {/* purchasesSubsecYearsInfo: правовой акт нужен только для закупок
+                за пределами планового периода (сумма на последующие годы). */}
+            {(toNumber(amountSubsequentYears) ?? 0) > 0 && (
+              <div className={block("subblock")}>
+                <h3 className={block("subtitle")}>
+                  Правовой акт для закупки на последующие годы
+                </h3>
+                <div className={block("cell", ["wide"])}>
+                  <label
+                    className={block("label")}
+                    htmlFor="position-subsec-years-legal-act"
+                  >
+                    Правовой акт (проект правового акта), предусматривающий
+                    заключение контракта на срок, превышающий срок действия
+                    доведенных лимитов бюджетных обязательств
+                  </label>
+                  <textarea
+                    id="position-subsec-years-legal-act"
+                    className={block("textarea")}
+                    rows={3}
+                    placeholder="Например, распоряжение Правительства Курской области от 01.01.2026 № 1-р"
+                    {...register("subsecYearsLegalAct")}
+                  />
+                  {errorText("subsecYearsLegalAct") && (
+                    <span className={block("error")}>
+                      {errorText("subsecYearsLegalAct")}
+                    </span>
+                  )}
+                  <p className={block("hint")}>
+                    Заполняется при сумме на последующие годы: в XML ЕИС 17.0
+                    попадает в purchasesSubsecYearsInfo/actInfo/docInfo.
+                  </p>
+                </div>
               </div>
-              <p className={block("hint")}>
-                Детализация по КВР заполняется бюджетными и автономными
-                учреждениями; суммы по годам должны совпадать с объёмом
-                финансового обеспечения записи (п. 16, подп. «е» Положения N
-                1279).
-              </p>
-            </div>
+            )}
 
             {(isConstructionWorks || koksEntries.fields.length > 0) && (
               <div className={block("subblock")}>
@@ -1437,12 +1322,12 @@ export default function PurchasePlanPositionForm({
               </div>
             )}
 
-            {/* Единый блок признаков закупки и общественного обсуждения
-                внутри этого же раздела */}
+            {/* Общественное обсуждение: в XSD ПГ 2020 поле необязательное,
+                но documentation требует заполнения, когда год размещения
+                совпадает с годом планирования. */}
             <div className={block("subblock")}>
               <h3 className={block("subtitle")}>
-                Общественное обсуждение и специальные признаки закупки (ЕИС
-                17.0)
+                Общественное обсуждение (ЕИС 17.0)
               </h3>
               <div className={block("flags-panel")}>
                 <div className={block("discussion-row")}>
@@ -1471,75 +1356,6 @@ export default function PurchasePlanPositionForm({
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div className={block("flags-grid")}>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(isEnergyServiceContract)}
-                      onChange={(event) =>
-                        setExclusiveFlag(
-                          "isEnergyServiceContract",
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    <span>
-                      Планируется заключение энергосервисного контракта (ст.
-                      108 44-ФЗ)
-                    </span>
-                  </label>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(isProvisionLendingServices)}
-                      onChange={(event) =>
-                        setExclusiveFlag(
-                          "isProvisionLendingServices",
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    <span>
-                      Закупка на оказание услуг по предоставлению кредита
-                    </span>
-                  </label>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(isConstructionWorks)}
-                      onChange={(event) =>
-                        setExclusiveFlag(
-                          "isConstructionWorks",
-                          event.target.checked,
-                        )
-                      }
-                    />
-                    <span>
-                      Закупка в отношении ОКС / недвижимого имущества (КОКС,
-                      пп. «а» п. 18 Положения № 1279)
-                    </span>
-                  </label>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      {...register("isNotFederalFinancing")}
-                    />
-                    <span>
-                      ОКС / недвижимость без софинансирования из федерального
-                      бюджета
-                    </span>
-                  </label>
-                  <label className={block("checkbox")}>
-                    <input
-                      type="checkbox"
-                      {...register("notPublishedOnEIS")}
-                    />
-                    <span>
-                      Не подлежит размещению на официальном сайте ЕИС
-                    </span>
-                  </label>
                 </div>
               </div>
             </div>

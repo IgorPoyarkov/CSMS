@@ -503,25 +503,14 @@ export const PurchasePlanPositionSchema = z
       "Укажите наименование объекта закупки (по КТРУ или в свободной форме)",
     ),
 
-    // Блок execution (commonInfo/execution) обязателен по XSD 17.0:
-    // внутри должен быть заполнен срок осуществления закупки (term)
-    // и/или периодичность. Без него ЕИС не примет позицию.
-    executionTermStartDate: optionalDate(
-      "Неверный формат даты начала срока осуществления закупки",
-    ),
-    executionTermEndDate: optionalDate(
-      "Неверный формат даты окончания срока осуществления закупки",
-    ),
-    periodicityType: z.enum(["W", "B", "M", "Q", "S", "Y"]).optional(),
-    periodicityText: optionalText(
-      3,
-      "Укажите периодичность осуществления закупки",
-    ),
-    // basementInfo — обоснование закупки, обязательный блок XSD 17.0
-    basementInfo: optionalText(5, "Укажите обоснование закупки"),
-    basementLegalAct: optionalText(
-      3,
-      "Укажите реквизиты правового акта, являющегося основанием закупки",
+    // Срок осуществления закупки и обоснование из старого plan-графика
+    // (execution / basementInfo) в tenderPlan2020PositionType отсутствуют.
+    // Единственный связанный блок — purchasesSubsecYearsInfo: правовой акт
+    // нужен, когда закупка выходит за пределы планового периода (есть сумма
+    // на последующие годы). Заполняется в карточке позиции условно.
+    subsecYearsLegalAct: optionalText(
+      5,
+      "Укажите правовой акт для закупки на последующие годы",
     ),
 
     // Код бюджетной классификации: 20 символов по XSD kbkType (в целевой
@@ -586,7 +575,19 @@ export const PurchasePlanPositionSchema = z
       path: ["amountTotal"],
     },
   )
-  .superRefine(refinePositionFinanceDetails);
+  .superRefine(refinePositionFinanceDetails)
+  // Правовой акт из purchasesSubsecYearsInfo нужен только для закупок,
+  // выходящих за плановый период: есть сумма на последующие годы.
+  .refine(
+    (position) =>
+      (toNumber(position.amountSubsequentYears) ?? 0) <= 0 ||
+      Boolean(position.subsecYearsLegalAct?.trim()),
+    {
+      message:
+        "Укажите правовой акт для закупки на последующие годы (purchasesSubsecYearsInfo)",
+      path: ["subsecYearsLegalAct"],
+    },
+  );
 
 export type PurchasePlanPosition = z.infer<typeof PurchasePlanPositionSchema>;
 
@@ -1094,12 +1095,7 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   identificationCode: "",
   objectOfPurchase: "",
   plannedPlacementYear: "",
-  executionTermStartDate: "",
-  executionTermEndDate: "",
-  periodicityType: undefined,
-  periodicityText: "",
-  basementInfo: "",
-  basementLegalAct: "",
+  subsecYearsLegalAct: "",
   amountTotal: "",
   amountCurrentYear: "",
   amountPlanPeriodFirstYear: "",

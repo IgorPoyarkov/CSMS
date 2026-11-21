@@ -599,10 +599,26 @@
   }
 
   &__table--kbk,
-  &__table--kvr,
   &__table--koks {
     table-layout: fixed;
     min-width: 920px;
+  }
+
+  // positionModification: поля транспонированы под заголовки XSD —
+  // слева название поля, справа редактор значения.
+  &__table--modification {
+    table-layout: fixed;
+
+    th[scope="row"] {
+      width: 38%;
+      text-align: left;
+      color: var(--text-primary);
+      background: var(--surface);
+    }
+
+    td {
+      background: var(--surface-raised);
+    }
   }
 
   &__col {
@@ -664,6 +680,14 @@
 
     &--action {
       width: 84px;
+    }
+
+    &--mod-label {
+      width: 38%;
+    }
+
+    &--mod-value {
+      width: 62%;
     }
   }
 
