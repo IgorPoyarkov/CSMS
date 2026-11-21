@@ -1600,8 +1600,12 @@
     min-width: 0;
   }
 
+  // Счётчик уходит под поле: в одну строку он оставлял вводу ~250px,
+  // и placeholder «Введите или выберите КБК…» обрезался
   .kbkField {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
   }
 
   .kbkSearch {
@@ -1617,8 +1621,10 @@
     flex-basis: 100%;
   }
 
+  // Каждый фильтр — своей строкой: иначе «Период заключения» и «Сортировка»
+  // делят ширину 375px, и даты с select сжимаются до нечитаемого
   .toolbarFiltersGroup {
-    flex: 1 1 140px;
+    flex: 1 1 100%;
     min-width: 0;
   }
 
@@ -1630,14 +1636,26 @@
 
   .toolbarDateRange {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   // Нативные date-инпуты имеют собственный минимальный размер около 130px:
   // два поля в строке раздвигали фильтры шире экрана
   .toolbarDateRange input {
-    flex: 1 1 96px;
+    flex: 1 1 0;
     width: 0;
     min-width: 0;
+  }
+
+  // В строке сортировки select забирает всю ширину, кнопка направления
+  // остаётся фиксированной и не выдавливает список за край
+  .toolbarSortRow .toolbarSelect {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .toolbarSortToggle {
+    flex: 0 0 auto;
   }
 }
