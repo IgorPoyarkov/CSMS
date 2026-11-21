@@ -535,6 +535,10 @@
     }
 
     td {
+      // Ячейки таблиц используют общий класс &__cell, который в grid-сетке
+      // делается flex-колонкой. Возвращаем table-cell, иначе значения граф
+      // (ИКЗ, суммы по годам, КБК) падают друг под друга вместо строки.
+      display: table-cell;
       padding: 6px 8px;
       vertical-align: middle;
       border: 1px solid var(--border);
