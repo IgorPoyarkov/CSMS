@@ -1,11 +1,12 @@
 @import "variables";
 
-// Роли интерфейса для четырёх тем. Светлая — основная: заказчик работает
+// Роли интерфейса для пяти тем. Светлая — основная: заказчик работает
 // в ЕИС, где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге.
 // Тёмная — та же схема на тёмно-зелёном. «Гроза» — отдельная холодная
 // сиренево-синяя палитра по референсу. «Зима» — светлая морозная
-// серо-голубая палитра по референсу. Тема включается атрибутом data-theme
-// на <html> (переключатель в шапке) и запоминается в localStorage.
+// серо-голубая палитра по референсу. «Парящие 3D-элементы» — тёмный лес
+// с лаймовым акцентом и объёмными панелями. Тема включается атрибутом
+// data-theme на <html> (переключатель в шапке) и запоминается в localStorage.
 //
 // Компилируется один раз: файл подключён только в global.scss, а не в каждый
 // модуль, поэтому :root не дублируется в выходном CSS.
@@ -184,4 +185,59 @@
   --state-danger-soft: rgba(168, 70, 63, 0.12);
   --state-warning: #8a6a2f;
   --state-warning-soft: rgba(201, 162, 39, 0.22);
+}
+
+// «Парящие 3D-элементы»: тёмная лесная тема по референсу. Панели «висят»
+// над страницей за счёт многослойных теней и подсветки граней, поэтому фон
+// максимально глубокий, а акцент — лаймовый: он читается и как ссылка, и как
+// свечение на грани. Геометрия объёма (перспектива, наклон, тени) живёт
+// в _theme-floating3d.scss и включается только этим атрибутом.
+[data-theme="floating3d"] {
+  color-scheme: dark;
+
+  --surface-page: #{$color-3d-night};
+  --surface-panel: #{$color-3d-teal};
+  --surface-raised: #{$color-3d-slate};
+  --surface-accent: #{$color-3d-forest};
+  --surface-field: #{rgba($color-3d-light, 0.07)};
+  --field-border: #{rgba($color-3d-lime, 0.34)};
+  --accent: #{$color-3d-lime};
+  --accent-hover: #d3f56d;
+  --accent-emphasis: #{$color-3d-lime};
+  --accent-soft: #{rgba($color-3d-leaf, 0.2)};
+  --text-primary: #{$color-3d-light};
+  --text-secondary: #{$color-3d-mist};
+  --text-on-accent: #{$color-3d-night};
+  --placeholder: #{rgba($color-3d-mist, 0.6)};
+  --border: #{rgba($color-3d-lime, 0.18)};
+  --border-strong: #{rgba($color-3d-lime, 0.36)};
+  --stripe: #{rgba($color-3d-light, 0.05)};
+  --overlay: #{rgba($color-3d-night, 0.82)};
+  --shadow: #{rgba($color-3d-night, 0.75)};
+  --glow: #{rgba($color-3d-lime, 0.5)};
+  --modal-border: #{rgba($color-3d-lime, 0.5)};
+  --modal-dot: #{$color-3d-lime};
+  --modal-dot-glow: #{rgba($color-3d-lime, 0.6)};
+
+  // Токены объёма: подсветка верхней грани и многослойная тень. Держим их
+  // переменными, чтобы одна и та же глубина повторялась у панелей, таблиц
+  // и модальных окон.
+  --edge-highlight: #{rgba($color-3d-light, 0.22)};
+  --shadow-3d:
+    inset 0 1px 0 var(--edge-highlight), 0 1px 0 #{rgba($color-3d-light, 0.05)},
+    0 6px 14px #{rgba($color-3d-night, 0.5)},
+    0 18px 38px #{rgba($color-3d-night, 0.38)};
+  --shadow-3d-hover:
+    inset 0 1px 0 #{rgba($color-3d-lime, 0.4)},
+    0 1px 0 #{rgba($color-3d-light, 0.08)},
+    0 10px 22px #{rgba($color-3d-night, 0.55)},
+    0 28px 56px #{rgba($color-3d-night, 0.45)},
+    0 0 22px #{rgba($color-3d-lime, 0.16)};
+
+  --state-success: #{$color-3d-leaf};
+  --state-success-soft: #{rgba($color-3d-leaf, 0.2)};
+  --state-danger: #f0736b;
+  --state-danger-soft: rgba(240, 115, 107, 0.16);
+  --state-warning: #e5c158;
+  --state-warning-soft: rgba(229, 193, 88, 0.16);
 }
