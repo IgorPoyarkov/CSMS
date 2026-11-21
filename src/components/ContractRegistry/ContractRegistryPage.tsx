@@ -760,6 +760,19 @@ export default function ContractRegistryPage() {
         <>
           <div className={styles.contractsTableWrap}>
             <table className={`${styles.table} ${styles.contractsTable}`}>
+              {/* Ширины колонок фиксированы: фильтрация не должна их менять */}
+              <colgroup>
+                <col className={styles.colNumber} />
+                <col className={styles.colName} />
+                <col className={styles.colSupplier} />
+                <col className={styles.colPrice} />
+                <col className={styles.colNmck} />
+                <col className={styles.colAdvance} />
+                <col className={styles.colDate} />
+                <col className={styles.colExecution} />
+                <col className={styles.colStatus} />
+                <col className={styles.colExpand} />
+              </colgroup>
               <thead>
                 <tr>
                   <SortableTh
@@ -926,10 +939,8 @@ function ContractRow({
         <td className={styles.moneyCell}>
           {formatMoney(contract.advanceAmount)}
         </td>
-        <td className={styles.nowrapCell}>
-          {formatDate(contract.contractDate)}
-        </td>
-        <td className={styles.nowrapCell}>
+        <td>{formatDate(contract.contractDate)}</td>
+        <td>
           {formatDate(contract.executionStartDate)} —{" "}
           {formatDate(contract.executionEndDate)}
         </td>

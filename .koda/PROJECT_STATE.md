@@ -3379,8 +3379,18 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (padding: 0, чтобы `.cardBody` давал свои отступы). Удалены мёртвые стили
   карточки: `.list`, `.card`, `.cardOverdue`, `.cardHeader*`, `.cardSummary`,
   `.summaryItem/Label/Value`, `.chevron`.
+- **Ширины граф не зависят от фильтра:** таблица переведена на
+  `table-layout: fixed`, ширины заданы через `<colgroup>`/`<col>` в процентах
+  (8 / 15 / 13 / 9 / 9 / 9 / 10 / 13 / 10 / 4 %), отступы ячеек уменьшены до
+  8×10px, длинные значения переносятся (`overflow-wrap: anywhere`).
+  `white-space: nowrap` у дат и сумм убран, чтобы содержимое не выходило за
+  фиксированную колонку; на мобильных заголовки длинных колонок переносятся по
+  словам.
 - **Проверки:** `tsc -b --pretty false` — 0 ошибок; `oxlint src` — exit 0, по
-  изменённым файлам замечаний нет; `vite build` — зелёный. Мобильный аудит
+  изменённым файлам замечаний нет. `vite build` на момент работы падает на
+  чужом WIP-файле `PurchasePlanSpecialPurchases.module.scss:602` («Expected
+  identifier»), поэтому изменённый `ContractRegistry.module.scss` проверен
+  отдельной компиляцией `sass` (SASS_OK). Мобильный аудит
   `npm run check:mobile -- --widths=375 --routes=/contract-registry`:
   `ok 375x812 scroll=375 offenders=0 small-targets=0` (таблица прокручивается
   внутри контейнера, страница не переполняется). Визуальная проверка с данными

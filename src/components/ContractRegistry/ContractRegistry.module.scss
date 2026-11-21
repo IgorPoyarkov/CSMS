@@ -222,14 +222,23 @@
 
 .contractsTable {
   min-width: 1080px;
+  // Фиксированные ширины колонок: при фильтрации таблица не «прыгает»
+  table-layout: fixed;
 
   th {
     background: var(--surface-raised);
     white-space: nowrap;
   }
 
+  // Чуть уже обычных таблиц: проценты колонок должны вмещать содержимое
+  th,
+  td {
+    padding: 8px 10px;
+  }
+
   td {
     vertical-align: middle;
+    overflow-wrap: anywhere;
   }
 
   // Ячейка раскрывающейся строки: внутренние отступы даёт `.cardBody`
@@ -239,7 +248,49 @@
 
   .expandCell {
     text-align: center;
+    padding-inline: 4px;
   }
+}
+
+/* Ширины колонок таблицы контрактов (сумма — 100%) */
+.colNumber {
+  width: 8%;
+}
+
+.colName {
+  width: 15%;
+}
+
+.colSupplier {
+  width: 13%;
+}
+
+.colPrice {
+  width: 9%;
+}
+
+.colNmck {
+  width: 9%;
+}
+
+.colAdvance {
+  width: 9%;
+}
+
+.colDate {
+  width: 10%;
+}
+
+.colExecution {
+  width: 13%;
+}
+
+.colStatus {
+  width: 10%;
+}
+
+.colExpand {
+  width: 4%;
 }
 
 .contractRow {
@@ -260,17 +311,11 @@
 }
 
 .contractNameCell {
-  min-width: 220px;
-  max-width: 340px;
+  font-weight: 600;
 }
 
 .moneyCell {
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.nowrapCell {
-  white-space: nowrap;
 }
 
 .statusCell {
@@ -280,12 +325,8 @@
   gap: 6px;
 }
 
-.expandCell {
-  width: 40px;
-}
-
 .chevronButton {
-  padding: 4px 6px;
+  padding: 4px 2px;
   font-family: inherit;
   font-size: 10px;
   line-height: 1;
@@ -1680,5 +1721,10 @@
   // поэтому на узком экране колонки остаются читаемыми
   .contractsTable {
     min-width: 900px;
+
+    // На узких экранах заголовки длинных колонок переносятся по словам
+    th {
+      white-space: normal;
+    }
   }
 }
