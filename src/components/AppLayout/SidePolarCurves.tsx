@@ -15,8 +15,7 @@ import styles from "./SidePolarCurves.module.scss";
  * requestAnimationFrame, поэтому синхронны по времени.
  *
  * Компонент чисто декоративный: canvas не принимает события мыши, не участвует
- * в потоке документа и не влияет на клики. При prefers-reduced-motion кометы
- * показываются неподвижно.
+ * в потоке документа и не влияет на клики.
  */
 
 const THETA_MAX = 24 * Math.PI;
@@ -415,8 +414,6 @@ export default function SidePolarCurves() {
     let startedAt = performance.now();
     let disposed = false;
 
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-
     const stopAnimation = () => {
       if (frameId !== 0) {
         cancelAnimationFrame(frameId);
@@ -441,12 +438,6 @@ export default function SidePolarCurves() {
     const startAnimation = (resetPhase: boolean) => {
       stopAnimation();
 
-      if (motionQuery.matches) {
-        // Без анимации показываем кометы в стартовых позициях.
-        renderFrame(0);
-        return;
-      }
-
       if (resetPhase) {
         startedAt = performance.now();
       }
@@ -468,10 +459,6 @@ export default function SidePolarCurves() {
       startAnimation(false);
     };
 
-    const handleMotionChange = () => {
-      startAnimation(true);
-    };
-
     const resizeObserver =
       typeof ResizeObserver === "undefined"
         ? null
@@ -480,18 +467,13 @@ export default function SidePolarCurves() {
     resizeObserver?.observe(right);
 
     const themeObserver = new MutationObserver(() => {
+      // Цвет перечитается на следующем кадре — отдельная перерисовка не нужна.
       color = readThemeColor(left);
-
-      if (motionQuery.matches) {
-        renderFrame(0);
-      }
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["data-theme", "class"],
     });
-
-    motionQuery.addEventListener?.("change", handleMotionChange);
 
     startAnimation(true);
 
@@ -500,7 +482,6 @@ export default function SidePolarCurves() {
       stopAnimation();
       resizeObserver?.disconnect();
       themeObserver.disconnect();
-      motionQuery.removeEventListener?.("change", handleMotionChange);
       leftSurface.ctx?.clearRect(0, 0, leftSurface.width, leftSurface.height);
       rightSurface.ctx?.clearRect(
         0,
