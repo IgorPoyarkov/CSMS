@@ -853,6 +853,14 @@ export default function PurchasePlanSpecialPurchases({
       (serialOf(a.rows[0]?.item) ?? 0) - (serialOf(b.rows[0]?.item) ?? 0),
   );
 
+  // Кнопка «Раскрыть все / Свернуть все» работает с обоими уровнями сразу
+  const allTypeKeys = new Set(items.map((item) => item.typeCode || "no-type"));
+  const allIkzKeys = new Set(items.map(ikzKeyOf));
+  const allExpanded =
+    items.length > 0 &&
+    [...allTypeKeys].every((key) => expandedGroups.has(key)) &&
+    [...allIkzKeys].every((key) => expandedIkz.has(key));
+
   return (
     <fieldset className={block("section")}>
       <legend>Особые закупки</legend>
@@ -902,11 +910,25 @@ export default function PurchasePlanSpecialPurchases({
         </label>
         <button
           type="button"
+          className={block("reset")}
+          onClick={() => {
+            if (allExpanded) {
+              setExpandedGroups(new Set());
+              setExpandedIkz(new Set());
+            } else {
+              expandAllGroups();
+            }
+          }}
+        >
+          {allExpanded ? "Свернуть все" : "Раскрыть все"}
+        </button>
+        <button
+          type="button"
           className={block("save")}
           disabled={isSaving}
           onClick={saveItems}
         >
-          {isSaving ? "Сохранение..." : "Сохранить особые закупки"}
+          {isSaving ? "Сохранение..." : "Сохранить изменения"}
         </button>
       </div>
 
@@ -1088,7 +1110,6 @@ export default function PurchasePlanSpecialPurchases({
                           {isIkzExpanded &&
                             ikzGroup.rows.map(({ item, index }) => {
                               const entries = kbkEntriesOf(item);
-                              const parts = ikzPartsOf(item);
                               const kbkCodes = entries
                                 .map((entry) =>
                                   builtKbk(entry) || String(entry.kbk ?? ""),
@@ -1181,7 +1202,7 @@ export default function PurchasePlanSpecialPurchases({
                                     className={block("remove")}
                                     onClick={() => removeItem(index)}
                                   >
-                                    Убрать
+                                    Удалить
                                   </button>
                                 </div>
                               </td>
@@ -1216,7 +1237,7 @@ export default function PurchasePlanSpecialPurchases({
                                       </label>
                                       <select
                                         id={`special-year-${item.id}`}
-                                        className={block("select")}
+                                        className={block("select", ["year"])}
                                         value={String(
                                           item.publishYear ?? baseYear,
                                         )}
@@ -1240,49 +1261,8 @@ export default function PurchasePlanSpecialPurchases({
                                     </div>
                                   </div>
 
-                                  {/* У позиции ровно один ИКЗ — он собирается
-                                      из сведений этой же позиции */}
-                                  <div className={block("ikz-block")}>
-                                    <div className={block("detail-title")}>
-                                      Идентификационный код закупки
-                                    </div>
-                                    <div className={block("ikz-code", ["single"])}>
-                                      {parts.code || "ИКЗ не собран"}
-                                    </div>
-                                    <table className={block("ikz-parts-table")}>
-                                      <thead>
-                                        <tr>
-                                          {[
-                                            "Год",
-                                            "Идентификационный код заказчика",
-                                            "Номер закупки, включенной в план-график закупок",
-                                            "Порядковый номер закупки",
-                                            "Код позиции ОКПД2",
-                                            "Код вида расходов",
-                                          ].map((label) => (
-                                            <th key={label}>{label}</th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr>
-                                          {[
-                                            parts.year,
-                                            parts.customerCode,
-                                            parts.purchaseNumber,
-                                            parts.orderNumber,
-                                            parts.okpd2,
-                                            parts.kvr,
-                                          ].map((value, partIndex) => (
-                                            <td key={partIndex}>
-                                              {value || "—"}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </div>
-
+                                  {/* ИКЗ виден в заголовке вложенной группы,
+                                      внутри карточки блок с ним не дублируем */}
                                   <div className={block("option-fields")}>
                                     <label className={block("check")}>
                                       <input
@@ -1447,7 +1427,7 @@ export default function PurchasePlanSpecialPurchases({
                                                 removeKbk(index, entryIndex)
                                               }
                                             >
-                                              Убрать
+                                              Удалить
                                             </button>
                                           </td>
                                         </tr>
@@ -1623,7 +1603,7 @@ export default function PurchasePlanSpecialPurchases({
                                                       )
                                                     }
                                                   >
-                                                    Убрать
+                                                    Удалить
                                                   </button>
                                                 </td>
                                               </tr>
@@ -1798,6 +1778,20 @@ export default function PurchasePlanSpecialPurchases({
               </tr>
             </tfoot>
           </table>
+        </div>
+      )}
+
+      {/* Сохранение всего плана: onSave уходит на PUT /purchasePlans/:id */}
+      {items.length > 0 && (
+        <div className={block("bottom-actions")}>
+          <button
+            type="button"
+            className={block("save")}
+            disabled={isSaving}
+            onClick={saveItems}
+          >
+            {isSaving ? "Сохранение..." : "Сохранить изменения"}
+          </button>
         </div>
       )}
 

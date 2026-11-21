@@ -573,11 +573,19 @@
     font-size: 11px;
     font-weight: 600;
     color: var(--text-secondary);
+  }
 
-    // Селект года такой же ширины, как в карточке основной позиции
-    &--year {
-      grid-template-columns: minmax(0, 1fr) 96px;
-    }
+  // Обе строки («Уникальный номер…» и «Планируемый год…») имеют одну сетку:
+  // лейблы и значения стоят на одной вертикали, селект остаётся 96 px —
+  // как ширина поля года в карточке основной позиции
+  &__select--year {
+    width: 96px;
+  }
+
+  &__bottom-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 0 2px;
   }
 
   // Уникальный номер — просто текст рядом с лейблом, без рамки поля
@@ -588,53 +596,6 @@
     font-weight: 400;
     overflow-wrap: anywhere;
     color: var(--text-primary);
-  }
-
-  &__ikz-block {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    background: var(--surface-field);
-  }
-
-  &__ikz-code--single {
-    font-family: "Courier New", monospace;
-    font-size: 12px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-    color: var(--text-primary);
-  }
-
-  &__ikz-parts-table {
-    width: 100%;
-    table-layout: fixed;
-    border-collapse: collapse;
-    font-size: 10px;
-
-    th,
-    td {
-      padding: 4px;
-      text-align: center;
-      word-break: break-word;
-      border: 1px solid var(--border);
-    }
-
-    th {
-      font-weight: 600;
-      color: var(--text-secondary);
-      background: var(--surface-raised);
-    }
-
-    td {
-      font-family: "Courier New", monospace;
-      font-variant-numeric: tabular-nums;
-      color: var(--text-primary);
-      background: var(--surface-raised);
-    }
   }
 
   &__option-fields {

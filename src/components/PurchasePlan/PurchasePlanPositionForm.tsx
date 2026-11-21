@@ -793,7 +793,9 @@ export default function PurchasePlanPositionForm({
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
+                      {/* Разряды ИКЗ вычисляются из полей позиции: править
+                          их нельзя, поэтому строка показана как неактивная */}
+                      <tr aria-disabled="true">
                         {[
                           ikzParts.year,
                           ikzParts.customerCode,
@@ -804,7 +806,10 @@ export default function PurchasePlanPositionForm({
                         ].map((part, partIndex) => (
                           <td
                             key={partIndex}
-                            className={block("cell", ["ikz-part"])}
+                            className={block("cell", [
+                              "ikz-part",
+                              "disabled",
+                            ])}
                             aria-label={`Разряд ИКЗ ${partIndex + 1}`}
                           >
                             {part || "—"}
@@ -995,7 +1000,7 @@ export default function PurchasePlanPositionForm({
                       className={block("remove")}
                       onClick={() => okpd2Items.remove(itemIndex)}
                     >
-                      Убрать
+                      Удалить
                     </button>
                   </div>
                 ))}
@@ -1303,7 +1308,7 @@ export default function PurchasePlanPositionForm({
                             className={block("remove")}
                             onClick={() => kbkEntries.remove(entryIndex)}
                           >
-                            Убрать
+                            Удалить
                           </button>
                         </td>
                       </tr>
@@ -1459,7 +1464,7 @@ export default function PurchasePlanPositionForm({
                               className={block("remove")}
                               onClick={() => koksEntries.remove(entryIndex)}
                             >
-                              Убрать
+                              Удалить
                             </button>
                           </td>
                         </tr>

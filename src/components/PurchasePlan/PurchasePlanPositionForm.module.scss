@@ -486,6 +486,13 @@
     background: var(--stripe);
   }
 
+  // Разряды ИКЗ рассчитываются автоматически: показываем их как неактивные
+  &__cell--disabled {
+    color: var(--text-secondary) !important;
+    background: var(--surface-field) !important;
+    cursor: not-allowed;
+  }
+
   &__ikz-code-preview {
     padding: 2px 8px;
     border: 1px solid var(--border);
