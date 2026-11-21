@@ -63,10 +63,12 @@ public sealed class EisDocumentParserRealXmlTests
         Assert.Equal(43.20m, item.Price);
     }
 
-    [Fact]
-    public void ParsesRealControlNoticeWithoutCrashing()
+    [Theory]
+    [InlineData("control99-notice-compliance-real.xml", "2026-11-19T16:06:41+03:00")]
+    [InlineData("control99-begin-message-real.xml", "2026-11-19T14:08:36+03:00")]
+    public void KeepsControl99PrintFormsAsRaw(string fileName, string publishDate)
     {
-        var document = Load("control99-notice-compliance-real.xml");
+        var document = Load(fileName);
 
         var result = _parser.Parse(document, "control99.xml");
 
@@ -77,7 +79,7 @@ public sealed class EisDocumentParserRealXmlTests
         Assert.Equal("4629040439", result.CustomerInn);
         Assert.Equal("463201001", result.CustomerKpp);
         Assert.Contains("КУРСКАВТОДОР", result.CustomerName, StringComparison.Ordinal);
-        Assert.Equal("2026-11-19T16:06:41+03:00", result.PublishDate);
+        Assert.Equal(publishDate, result.PublishDate);
     }
 
     [Fact]

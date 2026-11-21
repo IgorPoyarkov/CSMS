@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Реальная печатная форма контрольного сообщения Казначейства (tenderPlan2020). -->
+<ns3:control99BeginMessage schemeVersion="16.3" xmlns="http://zakupki.gov.ru/oos/types/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns3="http://zakupki.gov.ru/oos/printform/1">
+    <refId>69587137</refId>
+    <refVersionNumber>48</refVersionNumber>
+    <refEditionNumber>0</refEditionNumber>
+    <documentType>tenderPlan2020</documentType>
+    <docNumber>2113</docNumber>
+    <docDate>2026-11-19T14:08:36+03:00</docDate>
+    <signDate>2026-11-19T14:08:36+03:00</signDate>
+    <controlAuthorityInfo>
+        <regNum>01441000001</regNum>
+        <consRegistryNum>00112147</consRegistryNum>
+        <fullName>УПРАВЛЕНИЕ ФЕДЕРАЛЬНОГО КАЗНАЧЕЙСТВА ПО КУРСКОЙ ОБЛАСТИ</fullName>
+        <INN>4629015471</INN>
+        <KPP>463201001</KPP>
+        <IKU>14629015471463201001</IKU>
+    </controlAuthorityInfo>
+    <customerInfo>
+        <regNum>01442000018</regNum>
+        <consRegistryNum>382Р1122</consRegistryNum>
+        <fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</fullName>
+        <INN>4629040439</INN>
+        <KPP>463201001</KPP>
+        <OKFS>
+            <code>13</code>
+            <name>Собственность субъектов Российской Федерации</name>
+        </OKFS>
+        <orgBudget>
+            <code>44020540</code>
+            <name>Бюджет Курской области</name>
+        </orgBudget>
+        <factAddress>Российская Федерация, 305004, Курская обл, Курск г, Радищева ул, Д. 62</factAddress>
+        <OKOPF>
+            <code>75204</code>
+            <singularName>Государственное казенное учреждение субъекта Российской Федерации</singularName>
+        </OKOPF>
+        <OKTMO>
+            <code>38701000001</code>
+            <name>г Курск</name>
+        </OKTMO>
+    </customerInfo>
+    <controlObjectsInfo>
+        <controlObjectInfo>
+            <name>План-график закупок на 2026 финансовый год период планирования 2027-2028 версия 48.0</name>
+            <date>2026-11-19T14:08:29</date>
+            <number>202601442000018001</number>
+        </controlObjectInfo>
+    </controlObjectsInfo>
+    <startControlDate>2026-11-19T14:08:35+03:00</startControlDate>
+</ns3:control99BeginMessage>
