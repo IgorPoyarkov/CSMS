@@ -32,6 +32,7 @@ import LegalActRefs from "../LegalAct/LegalActRefs";
 import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
+import PurchasePlanKbkBreakdown from "./PurchasePlanKbkBreakdown";
 import PurchasePlanSpecialPurchases from "./PurchasePlanSpecialPurchases";
 import { usePurchasePlanVersions } from "../../services/PurchasePlan/purchasePlanVersion.api";
 import {
@@ -48,7 +49,9 @@ import styles from "./PurchasePlanCard.module.scss";
  *   статусом и совокупным объёмом финансирования;
  * - 7 вкладок ЕИС pg2020: Общая информация, Позиции, Особые закупки,
  *   Итоговые показатели, Вложения, Журнал версий, Журнал событий;
- * - двухстрочный макет таблицы позиций с ИКЗ во второй строке и tabular-nums.
+ * - двухстрочный макет таблицы позиций с ИКЗ во второй строке и tabular-nums;
+ * - вкладка «Итоговые показатели»: сводка по ПГ и разбивка по КБК с окном
+ *   записей выбранного кода.
  */
 const ROW_COLUMNS = [
   "plannedPlacementYear",
@@ -1239,6 +1242,8 @@ export default function PurchasePlanCard() {
               </tfoot>
             </table>
           </div>
+
+          <PurchasePlanKbkBreakdown plan={plan} baseYear={baseYear} />
         </section>
       )}
 
