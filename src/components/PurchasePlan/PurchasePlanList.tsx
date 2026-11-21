@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker from "../UI/PageSizePicker";
 import {
@@ -12,10 +12,8 @@ import { useFetchCurrentUser } from "../../services/Users/user.api";
 import { type PurchasePlan } from "../../services/PurchasePlan/purchasePlan.schema";
 import {
   formatMoney,
-  formatMoneyValue,
   planTotalAmount,
   purchasePlanStatusLabel,
-  purchasePlanStatusOptions,
 } from "./purchasePlan.config";
 import PurchasePlanImportModal from "./PurchasePlanImportModal";
 import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
@@ -40,6 +38,8 @@ export default function PurchasePlanList() {
     error,
   } = usePurchasePlans(organizationId);
   const { mutate: deletePlan, isPending: isDeleting } = useDeletePurchasePlan();
+  // Пока способ создания контрактной службы не указан (п. 2.1 приказа
+  // Минфина России от 31.07.2020 N 158н), план-график не формируется
   const { data: contractService, isLoading: isContractServiceLoading } =
     useContractService(organizationId);
   const needsContractService =
@@ -48,10 +48,9 @@ export default function PurchasePlanList() {
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "purchase-plan-list");
 
-  // Фильтры реестра планов-графиков (поиск по номеру ПГ, ИКЗ, ОКПД2, КБК + статус + год)
+  // Поиск по ИКЗ / ОКПД2 / КБК внутри записей ПГ
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [yearFilter, setYearFilter] = useState<string>("all");
+  // Пагинация
   const [pageSize, setPageSize] = useState<PageSize>(10);
   const [page, setPage] = useState(1);
   const [openMenuPlanId, setOpenMenuPlanId] = useState<string | null>(null);
@@ -89,6 +88,7 @@ export default function PurchasePlanList() {
 
   const allPlans = useMemo(() => plans ?? [], [plans]);
 
+  // Сортировка по убыванию: от последнего (самого свежего) к первому
   const sortedPlans = useMemo(
     () =>
       [...allPlans].sort((a, b) => {
@@ -99,58 +99,22 @@ export default function PurchasePlanList() {
     [allPlans],
   );
 
-  const availableYears = useMemo(() => {
-    const years = new Set<string>();
-    for (const p of allPlans) {
-      if (p.planYear) years.add(String(p.planYear));
-    }
-    return Array.from(years).sort().reverse();
-  }, [allPlans]);
-
+  // Поиск: план остаётся, если хоть одна позиция содержит подстроку в ИКЗ, ОКПД2 или КБК
   const filteredPlans = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return sortedPlans.filter((plan) => {
-      if (statusFilter !== "all" && plan.status !== statusFilter) {
-        return false;
-      }
-      if (yearFilter !== "all" && String(plan.planYear) !== yearFilter) {
-        return false;
-      }
-      if (!q) return true;
-
-      if (
-        (plan.planNumber || "").toLowerCase().includes(q) ||
-        (plan.customer.shortName || "").toLowerCase().includes(q) ||
-        (plan.customer.fullName || "").toLowerCase().includes(q) ||
-        (plan.customer.inn || "").toLowerCase().includes(q)
-      ) {
-        return true;
-      }
-
-      return plan.positions.some((pos) => {
+    if (!q) return sortedPlans;
+    return sortedPlans.filter((plan) =>
+      plan.positions.some((pos) => {
         const ikz = (pos.identificationCode || "").toLowerCase();
         const okpd2 = (pos.okpd2Code || "").toLowerCase();
         const kbk = (pos.kbk || "").toLowerCase();
-        const obj = (pos.objectOfPurchase || "").toLowerCase();
-        return (
-          ikz.includes(q) ||
-          okpd2.includes(q) ||
-          kbk.includes(q) ||
-          obj.includes(q)
-        );
-      });
-    });
-  }, [sortedPlans, searchQuery, statusFilter, yearFilter]);
+        return ikz.includes(q) || okpd2.includes(q) || kbk.includes(q);
+      }),
+    );
+  }, [sortedPlans, searchQuery]);
 
   const overallAmount = filteredPlans.reduce(
     (total, plan) => total + planTotalAmount(plan),
-    0,
-  );
-  const publishedCount = filteredPlans.filter(
-    (p) => p.status === "published",
-  ).length;
-  const totalPositionsCount = filteredPlans.reduce(
-    (acc, p) => acc + (p.positions?.length ?? 0),
     0,
   );
 
@@ -171,33 +135,31 @@ export default function PurchasePlanList() {
 
   return (
     <section className={block()}>
-      <nav className={block("breadcrumbs")} aria-label="Навигационная цепочка">
-        <Link to="/" className={block("crumb")}>
-          Главная
-        </Link>
-        <span className={block("crumb-sep")} aria-hidden="true">
-          /
-        </span>
-        <span className={block("crumb", ["current"])}>
-          Планы-графики закупок (44-ФЗ)
+      <nav className={block("breadcrumbs")} aria-label="Навигация">
+        <span className={block("crumb-current")}>
+          Реестр планов-графиков закупок (44-ФЗ)
         </span>
       </nav>
 
       <header className={block("header")}>
         <div className={block("header-info")}>
-          <span className={block("eyebrow")}>
-            Реестр документов планирования · 44-ФЗ
-          </span>
-          <h1 className={block("title")}>Планы-графики закупок</h1>
+          <h1 className={block("title")}>Планы-графики закупок (44-ФЗ)</h1>
+          <p className={block("summary")}>
+            Показано: <strong>{filteredPlans.length}</strong>
+            {filteredPlans.length !== allPlans.length
+              ? ` из ${allPlans.length}`
+              : ""}{" "}
+            · Совокупный объём:{" "}
+            <strong className={block("num")}>
+              {formatMoney(overallAmount)}
+            </strong>
+          </p>
           <p className={block("current-organization")}>
             {organization
-              ? `${organization.fullName || organization.shortName} · ИНН ${organization.inn}${
-                  organization.kpp ? ` · КПП ${organization.kpp}` : ""
-                }`
+              ? `${organization.shortName || organization.fullName} (ИНН ${organization.inn}${organization.kpp ? `, КПП ${organization.kpp}` : ""})`
               : "Организация-заказчик не определена"}
           </p>
         </div>
-
         <div className={block("header-actions")}>
           <button
             className={block("import-button")}
@@ -213,38 +175,8 @@ export default function PurchasePlanList() {
             disabled={!organizationId || needsContractService}
             onClick={() => navigate("/purchase-plans/new")}
           >
-            + Сформировать план-график
+            Сформировать план-график
           </button>
-        </div>
-
-        <div className={block("kpi-strip")}>
-          <div className={block("kpi-item")}>
-            <span className={block("kpi-label")}>Найдено планов</span>
-            <strong className={block("kpi-value")}>
-              {filteredPlans.length}
-              {filteredPlans.length !== allPlans.length
-                ? ` из ${allPlans.length}`
-                : ""}
-            </strong>
-          </div>
-          <div className={block("kpi-item")}>
-            <span className={block("kpi-label")}>Размещено в ЕИС</span>
-            <strong className={block("kpi-value")}>{publishedCount}</strong>
-          </div>
-          <div className={block("kpi-item")}>
-            <span className={block("kpi-label")}>Позиций во всех ПГ</span>
-            <strong className={block("kpi-value")}>
-              {totalPositionsCount}
-            </strong>
-          </div>
-          <div className={block("kpi-item")}>
-            <span className={block("kpi-label")}>
-              Совокупный объём финансирования
-            </span>
-            <strong className={block("kpi-value")}>
-              {formatMoney(overallAmount)}
-            </strong>
-          </div>
         </div>
       </header>
 
@@ -306,298 +238,185 @@ export default function PurchasePlanList() {
       {Boolean(organizationId) &&
         !isLoading &&
         !isError &&
+        filteredPlans.length === 0 &&
         allPlans.length === 0 && (
-          <div className={block("panel")}>
-            <p className={block("status")}>
-              У вашей организации планов-графиков нет. Сформируйте первый
-              план-график закупок или загрузите из ЕИС XML / CSV.
-            </p>
-          </div>
+          <p className={block("status")}>
+            У вашей организации планов-графиков нет. Создайте первый план-график
+            закупок.
+          </p>
         )}
 
-      {allPlans.length > 0 && (
-        <div className={block("panel")}>
+      {Boolean(organizationId) &&
+        !isLoading &&
+        !isError &&
+        filteredPlans.length === 0 &&
+        allPlans.length > 0 && (
+          <p className={block("status")}>
+            По запросу «{searchQuery}» планов-графиков не найдено.
+          </p>
+        )}
+
+      {filteredPlans.length > 0 && (
+        <div className={block("registry-panel")}>
           <div className={block("toolbar")}>
             <input
               className={block("search")}
               type="search"
-              placeholder="Поиск по номеру ПГ, ИКЗ, объекту закупки, ОКПД2, КБК…"
+              placeholder="Поиск по ИКЗ, ОКПД2, КБК…"
               value={searchQuery}
               onChange={(event) => {
                 setSearchQuery(event.target.value);
                 setPage(1);
               }}
             />
-            <select
-              className={block("filter-select")}
-              aria-label="Фильтр по статусу ПГ"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="all">Все статусы</option>
-              {purchasePlanStatusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            {availableYears.length > 1 && (
-              <select
-                className={block("filter-select")}
-                aria-label="Фильтр по году планирования"
-                value={yearFilter}
-                onChange={(e) => {
-                  setYearFilter(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="all">Все годы</option>
-                {availableYears.map((yr) => (
-                  <option key={yr} value={yr}>
-                    {yr} год
-                  </option>
-                ))}
-              </select>
-            )}
           </div>
 
-          {filteredPlans.length === 0 ? (
-            <p className={block("status")}>
-              По заданным параметрам поиска планов-графиков не найдено.
-            </p>
-          ) : (
-            <div
-              className={
-                openMenuPlanId
-                  ? block("table-wrapper", ["open"])
-                  : block("table-wrapper")
-              }
-            >
-              <table className={block("table")}>
-                <thead>
-                  <tr>
-                    <th>Реестровый номер ПГ</th>
-                    <th>Заказчик</th>
-                    <th>Период</th>
-                    <th>Версия / Статус</th>
-                    <th>Позиций</th>
-                    <th className={block("th-amount")}>
-                      Объём финансового обеспечения (₽)
-                    </th>
-                    <th>Утверждён / Размещён</th>
-                    <th>Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagePlans.map((plan, idx) => {
-                    const firstYr =
-                      plan.planPeriodFirstYear || Number(plan.planYear) + 1;
-                    const secondYr =
-                      plan.planPeriodSecondYear || Number(plan.planYear) + 2;
-                    return (
-                      <tr
-                        key={String(plan.id)}
-                        className={idx % 2 === 1 ? block("row-striped") : ""}
+          <div
+            className={
+              openMenuPlanId
+                ? block("table-wrapper", ["open"])
+                : block("table-wrapper")
+            }
+          >
+            <table className={block("table")}>
+              <thead>
+                <tr>
+                  <th>Номер плана-графика</th>
+                  <th>Заказчик</th>
+                  <th>Период</th>
+                  <th>Статус</th>
+                  <th>Записей ПГ</th>
+                  <th>Совокупный объём</th>
+                  <th>Утверждён</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagePlans.map((plan) => (
+                  <tr key={String(plan.id)}>
+                    <td>
+                      <button
+                        className={block("number")}
+                        type="button"
+                        onClick={() => navigate(`/purchase-plans/${plan.id}`)}
                       >
-                        <td>
-                          <button
-                            className={block("number")}
-                            type="button"
-                            onClick={() =>
-                              navigate(`/purchase-plans/${plan.id}`)
-                            }
-                          >
-                            {plan.planNumber || "без номера"}
-                          </button>
-                          {plan.remarks && (
-                            <span className={block("sub-note")}>
-                              {plan.remarks}
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          <span className={block("customer")}>
-                            {plan.customer.shortName || plan.customer.fullName}
-                          </span>
-                          <span className={block("requisites")}>
-                            ИНН {plan.customer.inn}
-                            {plan.customer.kpp
-                              ? ` / КПП ${plan.customer.kpp}`
-                              : ""}
-                            {plan.customer.regNum
-                              ? ` · СПЗ ${plan.customer.regNum}`
-                              : ""}
-                          </span>
-                        </td>
-                        <td className={block("td-center")}>
-                          <strong>{plan.planYear}</strong>
-                          <span className={block("requisites")}>
-                            {firstYr}–{secondYr}
-                          </span>
-                        </td>
-                        <td>
-                          <div className={block("status-col")}>
-                            <span className={block("status-tag", [plan.status])}>
-                              {purchasePlanStatusLabel(plan.status)}
-                            </span>
-                            <span className={block("requisites")}>
-                              Версия № {plan.versionNumber || "1"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className={block("td-center")}>
+                        {plan.planNumber || "без номера"}
+                      </button>
+                    </td>
+                    <td>
+                      <span className={block("customer")}>
+                        {plan.customer.shortName || plan.customer.fullName}
+                      </span>
+                      <span className={block("requisites")}>
+                        ИНН {plan.customer.inn}
+                        {plan.customer.kpp ? ` / КПП ${plan.customer.kpp}` : ""}
+                      </span>
+                    </td>
+                    <td className={block("num")}>{plan.planYear}</td>
+                    <td>
+                      <span className={block("status-tag", [plan.status])}>
+                        {purchasePlanStatusLabel(plan.status)}
+                      </span>
+                    </td>
+                    <td className={block("num")}>{plan.positions.length}</td>
+                    <td className={block("num")}>
+                      {formatMoney(planTotalAmount(plan))}
+                    </td>
+                    <td className={block("num")}>
+                      {formatDate(plan.approvalDate)}
+                    </td>
+                    <td>
+                      <details
+                        className={block("menu")}
+                        data-plan-actions
+                        open={openMenuPlanId === String(plan.id)}
+                        onToggle={(event) =>
+                          setOpenMenuPlanId(
+                            event.currentTarget.open ? String(plan.id) : null,
+                          )
+                        }
+                      >
+                        <summary className={block("menu-trigger")}>
+                          Действия
+                        </summary>
+                        <div className={block("menu-list")}>
                           <button
                             type="button"
-                            className={block("pos-link")}
-                            onClick={() =>
-                              navigate(
-                                `/purchase-plans/${plan.id}?tab=positions`,
-                              )
-                            }
+                            className={block("menu-item")}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              navigate(`/purchase-plans/${plan.id}`);
+                            }}
                           >
-                            {plan.positions.length}
+                            Открыть
                           </button>
-                        </td>
-                        <td className={block("td-amount")}>
-                          <strong>
-                            {formatMoneyValue(planTotalAmount(plan))}
-                          </strong>
-                        </td>
-                        <td>
-                          <div className={block("dates-col")}>
-                            <span>
-                              Утв.:{" "}
-                              {plan.approvalDate
-                                ? formatDate(plan.approvalDate)
-                                : "—"}
-                            </span>
-                            <span className={block("requisites")}>
-                              ЕИС:{" "}
-                              {plan.publishDate
-                                ? formatDate(plan.publishDate)
-                                : "не размещён"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className={block("td-center")}>
-                          <details
-                            className={block("menu")}
-                            data-plan-actions
-                            open={openMenuPlanId === String(plan.id)}
-                            onToggle={(event) =>
-                              setOpenMenuPlanId(
-                                event.currentTarget.open
-                                  ? String(plan.id)
-                                  : null,
-                              )
-                            }
+                          <button
+                            type="button"
+                            className={block("menu-item")}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              navigate(`/purchase-plans/${plan.id}/edit`);
+                            }}
                           >
-                            <summary className={block("menu-trigger")}>
-                              Действия
-                            </summary>
-                            <div className={block("menu-list")}>
-                              <button
-                                type="button"
-                                className={block("menu-item")}
-                                onClick={() => {
-                                  setOpenMenuPlanId(null);
-                                  navigate(`/purchase-plans/${plan.id}`);
-                                }}
-                              >
-                                Карточка ПГ (Общая информация)
-                              </button>
-                              <button
-                                type="button"
-                                className={block("menu-item")}
-                                onClick={() => {
-                                  setOpenMenuPlanId(null);
-                                  navigate(
-                                    `/purchase-plans/${plan.id}?tab=positions`,
-                                  );
-                                }}
-                              >
-                                Позиции плана-графика ({plan.positions.length})
-                              </button>
-                              <button
-                                type="button"
-                                className={block("menu-item")}
-                                onClick={() => {
-                                  setOpenMenuPlanId(null);
-                                  navigate(`/purchase-plans/${plan.id}/edit`);
-                                }}
-                              >
-                                Изменить
-                              </button>
-                              <button
-                                type="button"
-                                className={block("menu-item")}
-                                onClick={() => {
-                                  setOpenMenuPlanId(null);
-                                  setVersionsPlan(plan);
-                                }}
-                              >
-                                История версий
-                              </button>
-                              <button
-                                type="button"
-                                className={block("menu-item", ["danger"])}
-                                disabled={isDeleting}
-                                onClick={() => {
-                                  setOpenMenuPlanId(null);
-                                  handleDelete(plan);
-                                }}
-                              >
-                                Удалить
-                              </button>
-                            </div>
-                          </details>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                            Изменить
+                          </button>
+                          <button
+                            type="button"
+                            className={block("menu-item")}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              setVersionsPlan(plan);
+                            }}
+                          >
+                            История версий
+                          </button>
+                          <button
+                            type="button"
+                            className={block("menu-item", ["danger"])}
+                            disabled={isDeleting}
+                            onClick={() => {
+                              setOpenMenuPlanId(null);
+                              handleDelete(plan);
+                            }}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          {filteredPlans.length > 0 && (
+          {totalPages > 1 && (
             <div className={block("pager")}>
-              {totalPages > 1 ? (
-                <div className={block("pager-controls")}>
-                  <button
-                    type="button"
-                    className={block("pager__button")}
-                    onClick={() =>
-                      setPage((current) => Math.max(1, current - 1))
-                    }
-                    disabled={safePage === 1}
-                  >
-                    ← Назад
-                  </button>
-                  <span className={block("pager__info")}>
-                    {start + 1}–
-                    {Math.min(start + pagePlans.length, filteredPlans.length)}{" "}
-                    из {filteredPlans.length}
-                  </span>
-                  <button
-                    type="button"
-                    className={block("pager__button")}
-                    onClick={() =>
-                      setPage((current) => Math.min(totalPages, current + 1))
-                    }
-                    disabled={safePage === totalPages}
-                  >
-                    Вперёд →
-                  </button>
-                </div>
-              ) : (
+              <div className={block("pager-controls")}>
+                <button
+                  type="button"
+                  className={block("pager__button")}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  disabled={safePage === 1}
+                >
+                  Назад
+                </button>
                 <span className={block("pager__info")}>
-                  Всего записей: {filteredPlans.length}
+                  {start + 1}–
+                  {Math.min(start + pagePlans.length, filteredPlans.length)} из{" "}
+                  {filteredPlans.length}
                 </span>
-              )}
+                <button
+                  type="button"
+                  className={block("pager__button")}
+                  onClick={() =>
+                    setPage((current) => Math.min(totalPages, current + 1))
+                  }
+                  disabled={safePage === totalPages}
+                >
+                  Вперёд
+                </button>
+              </div>
               <PageSizePicker
                 sizes={PAGE_SIZES}
                 value={pageSize}

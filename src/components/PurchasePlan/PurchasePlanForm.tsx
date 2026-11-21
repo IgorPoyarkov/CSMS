@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   FormProvider,
   get,
@@ -40,7 +40,6 @@ import {
   pfhdTypeOptions,
   planHeaderFields,
   positionFields,
-  purchasePlanStatusLabel,
   purchasePlanStatusOptions,
   formatMoney,
 } from "./purchasePlan.config";
@@ -86,8 +85,12 @@ export default function PurchasePlanForm() {
   } = methods;
 
   const positions = useFieldArray({ control, name: "positions" });
+
+  // Справочник ОКПД2 нужен и для выбора позиции, и для контроля нормирования
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
+  // Сообщение об ошибке вложенного поля (select, checkbox) берём по пути,
+  // чтобы не разматывать deep-тип FieldErrors вручную.
   const errorMessage = (path: string): string | undefined =>
     (get(errors, path) as FieldError | undefined)?.message;
 
@@ -97,6 +100,8 @@ export default function PurchasePlanForm() {
     }
   }, [isEdit, loadedPlan, reset]);
 
+  // Заказчик не заполняется вручную: новый план-график всегда оформляется на
+  // организацию, к которой привязана учётная запись вошедшего пользователя.
   useEffect(() => {
     if (!isEdit && organization) {
       setValue("organizationId", organization.id as string | number, {
@@ -113,9 +118,11 @@ export default function PurchasePlanForm() {
   const isPending = createPlan.isPending || updatePlan.isPending;
   const mutationError = createPlan.error ?? updatePlan.error;
   const customer = useWatch({ control, name: "customer" });
-  const planStatusWatch = useWatch({ control, name: "status" });
-  const planNumberWatch = useWatch({ control, name: "planNumber" });
-
+  const ownerRole = useWatch({ control, name: "ownerRole" });
+  const okeiCode = useWatch({ control, name: "okeiCode" });
+  const okeiName = useWatch({ control, name: "okeiName" });
+  // Новый план-график формируется только после того, как заказчик указал
+  // способ создания контрактной службы (п. 2.1 приказа N 158н).
   const { data: contractService, isLoading: isContractServiceLoading } =
     useContractService(organizationId);
   const needsContractService =
@@ -202,77 +209,54 @@ export default function PurchasePlanForm() {
 
   return (
     <section className={block()}>
-      <nav className={block("breadcrumbs")} aria-label="Навигационная цепочка">
-        <Link to="/" className={block("crumb")}>
-          Главная
-        </Link>
+      <nav className={block("breadcrumbs")} aria-label="Навигация">
+        <button
+          type="button"
+          className={block("crumb")}
+          onClick={() => navigate("/purchase-plans")}
+        >
+          Планы-графики закупок (44-ФЗ)
+        </button>
         <span className={block("crumb-sep")} aria-hidden="true">
           /
         </span>
-        <Link to="/purchase-plans" className={block("crumb")}>
-          Планы-графики (44-ФЗ)
-        </Link>
-        {isEdit && id && (
-          <>
-            <span className={block("crumb-sep")} aria-hidden="true">
-              /
-            </span>
-            <Link to={`/purchase-plans/${id}`} className={block("crumb")}>
-              План-график № {planNumberWatch || id}
-            </Link>
-          </>
-        )}
-        <span className={block("crumb-sep")} aria-hidden="true">
-          /
-        </span>
-        <span className={block("crumb", ["current"])}>
-          {isEdit ? "Редактирование документа" : "Формирование нового ПГ"}
+        <span className={block("crumb-current")}>
+          {isEdit
+            ? "Изменение плана-графика закупок"
+            : "Новый план-график закупок"}
         </span>
       </nav>
 
       <header className={block("header")}>
-        <div className={block("header-top")}>
-          <div className={block("eyebrow-row")}>
-            <span className={block("eyebrow")}>
-              Документ планирования · ЕИС pg2020 (44-ФЗ)
-            </span>
-            <span
-              className={block("status-tag", [planStatusWatch ?? "draft"])}
-            >
-              {purchasePlanStatusLabel(planStatusWatch ?? "draft")}
-            </span>
-          </div>
+        <div className={block("header-main")}>
           <h1 className={block("title")}>
             {isEdit
-              ? `Редактирование плана-графика № ${planNumberWatch || "без номера"}`
+              ? "Изменение плана-графика закупок"
               : "Новый план-график закупок (44-ФЗ)"}
           </h1>
           <p className={block("subtitle")}>
-            {customer?.fullName ||
-              "Заказчик определяется по текущей организации учётной записи"}
+            Реквизиты плана-графика и сведения о заказчике в соответствии с
+            форматом ЕИС (tenderPlan2020)
           </p>
         </div>
-
-        <div className={block("header-actions")}>
-          <button
-            type="button"
-            className={block("back")}
-            onClick={() =>
-              navigate(isEdit && id ? `/purchase-plans/${id}` : "/purchase-plans")
-            }
-          >
-            ← {isEdit ? "В карточку плана-графика" : "К списку планов-графиков"}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={block("back")}
+          onClick={() => navigate("/purchase-plans")}
+        >
+          ← К списку планов-графиков
+        </button>
       </header>
 
       <FormProvider {...methods}>
         <form className={block("form")} onSubmit={handleSubmit(onSubmit)}>
-          {/* Раздел 1: Общие сведения плана-графика */}
-          <section className={block("section")}>
-            <h2 className={block("section-title")}>
-              1. Общие сведения о плане-графике
-            </h2>
+          <fieldset className={block("section")}>
+            <div className={block("section-head")}>
+              <h2 className={block("section-title")}>
+                1. Сведения о плане-графике
+              </h2>
+            </div>
+
             <div className={block("grid")}>
               <div className={block("field")}>
                 <label
@@ -357,18 +341,19 @@ export default function PurchasePlanForm() {
               />
               <CustomInput
                 configuration={{
-                  label: { value: "Дата направления на контроль (ч. 5 ст. 99)" },
+                  label: {
+                    value: "Дата направления на контроль (ч. 5 ст. 99)",
+                  },
                   input: { name: "directDate", type: "date" },
                 }}
               />
             </div>
-          </section>
+          </fieldset>
 
-          {/* Раздел 2: Сведения о заказчике */}
-          <section className={block("section")}>
-            <h2 className={block("section-title")}>
-              2. Сведения о заказчике
-            </h2>
+          <fieldset className={block("section")}>
+            <div className={block("section-head")}>
+              <h2 className={block("section-title")}>2. Сведения о заказчике</h2>
+            </div>
 
             {isEdit && isPlanLoadError && (
               <p className={block("hint", ["warning"])}>
@@ -393,43 +378,74 @@ export default function PurchasePlanForm() {
 
             {canSave && (
               <>
-                <dl className={block("dl")}>
-                  <div className={block("dl-row")}>
-                    <dt>Полное наименование</dt>
-                    <dd>{customer.fullName}</dd>
-                  </div>
-                  <div className={block("dl-row")}>
-                    <dt>Краткое наименование</dt>
-                    <dd>{customer.shortName || "—"}</dd>
-                  </div>
-                  <div className={block("dl-row")}>
-                    <dt>ИНН / КПП</dt>
-                    <dd className={block("mono")}>
+                <ul className={block("customer")}>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Полное наименование
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.fullName}
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Краткое наименование
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.shortName || "—"}
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>ИНН / КПП</span>
+                    <span className={block("customer-value")}>
                       {customer.inn} / {customer.kpp || "—"}
-                    </dd>
-                  </div>
-                  <div className={block("dl-row")}>
-                    <dt>Юридический адрес</dt>
-                    <dd>{customer.legalAddress || "—"}</dd>
-                  </div>
-                  <div className={block("dl-row")}>
-                    <dt>Ответственный за планирование</dt>
-                    <dd>
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Юридический адрес
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.legalAddress || "—"}
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Ответственный за планирование
+                    </span>
+                    <span className={block("customer-value")}>
                       {customer.responsiblePerson || "—"}
                       {customer.responsiblePhone
                         ? ` (${customer.responsiblePhone})`
                         : ""}
-                    </dd>
-                  </div>
-                  <div className={block("dl-row")}>
-                    <dt>Код по СПЗ / ОКТМО (ЕИС 17.0)</dt>
-                    <dd className={block("mono")}>
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      ОКОПФ / ОКФС
+                    </span>
+                    <span className={block("customer-value")}>
+                      {customer.okopf || "—"} / {customer.okfs || "—"}
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Код по СПЗ / ОКТМО (ЕИС 17.0)
+                    </span>
+                    <span className={block("customer-value")}>
                       {customer.regNum || customer.consRegistryNum || "—"} /{" "}
                       {customer.oktmo || "—"}
-                    </dd>
-                  </div>
-                </dl>
-
+                    </span>
+                  </li>
+                  <li className={block("customer-item")}>
+                    <span className={block("customer-label")}>
+                      Единица измерения (ОКЕИ)
+                    </span>
+                    <span className={block("customer-value")}>
+                      {okeiCode || "383"} — {okeiName || "рубль"}
+                    </span>
+                  </li>
+                </ul>
                 <div className={block("grid")}>
                   <CustomInput
                     configuration={{
@@ -468,27 +484,109 @@ export default function PurchasePlanForm() {
                 </p>
               </>
             )}
-          </section>
+          </fieldset>
 
-          {/* Раздел 3: Позиции плана-графика */}
-          <section className={block("section")}>
+          {ownerRole === "OA" && (
+            <fieldset className={block("section")}>
+              <div className={block("section-head")}>
+                <h2 className={block("section-title")}>
+                  Организация, которой переданы полномочия заказчика
+                </h2>
+              </div>
+              <div className={block("grid")}>
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value: "Полное наименование организации",
+                    },
+                    input: {
+                      name: "authorizedOrganization.fullName",
+                      placeholder: "Государственное бюджетное учреждение «...»",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "ИНН организации" },
+                    input: {
+                      name: "authorizedOrganization.inn",
+                      placeholder: "0000000000",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "КПП организации" },
+                    input: {
+                      name: "authorizedOrganization.kpp",
+                      placeholder: "000000000",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: {
+                      value:
+                        "Место нахождения, телефон, адрес электронной почты",
+                    },
+                    input: {
+                      name: "authorizedOrganization.legalAddress",
+                      placeholder: "Адрес местонахождения организации",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Телефон организации" },
+                    input: {
+                      name: "authorizedOrganization.phone",
+                      placeholder: "8-000-000-00-00",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Адрес электронной почты организации" },
+                    input: {
+                      name: "authorizedOrganization.email",
+                      placeholder: "org@example.ru",
+                    },
+                  }}
+                />
+                <CustomInput
+                  configuration={{
+                    label: { value: "Код ОКТМО организации" },
+                    input: {
+                      name: "authorizedOrganization.oktmo",
+                      placeholder: "00000000",
+                    },
+                  }}
+                />
+              </div>
+              {errorMessage("authorizedOrganization") && (
+                <p className={block("error")}>
+                  {errorMessage("authorizedOrganization")}
+                </p>
+              )}
+              <p className={block("hint")}>
+                Заполняется по пункту 14, подпункту «ж» Положения N 1279, если
+                план-график формирует бюджетное, автономное учреждение,
+                унитарное предприятие или иное юридическое лицо, которому
+                переданы полномочия заказчика.
+              </p>
+            </fieldset>
+          )}
+
+          <fieldset className={block("section")}>
             <div className={block("section-head")}>
-              <h2 className={block("section-title", ["inline"])}>
-                3. Позиции плана-графика ({positions.fields.length})
+              <h2 className={block("section-title")}>
+                3. Записи плана-графика ({positions.fields.length})
               </h2>
-              <button
-                type="button"
-                className={block("add-button")}
-                onClick={() => positions.append(emptyPurchasePlanPosition())}
-              >
-                + Добавить позицию
-              </button>
             </div>
 
             {positions.fields.length === 0 && (
               <p className={block("hint")}>
-                Позиции плана-графика не внесены — добавьте закупку кнопкой
-                выше.
+                Записи плана-графика не внесены — добавьте закупку кнопкой ниже.
               </p>
             )}
 
@@ -503,14 +601,14 @@ export default function PurchasePlanForm() {
                 <li key={field.id} className={block("position")}>
                   <div className={block("position-header")}>
                     <span className={block("position-title")}>
-                      Позиция № {index + 1}
+                      Запись плана-графика № {index + 1}
                     </span>
                     <button
                       type="button"
                       className={block("remove-button")}
                       onClick={() => positions.remove(index)}
                     >
-                      Удалить позицию
+                      Удалить запись
                     </button>
                   </div>
 
@@ -557,71 +655,70 @@ export default function PurchasePlanForm() {
                       )}
                     </div>
 
-                    <div className={block("field", ["okpd2"])}>
-                      <label className={block("checkbox")}>
-                        <input
-                          type="checkbox"
-                          {...register(
-                            `positions.${index}.isPublicDiscussionRequired`,
-                          )}
-                        />
-                        Закупка подлежит обязательному общественному обсуждению
-                        (ст. 20 44-ФЗ)
-                      </label>
-                    </div>
+                    <label className={block("checkbox")}>
+                      <input
+                        type="checkbox"
+                        {...register(
+                          `positions.${index}.isPublicDiscussionRequired`,
+                        )}
+                      />
+                      Закупка подлежит обязательному общественному обсуждению
+                    </label>
                   </div>
                 </li>
               ))}
             </ul>
-          </section>
+
+            <button
+              type="button"
+              className={block("add-button")}
+              onClick={() => positions.append(emptyPurchasePlanPosition())}
+            >
+              Добавить запись плана-графика
+            </button>
+          </fieldset>
 
           <footer className={block("footer")}>
-            <div className={block("footer-info")}>
-              {needsContractService && (
-                <span className={block("error")}>
-                  Укажите, каким образом создана контрактная служба (п. 2.1
-                  Типового положения, приказ Минфина России от 31.07.2020 N 158н)
-                  — до этого план-график сохранить нельзя.{" "}
-                  <button
-                    type="button"
-                    className={block("inline-link")}
-                    onClick={() => navigate("/contract-service")}
-                  >
-                    Указать способ
-                  </button>
-                </span>
-              )}
-              {mutationError && (
-                <span className={block("error")}>
-                  Не удалось сохранить план-график: {String(mutationError)}
-                </span>
-              )}
-              {isEdit && (
-                <label className={block("checkbox")}>
-                  <input
-                    type="checkbox"
-                    checked={saveVersionSnapshot}
-                    onChange={(e) => setSaveVersionSnapshot(e.target.checked)}
-                  />
-                  Сохранить снимок текущей редакции в историю версий
-                </label>
-              )}
-            </div>
-
+            {needsContractService && (
+              <span className={block("error")}>
+                Укажите, каким образом создана контрактная служба (п. 2.1
+                Типового положения, приказ Минфина России от 31.07.2020 N 158н)
+                — до этого план-график сохранить нельзя.{" "}
+                <button
+                  type="button"
+                  className={block("cancel-button")}
+                  onClick={() => navigate("/contract-service")}
+                >
+                  Указать способ
+                </button>
+              </span>
+            )}
+            {mutationError && (
+              <span className={block("error")}>
+                Не удалось сохранить план-график: {String(mutationError)}
+              </span>
+            )}
+            {isEdit && (
+              <label className={block("checkbox")}>
+                <input
+                  type="checkbox"
+                  checked={saveVersionSnapshot}
+                  onChange={(e) => setSaveVersionSnapshot(e.target.checked)}
+                />
+                Сохранить снимок текущей редакции в историю версий
+              </label>
+            )}
             <div className={block("footer-actions")}>
               <button
                 type="button"
                 className={block("cancel-button")}
-                onClick={() =>
-                  navigate(
-                    isEdit && id ? `/purchase-plans/${id}` : "/purchase-plans",
-                  )
-                }
+                onClick={() => navigate("/purchase-plans")}
               >
                 Отмена
               </button>
               <button
                 type="submit"
+                className={block("submit-button")}
                 disabled={isPending || createVersion.isPending || !canSave}
               >
                 {isPending ? "Сохранение..." : "Сохранить план-график"}

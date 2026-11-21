@@ -1,50 +1,150 @@
 @import "variables";
 
-// Карточка позиции плана-графика — страница в духе формы ЕИС
-// «Общие сведения позиции»: без модального окна, с таблицами граф.
+// Карточка позиции плана-графика в визуальном стандарте ЕИС (pg2020):
+// табличная точность, tabular-nums, выровненные горизонтальные строки сумм
+// и работа в обеих темах (_themes.scss).
+
 .position-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  padding: 20px 22px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-panel);
 
-  &__header {
+  &__breadcrumbs {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
   }
 
-  &__back {
-    align-self: flex-start;
+  &__crumb {
     padding: 0;
     border: none;
     background: none;
+    font-family: inherit;
     font-size: 13px;
-    color: var(--text-secondary);
+    color: var(--accent);
     cursor: pointer;
+    text-decoration: none;
 
     &:hover {
-      color: var(--accent);
+      text-decoration: underline;
     }
   }
 
-  &__title {
-    margin: 6px 0 0;
-    font-size: 20px;
+  &__crumb-sep {
+    color: var(--border-strong);
+  }
+
+  &__crumb-current {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  // Карточка шапки в духе cardMainInfo на ЕИС
+  &__eis-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-panel);
+  }
+
+  &__eis-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1 1 520px;
+  }
+
+  &__eis-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 11px;
     font-weight: 600;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    white-space: nowrap;
+
+    &--placed {
+      background: var(--state-success-soft);
+      border-color: var(--state-success);
+    }
+
+    &--changed {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent-emphasis);
+    }
+
+    &--cancelled {
+      background: var(--state-danger-soft);
+      border-color: var(--state-danger);
+      color: var(--state-danger);
+    }
+  }
+
+  &__meta-sep {
+    color: var(--border-strong);
+  }
+
+  &__meta-text {
+    color: var(--text-secondary);
+  }
+
+  &__title {
+    margin: 2px 0 0;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
     color: var(--text-primary);
   }
 
   &__caption {
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.4;
     color: var(--text-secondary);
+  }
+
+  &__back,
+  &__back-btn {
+    padding: 7px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--surface-raised);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
   }
 
   &__form {
@@ -53,106 +153,151 @@
     gap: 16px;
   }
 
+  // Секция карточки ЕИС (blockInfo)
   &__section {
     margin: 0;
-    padding: 14px;
+    padding: 18px 22px;
     border: 1px solid var(--border);
-    border-radius: 10px;
-
-    legend {
-      padding: 0 8px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--text-secondary);
-    }
+    border-radius: 4px;
+    background: var(--surface-panel);
+    min-width: 0;
   }
 
-  // Сетка граф «Сведения о закупке»: как таблица формы ЕИС
+  &__section-head {
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  // Сетка граф внутри раздела в виде чёткой таблицы ЕИС
   &__fields {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0;
     border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
+
+    @media (max-width: 820px) {
+      grid-template-columns: 1fr;
+    }
   }
 
   &__cell {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-right: 1px solid var(--border);
     border-bottom: 1px solid var(--border);
 
-    &--wide {
-      grid-column: 1 / -1;
-    }
-
+    &--wide,
     &--okpd2 {
       grid-column: 1 / -1;
     }
 
+    &--row-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      vertical-align: middle;
+      background: var(--surface-raised);
+    }
+
+    &--money {
+      vertical-align: top;
+      padding: 6px 8px;
+    }
+
+    &--action {
+      text-align: center;
+      vertical-align: middle;
+    }
+
     &--right {
       text-align: right;
-      justify-content: center;
+      font-weight: 600;
+      color: var(--text-secondary);
+      vertical-align: middle;
+      background: var(--surface-raised);
     }
 
     &--total {
-      justify-content: center;
-      font-weight: 600;
+      text-align: right;
+      vertical-align: middle;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
       color: var(--text-primary);
+      background: var(--surface-raised);
     }
   }
 
   &__label {
     font-size: 12px;
-    line-height: 1.3;
+    font-weight: 600;
+    line-height: 1.35;
     color: var(--text-secondary);
   }
 
+  &__subcontrol {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
   &__input {
-    padding: 7px 10px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 6px 10px;
     font-family: inherit;
     font-size: 13px;
     color: var(--text-primary);
     background: var(--surface-field);
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 4px;
 
     &:focus-visible {
       outline: 1px solid var(--accent);
       border-color: var(--accent);
     }
 
-    // Значение выдаёт система — редактировать его нельзя
-    &--readonly {
+    &--mono {
       font-family: "Courier New", monospace;
-      background: var(--stripe);
-      color: var(--text-secondary);
-      cursor: default;
+      font-variant-numeric: tabular-nums;
     }
 
-    // Заблокированное поле остаётся читаемым: значение показывает система
-    &:disabled {
+    &--readonly {
       background: var(--stripe);
-      color: var(--text-secondary);
+      color: var(--text-primary);
+      font-family: "Courier New", monospace;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
       cursor: default;
       opacity: 1;
     }
   }
 
-  // Значение, которое выдаёт система: номер позиции показывается текстом,
-  // пока его нет — подсказка о формировании при первом сохранении
   &__value {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-primary);
 
     &--mono {
       font-family: "Courier New", monospace;
-      letter-spacing: 0.02em;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.03em;
     }
 
     &--muted {
@@ -162,13 +307,20 @@
   }
 
   &__select {
-    padding: 7px 10px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 34px;
+    padding: 6px 10px;
     font-family: inherit;
     font-size: 13px;
     color: var(--text-primary);
     background: var(--surface-field);
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 4px;
+
+    &--compact {
+      max-width: 320px;
+    }
 
     &:focus-visible {
       outline: 1px solid var(--accent);
@@ -182,11 +334,11 @@
     padding: 8px 10px;
     font-family: inherit;
     font-size: 13px;
-    line-height: 1.4;
+    line-height: 1.45;
     color: var(--text-primary);
     background: var(--surface-field);
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 4px;
     resize: vertical;
 
     &:focus-visible {
@@ -195,43 +347,61 @@
     }
   }
 
-  &__link {
-    align-self: flex-start;
-    padding: 0;
-    border: none;
-    background: none;
-    font-size: 12px;
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: underline;
-
-    &:hover {
-      color: var(--accent-hover);
-    }
-  }
-
   &__hint {
-    margin: 8px 0 0;
+    margin: 4px 0 0;
     font-size: 12px;
-    line-height: 1.35;
+    line-height: 1.4;
     color: var(--text-secondary);
 
     &--norm {
       display: block;
-      margin: 4px 0 0;
-      color: var(--state-warning);
+      margin: 6px 0 0;
+      padding: 6px 10px;
+      border: 1px solid var(--state-warning);
+      border-radius: 4px;
+      background: var(--state-warning-soft);
+      color: var(--text-primary);
     }
   }
 
-  // Таблицы граф: объём финансового обеспечения и детализация по КБК
+  // Шапка блока ИКЗ и нередактируемый 36-значный код
+  &__ikz-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__ikz-code-preview {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface-raised);
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+  }
+
+  // Таблицы граф: ИКЗ, объём финансового обеспечения (в ровную строку),
+  // детализация по КБК / КВР / КОКС
   &__table-wrap {
+    width: 100%;
     overflow-x: auto;
   }
 
-  // Заголовок первой графы объёма финансового обеспечения — в такой же
-  // рамке, как и соседние ячейки
   &__th--first {
+    text-align: left !important;
+    vertical-align: middle !important;
     border: 1px solid var(--border);
+  }
+
+  &__th--sub {
+    font-weight: 500 !important;
+    font-size: 11px !important;
   }
 
   &__table {
@@ -240,13 +410,15 @@
     font-size: 12px;
 
     th {
-      padding: 6px 8px;
+      padding: 7px 8px;
+      font-size: 11px;
       font-weight: 600;
       text-align: center;
-      vertical-align: bottom;
+      vertical-align: middle;
       color: var(--text-secondary);
       border: 1px solid var(--border);
       background: var(--surface-raised);
+      line-height: 1.3;
     }
 
     td {
@@ -255,127 +427,181 @@
       border: 1px solid var(--border);
     }
 
-    input {
+    // Нормализация CustomInput внутри всех таблиц, чтобы суммы стояли
+    // строго в одну ровную горизонтальную строку одинаковой высоты
+    :global(.custom-input) {
+      gap: 3px;
+    }
+
+    :global(.custom-input__input) {
+      box-sizing: border-box;
       width: 100%;
       min-width: 0;
+      height: 34px;
       padding: 6px 8px;
-      font-family: inherit;
-      font-size: 12px;
-      color: var(--text-primary);
-      background: var(--surface-field);
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-
-      &:focus-visible {
-        outline: 1px solid var(--accent);
-        border-color: var(--accent);
-      }
-
-      // Разряды ИКЗ показывает система — поля заблокированы, но читаемы
-      &:disabled {
-        background: var(--stripe);
-        color: var(--text-secondary);
-        cursor: default;
-        opacity: 1;
-      }
+      font-size: 13px;
+      line-height: 1.3;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      border-radius: 4px;
+      box-shadow: none;
     }
-  }
 
-  // Подблок внутри раздела: детализация по КБК и КОКС внутри объёма
-  // финансового обеспечения
-  &__subblock {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--border);
-  }
-
-  &__subtitle {
-    margin: 0 0 8px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-secondary);
-  }
-
-  &__th {
-    &--sub {
-      font-weight: 400;
-      font-size: 11px;
-    }
-  }
-
-  // Таблица разрядов ИКЗ: 6 граф, значения только для чтения.
-  // Шапка не переносится: при нехватке места таблица прокручивается
-  // по горизонтали (обёртка table-wrap), а не растягивается в высоту
-  &__table--ikz {
-    min-width: 100%;
-
-    th {
-      padding: 4px 6px;
+    :global(.custom-input__error) {
       font-size: 11px;
       line-height: 1.25;
+    }
+  }
+
+  // Таблица ИКЗ: 6 разрядов без переносов и ручного ввода
+  &__table--ikz {
+    min-width: 720px;
+
+    th {
+      padding: 6px;
+      font-size: 11px;
       white-space: nowrap;
     }
 
     td {
-      height: 34px;
+      height: 36px;
       white-space: nowrap;
-    }
-
-    input {
-      text-align: center;
     }
   }
 
-  // Ширины разрядов КБК — по содержимому графы
+  // Объём финансового обеспечения: фиксированная сетка на 1 строку —
+  // колонка названия + 5 равных граф по годам
+  &__table--amounts {
+    table-layout: fixed;
+    min-width: 820px;
+
+    th,
+    td {
+      vertical-align: top;
+    }
+
+    thead th {
+      vertical-align: middle;
+    }
+  }
+
+  &__table--kbk,
+  &__table--kvr,
+  &__table--koks {
+    table-layout: fixed;
+    min-width: 920px;
+  }
+
   &__col {
-    // Ширины граф ИКЗ пропорциональны числу символов: 2 / 20 / 4 / 3 / 4 / 3
     &--ikz-year {
       width: 6ch;
     }
 
     &--ikz-customer {
-      width: 22ch;
+      width: 24ch;
     }
 
     &--ikz-purchase {
-      width: 8ch;
+      width: 10ch;
     }
 
     &--ikz-order {
-      width: 8ch;
+      width: 9ch;
     }
 
     &--ikz-okpd2 {
-      width: 8ch;
+      width: 9ch;
     }
 
     &--ikz-kvr {
-      width: 8ch;
+      width: 9ch;
     }
+
+    &--amount-label {
+      width: 170px;
+    }
+
+    &--amount-value {
+      width: auto;
+    }
+
     &--chapter {
-      width: 64px;
+      width: 66px;
     }
 
     &--section {
-      width: 96px;
+      width: 92px;
     }
 
     &--target {
-      width: 136px;
+      width: 132px;
     }
 
     &--expense {
-      width: 84px;
+      width: 82px;
+    }
+
+    &--koks-code {
+      width: 220px;
+    }
+
+    &--kbk-money {
+      width: 112px;
     }
 
     &--action {
-      width: 92px;
+      width: 84px;
     }
   }
 
-  // Ряд дополнительного кода ОКПД2: селект и кнопка «Убрать»
+  // Подблоки внутри объединённого 4-го раздела
+  &__subblock {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+
+    &--first {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+  }
+
+  &__subtitle {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  // Блок сведений об изменении / отмене позиции (только при !isNew)
+  &__mod-box {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-raised);
+  }
+
+  &__mod-title {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  &__koks-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__koks-name {
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-secondary);
+  }
+
   &__okpd2-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -384,46 +610,20 @@
     margin-top: 8px;
   }
 
-  &__kbk-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 0 0 10px;
-    padding: 0;
-    list-style: none;
-  }
-
-  &__kbk-row {
-    display: grid;
-    grid-template-columns: minmax(200px, 1.2fr) minmax(0, 3fr) auto;
-    // Поля кода и сумм стоят на одной линии: подписи есть в каждой строке
-    align-items: start;
-    gap: 10px;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface-raised);
-  }
-
-  &__kbk-code {
-    min-width: 0;
-  }
-
-  &__kbk-amounts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: 8px;
-    min-width: 0;
+  &__inline-actions {
+    margin-top: 6px;
   }
 
   &__add,
   &__pick,
   &__remove {
     padding: 6px 12px;
+    font-family: inherit;
     font-size: 12px;
+    font-weight: 500;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
-    background: transparent;
+    border-radius: 4px;
+    background: var(--surface-raised);
     color: var(--text-primary);
     cursor: pointer;
     white-space: nowrap;
@@ -436,7 +636,6 @@
 
   &__pick {
     align-self: flex-start;
-    margin-top: 4px;
     color: var(--accent);
     border-color: var(--accent);
   }
@@ -444,10 +643,42 @@
   &__remove {
     color: var(--state-danger);
     border-color: var(--state-danger);
+    background: transparent;
 
     &:hover:not(:disabled) {
       background: var(--state-danger-soft);
       color: var(--state-danger);
+    }
+  }
+
+  // Единый блок признаков и общественного обсуждения внутри раздела 4
+  &__flags-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-raised);
+  }
+
+  &__discussion-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  &__flags-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+
+    @media (max-width: 760px) {
+      grid-template-columns: 1fr;
     }
   }
 
@@ -456,10 +687,16 @@
     align-items: flex-start;
     gap: 8px;
     font-size: 13px;
+    line-height: 1.35;
     color: var(--text-primary);
+    cursor: pointer;
+
+    input[type="checkbox"] {
+      margin-top: 2px;
+      flex: none;
+    }
   }
 
-  // Радиокнопки решения по позиции: изменение / отмена закупки
   &__radio-row {
     display: flex;
     flex-wrap: wrap;
@@ -472,9 +709,12 @@
     gap: 6px;
     font-size: 13px;
     color: var(--text-primary);
+    cursor: pointer;
   }
 
   &__error {
+    display: block;
+    margin-top: 4px;
     font-size: 12px;
     color: var(--state-danger);
   }
@@ -484,9 +724,11 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
+    gap: 12px;
+    padding: 14px 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-panel);
   }
 
   &__footer-actions {
@@ -494,43 +736,53 @@
     flex-wrap: wrap;
     gap: 8px;
     margin-left: auto;
+  }
 
-    button {
-      padding: 8px 14px;
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
-      background: transparent;
-      font-size: 13px;
-      color: var(--text-primary);
-      cursor: pointer;
+  &__cancel,
+  &__submit,
+  &__danger {
+    padding: 8px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--surface-raised);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
 
-      &:hover:not(:disabled) {
-        border-color: var(--accent);
-        color: var(--accent);
-      }
-
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
-    button[type="submit"] {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: var(--text-on-accent);
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
 
-      &:hover:not(:disabled) {
-        background: var(--accent-hover);
-        border-color: var(--accent-hover);
-        color: var(--text-on-accent);
-      }
+  &__submit {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      color: var(--text-on-accent);
     }
   }
 
   &__danger {
     color: var(--state-danger);
     border-color: var(--state-danger);
+    background: transparent;
+
+    &:hover:not(:disabled) {
+      background: var(--state-danger-soft);
+      color: var(--state-danger);
+    }
   }
 
   &__status {

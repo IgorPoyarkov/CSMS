@@ -1,54 +1,35 @@
 @import "variables";
 
+// Реестр планов-графиков закупок в стилистике ЕИС (pg2020)
 .purchase-plan-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  font-variant-numeric: tabular-nums;
+  width: 100%;
 
-  // Хлебные крошки ЕИС
   &__breadcrumbs {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 13px;
-    line-height: 1.4;
     color: var(--text-secondary);
   }
 
-  &__crumb {
-    color: var(--accent);
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-
-    &--current {
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
+  &__crumb-current {
+    color: var(--text-primary);
+    font-weight: 500;
   }
 
-  &__crumb-sep {
-    color: var(--border-strong);
-  }
-
-  // Шапка реестра
   &__header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 14px 20px;
-    align-items: start;
-    padding: 20px 24px;
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
     background: var(--surface-panel);
-
-    @media (max-width: 780px) {
-      grid-template-columns: 1fr;
-    }
   }
 
   &__header-info {
@@ -58,24 +39,21 @@
     min-width: 0;
   }
 
-  &__eyebrow {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-  }
-
   &__title {
     margin: 0;
-    font-size: 22px;
+    font-size: 21px;
     font-weight: 700;
-    line-height: 1.25;
     color: var(--text-primary);
   }
 
-  &__current-organization {
+  &__summary {
     margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  &__current-organization {
+    margin: 0;
     font-size: 13px;
     color: var(--text-secondary);
   }
@@ -91,21 +69,18 @@
     padding: 8px 14px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
-    background: var(--surface-panel);
-    font-weight: 500;
+    background: var(--surface-raised);
+    font-family: inherit;
+    font-weight: 600;
     font-size: 13px;
     color: var(--text-primary);
+    white-space: nowrap;
     cursor: pointer;
-    transition:
-      background-color $transition-300,
-      border-color $transition-300,
-      color $transition-300;
 
     &:hover:not(:disabled),
     &:focus-visible:not(:disabled) {
       border-color: var(--accent);
       color: var(--accent);
-      background: var(--surface-raised);
     }
 
     &:disabled {
@@ -119,13 +94,12 @@
     border: 1px solid var(--accent);
     border-radius: 4px;
     background: var(--accent);
+    font-family: inherit;
     font-weight: 600;
     font-size: 13px;
     color: var(--text-on-accent);
+    white-space: nowrap;
     cursor: pointer;
-    transition:
-      background-color $transition-300,
-      border-color $transition-300;
 
     &:hover:not(:disabled),
     &:focus-visible:not(:disabled) {
@@ -139,55 +113,25 @@
     }
   }
 
-  // Сводная полоса показателей реестра
-  &__kpi-strip {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 10px 18px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  &__kpi-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  &__kpi-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text-secondary);
-  }
-
-  &__kpi-value {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
   &__status {
     margin: 0;
     padding: 12px 16px;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     background: var(--surface-panel);
-    font-size: 13.5px;
+    font-size: 14px;
     color: var(--text-secondary);
 
     &--error {
+      color: var(--state-danger);
       border-color: var(--state-danger);
       background: var(--state-danger-soft);
-      color: var(--state-danger);
     }
 
     &--warning {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       border-color: var(--state-warning);
       background: var(--state-warning-soft);
@@ -215,30 +159,29 @@
     }
   }
 
-  // Основная панель с фильтрами и таблицей
-  &__panel {
+  &__registry-panel {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 18px 22px;
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    gap: 12px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
     background: var(--surface-panel);
   }
 
   &__toolbar {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
   }
 
   &__search {
-    flex: 1 1 280px;
-    min-width: 220px;
-    padding: 7px 10px;
+    width: 100%;
+    height: 36px;
+    padding: 6px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
+    font-family: inherit;
     font-size: 13px;
     background: var(--surface-field);
     color: var(--text-primary);
@@ -248,22 +191,7 @@
     }
 
     &:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-  }
-
-  &__filter-select {
-    padding: 7px 10px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 13px;
-    background: var(--surface-field);
-    color: var(--text-primary);
-
-    &:focus {
-      outline: none;
+      outline: 1px solid var(--accent);
       border-color: var(--accent);
     }
   }
@@ -285,39 +213,21 @@
     td {
       padding: 9px 10px;
       text-align: left;
-      vertical-align: top;
+      vertical-align: middle;
       border: 1px solid var(--border);
     }
 
     th {
       font-size: 11px;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
+      text-align: center;
       color: var(--text-secondary);
       background: var(--surface-raised);
-      vertical-align: middle;
     }
-  }
 
-  &__row-striped td {
-    background: var(--stripe);
-  }
-
-  &__th-amount {
-    text-align: right !important;
-  }
-
-  &__td-center {
-    text-align: center !important;
-    white-space: nowrap;
-  }
-
-  &__td-amount {
-    text-align: right !important;
-    white-space: nowrap;
-    font-size: 13.5px;
-    color: var(--text-primary);
+    tbody tr:nth-child(even) {
+      background: var(--stripe);
+    }
   }
 
   &__number {
@@ -325,24 +235,16 @@
     border: none;
     background: none;
     font-family: "Courier New", monospace;
+    font-size: 13px;
     font-weight: 700;
-    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
     color: var(--accent);
-    text-decoration: underline;
     cursor: pointer;
+    text-decoration: underline;
 
     &:hover {
       color: var(--accent-hover);
     }
-  }
-
-  &__sub-note {
-    display: block;
-    margin-top: 3px;
-    font-size: 11.5px;
-    line-height: 1.35;
-    color: var(--text-secondary);
-    max-width: 240px;
   }
 
   &__customer {
@@ -354,41 +256,30 @@
   &__requisites {
     display: block;
     margin-top: 2px;
-    font-size: 11.5px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
     color: var(--text-secondary);
   }
 
-  &__status-col,
-  &__dates-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
-    font-size: 12px;
+  &__num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  // Прямоугольный статусный индикатор ЕИС
   &__status-tag {
-    display: inline-flex;
-    align-items: center;
+    display: inline-block;
     padding: 2px 8px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
     font-size: 11px;
     font-weight: 600;
-    white-space: nowrap;
     background: var(--surface-raised);
     color: var(--text-primary);
-
-    &--draft {
-      border-color: var(--border-strong);
-      color: var(--text-secondary);
-    }
+    white-space: nowrap;
 
     &--published {
       background: var(--state-success-soft);
       border-color: var(--state-success);
-      color: var(--state-success);
     }
 
     &--changed {
@@ -404,24 +295,6 @@
     }
   }
 
-  &__pos-link {
-    display: inline-block;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--surface-raised);
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--accent);
-    cursor: pointer;
-
-    &:hover {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-    }
-  }
-
-  // Меню действий
   &__menu {
     position: relative;
     display: inline-block;
@@ -434,15 +307,12 @@
     padding: 5px 10px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
-    background: var(--surface-panel);
+    background: var(--surface-raised);
     font-size: 12px;
     color: var(--text-primary);
     white-space: nowrap;
     cursor: pointer;
     list-style: none;
-    transition:
-      border-color $transition-300,
-      color $transition-300;
 
     &::-webkit-details-marker {
       display: none;
@@ -468,7 +338,7 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
-    min-width: 210px;
+    min-width: 160px;
     padding: 4px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
@@ -481,7 +351,8 @@
     border: none;
     border-radius: 3px;
     background: transparent;
-    font-size: 12.5px;
+    font-family: inherit;
+    font-size: 13px;
     text-align: left;
     color: var(--text-primary);
     white-space: nowrap;
@@ -494,6 +365,11 @@
 
     &--danger {
       color: var(--state-danger);
+
+      &:hover:not(:disabled) {
+        background: var(--state-danger-soft);
+        color: var(--state-danger);
+      }
     }
 
     &:disabled {
@@ -518,7 +394,7 @@
   }
 
   &__pager__button {
-    padding: 5px 12px;
+    padding: 6px 12px;
     border: 1px solid var(--border-strong);
     border-radius: 4px;
     background: var(--surface-raised);
@@ -532,13 +408,13 @@
     }
 
     &:disabled {
-      opacity: 0.45;
+      opacity: 0.4;
       cursor: not-allowed;
     }
   }
 
   &__pager__info {
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--text-secondary);
     white-space: nowrap;
   }
