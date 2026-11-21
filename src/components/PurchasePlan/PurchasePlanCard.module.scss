@@ -104,6 +104,13 @@
       padding: 2px 6px;
       font-size: 10px;
     }
+
+    // В таблице позиций статус показываем текстом без обводки и плашки.
+    &--plain {
+      padding: 0;
+      border: none;
+      background: none;
+    }
   }
 
   &__meta-sep {
@@ -494,7 +501,8 @@
     }
 
     th[data-col="number"] {
-      width: 90px;
+      width: 94px;
+      min-width: 94px;
       padding: 8px 6px;
       font-size: 10px;
     }
@@ -534,7 +542,19 @@
     }
 
     &--wide {
-      min-width: 240px;
+      min-width: 270px;
+    }
+
+    // Графа «Статус» и «Обязательное общественное обсуждение»:
+    // содержимое по центру и по горизонтали, и по вертикали.
+    &--middle {
+      vertical-align: middle !important;
+    }
+
+    // Графа «Наименование товара, работы, услуги по ОКПД2»: ширина под
+    // перенос длинного наименования без обрезки многоточием.
+    &--okpd2 {
+      min-width: 246px;
     }
 
     &--actions {
@@ -551,11 +571,12 @@
   }
 
   // Графа «Наименование товара, работы, услуги по ОКПД2» не должна быть
-  // шире графы «Наименование объекта закупки» (240px): длинное наименование
-  // обрезается многоточием, полный текст — в подсказке при наведении.
+  // шире графы «Наименование объекта закупки» (270px): длинное наименование
+  // переносится по словам без ограничения числа строк, поэтому высота строки
+  // определяется содержимым соседних граф.
   &__okpd2 {
     display: block;
-    max-width: 240px;
+    max-width: 270px;
   }
 
   &__okpd2-line {
@@ -586,11 +607,9 @@
     display: block;
     flex: 1 1 auto;
     min-width: 0;
-    overflow: hidden;
     color: var(--text-primary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: help;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   &__okpd2 &__code {
@@ -625,7 +644,7 @@
     font-family: "Courier New", monospace;
     font-size: 11px;
     color: var(--text-secondary);
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 
   &__sub--compact {

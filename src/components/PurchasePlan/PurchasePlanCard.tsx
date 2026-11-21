@@ -401,22 +401,17 @@ export default function PurchasePlanCard() {
           : undefined;
 
         // Наименование по ОКПД2 бывает в разы длиннее остальных граф
-        // (до 191 символа в импорте ЕИС), поэтому текст обрезается
-        // многоточием по ширине графы, а полное значение доступно
-        // во всплывающей подсказке при наведении.
-        const okpd2Title = okpd2Name || position.okpd2Code || "";
-
+        // (до 191 символа в импорте ЕИС), поэтому текст переносится по словам
+        // без ограничения числа строк: высота строки таблицы задаётся
+        // содержимым соседних граф, а не обрезкой многоточием.
         return (
           <span className={block("okpd2")}>
             {position.okpd2Code && (
               <span className={block("code")}>{position.okpd2Code}</span>
             )}
             <span className={block("okpd2-line")}>
-              <span
-                className={block("okpd2-name")}
-                title={okpd2Title || undefined}
-              >
-                {okpd2Title || "—"}
+              <span className={block("okpd2-name")}>
+                {okpd2Name || "—"}
               </span>
               {normTip && (
                 <span
@@ -452,12 +447,14 @@ export default function PurchasePlanCard() {
 
         return (
           <div className={block("status-stack")}>
-            <span className={block("status-tag", [status, "compact"])}>
+            <span
+              className={block("status-tag", [status, "compact", "plain"])}
+            >
               {positionStatusLabel(status)}
             </span>
             {position.statusDate && (
               <span className={block("sub", ["compact"])}>
-                от {formatDate(position.statusDate)}
+                {formatDate(position.statusDate)}
               </span>
             )}
             {posNotes.map((note) => (
@@ -592,9 +589,15 @@ export default function PurchasePlanCard() {
                 ...((AMOUNT_COLUMNS as readonly ColumnKey[]).includes(key)
                   ? ["amount"]
                   : []),
+                ...(key === "okpd2Code" ? ["okpd2"] : []),
                 ...(key === "objectOfPurchase" || key === "okpd2Code"
                   ? []
                   : ["center"]),
+                // Статус и «Обязательное общественное обсуждение» —
+                // по центру и по горизонтали, и по вертикали.
+                ...(key === "status" || key === "isPublicDiscussionRequired"
+                  ? ["middle"]
+                  : []),
               ])}
             >
               {renderCell(key, position)}
