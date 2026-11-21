@@ -1162,7 +1162,8 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   modificationStatus: "N",
   changeReasonCode: "",
   changeReasonName: "",
-  modificationDecision: "notSpecified",
+  // notSpecified («новая позиция») в XSD сохранён, но в выгрузку не пишется
+  modificationDecision: "purchaseChanged",
   modificationDescription: "",
 });
 

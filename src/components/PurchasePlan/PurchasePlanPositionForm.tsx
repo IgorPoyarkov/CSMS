@@ -211,7 +211,15 @@ export default function PurchasePlanPositionForm({
       purchaseOrderNumber: position.purchaseOrderNumber || "000",
       status: position.status ?? "planned",
       modificationStatus: isNew ? "N" : "E",
-      modificationDecision: position.modificationDecision ?? "notSpecified",
+      // «Не указано (новая позиция)» — архаизм XSD: блок изменения виден только
+      // у существующих позиций, поэтому по умолчанию уже выбранное решение
+      modificationDecision:
+        position.modificationDecision &&
+        position.modificationDecision !== "notSpecified"
+          ? position.modificationDecision
+          : position.status === "cancelled"
+            ? "purchaseCanceled"
+            : "purchaseChanged",
       hasAuthorizedBody: Boolean(position.hasAuthorizedBody),
       hasJointOrganizer: Boolean(position.hasJointOrganizer),
       kbkEntries: initialKbkEntries,

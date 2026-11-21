@@ -143,6 +143,19 @@ export const EIS_TP_POSITION_DECISIONS = [
 ] as const;
 export type EisTpPositionDecision = (typeof EIS_TP_POSITION_DECISIONS)[number];
 
+// notSpecified («не указано, новая позиция») — архаизм XSD: блок сведений
+// об изменении выгружается только для существующих позиций, поэтому вместо
+// него всегда пишем конкретное решение, в том числе для старых данных
+const decisionOf = (
+  value: string | undefined,
+  cancelled: boolean,
+): "purchaseChanged" | "purchaseCanceled" =>
+  value && value !== "notSpecified"
+    ? (value as "purchaseChanged" | "purchaseCanceled")
+    : cancelled
+      ? "purchaseCanceled"
+      : "purchaseChanged";
+
 export interface EisTenderPlan2020FinanceResources {
   total: number;
   currentYear: number;
@@ -792,13 +805,10 @@ export const mapPurchasePlanToEis17 = (
         ? {
             changeReasonCode: pos.changeReasonCode || undefined,
             changeReasonName: pos.changeReasonName || undefined,
-            decision:
-              pos.modificationDecision ??
-              (pos.status === "cancelled"
-                ? "purchaseCanceled"
-                : pos.status === "changed"
-                  ? "purchaseChanged"
-                  : "notSpecified"),
+            decision: decisionOf(
+              pos.modificationDecision,
+              pos.status === "cancelled",
+            ),
             description: pos.modificationDescription || undefined,
             modificationNumber: Number(plan.versionNumber) || undefined,
           }
@@ -903,7 +913,7 @@ export const mapPurchasePlanToEis17 = (
         ? {
             changeReasonCode: sp.changeReasonCode || undefined,
             changeReasonName: sp.changeReasonName || undefined,
-            decision: sp.modificationDecision ?? "notSpecified",
+            decision: decisionOf(sp.modificationDecision, false),
             description: sp.modificationDescription || undefined,
             modificationNumber: Number(plan.versionNumber) || undefined,
           }

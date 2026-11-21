@@ -59,10 +59,12 @@ export const modificationStatusOptions: Option<"N" | "E">[] = [
   { value: "E", label: "E — Изменение сведений позиции" },
 ];
 
+// В XSD ЕИС 17.0 сохранился флаг notSpecified — он означает «новая позиция»
+// и не имеет смысла в блоке сведений об изменении: блок показываем только
+// после редактирования существующей позиции. Оставляем два реальных решения.
 export const modificationDecisionOptions: Option<
-  "notSpecified" | "purchaseChanged" | "purchaseCanceled"
+  "purchaseChanged" | "purchaseCanceled"
 >[] = [
-  { value: "notSpecified", label: "Не указано (новая позиция)" },
   { value: "purchaseChanged", label: "Изменение закупки" },
   { value: "purchaseCanceled", label: "Отмена закупки" },
 ];
