@@ -74,7 +74,10 @@ const updateContract = async ({
 }: {
   id: string | number;
 } & Partial<ContractRegistryItem>): Promise<ContractRegistryItem> => {
-  const response = await api.patch(`${CONTRACTS_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${CONTRACTS_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractRegistryItemSchema.parse(response.data);
 };
 
@@ -214,7 +217,10 @@ const updateStage = async ({
 }: {
   id: string | number;
 } & Partial<ContractStage>): Promise<ContractStage> => {
-  const response = await api.patch(`${STAGES_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${STAGES_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractStageSchema.parse(response.data);
 };
 
@@ -250,7 +256,10 @@ const updatePayment = async ({
 }: {
   id: string | number;
 } & Partial<ContractPayment>): Promise<ContractPayment> => {
-  const response = await api.patch(`${PAYMENTS_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${PAYMENTS_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractPaymentSchema.parse(response.data);
 };
 
@@ -286,7 +295,10 @@ const updatePenalty = async ({
 }: {
   id: string | number;
 } & Partial<ContractPenalty>): Promise<ContractPenalty> => {
-  const response = await api.patch(`${PENALTIES_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${PENALTIES_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractPenaltySchema.parse(response.data);
 };
 
@@ -322,7 +334,10 @@ const updateDelivery = async ({
 }: {
   id: string | number;
 } & Partial<ContractDelivery>): Promise<ContractDelivery> => {
-  const response = await api.patch(`${DELIVERIES_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${DELIVERIES_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractDeliverySchema.parse(response.data);
 };
 
@@ -355,7 +370,10 @@ const updateEvent = async ({
 }: {
   id: string | number;
 } & Partial<ContractEvent>): Promise<ContractEvent> => {
-  const response = await api.patch(`${EVENTS_ENDPOINT}/${id}`, data);
+  const response = await api.patch(
+    `${EVENTS_ENDPOINT}/${id}`,
+    omitEmptyReferences(data),
+  );
   return ContractEventSchema.parse(response.data);
 };
 

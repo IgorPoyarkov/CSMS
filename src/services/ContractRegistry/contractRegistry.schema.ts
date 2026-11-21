@@ -299,8 +299,9 @@ export const ContractRegistryItemSchema = z.object({
   organizationId: z.union([z.string(), z.number()]),
   // Ссылка на проект контракта
   contractProjectId: z.union([z.string(), z.number()]).optional(),
-  // Ссылка на закупку
-  procurementId: z.union([z.string(), z.number()]).optional(),
+  // Ссылка на закупку. Публичный импорт ЕИС не всегда знает процедуру, поэтому
+  // допускаем и явный null: json-server всё равно отдаёт его как «нет ссылки».
+  procurementId: z.union([z.string(), z.number()]).nullish(),
   // ИКЗ
   // Проверка на чтении мягкая: в уже заведённых записях встречаются неполные
   // коды (35 разрядов), и жёсткий разбор сломал бы карточку вместо того, чтобы
@@ -324,8 +325,15 @@ export const ContractRegistryItemSchema = z.object({
   contractName: requiredText(5, "Укажите наименование контракта"),
   // Заказчик
   customerName: optionalText(5, "Укажите заказчика"),
-  // Поставщик (контрагент)
-  supplierName: requiredText(5, "Укажите поставщика"),
+  // Поставщик (контрагент). В публичных карточках ЕИС поле иногда отсутствует:
+  // приводим отсутствие к пустой строке, чтобы тип оставался string для всех
+  // потребителей, а ручное заполнение по-прежнему проверялось схемой.
+  supplierName: z.preprocess(
+    (value) => value ?? "",
+    z
+      .string()
+      .refine((value) => value === "" || value.length >= 5, "Укажите поставщика"),
+  ),
   // ИНН поставщика
   supplierInn: z.string().optional(),
   // КПП поставщика

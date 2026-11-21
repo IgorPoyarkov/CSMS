@@ -46,10 +46,8 @@ export const useGetEmployeeByEmail = (email?: string) => {
       const { data } = await api.get<BaseEmployee[]>(
         `/employees?email=${email}`,
       );
-      if (data && data.length > 0) {
-        return BaseEmployeeSchema.parse(data);
-      }
-      return null;
+      // json-server возвращает массив даже для одного совпадения.
+      return BaseEmployeeSchema.array().parse(data ?? [])[0] ?? null;
     },
   });
 };

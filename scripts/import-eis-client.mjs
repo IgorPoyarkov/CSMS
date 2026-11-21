@@ -873,15 +873,16 @@ function pruneDb(db, org, employee, importedProcurementIds) {
       db[key] = [];
     }
   }
-  // Ссылок на старые демо-процедуры у части контрактов больше нет — обнуляем,
-  // чтобы в базе не осталось висячих ссылок после очистки справочников.
+  // Ссылок на старые демо-процедуры у части контрактов больше нет. Удаляем
+  // ключ целиком: json-server считает null «висячей» ссылкой и при любом DELETE
+  // пытается каскадно удалить все такие контракты.
   const valid = new Set(importedProcurementIds.map(String));
   for (const contract of db.contractRegistry) {
     if (
       contract.procurementId == null ||
       !valid.has(String(contract.procurementId))
     ) {
-      contract.procurementId = null;
+      delete contract.procurementId;
     }
   }
   return db;

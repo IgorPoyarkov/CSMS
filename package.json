@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "build": "tsc -b && npm run check:db && vite build",
+    "lint": "oxlint src",
+    "check:db": "node scripts/check-db-schema.mjs",
     "check:pp2604": "rolldown scripts/check-pp2604-rules.ts --format esm --platform node --file .tmpcheck/check-pp2604-rules.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-pp2604-rules.mjs",
     "export:pp2604-seed": "rolldown scripts/export-pp2604-seed.ts --format esm --platform node --file .tmpcheck/export-pp2604-seed.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/export-pp2604-seed.mjs",
     "preview": "vite preview",
