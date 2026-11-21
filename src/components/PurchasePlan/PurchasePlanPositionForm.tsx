@@ -17,7 +17,6 @@ import {
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import {
-  IKZ_ORDER_REFERENCE,
   PurchasePlanPositionSchema,
   buildIdentificationCode,
   buildIkzParts,
@@ -38,7 +37,6 @@ import {
   okpd2FieldLabels,
   placementYearOptions,
   positionStatusLabel,
-  publicDiscussionOptions,
   tpChangeReasonOptions,
 } from "./purchasePlan.config";
 import {
@@ -590,18 +588,6 @@ export default function PurchasePlanPositionForm({
             <span className={block("status-badge", [positionStatus])}>
               {positionStatusLabel(positionStatus)}
             </span>
-            <span className={block("meta-sep")} aria-hidden="true">
-              ·
-            </span>
-            <span className={block("meta-text")}>
-              {isNew ? "Формирование новой записи (N)" : "Редактирование позиции (E)"}
-            </span>
-            <span className={block("meta-sep")} aria-hidden="true">
-              ·
-            </span>
-            <span className={block("meta-text")}>
-              План {plan.planYear}–{plan.planPeriodSecondYear || baseYear + 2}
-            </span>
           </div>
 
           <h1 className={block("title")}>
@@ -659,12 +645,6 @@ export default function PurchasePlanPositionForm({
                     Будет сформирован при первом сохранении позиции
                   </span>
                 )}
-                <p className={block("hint")}>
-                  24 цифры: 18 цифр реестрового номера плана-графика (год — 4,
-                  код заказчика по СПЗ — 11, порядковый номер плана — 3) и 6
-                  цифр номера позиции. Собирается автоматически при сохранении и
-                  при редактировании не меняется.
-                </p>
               </div>
 
               <div className={block("cell", ["wide"])}>
@@ -735,12 +715,6 @@ export default function PurchasePlanPositionForm({
                     КВР/КБК.
                   </span>
                 )}
-                <p className={block("hint")}>
-                  Разряды ИКЗ формируются автоматически по Порядку,
-                  утверждённому {IKZ_ORDER_REFERENCE}; формат 36 цифр закреплён
-                  XSD ЕИС 17.0 (ikzCodeType). Ручной ввод в графах ИКЗ
-                  заблокирован.
-                </p>
               </div>
 
               <div className={block("cell")}>
@@ -770,10 +744,6 @@ export default function PurchasePlanPositionForm({
                     {errorText("purchaseNumber")}
                   </span>
                 )}
-                <p className={block("hint")}>
-                  Не более 9999 — до четырёх цифр. Номер закупки входит в ИКЗ
-                  (разряды 23–26).
-                </p>
                 <div className={block("field-inline")}>
                   <label
                     className={block("label")}
@@ -784,11 +754,13 @@ export default function PurchasePlanPositionForm({
                   <select
                     id="position-placement-year"
                     className={block("select", ["plain"])}
-                    {...register("plannedPlacementYear")}
+                    {...register("plannedPlacementYear", {
+                      validate: (value) =>
+                        Number(value) >= baseYear ||
+                        `Планируемый год размещения извещения не может быть раньше первого года планирования (${baseYear})`,
+                    })}
                   >
-                    {placementYearOptions(
-                      Math.min(baseYear, Number(plannedPlacementYear) || baseYear),
-                    ).map((option) => (
+                    {placementYearOptions(baseYear).map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -1098,7 +1070,7 @@ export default function PurchasePlanPositionForm({
                 {kbkEntries.fields.length})
               </h3>
 
-              <div className={block("table-wrap")}>
+              <div className={block("table-wrap", ["with-actions"])}>
                 <table className={block("table", ["kbk"])}>
                   <colgroup>
                     <col className={block("col", ["chapter"])} />
@@ -1119,7 +1091,6 @@ export default function PurchasePlanPositionForm({
                       <th colSpan={EIS_AMOUNT_FIELDS.length}>
                         Объём финансового обеспечения
                       </th>
-                      <th rowSpan={2}>Действие</th>
                     </tr>
                     <tr>
                       {KBK_PART_FIELDS.map((part) => (
@@ -1188,7 +1159,7 @@ export default function PurchasePlanPositionForm({
                       </tr>
                     ))}
                     <tr>
-                      <td colSpan={4 + AMOUNT_FIELDS.length + 1}>
+                      <td colSpan={4 + EIS_AMOUNT_FIELDS.length}>
                         <button
                           type="button"
                           className={block("add")}
@@ -1212,7 +1183,6 @@ export default function PurchasePlanPositionForm({
                           {formatMoneyValue(kbkTotals[field.key])}
                         </td>
                       ))}
-                      <td />
                     </tr>
                   </tfoot>
                 </table>
@@ -1273,7 +1243,7 @@ export default function PurchasePlanPositionForm({
                   Детализация по кодам КОКС — ОКС/ОНИ (
                   {koksEntries.fields.length})
                 </h3>
-                <div className={block("table-wrap")}>
+                <div className={block("table-wrap", ["with-actions"])}>
                   <table className={block("table", ["koks"])}>
                     <colgroup>
                       <col className={block("col", ["koks-code"])} />
@@ -1291,7 +1261,6 @@ export default function PurchasePlanPositionForm({
                         {EIS_AMOUNT_FIELDS.map((field) => (
                           <th key={field.key}>{amountHeaders[field.key]}</th>
                         ))}
-                        <th>Действие</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1351,8 +1320,10 @@ export default function PurchasePlanPositionForm({
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                    <tfoot>
                       <tr>
-                        <td colSpan={1 + AMOUNT_FIELDS.length + 1}>
+                        <td colSpan={1 + EIS_AMOUNT_FIELDS.length}>
                           <button
                             type="button"
                             className={block("add")}
@@ -1368,7 +1339,7 @@ export default function PurchasePlanPositionForm({
                           </button>
                         </td>
                       </tr>
-                    </tbody>
+                    </tfoot>
                   </table>
                 </div>
               </div>
@@ -1382,33 +1353,27 @@ export default function PurchasePlanPositionForm({
                 Общественное обсуждение (ЕИС 17.0)
               </h3>
               <div className={block("flags-panel")}>
-                <div className={block("discussion-row")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="position-public-discussion"
-                  >
-                    Необходимо обязательное общественное обсуждение в
-                    соответствии со ст. 20 44-ФЗ
-                  </label>
-                  <select
+                <label
+                  className={block("checkbox")}
+                  htmlFor="position-public-discussion"
+                >
+                  <input
                     id="position-public-discussion"
-                    className={block("select", ["compact"])}
-                    value={String(Boolean(isPublicDiscussionRequired))}
+                    type="checkbox"
+                    checked={Boolean(isPublicDiscussionRequired)}
                     onChange={(event) =>
                       setValue(
                         "isPublicDiscussionRequired",
-                        event.target.value === "true",
-                        { shouldValidate: true },
+                        event.target.checked,
+                        { shouldValidate: true, shouldDirty: true },
                       )
                     }
-                  >
-                    {publicDiscussionOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  />
+                  <span>
+                    Необходимо обязательное общественное обсуждение в
+                    соответствии со ст. 20 44-ФЗ
+                  </span>
+                </label>
               </div>
             </div>
           </fieldset>

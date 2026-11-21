@@ -288,11 +288,11 @@
     color: var(--text-secondary);
   }
 
-  // Лейбл и значение без рамки — на одной строке
+  // Лейбл и значение в одной строке; поля строго друг над другом
   &__field-inline {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     min-height: 34px;
   }
@@ -338,12 +338,11 @@
       opacity: 1;
     }
 
-    // Без рамки: лейбл и поле на одном уровне
+    // Поле фиксированной ширины: 4 цифры стоят друг над другом
     &--plain {
-      flex: none;
+      box-sizing: border-box;
       width: 96px;
-      border: none;
-      background: transparent;
+      padding: 6px 8px;
       font-weight: 600;
       text-align: right;
     }
@@ -392,10 +391,9 @@
     }
 
     &--plain {
-      flex: none;
+      box-sizing: border-box;
       width: 96px;
-      border: none;
-      background: transparent;
+      padding: 6px 8px;
       font-weight: 600;
       text-align: right;
     }
@@ -603,13 +601,49 @@
   &__table--kbk,
   &__table--koks {
     table-layout: fixed;
-    min-width: 1100px;
+    min-width: 0;
   }
 
   // В КОКС кнопка справочника стоит рядом с кодом, а не над ним: поля
   // сумм остаются на одном уровне с полем кода
   &__table--koks td {
     vertical-align: top;
+  }
+
+  // Кнопки «Убрать» вынесены за правый край таблицы: колонки в таблице нет,
+  // ячейка нулевой ширины служит только точкой привязки для кнопки
+  &__table-wrap--with-actions {
+    padding-right: 92px;
+  }
+
+  &__table--kbk {
+    width: 1028px;
+  }
+
+  &__table--koks {
+    width: 978px;
+  }
+
+  &__table td#{&}__cell--action {
+    position: relative;
+    width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+
+    button {
+      position: absolute;
+      top: 50%;
+      left: 8px;
+      transform: translateY(-50%);
+    }
+  }
+
+  // Строка «Итого по кодам бюджетной классификации» выделена заливкой
+  &__table--kbk tfoot tr:first-child td {
+    background: var(--stripe);
+    font-weight: 700;
+    color: var(--text-primary);
   }
 
   // positionModification: поля транспонированы под заголовки XSD —
@@ -686,8 +720,9 @@
       width: 130px;
     }
 
+    // Нулевая колонка только для привязки кнопки «Убрать» вне таблицы
     &--action {
-      width: 84px;
+      width: 8px;
     }
 
     &--mod-label {
@@ -781,6 +816,8 @@
   &__add,
   &__pick,
   &__remove {
+    box-sizing: border-box;
+    height: 34px;
     padding: 6px 12px;
     font-family: inherit;
     font-size: 12px;

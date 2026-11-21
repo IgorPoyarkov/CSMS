@@ -150,7 +150,11 @@ export default function CustomSelect<TItem>({
                     onClick={() => handleSelectItem(key, item)}
                   >
                     <span className={select("item-text")}>
-                      {renderItem ? renderItem(item) : String(item)}
+                      {renderItem
+                        ? renderItem(item)
+                        : getLabel
+                          ? getLabel(item)
+                          : String(item)}
                     </span>
                     {isMulti && (
                       <input type="checkbox" checked={isSelected} readOnly />
