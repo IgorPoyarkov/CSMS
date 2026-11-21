@@ -536,8 +536,10 @@
       text-align: center;
     }
 
+    // Графа «Объём финансового обеспечения, всего (рублей)»: сумма по центру
+    // графы, вертикальное центрирование даёт модификатор cell--middle.
     &--amount {
-      text-align: right !important;
+      text-align: center;
       font-variant-numeric: tabular-nums;
     }
 

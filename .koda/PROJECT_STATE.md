@@ -3405,3 +3405,20 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - Проверки: `tsc -b` без ошибок, `oxlint` по файлу 0/0, `vite build` зелёный.
 
 
+## 93. Таблица позиций ПГ: сумма по центру ячейки (2026-11-21)
+
+- Графа «Объём финансового обеспечения, всего (рублей)» была выровнена по
+  правому краю (`cell--amount` → `text-align: right !important`) и по верху.
+- Теперь `cell--amount` → `text-align: center` (без `!important`), а
+  вертикальное центрирование даёт `cell--middle` из нового списка
+  `MIDDLE_COLUMNS` в `PurchasePlanCard.tsx`: кроме `status` и
+  `isPublicDiscussionRequired` туда добавлен `amountTotal`.
+- CDP-замер (1440×900, план `eisp-202601442000018001`): ячейка суммы —
+  `text-align: center`, `vertical-align: middle`, ширина 111px, таблица
+  1126 = контейнер 1126, скролла нет.
+- Проверки: `oxlint` по файлу 0/0, `vite build` зелёный. `tsc -b` падает
+  на **чужом** WIP-файле `PurchasePlanSpecialPurchases.tsx`
+  (8 ошибок TS6133/TS6196: неиспользуемые `KoksRef`, `AUTHORIZED_BODIES`,
+  `KoksPickerModal`, `updateKoksCode`, `updateKoksAmount`, `addKoks`,
+  `removeKoks`, `pickKoks`) — к этой правке отношения не имеет.
+

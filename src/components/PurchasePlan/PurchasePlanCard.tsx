@@ -73,6 +73,15 @@ const NARROW_COLUMNS: ColumnKey[] = [
 
 const WIDE_COLUMNS: ColumnKey[] = ["objectOfPurchase"];
 
+// Графы, содержимое которых центрируется и по горизонтали (cell--center),
+// и по вертикали (cell--middle): статус, обязательное общественное
+// обсуждение и объём финансового обеспечения.
+const MIDDLE_COLUMNS: ColumnKey[] = [
+  "status",
+  "isPublicDiscussionRequired",
+  "amountTotal",
+];
+
 const PAGE_SIZES = [10, 25, 50] as const;
 const ALL_PAGES = "all";
 
@@ -601,11 +610,10 @@ export default function PurchasePlanCard() {
                 ...(key === "objectOfPurchase" || key === "okpd2Code"
                   ? []
                   : ["center"]),
-                // Статус и «Обязательное общественное обсуждение» —
-                // по центру и по горизонтали, и по вертикали.
-                ...(key === "status" || key === "isPublicDiscussionRequired"
-                  ? ["middle"]
-                  : []),
+                // Статус, «Обязательное общественное обсуждение» и объём
+                // финансового обеспечения — по центру и по горизонтали,
+                // и по вертикали.
+                ...(MIDDLE_COLUMNS.includes(key) ? ["middle"] : []),
               ])}
             >
               {renderCell(key, position)}
