@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns5:fcsRegulationRules xmlns="http://zakupki.gov.ru/oos/types/1" xmlns:ns5="http://zakupki.gov.ru/oos/printform/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns4="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns3="http://zakupki.gov.ru/oos/base/1">
+    <id>556373</id>
+    <docPublishDate>2026-11-20T19:51:44.625+05:00</docPublishDate>
+    <registryNum>015660005082624325</registryNum>
+    <publishOrg>
+        <regNum>01566000508</regNum>
+        <fullName>АДМИНИСТРАЦИЯ КУДЫМКАРСКОГО МУНИЦИПАЛЬНОГО ОКРУГА ПЕРМСКОГО КРАЯ</fullName>
+        <INN>5981010782</INN>
+        <KPP>598101001</KPP>
+    </publishOrg>
+    <type>9</type>
+    <state>Обсуждение проект</state>
+    <termsControl>false</termsControl>
+    <approvedFrom>
+        <publishOrg>
+            <regNum>01566000508</regNum>
+            <fullName>АДМИНИСТРАЦИЯ КУДЫМКАРСКОГО МУНИЦИПАЛЬНОГО ОКРУГА ПЕРМСКОГО КРАЯ</fullName>
+            <INN>5981010782</INN>
+            <KPP>598101001</KPP>
+        </publishOrg>
+    </approvedFrom>
+    <approveFor>
+        <central>true</central>
+        <territorial>false</territorial>
+        <treasury>false</treasury>
+        <budgetary>false</budgetary>
+        <unitary>false</unitary>
+        <scientific>false</scientific>
+        <Rosatom>false</Rosatom>
+        <Roskosmos>false</Roskosmos>
+    </approveFor>
+    <baseDocument>
+        <name>О внесении изменений в Нормативные затраты на обеспечение функций администрации Кудымкарского муниципального округа Пермского края на 2026-2028 годы, утвержденные распоряжением администрации Кудымкарского муниципального округа Пермского края от 27.11.2025   № 01-06-287-од </name>
+        <number></number>
+        <type>2</type>
+    </baseDocument>
+    <regions>
+        <region>
+            <code>57000000</code>
+            <name>Муниципальные образования Пермского края</name>
+        </region>
+    </regions>
+    <discussion>
+        <term>
+            <startDate>2026-11-20T02:00:00.000+05:00</startDate>
+            <endDate>2026-11-26T02:00:00.000+05:00</endDate>
+        </term>
+        <postAddress>619000, Пермский край, г. Кудымкар, ул.Лихачева,54, офис 210</postAddress>
+        <eMail>administration@kudymkar.permkrai.ru</eMail>
+        <termsDiscussionProtocol>false</termsDiscussionProtocol>
+    </discussion>
+    <documents>
+        <document>
+            <ns2:publishedContentId>01A1F97054B278719CEF61FE4662BD65</ns2:publishedContentId>
+            <ns2:fileName>ПОСТАНОВЛЕНИЕ Нормативные затраты на 2026-2028 АДМ (Коммун. 2027 г.) ИЗМ. 3.docx</ns2:fileName>
+            <ns2:fileSize>141275</ns2:fileSize>
+            <ns2:docDescription>ПОСТАНОВЛЕНИЕ Нормативные затраты на 2026-2028 АДМ (Коммун. 2027 г.) ИЗМ. 3</ns2:docDescription>
+            <ns2:url>https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpnz/file.html?uid=01A1F97054B278719CEF61FE4662BD65</ns2:url>
+            <type>1</type>
+            <placingDate>2026-11-20T19:50:50.925+05:00</placingDate>
+        </document>
+        <document>
+            <ns2:publishedContentId>01A1F9706EB87FC99BC5966C5CF01BFF</ns2:publishedContentId>
+            <ns2:fileName>ПОСТАНОВЛЕНИЕ Нормат. затраты на 2026-2028 АДМ ПОЯСН. ЗАПИСКА (Коммун. 2027 ) Изм.3.docx</ns2:fileName>
+            <ns2:fileSize>21650</ns2:fileSize>
+            <ns2:docDescription>ПОСТАНОВЛЕНИЕ Нормат. затраты на 2026-2028 АДМ ПОЯСН. ЗАПИСКА (Коммун. 2027 ) Изм.3</ns2:docDescription>
+            <ns2:url>https://zakupki.gov.ru/44fz/filestore/public/1.0/download/rpnz/file.html?uid=01A1F9706EB87FC99BC5966C5CF01BFF</ns2:url>
+            <type>2</type>
+            <placingDate>2026-11-20T19:50:57.588+05:00</placingDate>
+        </document>
+    </documents>
+</ns5:fcsRegulationRules>

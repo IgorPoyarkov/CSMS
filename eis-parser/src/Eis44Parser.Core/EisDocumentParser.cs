@@ -228,6 +228,21 @@ public sealed class EisDocumentParser
             return EisDocumentKind.Unknown;
         }
 
+        // Правила нормирования — не закупка: у них свой реестровый номер и
+        // отдельный маппинг (NormalizationRulesParser). Проверяем раньше
+        // общих правил, иначе корень мог бы попасть в Unknown.
+        if (rootName.Contains("regulationRules", StringComparison.OrdinalIgnoreCase))
+        {
+            return EisDocumentKind.RegulationRules;
+        }
+
+        // Запрос ценовых предложений — не извещение: у него нет purchaseNumber
+        // и ИКЗ, свой реестровый номер лежит в <id>.
+        if (rootName.Contains("RequestForQuotation", StringComparison.OrdinalIgnoreCase))
+        {
+            return EisDocumentKind.PriceRequest;
+        }
+
         if (rootName.Contains("nsi", StringComparison.OrdinalIgnoreCase))
         {
             return EisDocumentKind.Nsi;

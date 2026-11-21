@@ -9,7 +9,7 @@ XML-данных из ЕИС через SOAP-сервис `getDocsIP`. Поль�
 
 | Проект | Назначение |
 | --- | --- |
-| `Eis44Parser.Core` | `EisSoapClient` (этап 1), `ArchiveDownloader` (2), `ArchiveProcessor` + `EisDocumentParser` (3), модели |
+| `Eis44Parser.Core` | `EisSoapClient` (этап 1), `ArchiveDownloader` (2), `ArchiveProcessor` + `EisDocumentParser` (3), `KtruXlsxParser`, `NormalizationRulesParser`, `PriceRequestParser`, модели |
 | `Eis44Parser.Data` | EF Core: SQLite/PostgreSQL; старая таблица `Tenders` и таблицы конвейера (`eis_sync_state`, `eis_archive_queue`, `raw_documents`, `purchases`, `purchase_items`, `contracts`, `participants`) |
 | `Eis44Parser.Worker` | Фоновая служба опроса, `EisPipelineRunner`, конфигурация, CLI-режимы |
 | `Eis44Parser.Tests` | xUnit: SOAP-теги и заголовки, ZIP/парсинг, идемпотентность очереди и upsert |
@@ -165,6 +165,46 @@ https://zakupki.gov.ru/epz/orderplan/os/printForm/viewXml.html?printFormId=21275
 из справочника `nsiDocumentTypes`). Превью XML из `PurchasePlanCard.tsx` строится
 из локальных данных CSMS и не является выгрузкой ЕИС.
 
+### Правила нормирования и запрос ценовых предложений (публичные XML, без токена)
+
+Реестр правил нормирования — ещё одна открытая точка ЕИС, доступная без
+`individualPerson_token` и ГОСТ-туннеля:
+
+```
+https://zakupki.gov.ru/epz/normalizationrules/search/results.html
+```
+
+Из карточки правила берём `printFormId` из ссылки `printForm/view.html` и
+заменяем `view.html` на `viewXml.html` — получаем машиночитаемый XML с корнем
+`<fcsRegulationRules>` (тип `zfcs_regulationRulesType` по XSD 17.0). `NormalizationRulesParser`
+мапит реестровый номер, вид правила (1–10), орган, регионы, сроки обсуждения и
+вложения. Публичные Url: `NormalizationRulesClient.SearchUrl` и шаблон
+`viewXml.html?printFormId={id}`. Фикстуры — `test-data/norm-rule-*.xml`.
+
+Запрос ценовых предложений `fcsRequestForQuotation` (закупки до 100 тыс. руб.)
+присылается как печатная форма из карточки. У него нет `purchaseNumber` и ИКЗ,
+реестровый номер лежит в `<id>`. `PriceRequestParser` разбирает заказчика,
+периоды, позиции с ОКПД2/ОКЕИ и условия; `EisDocumentParser` помечает такой файл
+как `EisDocumentKind.PriceRequest`, поэтому он не попадает в `purchases`.
+Фикстура — `test-data/pricerequest-fcsRequestForQuotation-real.xml`.
+
+### XLSX экспертного совета — только источник характеристик
+
+Архив заседаний экспертного совета (например, № 89 от 20.11.2026) содержит
+десятки `.xlsx` с описаниями позиций КТРУ. Это **предложения по актуализации**,
+а не официальная выгрузка реестра: код и характеристики надо сверять с НСИ
+(`nsiKTRU`). `KtruXlsxParser` читает XLSX напрямую через ZIP+XML, без NuGet,
+и распознаёт два шаблона:
+
+- «Идентификатор или № id…» — шаблон каталога (характеристики в колонках D–J);
+- «Код каталога ХХХХХХХХХ-…» — шаблон заявки/медизделий.
+
+Фикстуры двух реальных шаблонов лежат в `test-data/`. `.xls` (BIFF) этим
+способом не читаются — в архиве они тоже есть, но в парсер не добавлялись.
+Код КТРУ берётся из имени файла, поэтому фикстуры сохранены под исходными
+именами (`22.22.12.000-00000003 Сумка хозяйственная.xlsx`,
+`128660 Лактат ИВД, реагент.xlsx`).
+
 Файлы с расширением `.ЭЦП`/`.sig`, приходящие из карточек, — отсоединённые
 подписи CMS/PKCS#7 в base64: самого документа в них нет, а в сертификате
 подписанта лежат ФИО, ИНН и СНИЛС. Такие файлы не разбираются парсером и не
@@ -233,8 +273,13 @@ dotnet restore
 dotnet build
 dotnet test
 
-# Разобрать один реальный XML без ЕИС и токена:
+# Разобрать один реальный XML без ЕИС и токена
+# (--parse-file понимает и извещения, и fcsRegulationRules, и fcsRequestForQuotation):
 dotnet run --project src/Eis44Parser.Worker -- --parse-file test-data\epNotificationEF2020-real.xml
+dotnet run --project src/Eis44Parser.Worker -- --parse-file test-data\norm-rule-672586.xml
+
+# Разобрать XLSX шаблон КТРУ экспертного совета:
+dotnet run --project src/Eis44Parser.Worker -- --parse-xlsx "test-data\22.22.12.000-00000003 Сумка хозяйственная.xlsx"
 
 # Проверить конфигурацию и создать БД без обращения к ЕИС:
 dotnet run --project src/Eis44Parser.Worker -- --validate

@@ -15,7 +15,9 @@ using Microsoft.Extensions.Options;
 // --check — проверить токен и доступность локального ГОСТ-туннеля,
 // --import-nsi — выгрузить справочник НСИ (КТРУ) и опубликовать в csms-api,
 // --pipeline-once — один проход четырёхэтапного конвейера (очередь архивов),
-// --parse-file <путь> — разобрать один XML без ЕИС и токена,
+// --parse-file <путь> — разобрать один XML без ЕИС и токена
+//   (в том числе fcsRegulationRules и fcsRequestForQuotation),
+// --parse-xlsx <путь> — разобрать XLSX шаблон КТРУ экспертного совета,
 // --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnoreCase);
@@ -69,7 +71,45 @@ if (parseFilePath is not null)
     {
         using var stream = File.OpenRead(parseFilePath);
         var document = await XDocument.LoadAsync(stream, LoadOptions.None, CancellationToken.None);
-        var parsed = new EisDocumentParser().Parse(document, Path.GetFileName(parseFilePath));
+        var fileName = Path.GetFileName(parseFilePath);
+
+        if (NormalizationRulesParser.IsRegulationRules(document))
+        {
+            var rule = new NormalizationRulesParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {rule.FileName}");
+            Console.WriteLine($"Тип: fcsRegulationRules, реестровый номер: {rule.RegistryNumber}");
+            Console.WriteLine($"Вид: {rule.TypeName} ({rule.TypeCode})");
+            Console.WriteLine($"Состояние: {rule.State}, опубликован: {rule.PublishDate}");
+            Console.WriteLine($"Орган: {rule.PublishingOrgName} | ИНН {rule.PublishingOrgInn}");
+            Console.WriteLine($"Регионы: {string.Join(", ", rule.RegionCodes)}");
+            Console.WriteLine($"Вложений: {rule.Attachments.Count}");
+            foreach (var attachment in rule.Attachments)
+            {
+                Console.WriteLine($"  {attachment.TypeName}: {attachment.FileName} ({attachment.FileSize} байт)");
+                Console.WriteLine($"    {attachment.Url}");
+            }
+
+            return 0;
+        }
+
+        if (PriceRequestParser.IsPriceRequest(document))
+        {
+            var request = new PriceRequestParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {request.FileName}");
+            Console.WriteLine($"Тип: fcsRequestForQuotation, id: {request.Id}");
+            Console.WriteLine($"Состояние: {request.State}, версия: {request.VersionNumber}");
+            Console.WriteLine($"Заказчик: {request.PublishingOrgName} | ИНН {request.PublishingOrgInn}");
+            Console.WriteLine($"Период запроса: {request.RequestStart} — {request.RequestEnd}");
+            Console.WriteLine($"Позиций: {request.Products.Count}");
+            foreach (var product in request.Products)
+            {
+                Console.WriteLine($"  ОКПД2 {product.Okpd2Code} | {product.Name} | {product.Quantity} {product.OkeiName}");
+            }
+
+            return 0;
+        }
+
+        var parsed = new EisDocumentParser().Parse(document, fileName);
 
         Console.WriteLine($"Файл: {parsed.FileName}");
         Console.WriteLine($"Тип: {parsed.Kind}, схема: {parsed.SchemeVersion}");
@@ -92,6 +132,49 @@ if (parseFilePath is not null)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ошибка разбора XML: {exception.Message}");
+        return 1;
+    }
+}
+
+// Разбор XLSX шаблонов КТРУ из архивов экспертного совета ЕИС.
+// Результат — только источник характеристик для ручной сверки с НСИ,
+// не авторитетный справочник.
+var parseXlsxPath = GetArgumentValue(args, "--parse-xlsx");
+if (parseXlsxPath is not null)
+{
+    try
+    {
+        using var stream = File.OpenRead(parseXlsxPath);
+        var position = KtruXlsxParser.Parse(stream, Path.GetFileName(parseXlsxPath));
+        if (position is null)
+        {
+            Console.Error.WriteLine("Неизвестный шаблон XLSX: нет ни «Идентификатор или № id», ни «Код каталога ХХХ».");
+            return 1;
+        }
+
+        Console.WriteLine($"Файл: {position.SourceFile}");
+        Console.WriteLine($"Шаблон: {position.Template}");
+        Console.WriteLine($"Код КТРУ: {position.Code}");
+        Console.WriteLine($"Коды: {string.Join(", ", position.Codes)}");
+        Console.WriteLine($"ОКПД2: {position.Okpd2Code}");
+        Console.WriteLine($"Наименование: {position.Name}");
+        Console.WriteLine($"Единица: {position.Unit}");
+        Console.WriteLine($"Характеристик: {position.Characteristics.Count}");
+        foreach (var characteristic in position.Characteristics)
+        {
+            Console.WriteLine($"  {characteristic.Name} ({characteristic.Unit})" +
+                $"{(characteristic.IsMandatory is true ? " [обязательная]" : "")}:");
+            foreach (var value in characteristic.Values)
+            {
+                Console.WriteLine($"    {value}");
+            }
+        }
+
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка разбора XLSX: {exception.Message}");
         return 1;
     }
 }

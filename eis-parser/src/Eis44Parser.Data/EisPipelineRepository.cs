@@ -155,6 +155,14 @@ public sealed class EisPipelineRepository(EisDbContext db) : IEisPipelineReposit
             // номера позиций, запись в purchases была бы неверной.
             case EisDocumentKind.TenderPlan:
                 break;
+            // Правила нормирования имеют собственный registryNum, а не номер
+            // закупки: запись в purchases создавала бы фиктивную закупку.
+            case EisDocumentKind.RegulationRules:
+                break;
+            // Запрос ценовых предложений не содержит purchaseNumber/ИКЗ —
+            // только <id>. В purchases записывать нельзя, сырой XML уже сохранён.
+            case EisDocumentKind.PriceRequest:
+                break;
         }
     }
 

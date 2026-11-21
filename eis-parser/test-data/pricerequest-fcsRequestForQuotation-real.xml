@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns5:fcsRequestForQuotation schemeVersion="16.3" xmlns="http://zakupki.gov.ru/oos/types/1" xmlns:ns5="http://zakupki.gov.ru/oos/printform/1" xmlns:ns2="http://zakupki.gov.ru/oos/common/1" xmlns:ns4="http://zakupki.gov.ru/oos/CPtypes/1" xmlns:ns3="http://zakupki.gov.ru/oos/base/1">
+    <id>3523485</id>
+    <versionNumber>01</versionNumber>
+    <state>Подготовка</state>
+    <publishOrg>
+        <regNum>01442000018</regNum>
+        <consRegistryNum>382Р1122</consRegistryNum>
+        <fullName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</fullName>
+        <shortName>ОБЛАСТНОЕ КАЗЕННОЕ УЧРЕЖДЕНИЕ "КУРСКАВТОДОР"</shortName>
+        <INN>4629040439</INN>
+        <KPP>463201001</KPP>
+        <OGRN>1024600964816</OGRN>
+        <responsibleRole>CU</responsibleRole>
+    </publishOrg>
+    <href>https://zakupki.gov.ru/epz/pricereq/card/common-info.html?priceRequestId=3523485</href>
+    <printForm>
+        <url>https://zakupki.gov.ru/epz/pricereq/printForm/view.html?priceRequestInfoId=3523485</url>
+    </printForm>
+    <requestObjectInfo>ен</requestObjectInfo>
+    <responsibleInfo>
+        <place>рап</place>
+        <contactPerson>
+            <lastName>апр</lastName>
+            <firstName>апр</firstName>
+            <middleName>ар</middleName>
+        </contactPerson>
+        <contactEMail>ttt@yy.eu</contactEMail>
+        <contactPhone>435-35-3454334-345</contactPhone>
+    </responsibleInfo>
+    <procedureInfo>
+        <request>
+            <startDate>2026-11-21T22:22:00+03:00</startDate>
+            <endDate>2026-11-27T22:22:00+03:00</endDate>
+        </request>
+        <purchase>
+            <startDate>2026-11-01T00:00:00+03:00</startDate>
+            <endDate>2026-11-01T00:00:00+03:00</endDate>
+        </purchase>
+    </procedureInfo>
+    <products>
+        <objectInfo>куц</objectInfo>
+        <product>
+            <OKPD2>
+                <code>58.11.11.000</code>
+                <name>Учебники печатные общеобразовательного назначения</name>
+            </OKPD2>
+            <name>sdf</name>
+            <OKEI>
+                <code>959</code>
+                <name>Автомобиле-день</name>
+            </OKEI>
+            <quantity>4.00000000000</quantity>
+        </product>
+        <identity>кп</identity>
+    </products>
+    <conditions>
+        <main>вап</main>
+        <payment>вап</payment>
+        <contractGuarantee>вап</contractGuarantee>
+        <warranty>вап</warranty>
+        <delivery>вап</delivery>
+        <addInfo>вапвап</addInfo>
+    </conditions>
+</ns5:fcsRequestForQuotation>

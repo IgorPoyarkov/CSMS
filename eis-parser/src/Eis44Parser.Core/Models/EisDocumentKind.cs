@@ -23,4 +23,14 @@ public enum EisDocumentKind
     /// &lt;purchaseNumber&gt; — это номера позиций (0001, 0002…), а не закупок,
     /// поэтому запись в purchases была бы мусором.</summary>
     TenderPlan = 5,
+
+    /// <summary>Правила нормирования (fcsRegulationRules): разбираются отдельным
+    /// NormalizationRulesParser и сохраняются как сырой XML до появления своей
+    /// нормализованной таблицы.</summary>
+    RegulationRules = 6,
+
+    /// <summary>Запрос ценовых предложений (fcsRequestForQuotation): у него нет
+    /// номера закупки/ИКЗ, только <id>. Разбирается отдельным PriceRequestParser,
+    /// в purchases не попадает.</summary>
+    PriceRequest = 7,
 }
