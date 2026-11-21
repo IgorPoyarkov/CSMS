@@ -508,6 +508,9 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 6. **Агент НПА (§38).** Сверить реальные импорты 1875/2604, разобрать 88
    `unresolved` 471-р и принимать решения по `needs_review` через `/verify`;
    эталон `auctionListControl.ts` считать историческим, не источником истины.
+7. **Проверка контрагентов (§77, бэк готов).** Подключить
+   `/api/eis/counterparties/check` к карточке контрагента на фронте, показать
+   дату и id выгрузки как снимок источника.
 
 **Не трогать:** чужую WIP. На 2026-11-20 в рабочем дереве `csms` была чужая
 незакоммиченная работа: `db.json` и `src/services/KoksRef/`. На 2026-11-21
@@ -2907,3 +2910,36 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   позиции по-прежнему выводится из КБК.
 - **Проверки:** `npx tsc -b`, `npx oxlint src` (только старые warning),
   `npx vite build` — зелёные. Чужие theme-правки и `Лес 3D.jpg` не трогались.
+
+## 77. Проверка контрагентов по ст. 19.28 КоАП в `csms-api` (2026-11-21)
+
+- **Источник:** только публичная страница ЕИС `sectionId=2369` и XLSX по
+  `downloadDocument.html?id=…`; на 2026-11-21 актуальный `id=44571`, дата
+  «20 ноября 2026», 991 запись, SHA-256
+  `2BCF9FFB978E5B2FC4CC283F866157A9089DAD8800978CC059E79CA2ADC3BCEB`.
+  Referer на страницу списка обязателен; это не полноценный РНП.
+- **Конвейер:** воркер раз в сутки (`CheckIntervalMinutes=1440`) читает страницу,
+  скачивает XLSX и считает SHA-256; парсинг только при смене `id` **или** SHA.
+  Снимок `<root>/current` = `document.xlsx` + `entries.json` + `.manifest.json`;
+  подмена `.incoming` → `current.previous` → `current` с откатом. Корень задаётся
+  `EIS_COUNTERPARTIES_ROOT`, по умолчанию `<bin>/counterparties`.
+- **Парсер:** ZIP + XML через `System.IO.Compression`/`System.Xml.Linq`, без новых
+  NuGet; колонки B–J, все 9 заголовков проверяются, ведущие нули и аналоги ИНН —
+  строками. Даты I/J — Excel-сериалы (`FromOADate`); в живой выгрузке две
+  текстовые даты с опечаткой года (`12.05.0202`, `11.11.0205`) приведены к
+  2022/2025. У 3 иностранных юрлиц пустые ОГРН/КПП — это норма, не брак файла.
+- **Каталог:** in-memory индекс, поиск по ИНН/ОГРН (сильные реквизиты), КПП —
+  только если ИНН и ОГРН не заданы; дедупликация по `Key`. Ответ `/check` несёт
+  `SourceId`, `Sha256`, `PublishedDate`, `RowCount`, `InstalledAt`, `CheckedAt`.
+- **API:** `GET /api/eis/counterparties/status`, `POST /update`, `GET|POST /check`.
+  Статусы `Starting/Checking/UpToDate/Installed/Error/Disabled` и флаг
+  `ParsedNow`; ошибки ЕИС не роняют API и не заменяют активный снимок. Бриф —
+  `csms-api/docs/tasks/counterparty-screening.md`.
+- **Проверки:** `dotnet build` и `dotnet test` зелёные: 333 пройдено, 10 пропущено
+  (Postgres-тесты без БД); 19 тестов RNP, включая прогон настоящего XLSX через
+  `EIS_COUNTERPARTIES_XLSX`.
+- **Коммит:** `csms-api` `62df54b` запушен в `origin/main`. Чужие незакоммиченные
+  `EfCoreReferenceDataStore.cs` / `InMemoryReferenceDataStore.cs` не трогались.
+- **Следующий шаг:** подключить `/api/eis/counterparties/check` к карточке
+  контрагента на фронте; извещающую проверку не делать основанием отказа без
+  отдельного решения.
