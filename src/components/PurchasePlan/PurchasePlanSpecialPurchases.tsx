@@ -922,14 +922,6 @@ export default function PurchasePlanSpecialPurchases({
         >
           {allExpanded ? "Свернуть все" : "Раскрыть все"}
         </button>
-        <button
-          type="button"
-          className={block("save")}
-          disabled={isSaving}
-          onClick={saveItems}
-        >
-          {isSaving ? "Сохранение..." : "Сохранить изменения"}
-        </button>
       </div>
 
       <div className={block("filters")}>
