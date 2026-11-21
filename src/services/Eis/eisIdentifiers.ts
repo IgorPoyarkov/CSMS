@@ -23,6 +23,22 @@ export const isIkz = (value: string): boolean =>
   digitsOnlyPattern(IKZ_LENGTH).test(value.trim());
 
 /**
+ * Стабильная часть ИКЗ, которая не меняется при перезаключении контракта:
+ * год планирования + ИНН + КПП + код позиции плана-графика (разряды 20–26).
+ * Разряды 27–36 описывают конкретную закупку и при переторге отличаются.
+ */
+export const ikzPositionKey = (value: string): string | null => {
+  const ikz = value.trim();
+  if (!isIkz(ikz)) return null;
+  return [
+    ikz.slice(0, 2),
+    ikz.slice(3, 13),
+    ikz.slice(13, 19),
+    ikz.slice(19, 26),
+  ].join("|");
+};
+
+/**
  * Оставить только цифры.
  *
  * Номера копируют из ЕИС и из писем: там пробелы, неразрывные пробелы и

@@ -89,6 +89,12 @@ export const emptyEisChainRefs = (): EisChainRefs => ({
 });
 
 /** Одно звено цепочки. */
+/** Сведения о перезаключении контракта на ту же позицию плана-графика. */
+export interface EisChainReaward {
+  previousContractId: string | null;
+  successorContractId: string | null;
+}
+
 export interface EisChainLink {
   stage: EisChainStage;
   label: string;
@@ -96,6 +102,8 @@ export interface EisChainLink {
   present: boolean;
   identifiers: EisChainIdentifiers;
   refs: EisChainRefs;
+  /** Расторгнутый и перезаключённый контракт остаются в одной цепочке. */
+  reaward?: EisChainReaward | null;
   /** Сумма шага в рублях строкой, как в наших схемах. */
   amount: string | null;
   /** Статус шага в наших терминах (статус позиции, извещения, контракта). */

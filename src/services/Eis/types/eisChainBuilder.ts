@@ -9,7 +9,7 @@ import type {
   PurchasePlan,
   PurchasePlanPosition,
 } from "../../PurchasePlan/purchasePlan.schema";
-import { digitsOnly, isIkz } from "../eisIdentifiers";
+import { digitsOnly, ikzPositionKey, isIkz } from "../eisIdentifiers";
 import {
   eisChainStageLabels,
   emptyEisChainProgress,
@@ -141,21 +141,73 @@ const matchesNote = (
   return Boolean(noteIkz && position.ikz && noteIkz === position.ikz);
 };
 
+interface ContractChainData {
+  eisImport?: {
+    planPositionLink?: {
+      positionId?: string | null;
+      planPositionUniqueNumber?: string | null;
+    };
+    noticeIds?: Array<string | number>;
+    contractChain?: {
+      previousContractId?: string | null;
+      successorContractId?: string | null;
+    };
+  };
+}
+
+const contractChainData = (contract: ContractRegistryItem): ContractChainData =>
+  contract as ContractRegistryItem & ContractChainData;
+
+/**
+ * Контракт ищется не только по точному ИКЗ. Из одной позиции ПГ бывает несколько
+ * извещений, а расторгнутый контракт может быть перезаключён с новым ИКЗ —
+ * тогда стабильны год, заказчик и код позиции (разряды 20–26 ИКЗ).
+ */
 const matchesContract = (
   contract: ContractRegistryItem,
-  notice: { ikz: string | null; procurementId: string | null },
+  context: {
+    ikz: string | null;
+    procurementIds: Array<string | null>;
+    noticeIds: Array<string | null>;
+    planPositionNumber: string | null;
+    positionId: string | null;
+  },
 ): boolean => {
   const contractIkz = nullableText(contract.ikz);
+  const imported = contractChainData(contract).eisImport;
+  const link = imported?.planPositionLink;
 
-  if (contractIkz && notice.ikz && contractIkz === notice.ikz) {
+  if (link?.positionId && context.positionId && link.positionId === context.positionId) {
     return true;
   }
 
-  return Boolean(
-    notice.procurementId &&
-    contract.procurementId !== null &&
-    contract.procurementId !== undefined &&
-    sameId(contract.procurementId, notice.procurementId),
+  if (
+    link?.planPositionUniqueNumber &&
+    context.planPositionNumber &&
+    link.planPositionUniqueNumber === context.planPositionNumber
+  ) {
+    return true;
+  }
+
+  if (
+    imported?.noticeIds?.some((noticeId) =>
+      context.noticeIds.some((candidate) => sameId(noticeId, candidate)),
+    )
+  ) {
+    return true;
+  }
+
+  if (contractIkz && context.ikz) {
+    if (contractIkz === context.ikz) return true;
+
+    const contractKey = ikzPositionKey(contractIkz);
+    const noticeKey = ikzPositionKey(context.ikz);
+    if (contractKey && noticeKey && contractKey === noticeKey) return true;
+  }
+
+  return context.procurementIds.some(
+    (procurementId) =>
+      procurementId !== null && sameId(contract.procurementId, procurementId),
   );
 };
 
@@ -235,27 +287,42 @@ const noticeLinkOf = (
 const contractLinkOf = (
   contract: ContractRegistryItem,
   fallback: { purchaseNumber: string | null; ikz: string | null },
-): EisChainLink => ({
-  stage: "contract",
-  label: `Контракт ${contract.contractNumber}`,
-  present: true,
-  identifiers: {
-    ...emptyEisIdentifiers(),
-    localId: localId(contract.id),
-    purchaseNumber: fallback.purchaseNumber,
-    ikz: nullableText(contract.ikz) ?? fallback.ikz,
-    contractRegistryNumber: nullableText(contract.eisRegistryNumber),
-  },
-  refs: {
-    ...emptyEisChainRefs(),
-    procurementId: localId(contract.procurementId),
-    contractId: localId(contract.id),
-    contractProjectId: localId(contract.contractProjectId),
-  },
-  amount: moneyText(contract.contractPrice),
-  status: nullableText(contract.status),
-  publishedAt: nullableText(contract.eisPublishDate),
-});
+): EisChainLink => {
+  const reaward = contractChainData(contract).eisImport?.contractChain ?? null;
+  const suffix = reaward?.successorContractId
+    ? " (расторгнут, перезаключён)"
+    : reaward?.previousContractId
+      ? " (перезаключение)"
+      : "";
+
+  return {
+    stage: "contract",
+    label: `Контракт ${contract.contractNumber}${suffix}`,
+    present: true,
+    reaward: reaward
+      ? {
+          previousContractId: nullableText(reaward.previousContractId),
+          successorContractId: nullableText(reaward.successorContractId),
+        }
+      : null,
+    identifiers: {
+      ...emptyEisIdentifiers(),
+      localId: localId(contract.id),
+      purchaseNumber: fallback.purchaseNumber,
+      ikz: nullableText(contract.ikz) ?? fallback.ikz,
+      contractRegistryNumber: nullableText(contract.eisRegistryNumber),
+    },
+    refs: {
+      ...emptyEisChainRefs(),
+      procurementId: localId(contract.procurementId),
+      contractId: localId(contract.id),
+      contractProjectId: localId(contract.contractProjectId),
+    },
+    amount: moneyText(contract.contractPrice),
+    status: nullableText(contract.status),
+    publishedAt: nullableText(contract.eisPublishDate),
+  };
+};
 
 const smpLinkOf = (
   records: ContractSmpRecord[],
@@ -500,6 +567,17 @@ export const eisChainIssues = (chain: EisChain): EisChainIssue[] => {
     );
   }
 
+  if (contract?.reaward?.successorContractId || contract?.reaward?.previousContractId) {
+    issues.push(
+      issue(
+        "contract",
+        "contract.reaward",
+        "Контракт перезаключён на ту же позицию плана-графика: часть исполнения и оплата по старому ИКЗ остаются у предыдущего поставщика.",
+        "warning",
+      ),
+    );
+  }
+
   if (chain.smp.requiredPercent && chain.smp.recordsCount === 0) {
     issues.push(
       issue(
@@ -628,66 +706,95 @@ const chainKey = (
       ? `ikz:${ikz}`
       : `local:${fallback}`;
 
-const buildChainForPosition = (
+/**
+ * Одна позиция ПГ может дать несколько извещений (переторг) и несколько
+ * контрактов (расторжение + перезаключение), поэтому возвращаем цепочки для
+ * каждой пары «извещение — контракт». Если звена нет, остаётся одна цепочка
+ * с разрывом: интерфейс показывает, чего не хватает.
+ */
+const buildChainsForPosition = (
   entry: PlanPositionEntry,
   source: EisChainSource,
-): EisChain => {
+): EisChain[] => {
   const { plan, position } = entry;
   const purchaseNumber = nullableText(position.purchaseNumber);
   const ikz = nullableText(position.identificationCode);
   const planPositionNumber = nullableText(position.uniqueNumber);
+  const positionId = localId(position.id);
 
   const note =
     source.notes.find((item) =>
       matchesNote(item, {
         ikz,
         planPositionNumber,
-        positionId: localId(position.id),
+        positionId,
       }),
     ) ?? null;
-  const notice =
-    source.notices.find((item) =>
-      matchesNotice(item, { ikz, planPositionNumber }),
-    ) ?? null;
-  const procurementId = localId(notice?.procurementId);
-  const contract =
-    source.contracts.find((item) =>
-      matchesContract(item, { ikz, procurementId }),
-    ) ?? null;
-  const smpRecords = contract
-    ? source.smpRecords.filter((record) =>
-        sameId(record.contractId, contract.id),
-      )
-    : [];
-
-  const links: EisChainLink[] = [
-    planLinkOf(entry, note),
-    notice
-      ? noticeLinkOf(notice, { purchaseNumber, planPositionNumber, ikz }, note)
-      : absentLink("notice"),
-    contract
-      ? contractLinkOf(contract, { purchaseNumber, ikz })
-      : absentLink("contract"),
-    smpLinkOf(smpRecords, {
-      purchaseNumber,
-      ikz: nullableText(contract?.ikz) ?? ikz,
-      contractRegistryNumber: nullableText(contract?.eisRegistryNumber),
-      contractId: localId(contract?.id),
-    }),
-  ];
-
-  return finalizeChain({
-    organizationId: localId(plan.organizationId),
-    key: chainKey(
-      purchaseNumber,
+  const notices = source.notices.filter((item) =>
+    matchesNotice(item, { ikz, planPositionNumber }),
+  );
+  const noticeIds = notices
+    .map((item) => localId(item.id))
+    .filter((value): value is string => value !== null);
+  const procurementIds = notices.map((item) => localId(item.procurementId));
+  const contracts = source.contracts.filter((item) =>
+    matchesContract(item, {
       ikz,
-      `${localId(plan.id) ?? "plan"}:${(localId(position.id) ?? text(position.serialNumber)) || "position"}`,
-    ),
+      procurementIds,
+      noticeIds,
+      planPositionNumber,
+      positionId,
+    }),
+  );
+
+  const noticeOptions: Array<NoticeInfoFormValues | null> = notices.length ? notices : [null];
+  const contractOptions: Array<ContractRegistryItem | null> = contracts.length ? contracts : [null];
+  const baseKey = chainKey(
     purchaseNumber,
     ikz,
-    links,
-    smp: smpSummaryOf(smpRecords, contract, notice),
-  });
+    `${localId(plan.id) ?? "plan"}:${positionId ?? (text(position.serialNumber) || "position")}`,
+  );
+  const multiple = notices.length > 1 || contracts.length > 1;
+
+  const chains: EisChain[] = [];
+  for (const notice of noticeOptions) {
+    for (const contract of contractOptions) {
+      const smpRecords = contract
+        ? source.smpRecords.filter((record) =>
+            sameId(record.contractId, contract.id),
+          )
+        : [];
+      const suffix = multiple
+        ? `:n:${localId(notice?.id) ?? "none"}:c:${localId(contract?.id) ?? "none"}`
+        : "";
+      chains.push(
+        finalizeChain({
+          organizationId: localId(plan.organizationId),
+          key: `${baseKey}${suffix}`,
+          purchaseNumber,
+          ikz,
+          links: [
+            planLinkOf(entry, note),
+            notice
+              ? noticeLinkOf(notice, { purchaseNumber, planPositionNumber, ikz }, note)
+              : absentLink("notice"),
+            contract
+              ? contractLinkOf(contract, { purchaseNumber, ikz })
+              : absentLink("contract"),
+            smpLinkOf(smpRecords, {
+              purchaseNumber,
+              ikz: nullableText(contract?.ikz) ?? ikz,
+              contractRegistryNumber: nullableText(contract?.eisRegistryNumber),
+              contractId: localId(contract?.id),
+            }),
+          ],
+          smp: smpSummaryOf(smpRecords, contract, notice),
+        }),
+      );
+    }
+  }
+
+  return chains;
 };
 
 const buildChainForNotice = (
@@ -698,11 +805,18 @@ const buildChainForNotice = (
 ): EisChain => {
   const ikz = nullableText(notice.generalInfo.ikz) ?? nullableText(notice.ikz);
   const procurementId = localId(notice.procurementId);
+  const noticeId = localId(notice.id);
   const contract =
     source.contracts.find(
       (item) =>
         !skipContractIds.has(localId(item.id) ?? "") &&
-        matchesContract(item, { ikz, procurementId }),
+        matchesContract(item, {
+          ikz,
+          procurementIds: [procurementId],
+          noticeIds: noticeId ? [noticeId] : [],
+          planPositionNumber: nullableText(notice.generalInfo.positionUniqueNumber),
+          positionId: null,
+        }),
     ) ?? null;
   const smpRecords = contract
     ? source.smpRecords.filter(
@@ -813,11 +927,18 @@ const buildChainForNote = (
           nullableText(item.generalInfo.ikz) === ikz),
     ) ?? null;
   const procurementId = localId(notice?.procurementId);
+  const noticeId = localId(notice?.id);
   const contract =
     source.contracts.find(
       (item) =>
         !skipContractIds.has(localId(item.id) ?? "") &&
-        matchesContract(item, { ikz, procurementId }),
+        matchesContract(item, {
+          ikz,
+          procurementIds: [procurementId],
+          noticeIds: noticeId ? [noticeId] : [],
+          planPositionNumber: nullableText(note.positionUniqueNumber),
+          positionId: null,
+        }),
     ) ?? null;
   const smpRecords = contract
     ? source.smpRecords.filter(
@@ -930,9 +1051,11 @@ export const buildEisChains = (source: EisChainSource): EisChain[] => {
 
   for (const plan of source.plans) {
     for (const position of plan.positions ?? []) {
-      const chain = buildChainForPosition({ plan, position }, source);
-      chains.push(chain);
-      markUsed(chain);
+      const positionChains = buildChainsForPosition({ plan, position }, source);
+      for (const chain of positionChains) {
+        chains.push(chain);
+        markUsed(chain);
+      }
     }
   }
 

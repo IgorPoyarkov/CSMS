@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { linkNoticesToContracts } from "./link-eis-chain.mjs";
+import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -176,11 +176,6 @@ function dateFromDots(value) {
   const match = clean(value).match(/(\d{2})\.(\d{2})\.(\d{4})/);
   if (!match) return "";
   return `${match[3]}-${match[2]}-${match[1]}`;
-}
-
-function dateFromIso(value) {
-  const match = clean(value).match(/(\d{4})-(\d{2})-(\d{2})/);
-  return match ? match[0] : "";
 }
 
 function shiftDate(date, years) {
@@ -755,93 +750,6 @@ function mapProcurement(notice) {
   };
 }
 
-function buildTasks(plans, notices, org, employee, count) {
-  const templates = [
-    {
-      functionCode: "planning_place_plan",
-      title: (target) => `Сверить позиции плана-графика ${target.planNumber} с ЕИС`,
-      description: (target) =>
-        `Проверить ${target.positions?.length ?? 0} позиций плана-графика ${target.planNumber}, оформить замечания по расхождениям.`,
-    },
-    {
-      functionCode: "supplier_determination_notice",
-      title: (target) => `Проверить извещение №${target.number} перед размещением`,
-      description: (target) =>
-        `Сверить НМЦК ${moneyString(target.nmck)} ₽, ИКЗ, КТРУ/ОКПД2 и сроки подачи заявок по извещению №${target.number}.`,
-    },
-    {
-      functionCode: "purchase_description",
-      title: (target) => `Подготовить обоснование НМЦК по закупке №${target.number}`,
-      description: (target) =>
-        `Подготовить расчёт НМЦК ${moneyString(target.nmck)} ₽ по объекту «${target.name}» по правилам ст. 22 Закона № 44-ФЗ.`,
-    },
-    {
-      functionCode: "contract_conclusion_placing",
-      title: (target) => `Подготовить проект контракта по извещению №${target.number}`,
-      description: (target) =>
-        `Подготовить проект контракта, проверить обеспечение и сроки исполнения по закупке «${target.name}».`,
-    },
-  ];
-  const targets = [
-    ...plans.map((plan) => ({
-      kind: "plan",
-      planNumber: plan.planNumber,
-      positions: plan.positions,
-      number: plan.planNumber,
-      name: plan.positions[0]?.objectOfPurchase ?? plan.planNumber,
-      nmck: money(plan.totalAmount),
-      dueDate: plan.publishDate,
-    })),
-    ...notices.map((notice) => ({
-      kind: "notice",
-      number: notice.number,
-      name: notice.generalInfo.orderName,
-      nmck: notice.generalInfo.nmck,
-      dueDate: dateFromIso(notice.generalInfo.publishDTInEIS),
-    })),
-  ];
-  const today = new Date().toISOString().slice(0, 10);
-  const result = [];
-  for (let i = 0; i < count; i++) {
-    const target = targets[i % targets.length];
-    const template = templates[i % templates.length];
-    const due = new Date(`${target.dueDate || today}T00:00:00Z`);
-    due.setDate(due.getDate() + 7 + (i % 3) * 3);
-    result.push({
-      id: 1001 + i,
-      organizationId: org.id,
-      title: template.title(target),
-      description: template.description(target),
-      status: i % 5 === 0 ? "completed" : i % 3 === 0 ? "in_progress" : "pending",
-      origin: "head",
-      functionCode: template.functionCode,
-      order158nPoolCode: template.functionCode,
-      order158nClause: `Раздел III, п. ${(i % 5) + 1}`,
-      legalBasis: "п. 2.4 Типового положения (Приказ Минфина России № 233н)",
-      requiredInputs: [
-        "Карточка ЕИС",
-        target.kind === "plan" ? "Позиции плана-графика" : "Печатная форма извещения",
-      ],
-      completionCriteria: "Сведения сверены с ЕИС, замечания устранены",
-      steps: [],
-      assigneeId: employee.id,
-      assigneeName: `${employee.employee.surname} ${employee.employee.name} ${employee.employee.patronymic ?? ""}`.trim(),
-      assignedByEmployeeId: employee.id,
-      assignedByName: "Пояркова Наталья Юрьевна",
-      dueDate: due.toISOString().slice(0, 10),
-      createdAt: today,
-      startedAt: "",
-      completedAt: i % 5 === 0 ? today : "",
-      result: i % 5 === 0 ? "Сверка выполнена по публичным данным ЕИС" : "",
-      mock: true,
-      eisSource: target.kind === "plan"
-        ? `${EIS}/epz/orderplan/pg2020/general-info.html?plan-number=${target.planNumber}`
-        : `${EIS}/epz/order/notice/printForm/view.html?regNumber=${target.number}`,
-    });
-  }
-  return result;
-}
-
 function pruneDb(db, org, employee, importedProcurementIds) {
   const keep = {
     users: (item) => item.email === employee.email || item.id === employee.userId,
@@ -919,7 +827,6 @@ async function main() {
     mapNotice(item, detail, noticeTemplate, org, plans, { ...importInfo, method: item.row["Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)"] }),
   );
   const procurements = notices.map(mapProcurement);
-  const tasks = buildTasks(plans, notices, org, employee, args.tasks);
 
   const summary = {
     ...importInfo,
@@ -932,13 +839,6 @@ async function main() {
     tasksAdded: tasks.length,
   };
 
-  if (process.env.EIS_IMPORT_SAMPLE) {
-    fs.writeFileSync(
-      path.join(process.env.TEMP || ".", "eis-import-sample.json"),
-      JSON.stringify({ plan: plans[0], notice: notices[0], task: tasks[0] }, null, 2),
-      "utf8",
-    );
-  }
   if (args.dryRun) {
     console.log(JSON.stringify(summary, null, 2));
     console.log("Первый план:", JSON.stringify(plans[0] && {
@@ -960,19 +860,43 @@ async function main() {
   db.purchasePlans = plans;
   db.procurements = procurements;
   db.notices = notices;
-  db.tasks = tasks;
-  // Связь извещение → контракт ищем по ИКЗ после очистки старых процедур:
-  // только так в контрактах останутся ссылки на актуальные procurementId.
-  const contractLinks = linkNoticesToContracts(db);
-  db.eisImportSummary = { ...summary, contractLinks };
-  fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
-  console.log(
-    JSON.stringify(
-      { ...summary, contractsPreserved: preservedContracts, contractLinks },
-      null,
-      2,
-    ),
+
+  // Связи строим после очистки старых процедур: только так у контрактов
+  // останутся актуальные procurementId. Из извещений одновременно берём
+  // ответственных лиц — они получают задачи по своим закупкам.
+  const chain = applyEisChain(db);
+  const linkedContracts = db.contractRegistry.filter((contract) =>
+    procurements.some((item) => item.id === contract.procurementId),
   );
+  const tasks = buildNoticeTasks({
+    plans,
+    notices,
+    contracts: linkedContracts,
+    org,
+    head: employee,
+    staffByNotice: chain.byNotice,
+    count: args.tasks,
+  });
+  db.tasks = tasks;
+
+  if (process.env.EIS_IMPORT_SAMPLE) {
+    fs.writeFileSync(
+      path.join(process.env.TEMP || ".", "eis-import-sample.json"),
+      JSON.stringify({ plan: plans[0], notice: notices[0], task: tasks[0] }, null, 2),
+      "utf8",
+    );
+  }
+
+  const report = {
+    ...summary,
+    contractsPreserved: preservedContracts,
+    contractLinks: chain.notices,
+    paymentLinks: chain.payments,
+    responsibleStaff: chain.staff,
+  };
+  db.eisImportSummary = report;
+  fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+  console.log(JSON.stringify(report, null, 2));
 }
 
 main().catch((error) => {

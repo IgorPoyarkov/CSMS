@@ -57,6 +57,11 @@ const linkSummary = (link: EisChainLink): string => {
       : "",
     link.amount ? `${formatMoney(link.amount)} ₽` : "",
     link.status ?? "",
+    link.reaward?.successorContractId
+      ? "расторгнут → перезаключён"
+      : link.reaward?.previousContractId
+        ? "перезаключение той же позиции ПГ"
+        : "",
   ].filter(Boolean);
 
   return parts.length > 0
@@ -329,9 +334,10 @@ export default function EisChainPage() {
         <div>
           <h1 className={block("title")}>Сквозная цепочка закупки</h1>
           <p className={block("subtitle")}>
-            План-график → потребность (СЗ) → извещение → контракт → сведения
-            СМП. Разрывы показываются отдельно, номера ЕИС сохраняются в
-            исходные записи.
+            Позиция плана-графика → все её извещения → контракты (включая
+            расторгнутые и перезаключённые) → оплата по ИКЗ → сведения СМП.
+            Разрывы показываются отдельно, номера ЕИС сохраняются в исходные
+            записи.
           </p>
         </div>
         <div className={block("summary")}>
