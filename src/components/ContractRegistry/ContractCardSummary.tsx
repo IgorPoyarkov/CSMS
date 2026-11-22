@@ -11,9 +11,13 @@ import {
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
 import {
+  contractCardActsTotal,
+  contractCardPaymentsTotal,
   contractCardSmpRequirement,
   contractCardSmpRows,
   contractCardSmpTotal,
+  type ContractCardAct,
+  type ContractCardPayment,
 } from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useContractSmpVolume } from "../../services/ContractSmp/contractSmp.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -36,6 +40,10 @@ const EMPTY_SMP_VOLUME = {
   isComplete: false,
 };
 
+/** Пустые выгрузки ЕИС — чтобы не создавать новый массив на каждом рендере. */
+const EMPTY_EIS_ACTS: ContractCardAct[] = [];
+const EMPTY_EIS_PAYMENTS: ContractCardPayment[] = [];
+
 /**
  * Сводка исполнения контракта: оплата, приёмка, СМП — цифры и прогресс.
  *
@@ -47,6 +55,10 @@ const EMPTY_SMP_VOLUME = {
  * Агрегаты считаются селекторами в API-слоях (`useContractPaymentsSummary`,
  * `useAcceptanceSummary`, `useContractSmpVolume`): данные в кэше общие с
  * секциями карточки, а суммы пересчитываются только при их изменении.
+ *
+ * Факт по контрактам из ЕИС берётся из выгрузки карточки
+ * (`useContractCardProjection`): ручные платежи и электронное актирование по
+ * ним не ведутся, поэтому оплата, приёмка и объём СМП подставляются из неё.
  */
 export default function ContractCardSummary({
   contract,
@@ -89,14 +101,35 @@ export default function ContractCardSummary({
     eisActual > 0 ? eisActual : undefined,
   );
 
-  const paymentCount = paymentsSummary?.count ?? 0;
-  const paid = paymentsSummary?.paid ?? "0";
-  const paidPercent = paymentPercent(paid, contract.contractPrice);
+  // Оплата и приёмка: ручные записи и электронное актирование приоритетнее, но
+  // у контрактов из ЕИС их нет вовсе — тогда показываем фактические акты и
+  // платёжные поручения из выгрузки карточки. Без этой ветки сводка всегда
+  // писала «0,00 ₽ · 0 платежей», хотя в ЕИС оплата и приёмка есть
+  const eisActs = projection?.Acts ?? EMPTY_EIS_ACTS;
+  const eisPayments = projection?.Payments ?? EMPTY_EIS_PAYMENTS;
+  const eisPaidTotal = contractCardPaymentsTotal(eisPayments);
+  const eisAcceptedTotal = contractCardActsTotal(eisActs);
+
+  const manualPaymentCount = paymentsSummary?.count ?? 0;
+  const manualPaid = Number(paymentsSummary?.paid ?? 0);
+  const usesEisPayments = manualPaymentCount === 0 && eisPayments.length > 0;
+
+  const paymentCount = usesEisPayments ? eisPayments.length : manualPaymentCount;
+  const paid = usesEisPayments ? eisPaidTotal : manualPaid;
+  const paidPercent = paymentPercent(
+    String(paid),
+    String(contract.contractPrice ?? 0),
+  );
 
   // Принятая сумма — только по состоявшимся приёмкам: черновики и отказы
-  // в исполнение не идут
-  const acceptedCount = acceptanceSummary?.acceptedCount ?? 0;
-  const acceptedTotal = acceptanceSummary?.acceptedTotal ?? 0;
+  // в исполнение не идут. Акты из ЕИС уже подписаны заказчиком
+  const manualAcceptedCount = acceptanceSummary?.acceptedCount ?? 0;
+  const usesEisActs = manualAcceptedCount === 0 && eisActs.length > 0;
+
+  const acceptedCount = usesEisActs ? eisActs.length : manualAcceptedCount;
+  const acceptedTotal = usesEisActs
+    ? eisAcceptedTotal
+    : (acceptanceSummary?.acceptedTotal ?? 0);
   const acceptedPercent = percentOf(acceptedTotal, contract.contractPrice);
   const inReview = acceptanceSummary?.onReview ?? 0;
 
@@ -118,6 +151,7 @@ export default function ContractCardSummary({
           <span className={styles.summaryHint}>
             из {formatMoney(contract.contractPrice)} ₽ · {paymentCount}{" "}
             {plural(paymentCount, ["платёж", "платежа", "платежей"])}
+            {usesEisPayments ? " · по выгрузке ЕИС" : ""}
           </span>
           <div className={styles.summaryTrack}>
             <div
@@ -141,6 +175,7 @@ export default function ContractCardSummary({
             {inReview > 0
               ? `на рассмотрении: ${inReview}`
               : "нет документов в работе"}
+            {usesEisActs ? " · по выгрузке ЕИС" : ""}
           </span>
           <div className={styles.summaryTrack}>
             <div
