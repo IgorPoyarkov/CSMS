@@ -71,4 +71,21 @@ public sealed class EisDocumentParserTests
         Assert.Equal(50000.00m, result.Price);
         Assert.Equal("2026-11-20", result.PublishDate);
     }
+
+    [Fact]
+    public void Parse_AcceptanceAct_ReadsRegistryNumberFromCyrillicAttribute()
+    {
+        // Акты приёмки 2026 года: <ОсновСтроит РеестрНомКонт="...">.
+        var xml = """
+            <ОсновСтроит РеестрНомКонт="2462904043926000006" ПрГосМун="1">
+              <НомерДок>01</НомерДок>
+            </ОсновСтроит>
+            """;
+
+        var result = _parser.Parse(XDocument.Parse(xml), "ON_AKTREZRABP.xml");
+
+        Assert.Equal(EisDocumentKind.Unknown, result.Kind);
+        Assert.Equal("2462904043926000006", result.RegNumber);
+        Assert.Equal("2462904043926000006", result.PurchaseNumber);
+    }
 }

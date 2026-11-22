@@ -109,6 +109,28 @@ if (parseFilePath is not null)
             return 0;
         }
 
+        // Исполнение контракта 2026 года: печатаем этапы и акты приёмки,
+        // чтобы проверить разбор на реальном файле без записи в БД.
+        if (ContractExecutionParser.IsContractExecution(document))
+        {
+            var execution = new ContractExecutionParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {execution.FileName}");
+            Console.WriteLine($"Реестровый номер: {execution.RegNumber}");
+            foreach (var stage in execution.Stages)
+            {
+                Console.WriteLine(
+                    $"Этап {stage.Index}: sid={stage.Sid}, {stage.StartDate} — {stage.EndDate}, актов: {stage.Acts.Count}");
+                foreach (var act in stage.Acts)
+                {
+                    Console.WriteLine(
+                        $"  Акт №{act.DocumentNumber}: sid={act.Sid}, дата {act.DocumentDate}, " +
+                        $"приёмка {act.AcceptanceDate}, сумма {act.Sum}, guidEDI {act.GuidEdi}");
+                }
+            }
+
+            return 0;
+        }
+
         var parsed = new EisDocumentParser().Parse(document, fileName);
 
         Console.WriteLine($"Файл: {parsed.FileName}");

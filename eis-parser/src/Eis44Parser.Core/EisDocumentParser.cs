@@ -38,7 +38,11 @@ public sealed class EisDocumentParser
         var documentElement = root?.Name.LocalName.Equals("export", StringComparison.OrdinalIgnoreCase) == true
             ? root.Elements().FirstOrDefault()
             : root;
-        var regNumber = GetOwnValue(documentElement, "regNum");
+        // В актах приёмки 2026 года (корень «ОсновСтроит») реестровый номер
+        // лежит в атрибуте РеестрНомКонт. Читаем его в уже существующее поле,
+        // чтобы документ привязался к контракту без новых сущностей.
+        var regNumber = GetOwnValue(documentElement, "regNum")
+            ?? AsRegistryNumber(GetValue(root, "РеестрНомКонт"));
         var code = document.ToString(SaveOptions.DisableFormatting);
 
         return new ParsedEisDocument
@@ -220,6 +224,9 @@ public sealed class EisDocumentParser
 
     private static bool IsRegistryNumber(string? value) =>
         value is not null && value.Length is >= 15 and <= 20 && value.All(char.IsDigit);
+
+    private static string? AsRegistryNumber(string? value) =>
+        IsRegistryNumber(value) ? value : null;
 
     private static EisDocumentKind DetectKind(string? rootName)
     {
