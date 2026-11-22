@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import axios from "axios";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 
 /**
@@ -42,6 +46,8 @@ export const useReferenceDatasets = () =>
     queryKey: referenceDatasetsQueryKey,
     // Версии меняются только при явном импорте на бэке; SSE добирает обновления
     staleTime: 30_000,
+    // Каталог снимков статичен между импортами: повтор при сбое не поможет
+    retry: 0,
     queryFn: async (): Promise<ReferenceDatasetInfo[]> => {
       const { data } = await referenceApi.get<ReferenceDatasetInfo[]>(
         "/api/references/datasets",
@@ -122,6 +128,9 @@ export const useReferenceItems = (
     enabled: enabled && Boolean(query.search || query.parentCode),
     staleTime: 10 * 60_000,
     retry: false,
+    // Поиск идёт по каждому изменению запроса: пока грузится новая выдача,
+    // показываем предыдущую, чтобы список не мигал пустотой между символами
+    placeholderData: keepPreviousData,
     queryFn: async (): Promise<ReferenceItemInfo[]> => {
       const { data } = await referenceApi.get(`/api/references/${dataset}/items`, {
         params: {

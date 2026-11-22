@@ -1,17 +1,14 @@
 import { Link } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
-import { useAcceptances } from "../../services/Acceptance/acceptance.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
-  acceptedAcceptanceStatuses,
   acceptanceKindLabels,
   acceptanceResultLabels,
   acceptanceStatusLabels,
   acceptanceStatusTone,
   formatMoney,
-  issueIsError,
-  reviewAcceptanceStatuses,
 } from "../ContractAcceptance/acceptance.config";
+import { useAcceptanceSummary } from "../ContractAcceptance/acceptanceSummary";
 import styles from "./ContractRegistry.module.scss";
 
 /**
@@ -36,31 +33,16 @@ export default function ContractAcceptanceSection({
   const { formatDate } = useUtils();
   const { data: organization } = useCurrentOrganization();
   const organizationId = organization ? String(organization.id) : "";
-  const { data: acceptances = [] } = useAcceptances(
+  // Сводка приёмок считается селектором один раз на изменение данных:
+  // та же проекция используется прогресс-баром в сводке контракта
+  const { data: summary } = useAcceptanceSummary(
     organizationId || undefined,
     contractId === undefined ? undefined : String(contractId),
   );
 
-  if (contractId === undefined || acceptances.length === 0) return null;
+  if (contractId === undefined || !summary || summary.count === 0) return null;
 
-  const accepted = acceptances.filter((acceptance) =>
-    acceptedAcceptanceStatuses.includes(acceptance.status),
-  );
-  const acceptedTotal = accepted.reduce(
-    (sum, acceptance) => sum + acceptance.totalWithVat,
-    0,
-  );
-  const onReview = acceptances.filter((acceptance) =>
-    reviewAcceptanceStatuses.includes(acceptance.status),
-  ).length;
-  const errors = acceptances.reduce(
-    (sum, acceptance) =>
-      sum + acceptance.issues.filter((issue) => issueIsError(issue.severity)).length,
-    0,
-  );
-  const rows = [...acceptances].sort((a, b) =>
-    (b.input.documentDate ?? "").localeCompare(a.input.documentDate ?? ""),
-  );
+  const { rows, count, acceptedTotal, onReview, errors } = summary;
   const contractLink = `/acceptances?contractId=${String(contractId)}`;
 
   return (
@@ -71,7 +53,7 @@ export default function ContractAcceptanceSection({
 
       <div className={styles.projectionSummary}>
         <span className={styles.projectionChip}>
-          Документов: {acceptances.length}
+          Документов: {count}
         </span>
         <span className={styles.projectionChip}>
           Принято на {formatMoney(acceptedTotal)} ₽

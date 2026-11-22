@@ -18,4 +18,6 @@ export const useSmpRegistry = () =>
       return SmpRegistryListSchema.parse(data ?? []);
     },
     staleTime: 60 * 60 * 1000,
+    // Реестр МСП обновляется выгрузкой, а не запросом пользователя
+    retry: 0,
   });

@@ -51,6 +51,8 @@ export const useEisSchemaCatalog = () =>
     queryKey: eisSchemaCatalogQueryKey,
     // Снимок меняется только при обновлении XSD и перегенерации каталога
     staleTime: Number.POSITIVE_INFINITY,
+    // Статический файл: при 404 повтор не поможет, нужна перегенерация
+    retry: 0,
     queryFn: async (): Promise<EisSchemaCatalog> => {
       const response = await fetch(EIS_SCHEMA_CATALOG_URL);
 

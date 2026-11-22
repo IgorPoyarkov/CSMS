@@ -22,6 +22,8 @@ export const useAddressRegions = () => {
       return AddressRegionSchema.array().parse(response.data) as AddressRegion[];
     },
     staleTime: 60 * 60 * 1000,
+    // Справочник статичный: повторять запрос при недоступности бессмысленно
+    retry: 0,
   });
 };
 
@@ -44,6 +46,8 @@ export const useAddressMunicipalities = (
     },
     enabled: Boolean(regionId),
     staleTime: 60 * 60 * 1000,
+    // Подсказки необязательны: значение можно ввести вручную
+    retry: 0,
   });
 };
 

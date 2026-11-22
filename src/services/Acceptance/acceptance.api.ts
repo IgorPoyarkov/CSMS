@@ -32,10 +32,17 @@ const invalidateAll = (queryClient: ReturnType<typeof useQueryClient>) => {
   void queryClient.invalidateQueries({ queryKey: acceptanceQueryKey });
 };
 
-export const useAcceptances = (
+export const useAcceptances = <T = AcceptanceResponse[]>(
   organizationId: string | undefined,
   contractId?: string,
   status?: AcceptanceStatus,
+  /**
+   * Проекция поверх ответа. Нужна сводкам карточки: они считают принятую
+   * сумму и ошибки, но не должны держать полный список документов и
+   * пересчитывать агрегаты на каждом рендере — селектор мемоизируется
+   * по ссылке на данные.
+   */
+  select?: (acceptances: AcceptanceResponse[]) => T,
 ) =>
   useQuery({
     queryKey: [
@@ -60,6 +67,7 @@ export const useAcceptances = (
 
       return data;
     },
+    select,
   });
 
 export const useAcceptance = (id: string | undefined) =>

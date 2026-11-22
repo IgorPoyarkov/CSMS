@@ -23,6 +23,8 @@ export const useLegalActs = () =>
       return LegalActListSchema.parse(data);
     },
     staleTime: 60 * 60 * 1000,
+    // Реестр актов меняется правками, а не сам по себе: повтор не нужен
+    retry: 0,
   });
 
 /**

@@ -46,7 +46,8 @@ export const useLiabilityDuties = () =>
     queryFn: fetchLiabilityDuties,
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: Number.POSITIVE_INFINITY,
-    retry: 1,
+    // 41 обязанность 158н — статический справочник, повтор не нужен
+    retry: 0,
   });
 
 const fetchResult = async (

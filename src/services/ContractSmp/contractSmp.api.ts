@@ -1,8 +1,10 @@
+import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import {
   ContractSmpRecordListSchema,
   ContractSmpRecordSchema,
+  computeSmpVolume,
   type ContractSmpRecord,
 } from "./contractSmp.schema";
 
@@ -39,6 +41,31 @@ export const useContractSmpRecords = (
     queryFn: () => fetchRecordsByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
+
+/**
+ * Объём привлечения СМП для сводки: требуемая, фактическая сумма и дефицит.
+ * Запрос тот же, что у `useContractSmpRecords`, но агрегат считается один раз
+ * на изменение записей или условий контракта — таблице секции нужен полный
+ * список, а прогресс-бару в реестре — только три числа.
+ */
+export const useContractSmpVolume = (
+  contractId: string | number | undefined,
+  contractPrice: string | number | undefined,
+  smpRequiredPercent: string | number | undefined,
+) => {
+  const select = useCallback(
+    (records: ContractSmpRecord[]) =>
+      computeSmpVolume(records, contractPrice, smpRequiredPercent),
+    [contractPrice, smpRequiredPercent],
+  );
+
+  return useQuery({
+    queryKey: [...contractSmpQueryKey, "contract", String(contractId)],
+    queryFn: () => fetchRecordsByContract(contractId as string | number),
+    enabled: Boolean(contractId),
+    select,
+  });
+};
 
 export const useCreateContractSmpRecord = () => {
   const queryClient = useQueryClient();

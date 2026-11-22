@@ -1,18 +1,16 @@
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   paymentPercent,
-  totalPaid,
   type ContractRegistryItem,
 } from "../../services/ContractRegistry/contractRegistry.schema";
-import { useContractPayments } from "../../services/ContractRegistry/contractRegistry.api";
-import { useAcceptances } from "../../services/Acceptance/acceptance.api";
-import { useContractSmpRecords } from "../../services/ContractSmp/contractSmp.api";
-import { computeSmpVolume } from "../../services/ContractSmp/contractSmp.schema";
-import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
-  acceptedAcceptanceStatuses,
-  reviewAcceptanceStatuses,
-} from "../ContractAcceptance/acceptance.config";
+  prefetchContract,
+  useContractPaymentsSummary,
+} from "../../services/ContractRegistry/contractRegistry.api";
+import { useContractSmpVolume } from "../../services/ContractSmp/contractSmp.api";
+import { useCurrentOrganization } from "../../services/Organization/organization.api";
+import { useAcceptanceSummary } from "../ContractAcceptance/acceptanceSummary";
 import { formatMoney, percentOf, plural } from "./contractRegistryFormat";
 import styles from "./ContractRegistry.module.scss";
 
@@ -22,6 +20,15 @@ interface ContractCardSummaryProps {
   cardLink?: string;
 }
 
+/** Пустой объём СМП до загрузки: цифры не прыгают при раскрытии строки. */
+const EMPTY_SMP_VOLUME = {
+  required: 0,
+  actual: 0,
+  shortfall: 0,
+  progress: 0,
+  isComplete: false,
+};
+
 /**
  * Сводка исполнения контракта: оплата, приёмка, СМП — цифры и прогресс.
  *
@@ -29,45 +36,50 @@ interface ContractCardSummaryProps {
  * монтировал восемь секций и делал столько же запросов, из-за чего список
  * «задумывался». Здесь три запроса с общими ключами react-query (платежи,
  * приёмки, СМП), а полные таблицы живут на роуте карточки контракта.
+ *
+ * Агрегаты считаются селекторами в API-слоях (`useContractPaymentsSummary`,
+ * `useAcceptanceSummary`, `useContractSmpVolume`): данные в кэше общие с
+ * секциями карточки, а суммы пересчитываются только при их изменении.
  */
 export default function ContractCardSummary({
   contract,
   cardLink,
 }: ContractCardSummaryProps) {
   const contractId = contract.id;
+  const queryClient = useQueryClient();
   const { data: organization } = useCurrentOrganization();
   const organizationId = organization ? String(organization.id) : "";
 
-  const { data: payments = [] } = useContractPayments(contractId);
-  const { data: acceptances = [] } = useAcceptances(
+  const { data: paymentsSummary } = useContractPaymentsSummary(contractId);
+  const { data: acceptanceSummary } = useAcceptanceSummary(
     organizationId || undefined,
     contractId === undefined ? undefined : String(contractId),
   );
-  const { data: smpRecords = [] } = useContractSmpRecords(contractId);
+  const { data: smpVolume } = useContractSmpVolume(
+    contractId,
+    contract.contractPrice,
+    contract.smpRequiredPercent,
+  );
 
-  const paid = totalPaid(payments);
+  const paymentCount = paymentsSummary?.count ?? 0;
+  const paid = paymentsSummary?.paid ?? "0";
   const paidPercent = paymentPercent(paid, contract.contractPrice);
 
   // Принятая сумма — только по состоявшимся приёмкам: черновики и отказы
   // в исполнение не идут
-  const accepted = acceptances.filter((acceptance) =>
-    acceptedAcceptanceStatuses.includes(acceptance.status),
-  );
-  const acceptedTotal = accepted.reduce(
-    (sum, acceptance) => sum + acceptance.totalWithVat,
-    0,
-  );
+  const acceptedCount = acceptanceSummary?.acceptedCount ?? 0;
+  const acceptedTotal = acceptanceSummary?.acceptedTotal ?? 0;
   const acceptedPercent = percentOf(acceptedTotal, contract.contractPrice);
-  const inReview = acceptances.filter((acceptance) =>
-    reviewAcceptanceStatuses.includes(acceptance.status),
-  ).length;
+  const inReview = acceptanceSummary?.onReview ?? 0;
 
-  const smp = computeSmpVolume(
-    smpRecords,
-    contract.contractPrice,
-    contract.smpRequiredPercent,
-  );
+  const smp = smpVolume ?? EMPTY_SMP_VOLUME;
   const smpPercent = Math.round(smp.progress);
+
+  // Наведение на ссылку заранее тянет карточку: переход открывается из кэша
+  const prefetch = () => {
+    if (contractId === undefined || contractId === null) return;
+    void prefetchContract(queryClient, contractId);
+  };
 
   return (
     <section className={styles.summarySection}>
@@ -76,8 +88,8 @@ export default function ContractCardSummary({
           <span className={styles.summaryLabel}>Оплата</span>
           <strong className={styles.summaryValue}>{formatMoney(paid)} ₽</strong>
           <span className={styles.summaryHint}>
-            из {formatMoney(contract.contractPrice)} ₽ · {payments.length}{" "}
-            {plural(payments.length, ["платёж", "платежа", "платежей"])}
+            из {formatMoney(contract.contractPrice)} ₽ · {paymentCount}{" "}
+            {plural(paymentCount, ["платёж", "платежа", "платежей"])}
           </span>
           <div className={styles.summaryTrack}>
             <div
@@ -96,8 +108,8 @@ export default function ContractCardSummary({
             {formatMoney(acceptedTotal)} ₽
           </strong>
           <span className={styles.summaryHint}>
-            {accepted.length}{" "}
-            {plural(accepted.length, ["документ", "документа", "документов"])} ·{" "}
+            {acceptedCount}{" "}
+            {plural(acceptedCount, ["документ", "документа", "документов"])} ·{" "}
             {inReview > 0
               ? `на рассмотрении: ${inReview}`
               : "нет документов в работе"}
@@ -139,7 +151,12 @@ export default function ContractCardSummary({
 
       {cardLink && (
         <div className={styles.summaryFooter}>
-          <Link className={styles.btnPrimary} to={cardLink}>
+          <Link
+            className={styles.btnPrimary}
+            to={cardLink}
+            onMouseEnter={prefetch}
+            onFocus={prefetch}
+          >
             Открыть карточку контракта
           </Link>
         </div>

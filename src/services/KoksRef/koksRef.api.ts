@@ -22,4 +22,6 @@ export const useKoksDictionary = () =>
       return KoksRefListSchema.parse(data);
     },
     staleTime: 60 * 60 * 1000,
+    // Снимок справочника не меняется: повтор не ускорит появление данных
+    retry: 0,
   });

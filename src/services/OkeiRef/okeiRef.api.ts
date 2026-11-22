@@ -41,7 +41,8 @@ export const useOkeiDictionary = () =>
       return OkeiUnitListSchema.parse(data);
     },
     staleTime: 60 * 60 * 1000,
-    retry: 1,
+    // Официальный справочник статичен: одна неудачная попытка — достаточно
+    retry: 0,
   });
 
 const normalize = (value: string) =>
