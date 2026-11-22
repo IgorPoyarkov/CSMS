@@ -133,34 +133,45 @@ public sealed class PublicContractCardClient
     {
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
-            await ThrottleAsync(cancellationToken);
-            var response = await _httpClient.GetAsync(
-                url,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
-
-            if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxAttempts)
+            try
             {
-                var retryAfter = response.Headers.RetryAfter;
-                var delay = retryAfter?.Delta
-                    ?? (retryAfter?.Date - DateTimeOffset.UtcNow)
-                    ?? TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt - 1), 60));
-                if (delay < TimeSpan.Zero || delay > TimeSpan.FromMinutes(2))
+                await ThrottleAsync(cancellationToken);
+                var response = await _httpClient.GetAsync(
+                    url,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    cancellationToken);
+
+                if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxAttempts)
                 {
-                    delay = TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt - 1), 60));
+                    var retryAfter = response.Headers.RetryAfter;
+                    var delay = retryAfter?.Delta
+                        ?? (retryAfter?.Date - DateTimeOffset.UtcNow)
+                        ?? Backoff(attempt);
+                    if (delay < TimeSpan.Zero || delay > TimeSpan.FromMinutes(2))
+                    {
+                        delay = Backoff(attempt);
+                    }
+
+                    response.Dispose();
+                    await Task.Delay(delay, cancellationToken);
+                    continue;
                 }
 
-                response.Dispose();
-                await Task.Delay(delay, cancellationToken);
-                continue;
+                response.EnsureSuccessStatusCode();
+                return response;
             }
-
-            response.EnsureSuccessStatusCode();
-            return response;
+            catch (HttpRequestException) when (attempt < MaxAttempts)
+            {
+                // Обрыв соединения или 5xx — тоже временный сбой, повторяем.
+                await Task.Delay(Backoff(attempt), cancellationToken);
+            }
         }
 
-        throw new HttpRequestException($"zakupki.gov.ru вернул 429 после {MaxAttempts} попыток: {url}");
+        throw new HttpRequestException($"zakupki.gov.ru не отдал данные после {MaxAttempts} попыток: {url}");
     }
+
+    private static TimeSpan Backoff(int attempt) =>
+        TimeSpan.FromSeconds(Math.Min(5 * Math.Pow(2, attempt - 1), 60));
 
     private async Task ThrottleAsync(CancellationToken cancellationToken)
     {
