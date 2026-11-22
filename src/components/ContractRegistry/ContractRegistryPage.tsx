@@ -42,6 +42,9 @@ import SmpSection from "./ContractSmpSection";
 import ContractEventsSection from "./ContractEventsSection";
 import ContractEisSection from "./ContractEisSection";
 import ContractCardProjectionSection from "./ContractCardProjectionSection";
+import ContractAcceptanceSection from "./ContractAcceptanceSection";
+import ContractPaymentForm from "./ContractPaymentForm";
+import ContractDeliveryForm from "./ContractDeliveryForm";
 import styles from "./ContractRegistry.module.scss";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1358,6 +1361,9 @@ function ContractRow({
                   карточки ЕИС: ручные contractPayments и contractDeliveries
                   сейчас пусты, поэтому без проекции сводка показывает «0 %» */}
               <ContractCardProjectionSection contractId={contract.id} />
+              {/* Приёмка из нашего контура (csms-api): документы, которые
+                  проходят сценарии ст. 94, в отличие от выгрузки ЕИС выше */}
+              <ContractAcceptanceSection contractId={contract.id} />
               <ContractEventsSection contractId={contract.id ?? ""} />
               <StagesSection contractId={contract.id} />
               <PaymentsSection contractId={contract.id} />
@@ -1521,50 +1527,81 @@ function StagesSection({ contractId }: { contractId?: string | number }) {
 
 function PaymentsSection({ contractId }: { contractId?: string | number }) {
   const { data: payments } = useContractPayments(contractId);
+  const [formOpen, setFormOpen] = useState(false);
 
-  if (!payments || payments.length === 0) return null;
+  if (!contractId) return null;
+
+  const list = payments ?? [];
 
   return (
     <section className={styles.subSection}>
-      <h4 className={styles.subTitle}>Платежи (ст. 34 ч. 12, 13.1)</h4>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Документ</th>
-            <th>Дата</th>
-            <th>Тип</th>
-            <th>Код XSD</th>
-            <th>Сумма, ₽</th>
-            <th>Банковский документ</th>
-            <th>Реестровый номер исполнения</th>
-            <th>Срок оплаты</th>
-            <th>Статус</th>
-            <th>Казначейство</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payments.map((p: ContractPayment) => (
-            <tr key={p.id}>
-              <td>{p.paymentDocumentNumber || "—"}</td>
-              <td>{p.paymentDate || "—"}</td>
-              <td>{PAYMENT_LABELS[p.paymentType]}</td>
-              <td>{p.paymentTypeCode || paymentXsdCodeFor(p.paymentType)}</td>
-              <td>{formatMoney(p.amount)}</td>
-              <td>{p.bankDocumentNumber || "—"}</td>
-              <td>{p.regNumberExecution || "—"}</td>
-              <td>{paymentDeadlineDate(p) || "—"}</td>
-              <td>
-                <span
-                  className={`${styles.payBadge} ${styles[`pay_${p.status}`]}`}
-                >
-                  {PAYMENT_STATUS_LABELS[p.status]}
-                </span>
-              </td>
-              <td>{p.treasuryExecution ? "Да" : "Нет"}</td>
+      <div className={styles.subHeader}>
+        <h4 className={styles.subTitle}>
+          Платежи (ручной учёт, ст. 34 ч. 12, 13.1)
+        </h4>
+        {!formOpen && (
+          <button
+            type="button"
+            className={styles.btnSmall}
+            onClick={() => setFormOpen(true)}
+          >
+            + Платёж
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <ContractPaymentForm
+          contractId={contractId}
+          onDone={() => setFormOpen(false)}
+        />
+      )}
+
+      {list.length === 0 ? (
+        <p className={styles.projectionEmpty}>
+          Ручных платежей нет. Фактическая оплата из выгрузки ЕИС — в секции
+          «Приёмка и оплата по данным карточки ЕИС».
+        </p>
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Документ</th>
+              <th>Дата</th>
+              <th>Тип</th>
+              <th>Код XSD</th>
+              <th>Сумма, ₽</th>
+              <th>Банковский документ</th>
+              <th>Реестровый номер исполнения</th>
+              <th>Срок оплаты</th>
+              <th>Статус</th>
+              <th>Казначейство</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {list.map((p: ContractPayment) => (
+              <tr key={p.id}>
+                <td>{p.paymentDocumentNumber || "—"}</td>
+                <td>{p.paymentDate || "—"}</td>
+                <td>{PAYMENT_LABELS[p.paymentType]}</td>
+                <td>{p.paymentTypeCode || paymentXsdCodeFor(p.paymentType)}</td>
+                <td>{formatMoney(p.amount)}</td>
+                <td>{p.bankDocumentNumber || "—"}</td>
+                <td>{p.regNumberExecution || "—"}</td>
+                <td>{paymentDeadlineDate(p) || "—"}</td>
+                <td>
+                  <span
+                    className={`${styles.payBadge} ${styles[`pay_${p.status}`]}`}
+                  >
+                    {PAYMENT_STATUS_LABELS[p.status]}
+                  </span>
+                </td>
+                <td>{p.treasuryExecution ? "Да" : "Нет"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }
@@ -1615,48 +1652,89 @@ function PenaltiesSection({ contractId }: { contractId?: string | number }) {
 
 function DeliveriesSection({ contractId }: { contractId?: string | number }) {
   const { data: deliveries } = useContractDeliveries(contractId);
+  const [formOpen, setFormOpen] = useState(false);
 
-  if (!deliveries || deliveries.length === 0) return null;
+  if (!contractId) return null;
+
+  const list = deliveries ?? [];
 
   return (
     <section className={styles.subSection}>
-      <h4 className={styles.subTitle}>Поставки и приёмка (ст. 94)</h4>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Наименование</th>
-            <th>Кол-во</th>
-            <th>Сумма, ₽</th>
-            <th>Акт</th>
-            <th>Результат</th>
-          </tr>
-        </thead>
-        <tbody>
-          {deliveries.map((d: ContractDelivery) => (
-            <tr key={d.id}>
-              <td>{d.deliveryDate}</td>
-              <td>{d.itemName}</td>
-              <td>
-                {d.quantity} {d.unit}
-              </td>
-              <td>{formatMoney(d.amount)}</td>
-              <td>
-                {d.acceptanceActNumber}
-                {d.acceptanceActDate ? ` от ${d.acceptanceActDate}` : ""}
-              </td>
-              <td>
-                <span
-                  className={`${styles.deliveryBadge} ${styles[`del_${d.result}`]}`}
-                >
-                  {DELIVERY_LABELS[d.result]}
-                </span>
-                {d.notes && <div className={styles.notes}>{d.notes}</div>}
-              </td>
+      <div className={styles.subHeader}>
+        <h4 className={styles.subTitle}>
+          Поставки и приёмка (ручной реестр, ст. 94)
+        </h4>
+        {!formOpen && (
+          <button
+            type="button"
+            className={styles.btnSmall}
+            onClick={() => setFormOpen(true)}
+          >
+            + Акт
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <ContractDeliveryForm
+          contractId={contractId}
+          onDone={() => setFormOpen(false)}
+        />
+      )}
+
+      {list.length === 0 ? (
+        <p className={styles.projectionEmpty}>
+          Поставок нет. Полный сценарий приёмки — с расхождениями, отказом и
+          регистрацией в ЕИС — ведётся в электронном актировании.
+        </p>
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Наименование</th>
+              <th>Кол-во</th>
+              <th>Сумма, ₽</th>
+              <th>Акт</th>
+              <th>Результат</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {list.map((d: ContractDelivery) => (
+              <tr key={d.id}>
+                <td>{d.deliveryDate}</td>
+                <td>{d.itemName}</td>
+                <td>
+                  {d.quantity} {d.unit}
+                </td>
+                <td>{formatMoney(d.amount)}</td>
+                <td>
+                  {d.acceptanceActNumber}
+                  {d.acceptanceActDate ? ` от ${d.acceptanceActDate}` : ""}
+                </td>
+                <td>
+                  <span
+                    className={`${styles.deliveryBadge} ${styles[`del_${d.result}`]}`}
+                  >
+                    {DELIVERY_LABELS[d.result]}
+                  </span>
+                  {d.notes && <div className={styles.notes}>{d.notes}</div>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className={styles.projectionMeta}>
+        <span>Новые приёмки оформляются в электронном актировании</span>
+        <Link
+          className={styles.projectionLink}
+          to={`/acceptances?contractId=${String(contractId)}`}
+        >
+          Открыть приёмки по контракту
+        </Link>
+      </div>
     </section>
   );
 }

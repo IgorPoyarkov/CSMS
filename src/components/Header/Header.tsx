@@ -55,7 +55,7 @@ const PRIMARY_LINKS: NavItem[] = [
   { to: "/purchase-plans", label: "План-график" },
   { to: "/purchase-notes", label: "Потребность" },
   { to: "/procurement-processing", label: "Извещения" },
-  { to: "/contract-service", label: "Контракты" },
+  { to: "/contract-service", label: "Контрактная служба" },
 ];
 
 // Остальные разделы собраны в меню «Ещё» по смыслу: так шапка остаётся
@@ -65,6 +65,7 @@ const MORE_GROUPS: NavGroup[] = [
     title: "Сквозной контур",
     links: [
       { to: "/contract-projects", label: "Проект контракта" },
+      { to: "/acceptances", label: "Электронное актирование" },
       { to: "/eis/chains", label: "Цепочка ЕИС" },
       { to: "/documents", label: "Типовые документы", requiresAuth: true },
       { to: "/notifications", label: "Сроки и риски", requiresAuth: true },
