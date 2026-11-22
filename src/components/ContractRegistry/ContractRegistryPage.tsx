@@ -685,7 +685,7 @@ export default function ContractRegistryPage() {
       )}
       <p className={styles.groupHint}>
         {folderOpen
-          ? "Папка раскрыта на всю ширину реестра — к списку папок возвращает кнопка «Все папки»."
+          ? "Папка раскрыта: папки остаются на экране — любую можно выбрать одним кликом, «Все папки» закрывает лист."
           : "Выберите папку по году заключения — внутри неё весь список контрактов за этот год."}
       </p>
 
@@ -924,17 +924,25 @@ export default function ContractRegistryPage() {
           )}
 
           {/* Папки по годам заключения: крупные плитки под фильтрами. Пока
-              папка не выбрана, таблицы на экране нет — только папки; выбранная
-              раскрывается на всю ширину реестра. */}
+              папка не выбрана, таблицы на экране нет — только папки; после
+              выбора лист контрактов занимает основную колонку, а папки
+              собираются в рельс справа, чтобы их можно было перевыбрать. */}
           <div
             className={`${styles.folderStage} ${
               folderOpen ? styles.folderStageOpen : ""
             }`}
           >
-            <div className={styles.folderGrid} inert={folderOpen}>
+            <div
+              className={styles.folderGrid}
+              role="group"
+              aria-label="Папки по годам заключения"
+            >
               <button
                 type="button"
-                className={`${styles.folderCard} ${styles.folderCardAll}`}
+                className={`${styles.folderCard} ${styles.folderCardAll} ${
+                  showAllFolders ? styles.folderCardActive : ""
+                }`}
+                aria-pressed={showAllFolders}
                 onClick={() => openContractFolder(FOLDER_ALL)}
               >
                 <span className={styles.folderCardLabel}>Сводный реестр</span>
@@ -952,7 +960,12 @@ export default function ContractRegistryPage() {
                 <button
                   key={folder.year}
                   type="button"
-                  className={styles.folderCard}
+                  className={`${styles.folderCard} ${
+                    activeFolder?.year === folder.year
+                      ? styles.folderCardActive
+                      : ""
+                  }`}
+                  aria-pressed={activeFolder?.year === folder.year}
                   onClick={() => openContractFolder(folder.year)}
                 >
                   <span className={styles.folderCardLabel}>

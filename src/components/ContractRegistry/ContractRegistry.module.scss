@@ -252,12 +252,13 @@
 
 /* Ширины колонок таблицы контрактов (сумма — 100%) */
 .colNumber {
-  // Под 19-значный номер реестровой записи
-  width: 16%;
+  // Под 19-значный номер реестровой записи: в открытом листе (справа рельс
+  // папок, ширина меньше) номер должен оставаться в одну строку
+  width: 18%;
 }
 
 .colSupplier {
-  width: 18%;
+  width: 16%;
 }
 
 .colPrice {
@@ -1724,14 +1725,20 @@
 /* ===== Папки реестра по годам заключения ===== */
 
 // Стартовый экран реестра — только крупные папки по годам: сетка в два ряда
-// по четыре плитки под фильтрами. Таблица появляется после выбора папки:
-// все папки уезжают вправо за контейнер, а лист контрактов раскрывается от
-// центральной горизонтальной линии к краям и занимает всю ширину реестра.
+// по четыре плитки под фильтрами. После выбора папки плитки не уезжают за
+// контейнер (из-за этого они становились недоступны и добавляли странице
+// горизонтальный выезд), а сжимаются в колонку-рельс справа от листа: любую
+// папку можно перевыбрать одним кликом, не возвращаясь кнопкой «Все папки».
 .folderStage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   // clip, а не hidden: у стадии не появляется собственных полос прокрутки
   overflow: clip;
+  // Воздух между панелью фильтров и верхним рядом плиток: неон идёт по верхней
+  // кромке карточки, и вплотную к фильтрам он читался как «перекрытие блоком
+  // сверху». Именно padding, а не margin: вертикальные margin стадии и
+  // margin-bottom тулбара схлопываются, и отступ 12px не давал эффекта.
+  padding-top: 12px;
 }
 
 .folderGrid {
@@ -1743,16 +1750,25 @@
   // Плитки не тянутся до высоты раскрытого листа: ячейка общая, а высота
   // сетки должна оставаться в два ряда
   align-self: start;
-  transition:
-    transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.3s ease;
+  transition: gap 0.3s ease;
 }
 
-// Папка выбрана — плитки уходят вправо за правую границу реестра
+// Папка выбрана: лист контрактов занимает основную колонку, а папки остаются
+// справа узким рельсом — они по-прежнему на экране и готовы к перевыбору.
+.folderStageOpen {
+  grid-template-columns: minmax(0, 1fr) 180px;
+  column-gap: 14px;
+}
+
 .folderStageOpen .folderGrid {
-  transform: translateX(calc(100% + 48px));
-  opacity: 0;
-  pointer-events: none;
+  grid-area: 1 / 2;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  animation: folderRailIn 0.42s cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+
+.folderStageOpen .folderPanel {
+  grid-area: 1 / 1;
 }
 
 .folderCard {
@@ -1807,6 +1823,85 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+}
+
+// Появление плиток: лёгкий подъём с задержкой по порядку — сетка читается
+// как собранная, а не вывалившаяся одним куском. Повторно анимация не
+// запускается: при выборе папки узлы не перемонтируются, а уезжают в рельс.
+.folderGrid > .folderCard {
+  animation: folderTileIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.folderGrid > .folderCard:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.folderGrid > .folderCard:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.folderGrid > .folderCard:nth-child(4) {
+  animation-delay: 0.18s;
+}
+
+.folderGrid > .folderCard:nth-child(5) {
+  animation-delay: 0.24s;
+}
+
+.folderGrid > .folderCard:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+.folderGrid > .folderCard:nth-child(7) {
+  animation-delay: 0.36s;
+}
+
+.folderGrid > .folderCard:nth-child(n + 8) {
+  animation-delay: 0.42s;
+}
+
+// Открытая папка помечена и в рельсе, и в стартовой сетке: видно, откуда
+// пришёл лист контрактов и куда вернуться повторным кликом.
+.folderCardActive {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+
+  &::before {
+    background: var(--accent);
+  }
+}
+
+// Рельс: плитки компактные — год читается, мета мелкая, стрелка всегда видна
+.folderStageOpen .folderCard {
+  min-height: 0;
+  gap: 0;
+  padding: 9px 26px 10px 16px;
+}
+
+.folderStageOpen .folderCardLabel {
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
+.folderStageOpen .folderCardYear {
+  margin-top: 0;
+  padding-top: 2px;
+  font-size: 19px;
+}
+
+.folderStageOpen .folderCardMeta {
+  font-size: 11px;
+}
+
+.folderStageOpen .folderCardArrow {
+  right: 10px;
+  bottom: 10px;
+  opacity: 0.45;
+  transform: none;
+}
+
+.folderStageOpen .folderCard:hover .folderCardArrow {
+  opacity: 1;
 }
 
 // «Сводный реестр» — та же плитка, но с акцентом: за ней весь список
@@ -1865,6 +1960,18 @@
   animation: folderReveal 0.55s cubic-bezier(0.3, 0, 0.2, 1) 0.16s both;
 }
 
+// Открытая папка оставляет справа рельс папок, поэтому лист уже исходного:
+// таблица ужимается по его ширине, а заголовки переносятся по словам — так
+// горизонтальная полоса прокрутки не появляется. Содержимое ячеек и так
+// переносится (`overflow-wrap: anywhere` выше).
+.folderStageOpen .contractsTable {
+  min-width: 0;
+
+  th {
+    white-space: normal;
+  }
+}
+
 @keyframes folderReveal {
   from {
     clip-path: inset(50% 0 50% 0 round 12px);
@@ -1874,6 +1981,34 @@
   to {
     clip-path: inset(0 0 0 0 round 12px);
     opacity: 1;
+  }
+}
+
+// Появление плиток: подъём на 10 px — движение только по вертикали, поэтому
+// сетка не «разъезжается» по ширине и не задевает соседей.
+@keyframes folderTileIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+// Рельс папок приезжает справа на своё место: видно, что плитки не исчезли,
+// а собрались в колонку для перевыбора.
+@keyframes folderRailIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -1929,7 +2064,28 @@
   font-variant-numeric: tabular-nums;
 }
 
-// Планшет: папки идут по три в ряд, лист контрактов — на всю ширину
+// Рельс отнимает у листа 180 px + зазор: на ширине до 1200 px колонки номера
+// и суммы сжимаются так, что 19-значный номер реестровой записи и цена
+// переносятся по цифре (было видно на 1101 px). В этом диапазоне папки уходят
+// полосой наверх, как на планшете, — читаемость таблицы важнее соседства с
+// рельсом. Ниже 1100 px полоса перестраивается в три колонки, ниже 820 — в две.
+@media (max-width: 1200px) {
+  .folderStageOpen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .folderStageOpen .folderGrid {
+    grid-area: 1 / 1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 14px;
+  }
+
+  .folderStageOpen .folderPanel {
+    grid-area: 2 / 1;
+  }
+}
+
+// Планшет: папки идут по три в ряд, лист контрактов — во всю ширину
 @media (max-width: 1100px) {
   .folderGrid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1943,12 +2099,40 @@
   .folderCardYear {
     font-size: 26px;
   }
+
+  // Рельс справа на планшете не помещается: папки остаются на экране полосой
+  // сверху, лист контрактов идёт под ними. Сетка, а не прокрутка — папки не
+  // уезжают за контейнер и доступны для перевыбора.
+  .folderStageOpen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .folderStageOpen .folderGrid {
+    grid-area: 1 / 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 14px;
+  }
+
+  .folderStageOpen .folderPanel {
+    grid-area: 2 / 1;
+  }
 }
 
 // Панель с фильтрами уже не вмещает четыре крупные плитки
 @media (max-width: 820px) {
   .folderGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .folderStageOpen .folderGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  // На узком экране рельс уходит наверх и лист снова во всю ширину: таблице
+  // возвращаем минимальную ширину, чтобы колонки не сжимались до нечитаемых.
+  // Прокрутка остаётся только внутри таблицы — это её штатное поведение.
+  .folderStageOpen .contractsTable {
+    min-width: 900px;
   }
 }
 
@@ -1957,6 +2141,8 @@
     transition: none;
   }
 
+  .folderGrid > .folderCard,
+  .folderStageOpen .folderGrid,
   .folderPanel {
     animation: none;
   }
