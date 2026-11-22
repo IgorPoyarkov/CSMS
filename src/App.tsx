@@ -51,6 +51,10 @@ import UiSolutionsPage from "./components/UiSolutions/UiSolutionsPage";
 // на /analytics.
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage/AnalyticsPage"));
 
+// Визитка — самостоятельная одностраничная посадочная без шапки приложения.
+// Ленивый маршрут: на рабочий стол её CSS и разметка не влияют.
+const VisitCardPage = lazy(() => import("./pages/VisitCardPage/VisitCardPage"));
+
 const router = createBrowserRouter([
   {
     path: "/",
@@ -262,6 +266,30 @@ const router = createBrowserRouter([
         element: <UiSolutionsPage />,
       },
     ],
+  },
+  {
+    // Одностраничная визитка проекта: вне AppLayout, со своей тёмной палитрой
+    path: "/visit-card",
+    element: (
+      <Suspense
+        fallback={
+          <div
+            style={{
+              display: "grid",
+              placeItems: "center",
+              minHeight: "100dvh",
+              background: "#060b12",
+              color: "#9fb2c5",
+              fontFamily: "Poppins, Arial, sans-serif",
+            }}
+          >
+            Загрузка визитки…
+          </div>
+        }
+      >
+        <VisitCardPage />
+      </Suspense>
+    ),
   },
 ]);
 

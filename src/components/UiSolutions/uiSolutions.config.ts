@@ -495,6 +495,14 @@ export const uiSolutionGroups: UiSolutionGroup[] = [
           "Header.tsx: isMoreOpen, moreRef, MORE_GROUPS, role=menu",
       },
       {
+        id: "visit-card",
+        title: "Одностраничная визитка",
+        purpose:
+          "Самостоятельный лендинг проекта: тёмная палитра, выразительная сетка, появление секций по IntersectionObserver, индикатор прокрутки, hover/focus-состояния и поддержка prefers-reduced-motion. Маршрут вне AppLayout, грузится отдельным чанком.",
+        usage: "/visit-card, меню «Ещё» → «Визитка проекта», карточка на главной.",
+        implementation: "src/pages/VisitCardPage/VisitCardPage.tsx + .module.scss",
+      },
+      {
         id: "registry-submenu",
         title: "Подменю реестра контрактов",
         purpose:

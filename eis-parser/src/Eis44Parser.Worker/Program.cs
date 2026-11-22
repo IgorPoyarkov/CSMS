@@ -3,6 +3,8 @@ using Eis44Parser.Core.Abstractions;
 using Eis44Parser.Core.Models;
 using Eis44Parser.Data;
 using Eis44Parser.Worker;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +20,10 @@ using Microsoft.Extensions.Options;
 // --parse-file <путь> — разобрать один XML без ЕИС и токена
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
 // --parse-xlsx <путь> — разобрать XLSX шаблон КТРУ экспертного совета,
+// --contract-card <реестровый номер> — скачать и разобрать акты/платежи публичной карточки,
+// --inn <ИНН заказчика> — то же для всех контрактов заказчика за --year,
+// --year <год> — фильтр года (по умолчанию 2026), --limit <n> — ограничение числа контрактов,
+// --out <папка> — сохранить сырые XML и JSON-проекцию,
 // --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnoreCase);
@@ -109,6 +115,66 @@ if (parseFilePath is not null)
             return 0;
         }
 
+        if (AcceptanceActParser.IsAcceptanceAct(document))
+        {
+            var act = new AcceptanceActParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {act.FileName}");
+            Console.WriteLine($"Реестровый номер: {act.RegNumber}, акт №{act.ActNumber} от {act.ActDate}");
+            Console.WriteLine($"Этап: sid={act.Stage?.Sid}, тех. id={act.Stage?.TechnicalSid}, ИКЗ={act.Stage?.Ikz}");
+            Console.WriteLine($"Контракт: №{act.Contract?.Number} от {act.Contract?.Date}");
+            Console.WriteLine($"Итого: без НДС {act.Totals.SumWithoutVat}, с НДС {act.Totals.SumWithVat}, НДС {act.Totals.VatSum}");
+            Console.WriteLine($"Сторон: {act.Parties.Count}, работ: {act.WorkItems.Count}, вложений: {act.Attachments.Count}");
+            foreach (var party in act.Parties)
+            {
+                Console.WriteLine($"  {party.Role}: {party.Name} | ИНН {party.Inn} | КПП {party.Kpp}");
+            }
+
+            return 0;
+        }
+
+        if (GeneralAcceptanceParser.IsGeneralAcceptanceDocument(document))
+        {
+            var act = new GeneralAcceptanceParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {act.FileName}");
+            Console.WriteLine($"Упрощённый акт: реестровый номер {act.RegNumber}, №{act.ActNumber} от {act.ActDate}, КНД {act.Knd}");
+            Console.WriteLine($"Контракт: {act.Contract?.Number} от {act.Contract?.Date}");
+            Console.WriteLine($"Итого: без НДС {act.Totals.SumWithoutVat}, с НДС {act.Totals.SumWithVat}");
+            Console.WriteLine($"Сторон: {act.Parties.Count}, строк: {act.WorkItems.Count}, подписантов: {act.Signatories.Count}");
+            return 0;
+        }
+
+        if (AcceptanceDecisionParser.IsAcceptanceDecision(document))
+        {
+            var decision = new AcceptanceDecisionParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {decision.FileName}");
+            Console.WriteLine($"Решение заказчика: КНД {decision.Knd}, акт {decision.ActFileId}");
+            Console.WriteLine($"Документ №{decision.PostedDocumentNumber} от {decision.PostedDocumentDate}, код операции {decision.OperationCode}");
+            Console.WriteLine($"Подписантов: {decision.Signatories.Count}");
+            return 0;
+        }
+
+        if (EdoMessageParser.IsEdoMessage(document))
+        {
+            var message = new EdoMessageParser().Parse(document, fileName);
+            Console.WriteLine($"Файл: {message.FileName}");
+            Console.WriteLine($"{message.MessageType}: КНД {message.Knd}, {message.EventDate} {message.EventTime}");
+            Console.WriteLine($"Документ: {message.DocumentName} №{message.DocumentNumber} от {message.DocumentDate}");
+            Console.WriteLine($"Файл: {message.PostedFileName}, участников: {message.Participants.Count}");
+            return 0;
+        }
+
+        if (AcceptanceActParser.IsPaymentOrder(document))
+        {
+            var payment = new AcceptanceActParser().ParsePaymentOrder(document, fileName);
+            Console.WriteLine($"Файл: {payment.FileName}");
+            Console.WriteLine($"Платёж №{payment.DocumentNumber} от {payment.DocumentDate}, сумма {payment.Sum}");
+            Console.WriteLine($"Реестровый номер: {payment.RegNumber}");
+            Console.WriteLine($"Контракт: №{payment.ContractNumber} от {payment.ContractDate}");
+            Console.WriteLine($"Акт: №{payment.AcceptanceDocumentNumber} от {payment.AcceptanceDocumentDate}");
+            Console.WriteLine($"Назначение: {payment.Purpose}");
+            return 0;
+        }
+
         // Исполнение контракта 2026 года: печатаем этапы и акты приёмки,
         // чтобы проверить разбор на реальном файле без записи в БД.
         if (ContractExecutionParser.IsContractExecution(document))
@@ -197,6 +263,90 @@ if (parseXlsxPath is not null)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ошибка разбора XLSX: {exception.Message}");
+        return 1;
+    }
+}
+
+// Скачивание и полный разбор публичной карточки контракта: только общий доступ,
+// токен ЕИС не нужен. Результат — projecting со всеми полями для фронта.
+var cardRegNumber = GetArgumentValue(args, "--contract-card");
+var customerInn = GetArgumentValue(args, "--inn");
+if (cardRegNumber is not null || customerInn is not null)
+{
+    try
+    {
+        var yearValue = GetArgumentValue(args, "--year");
+        var year = int.TryParse(yearValue, out var parsedYear) ? parsedYear : 2026;
+        var limitValue = GetArgumentValue(args, "--limit");
+        var limit = int.TryParse(limitValue, out var parsedLimit) ? parsedLimit : int.MaxValue;
+        var outputDirectory = GetArgumentValue(args, "--out");
+
+        var cardClient = new PublicContractCardClient();
+        var importer = new ContractCardImportService(
+            cardClient,
+            new AcceptanceActParser(),
+            new GeneralAcceptanceParser(),
+            new AcceptanceDecisionParser(),
+            new EdoMessageParser(),
+            new ContractExecutionParser());
+
+        var regNumbers = new List<string>();
+        if (cardRegNumber is not null)
+        {
+            regNumbers.Add(cardRegNumber);
+        }
+
+        if (customerInn is not null)
+        {
+            var found = await cardClient.EnumerateContractsByInnAsync(customerInn);
+            regNumbers.AddRange(found.Where(number => PublicContractCardClient.YearFromRegNumber(number) == year));
+        }
+
+        regNumbers = regNumbers.Distinct(StringComparer.Ordinal).Take(limit).ToList();
+        Console.Error.WriteLine($"Контрактов к обработке: {regNumbers.Count}, год: {year}");
+
+        var jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
+        var all = new List<ContractCardViewDto>();
+
+        foreach (var regNumber in regNumbers)
+        {
+            try
+            {
+                var saveDirectory = outputDirectory is null
+                    ? null
+                    : Path.Combine(outputDirectory, regNumber);
+                var view = await importer.ImportAsync(regNumber, year, saveDirectory);
+                all.Add(view);
+                Console.Error.WriteLine(
+                    $"{regNumber}: актов {view.Acts.Count}, решений {view.Decisions.Count}, " +
+                    $"платежей {view.Payments.Count}, ЭДО {view.Messages.Count}, " +
+                    $"исполнений {view.Executions.Count}");
+
+                if (outputDirectory is not null)
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                    var json = JsonSerializer.Serialize(view, jsonOptions);
+                    await File.WriteAllTextAsync(
+                        Path.Combine(outputDirectory, $"{regNumber}.json"),
+                        json);
+                }
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine($"{regNumber}: ОШИБКА {exception.Message}");
+            }
+        }
+
+        Console.WriteLine(JsonSerializer.Serialize(all, jsonOptions));
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка загрузки карточки контракта: {exception.Message}");
         return 1;
     }
 }

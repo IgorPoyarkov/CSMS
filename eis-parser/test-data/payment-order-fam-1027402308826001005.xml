@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<self:FAM_PaymOrderCr xmlns:self="http://www.roskazna.ru/eb/domain/FAM_PaymOrderCr/formular"
+                      xmlns:typ="http://www.roskazna.ru/eb/services/transferDocumentService/types"
+                      xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+                      xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+                      xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+                      Version="4.0"
+                      metaType="formular">
+   <AccDoc_Guid>a161650f-5ad5-4cd1-afdb-1104c8d56013</AccDoc_Guid>
+   <AccDoc_DocNum>103526</AccDoc_DocNum>
+   <AccDoc_DocDate>2026-08-05</AccDoc_DocDate>
+   <AddInfo_ED2_EDNo>510206909</AddInfo_ED2_EDNo>
+   <AddInfo_ED2_EDDate>2026-08-06</AddInfo_ED2_EDDate>
+   <AddInfo_ED2_EDAuthor>5004001950</AddInfo_ED2_EDAuthor>
+   <AddInfo_OperType>01</AddInfo_OperType>
+   <AddInfo_PayOrder>5</AddInfo_PayOrder>
+   <AddInfo_ChargeOffDate>2026-08-06</AddInfo_ChargeOffDate>
+   <BasicRequisites_PayView code="0" value="Не срочно"/>
+   <BasicRequisites_PayType>ЭДИ</BasicRequisites_PayType>
+   <BasicRequisites_EDType code="ED101" value="Платежное поручение"/>
+   <BasicRequisites_PaySum>39721.71</BasicRequisites_PaySum>
+   <StmInfrmtn_Sum1>Тридцать девять тысяч семьсот двадцать один рубль 71 копейка</StmInfrmtn_Sum1>
+   <TtlPrt_SECRECY>0</TtlPrt_SECRECY>
+   <Payer_INN>0274023088</Payer_INN>
+   <Payer_KPP>027401001</Payer_KPP>
+   <Payer_Name>УФК по Новосибирской области (ФГБОУ ВО БГМУ МИНЗДРАВА РОССИИ)</Payer_Name>
+   <Payer_BIK>015004950</Payer_BIK>
+   <Payer_CorrAcc>40102810445370000043</Payer_CorrAcc>
+   <Payer_BankName>ОКЦ № 1 СибГУ Банка России//УФК по Новосибирской области, г Новосибирск</Payer_BankName>
+   <Payer_CheckAcc>03214643000000015109</Payer_CheckAcc>
+   <Recip_INN>0269042310</Recip_INN>
+   <Recip_KPP>026901001</Recip_KPP>
+   <Recip_Name>ООО "ФРУКТ"</Recip_Name>
+   <Recip_BIK>044525104</Recip_BIK>
+   <Recip_CorrAcc>30101810745374525104</Recip_CorrAcc>
+   <Recip_BankName>ООО "Банк Точка", г Москва</Recip_BankName>
+   <Recip_CheckAcc>40702810901500172578</Recip_CheckAcc>
+   <DepInfo_PayPurpose>Проч закуп товара (овощи) для нужд санатория "Глуховская" ФГБОУ ВО БГМУ Минздрава России во 2 полугодии 2026 года, контракт № 03011000496260008890001 от 29.06.26, Документ о приемке № 953 от 02.08.26, без НДС</DepInfo_PayPurpose>
+   <MarksCS_DateFAH>2026-08-06</MarksCS_DateFAH>
+   <StmInfrmtn_ReestrNumGK>1027402308826001005</StmInfrmtn_ReestrNumGK>
+   <StmInfrmtn_ReestrType>02</StmInfrmtn_ReestrType>
+   <StmInfrmtn_IdDoc>778761452</StmInfrmtn_IdDoc>
+   <StmInfrmtn_ParentDocGUID>7b7f61bc-318a-4614-8e75-a3818896fb88</StmInfrmtn_ParentDocGUID>
+   <FAHTeh>
+      <FAHTeh_ITEM>
+         <KBK>00000000000000000244</KBK>
+         <Sum>39721.71</Sum>
+         <FAH_AvDO>0</FAH_AvDO>
+      </FAHTeh_ITEM>
+   </FAHTeh>
+</self:FAM_PaymOrderCr>

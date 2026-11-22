@@ -11,6 +11,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
     <PackageReference Include="Polly" Version="8.6.4" />
+    <!-- Кириллические XML Казначейства объявляют encoding="WINDOWS-1251". -->
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

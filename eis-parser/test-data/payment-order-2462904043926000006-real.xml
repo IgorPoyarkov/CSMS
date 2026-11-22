@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<self:MSC_TransfOrderAcc xmlns:self="http://www.roskazna.ru/eb/domain/MSC_TransfOrderAcc/formular"
+                         xmlns:tdr="http://www.roskazna.ru/eb/services/transferDocumentService/types"
+                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                         xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+                         xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                         xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+                         xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+                         Version="2.0"
+                         metaType="formular"
+                         xsi:schemaLocation="http://www.roskazna.ru/eb/domain/MSC_TransfOrderAcc/formular formulars.xsd">
+   <AccDoc_Guid>5c8c3055-4f3d-0540-e063-0a2c2c178dc8</AccDoc_Guid>
+   <AccDoc_DocNum>317371</AccDoc_DocNum>
+   <AccDoc_DocDate>2026-09-28</AccDoc_DocDate>
+   <ExecDate>2026-09-28</ExecDate>
+   <BasicRequisites_PayType>2</BasicRequisites_PayType>
+   <BasicRequisites_PaySum>6815969.23</BasicRequisites_PaySum>
+   <CurrCode_OKV>643</CurrCode_OKV>
+   <PayAmountRub>6815969.23</PayAmountRub>
+   <TtlPrt_SECRECY>0</TtlPrt_SECRECY>
+   <Payer_INN>4629040439</Payer_INN>
+   <Payer_KPP>463201001</Payer_KPP>
+   <Payer_Name>МИНИСТЕРСТВО ФИНАНСОВ И БЮДЖЕТНОГО КОНТРОЛЯ КУРСКОЙ ОБЛАСТИ (ОКУ "КУРСКАВТОДОР")</Payer_Name>
+   <Payer_AccNum>03442Р11220</Payer_AccNum>
+   <Payer_BIK>013807906</Payer_BIK>
+   <Payer_CorrAcc>40102810545370000038</Payer_CorrAcc>
+   <Payer_BankName>ОКЦ № 3 ГУ Банка России по ЦФО//УФК ПО КУРСКОЙ ОБЛАСТИ, г Курск</Payer_BankName>
+   <Payer_CheckAcc>03221643380000004400</Payer_CheckAcc>
+   <Recip_INN>4611014131</Recip_INN>
+   <Recip_KPP>461101001</Recip_KPP>
+   <Recip_Name>МИНИСТЕРСТВО ФИНАНСОВ И БЮДЖЕТНОГО КОНТРОЛЯ КУРСКОЙ ОБЛАСТИ (АО "ФАТЕЖСКОЕ ДРСУ", л/с 712Ю8315001)</Recip_Name>
+   <Recip_AccNum>712Ю8315001</Recip_AccNum>
+   <Recip_BIK>013807906</Recip_BIK>
+   <Recip_CorrAcc>40102810545370000038</Recip_CorrAcc>
+   <Recip_BankName>ОКЦ № 3 ГУ Банка России по ЦФО//УФК ПО КУРСКОЙ ОБЛАСТИ, г Курск</Recip_BankName>
+   <Recip_CheckAcc>03225643380000004402</Recip_CheckAcc>
+   <DepInfo_PayPurpose>(7600) Ремонт автомобильной дороги "Тросна - Калиновка" - Михайловка - Линец в Железногорском р.КО. АКР (26007620) контракт № 3Р_26 от 17.02.2026, Документ о приемке № 548 от 25.09.2026, в т.ч. НДС 1229109.20</DepInfo_PayPurpose>
+   <DepInfo_TAX_DrawStat>08</DepInfo_TAX_DrawStat>
+   <DepInfo_TAX_KBK>0</DepInfo_TAX_KBK>
+   <DepInfo_TAX_OKTMO>0</DepInfo_TAX_OKTMO>
+   <DepInfo_TAX_PayReason>0</DepInfo_TAX_PayReason>
+   <DepInfo_TAX_Period>0</DepInfo_TAX_Period>
+   <DepInfo_TAX_DocNo>0</DepInfo_TAX_DocNo>
+   <DepInfo_TAX_DocDate>0</DepInfo_TAX_DocDate>
+   <IGK>И85447010824Р4С0004420017</IGK>
+   <StmInfrmtn_NmbBO>382Р112226440000022</StmInfrmtn_NmbBO>
+   <StmInfrmtn_ReestrNumGK>2462904043926000006</StmInfrmtn_ReestrNumGK>
+   <StmInfrmtn_ReestrType>02</StmInfrmtn_ReestrType>
+   <StmInfrmtn_IdDoc>790318422</StmInfrmtn_IdDoc>
+   <StmInfrmtn_ParentDocGUID>e47d9339-4516-4a61-bb12-16b0a747adf8</StmInfrmtn_ParentDocGUID>
+   <FAHTeh>
+      <FAHTeh_ITEM>
+         <Amount_line>6815969.23</Amount_line>
+         <Payer_KBKtype>11</Payer_KBKtype>
+         <Payer_KBK>8440409171И89Д001244</Payer_KBK>
+         <NumbDO>382Р112226440000022000003</NumbDO>
+         <FAH_AvDO>0</FAH_AvDO>
+      </FAHTeh_ITEM>
+   </FAHTeh>
+</self:MSC_TransfOrderAcc>
