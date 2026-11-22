@@ -30,6 +30,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
+import { writeDb } from "./lib/db-write.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -1204,7 +1205,7 @@ async function main() {
 
   if (args.enrichPlans) {
     const stats = enrichPlansFromXml(db);
-    fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+    await writeDb(args.db, db);
     console.log(JSON.stringify(stats, null, 2));
     return;
   }
@@ -1223,7 +1224,7 @@ async function main() {
     for (const snapshot of snapshots) {
       applyOrganizationRequisites(snapshot, publicOrg);
     }
-    fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+    await writeDb(args.db, db);
     console.log(
       JSON.stringify(
         { organization: org, snapshotsUpdated: snapshots.length },
@@ -1373,7 +1374,7 @@ async function main() {
     responsibleStaff: chain.staff,
   };
   db.eisImportSummary = report;
-  fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+  await writeDb(args.db, db);
   console.log(JSON.stringify(report, null, 2));
 }
 

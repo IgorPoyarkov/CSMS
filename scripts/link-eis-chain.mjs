@@ -26,6 +26,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeDb } from "./lib/db-write.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -775,7 +776,7 @@ export function applyEisChain(db) {
   };
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = JSON.parse(fs.readFileSync(args.db, "utf8"));
   const report = applyEisChain(db);
@@ -786,7 +787,7 @@ function main() {
       paymentLinks: report.payments,
       responsibleStaff: report.staff,
     };
-    fs.writeFileSync(args.db, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+    await writeDb(args.db, db);
   }
   // `byNotice` — Map для импортера, в JSON он превращается в пустой объект.
   const { byNotice: _byNotice, ...printable } = report;
@@ -794,5 +795,8 @@ function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main();
+  main().catch((error) => {
+    console.error(`Ошибка связывания цепочек: ${error.message}`);
+    process.exitCode = 1;
+  });
 }

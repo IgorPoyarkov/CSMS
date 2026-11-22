@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
+import { writeDb } from "./lib/db-write.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (name, fallback) => {
@@ -97,5 +98,5 @@ if (!dryRun) {
       delete target.purchaseNoteId;
     }
   }
-  fs.writeFileSync(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+  await writeDb(dbPath, db);
 }

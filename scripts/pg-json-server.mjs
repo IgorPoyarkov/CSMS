@@ -19,8 +19,7 @@ import {
 } from "./lib/pg-store.mjs";
 
 const PORT = Number(process.env.PG_ADAPTER_PORT || 3002);
-const JSON_SERVER_URL =
-  process.env.JSON_SERVER_URL || "http://localhost:3001";
+const JSON_SERVER_URL = process.env.JSON_SERVER_URL || "http://localhost:3001";
 
 /** Ключи запроса, которые маппятся в вынесенные колонки. */
 const FILTER_COLUMNS = {
@@ -91,10 +90,7 @@ async function proxyToJsonServer(req, res) {
       init.body = JSON.stringify(req.body ?? {});
     }
 
-    const response = await fetch(
-      `${JSON_SERVER_URL}${req.originalUrl}`,
-      init,
-    );
+    const response = await fetch(`${JSON_SERVER_URL}${req.originalUrl}`, init);
     const body = await response.text();
     res.status(response.status);
     const contentType = response.headers.get("content-type");
@@ -175,8 +171,8 @@ async function listDocuments(collection, query) {
   // json-server отдаёт X-Total-Count только при пагинации — повторяем это,
   // чтобы ответы совпадали байт в байт и не делать лишний COUNT без нужды.
   const total = paging
-    ? (await pool.query(`SELECT count(*)::int AS total ${base}`, params)).rows[0]
-        .total
+    ? (await pool.query(`SELECT count(*)::int AS total ${base}`, params))
+        .rows[0].total
     : null;
   const rows = await pool.query(
     `SELECT doc ${base} ORDER BY seq ASC ${paging}`,

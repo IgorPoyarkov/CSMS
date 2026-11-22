@@ -23,6 +23,7 @@ import {
 } from "./import-eis-client.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
+import { writeDb } from "./lib/db-write.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -164,7 +165,7 @@ if (added.length > 0) {
   db.eisImportSummary = summary;
 }
 
-fs.writeFileSync(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+await writeDb(dbPath, db);
 console.log(
   JSON.stringify(
     {

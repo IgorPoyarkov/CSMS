@@ -25,7 +25,9 @@ const normalize = (value) => {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.keys(value).sort().map((key) => [key, normalize(value[key])]),
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, normalize(value[key])]),
     );
   }
   return value;
@@ -50,7 +52,8 @@ for (const path of requests) {
       fetchJson(PG_URL, path),
     ]);
     const sameBody =
-      JSON.stringify(normalize(json.body)) === JSON.stringify(normalize(pg.body));
+      JSON.stringify(normalize(json.body)) ===
+      JSON.stringify(normalize(pg.body));
     const sameHeader = json.totalCount === pg.totalCount;
     const ok = json.status === pg.status && sameBody && sameHeader;
     if (!ok) failed += 1;

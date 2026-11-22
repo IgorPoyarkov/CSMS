@@ -30,6 +30,7 @@ export const pgConfig = {
   port: Number(process.env.PGPORT || 5433),
   database: process.env.PGDATABASE || "csms_eis",
   user: process.env.PGUSER || "postgres",
+  connectionTimeoutMillis: Number(process.env.PG_CONNECT_TIMEOUT || 5000),
   ...(process.env.PGPASSWORD ? { password: process.env.PGPASSWORD } : {}),
 };
 
@@ -122,9 +123,10 @@ export function buildSeedContext(db) {
   const organizationOf = (doc) => {
     if (doc.organizationId !== undefined) return asText(doc.organizationId);
 
-    const note = doc.purchaseNoteId !== undefined
-      ? notesById.get(String(doc.purchaseNoteId))
-      : undefined;
+    const note =
+      doc.purchaseNoteId !== undefined
+        ? notesById.get(String(doc.purchaseNoteId))
+        : undefined;
     if (note?.organizationId !== undefined) return asText(note.organizationId);
 
     const notice =
@@ -133,7 +135,13 @@ export function buildSeedContext(db) {
     return asText(noteOf(notice)?.organizationId);
   };
 
-  return { notesById, noticesByProcurement, noticesByNumber, innByOrg, organizationOf };
+  return {
+    notesById,
+    noticesByProcurement,
+    noticesByNumber,
+    innByOrg,
+    organizationOf,
+  };
 }
 
 /**
@@ -159,7 +167,9 @@ export function extractKeys(doc, context = {}) {
       doc.positionUniqueNumber ?? doc.generalInfo?.positionUniqueNumber,
     ),
     plan_number: asText(
-      doc.purchasePlanNumber ?? doc.planNumber ?? doc.generalInfo?.plan2020Number,
+      doc.purchasePlanNumber ??
+        doc.planNumber ??
+        doc.generalInfo?.plan2020Number,
     ),
     contract_number: asText(doc.contractNumber),
     contract_id: asText(doc.contractId),
@@ -183,7 +193,12 @@ const KEY_COLUMNS = [
 export async function upsertDocument(client, collection, doc, context = {}) {
   const keys = extractKeys(doc, context);
   const columns = ["collection", "doc_id", ...KEY_COLUMNS, "doc"];
-  const values = [collection, keys.doc_id, ...KEY_COLUMNS.map((k) => keys[k]), JSON.stringify(doc)];
+  const values = [
+    collection,
+    keys.doc_id,
+    ...KEY_COLUMNS.map((k) => keys[k]),
+    JSON.stringify(doc),
+  ];
   const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
   const updates = [...KEY_COLUMNS, "doc"]
     .map((column) => `${column} = EXCLUDED.${column}`)
@@ -197,16 +212,31 @@ export async function upsertDocument(client, collection, doc, context = {}) {
   );
 }
 
-/** Переносит коллекции из db.json в PostgreSQL. Повторный прогон безопасен. */
+/**
+ * Переносит коллекции из db.json в PostgreSQL. Повторный прогон безопасен.
+ *
+ * Коллекции, которых в источнике нет, не трогаются: частичный db.json не должен
+ * очищать уже перенесённые данные. Для коллекций, которые есть, лишние строки
+ * удаляются — иначе пересборка СЗ с `--replace` оставляла бы старые записи в PG.
+ */
 export async function seedDocuments(client, db) {
   const context = buildSeedContext(db);
   const report = {};
 
   for (const collection of PG_COLLECTIONS) {
-    const rows = db[collection] || [];
+    const rows = db[collection];
+    if (!Array.isArray(rows)) continue;
+
     for (const doc of rows) {
       await upsertDocument(client, collection, doc, context);
     }
+
+    const ids = rows.map((doc) => String(doc.id));
+    await client.query(
+      `DELETE FROM ${PG_SCHEMA}.documents
+       WHERE collection = $1 AND doc_id <> ALL($2::text[])`,
+      [collection, ids],
+    );
     report[collection] = rows.length;
   }
 

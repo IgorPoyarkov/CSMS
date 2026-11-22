@@ -7,11 +7,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import {
-  createPgPool,
-  ensureSchema,
-  seedDocuments,
-} from "./lib/pg-store.mjs";
+import { createPgPool, ensureSchema, seedDocuments } from "./lib/pg-store.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
