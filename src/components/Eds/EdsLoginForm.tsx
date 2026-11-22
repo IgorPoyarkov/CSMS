@@ -1,24 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  useEdsLogin,
-  useAllEdsCertificates,
-  type EdsLoginMode,
-} from "../../services/Eds/eds.api";
+import { useEdsLogin, useAllEdsCertificates } from "../../services/Eds/eds.api";
 import {
   describeCryptoPro,
-  readPluginSignHandles,
-  makeLoginChallenge,
-  signLoginChallenge,
-  type PluginSignature,
+  storeCertificateToEds,
 } from "../../services/Eds/cryptoPro";
 import {
+  readStoreCertificates,
+  signText,
+  type PluginCertificateInfo,
+} from "../../services/Eds/pluginSign";
+import {
+  certificateIdentityKey,
   certificateStateOn,
   edsCertificateSourceLabels,
   edsCertificateStateLabels,
   formatCertificateLabel,
   formatCertificatePeriod,
   mergeCertificateLists,
-  type EdsCertificate,
   type EdsCertificateState,
 } from "../../services/Eds/eds.schema";
 import useUtils from "../../hooks/useUtils";
@@ -30,12 +28,11 @@ const TODAY = new Date().toISOString().slice(0, 10);
 /**
  * Выбор сертификата для входа в систему по ЭП (Tasks 9, п. 1).
  *
- * Список сертификатов складывается из двух источников: то, что читает
- * крипто-плагин на рабочем месте, и то, что зарегистрировано в системе.
- * Если плагин есть — набирается и подписывается одноразовый наборт;
- * если плагин не подписывает — предлагается режим «без проверки подписи»,
- * в котором вход выполняется по совпадению ИНН/ФИО с записью в базе, а в
- * журнале появляется пометка «без проверки подписи».
+ * Сертификаты читаются из хранилища «Мой» плагином КриптоПро. При нажатии
+ * «Войти» сервер выдаёт одноразовый наборт, браузер подписывает его закрытым
+ * ключом, а сервер проверяет подпись и выдаёт обычную сессию с профилем прав.
+ * Вход по записи реестра без подписи больше не принимается: он не подтверждает
+ * владение ключом и не даёт права на сессию.
  */
 
 interface EdsLoginFormProps {
@@ -56,105 +53,90 @@ export default function EdsLoginForm({
   const cpStatus = useMemo(() => describeCryptoPro(), []);
   const { mutate: login, isPending, isError } = useEdsLogin();
 
-  const [pluginHandles, setPluginHandles] = useState<
-    Awaited<ReturnType<typeof readPluginSignHandles>>
-  >([]);
+  const [storeCerts, setStoreCerts] = useState<PluginCertificateInfo[]>([]);
+  const [storeError, setStoreError] = useState("");
+  const [readingCerts, setReadingCerts] = useState(true);
   const [selectedKey, setSelectedKey] = useState("");
-  const [mode, setMode] = useState<EdsLoginMode>("plugin");
-  const [signature, setSignature] = useState<PluginSignature | null>(null);
   const [loginError, setLoginError] = useState("");
 
-  // Читаем сертификаты плагина при монтировании
+  // Читаем хранилище «Мой»: только эти сертификаты несут закрытый ключ
   useEffect(() => {
     let cancelled = false;
-    readPluginSignHandles().then((handles) => {
-      if (!cancelled) setPluginHandles(handles);
-    });
+
+    readStoreCertificates()
+      .then((result) => {
+        if (cancelled) return;
+        setStoreCerts(result.certificates.filter((item) => item.hasPrivateKey));
+        setStoreError(result.error);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setStoreError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setReadingCerts(false);
+      });
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Слияние: живые первыми, дубли по серийнику не повторяются
+  const signableCerts = useMemo(
+    () => storeCerts.map((info) => storeCertificateToEds(info)),
+    [storeCerts],
+  );
+
+  // Слияние: живые сертификаты первыми, дубли по серийнику не повторяются
   const availableCerts = useMemo(
-    () =>
-      mergeCertificateLists(
-        pluginHandles.map((h) => h.certificate),
-        registeredCerts,
-      ),
-    [pluginHandles, registeredCerts],
+    () => mergeCertificateLists(signableCerts, registeredCerts),
+    [signableCerts, registeredCerts],
   );
 
   const selectedCert =
     availableCerts.find(
-      (c) => c.serialNumber === selectedKey || String(c.id) === selectedKey,
+      (certificate) => certificateIdentityKey(certificate) === selectedKey,
     ) ?? null;
 
-  /**
-   * Выбор сертификата. Живой сертификат плагина пробуем подписать сразу;
-   * зарегистрированный подписать нечем — он сразу идёт в режим «без проверки
-   * подписи», и интерфейс честно это показывает до нажатия «Войти».
-   */
-  function handleSelectCertificate(certificate: EdsCertificate) {
-    const key = certificate.serialNumber || String(certificate.id);
+  // Подписывать можно только сертификатом с закрытым ключом из хранилища
+  const signableCert =
+    storeCerts.find(
+      (_, index) => certificateIdentityKey(signableCerts[index]) === selectedKey,
+    ) ?? null;
 
-    setSelectedKey(key);
-    setLoginError("");
-    setSignature(null);
-
-    const handle =
-      pluginHandles.find(
-        (item) =>
-          item.certificate.serialNumber === key ||
-          String(item.certificate.id) === key,
-      ) ?? null;
-
-    if (!handle || !cpStatus.canSign) {
-      setMode("registry");
-      return;
-    }
-
-    setMode("plugin");
-    signLoginChallenge(handle, makeLoginChallenge()).then((sig) => {
-      if (sig) {
-        setSignature(sig);
-      } else {
-        // Плагин не подписал наборт: вход остаётся возможным, но без
-        // подтверждения владения ключом — режим помечается в журнале
-        setMode("registry");
-      }
-    });
-  }
-
-  const stateOf = (cert: EdsCertificate): EdsCertificateState =>
+  const stateOf = (cert: (typeof signableCerts)[number]): EdsCertificateState =>
     certificateStateOn(cert, TODAY);
 
+  function handleSelectCertificate(key: string) {
+    setSelectedKey(key);
+    setLoginError("");
+  }
+
   function handleLogin() {
-    if (!selectedCert) return;
+    if (!selectedCert || !signableCert) return;
 
     setLoginError("");
     login(
       {
         certificate: selectedCert,
-        mode,
-        signature: mode === "plugin" ? signature : null,
+        sign: async (nonce) => {
+          const signature = await signText(signableCert, nonce);
+          return signature.value;
+        },
       },
       {
-        onSuccess: ({ resolution }) => {
-          if (resolution.ok) {
-            onLoggedIn();
-          } else {
-            setLoginError(resolution.message);
-          }
-        },
-        onError: (err) => {
-          setLoginError(String(err));
+        onSuccess: () => onLoggedIn(),
+        onError: (error) => {
+          setLoginError(
+            error instanceof Error ? error.message : String(error),
+          );
         },
       },
     );
   }
 
-  // ─── Рендер ───────────────────────────────────────────────────────────────
+  // ─── рендер ───────────────────────────────────────────────────────────────
 
   return (
     <div className={block()} onClick={onClose}>
@@ -180,11 +162,8 @@ export default function EdsLoginForm({
           }
         >
           {cpStatus.hint}
-          {cpStatus.installed && !cpStatus.canSign && (
-            <span className={block("warn-text")}>
-              {" "}
-              Плагин обнаружен, но не может подписать наборт.
-            </span>
+          {storeError && (
+            <span className={block("warn-text")}> {storeError}</span>
           )}
         </div>
 
@@ -192,16 +171,17 @@ export default function EdsLoginForm({
           <fieldset className={block("fieldset")}>
             <legend>Выберите сертификат</legend>
 
-            {availableCerts.length === 0 ? (
+            {readingCerts ? (
+              <div className={block("empty")}>Читаем сертификаты…</div>
+            ) : availableCerts.length === 0 ? (
               <div className={block("empty")}>
-                Сертификатов не найдено. {cpStatus.hint}
+                Сертификатов с закрытым ключом не найдено. {cpStatus.hint}
               </div>
             ) : (
               <div className={block("cert-list")}>
                 {availableCerts.map((certificate) => {
                   const state = stateOf(certificate);
-                  const key =
-                    certificate.serialNumber || String(certificate.id);
+                  const key = certificateIdentityKey(certificate);
 
                   return (
                     <label
@@ -220,7 +200,7 @@ export default function EdsLoginForm({
                         name="eds-certificate"
                         value={key}
                         checked={selectedKey === key}
-                        onChange={() => handleSelectCertificate(certificate)}
+                        onChange={() => handleSelectCertificate(key)}
                       />
                       <span className={block("cert-label")}>
                         <span className={block("cert-name")}>
@@ -244,16 +224,16 @@ export default function EdsLoginForm({
           {selectedCert && (
             <fieldset className={block("fieldset")}>
               <legend>Проверка подписи</legend>
-              {mode === "plugin" && signature ? (
+              {signableCert ? (
                 <div className={block("sign-ok")}>
-                  ✅ Набор подписан плагином ({signature.algorithm})
+                  ✅ Закрытый ключ доступен. При входе сервер выдаст наборт,
+                  браузер подпишет его, а сервер проверит подпись.
                 </div>
-              ) : mode === "plugin" && signature === null ? (
-                <div className={block("sign-pending")}>Подписание набора…</div>
               ) : (
                 <div className={block("sign-demo")}>
-                  ⚠️ Вход без проверки подписи: наборт не подписан крипто-
-                  плагином. В журнале появится пометка «без проверки подписи».
+                  ⚠️ У выбранного сертификата нет закрытого ключа в хранилище
+                  «Мой» — вход по нему невозможен. Выберите сертификат с
+                  закрытым ключом.
                 </div>
               )}
             </fieldset>
@@ -267,14 +247,16 @@ export default function EdsLoginForm({
               type="button"
               className={block("btn", ["primary"])}
               onClick={handleLogin}
-              disabled={!selectedCert || isPending}
+              disabled={!signableCert || isPending}
             >
               {isPending ? "Входим…" : "Войти по ЭЦП"}
             </button>
           </div>
 
           {isError && (
-            <div className={block("error")}>{loginError || "Ошибка входа"}</div>
+            <div className={block("error")}>
+              {loginError || "Ошибка входа по ЭЦП"}
+            </div>
           )}
         </div>
       </div>

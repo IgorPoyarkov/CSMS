@@ -224,12 +224,12 @@ export const readPluginCertificates = async (
   if (!store || store.certificates.length === 0) return [];
 
   return store.certificates.map((info) =>
-    fromStoreCertificate(info, organizationId),
+    storeCertificateToEds(info, organizationId),
   );
 };
 
 /** Сертификат из хранилища «Мой» в форме, принятой в журнале ЭП. */
-const fromStoreCertificate = (
+export const storeCertificateToEds = (
   info: PluginCertificateInfo,
   organizationId?: string | number,
 ): EdsCertificate =>
