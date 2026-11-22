@@ -60,6 +60,8 @@ import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
+import CivilLawRequirementsPanel from "./CivilLawRequirementsPanel";
+import { analyzeContractCivilBasis } from "../../services/ContractProject/civilLawRequirements";
 import ClauseSuggestionsPanel from "./ClauseSuggestionsPanel";
 import type { ClauseTemplate } from "../../services/ContractProject/clauseTemplates.api";
 import styles from "./ContractProject.module.scss";
@@ -77,6 +79,7 @@ interface ContractLocationState {
 
 const PREVIEW_SECTION = "preview";
 const CHECKS_SECTION = "checks";
+const CIVIL_SECTION = "civil-law";
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object"
@@ -302,6 +305,10 @@ export default function ContractProjectForm() {
   const completion = sectionCompletion(project);
   const issues = validateContractProject(project);
   const issueCounts = contractIssueCounts(issues);
+  const civilAnalysis = useMemo(
+    () => analyzeContractCivilBasis(project),
+    [project],
+  );
   const document = useMemo(() => buildContractDocument(project), [project]);
   // Проверка и XML по contractProjectType (ЕИС 17.0) — для выгрузки в пакет
   const eisValidation = useMemo(
@@ -331,6 +338,7 @@ export default function ContractProjectForm() {
     if (
       activeSection === PREVIEW_SECTION ||
       activeSection === CHECKS_SECTION ||
+      activeSection === CIVIL_SECTION ||
       sections.some((section) => section.id === activeSection)
     ) {
       return;
@@ -1127,6 +1135,15 @@ export default function ContractProjectForm() {
     </section>
   );
 
+  const renderCivilLaw = () => (
+    <section className={styles.section}>
+      <CivilLawRequirementsPanel
+        project={project}
+        onNavigateSection={(sectionId) => setActiveSection(sectionId)}
+      />
+    </section>
+  );
+
   const renderChecks = () => (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Проверки проекта контракта</h3>
@@ -1266,6 +1283,14 @@ export default function ContractProjectForm() {
           <button
             type="button"
             className={styles.btnSecondary}
+            onClick={() => setActiveSection(CIVIL_SECTION)}
+          >
+            Условия ГК РФ:{" "}
+            {civilAnalysis.counts.total - civilAnalysis.counts.filled} заполнить
+          </button>
+          <button
+            type="button"
+            className={styles.btnSecondary}
             onClick={() => setActiveSection(CHECKS_SECTION)}
           >
             Проверки: {issueCounts.errors} / {issueCounts.warnings}
@@ -1357,6 +1382,21 @@ export default function ContractProjectForm() {
             <button
               type="button"
               className={`${styles.navBtn} ${
+                activeSection === CIVIL_SECTION ? styles.navBtnActive : ""
+              }`}
+              onClick={() => setActiveSection(CIVIL_SECTION)}
+            >
+              <span className={styles.navIndex}>§</span>
+              <span className={styles.navText}>Условия ГК РФ</span>
+              {civilAnalysis.counts.missing > 0 && (
+                <span className={styles.navErrorCount}>
+                  {civilAnalysis.counts.missing}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`${styles.navBtn} ${
                 activeSection === PREVIEW_SECTION ? styles.navBtnActive : ""
               }`}
               onClick={() => setActiveSection(PREVIEW_SECTION)}
@@ -1392,7 +1432,9 @@ export default function ContractProjectForm() {
                 ? renderPreview()
                 : activeSection === CHECKS_SECTION
                   ? renderChecks()
-                  : activeSectionDef
+                  : activeSection === CIVIL_SECTION
+                    ? renderCivilLaw()
+                    : activeSectionDef
                     ? renderSection(activeSectionDef, activeIndex)
                     : null}
 

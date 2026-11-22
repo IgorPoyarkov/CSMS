@@ -8,9 +8,10 @@ import {
   useLiabilityResult,
   useMapLiabilityDuty,
 } from "../../services/LiabilityMapping/liabilityMapping.api";
-import type { LiabilityMappingOverviewItem } from "../../services/LiabilityMapping/liabilityMapping.schema";
-import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
-import { useKtruSearch } from "../../services/KtruRef/ktruRef.api";
+import type {
+  LiabilityMappingOverviewItem,
+  MatchedLiability,
+} from "../../services/LiabilityMapping/liabilityMapping.schema";
 import styles from "./LiabilityMappingPage.module.scss";
 
 const degreeLabels: Record<string, string> = {
@@ -18,6 +19,12 @@ const degreeLabels: Record<string, string> = {
   partial: "частичное",
   blanket: "общая/бланкетная",
   irrelevant: "нерелевантно",
+};
+
+const statusLabels: Record<string, string> = {
+  confirmed: "подтверждено моделью",
+  preliminary: "предварительно",
+  unconfirmed: "отклонено",
 };
 
 const formatDateTime = (value: string | null): string => {
@@ -35,7 +42,7 @@ const formatScore = (value: number): string =>
 // Постоянные пустые массивы: `?? []` на каждом рендере создавал бы новую
 // ссылку и лишний раз пересчитывал useMemo (предупреждение react-hooks).
 const EMPTY_OVERVIEW: LiabilityMappingOverviewItem[] = [];
-const EMPTY_KTRU: KtruRef[] = [];
+const EMPTY_NORMS: MatchedLiability[] = [];
 
 const LiabilityMappingPage = () => {
   const { bem } = useUtils();
@@ -45,10 +52,6 @@ const LiabilityMappingPage = () => {
   const [activeDutyId, setActiveDutyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("");
-  const [ktruSearch, setKtruSearch] = useState("");
-  // Поиск по каталогу КТРУ идёт на сервере: полный снимок (до 5 000 позиций)
-  // в браузер не загружается, показываются первые совпадения
-  const ktruQuery = useKtruSearch(ktruSearch, 20);
   const resultQuery = useLiabilityResult(activeDutyId);
   const mapMutation = useMapLiabilityDuty();
 
@@ -78,10 +81,75 @@ const LiabilityMappingPage = () => {
     [items],
   );
 
-  const ktruItems = ktruQuery.data ?? EMPTY_KTRU;
-
   const active = items.find((item) => item.dutyId === activeDutyId) ?? null;
   const result = resultQuery.data;
+
+  // Три группы вместо одной смешанной выдачи: модель подтвердила, модель не
+  // подтвердила (score=0/fallback) и модель явно отклонила норму.
+  const groups = useMemo(() => {
+    const all = result?.matched_liabilities ?? EMPTY_NORMS;
+    return {
+      confirmed: all.filter((norm) => norm.status === "confirmed"),
+      preliminary: all.filter((norm) => norm.status === "preliminary"),
+      unconfirmed: all.filter((norm) => norm.status === "unconfirmed"),
+    };
+  }, [result]);
+
+  const renderNorm = (norm: MatchedLiability) => (
+    <article
+      key={norm.liability_node_id}
+      className={page("norm", [
+        norm.requires_human_review ? "review" : "",
+        norm.status !== "confirmed" ? norm.status : "",
+      ])}
+    >
+      <div className={page("norm-head")}>
+        <strong>{norm.norm_reference}</strong>
+        <span className={page("degree", [norm.match_degree])}>
+          {degreeLabels[norm.match_degree] ?? norm.match_degree}
+        </span>
+        <span className={page("status", [norm.status])}>
+          {statusLabels[norm.status] ?? norm.status}
+        </span>
+        <span className={page("score")}>
+          {formatScore(norm.probability_score)}
+        </span>
+      </div>
+      <div className={page("bar")}>
+        <span
+          className={page("bar-fill")}
+          style={{ width: `${norm.probability_score * 100}%` }}
+        />
+      </div>
+      {norm.cited_quote && (
+        <blockquote className={page("quote")}>{norm.cited_quote}</blockquote>
+      )}
+      {norm.hypothesis_id && (
+        <div className={page("trace")}>
+          Гипотеза: <strong>{norm.hypothesis_id}</strong>
+        </div>
+      )}
+      <p className={page("sanction")}>{norm.sanction_summary}</p>
+      <p className={page("reasoning")}>{norm.legal_reasoning}</p>
+      {norm.qualifying_conditions.length > 0 && (
+        <ul className={page("conditions")}>
+          {norm.qualifying_conditions.map((condition, index) => (
+            <li key={`${norm.liability_node_id}-${index}`}>{condition}</li>
+          ))}
+        </ul>
+      )}
+      {norm.rejection_reasons.length > 0 && (
+        <ul className={page("reasons")}>
+          {norm.rejection_reasons.map((reason, index) => (
+            <li key={`${norm.liability_node_id}-reason-${index}`}>{reason}</li>
+          ))}
+        </ul>
+      )}
+      {norm.requires_human_review && (
+        <div className={page("review-note")}>Требуется проверка юристом</div>
+      )}
+    </article>
+  );
 
   const runMapping = (item: LiabilityMappingOverviewItem) => {
     setActiveDutyId(item.dutyId);
@@ -272,6 +340,33 @@ const LiabilityMappingPage = () => {
                 <span>run_id: {result.run_id.slice(0, 8)}</span>
               </div>
 
+              {result.diagnostics && (
+                <>
+                  <h3 className={page("section-title")}>Диагностика прогона</h3>
+                  <div className={page("diagnostics")}>
+                    <span>
+                      Кандидатов: {result.diagnostics.candidateCount}
+                    </span>
+                    <span>Оценено: {result.diagnostics.evaluated}</span>
+                    <span>
+                      Подтверждено: {result.diagnostics.confirmed}
+                    </span>
+                    <span>
+                      Предварительно: {result.diagnostics.preliminary}
+                    </span>
+                    <span>Отклонено: {result.diagnostics.unconfirmed}</span>
+                    <span>Fallback: {result.diagnostics.fallback}</span>
+                  </div>
+                  {result.diagnostics.topReasons.length > 0 && (
+                    <ul className={page("diagnostic-reasons")}>
+                      {result.diagnostics.topReasons.map((reason, index) => (
+                        <li key={`diagnostic-${index}`}>{reason}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+
               <h3 className={page("section-title")}>Гипотезы нарушений</h3>
               <ol className={page("hypotheses")}>
                 {result.violation_hypotheses.map((hypothesis) => (
@@ -282,104 +377,49 @@ const LiabilityMappingPage = () => {
                 ))}
               </ol>
 
-              <h3 className={page("section-title")}>
-                Нормы ответственности ({result.matched_liabilities.length})
-              </h3>
               {result.matched_liabilities.length === 0 && (
                 <div className={page("empty")}>
                   Арбитр не нашёл релевантных норм в пуле кандидатов.
                 </div>
               )}
-              <div className={page("norms")}>
-                {result.matched_liabilities.map((norm) => (
-                  <article
-                    key={norm.liability_node_id}
-                    className={page("norm", [
-                      norm.requires_human_review ? "review" : "",
-                    ])}
-                  >
-                    <div className={page("norm-head")}>
-                      <strong>{norm.norm_reference}</strong>
-                      <span
-                        className={page("degree", [
-                          norm.match_degree,
-                        ])}
-                      >
-                        {degreeLabels[norm.match_degree] ?? norm.match_degree}
-                      </span>
-                      <span className={page("score")}>
-                        {formatScore(norm.probability_score)}
-                      </span>
-                    </div>
-                    <div className={page("bar")}>
-                      <span
-                        className={page("bar-fill")}
-                        style={{ width: `${norm.probability_score * 100}%` }}
-                      />
-                    </div>
-                    <p className={page("sanction")}>{norm.sanction_summary}</p>
-                    <p className={page("reasoning")}>{norm.legal_reasoning}</p>
-                    {norm.qualifying_conditions.length > 0 && (
-                      <ul className={page("conditions")}>
-                        {norm.qualifying_conditions.map((condition, index) => (
-                          <li key={`${norm.liability_node_id}-${index}`}>
-                            {condition}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {norm.requires_human_review && (
-                      <div className={page("review-note")}>
-                        Требуется проверка юристом
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
+
+              {groups.confirmed.length > 0 && (
+                <>
+                  <h3 className={page("section-title")}>
+                    Подтверждено моделью ({groups.confirmed.length})
+                  </h3>
+                  <div className={page("norms")}>
+                    {groups.confirmed.map(renderNorm)}
+                  </div>
+                </>
+              )}
+
+              {groups.preliminary.length > 0 && (
+                <>
+                  <h3 className={page("section-title")}>
+                    Предварительно, без подтверждения (
+                    {groups.preliminary.length})
+                  </h3>
+                  <div className={page("norms")}>
+                    {groups.preliminary.map(renderNorm)}
+                  </div>
+                </>
+              )}
+
+              {groups.unconfirmed.length > 0 && (
+                <>
+                  <h3 className={page("section-title")}>
+                    Отклонено арбитром ({groups.unconfirmed.length})
+                  </h3>
+                  <div className={page("norms")}>
+                    {groups.unconfirmed.map(renderNorm)}
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>
       </div>
-
-      <section className={page("ktru")}>
-        <div className={page("ktru-head")}>
-          <div>
-            <h2 className={page("ktru-title")}>
-              КТРУ для описания объекта закупки
-            </h2>
-            <p className={page("ktru-subtitle")}>
-              Поиск по каталогу КТРУ из снимка НСИ ЕИС выполняется на сервере.
-              Код, ОКПД2, наименование и единица измерения подставляются
-              в формы закупки из каталога.
-            </p>
-          </div>
-          <input
-            className={page("search")}
-            placeholder="Код КТРУ, ОКПД2 или наименование"
-            value={ktruSearch}
-            onChange={(event) => setKtruSearch(event.target.value)}
-          />
-        </div>
-        <div className={page("ktru-list")}>
-          {ktruItems.map((item) => (
-            <div className={page("ktru-row")} key={item.ktruCode}>
-              <span className={page("ktru-code")}>{item.ktruCode}</span>
-              <span className={page("ktru-name")}>{item.name}</span>
-              <span className={page("ktru-meta")}>
-                ОКПД2 {item.okpd2Code}
-                {item.unit ? ` · ${item.unit}` : ""}
-              </span>
-            </div>
-          ))}
-          {ktruItems.length === 0 && (
-            <div className={page("empty")}>
-              {ktruQuery.isLoading
-                ? "Загрузка справочника КТРУ…"
-                : "По запросу ничего не найдено. Измените поисковый запрос."}
-            </div>
-          )}
-        </div>
-      </section>
     </div>
   );
 };

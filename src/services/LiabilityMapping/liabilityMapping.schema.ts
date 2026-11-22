@@ -27,6 +27,14 @@ export const ViolationHypothesisSchema = z.object({
   duty_id: z.string(),
 });
 
+// Статус честно отделяет подтверждённую моделью норму от заготовок и отказов:
+// score=0 из fallback и irrelevant выглядели как обычные нормы.
+export const MatchStatusSchema = z.enum([
+  "confirmed",
+  "preliminary",
+  "unconfirmed",
+]);
+
 export const MatchedLiabilitySchema = z.object({
   liability_node_id: z.string(),
   norm_reference: z.string(),
@@ -36,6 +44,21 @@ export const MatchedLiabilitySchema = z.object({
   sanction_summary: z.string(),
   legal_reasoning: z.string(),
   requires_human_review: z.boolean(),
+  status: MatchStatusSchema.optional().default("confirmed"),
+  cited_quote: z.string().nullable().optional().default(null),
+  hypothesis_id: z.string().nullable().optional().default(null),
+  rejection_reasons: z.array(z.string()).optional().default([]),
+});
+
+export const MappingDiagnosticsSchema = z.object({
+  candidateCount: z.number(),
+  evaluated: z.number(),
+  confirmed: z.number(),
+  preliminary: z.number(),
+  unconfirmed: z.number(),
+  irrelevant: z.number(),
+  fallback: z.number(),
+  topReasons: z.array(z.string()),
 });
 
 export const LiabilityMappingResultSchema = z.object({
@@ -48,6 +71,10 @@ export const LiabilityMappingResultSchema = z.object({
   prompt_version: z.string(),
   calculated_at: z.string(),
   requires_human_review: z.boolean(),
+  // Поля добавлены в v4; дефолт сохраняет совместимость со старым ответом API.
+  diagnostics: MappingDiagnosticsSchema.nullable().optional().default(null),
 });
 
 export type LiabilityMappingResult = z.infer<typeof LiabilityMappingResultSchema>;
+export type MatchedLiability = z.infer<typeof MatchedLiabilitySchema>;
+export type MatchStatus = z.infer<typeof MatchStatusSchema>;
