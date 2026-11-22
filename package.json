@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && npm run check:db && vite build",
     "lint": "oxlint src",
+    "test:scripts": "node --test scripts/tests/*.test.mjs",
     "check:db": "node scripts/check-db-schema.mjs",
     "check:mobile": "node scripts/mobile-audit.mjs",
     "check:pp2604": "rolldown scripts/check-pp2604-rules.ts --format esm --platform node --file .tmpcheck/check-pp2604-rules.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-pp2604-rules.mjs",

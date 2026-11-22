@@ -31,6 +31,14 @@ import { fileURLToPath } from "node:url";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { readDb, writeDb } from "./lib/db-write.mjs";
+import {
+  datasetCursor,
+  lastEisNumber,
+  loadImportState,
+  markChecked,
+  newSinceCursor,
+  saveImportState,
+} from "./lib/import-state.mjs";
 
 const CURL = process.platform === "win32" ? "curl.exe" : "curl";
 const USER_AGENT =
@@ -93,12 +101,24 @@ function parseArgs(argv) {
     planFrom: "",
     noticeFrom: "",
     to: "",
+    // --year задаёт один календарный год для ручного запроса по номеру.
+    year: 0,
+    // Инкремент: только записи старше курсора из --state.
+    incremental: false,
+    state: "",
+    // Ручной запрос конкретной записи, уже зарегистрированной в ЕИС.
+    planNumber: "",
+    noticeNumber: "",
     dryRun: false,
     refreshOrganization: false,
     enrichPlans: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
+    if (flag === "--incremental") {
+      args.incremental = true;
+      continue;
+    }
     if (flag === "--dry-run") {
       args.dryRun = true;
       continue;
@@ -123,6 +143,7 @@ function parseArgs(argv) {
   args.plans = Number(args.plans);
   args.notices = Number(args.notices);
   args.tasks = Number(args.tasks);
+  args.year = Number(args.year) || 0;
   return args;
 }
 
@@ -1159,6 +1180,20 @@ export function mapProcurement(notice) {
   };
 }
 
+/**
+ * При инкременте и ручном запросе старые записи не удаляем: новые просто
+ * перекрывают одноимённые. Полный проход по-прежнему очищает базу через pruneDb.
+ */
+function mergeUnique(existing, incoming, keyOf) {
+  const result = new Map(
+    (existing ?? []).map((item) => [String(keyOf(item)), item]),
+  );
+  for (const item of incoming ?? []) {
+    result.set(String(keyOf(item)), item);
+  }
+  return [...result.values()];
+}
+
 function pruneDb(db, org, employee, importedProcurementIds) {
   const keep = {
     users: (item) => item.email === employee.email || item.id === employee.userId,
@@ -1233,10 +1268,21 @@ async function main() {
   }
 
   const now = new Date();
-  const planFromDots = args.planFrom || formatDots(shiftDate(now, args.years));
+  const state = loadImportState(args.state || undefined);
+  const manualPlan = String(args.planNumber || "");
+  const manualNotice = String(args.noticeNumber || "");
+  const merge = args.incremental || Boolean(manualPlan || manualNotice);
+
+  // Ручной запрос по номеру работает в оговоренном периоде: --year 2026 или
+  // явные --plan-from / --to. Без --year сохраняется прежнее окно «N лет назад».
+  const planFromDots =
+    args.planFrom ||
+    (args.year ? `01.01.${args.year}` : formatDots(shiftDate(now, args.years)));
   const noticeFromDots =
-    args.noticeFrom || formatDots(shiftDate(now, args.noticeYears));
-  const toDots = args.to || formatDots(now);
+    args.noticeFrom ||
+    (args.year ? `01.01.${args.year}` : formatDots(shiftDate(now, args.noticeYears)));
+  const toDots =
+    args.to || (args.year ? `31.12.${args.year}` : formatDots(now));
   const importInfo = {
     inn,
     importedAt: now.toISOString(),
@@ -1244,18 +1290,74 @@ async function main() {
     planFrom: planFromDots,
     noticeFrom: noticeFromDots,
     to: toDots,
+    mode: manualPlan || manualNotice ? "manual" : args.incremental ? "incremental" : "full",
   };
 
-  console.log(`ИНН ${inn}: планы ${planFromDots}—${toDots}, извещения ${noticeFromDots}—${toDots}`);
-  const foundPlans = await findPlanNumbers(inn, planFromDots, toDots, args.plans);
+  console.log(
+    `ИНН ${inn}: планы ${planFromDots}—${toDots}, извещения ${noticeFromDots}—${toDots}, ` +
+      `режим ${importInfo.mode}`,
+  );
+
+  // Для ручного запроса берём широкий лимит: конкретный номер должен найтись
+  // в выгрузке за период, даже если он не в первых трёх строках.
+  const planLimit = manualPlan ? Math.max(args.plans, 1000) : args.plans;
+  const noticeLimit = manualNotice ? Math.max(args.notices, 1000) : args.notices;
+
+  let foundPlans = { numbers: [], total: 0 };
+  let foundNotices = { notices: [], total: 0 };
+  if (!manualNotice) {
+    foundPlans = await findPlanNumbers(inn, planFromDots, toDots, planLimit);
+  }
+  if (!manualPlan) {
+    foundNotices = await fetchNoticesCsv(inn, noticeFromDots, toDots, noticeLimit);
+  }
+
+  let planNumbers = foundPlans.numbers;
+  let noticeItems = foundNotices.notices;
+  if (manualPlan) planNumbers = [manualPlan];
+  if (manualNotice) {
+    noticeItems = noticeItems.filter((item) => String(item.number) === manualNotice);
+    if (!noticeItems.length) {
+      throw new Error(
+        `Извещение ${manualNotice} не найдено в выгрузке за ${noticeFromDots}—${toDots}`,
+      );
+    }
+  }
+
+  // Явно запрошенный номер парсим независимо от курсора: пользователь знает,
+  // что запись уже зарегистрирована в ЕИС, и ждёт её в системе прямо сейчас.
+  if (args.incremental && !manualPlan && !manualNotice) {
+    planNumbers = newSinceCursor(planNumbers, datasetCursor(state, "purchasePlans"));
+    const allowed = new Set(
+      newSinceCursor(
+        noticeItems.map((item) => item.number),
+        datasetCursor(state, "notices"),
+      ),
+    );
+    noticeItems = noticeItems.filter((item) => allowed.has(String(item.number)));
+    if (!planNumbers.length && !noticeItems.length) {
+      markChecked(state, "purchasePlans");
+      markChecked(state, "notices");
+      saveImportState(state, args.state || undefined);
+      console.log(
+        JSON.stringify({
+          mode: "incremental",
+          newPlans: 0,
+          newNotices: 0,
+          lastCheckedAt: new Date().toISOString(),
+        }, null, 2),
+      );
+      return;
+    }
+  }
+
   const planSources = [];
-  for (const number of foundPlans.numbers) {
+  for (const number of planNumbers) {
     planSources.push(await fetchPlan(number));
   }
-  const foundNotices = await fetchNoticesCsv(inn, noticeFromDots, toDots, args.notices);
   const noticeRows = [];
   const detailFailures = [];
-  for (const item of foundNotices.notices) {
+  for (const item of noticeItems) {
     try {
       const detail = await fetchNoticeDetail(item.number);
       noticeRows.push({ item, detail });
@@ -1279,6 +1381,18 @@ async function main() {
   );
   const procurements = notices.map(mapProcurement);
 
+  // При инкременте/ручном запросе сохраняем уже импортированные записи: новая
+  // карточка перекрывает старую по номеру, остальные остаются на месте.
+  const finalPlans = merge
+    ? mergeUnique(db.purchasePlans ?? [], plans, (item) => item.planNumber ?? item.id)
+    : plans;
+  const finalNotices = merge
+    ? mergeUnique(db.notices ?? [], notices, (item) => item.generalInfo?.noticeNumber ?? item.externalId ?? item.id)
+    : notices;
+  const finalProcurements = merge
+    ? mergeUnique(db.procurements ?? [], procurements, (item) => item.id)
+    : procurements;
+
   const summary = {
     ...importInfo,
     plansFound: foundPlans.total,
@@ -1287,6 +1401,11 @@ async function main() {
     noticesFound: foundNotices.total,
     noticesImported: notices.length,
     noticeNumbers: notices.map((notice) => notice.generalInfo.noticeNumber),
+    totalInBase: {
+      plans: finalPlans.length,
+      notices: finalNotices.length,
+    },
+    detailFailures,
     organization: {
       registryNumber: publicOrg.registryNumber,
       fullName: publicOrg.fullName,
@@ -1310,21 +1429,29 @@ async function main() {
   }
 
   const preservedContracts = db.contractRegistry.length;
-  pruneDb(db, org, employee, procurements.map((item) => item.id));
-  db.purchasePlans = plans;
-  db.procurements = procurements;
-  db.notices = notices;
+  if (merge) {
+    // Инкремент и ручной запрос не очищают базу: добавляем только новые записи.
+    db.purchasePlans = finalPlans;
+    db.procurements = finalProcurements;
+    db.notices = finalNotices;
+  } else {
+    pruneDb(db, org, employee, procurements.map((item) => item.id));
+    db.purchasePlans = plans;
+    db.procurements = procurements;
+    db.notices = notices;
+  }
 
-  // Публичные данные ЕИС не содержат СЗ, а pruneDb() очищает purchaseNotes.
-  // Восстанавливаем потребности по позициям с извещениями: СЗ — источник
-  // одобренных блоков для предзаполнения извещения, без неё цепочка ПГ → СЗ →
-  // извещение остаётся с разрывом после каждой выгрузки.
+  // Публичные данные ЕИС не содержат СЗ, а при полном проходе pruneDb()
+  // очищает purchaseNotes. Восстанавливаем потребности по позициям с
+  // извещениями: СЗ — источник одобренных блоков для предзаполнения извещения.
+  // При инкременте уже созданные СЗ (в том числе ручные) сохраняем.
   const purchaseNotes = buildImportPurchaseNotes({
-    plans,
-    notices,
+    plans: merge ? finalPlans : plans,
+    notices: merge ? finalNotices : notices,
     organization: org,
     employee,
     importedAt: now.toISOString(),
+    existingNotes: merge ? (db.purchaseNotes ?? []) : [],
     // СЗ создаём только по извещениям запрошенного диапазона лет.
     years: [
       Number.parseInt(noticeFromDots.slice(-4), 10),
@@ -1333,23 +1460,26 @@ async function main() {
   });
   db.purchaseNotes = purchaseNotes.notes;
 
-  // Связи строим после очистки старых процедур: только так у контрактов
+  // Связи строим после обновления процедур: только так у контрактов
   // останутся актуальные procurementId. Из извещений одновременно берём
   // ответственных лиц — они получают задачи по своим закупкам.
   const chain = applyEisChain(db);
   const linkedContracts = db.contractRegistry.filter((contract) =>
-    procurements.some((item) => item.id === contract.procurementId),
+    db.procurements.some((item) => item.id === contract.procurementId),
   );
   const tasks = buildNoticeTasks({
-    plans,
-    notices,
+    plans: merge ? plans : db.purchasePlans,
+    notices: merge ? notices : db.notices,
     contracts: linkedContracts,
     org,
     head: employee,
     staffByNotice: chain.byNotice,
     count: args.tasks,
   });
-  db.tasks = tasks;
+  // Полный проход пересоздаёт задачи, инкремент перекрывает одноимённые id:
+  // buildNoticeTasks нумерует задачи с 1001, поэтому простое сложение дало бы
+  // дубликаты при каждой ежедневной проверке.
+  db.tasks = merge ? mergeUnique(db.tasks ?? [], tasks, (item) => item.id) : tasks;
 
   if (process.env.EIS_IMPORT_SAMPLE) {
     fs.writeFileSync(
@@ -1358,6 +1488,16 @@ async function main() {
       "utf8",
     );
   }
+
+  // Курсор двигаем только после успешной разметки/записи: упавший номер
+  // останется в поиске и будет повторён при следующей ежедневной проверке.
+  markChecked(state, "purchasePlans", plans.length
+    ? { imported: plans.length, cursor: lastEisNumber(plans.map((item) => item.planNumber)) }
+    : {});
+  markChecked(state, "notices", notices.length
+    ? { imported: notices.length, cursor: lastEisNumber(notices.map((item) => item.generalInfo?.noticeNumber)) }
+    : {});
+  saveImportState(state, args.state || undefined);
 
   const report = {
     ...summary,
@@ -1369,6 +1509,10 @@ async function main() {
     contractLinks: chain.notices,
     paymentLinks: chain.payments,
     responsibleStaff: chain.staff,
+    cursors: {
+      purchasePlans: state.datasets.purchasePlans.cursor,
+      notices: state.datasets.notices.cursor,
+    },
   };
   db.eisImportSummary = report;
   await writeDb(args.db, db);

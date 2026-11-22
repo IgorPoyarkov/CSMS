@@ -5090,4 +5090,16 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   и мастером в UI. Фаза 2: streaming XML, дедупликация по хешу, общий XLSX/HTTP.
   Фаза 3: ЕИС-шлюз и сервер/лицензии по спросу. Чужие правки фронта и
   `InMemoryReferenceDataStore.cs` не трогались.
+- **Курсор и ручной запрос (решение пользователя 2026-11-22).** Большой проход
+  делается единожды, дальше раз в день проверяется только последний реестровый
+  номер. Карточки: `CardImportState.cs` + `--incremental/--state` в eis-parser
+  (курсор восстанавливается из готовых `*.json`, двигается только после успеха).
+  ПГ и извещения: `scripts/lib/import-state.mjs` с отдельными курсорами
+  `purchasePlans`/`notices` в `%TEMP%/csms-eis-import-state.json`, флаги
+  `--incremental`, `--plan-number`, `--notice-number`, `--year`. Список реестра
+  контрактов: `scripts/import-contract-registry.mjs` + курсор `contractRegistry`
+  в том же state, ручной номер — `--reestr-number`; парсер выдачи
+  `scripts/lib/contract-registry-search.mjs` разбирает и локальный `--html-file`.
+  Явный номер парсится вне курсора и не откатывает его; инкремент не очищает базу, а
+  перекрывает записи по номеру. Команды — `docs/tasks/snapshot-first-offline.md`.
 

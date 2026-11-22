@@ -24,6 +24,8 @@ using Microsoft.Extensions.Options;
 // --inn <ИНН заказчика> — то же для всех контрактов заказчика за --year,
 // --year <год> — фильтр года (по умолчанию 2026), --limit <n> — ограничение числа контрактов,
 // --out <папка> — сохранить сырые XML и JSON-проекцию,
+// --incremental — только новые номера старше курсора из --state (ежедневная проверка),
+// --state <файл> — курсор импорта; по умолчанию <out>/import-state.json,
 // --dry-run — только показать версию и объём снимка, без записи в API.
 var runOnce = args.Contains("--once", StringComparer.OrdinalIgnoreCase);
 var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnoreCase);
@@ -290,19 +292,89 @@ if (cardRegNumber is not null || customerInn is not null)
             new EdoMessageParser(),
             new ContractExecutionParser());
 
+        var incremental = args.Contains("--incremental", StringComparer.OrdinalIgnoreCase);
+        var statePath = GetArgumentValue(args, "--state")
+            ?? (outputDirectory is null ? null : Path.Combine(outputDirectory, "import-state.json"));
+        if (incremental && statePath is null)
+        {
+            Console.Error.WriteLine(
+                "--incremental без --out и без --state: некуда сохранить курсор, выполняю полный проход.");
+        }
+
         var regNumbers = new List<string>();
         if (cardRegNumber is not null)
         {
             regNumbers.Add(cardRegNumber);
         }
 
+        CardImportState? state = null;
         if (customerInn is not null)
         {
             var found = await cardClient.EnumerateContractsByInnAsync(customerInn);
-            regNumbers.AddRange(found.Where(number => PublicContractCardClient.YearFromRegNumber(number) == year));
+            var forYear = found
+                .Where(number => PublicContractCardClient.YearFromRegNumber(number) == year)
+                .ToList();
+
+            if (incremental && statePath is not null)
+            {
+                state = CardImportState.Load(statePath);
+
+                // Большой проход уже сделан раньше: восстанавливаем курсор из готовых
+                // проекций в --out, чтобы не скачивать заново весь реестр.
+                if (string.IsNullOrEmpty(state.LastRegNumber) &&
+                    outputDirectory is not null && Directory.Exists(outputDirectory))
+                {
+                    var existing = Directory.GetFiles(outputDirectory, "*.json", SearchOption.TopDirectoryOnly)
+                        .Select(Path.GetFileNameWithoutExtension)
+                        .Where(name => name is { Length: 19 } && name.All(char.IsDigit))
+                        .OrderBy(name => name, StringComparer.Ordinal)
+                        .ToList();
+                    if (existing.Count > 0)
+                    {
+                        state.LastRegNumber = existing[^1]!;
+                        state.ProcessedCount = existing.Count;
+                        state.Inn = customerInn;
+                        state.Year = year;
+                        state.LastCheckedAt = DateTimeOffset.UtcNow;
+                        state.LastImportedAt = DateTimeOffset.UtcNow;
+                        state.Save(statePath);
+                        Console.Error.WriteLine(
+                            $"Курсор восстановлен из {existing.Count} готовых проекций: {state.LastRegNumber}");
+                    }
+                }
+
+                state.Inn = customerInn;
+                state.Year = year;
+                state.LastCheckedAt = DateTimeOffset.UtcNow;
+
+                if (string.IsNullOrEmpty(state.LastRegNumber))
+                {
+                    // Первый запуск: одноразовый полный проход по ИНН.
+                    regNumbers.AddRange(forYear);
+                    Console.Error.WriteLine($"Первый проход: контрактов {forYear.Count}, год {year}");
+                }
+                else
+                {
+                    // Ежедневная проверка: только номера старше курсора. Поиск по ИНН
+                    // дешёвый (страницы HTML), XML карточек скачиваем только для новых.
+                    regNumbers.AddRange(forYear.Where(number =>
+                        string.CompareOrdinal(number, state.LastRegNumber) > 0));
+                    Console.Error.WriteLine(
+                        $"Инкремент: курсор {state.LastRegNumber}, всего в поиске {forYear.Count}, " +
+                        $"новых {regNumbers.Count}");
+                }
+            }
+            else
+            {
+                regNumbers.AddRange(forYear);
+            }
         }
 
-        regNumbers = regNumbers.Distinct(StringComparer.Ordinal).Take(limit).ToList();
+        regNumbers = regNumbers
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(number => number, StringComparer.Ordinal)
+            .Take(limit)
+            .ToList();
         Console.Error.WriteLine($"Контрактов к обработке: {regNumbers.Count}, год: {year}");
 
         var jsonOptions = new JsonSerializerOptions
@@ -310,6 +382,19 @@ if (cardRegNumber is not null || customerInn is not null)
             WriteIndented = true,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
+
+        if (state is not null && statePath is not null && regNumbers.Count == 0)
+        {
+            state.Save(statePath);
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                newContracts = 0,
+                lastRegNumber = state.LastRegNumber,
+                lastCheckedAt = state.LastCheckedAt,
+            }, jsonOptions));
+            return 0;
+        }
+
         var all = new List<ContractCardViewDto>();
 
         foreach (var regNumber in regNumbers)
@@ -334,11 +419,28 @@ if (cardRegNumber is not null || customerInn is not null)
                         Path.Combine(outputDirectory, $"{regNumber}.json"),
                         json);
                 }
+
+                // Курсор двигаем только после успешного разбора: упавший номер
+                // останется в списке и будет повторён при следующей проверке.
+                if (state is not null &&
+                    (state.LastRegNumber is null || string.CompareOrdinal(regNumber, state.LastRegNumber) > 0))
+                {
+                    state.LastRegNumber = regNumber;
+                }
             }
             catch (Exception exception)
             {
                 Console.Error.WriteLine($"{regNumber}: ОШИБКА {exception.Message}");
             }
+        }
+
+        if (state is not null && statePath is not null)
+        {
+            state.ProcessedCount += all.Count;
+            state.LastImportedAt = DateTimeOffset.UtcNow;
+            state.Save(statePath);
+            Console.Error.WriteLine(
+                $"Курсор обновлён: {state.LastRegNumber}, новых разобрано {all.Count}");
         }
 
         Console.WriteLine(JsonSerializer.Serialize(all, jsonOptions));
