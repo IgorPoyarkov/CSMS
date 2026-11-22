@@ -31,6 +31,12 @@ import {
   useCreatePenalty,
   useUpdateContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
+import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
+import {
+  contractCardSmpRequirement,
+  contractCardSmpRows,
+  contractCardSmpTotal,
+} from "../../services/ContractRegistry/contractCardProjection.schema";
 import styles from "./ContractRegistry.module.scss";
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
@@ -85,10 +91,42 @@ export default function SmpSection({
   const [noteDraft, setNoteDraft] = useState("");
   const [requirementError, setRequirementError] = useState("");
 
-  // Объём: требуемый, факт, прогресс
+  // Подтаблица «Информация о привлечении СМП, СОНО» из выгрузки карточки ЕИС:
+  // сведения лежат в XML контракта, поэтому приходят вместе с проекцией
+  const { data: projection } = useContractCardProjection(contractId);
+  const eisSmpRows = useMemo(
+    () => contractCardSmpRows(projection?.Smp ?? []),
+    [projection],
+  );
+  const eisRequirement = useMemo(
+    () => contractCardSmpRequirement(projection?.Smp ?? []),
+    [projection],
+  );
+  const eisTotal = useMemo(
+    () => contractCardSmpTotal(eisSmpRows),
+    [eisSmpRows],
+  );
+
+  // Условие привлечения СМП (процент и ответственность) публикуется в ЕИС у всех
+  // контрактов с ч. 5 ст. 30 44-ФЗ, поэтому блок показываем и без субподрядчиков
+  const hasEisRequirement =
+    eisRequirement.percent !== null ||
+    eisRequirement.sum !== null ||
+    Boolean(eisRequirement.responsibility);
+  const showEisSmp = eisSmpRows.length > 0 || hasEisRequirement;
+
+  // Требование задаётся служебной запиской; если её нет, процент берём из
+  // сведений ЕИС — иначе объём не считается, хотя в карточке контракта он есть
+  const ownPercent =
+    Number(smpRequiredPercent ?? 0) > 0 ? smpRequiredPercent : undefined;
+  const effectivePercent = ownPercent ?? eisRequirement.percent ?? undefined;
+
+  // Объём: требуемый, факт, прогресс. Факт берём из ручных записей, а если их
+  // нет — из субдоговоров карточки ЕИС, чтобы прогресс не показывал ноль
+  const eisActual = records.length === 0 && eisTotal > 0 ? eisTotal : undefined;
   const volume = useMemo(
-    () => computeSmpVolume(records, contractPrice, smpRequiredPercent),
-    [records, contractPrice, smpRequiredPercent],
+    () => computeSmpVolume(records, contractPrice, effectivePercent, eisActual),
+    [records, contractPrice, effectivePercent, eisActual],
   );
 
   // Дедлайны: подрядчик + заказчик
@@ -356,7 +394,9 @@ export default function SmpSection({
         <p className={block("note")}>
           <span>
             {hasRequirement
-              ? `Требуемый объём: ${smpRequiredPercent}% от цены контракта`
+              ? `Требуемый объём: ${effectivePercent}% от цены контракта${
+                  ownPercent ? "" : " (по сведениям ЕИС)"
+                }`
               : "Требование о привлечении СМП не задано — объём не рассчитывается"}
             {subcontractingSmpNoteNumber &&
               ` · служебная записка № ${subcontractingSmpNoteNumber}`}
@@ -366,7 +406,7 @@ export default function SmpSection({
             className={block("requirementBtn")}
             onClick={openRequirement}
           >
-            {hasRequirement || subcontractingSmpNoteNumber
+            {ownPercent || subcontractingSmpNoteNumber
               ? "Изменить требование"
               : "Указать требование"}
           </button>
@@ -384,7 +424,11 @@ export default function SmpSection({
           </strong>
         </div>
         <div className={block("volume-header")}>
-          <span>Факт (принятые договоры с СМП):</span>
+          <span>
+            {eisActual
+              ? "Факт (субдоговоры из карточки ЕИС):"
+              : "Факт (принятые договоры с СМП):"}
+          </span>
           <strong style={{ color: progressColor }}>
             {volume.actual.toLocaleString("ru-RU")} ₽
           </strong>
@@ -602,12 +646,100 @@ export default function SmpSection({
         </div>
       )}
 
+      {/* Подтаблица контракта из выгрузки ЕИС: сведения о субподряде лежат
+          в XML контракта, поэтому появляются у каждого выгруженного контракта,
+          а не только там, где заводили записи вручную */}
+      {showEisSmp && (
+        <div className={block("records")}>
+          <h5 className={block("recordsTitle")}>
+            {eisSmpRows.length > 0
+              ? `По сведениям карточки ЕИС (${eisSmpRows.length})`
+              : "Условие привлечения СМП по данным ЕИС"}
+          </h5>
+          <p className={block("hint")}>
+            {eisRequirement.percent !== null &&
+              `Требуемый объём по сведениям ЕИС: ${eisRequirement.percent}%`}
+            {eisRequirement.sum !== null &&
+              ` (${eisRequirement.sum.toLocaleString("ru-RU")} ₽)`}
+            {hasEisRequirement ? " · " : ""}
+            {eisSmpRows.length > 0
+              ? `Факт по субдоговорам: ${eisTotal.toLocaleString("ru-RU")} ₽`
+              : "Сведения о привлечённых субподрядчиках заказчик в ЕИС ещё не опубликовал"}
+          </p>
+          {eisRequirement.responsibility && (
+            <p className={block("hint")}>{eisRequirement.responsibility}</p>
+          )}
+          {eisSmpRows.length > 0 && (
+            <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Субподрядчик</th>
+                <th>Статус</th>
+                <th>Субдоговор</th>
+                <th>Сумма, ₽</th>
+                <th>ОКПД2</th>
+              </tr>
+            </thead>
+            <tbody>
+              {eisSmpRows.map((row) => (
+                <tr key={`${row.Inn}|${row.ContractNumber ?? ""}`}>
+                  <td>
+                    {row.Name ?? "—"}
+                    <br />
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      ИНН {row.Inn}
+                      {row.Kpp ? ` / КПП ${row.Kpp}` : ""}
+                    </span>
+                  </td>
+                  <td>
+                    {row.StatusCode === "30"
+                      ? "СМП"
+                      : row.StatusCode === "40"
+                        ? "СОНО"
+                        : (row.StatusName ?? "—")}
+                  </td>
+                  <td>
+                    {row.ContractNumber ? `№ ${row.ContractNumber}` : "—"}
+                    {row.ContractDate ? ` от ${row.ContractDate}` : ""}
+                    {row.ContractSubject && (
+                      <>
+                        <br />
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "var(--text-secondary)",
+                          }}
+                        >
+                          {row.ContractSubject}
+                        </span>
+                      </>
+                    )}
+                  </td>
+                  <td>
+                    {row.ContractSum !== null
+                      ? row.ContractSum.toLocaleString("ru-RU")
+                      : "—"}
+                  </td>
+                  <td>{row.Okpd2Code ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {/* Таблица записей: пустое состояние объясняет, откуда берутся сведения */}
-      {records.length === 0 && (
+      {records.length === 0 && !showEisSmp && (
         <p className={block("empty")}>
-          Сведений о привлечении СМП по этому контракту нет: выгрузка карточки
-          ЕИС их не содержит, а вручную записи ещё не заводили. Нажмите
-          «Загрузить сведения» — объём, сроки и неустойка посчитаются сами.
+          {projection
+            ? "В выгруженном XML контракта сведений о привлечении СМП нет: субподрядчиков не привлекали либо сведения не опубликованы в ЕИС. Записи можно завести вручную — объём, сроки и неустойка посчитаются сами."
+            : "Карточка ЕИС по этому контракту ещё не выгружена, поэтому подтаблицы СМП нет. Её наполнит ближайшая выгрузка воркера; пока сведения можно завести вручную."}
         </p>
       )}
 

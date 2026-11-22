@@ -130,6 +130,41 @@ export const ContractCardMessageSchema = z.object({
 
 export type ContractCardMessage = z.infer<typeof ContractCardMessageSchema>;
 
+// ─── Сведения о привлечении СМП/СОНО (подтаблица контракта) ────────────────
+
+/**
+ * Субподрядчик из XML контракта ЕИС. `StatusCode` — код статуса ЕИС:
+ * 30 — субъект малого предпринимательства, 40 — СОНО. Остальное — реквизиты
+ * субдоговора, по которым считается фактический объём привлечения.
+ */
+export const ContractCardSmpSubcontractorSchema = z.object({
+  Inn: text,
+  Kpp: text,
+  Name: text,
+  StatusCode: text,
+  StatusName: text,
+  ContractSum: amount,
+  ContractDate: text,
+  ContractNumber: text,
+  ContractSubject: text,
+  Okpd2Code: text,
+});
+
+/** Один XML контракта с блоком subContractorsSum: требование + субподрядчики. */
+export const ContractCardSmpSchema = z.object({
+  RequirementPercent: amount,
+  RequirementSum: amount,
+  // Ответственность за неисполнение условия привлечения СМП (текст из XML)
+  Responsibility: text,
+  Subcontractors: z.array(ContractCardSmpSubcontractorSchema).default([]),
+  SourceFile: text,
+});
+
+export type ContractCardSmpSubcontractor = z.infer<
+  typeof ContractCardSmpSubcontractorSchema
+>;
+export type ContractCardSmp = z.infer<typeof ContractCardSmpSchema>;
+
 // ─── Документ коллекции `contractCardProjections` ──────────────────────────
 
 /**
@@ -149,6 +184,9 @@ export const ContractCardProjectionSchema = z.object({
   Decisions: z.array(ContractCardDecisionSchema).default([]),
   Payments: z.array(ContractCardPaymentSchema).default([]),
   Messages: z.array(ContractCardMessageSchema).default([]),
+  // Подтаблица контракта «Информация о привлечении СМП, СОНО»: у старых
+  // выгрузок поля нет вовсе, поэтому default([]) — это «сведений не выгружали»
+  Smp: z.array(ContractCardSmpSchema).default([]),
 });
 
 export type ContractCardProjection = z.infer<
@@ -212,3 +250,45 @@ export const contractCardActDecision = (
   decisions.find((decision) =>
     sameDocumentNumber(decision.PostedDocumentNumber, act.ActNumber),
   ) ?? null;
+
+// ─── СМП: строки подтаблицы и объёмы ───────────────────────────────────────
+
+/**
+ * Строки подтаблицы СМП из всех XML контракта: карточка может содержать
+ * несколько версий контракта, поэтому повторённый субдоговор показываем один
+ * раз — ключ «ИНН + номер договора», как и при разборе XML в воркере.
+ */
+export const contractCardSmpRows = (
+  smp: ContractCardSmp[],
+): ContractCardSmpSubcontractor[] => {
+  const seen = new Set<string>();
+  const rows: ContractCardSmpSubcontractor[] = [];
+  for (const document of smp) {
+    for (const row of document.Subcontractors) {
+      if (!row.Inn) continue;
+      const key = `${row.Inn}|${row.ContractNumber ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+    }
+  }
+  return rows;
+};
+
+/** Требуемый объём из карточки ЕИС: процент, сумма и текст ответственности. */
+export const contractCardSmpRequirement = (
+  smp: ContractCardSmp[],
+): { percent: number | null; sum: number | null; responsibility: string | null } => ({
+  percent:
+    smp.find((item) => item.RequirementPercent !== null)
+      ?.RequirementPercent ?? null,
+  sum:
+    smp.find((item) => item.RequirementSum !== null)?.RequirementSum ?? null,
+  responsibility:
+    smp.find((item) => item.Responsibility)?.Responsibility ?? null,
+});
+
+/** Фактический объём привлечения — сумма субдоговоров со СМП/СОНО. */
+export const contractCardSmpTotal = (
+  rows: ContractCardSmpSubcontractor[],
+): number => rows.reduce((sum, row) => sum + (row.ContractSum ?? 0), 0);

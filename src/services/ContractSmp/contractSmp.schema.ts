@@ -273,14 +273,18 @@ export interface SmpVolumeResult {
   isComplete: boolean;
 }
 
-// Вычислить объём: требуемый, факт, прогресс-бар, флаг закрытия
+// Вычислить объём: требуемый, факт, прогресс-бар, флаг закрытия.
+// `actualOverride` — факт из карточки ЕИС (сумма субдоговоров со СМП), когда
+// ручных записей ещё нет: иначе прогресс показывал бы нулевое привлечение при
+// заполненной подтаблице контракта
 export const computeSmpVolume = (
   records: ContractSmpRecord[],
   contractPrice: string | number | undefined,
   requiredPercent: string | number | undefined,
+  actualOverride?: number,
 ): SmpVolumeResult => {
   const required = smpRequiredAmount(contractPrice, requiredPercent) ?? 0;
-  const actual = smpActualAmount(records);
+  const actual = actualOverride ?? smpActualAmount(records);
   const shortfall = Math.max(0, required - actual);
   const progress = smpVolumeProgress(actual, required);
 

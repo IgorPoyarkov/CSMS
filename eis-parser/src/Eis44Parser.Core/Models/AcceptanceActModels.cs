@@ -155,6 +155,27 @@ public sealed record PaymentOrderViewDto(
     string? PaymentType,
     string? Kbk);
 
+/// <summary>
+/// Сведения о привлечении СМП/СОНО из XML контракта карточки ЕИС.
+/// В карточке это подтаблица контракта: требуемый объём (процент и сумма),
+/// ответственность за неисполнение условия и сами субподрядчики с реквизитами
+/// субдоговоров. Требование (subcontractorsAttractionConditionsInfo) заполнено
+/// у всех контрактов с ч. 5 ст. 30 44-ФЗ, а фактические субподрядчики
+/// (subContractorsSum) появляются только когда заказчик их опубликовал.
+/// </summary>
+public sealed record ContractSmpViewDto(
+    /// <summary>
+    /// Требуемый объём в процентах: sumInPercents сведений о привлечении,
+    /// а если их ещё нет — subcontractorsAttractionVolume условий контракта.
+    /// </summary>
+    decimal? RequirementPercent,
+    /// <summary>Требуемый объём в рублях (priceValueRUR / priceValue).</summary>
+    decimal? RequirementSum,
+    /// <summary>Ответственность за неисполнение условия привлечения СМП.</summary>
+    string? Responsibility,
+    IReadOnlyList<SubcontractorDto> Subcontractors,
+    string SourceFile);
+
 /// <summary>Всё, что скачано по одному контракту, в одном DTO для фронта.</summary>
 public sealed record ContractCardViewDto(
     string RegNumber,
@@ -163,4 +184,6 @@ public sealed record ContractCardViewDto(
     IReadOnlyList<PaymentOrderViewDto> Payments,
     IReadOnlyList<EdoMessageDto> Messages,
     IReadOnlyList<ContractExecutionViewDto> Executions,
-    IReadOnlyList<string> SkippedFiles);
+    IReadOnlyList<string> SkippedFiles,
+    /// <summary>Сведения о привлечении СМП/СОНО (подтаблица контракта).</summary>
+    IReadOnlyList<ContractSmpViewDto> Smp);

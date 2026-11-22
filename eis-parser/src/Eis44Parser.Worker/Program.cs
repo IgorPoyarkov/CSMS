@@ -23,6 +23,8 @@ using Microsoft.Extensions.Options;
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
 // --parse-xlsx <путь> — разобрать XLSX шаблон КТРУ экспертного совета,
 // --contract-card <реестровый номер> — скачать и разобрать акты/платежи публичной карточки,
+// --reparse-card-dir <папка> — переразобрать уже скачанные XML карточек без сети
+//   (после изменения парсера; JSON-проекции перезаписываются),
 // --numbers-file <путь> — то же для явного списка реестровых номеров (по одному в строке);
 //   поиск ЕИС не фильтрует по ИНН, поэтому надёжный источник списка — свои номера из БД,
 // --inn <ИНН заказчика> — то же для всех контрактов заказчика за --year,
@@ -309,7 +311,8 @@ if (cardRegNumber is not null || customerInn is not null || numbersFilePath is n
             new GeneralAcceptanceParser(),
             new AcceptanceDecisionParser(),
             new EdoMessageParser(),
-            new ContractExecutionParser());
+            new ContractExecutionParser(),
+            new ContractSmpParser());
 
         var incremental = args.Contains("--incremental", StringComparer.OrdinalIgnoreCase);
         var statePath = GetArgumentValue(args, "--state")
@@ -456,7 +459,8 @@ if (cardRegNumber is not null || customerInn is not null || numbersFilePath is n
                 Console.Error.WriteLine(
                     $"{regNumber}: актов {view.Acts.Count}, решений {view.Decisions.Count}, " +
                     $"платежей {view.Payments.Count}, ЭДО {view.Messages.Count}, " +
-                    $"исполнений {view.Executions.Count}");
+                    $"исполнений {view.Executions.Count}, " +
+                    $"субподрядчиков {view.Smp.Sum(item => item.Subcontractors.Count)}");
 
                 if (outputDirectory is not null)
                 {
@@ -498,6 +502,75 @@ if (cardRegNumber is not null || customerInn is not null || numbersFilePath is n
         Console.Error.WriteLine($"Ошибка загрузки карточки контракта: {exception.Message}");
         return 1;
     }
+}
+
+// Повторный разбор уже скачанных карточек: сеть не нужна, берём XML из
+// каталога выгрузки (<out>/<реестровый номер>/*.xml) и перезаписываем JSON.
+// Нужен, когда меняется парсер: 111 карточек заново не скачиваются.
+var reparseDirectory = GetArgumentValue(args, "--reparse-card-dir");
+if (reparseDirectory is not null)
+{
+    if (!Directory.Exists(reparseDirectory))
+    {
+        Console.Error.WriteLine($"Каталог не найден: {reparseDirectory}");
+        return 1;
+    }
+
+    var reparseYear = int.TryParse(GetArgumentValue(args, "--year"), out var parsedReparseYear)
+        ? parsedReparseYear
+        : (int?)null;
+    var reparseJsonOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+    var importer = new ContractCardImportService(
+        new PublicContractCardClient(),
+        new AcceptanceActParser(),
+        new GeneralAcceptanceParser(),
+        new AcceptanceDecisionParser(),
+        new EdoMessageParser(),
+        new ContractExecutionParser(),
+        new ContractSmpParser());
+
+    var reparsed = 0;
+    foreach (var cardDirectory in Directory
+                 .EnumerateDirectories(reparseDirectory)
+                 .OrderBy(path => path, StringComparer.Ordinal))
+    {
+        var regNumber = Path.GetFileName(cardDirectory);
+        if (regNumber.Length != 19 || !regNumber.All(char.IsDigit))
+        {
+            continue;
+        }
+
+        // ZIP-архивы уже распакованы при первом проходе: читаем только XML.
+        var files = Directory
+            .EnumerateFiles(cardDirectory, "*.xml", SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .Select(path => (
+                FileName: Path.GetFileName(path),
+                SourceArchive: (string?)null,
+                Bytes: File.ReadAllBytes(path)))
+            .ToList();
+        if (files.Count == 0)
+        {
+            continue;
+        }
+
+        var view = importer.ImportFromFiles(regNumber, files, reparseYear);
+        Console.Error.WriteLine(
+            $"{regNumber}: актов {view.Acts.Count}, платежей {view.Payments.Count}, " +
+            $"субподрядчиков {view.Smp.Sum(item => item.Subcontractors.Count)}");
+
+        await File.WriteAllTextAsync(
+            Path.Combine(reparseDirectory, $"{regNumber}.json"),
+            JsonSerializer.Serialize(view, reparseJsonOptions));
+        reparsed += 1;
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(new { reparsed, directory = reparseDirectory }, reparseJsonOptions));
+    return 0;
 }
 
 builder.Services.AddHttpClient();

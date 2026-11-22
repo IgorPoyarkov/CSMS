@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Срез реального XML контракта 2462904043925000011 (карточка ЕИС): только блок
+  subContractorsSum. Значения и структура взяты из выгрузки, а третий
+  субподрядчик (ИП) и повторный договор первого СМП добавлены, чтобы покрыть
+  ветку ФИО и дедупликацию по «ИНН + номер субдоговора».
+-->
+<ns3:contract xmlns:ns2="http://zakupki.gov.ru/oos/base/1" xmlns:ns3="http://zakupki.gov.ru/oos/CPtypes/1">
+    <ns3:commonInfo>
+        <ns3:purchaseNumber>0144200001826000192</ns3:purchaseNumber>
+        <ns3:docNumber>2462904043925000011</ns3:docNumber>
+        <ns3:docDate>2026-01-12</ns3:docDate>
+    </ns3:commonInfo>
+    <ns3:priceInfo>
+        <ns3:price>271568111.90</ns3:price>
+        <ns3:currency>
+            <ns3:code>RUB</ns3:code>
+            <ns3:name>РОССИЙСКИЙ РУБЛЬ</ns3:name>
+        </ns3:currency>
+    </ns3:priceInfo>
+    <ns3:contractConditionsInfo>
+        <ns3:subcontractorsAttractionConditionsInfo>
+            <ns3:subcontractorsAttractionVolume>20.0</ns3:subcontractorsAttractionVolume>
+            <ns3:responsibility>В виде штрафа в размере 5% от объема привлечения субподрядчиков, соисполнителей из числа СМП, СОНО</ns3:responsibility>
+        </ns3:subcontractorsAttractionConditionsInfo>
+    </ns3:contractConditionsInfo>
+    <ns3:subContractorsSum>
+        <ns3:sumInPercents>25.0</ns3:sumInPercents>
+        <ns3:priceValueRUR>67892027.98</ns3:priceValueRUR>
+        <ns3:subContractors>
+            <ns3:subContractor>
+                <ns3:legalEntityRF>
+                    <ns3:fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ЛИДЕР ГРУПП"</ns3:fullName>
+                    <ns3:INN>4632306640</ns3:INN>
+                    <ns3:KPP>463201001</ns3:KPP>
+                    <ns3:statusInfo>
+                        <ns2:code>30</ns2:code>
+                        <ns2:name>субъект малого предпринимательства</ns2:name>
+                    </ns3:statusInfo>
+                    <ns3:subContractInfo>
+                        <ns3:subContractDate>2026-10-28</ns3:subContractDate>
+                        <ns3:subContractNumber>01/09/26/20Р</ns3:subContractNumber>
+                        <ns3:subContractSubject>Оказание услуг по работе строительных машин и механизмов с экипажем</ns3:subContractSubject>
+                        <ns3:subContractPriceInfo>
+                            <ns3:price>15234000.50</ns3:price>
+                        </ns3:subContractPriceInfo>
+                    </ns3:subContractInfo>
+                    <ns3:subPurchaseObjectsInfo>
+                        <ns3:subPurchaseObjectInfo>
+                            <ns3:OKPD2>
+                                <ns2:code>42.11.20.200</ns2:code>
+                                <ns2:name>Работы по ремонту автомобильных дорог</ns2:name>
+                            </ns3:OKPD2>
+                        </ns3:subPurchaseObjectInfo>
+                    </ns3:subPurchaseObjectsInfo>
+                </ns3:legalEntityRF>
+            </ns3:subContractor>
+            <ns3:subContractor>
+                <ns3:legalEntityRF>
+                    <ns3:fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ВЕРТИКАЛЬ"</ns3:fullName>
+                    <ns3:INN>6449065364</ns3:INN>
+                    <ns3:KPP>505301001</ns3:KPP>
+                    <ns3:statusInfo>
+                        <ns2:code>40</ns2:code>
+                        <ns2:name>социально ориентированная некоммерческая организация</ns2:name>
+                    </ns3:statusInfo>
+                    <ns3:subContractInfo>
+                        <ns3:subContractDate>2026-08-03</ns3:subContractDate>
+                        <ns3:subContractNumber>17/2026</ns3:subContractNumber>
+                        <ns3:subContractSubject>Поставка инертных материалов</ns3:subContractSubject>
+                        <ns3:subContractPriceInfo>
+                            <ns3:price>7800000.00</ns3:price>
+                        </ns3:subContractPriceInfo>
+                    </ns3:subContractInfo>
+                </ns3:legalEntityRF>
+            </ns3:subContractor>
+            <ns3:subContractor>
+                <ns3:individualBusinessmanRF>
+                    <ns3:lastName>Кузнецов</ns3:lastName>
+                    <ns3:firstName>Андрей</ns3:firstName>
+                    <ns3:middleName>Петрович</ns3:middleName>
+                    <ns3:INN>463201234567</ns3:INN>
+                    <ns3:statusInfo>
+                        <ns2:code>30</ns2:code>
+                        <ns2:name>субъект малого предпринимательства</ns2:name>
+                    </ns3:statusInfo>
+                    <ns3:subContractInfo>
+                        <ns3:subContractDate>2026-05-14</ns3:subContractDate>
+                        <ns3:subContractNumber>4</ns3:subContractNumber>
+                        <ns3:subContractSubject>Услуги автотранспорта</ns3:subContractSubject>
+                        <ns3:subContractPriceInfo>
+                            <ns3:price>1200000.00</ns3:price>
+                        </ns3:subContractPriceInfo>
+                    </ns3:subContractInfo>
+                </ns3:individualBusinessmanRF>
+            </ns3:subContractor>
+            <!-- Повтор того же договора первого СМП: в проекции он должен быть один -->
+            <ns3:subContractor>
+                <ns3:legalEntityRF>
+                    <ns3:fullName>ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ "ЛИДЕР ГРУПП"</ns3:fullName>
+                    <ns3:INN>4632306640</ns3:INN>
+                    <ns3:KPP>463201001</ns3:KPP>
+                    <ns3:statusInfo>
+                        <ns2:code>30</ns2:code>
+                        <ns2:name>субъект малого предпринимательства</ns2:name>
+                    </ns3:statusInfo>
+                    <ns3:subContractInfo>
+                        <ns3:subContractDate>2026-10-28</ns3:subContractDate>
+                        <ns3:subContractNumber>01/09/26/20Р</ns3:subContractNumber>
+                        <ns3:subContractSubject>Оказание услуг по работе строительных машин и механизмов с экипажем</ns3:subContractSubject>
+                        <ns3:subContractPriceInfo>
+                            <ns3:price>15234000.50</ns3:price>
+                        </ns3:subContractPriceInfo>
+                    </ns3:subContractInfo>
+                </ns3:legalEntityRF>
+            </ns3:subContractor>
+        </ns3:subContractors>
+    </ns3:subContractorsSum>
+</ns3:contract>

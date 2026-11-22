@@ -15,7 +15,8 @@ public sealed class ContractCardImportService(
     GeneralAcceptanceParser generalParser,
     AcceptanceDecisionParser decisionParser,
     EdoMessageParser edoParser,
-    ContractExecutionParser executionParser)
+    ContractExecutionParser executionParser,
+    ContractSmpParser smpParser)
 {
     /// <summary>Импортировать один контракт; year — фильтр по году (null = все).</summary>
     public async Task<ContractCardViewDto> ImportAsync(
@@ -29,7 +30,10 @@ public sealed class ContractCardImportService(
         var payments = new List<PaymentOrderViewDto>();
         var messages = new List<EdoMessageDto>();
         var executions = new List<ContractExecutionViewDto>();
+        // Сведения о привлечении СМП/СОНО — подтаблица контракта из XML ЕИС
+        var smp = new List<ContractSmpViewDto>();
         var skipped = new List<string>();
+
 
         var files = await client.GetDocumentFilesAsync(regNumber, cancellationToken);
         if (saveDirectory is not null)
@@ -68,7 +72,7 @@ public sealed class ContractCardImportService(
                     Save(saveDirectory, Path.GetFileName(entry.Name), entry.Bytes);
                     Classify(
                         document, Path.GetFileName(entry.Name), title, year,
-                        acts, decisions, payments, messages, executions, skipped);
+                        acts, decisions, payments, messages, executions, smp, skipped);
                 }
             }
             else
@@ -83,10 +87,58 @@ public sealed class ContractCardImportService(
                 Save(saveDirectory, SafeFileName(title), bytes);
                 Classify(
                     document, SafeFileName(title), null, year,
-                    acts, decisions, payments, messages, executions, skipped);
+                    acts, decisions, payments, messages, executions, smp, skipped);
             }
         }
 
+        return BuildView(regNumber, acts, decisions, payments, messages, executions, smp, skipped);
+    }
+
+    /// <summary>
+    /// Собрать проекцию из уже скачанных XML карточки — без обращения к ЕИС.
+    /// Нужно для повторного разбора после изменения парсера: сырые файлы уже
+    /// лежат в каталоге выгрузки, скачивать их заново (и попадать под 429) незачем.
+    /// </summary>
+    public ContractCardViewDto ImportFromFiles(
+        string regNumber,
+        IEnumerable<(string FileName, string? SourceArchive, byte[] Bytes)> files,
+        int? year = null)
+    {
+        var acts = new List<AcceptanceActViewDto>();
+        var decisions = new List<AcceptanceDecisionDto>();
+        var payments = new List<PaymentOrderViewDto>();
+        var messages = new List<EdoMessageDto>();
+        var executions = new List<ContractExecutionViewDto>();
+        var smp = new List<ContractSmpViewDto>();
+        var skipped = new List<string>();
+
+        foreach (var file in files)
+        {
+            var document = Load(file.Bytes, file.FileName);
+            if (document is null)
+            {
+                skipped.Add(file.FileName);
+                continue;
+            }
+
+            Classify(
+                document, file.FileName, file.SourceArchive, year,
+                acts, decisions, payments, messages, executions, smp, skipped);
+        }
+
+        return BuildView(regNumber, acts, decisions, payments, messages, executions, smp, skipped);
+    }
+
+    private static ContractCardViewDto BuildView(
+        string regNumber,
+        List<AcceptanceActViewDto> acts,
+        List<AcceptanceDecisionDto> decisions,
+        List<PaymentOrderViewDto> payments,
+        List<EdoMessageDto> messages,
+        List<ContractExecutionViewDto> executions,
+        List<ContractSmpViewDto> smp,
+        List<string> skipped)
+    {
         // В некоторых формах реестровый номер есть только в ссылке на контракт;
         // подставляем номер карточки, чтобы связка была всегда заполнена.
         for (var index = 0; index < acts.Count; index++)
@@ -104,7 +156,16 @@ public sealed class ContractCardImportService(
             payments.OrderBy(payment => payment.DocumentDate, StringComparer.Ordinal).ToList(),
             messages.OrderBy(message => message.EventDate, StringComparer.Ordinal).ToList(),
             executions,
-            skipped);
+            skipped,
+            // Доп. соглашения повторяют условие контракта: одинаковые требования
+            // в проекции не дублируем, иначе карточка покажет их несколько раз
+            smp.DistinctBy(item => (
+                    item.RequirementPercent,
+                    item.RequirementSum,
+                    item.Responsibility,
+                    item.Subcontractors.Count))
+                .OrderBy(item => item.SourceFile, StringComparer.Ordinal)
+                .ToList());
     }
 
     private void Classify(
@@ -117,6 +178,7 @@ public sealed class ContractCardImportService(
         List<PaymentOrderViewDto> payments,
         List<EdoMessageDto> messages,
         List<ContractExecutionViewDto> executions,
+        List<ContractSmpViewDto> smp,
         List<string> skipped)
     {
         if (AcceptanceActParser.IsAcceptanceAct(document))
@@ -171,6 +233,12 @@ public sealed class ContractCardImportService(
             {
                 executions.Add(execution);
             }
+        }
+        else if (ContractSmpParser.IsSmpDocument(document))
+        {
+            // XML контракта: подтаблица «Информация о привлечении СМП, СОНО».
+            // Год здесь не фильтруем — сведения относятся к контракту целиком.
+            smp.Add(smpParser.Parse(document, fileName));
         }
         else
         {
