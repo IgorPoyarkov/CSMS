@@ -666,6 +666,7 @@
 
   &__numbers {
     padding: 0 max(16px, calc((100% - 1160px) / 2)) clamp(12px, 3vw, 28px);
+    scroll-margin-top: 84px;
   }
 
   &__numbers-grid {
