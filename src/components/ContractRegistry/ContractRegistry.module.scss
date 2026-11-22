@@ -836,6 +836,15 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Записей о привлечении СМП нет: подсказка, откуда они берутся */
+.smp-section__empty {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
 /* Требование СМП можно задать прямо в карточке: у контрактов, импортированных
    из ЕИС, процента и номера служебки нет */
 .smp-section__requirement {

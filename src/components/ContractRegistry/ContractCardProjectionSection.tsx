@@ -52,9 +52,30 @@ interface ContractCardProjectionSectionProps {
 export default function ContractCardProjectionSection({
   contractId,
 }: ContractCardProjectionSectionProps) {
-  const { data: projection } = useContractCardProjection(contractId);
+  const { data: projection, isLoading, isError } =
+    useContractCardProjection(contractId);
 
-  if (!projection) return null;
+  // Пока идёт первый запрос или адаптер недоступен, секцию не рисуем: пустое
+  // состояние ниже — про отсутствие выгрузки, а не про сетевую ошибку.
+  if (!contractId || isLoading || isError) return null;
+
+  // Выгрузки по контракту нет. Секцию всё равно показываем: на неё ссылаются
+  // ручные «Платежи» и «Поставки и приёмка», и без неё ссылка ведёт в никуда.
+  if (!projection) {
+    return (
+      <section className={styles.subSection}>
+        <h4 className={styles.subTitle}>
+          Приёмка и оплата по данным карточки ЕИС
+        </h4>
+        <p className={styles.projectionEmpty}>
+          Выгрузки карточки ЕИС по этому контракту нет: фактических актов
+          приёмки и платёжных поручений в базе нет. Выгрузку снимает воркер
+          eis-parser — пока её нет, фактическая оплата в карточку не попадает.
+          Ручной учёт — в секциях «Платежи» и «Поставки и приёмка» ниже.
+        </p>
+      </section>
+    );
+  }
 
   const { Acts: acts, Payments: payments, Decisions: decisions } = projection;
   const acceptedTotal = contractCardActsTotal(acts);
