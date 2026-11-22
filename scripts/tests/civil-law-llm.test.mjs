@@ -32,10 +32,17 @@ test("кандидаты берутся только из статей ядра 
   );
 });
 
-test("промпт требует дословные цитаты и содержит все статьи", () => {
+test("промпт требует дословные цитаты, оговорки и содержит все статьи", () => {
   const prompt = buildCivilLlmPrompt({ candidates, project, requirementsResult: requirements });
   assert.match(prompt, /дословная подстрока/);
   assert.match(prompt, /Не используй другие нормы/);
+  assert.match(prompt, /qualifierQuote/);
+  assert.match(prompt, /recommended/);
+  assert.ok(!prompt.includes("Уже заполненные поля"));
+  assert.ok(
+    !prompt.includes("Выполнение работ по капитальному ремонту здания"),
+    "в промпт попало содержимое проекта контракта",
+  );
   for (const ref of new Set(candidates.map((item) => item.ref))) {
     assert.ok(prompt.includes(ref), `в промпте нет ${ref}`);
   }
@@ -62,8 +69,10 @@ test("дословная цитата из снимка подтверждает
   assert.equal(result.status, "confirmed");
   assert.equal(result.findings.length, 1);
   assert.equal(result.findings[0].grounded, true);
+  assert.equal(result.findings[0].mode, "required");
   assert.equal(result.findings[0].quoteSource, "model");
   assert.equal(result.findings[0].textSha256, candidate.textSha256);
+  assert.equal(result.hasImperativeFindings, true);
   assert.equal(result.snapshotSha256, "test-sha");
 });
 
@@ -140,4 +149,85 @@ test("оркестратор использует переданную моде�
   assert.equal(result.candidateCount, candidates.length);
   assert.equal(result.requiresHumanReview, true);
   assert.equal(result.status, "confirmed");
+});
+
+test("оговорка в другой части статьи понижает обязанность до рекомендации", () => {
+  // В ст. 703 ГК есть пункт «Если иное не предусмотрено договором…»,
+  // хотя найденная моделью цитата может быть из другого пункта.
+  const candidate = candidates.find((item) => item.ref === "gk2:703");
+  const result = validateCivilLlmResponse(
+    {
+      subject: { kind: "works", consistency: "match", reason: "Подряд" },
+      findings: [
+        {
+          mode: "required",
+          ref: candidate.ref,
+          paragraph: candidate.paragraph,
+          quote: candidate.text.slice(0, 60),
+          condition: "Указать способ выполнения работы",
+        },
+      ],
+    },
+    { candidates, snapshot },
+  );
+  assert.equal(result.findings.length, 1);
+  assert.equal(result.findings[0].mode, "recommended");
+  assert.equal(result.findings[0].originalMode, "required");
+  assert.equal(result.findings[0].normKind, "dispositive");
+  assert.match(result.findings[0].qualifier.quote, /если иное не предусмотрено/i);
+  assert.equal(result.findings[0].qualifier.source, "article");
+  assert.equal(result.hasImperativeFindings, false);
+  assert.equal(result.summary.recommended, 1);
+  assert.match(result.diagnostics.join(" "), /не нарушение/);
+});
+
+test("подсказка модели об оговорке принимается только при совпадении со снимком", () => {
+  const candidate = candidates.find((item) => item.ref === "gk2:703");
+  const base = {
+    mode: "prohibited",
+    ref: candidate.ref,
+    paragraph: candidate.paragraph,
+    quote: candidate.text.slice(0, 60),
+    condition: "Не указывать способ работы",
+  };
+  const accepted = validateCivilLlmResponse(
+    {
+      subject: { kind: "works", consistency: "match", reason: "" },
+      findings: [{ ...base, qualifierQuote: "Если иное не предусмотрено договором, подрядчик самостоятельно определяет" }],
+    },
+    { candidates, snapshot },
+  );
+  assert.equal(accepted.findings[0].qualifier.source, "model");
+  assert.equal(accepted.findings[0].mode, "recommended");
+
+  const rejectedHint = validateCivilLlmResponse(
+    {
+      subject: { kind: "works", consistency: "match", reason: "" },
+      findings: [{ ...base, qualifierQuote: "Если заказчик согласен, способ можно не указывать" }],
+    },
+    { candidates, snapshot },
+  );
+  assert.notEqual(rejectedHint.findings[0].qualifier.source, "model");
+});
+
+test("режим recommended от модели не считается нарушением", () => {
+  const candidate = candidates.find((item) => item.ref === "gk2:702");
+  const result = validateCivilLlmResponse(
+    {
+      subject: { kind: "works", consistency: "match", reason: "" },
+      findings: [
+        {
+          mode: "recommended",
+          ref: candidate.ref,
+          paragraph: candidate.paragraph,
+          quote: candidate.text.slice(0, 60),
+          condition: "Указать вид работ",
+        },
+      ],
+    },
+    { candidates, snapshot },
+  );
+  assert.equal(result.findings[0].mode, "recommended");
+  assert.equal(result.hasImperativeFindings, false);
+  assert.equal(result.summary.recommended, 1);
 });

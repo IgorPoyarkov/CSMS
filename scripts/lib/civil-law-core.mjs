@@ -126,11 +126,41 @@ export function articleText(snapshot, reference) {
 }
 
 /**
+ * Оговорки, которые делают норму диспозитивной: даже если в ней есть «должен»
+ * или «не допускается», стороны вправе установить иное. Возвращаем сами
+ * формулировки, чтобы их можно было показать как доказательство в выводе.
+ */
+const DISPOSITIVE_QUALIFIERS = Object.freeze([
+  /если иное не предусмотрено[^.]{0,160}/gi,
+  /если договором не предусмотрено[^.]{0,160}/gi,
+  /по соглашению сторон[^.]{0,160}/gi,
+  /допускается иное[^.]{0,160}/gi,
+  /иное может быть предусмотрено[^.]{0,160}/gi,
+  /не применяется, если[^.]{0,160}/gi,
+]);
+
+/** Находит в тексте статьи оговорки «может быть иначе», без выдуманных формулировок. */
+export function findNormQualifiers(text) {
+  const source = String(text ?? "");
+  const haystack = source.toLowerCase().replace(/ё/g, "е");
+  const found = new Map();
+  for (const pattern of DISPOSITIVE_QUALIFIERS) {
+    for (const match of haystack.matchAll(pattern)) {
+      const value = source
+        .slice(match.index, match.index + match[0].length)
+        .trim();
+      found.set(value.toLowerCase().replace(/\s+/g, " "), value);
+    }
+  }
+  return [...found.values()];
+}
+
+/**
  * Эвристика характера нормы по её тексту. Не заменяет юридическую экспертизу:
  * «если иное не предусмотрено договором» = диспозитивная норма.
  */
 export function classifyNormKind(text) {
-  if (/если иное не предусмотрено|если договором не предусмотрено|по соглашению сторон/i.test(text)) {
+  if (findNormQualifiers(text).length) {
     return "dispositive";
   }
   if (/не допускается|обязан|должен|не вправе/i.test(text)) {

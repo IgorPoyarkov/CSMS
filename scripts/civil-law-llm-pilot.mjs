@@ -1,11 +1,16 @@
 /**
- * Пилот LLM-анализа ГК РФ по одному контракту из контрольного набора.
+ * Пилот LLM-анализа ГК РФ по контрольным предметам закупок.
  *
- * Пример:
- *   node scripts/civil-law-llm-pilot.mjs --contract 2462904043926000001
+ * Пример одного контракта:
+ *   node scripts/civil-law-llm-pilot.mjs --contract 2462904043926000003
  *
- * Модель получает только абзацы зафиксированного снимка; ответ проходит
- * проверку дословных цитат в scripts/lib/civil-law-llm.mjs.
+ * Ограниченная выборка (не прогон всех 112 контрактов):
+ *   node scripts/civil-law-llm-pilot.mjs --contract ... --contract ... --max-minutes 110
+ *
+ * В контекст модели попадают только объект закупки, код ОКПД2 как косвенный
+ * сигнал и дословные абзацы снимка. Содержимое проекта контракта не
+ * передаётся: там могут быть непроверенные формулировки. Ответ проходит
+ * проверку дословных цитат и оговорок в scripts/lib/civil-law-llm.mjs.
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -31,27 +36,15 @@ function arg(name, fallback) {
   return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
 }
 
-const subjects = JSON.parse(readFileSync(SUBJECTS_PATH, "utf8"));
-const wanted = arg("contract", subjects.items[0]?.regNumber);
-const item = subjects.items.find((entry) => entry.regNumber === wanted);
-if (!item) throw new Error(`Контракт ${wanted} не найден в ${SUBJECTS_PATH}`);
-
-const snapshot = loadCivilSnapshot(SNAPSHOT_PATH);
-const snapshotSha256 = createHash("sha256")
-  .update(readFileSync(SNAPSHOT_PATH, "utf8"))
-  .digest("hex")
-  .toUpperCase();
-
-const project = {
-  subject: {
-    objectName: item.contractName,
-    description: "",
-    okpd2Code: "",
-  },
-};
-const requirementsResult = buildContractRequirements(project, snapshot);
-const model = arg("model", DEFAULT_CIVIL_MODEL);
-const maxCandidates = Number(arg("max-candidates", "120"));
+function args(name, fallback = []) {
+  const values = [];
+  process.argv.forEach((value, index) => {
+    if (value === `--${name}` && process.argv[index + 1]) {
+      values.push(process.argv[index + 1]);
+    }
+  });
+  return values.length ? values : fallback;
+}
 
 /**
  * Обычный fetch в Node имеет 5-минутный headers timeout: модель на большом
@@ -96,6 +89,24 @@ function postJson(url, payload, timeoutMs) {
   });
 }
 
+const subjects = JSON.parse(readFileSync(SUBJECTS_PATH, "utf8"));
+const contractNumbers = args("contract", [subjects.items[0]?.regNumber]);
+const items = contractNumbers.map((number) => {
+  const item = subjects.items.find((entry) => entry.regNumber === number);
+  if (!item) throw new Error(`Контракт ${number} не найден в ${SUBJECTS_PATH}`);
+  return item;
+});
+
+const snapshot = loadCivilSnapshot(SNAPSHOT_PATH);
+const snapshotSha256 = createHash("sha256")
+  .update(readFileSync(SNAPSHOT_PATH, "utf8"))
+  .digest("hex")
+  .toUpperCase();
+
+const model = arg("model", DEFAULT_CIVIL_MODEL);
+const maxCandidates = Number(arg("max-candidates", "120"));
+const maxMinutes = Number(arg("max-minutes", "110"));
+const outdir = arg("outdir", path.join(os.tmpdir(), "opencode"));
 const generate = async ({ model: modelName, prompt }) => {
   const body = await postJson(
     `${OLLAMA_URL}/api/generate`,
@@ -111,53 +122,57 @@ const generate = async ({ model: modelName, prompt }) => {
   return body.response;
 };
 
-const startedAt = Date.now();
-const result = await analyzeCivilWithLlm({
-  project,
-  snapshot,
-  requirementsResult,
-  generate,
-  model,
-  snapshotSha256,
-  maxCandidates,
-});
-const elapsedMs = Date.now() - startedAt;
+const batchStartedAt = Date.now();
+const summary = [];
+for (const item of items) {
+  const elapsedBefore = Date.now() - batchStartedAt;
+  if (elapsedBefore > maxMinutes * 60 * 1000) {
+    console.log(`Лимит ${maxMinutes} мин исчерпан, дальше не прогоняем`);
+    break;
+  }
 
-const output = {
-  contract: wanted,
-  contractName: item.contractName,
-  deterministic: {
-    kind: requirementsResult.classification.effectiveKind,
-    institutes: requirementsResult.classification.institutes.map((entry) => entry.id),
-  },
-  ...result,
-  elapsedMs,
-};
-
-const outPath = arg(
-  "out",
-  path.join(os.tmpdir(), "opencode", `gk-llm-${wanted}.json`),
-);
-writeFileSync(outPath, JSON.stringify(output, null, 2), "utf8");
-
-const byMode = output.findings.reduce((acc, finding) => {
-  acc[finding.mode] = (acc[finding.mode] ?? 0) + 1;
-  return acc;
-}, {});
-console.log(
-  JSON.stringify(
-    {
-      contract: wanted,
-      status: output.status,
-      subject: output.subject,
-      findings: byMode,
-      rejected: output.rejected.length,
-      candidates: output.candidateCount,
-      model,
-      elapsedMs,
-      outPath,
+  // Только объект закупки: ни описания из проекта контракта, ни filledPaths.
+  const project = { subject: { objectName: item.contractName, okpd2Code: "" } };
+  const requirementsResult = buildContractRequirements(project, snapshot);
+  const startedAt = Date.now();
+  const result = await analyzeCivilWithLlm({
+    project,
+    snapshot,
+    requirementsResult,
+    generate,
+    model,
+    snapshotSha256,
+    maxCandidates,
+  });
+  const elapsedMs = Date.now() - startedAt;
+  const output = {
+    contract: item.regNumber,
+    contractName: item.contractName,
+    deterministic: {
+      kind: requirementsResult.classification.effectiveKind,
+      institutes: requirementsResult.classification.institutes.map((entry) => entry.id),
     },
-    null,
-    2,
-  ),
+    ...result,
+    elapsedMs,
+  };
+  const outPath = path.join(outdir, `gk-llm-${item.regNumber}.json`);
+  writeFileSync(outPath, JSON.stringify(output, null, 2), "utf8");
+  summary.push({
+    contract: item.regNumber,
+    status: output.status,
+    subject: output.subject,
+    modes: output.summary,
+    hasImperativeFindings: output.hasImperativeFindings,
+    rejected: output.rejected.length,
+    diagnostics: output.diagnostics,
+    elapsedMs,
+    outPath,
+  });
+  console.log(JSON.stringify(summary[summary.length - 1], null, 2));
+}
+
+writeFileSync(
+  path.join(outdir, "gk-llm-batch-summary.json"),
+  JSON.stringify({ model, maxCandidates, maxMinutes, summary }, null, 2),
+  "utf8",
 );

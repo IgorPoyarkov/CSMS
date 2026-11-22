@@ -6,11 +6,12 @@
  * цитату из переданного абзаца. Всё, что не прошло проверку, попадает в
  * `rejected` с причиной и не считается найденным условием.
  */
-import { articleText } from "./civil-law-core.mjs";
+import { articleText, findNormQualifiers } from "./civil-law-core.mjs";
 
 export const DEFAULT_CIVIL_MODEL = "qwen2.5:14b-instruct-q4_K_M";
 
-const MODES = Object.freeze(["required", "permitted", "prohibited"]);
+const MODES = Object.freeze(["required", "permitted", "prohibited", "recommended"]);
+const IMPERATIVE_MODES = Object.freeze(["required", "prohibited"]);
 const CONSISTENCY = Object.freeze(["match", "mismatch", "unclear"]);
 
 const norm = (value) =>
@@ -87,21 +88,23 @@ export function buildCandidateParagraphs(
   return candidates;
 }
 
-/** Собирает жёсткий промпт: модель видит только переданные фрагменты. */
+/**
+ * Собирает жёсткий промпт: модель видит только объект закупки, предмет,
+ * классификацию ядра для сверки и дословные фрагменты снимка.
+ *
+ * Содержимое проекта контракта сознательно НЕ передаётся: там могут быть
+ * непроверенные и ложные формулировки, которые потянут модель за собой.
+ */
 export function buildCivilLlmPrompt({
   candidates,
   project,
   requirementsResult,
 }) {
   const classification = requirementsResult?.classification ?? {};
-  const subject = {
-    objectName: project?.subject?.objectName ?? "",
-    description: project?.subject?.description ?? "",
+  const procurement = {
+    object: project?.subject?.objectName ?? "",
     okpd2Code: project?.subject?.okpd2Code ?? "",
   };
-  const filledFields = (requirementsResult?.requirements ?? [])
-    .flatMap((item) => item?.filledPaths ?? [])
-    .filter((value, index, all) => all.indexOf(value) === index);
 
   return [
     "Ты помогаешь юристу проверить проект государственного контракта по 44-ФЗ.",
@@ -109,26 +112,30 @@ export function buildCivilLlmPrompt({
     "Не используй другие нормы и не воспроизводи текст норм по памяти.",
     "",
     "Задача:",
-    "1) по описанию предмета определить вид договора и сверить его с указанным объектом контракта;",
+    "1) по наименованию объекта закупки определить предмет договора и сверить его с этим объектом;",
     "2) из приведённых фрагментов выбрать нормы, которые ПРЯМО предписывают:",
     "   required — что должно быть в контракте, permitted — что может быть, prohibited — чего не должно быть;",
-    "3) если прямого указания в приведённых фрагментах нет, вернуть пустой findings и объяснить это в reason.",
+    "3) если прямого указания в приведённых фрагментах нет, вернуть пустой findings и объяснить это в reason;",
+    "4) если обязанность отменяется или становится необязательной из-за оговорки в другом пункте той же статьи",
+    "   («если иное не предусмотрено договором/соглашением сторон» и т.п.), это НЕ нарушение:",
+    "   укажи mode recommended и дословно процитируй оговорку в qualifierQuote.",
     "",
     "Правила ответа:",
     "- ref и paragraph бери только из списка фрагментов;",
+    "- смотри все пункты статьи, а не только выбранный абзац: оговорка может быть в соседнем пункте;",
     "- quote — необязательная подсказка: краткая дословная подстрока. Если не уверен в дословности, оставь quote пустым: система сама подставит текст абзаца из снимка;",
     "- condition — коротко, какое условие контракта следует из нормы;",
-    "- не пересказывай норму вместо цитаты и не изобретай другие статьи;",
+    "- не используй содержимое проекта контракта как доказательство: формулировки там могут быть непроверенными. Норма проверяется только по снимку;",
+    "- не изобретай статьи и не пересказывай норму вместо цитаты;",
     "- ответ строго в JSON, без пояснений вне JSON.",
     "",
-    "Предмет контракта: " + JSON.stringify(subject),
-    "Классификация ядра: " + JSON.stringify(classification),
-    "Уже заполненные поля: " + JSON.stringify(filledFields),
+    "Объект закупки и косвенный код ОКПД2: " + JSON.stringify(procurement),
+    "Предварительная классификация ядра (для сверки, не истина): " + JSON.stringify(classification),
     "",
     "Фрагменты снимка:",
     JSON.stringify(candidates.map(({ ref, paragraph, text }) => ({ ref, paragraph, text }))),
     "",
-    'Формат: {"subject":{"kind":"...","consistency":"match|mismatch|unclear","reason":"..."},"findings":[{"mode":"required|permitted|prohibited","ref":"...","paragraph":1,"quote":"...","condition":"..."}]}',
+    'Формат: {"subject":{"kind":"...","consistency":"match|mismatch|unclear","reason":"..."},"findings":[{"mode":"required|permitted|prohibited|recommended","ref":"...","paragraph":1,"quote":"...","qualifierQuote":"...","condition":"..."}]}',
   ].join("\n");
 }
 
@@ -162,6 +169,8 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
       subject: { kind: "unknown", consistency: "unclear", reason: "" },
       findings: [],
       rejected: [],
+      summary: {},
+      hasImperativeFindings: false,
       snapshotSha256,
       diagnostics: [`Не удалось разобрать ответ модели: ${error.message}`],
     };
@@ -221,6 +230,10 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
       quote,
       quoteSource: exact ? "model" : "snapshot",
       condition: item.condition.trim(),
+      // Подсказка модели об оговорке: будет принята, только если эта фраза
+      // дословно присутствует в тексте статьи снимка.
+      modelQualifierQuote:
+        typeof item?.qualifierQuote === "string" ? item.qualifierQuote : "",
       sourceUrl: candidate.sourceUrl,
       textSha256: candidate.textSha256 ?? null,
     });
@@ -240,6 +253,41 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
   const grounded = findings.filter((item) => item.grounded !== false);
   const failed = findings.filter((item) => item.grounded === false);
 
+  // Оговорка в статье («если иное не предусмотрено договором…») снимает
+  // императивность: такой вывод не нарушение, а максимум рекомендация.
+  // Фраза оговорки принимается только если она дословно есть в снимке.
+  const articleCache = new Map();
+  let downgraded = 0;
+  for (const finding of grounded) {
+    if (!articleCache.has(finding.ref)) {
+      articleCache.set(finding.ref, articleText(snapshot, finding.ref) ?? "");
+    }
+    const whole = articleCache.get(finding.ref);
+    const paragraphQualifiers = findNormQualifiers(finding.quote);
+    const articleQualifiers = findNormQualifiers(whole);
+    const hint = norm(finding.modelQualifierQuote);
+    const hinted =
+      hint.length >= 10 && norm(whole).includes(hint)
+        ? [finding.modelQualifierQuote.trim()]
+        : [];
+    const qualifiers = [...new Set([...hinted, ...paragraphQualifiers, ...articleQualifiers])];
+    delete finding.modelQualifierQuote;
+
+    if (qualifiers.length) {
+      finding.normKind = "dispositive";
+      finding.qualifier = {
+        type: "dispositive",
+        quote: qualifiers[0],
+        source: hinted.length ? "model" : paragraphQualifiers.length ? "paragraph" : "article",
+      };
+    }
+    if (qualifiers.length && IMPERATIVE_MODES.includes(finding.mode)) {
+      finding.originalMode = finding.mode;
+      finding.mode = "recommended";
+      downgraded += 1;
+    }
+  }
+
   const status =
     grounded.length === 0
       ? "unconfirmed"
@@ -256,12 +304,24 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
       `Для ${adjustedQuotes} выводов модель пересказала цитату: использован дословный абзац снимка`,
     );
   }
+  if (downgraded > 0) {
+    diagnostics.push(
+      `Для ${downgraded} выводов в норме найдена оговорка: режим понижен до recommended, это не нарушение`,
+    );
+  }
+
+  const summary = grounded.reduce((acc, finding) => {
+    acc[finding.mode] = (acc[finding.mode] ?? 0) + 1;
+    return acc;
+  }, {});
 
   return {
     status,
     subject,
     findings: grounded,
     rejected: [...rejected, ...failed.map((item) => ({ ref: item.ref, reason: "Цитата не подтверждена снимком" }))],
+    summary,
+    hasImperativeFindings: grounded.some((item) => IMPERATIVE_MODES.includes(item.mode)),
     snapshotSha256,
     diagnostics,
   };
