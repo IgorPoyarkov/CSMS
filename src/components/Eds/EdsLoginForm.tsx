@@ -57,6 +57,7 @@ export default function EdsLoginForm({
   const [storeError, setStoreError] = useState("");
   const [readingCerts, setReadingCerts] = useState(true);
   const [selectedKey, setSelectedKey] = useState("");
+  const [employeeNumber, setEmployeeNumber] = useState("");
   const [loginError, setLoginError] = useState("");
 
   // Читаем хранилище «Мой»: только эти сертификаты несут закрытый ключ
@@ -120,6 +121,7 @@ export default function EdsLoginForm({
     login(
       {
         certificate: selectedCert,
+        employeeNumber,
         sign: async (nonce) => {
           const signature = await signText(signableCert, nonce);
           return signature.value;
@@ -219,6 +221,34 @@ export default function EdsLoginForm({
                 })}
               </div>
             )}
+          </fieldset>
+
+          <fieldset className={block("fieldset")}>
+            <legend>Однофамильцы (необязательно)</legend>
+            <div className={block("number-field")}>
+              <label
+                className={block("number-label")}
+                htmlFor="eds-employee-number"
+              >
+                Табельный номер
+              </label>
+              <input
+                id="eds-employee-number"
+                className={block("number-input")}
+                value={employeeNumber}
+                onChange={(event) => {
+                  setEmployeeNumber(event.target.value);
+                  setLoginError("");
+                }}
+                placeholder="Например, 006"
+                autoComplete="off"
+              />
+              <div className={block("number-hint")}>
+                Если в штатном расписании несколько сотрудников с таким ФИО,
+                укажите ваш табельный номер — иначе вход будет отклонён как
+                неоднозначный.
+              </div>
+            </div>
           </fieldset>
 
           {selectedCert && (

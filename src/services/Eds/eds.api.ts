@@ -165,6 +165,8 @@ export interface EdsServerLoginRequest {
   challengeId: string;
   signatureBase64: string;
   certificate: EdsServerCertificate;
+  // Необязателен: нужен только полным однофамильцам в штатном расписании
+  employeeNumber?: string;
 }
 
 export interface EdsLoginSuccess {
@@ -226,6 +228,8 @@ export interface EdsLoginRequest {
   certificate: EdsCertificate;
   /** Подписать наборт сервера; вернуть откреплённую подпись в base64. */
   sign: (nonce: string) => Promise<string>;
+  /** Табельный номер — дополнительный фильтр при полных однофамильцах. */
+  employeeNumber?: string;
 }
 
 /**
@@ -237,7 +241,11 @@ export const useEdsLogin = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ certificate, sign }: EdsLoginRequest) => {
+    mutationFn: async ({
+      certificate,
+      sign,
+      employeeNumber,
+    }: EdsLoginRequest) => {
       const challenge = await fetchEdsChallenge();
       const signatureBase64 = await sign(challenge.nonce);
       if (!signatureBase64) {
@@ -248,6 +256,7 @@ export const useEdsLogin = () => {
         challengeId: challenge.challengeId,
         signatureBase64,
         certificate: toServerCertificate(certificate),
+        employeeNumber: employeeNumber?.trim() || undefined,
       });
 
       const parsedUser = BaseUserSchema.safeParse(result.profile.user);

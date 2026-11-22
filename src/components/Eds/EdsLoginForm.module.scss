@@ -106,6 +106,43 @@
   color: var(--text-secondary);
 }
 
+/* Табельный номер — необязательный фильтр для полных однофамильцев */
+.eds-login__number-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.eds-login__number-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eds-login__number-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: 13px;
+
+  &::placeholder {
+    color: var(--text-secondary);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+}
+
+.eds-login__number-hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 .eds-login__cert-list {
   display: flex;
   flex-direction: column;
