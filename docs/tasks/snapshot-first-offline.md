@@ -94,10 +94,39 @@ fetch (сеть, опционально)
   назад; при инкременте/ручном запросе существующие записи не удаляются, а
   перекрываются по номеру.
 
-### Команды ежедневной проверки
+### Карточки по своим номерам (рекомендуемый путь)
+
+Поскольку поиск ЕИС игнорирует фильтр заказчика, список номеров берём из своей
+БД, а не из `--inn`. Один раз выгружаем номера из `contractRegistry`, затем
+парсим их явным списком. `--numbers-file` принимает по одному 19-значному
+номеру в строке (пустые строки и `#`-комментарии игнорируются); с `--incremental`
+уже готовые `*.json` пропускаются, так что обрыв можно продолжить.
 
 ```powershell
-# Карточки приёмки/оплаты: один раз полный проход, затем только курсор.
+# 1. Список реестровых номеров из своих контрактов (из PG).
+node --input-type=module -e "import {createPgPool,loadDbFromPg} from './scripts/lib/pg-store.mjs'; const p=createPgPool(); const c=await p.connect(); const db=await loadDbFromPg(c); const s=new Set(); for (const x of db.contractRegistry) { const m=String(x.eisUrl??'').match(/reestrNumber=(\d{19})/); if (m) s.add(m[1]); if (/^\d{19}$/.test(String(x.eisRegistryNumber??''))) s.add(String(x.eisRegistryNumber)); } c.release(); await p.end(); console.log([...s].sort().join('\n'));" > our-numbers.txt
+
+# 2. Парсинг карточек (только явные номера, без обращения к поиску ЕИС).
+dotnet run --project eis-parser/src/Eis44Parser.Worker --no-build -- `
+  --numbers-file our-numbers.txt --year 2026 --out <каталог-проекций> --incremental
+
+# 3. Импорт проекций на фронт: полный DTO в коллекцию contractCardProjections.
+node scripts/import-contract-card-projections.mjs --dir <каталог-проекций> --dry-run
+node scripts/import-contract-card-projections.mjs --dir <каталог-проекций>
+```
+
+Импорт точечный (upsert по реестровому номеру), ничего не очищает. По умолчанию
+пропускаются проекции, которые не удалось связать ни с одним контрактом из
+`contractRegistry` (ни по реестровому номеру, ни по номеру контракта из актов);
+`--allow-unmatched` включает их импорт явным решением пользователя. Проекции
+не являются entity: все поля `ContractCardViewDto` (`Acts`, `Decisions`, `Payments`,
+`Messages`, `Executions`, `SkippedFiles`) лежат на верхнем уровне документа и
+отдаются через `/contractCardProjections` так же, как и другие коллекции PG.
+
+### Команды ежедневной проверки (поиск по ИНН — только для справки)
+
+```powershell
+# Карточки приёмки/оплаты: полный проход, затем только курсор.
 dotnet run --project eis-parser/src/Eis44Parser.Worker --no-build -- `
   --inn 4629040439 --year 2026 --limit 1000 --out <каталог-проекций>
 dotnet run --project eis-parser/src/Eis44Parser.Worker --no-build -- `

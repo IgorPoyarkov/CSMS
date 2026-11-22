@@ -21,6 +21,8 @@ using Microsoft.Extensions.Options;
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
 // --parse-xlsx <путь> — разобрать XLSX шаблон КТРУ экспертного совета,
 // --contract-card <реестровый номер> — скачать и разобрать акты/платежи публичной карточки,
+// --numbers-file <путь> — то же для явного списка реестровых номеров (по одному в строке);
+//   поиск ЕИС не фильтрует по ИНН, поэтому надёжный источник списка — свои номера из БД,
 // --inn <ИНН заказчика> — то же для всех контрактов заказчика за --year,
 // --year <год> — фильтр года (по умолчанию 2026), --limit <n> — ограничение числа контрактов,
 // --out <папка> — сохранить сырые XML и JSON-проекцию,
@@ -273,7 +275,8 @@ if (parseXlsxPath is not null)
 // токен ЕИС не нужен. Результат — projecting со всеми полями для фронта.
 var cardRegNumber = GetArgumentValue(args, "--contract-card");
 var customerInn = GetArgumentValue(args, "--inn");
-if (cardRegNumber is not null || customerInn is not null)
+var numbersFilePath = GetArgumentValue(args, "--numbers-file");
+if (cardRegNumber is not null || customerInn is not null || numbersFilePath is not null)
 {
     try
     {
@@ -308,7 +311,35 @@ if (cardRegNumber is not null || customerInn is not null)
         }
 
         CardImportState? state = null;
-        if (customerInn is not null)
+        if (numbersFilePath is not null)
+        {
+            // Поиск ЕИС не фильтрует по заказчику, поэтому явный список номеров
+            // из своей БД — надёжный источник: чужие карточки не попадут в импорт.
+            if (!File.Exists(numbersFilePath))
+            {
+                Console.Error.WriteLine($"Файл номеров не найден: {numbersFilePath}");
+                return 1;
+            }
+
+            var numbers = File.ReadLines(numbersFilePath)
+                .Select(line => line.Trim())
+                .Where(line => line.Length > 0 && !line.StartsWith('#'))
+                .Where(line => line.Length == 19 && line.All(char.IsDigit))
+                .ToList();
+            regNumbers.AddRange(numbers);
+            Console.Error.WriteLine(
+                $"Явный список номеров: {numbers.Count}, файл {numbersFilePath}");
+
+            // Повтор после обрыва: уже разобранные проекции не скачиваем заново.
+            if (incremental && outputDirectory is not null)
+            {
+                regNumbers = regNumbers
+                    .Where(number => !File.Exists(Path.Combine(outputDirectory, $"{number}.json")))
+                    .ToList();
+                Console.Error.WriteLine($"Осталось после проверки готовых проекций: {regNumbers.Count}");
+            }
+        }
+        else if (customerInn is not null)
         {
             var found = await cardClient.EnumerateContractsByInnAsync(customerInn);
             var forYear = found

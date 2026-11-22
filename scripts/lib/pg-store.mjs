@@ -31,6 +31,8 @@ export const PG_COLLECTIONS = [
   "smnpReports",
   "smnpProcurements",
   "contractRegistry",
+  // Полные DTO публичной карточки ЕИС (Acts/Decisions/Payments/...), не entity.
+  "contractCardProjections",
   "contractStages",
   "contractPayments",
   "contractPenalties",
