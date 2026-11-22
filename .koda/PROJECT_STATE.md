@@ -104,6 +104,10 @@
   не перетираются (`Npa__Enabled=false` и т.п. работают как раньше).
   ⚠️ `EIS_STORE=postgres` требует поднятый PostgreSQL на :5433 с базой `csms_eis`;
   без него ОКПД2 на фронте будет пустым. `npm run api` — только API.
+  ⚠️ 2026-11-22: `/api/references/{dataset}/all` падал с 500 из-за
+  `OrderBy(..., StringComparer.Ordinal)` в EF-запросе; исправлено в csms-api
+  (`f49f972`), сортировка перенесена после выборки. Теперь endpoint отдаёт
+  21 066 кодов ОКПД2, выпадающие списки в извещении/СЗ/ПГ наполняются.
   `npm run build` = `tsc -b && vite build`. Линт: `npx oxlint src` (в проекте
   oxlint; `npm run lint` — осколок eslint). Типы: `npx tsc -b --pretty false`.
   - ⚠️ В PowerShell этого агента `npx` заблокирован политикой выполнения
