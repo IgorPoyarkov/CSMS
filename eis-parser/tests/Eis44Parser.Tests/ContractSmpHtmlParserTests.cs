@@ -122,6 +122,40 @@ public sealed class ContractSmpHtmlParserTests
         Assert.Equal("2026-05-18", result.Subcontractors[1].ContractDate);
     }
 
+    [Fact]
+    public void ParsesOkpd2FromSubcontractorsAjaxFragment()
+    {
+        // Вкладка «Общая информация» режет таблицу до 10 строк, но её
+        // AJAX-фрагмент subcontractors.html отдаёт весь список, а в
+        // раскрывающихся блоках есть статус и ОКПД2.
+        const string commonInfo = """
+            <input type="hidden" id="subcontractorsUrlRefresh"
+                   value="/epz/contract/contractCard/subcontractors.html?contractInfoId=112512585">
+            <section class="blockInfo__section section">
+                <span class="section__title">Объем привлечения к исполнению контракта субподрядчиков,
+                    соисполнителей из числа СМП, СОНО
+                </span>
+                <span class="section__info">25% , что составляет 36 928 182,21, ₽</span>
+            </section>
+            """;
+
+        Assert.Equal("112512585", ContractSmpHtmlParser.ContractInfoIdOf(commonInfo));
+
+        var result = _parser.ParseCommonInfoCard(
+            commonInfo, SubcontractorsFragmentHtml, "2462904043926000006");
+
+        Assert.NotNull(result);
+        Assert.Equal(25.0m, result.RequirementPercent);
+        Assert.Equal(36_928_182.21m, result.RequirementSum);
+
+        var row = Assert.Single(result.Subcontractors);
+        Assert.Equal("462900896079", row.Inn);
+        Assert.Equal("30", row.StatusCode);
+        Assert.Equal("42.11.20.200", row.Okpd2Code);
+        Assert.Equal(494_590.16m, row.ContractSum);
+        Assert.Equal("2026-05-04", row.ContractDate);
+    }
+
     /// <summary>Срез реальной разметки карточки 2462904043926000006.</summary>
     private const string CardHtml = """
         <html><body>
@@ -343,5 +377,51 @@ public sealed class ContractSmpHtmlParserTests
             </tr>
         </table>
         </body></html>
+        """;
+
+    /// <summary>AJAX-фрагмент subcontractors.html: одна строка с ОКПД2.</summary>
+    private const string SubcontractorsFragmentHtml = """
+        <table class="blockInfo__table tableBlock grayBorderBottom">
+        <tbody class="tableBlock__body">
+            <tr class="tableBlock__row">
+                <td class="tableBlock__col">
+                    <img src="/epz/static/img/icons/icon_expander_uncover.svg"
+                         alt="Раскрыть" class="draftArrow cursorPointer"
+                         data-id="3036431">
+                </td>
+                <td class="tableBlock__col">СЕРГЕЙ ВИКТОРОВИЧ ИЛЬИН</td>
+                <td class="tableBlock__col">462900896079</td>
+                <td class="tableBlock__col"><br>28.11.2022</td>
+                <td class="tableBlock__col">305014, КУРСКАЯ ОБЛАСТЬ, Г. Курск</td>
+                <td class="tableBlock__col">№ 04/05/2026-01<br/>от 04.05.2026</td>
+                <td class="tableBlock__col">Перевозка груза автомобильным транспортом</td>
+                <td class="tableBlock__col text-right">494 590,16 руб.</td>
+            </tr>
+            <tr class="tableBlock__row subContractor-3036431" style="display:none;">
+                <td colspan="100%">
+                    <section class="blockInfo__section section">
+                        <span class="section__title">Статус</span>
+                        <span class="section__info">
+                            30 - субъект малого предпринимательства
+                        </span>
+                    </section>
+                    <h2 class="blockInfo__title">Сведения об объекте закупок</h2>
+                    <table class="blockInfo__table tableBlock grayBorderBottom">
+                        <tbody class="tableBlock__body">
+                            <tr class="tableBlock__row">
+                                <td class=" tableBlock__col tableBlock__col_first">Перевозка груза</td>
+                                <td class="tableBlock__col tableBlock__col_right">42.11.20.200</td>
+                                <td class="tableBlock__col">Условная единица (усл. ед)</td>
+                                <td class="tableBlock__col tableBlock__col_right">494 590,16</td>
+                                <td class="tableBlock__col">1</td>
+                                <td class="tableBlock__col tableBlock__col_right">494 590,16</td>
+                                <td class="tableBlock__col">Без НДС</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+        </table>
         """;
 }

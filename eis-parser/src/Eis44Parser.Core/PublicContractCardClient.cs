@@ -21,6 +21,7 @@ public sealed class PublicContractCardClient
     private const string DocumentsUrl = BaseUrl + "/epz/contract/contractCard/document-info.html?reestrNumber=";
     private const string CommonInfoUrl = BaseUrl + "/epz/contract/contractCard/common-info.html?reestrNumber=";
     private const string PrintFormUrl = BaseUrl + "/epz/contract/printForm/view.html?contractReestrNumber=";
+    private const string SubcontractorsUrl = BaseUrl + "/epz/contract/contractCard/subcontractors.html?contractInfoId=";
     private const string SearchUrl = BaseUrl + "/epz/contract/search/results.html?customerINN={0}&recordsPerPage=_500&pageNumber={1}";
     private const int MaxAttempts = 8;
 
@@ -47,6 +48,23 @@ public sealed class PublicContractCardClient
         {
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (CSMS parser)");
         }
+    }
+
+    /// <summary>
+    /// Фрагмент таблицы субподрядчиков СМП/СОНО со вкладки «Общая информация».
+    /// Вкладка отдаёт первые 10 строк, но этот AJAX-endpoint принимает
+    /// `pageSize` и возвращает весь список вместе с раскрывающимися блоками,
+    /// где лежат статус 30/40 и ОКПД2. `contractInfoId` берётся из скрытого
+    /// поля `subcontractorsUrlRefresh` на самой вкладке.
+    /// </summary>
+    public async Task<string> GetSubcontractorsHtmlAsync(
+        string contractInfoId,
+        int pageSize = 200,
+        CancellationToken cancellationToken = default)
+    {
+        var url = $"{SubcontractorsUrl}{contractInfoId}&page=1&pageSize={pageSize}";
+        using var response = await GetWithRetryAsync(url, cancellationToken);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     /// <summary>

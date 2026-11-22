@@ -24,6 +24,15 @@ public sealed class ContractSmpHtmlParser
     private const string SubcontractorsHeading =
         "Информация о субподрядчиках, соисполнителях из числа СМП, СОНО";
 
+    /// <summary>
+    /// Идентификатор версии контракта для AJAX-таблицы субподрядчиков: лежит
+    /// в скрытом поле <c>subcontractorsUrlRefresh</c> на вкладке «Общая
+    /// информация» (`…/subcontractors.html?contractInfoId=112512585`).
+    /// </summary>
+    private static readonly Regex ContractInfoId = new(
+        @"subcontractorsUrlRefresh""[\s\S]{0,400}?contractInfoId=(?<id>\d+)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
     /// <summary>Требуемый объём: процент и сумма в одной секции «Объем привлечения…».</summary>
     private static readonly Regex RequirementBlock = new(
         @"Объем\s+привлечения\s+к\s+исполнению\s+контракта\s+субподрядчиков,[\s\S]{0,200}?из\s+числа\s+СМП,\s*СОНО\s*</span>\s*<span\s+class=""section__info"">(?<value>[\s\S]*?)</span>",
@@ -111,9 +120,49 @@ public sealed class ContractSmpHtmlParser
     {
         ArgumentNullException.ThrowIfNull(html);
 
-        // Печатная форма полнее: вкладка «Общая информация» режет таблицу
-        // до 10 строк, а печатная отдаёт все субдоговоры и сумму требования.
+        // Печатная форма полнее вкладки «Общая информация» (та режет таблицу
+        // до 10 строк), но в печатной нет ОКПД2. Основной путь — карточка плюс
+        // AJAX-фрагмент: см. ParseCommonInfoCard.
         return ParsePrintForm(html, regNumber) ?? ParseCommonInfo(html, regNumber);
+    }
+
+    /// <summary>Идентификатор версии контракта для AJAX-таблицы субподрядчиков.</summary>
+    public static string? ContractInfoIdOf(string commonInfoHtml)
+    {
+        ArgumentNullException.ThrowIfNull(commonInfoHtml);
+        var match = ContractInfoId.Match(commonInfoHtml);
+        return match.Success ? match.Groups["id"].Value : null;
+    }
+
+    /// <summary>
+    /// Карточка «Общая информация» + полный фрагмент таблицы субподрядчиков.
+    /// Требование берём из карточки, строки — из AJAX-фрагмента
+    /// `subcontractors.html`: там весь список (pageSize) и ОКПД2 в раскрывающихся
+    /// блоках. Если фрагмент не получен, остаются первые 10 строк карточки.
+    /// </summary>
+    public ContractSmpViewDto? ParseCommonInfoCard(
+        string commonInfoHtml,
+        string? subcontractorsHtml,
+        string regNumber)
+    {
+        ArgumentNullException.ThrowIfNull(commonInfoHtml);
+
+        var (percent, sum) = ParseRequirement(commonInfoHtml);
+        var subcontractors = string.IsNullOrWhiteSpace(subcontractorsHtml)
+            ? ParseSubcontractors(commonInfoHtml)
+            : ParseSubcontractorRows(subcontractorsHtml);
+
+        if (percent is null && sum is null && subcontractors.Count == 0)
+        {
+            return null;
+        }
+
+        return new ContractSmpViewDto(
+            RequirementPercent: percent,
+            RequirementSum: sum,
+            Responsibility: null,
+            Subcontractors: subcontractors,
+            SourceFile: $"html:{regNumber}");
     }
 
     /// <summary>Печатная форма карточки: полная таблица без пагинации.</summary>
@@ -268,8 +317,15 @@ public sealed class ContractSmpHtmlParser
 
         // Дальше заголовка идёт только таблица субподрядчиков и подвал сайта,
         // поэтому другие таблицы страницы в выборку не попадут.
-        var section = html[headingIndex..];
+        return ParseSubcontractorRows(html[headingIndex..]);
+    }
 
+    /// <summary>
+    /// Строки таблицы субподрядчиков без заголовка секции: подходит и для
+    /// хвоста карточки, и для AJAX-фрагмента subcontractors.html.
+    /// </summary>
+    private static IReadOnlyList<SubcontractorDto> ParseSubcontractorRows(string section)
+    {
         var details = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (Match detail in DetailStart.Matches(section))
         {
