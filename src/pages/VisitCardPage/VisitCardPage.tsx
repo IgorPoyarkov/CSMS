@@ -34,7 +34,9 @@ interface RevealProps {
 
 /**
  * Обёртка для появления при прокрутке. Сам наблюдатель один на страницу:
- * он ищет все [data-reveal] и снимает наблюдение после первого показа.
+ * он ищет все [data-reveal] и включает/выключает показ в обе стороны —
+ * при прокрутке вниз элементы собираются, при возврате вверх снова
+ * разбираются и проявляются при повторном входе в экран.
  * Вариант задаёт направление/масштаб, delay — ступенчатую задержку.
  * При prefers-reduced-motion CSS оставляет только мягкое проявление opacity.
  */
@@ -148,14 +150,21 @@ const VisitCardPage = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+          const element = entry.target as HTMLElement;
 
-          (entry.target as HTMLElement).dataset.revealed = "true";
-          observer.unobserve(entry.target);
+          if (entry.isIntersecting) {
+            element.dataset.revealed = "true";
+            return;
+          }
+
+          // Обратная сборка: элемент ушёл из экрана — возвращаем стартовое
+          // состояние, чтобы при прокрутке назад он проявился снова
+          delete element.dataset.revealed;
         });
       },
-      // Элемент начинает проявляться чуть раньше нижней границы экрана
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+      // 6% видимости достаточно для старта; выходим из показа, когда элемент
+      // полностью покинул экран — без «мигания» на нижней кромке
+      { threshold: 0.06 },
     );
 
     // Даём браузеру отрисовать стартовое состояние (opacity: 0), иначе
