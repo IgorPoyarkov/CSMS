@@ -1,0 +1,92 @@
+{
+  "strategy": "snapshot-first / offline-by-default",
+  "decisionDate": "2026-11-22",
+  "description": "Снимки открытых данных, поставляемые с системой. При офлайн-старте шаг fetch не вызывается: parser читает эти версии через локальный csms-api. Актуальность и хеши сверяются с /api/references/datasets и /api/npa/documents.",
+  "startup": {
+    "npaAutoSync": false,
+    "eisSchemaAutoUpdate": false,
+    "eisCounterpartyAutoUpdate": false,
+    "eisGateway": false,
+    "manualEndpoints": true,
+    "externalOverridesWin": true
+  },
+  "referenceDatasets": [
+    {
+      "code": "nsiOKPD2",
+      "version": "eis-nsiOKPD2-7c7ee4215e3ee405",
+      "itemCount": 21066,
+      "sourceUrl": "https://zakupki.gov.ru/epz/nsi/okpd2/",
+      "sourceSha256": "7C7EE4215E3EE405D5770F00965423FD8E130CE42C482C94F9358272BBB2AB9A",
+      "datasetSha256": "53EA896B8E0BB60419324EB6AE2BE33501ED9C48722611D173EE1ECD9AFE3AA0",
+      "api": "/api/references/nsiOKPD2/all"
+    },
+    {
+      "code": "nsiKTRU",
+      "version": "ktru-public-20261121-729",
+      "itemCount": 729,
+      "sourceUrl": "https://zakupki.gov.ru/epz/ktru/search/results.html",
+      "sourceSha256": "f7314511dff7232ffc8b1c3786b9a5d79247935d1115371d273da68574bf2898",
+      "datasetSha256": "F4F26CCE3BDF51FC6E112B9FBFAA88BDD1063EC7B8E6F5FD08174091DAFA55C6",
+      "api": "/api/references/nsiKTRU/items"
+    },
+    {
+      "code": "order158nPool",
+      "version": "order-158n-2020-07-31-v1",
+      "itemCount": 41,
+      "sourceUrl": "http://publication.pravo.gov.ru/Document/View/0001202010200032",
+      "sourceSha256": "F8820D9898B8D01CD7348A471EBFF8BC69F16A9BF044A90386A421A7407D14AC",
+      "datasetSha256": "482955E54AB46E9F2A453ACDB1BDFFFEE9A33D23FF060947CCDE1EDF1F88AACB",
+      "api": "/api/order158n/pool"
+    }
+  ],
+  "npaRules": [
+    {
+      "code": "rp-471",
+      "title": "Распоряжение Правительства РФ от 21.03.2016 № 471-р (аукционный перечень)",
+      "version": "pravo-0001201603230014-r7",
+      "pdfSha256": "B3E3FB3F965CEAE22B7E9C641304C24939840CADC9D213A99CBBEEB1D344D0B5",
+      "ruleCount": 17215,
+      "unresolvedCount": 88,
+      "api": "/api/npa/documents/rp-471/rules"
+    },
+    {
+      "code": "pp-926",
+      "title": "Постановление Правительства РФ от 02.09.2015 № 926 (нормирование, предельные цены)",
+      "version": "pravo-0001201509080040",
+      "pdfSha256": "5C4EE98D73E9B4EEA07A77E2E8D74CA398EEECE6A6EE49A9CC48EDC725CF7CCE",
+      "ruleCount": 2904,
+      "unresolvedCount": 32,
+      "api": "/api/npa/documents/pp-926/rules"
+    },
+    {
+      "code": "pp-1875",
+      "title": "Постановление Правительства РФ от 23.12.2024 № 1875 (национальный режим)",
+      "version": "pravo-0001202412250018-r2",
+      "pdfSha256": "E805CF3B73913EEF5A92F290BC2D7B605957753C4C69F16834116AB59CFF30F1",
+      "ruleCount": 18770,
+      "unresolvedCount": 1503,
+      "api": "/api/npa/documents/pp-1875/rules"
+    },
+    {
+      "code": "pp-2604",
+      "title": "Постановление Правительства РФ от 31.12.2021 № 2604 (оценка заявок)",
+      "version": "pravo-0001202201040005-r2",
+      "pdfSha256": "B265FDECCB009FF081336D0E6B7A4CDD9B776110273AD70287AD9614D572D9BF",
+      "ruleCount": 12499,
+      "unresolvedCount": 387,
+      "api": "/api/npa/documents/pp-2604/rules"
+    }
+  ],
+  "schemas": {
+    "catalogVersion": "17.0",
+    "catalogHash": "D6B47DEB90FBD7EA167846DA0009B40FB706FA830379B628DB92D949BBC24AB3",
+    "storage": "csms-api/schemas/17.0",
+    "api": "/api/eis/schemas/status",
+    "note": "Общие интеграционные XSD ЕИС. ТФФ по 658/215н и 918 в Альбоме отсутствуют, поэтому генератор XML остаётся placeholder-v0. Последняя автоматическая проверка Альбома 2026-11-22 получила 429 — ещё один довод в пользу офлайн-старта."
+  },
+  "notYetSnapshotted": [
+    "Публичные карточки контрактов (акты, решения, платежи, ЭДО) — импортируются по ИНН/реестровому номеру в явном job, в репозиторий снимком пока не упакованы",
+    "Выгрузка ст. 19.28 КоАП — статус доступен через API, активный снимок в манифест не включён",
+    "ПГ/извещения открытого доступа — импорт скриптами scripts/import-eis-client.mjs, единого снимка нет"
+  ]
+}
