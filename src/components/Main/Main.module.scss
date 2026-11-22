@@ -1,361 +1,667 @@
 @import "variables";
 
 // Классы страницы собираются через bem(styles, "main") в Main.tsx, поэтому
-// ключи модуля должны быть БЭМ-именами main__card, main__step-link и т. д.
+// ключи модуля должны быть БЭМ-именами main__card, main__flow-link и т. д.
 // Плоские .card/.steps давали в разметке «голые» имена (bem подставляет
 // исходное имя, если ключа нет) — и вся страница оставалась без стилей.
 .main {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 24px 16px 8px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
 
   // ─── Мобильные размеры ─────────────────────────────────────────────────────
   // На 320–430px отступы карточки (24/28px) съедают почти всю доступную ширину
   @media (max-width: 600px) {
-    padding: 16px 12px;
-    gap: 20px;
+    padding: 16px 12px 4px;
+    gap: 14px;
   }
 
-  // ─── Карточка-секция ───────────────────────────────────────────────────────
+  // ─── Превью заказчика ─────────────────────────────────────────────────────
 
-  &__card {
-    background: var(--surface-panel);
+  &__hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px 24px;
+    padding: 26px 28px;
+    background-color: var(--surface-panel);
+    // Мягкое акцентное пятно в правом верхнем углу: оживляет белую карточку,
+    // не мешая читать реквизиты
+    background-image: radial-gradient(
+      120% 150% at 100% 0%,
+      var(--accent-soft),
+      transparent 58%
+    );
     border: 1px solid var(--border-strong);
-    border-radius: 10px;
-    padding: 24px 28px;
+    border-radius: 18px;
 
-    @media (max-width: 600px) {
-      padding: 18px 14px;
+    @media (max-width: 760px) {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 20px;
+      border-radius: 14px;
     }
   }
 
-  &__card-head {
+  &__hero-main {
+    min-width: 0;
+  }
+
+  &__eyebrow {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 10px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  &__eyebrow-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
   }
 
   &__org-title {
     margin: 0;
-    font-size: 20px;
-    font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.3;
-
-    @media (max-width: 600px) {
-      font-size: 18px;
-    }
-  }
-
-  &__badge {
-    padding: 3px 10px;
-    font-size: 12px;
-    font-weight: 600;
-    border-radius: 12px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    white-space: nowrap;
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.18;
   }
 
   &__org-full {
-    margin: 0 0 16px;
-    font-size: 14px;
+    max-width: 72ch;
+    margin: 8px 0 0;
     color: var(--text-secondary);
-  }
-
-  &__section-title {
-    margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-
-  &__muted {
-    margin: 0 0 16px;
     font-size: 13px;
-    color: var(--text-secondary);
     line-height: 1.5;
+  }
+
+  &__hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-emphasis);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+    text-decoration: none;
+
+    &--muted {
+      background: var(--surface-raised);
+      border-color: var(--border);
+      color: var(--text-secondary);
+    }
+
+    &--alert {
+      background: var(--state-danger-soft);
+      border-color: var(--state-danger);
+      color: var(--state-danger);
+
+      &:hover {
+        background: var(--state-danger);
+        color: var(--text-on-accent);
+      }
+    }
+  }
+
+  &__hero-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 196px;
+
+    @media (max-width: 760px) {
+      flex-direction: row;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300,
+      color $transition-300;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--surface-accent);
+      border-color: var(--accent);
+      color: var(--accent-emphasis);
+    }
+
+    &--primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--text-on-accent);
+
+      &:hover,
+      &:focus-visible {
+        background: var(--accent-hover);
+        border-color: var(--accent-hover);
+        color: var(--text-on-accent);
+      }
+    }
+
+    @media (max-width: 760px) {
+      flex: 1 1 150px;
+    }
+  }
+
+  // ─── Быстрые показатели ────────────────────────────────────────────────────
+
+  &__stats {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 2px 0 0;
+    padding: 0;
+    list-style: none;
+
+    @media (max-width: 900px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  &__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    height: 100%;
+    padding: 12px 14px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-decoration: none;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--surface-accent);
+      border-color: var(--accent);
+    }
+
+    &--danger &-value {
+      color: var(--state-danger);
+    }
+
+    &--warning &-value {
+      color: var(--state-warning);
+    }
+  }
+
+  &__stat-value {
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  &__stat-label {
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  &__stat-hint {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
   }
 
   // ─── Реквизиты ─────────────────────────────────────────────────────────────
 
+  &__requisites-block {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  &__requisites-title {
+    margin: 0 0 10px;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   &__requisites {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px 20px;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px 20px;
+    margin: 0;
   }
 
   &__req {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
   }
 
   &__req-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
     color: var(--text-secondary);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   &__req-value {
-    font-size: 14px;
-    color: var(--text-primary);
-    word-break: break-word;
-  }
-
-  // ─── Поток закупки (цепочка этапов) ─────────────────────────────────────────
-
-  &__steps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    list-style: none;
-    padding: 0;
     margin: 0;
-
-    // На телефоне шаги идут в столбик: подписи не помещаются в строку
-    @media (max-width: 600px) {
-      flex-direction: column;
-      flex-wrap: nowrap;
-    }
-  }
-
-  &__step {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-
-    // Выполненный этап — рамка и фон чуть темнее
-    &--done {
-      border-color: var(--accent);
-      background: var(--accent-soft);
-    }
-  }
-
-  &__step-link {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
     color: var(--text-primary);
-    text-decoration: none;
     font-size: 13px;
-    transition: background-color $transition-300;
-
-    &:hover {
-      background: var(--surface-raised);
-    }
-
-    @media (max-width: 600px) {
-      flex-wrap: wrap;
-      min-height: 44px;
-    }
+    line-height: 1.45;
+    overflow-wrap: anywhere;
   }
 
-  &__step-index {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: var(--surface-raised);
-    border: 1px solid var(--border-strong);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    flex-shrink: 0;
+  &__hero > &__muted {
+    grid-column: 1 / -1;
+    margin: 0;
   }
 
-  // На телефоне подпись этапа уходит на вторую строку: в одну строку она
-  // сжималась в узкую колонку между заголовком и счётчиком
-  @media (max-width: 600px) {
-    &__step-link {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      column-gap: 10px;
-      row-gap: 2px;
-      flex-wrap: nowrap;
-    }
+  // ─── Карточка-секция ───────────────────────────────────────────────────────
 
-    &__step-index {
-      grid-area: 1 / 1 / 3 / 2;
-    }
-
-    &__step-title {
-      grid-area: 1 / 2 / 2 / 3;
-    }
-
-    &__step-count {
-      grid-area: 1 / 3 / 2 / 4;
-    }
-
-    &__step-hint {
-      grid-area: 2 / 2 / 3 / 4;
-    }
-  }
-
-  &__step--done &__step-index {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--text-on-accent);
-  }
-
-  &__step-title {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  &__step-hint {
-    font-size: 11px;
-    color: var(--text-secondary);
-    flex: 1;
-  }
-
-  &__step-count {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--accent);
+  &__card {
+    padding: 22px 24px;
     background: var(--surface-panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1px 8px;
+    border-radius: 16px;
+
+    @media (max-width: 600px) {
+      padding: 16px 14px;
+      border-radius: 12px;
+    }
+  }
+
+  &__section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  &__section-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  &__section-note {
+    padding: 3px 10px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 600;
     white-space: nowrap;
   }
 
-  // ─── Разделы для тестов ─────────────────────────────────────────────────────
+  &__muted {
+    max-width: 78ch;
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
 
-  &__notice {
-    display: block;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    background: var(--state-danger-soft);
-    border: 1px solid var(--state-danger);
-    border-radius: 6px;
-    color: var(--state-danger);
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background-color $transition-300;
+  &__divider {
+    height: 1px;
+    margin: 22px 0;
+    background: var(--border);
+  }
 
-    &:hover {
-      background: var(--state-danger);
-      color: #fff;
+  // ─── Поток закупки ─────────────────────────────────────────────────────────
+
+  &__flow {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @media (max-width: 1100px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (max-width: 640px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 420px) {
+      grid-template-columns: 1fr;
     }
   }
 
-  &__links {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  &__link-item {
-    display: block;
-  }
-
-  &__link {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 12px 16px;
+  &__flow-step {
     background: var(--surface-raised);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    text-decoration: none;
+    border-radius: 12px;
     transition:
       background-color $transition-300,
       border-color $transition-300;
 
     &:hover {
-      background: var(--surface-accent);
+      border-color: var(--accent);
+    }
+
+    // Выполненный этап — акцентная рамка и мягкая заливка
+    &--done {
+      background: var(--accent-soft);
       border-color: var(--accent);
     }
   }
 
-  &__link-title {
-    font-size: 15px;
-    font-weight: 600;
+  &__flow-link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    padding: 13px;
     color: var(--text-primary);
+    text-decoration: none;
   }
 
-  &__link-hint {
-    font-size: 12px;
+  &__flow-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__flow-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 50%;
     color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
   }
 
-  &__alert-banner {
+  &__flow-step--done &__flow-index {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+  }
+
+  &__flow-count {
+    padding: 2px 8px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--accent-emphasis);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__flow-title {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  &__flow-hint {
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  // ─── Уведомления о сроках ──────────────────────────────────────────────────
+
+  &__alert {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 14px 18px;
+    padding: 16px 18px;
     background: var(--surface-panel);
     border: 1px solid var(--border-strong);
-    border-radius: 10px;
+    border-radius: 14px;
 
     &--critical {
-      border-color: var(--state-danger);
       background: var(--state-danger-soft);
+      border-color: var(--state-danger);
     }
 
     &--warning {
-      border-color: var(--state-warning);
       background: var(--state-warning-soft);
+      border-color: var(--state-warning);
     }
   }
 
   &__alert-head {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
   }
 
   &__alert-title {
     margin: 0;
-    font-size: 15px;
-    font-weight: 700;
     color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
   }
 
   &__alert-link {
-    font-size: 13px;
-    font-weight: 600;
     color: var(--accent-emphasis);
+    font-size: 12.5px;
+    font-weight: 600;
     text-decoration: none;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       text-decoration: underline;
     }
   }
 
   &__alert-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 13px;
-    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   &__alert-item {
     display: flex;
+    align-items: baseline;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+    padding: 8px 10px;
+    background: color-mix(in srgb, var(--surface-panel) 62%, transparent);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 12.5px;
+  }
+
+  &__alert-item-text {
+    min-width: 0;
+  }
+
+  &__alert-days {
+    color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  // ─── Разделы ───────────────────────────────────────────────────────────────
+
+  &__notice {
+    display: block;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: var(--state-danger-soft);
+    border: 1px solid var(--state-danger);
+    border-radius: 10px;
+    color: var(--state-danger);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      background-color $transition-300,
+      color $transition-300;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--state-danger);
+      color: var(--text-on-accent);
+    }
+  }
+
+  &__groups {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+
+    @media (max-width: 980px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 680px) {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+  }
+
+  &__group {
+    min-width: 0;
+  }
+
+  &__group-title {
+    margin: 0 0 8px;
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  &__links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__link {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 11px 34px 11px 13px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    // Стрелка появляется только при наведении: в спокойном состоянии список
+    // не рябит одинаковыми значками
+    &::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: 13px;
+      color: var(--accent);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(-50%);
+      transition:
+        opacity $transition-300,
+        transform $transition-300;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: var(--surface-accent);
+      border-color: var(--accent);
+
+      &::after {
+        opacity: 1;
+        transform: translate(2px, -50%);
+      }
+    }
+  }
+
+  &__link-title {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  &__link-hint {
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    line-height: 1.4;
   }
 }
-

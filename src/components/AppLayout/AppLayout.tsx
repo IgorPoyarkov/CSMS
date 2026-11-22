@@ -22,8 +22,10 @@ const AppLayout = () => {
           темах компонент ничего не делает и слушателей не держит. */}
       <ModernMotionLayer />
       <div className={bem(styles, "content")()}>
+        {/* Шапка вне контейнера: она прилипает к верху на всю ширину экрана,
+            а её внутренняя строка сама выравнивается по контенту страницы */}
+        <Header />
         <Container>
-          <Header />
           <Outlet />
         </Container>
       </div>

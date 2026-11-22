@@ -480,10 +480,19 @@ export const uiSolutionGroups: UiSolutionGroup[] = [
         id: "app-layout",
         title: "AppLayout и сквозной контур",
         purpose:
-          "Шапка отражает путь закупки: Главная → План-график → Потребность → Извещения → Проект контракта → Контракты → Реестр контрактов. Пользователь всегда понимает, на каком этапе он находится.",
+          "Шапка прилипает к верху и отражает путь закупки: Главная → План-график → Потребность → Извещения → Контракты → Реестр контрактов. Пользователь всегда понимает, на каком этапе он находится.",
         usage: "Все страницы приложения.",
         implementation:
           "src/components/AppLayout/AppLayout.tsx, src/components/Header/Header.tsx",
+      },
+      {
+        id: "header-more-menu",
+        title: "Меню «Ещё» в шапке",
+        purpose:
+          "Второстепенные разделы (ЕИС, отчётность, справочники, справки) собраны в одно меню из трёх колонок. Шапка остаётся одной строкой вместо трёх рядов чипов; на мобильном группы раскрываются вложенным списком.",
+        usage: "Шапка → «Ещё».",
+        implementation:
+          "Header.tsx: isMoreOpen, moreRef, MORE_GROUPS, role=menu",
       },
       {
         id: "registry-submenu",
@@ -525,7 +534,7 @@ export const uiSolutionGroups: UiSolutionGroup[] = [
         title: "Бейдж справочников НСИ",
         purpose:
           "Показывает активную версию и объём выгрузки справочников, не занимая отдельный экран.",
-        usage: "Шапка, рядом с ОКПД2.",
+        usage: "Шапка → «Ещё», нижняя строка меню.",
         implementation: "src/components/Eis/ReferenceDataBadge.tsx",
       },
       {

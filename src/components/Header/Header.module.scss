@@ -1,79 +1,181 @@
 @import "variables";
 
-.header {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--surface-panel);
-  border-bottom: 1px solid var(--border);
-  padding: 20px;
-  // Шапка не должна упираться в скругления и вырез экрана в альбомной
-  // ориентации: отступ растёт до безопасной зоны, если она шире
-  padding-left: max(20px, env(safe-area-inset-left));
-  padding-right: max(20px, env(safe-area-inset-right));
+// ─── Шапка ───────────────────────────────────────────────────────────────────
+// Одна строка: знак системы, сквозной контур закупки и меню «Ещё» для
+// остальных разделов. Панель прилипает к верху и просвечивает фоном — на
+// длинных реестрах и формах видно, где находится пользователь.
 
-  // Верхняя панель мобильной шапки (бургер, название, тема). На десктопе она
-  // не нужна — там все пункты видны списком
-  &__bar {
+@keyframes header-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background-color: var(--surface-panel);
+  // Полупрозрачная панель с размытием: контент под шапкой не «рвётся», но и
+  // не читается поверх меню. Без поддержки color-mix остаётся плотный фон
+  // строкой выше.
+  background-color: color-mix(in srgb, var(--surface-panel) 88%, transparent);
+  border-bottom: 1px solid var(--border);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    // Ширина совпадает с контентом страницы: 1120px — max-width Main, а
+    // отступы 16px повторяют padding карточек
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 12px 16px;
+  }
+
+  // ─── Знак системы ──────────────────────────────────────────────────────────
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    color: var(--text-primary);
+    text-decoration: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 10px;
+    }
+  }
+
+  &__brand-mark {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(140deg, var(--accent), var(--accent-hover));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    color: var(--text-on-accent);
+    font-family: $ff-accent;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &__brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__brand-name {
+    font-family: $ff-accent;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+  }
+
+  &__brand-sub {
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  &__theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--surface-accent);
+      border-color: var(--accent);
+    }
+  }
+
+  // Бургер появляется только там, где строка пунктов не помещается
+  &__burger {
     display: none;
   }
 
+  // ─── Навигация ─────────────────────────────────────────────────────────────
+
   &-navigation {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex: 1;
+    min-width: 0;
 
     &__list {
       display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
-      list-style-type: none;
       align-items: center;
-      gap: 8px 18px;
-      padding: 0;
+      gap: 2px;
       margin: 0;
+      padding: 0;
+      list-style: none;
     }
 
-    &__icon {
-      width: 20px;
-      height: 20px;
-    }
-
-    &__theme-toggle {
+    &__item {
       display: flex;
       align-items: center;
-      justify-content: center;
-      width: 32px;
-      height: 32px;
-      padding: 0;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      font-size: 16px;
-      cursor: pointer;
-      transition:
-        background-color $transition-300,
-        border-color $transition-300;
 
-      &:hover {
-        background: var(--surface-accent);
-        border-color: var(--accent);
+      // Профиль прижимается к правому краю, перед переключателем темы
+      &--end {
+        margin-left: auto;
+        padding-left: 10px;
       }
     }
 
-    // Пункты шапки — такие же «чипы», как кнопка профиля: в светлой теме на
-    // белом фоне текстовые ссылки без обводки сливаются (просьба пользователя,
-    // Tasks 6 п. 1)
     &__link {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-strong);
+      gap: 5px;
+      padding: 8px 10px;
+      background: transparent;
+      border: 1px solid transparent;
       border-radius: 8px;
-      color: var(--text-primary);
-      font-size: 14px;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
       white-space: nowrap;
+      text-decoration: none;
+      cursor: pointer;
       transition:
         background-color $transition-300,
         border-color $transition-300,
@@ -81,26 +183,46 @@
 
       &:hover,
       &:focus-visible {
-        background: var(--surface-accent);
-        border-color: var(--accent);
-        color: var(--accent);
+        background: var(--surface-raised);
+        color: var(--text-primary);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+
+      // Текущий раздел — мягкая заливка и акцентный текст, без «чипа»
+      &:global(.active),
+      &--active,
+      &--open {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        font-weight: 600;
+      }
+
+      // Кнопка выглядит как ссылка, но остаётся кнопкой
+      &--button {
+        font-family: inherit;
       }
     }
 
-    // Текущий раздел помечаем не только цветом текста
-    &__link:global(.active),
-    &__link--active {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      color: var(--accent-emphasis);
-      font-weight: 600;
+    &__arrow {
+      color: currentcolor;
+      font-size: 9px;
+      line-height: 1;
+      opacity: 0.7;
+      transition: transform $transition-300;
     }
 
-    // Кнопка в шапке выглядит как ссылка, но это button:
-    // возвращаем наследование шрифта и курсор
-    &__link--button {
-      font-family: inherit;
-      cursor: pointer;
+    &__submenu-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    &__submenu-wrap--open > &__link > &__arrow {
+      transform: rotate(180deg);
     }
 
     // Стрелка-кнопка для раскрытия подменю на тач-экранах: там нет наведения,
@@ -109,36 +231,23 @@
       display: none;
     }
 
-    // Выпадающий список «Реестр контрактов»: конкурентные способы и ЕП
-    &__submenu-wrap {
-      position: relative;
-      display: flex;
-    }
-
-    &__submenu-arrow {
-      font-size: 10px;
-      color: var(--text-secondary);
-      transition: transform $transition-300;
-    }
-
-    &__submenu-wrap--open &__submenu-arrow {
-      transform: rotate(180deg);
-    }
+    // ─── Выпадающий список «Реестр контрактов» ─────────────────────────────
 
     &__submenu {
       position: absolute;
-      top: calc(100% + 6px);
+      top: calc(100% + 8px);
       left: 0;
-      z-index: 30;
+      z-index: 40;
       width: max-content;
       min-width: 100%;
       margin: 0;
-      padding: 4px 0;
-      list-style-type: none;
-      background-color: var(--surface-panel);
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-panel);
       border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      box-shadow: 0 6px 16px var(--shadow);
+      border-radius: 12px;
+      box-shadow: 0 24px 48px -24px var(--shadow);
+      animation: header-menu-in 0.16s ease-out;
 
       // Невидимый «мостик» над списком, чтобы курсор не терял наведение
       &::before {
@@ -154,11 +263,12 @@
     &__submenu-link {
       display: block;
       width: 100%;
-      padding: 9px 14px;
+      padding: 9px 12px;
       background: none;
-      text-align: left;
-      font-size: 14px;
+      border-radius: 7px;
       color: var(--text-primary);
+      font-size: 13px;
+      text-align: left;
       white-space: nowrap;
       transition:
         background-color $transition-300,
@@ -178,16 +288,117 @@
       }
     }
 
-    &__item {
-      display: flex;
-      align-items: center;
+    // ─── Меню «Ещё»: три колонки по смыслу ─────────────────────────────────
 
-      // Профиль прижимается к правому краю, поэтому переключатель темы
-      // оказывается самой правой кнопкой
-      &--end {
-        margin-left: auto;
+    &__mega {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      z-index: 40;
+      width: min(720px, calc(100vw - 32px));
+      padding: 16px;
+      background: var(--surface-panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      box-shadow: 0 28px 64px -28px var(--shadow);
+      animation: header-menu-in 0.16s ease-out;
+
+      &::before {
+        content: "";
+        position: absolute;
+        top: -12px;
+        left: 0;
+        right: 0;
+        height: 12px;
       }
     }
+
+    &__mega-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px 18px;
+    }
+
+    &__mega-title {
+      margin: 0 0 4px;
+      padding: 0 9px;
+      color: var(--text-secondary);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    &__mega-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    &__mega-link {
+      display: block;
+      padding: 7px 9px;
+      border-radius: 7px;
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+      text-decoration: none;
+      transition:
+        background-color $transition-300,
+        color $transition-300;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        outline: none;
+      }
+
+      &:global(.active) {
+        background: var(--accent-soft);
+        color: var(--accent-emphasis);
+        font-weight: 600;
+      }
+    }
+
+    &__mega-foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    &__foot-btn {
+      padding: 7px 12px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition:
+        background-color $transition-300,
+        border-color $transition-300,
+        color $transition-300;
+
+      &:hover,
+      &:focus-visible {
+        background: var(--surface-accent);
+        border-color: var(--accent);
+        color: var(--accent-emphasis);
+      }
+    }
+
+    &__mega-badge {
+      margin-left: auto;
+    }
+
+    // ─── Профиль ───────────────────────────────────────────────────────────
 
     &__profile-wrap {
       position: relative;
@@ -199,22 +410,27 @@
       align-items: center;
       gap: 8px;
       padding: 4px 10px 4px 4px;
-      background: transparent;
-      border: 1px solid var(--border-strong);
-      border-radius: 20px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 999px;
       color: var(--text-primary);
       font-family: inherit;
-      font-size: inherit;
+      font-size: 13px;
       cursor: pointer;
       transition:
         background-color $transition-300,
         border-color $transition-300,
         color $transition-300;
 
-      &:hover {
-        background: var(--surface-raised);
+      &:hover,
+      &:focus-visible {
         border-color: var(--accent);
-        color: var(--accent);
+        color: var(--accent-emphasis);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
       }
 
       // Открытое меню показываем и на самой кнопке: иначе непонятно, что
@@ -222,13 +438,21 @@
       &--open {
         background: var(--surface-accent);
         border-color: var(--accent);
-        color: var(--accent);
+        color: var(--accent-emphasis);
       }
     }
 
+    &__profile-name {
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     &__profile-arrow {
-      font-size: 10px;
       color: var(--text-secondary);
+      font-size: 9px;
+      line-height: 1;
       transition: transform $transition-300;
     }
 
@@ -237,24 +461,24 @@
       transform: rotate(180deg);
     }
 
-    // Меню профиля. Ширина — по ширине кнопки профиля (Tasks 6, п. 1): раньше
-    // меню было фиксированных 220px и выглядело жирнее самого блока. Открывается
-    // только состоянием `--open`: hover и focus тоже переводятся в состояние в
-    // JS, иначе клик по кнопке не скрывал список, пока курсор внутри него
+    // Меню профиля. Ширина — по ширине кнопки профиля: раньше оно было
+    // фиксированных 220px и выглядело жирнее самого блока. Открывается только
+    // состоянием `--open`: hover и focus тоже переводятся в состояние в JS,
+    // иначе клик по кнопке не скрывал список, пока курсор внутри него
     &__profile-menu {
       position: absolute;
-      top: calc(100% + 6px);
+      top: calc(100% + 8px);
       right: 0;
-      z-index: 30;
+      z-index: 40;
       width: 100%;
       min-width: max-content;
       margin: 0;
-      padding: 4px 0;
-      list-style-type: none;
-      background-color: var(--surface-panel);
+      padding: 6px;
+      list-style: none;
+      background: var(--surface-panel);
       border: 1px solid var(--border-strong);
-      border-radius: 6px;
-      box-shadow: 0 6px 16px var(--shadow);
+      border-radius: 12px;
+      box-shadow: 0 24px 48px -24px var(--shadow);
       opacity: 0;
       visibility: hidden;
       transform: translateY(-4px);
@@ -263,8 +487,8 @@
         transform 0.15s ease,
         visibility 0.15s ease;
 
-      // Невидимый «мостик» над меню: без него курсор, идущий от кнопки к пункту,
-      // проходит шестипиксельный зазор, наведение теряется и меню закрывается
+      // Невидимый «мостик» над меню: без него курсор, идущий от кнопки к
+      // пункту, проходит зазор, наведение теряется и меню закрывается
       &::before {
         content: "";
         position: absolute;
@@ -281,19 +505,17 @@
       transform: none;
     }
 
-    // Пункты меню прижаты к правому краю: меню висит под кнопкой профиля и
-    // читается по правой границе шапки. Подсветка у обоих пунктов одинаковой
-    // плотности — выход тоже должен откликаться на курсор (Tasks 6, п. 1)
     &__profile-menu-link {
       display: block;
       width: 100%;
-      padding: 9px 14px;
+      padding: 9px 12px;
       background: none;
       border: none;
-      text-align: right;
-      font-family: inherit;
-      font-size: 14px;
+      border-radius: 7px;
       color: var(--text-primary);
+      font-family: inherit;
+      font-size: 13px;
+      text-align: left;
       cursor: pointer;
       transition:
         background-color $transition-300,
@@ -308,8 +530,6 @@
 
       &--logout {
         color: var(--state-danger);
-        border-top: 1px solid var(--border);
-        border-radius: 0 0 5px 5px;
 
         &:hover,
         &:focus-visible {
@@ -328,12 +548,13 @@
       width: 28px;
       height: 28px;
       overflow: hidden;
+      flex-shrink: 0;
       border-radius: 50%;
       background: var(--accent-soft);
       border: 1px solid var(--accent);
-      color: var(--accent);
-      font-size: 13px;
-      font-weight: 600;
+      color: var(--accent-emphasis);
+      font-size: 12px;
+      font-weight: 700;
     }
 
     &__profile-avatar-image {
@@ -344,22 +565,26 @@
     }
   }
 
-  // ─── Мобильная шапка ──────────────────────────────────────────────────────
-  // Ниже 900px шестнадцать пунктов меню в строку не встают: на 375px они
-  // растягивались на тринадцать строк и вытесняли содержимое страницы за
-  // пределы первого экрана. Оставляем компактную панель с бургером, а пункты
-  // открываем выпадающей панелью — те же ссылки, только в столбик.
-  @media (max-width: 900px) {
-    position: relative;
-    z-index: 90;
-    padding: 8px 16px;
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
+  // На узких десктопах имя в кнопке профиля прячем: с длинной фамилией
+  // строка пунктов не помещалась и выталкивала переключатель темы за край
+  @media (max-width: 1240px) {
+    &-navigation__profile-name,
+    &-navigation__profile-arrow {
+      display: none;
+    }
 
-    &__bar {
-      display: flex;
-      align-items: center;
+    &-navigation__profile {
+      padding: 4px;
+    }
+  }
+
+  // ─── Компактная шапка ─────────────────────────────────────────────────────
+  // Ниже 1040px семь пунктов в строку не встают. Оставляем знак, бургер и
+  // тему, а пункты открываем панелью — те же ссылки, только в столбик.
+  @media (max-width: 1040px) {
+    &__inner {
       gap: 10px;
+      padding: 8px 12px;
     }
 
     &__burger {
@@ -368,12 +593,12 @@
       flex-shrink: 0;
       justify-content: center;
       gap: 4px;
-      width: 44px;
-      height: 44px;
-      padding: 0 10px;
+      width: 42px;
+      height: 42px;
+      padding: 0 9px;
       background: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
       cursor: pointer;
 
       span {
@@ -403,32 +628,24 @@
     }
 
     &__brand {
-      display: flex;
-      align-items: center;
       flex: 1;
       min-width: 0;
-      // Ссылка-логотип должна попадаться пальцем не хуже кнопок в панели
-      min-height: 44px;
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.02em;
+      min-height: 42px;
+    }
+
+    &__brand-sub {
+      display: none;
+    }
+
+    &__brand-mark {
+      width: 32px;
+      height: 32px;
+      font-size: 13px;
     }
 
     &__theme-toggle {
-      display: inline-flex;
-      flex-shrink: 0;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      padding: 0;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
+      width: 42px;
+      height: 42px;
     }
 
     &-navigation {
@@ -439,13 +656,13 @@
       right: 0;
       z-index: 5;
       // Панель не выше экрана, остальное — внутренняя прокрутка
-      max-height: calc(100dvh - 64px);
+      max-height: calc(100dvh - 62px);
       overflow-y: auto;
       overscroll-behavior: contain;
-      padding: 12px 16px max(28px, env(safe-area-inset-bottom));
+      padding: 10px 12px max(26px, env(safe-area-inset-bottom));
       background: var(--surface-panel);
       border-bottom: 1px solid var(--border-strong);
-      box-shadow: 0 16px 32px var(--shadow);
+      box-shadow: 0 24px 48px var(--shadow);
 
       &--open {
         display: block;
@@ -454,30 +671,40 @@
       &__list {
         flex-direction: column;
         align-items: stretch;
-        gap: 6px;
+        gap: 4px;
       }
 
       &__item {
         width: 100%;
+
+        &--end {
+          margin-left: 0;
+          padding-left: 0;
+          margin-top: 8px;
+          padding-top: 10px;
+          border-top: 1px solid var(--border);
+        }
       }
 
       &__link {
         width: 100%;
-        justify-content: flex-start;
         min-height: 44px;
-        padding: 10px 14px;
+        justify-content: flex-start;
+        padding: 10px 12px;
         font-size: 15px;
         white-space: normal;
-      }
-
-      // Тема уже есть в верхней панели — в списке она дублировалась бы
-      &__theme-toggle {
-        display: none;
       }
 
       &__submenu-wrap {
         width: 100%;
         flex-wrap: wrap;
+      }
+
+      // Ссылка и стрелка-кнопка должны стоять в одной строке: при width: 100%
+      // у ссылки кнопка переносилась на новую строку и висела отдельной точкой
+      &__submenu-wrap > &__link {
+        width: auto;
+        flex: 1 1 auto;
       }
 
       &__submenu-toggle {
@@ -491,11 +718,16 @@
         background: none;
         border: none;
         color: var(--text-secondary);
-        font-size: 12px;
+        font-size: 13px;
         cursor: pointer;
+        transition: transform $transition-300;
       }
 
-      // Выпадающий список внутри панели становится обычным вложенным списком:
+      &__submenu-wrap--open > &__submenu-toggle {
+        transform: rotate(180deg);
+      }
+
+      // Выпадающие списки внутри панели становятся обычными вложенными:
       // absolute-позиционирование в скроллящейся панели уводит пункты за край
       &__submenu {
         position: static;
@@ -507,6 +739,7 @@
         border-left: 2px solid var(--accent-soft);
         border-radius: 0;
         box-shadow: none;
+        animation: none;
 
         &::before {
           display: none;
@@ -518,31 +751,90 @@
         align-items: center;
         min-height: 44px;
         padding: 8px 12px;
+        font-size: 14px;
+        white-space: normal;
+      }
+
+      &__mega {
+        position: static;
+        width: 100%;
+        margin: 2px 0 6px;
+        padding: 2px 0 4px 12px;
+        background: transparent;
+        border: none;
+        border-left: 2px solid var(--accent-soft);
+        border-radius: 0;
+        box-shadow: none;
+        animation: none;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &__mega-grid {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+
+      &__mega-title {
+        margin: 8px 0 2px;
+        padding: 0 4px;
+      }
+
+      &__mega-link {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        padding: 8px 10px;
+        font-size: 14px;
+      }
+
+      &__mega-foot {
+        gap: 6px;
+        padding: 10px 0 0;
+      }
+
+      &__foot-btn {
+        min-height: 40px;
+        flex: 1 1 140px;
+      }
+
+      &__mega-badge {
+        width: 100%;
+        margin-left: 0;
       }
 
       &__profile-wrap {
         width: 100%;
-        flex-wrap: wrap;
       }
 
       &__profile {
         width: 100%;
         justify-content: flex-start;
         min-height: 44px;
+        padding: 4px 10px 4px 4px;
+        border-radius: 10px;
+      }
+
+      // В панели места хватает — имя и стрелка возвращаются
+      &__profile-name {
+        display: inline;
+        max-width: none;
       }
 
       &__profile-arrow {
+        display: inline;
         margin-left: auto;
       }
 
-      // Меню профиля тоже раскрывается в потоке, под кнопкой
       &__profile-menu {
         display: none;
         position: static;
         width: 100%;
         min-width: 0;
         margin: 6px 0 0;
-        padding: 4px 0;
+        padding: 4px;
         border: none;
         box-shadow: none;
         transform: none;
@@ -558,9 +850,16 @@
 
       &__profile-menu-link {
         min-height: 44px;
-        padding: 12px 14px;
-        text-align: left;
+        padding: 12px 12px;
       }
     }
+  }
+}
+
+// Пользователь просил не анимировать — меню раскрываются сразу
+@media (prefers-reduced-motion: reduce) {
+  .header-navigation__submenu,
+  .header-navigation__mega {
+    animation: none;
   }
 }
