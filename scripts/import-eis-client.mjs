@@ -30,7 +30,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
-import { writeDb } from "./lib/db-write.mjs";
+import { readDb, writeDb } from "./lib/db-write.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -1195,13 +1195,13 @@ function pruneDb(db, org, employee, importedProcurementIds) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const db = JSON.parse(fs.readFileSync(args.db, "utf8"));
+  const db = await readDb(args.db);
   const org = db.organizations.find((item) => item.inn === args.inn)
     ?? db.organizations.find((item) => item.id === 6);
-  if (!org) throw new Error(`В db.json нет организации с ИНН ${args.inn}`);
+  if (!org) throw new Error(`В данных нет организации с ИНН ${args.inn}`);
   const employee = db.employees.find((item) => item.userId === 7)
     ?? db.employees.find((item) => item.email === "poyarkova_nyy@mail.ru");
-  if (!employee) throw new Error("В db.json нет связанного работника пользователя");
+  if (!employee) throw new Error("В данных нет связанного работника пользователя");
 
   if (args.enrichPlans) {
     const stats = enrichPlansFromXml(db);

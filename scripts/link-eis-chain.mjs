@@ -23,10 +23,9 @@
  *   node scripts/link-eis-chain.mjs [--db path/to/db.json] [--dry-run]
  */
 
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { writeDb } from "./lib/db-write.mjs";
+import { readDb, writeDb } from "./lib/db-write.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
@@ -778,7 +777,7 @@ export function applyEisChain(db) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const db = JSON.parse(fs.readFileSync(args.db, "utf8"));
+  const db = await readDb(args.db);
   const report = applyEisChain(db);
   if (!args.dryRun) {
     db.eisImportSummary = {

@@ -1,22 +1,48 @@
 /**
- * Единая точка записи db.json для скриптов импорта ЕИС.
+ * Единая точка чтения/записи данных ЕИС.
  *
- * json-server остаётся зеркалом, поэтому файл пишется как раньше. Сразу после
- * этого те же 10 коллекций дублируются в PostgreSQL — адаптер на :3002 читает
- * уже актуальные данные без ручного `npm run pg:seed`.
+ * PostgreSQL — единственный источник. Файл db.json больше не Required: он
+ * используется только если явно передан существующий путь (например, тестовая
+ * копия или миграция со старого зеркала). Обычные скрипты читают и пишут PG.
  *
- * PostgreSQL — не обязателен для самого импорта: если БД недоступна, ошибка
- * только предупреждает в консоли, а db.json остаётся рабочим зеркалом и путём
- * отката. Принудительно выключить синхронизацию можно через `PG_SYNC=0`.
+ * Если БД недоступна, работа продолжается с файлом — это аварийный режим для
+ * офлайн-импорта, а не основной путь. `PG_SYNC=0` выключает запись в PG.
  */
 
 import fs from "node:fs";
-import { createPgPool, ensureSchema, seedDocuments } from "./pg-store.mjs";
+import {
+  createPgPool,
+  ensureSchema,
+  loadDbFromPg,
+  seedDocuments,
+} from "./pg-store.mjs";
 
-/** Синхронизирует уже прочитанный db.json с PostgreSQL. */
-export async function syncPostgres(db, { quiet = false } = {}) {
+/** Читает db из PostgreSQL; если передан существующий файл — из него. */
+export async function readDb(dbPath) {
+  if (dbPath && fs.existsSync(dbPath)) {
+    return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  }
+
+  const pool = createPgPool();
+  const client = await pool.connect();
+  try {
+    return await loadDbFromPg(client);
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+/** Записывает данные в PostgreSQL и, если файл есть, дублирует в него. */
+export async function writeDb(dbPath, db, { quiet = false } = {}) {
+  // Файл пишется только когда он уже существует: не воскрешаем удалённый
+  // db.json как второй источник истины.
+  if (dbPath && fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+  }
+
   if (process.env.PG_SYNC === "0") {
-    if (!quiet) console.log("[pg] синхронизация отключена (PG_SYNC=0)");
+    if (!quiet) console.log("[pg] запись в PostgreSQL отключена (PG_SYNC=0)");
     return null;
   }
 
@@ -41,7 +67,7 @@ export async function syncPostgres(db, { quiet = false } = {}) {
   } catch (error) {
     if (client) await client.query("ROLLBACK").catch(() => {});
     console.warn(
-      `[pg] PostgreSQL недоступен, продолжаем с db.json как зеркалом: ${
+      `[pg] PostgreSQL недоступен, запись не выполнена: ${
         error.message || error.code || String(error)
       }`,
     );
@@ -50,10 +76,4 @@ export async function syncPostgres(db, { quiet = false } = {}) {
     if (client) client.release();
     if (pool) await pool.end().catch(() => {});
   }
-}
-
-/** Пишет db.json и дублирует PG-коллекции в PostgreSQL. */
-export async function writeDb(dbPath, db, options = {}) {
-  fs.writeFileSync(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
-  return syncPostgres(db, options);
 }

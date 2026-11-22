@@ -5,8 +5,11 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
   server: {
-    // В dev проксируем API на csms-api: браузер видит один origin и не
-    // зависит от CORS. Абсолютный VITE_EIS_API_URL по-прежнему работает.
+    // Слушаем все интерфейсы: система открывается с другого устройства по IP.
+    host: true,
+    allowedHosts: true,
+    // В dev проксируем API на csms-api и адаптер PostgreSQL: браузер видит
+    // один origin и не зависит от CORS. Абсолютный VITE_EIS_API_URL работает.
     proxy: {
       "/api": {
         target: "http://localhost:5099",
@@ -15,6 +18,11 @@ export default defineConfig({
       "/openapi": {
         target: "http://localhost:5099",
         changeOrigin: true,
+      },
+      "/pg-api": {
+        target: "http://localhost:3002",
+        changeOrigin: true,
+        rewrite: (url) => url.replace(/^\/pg-api/, ""),
       },
     },
   },

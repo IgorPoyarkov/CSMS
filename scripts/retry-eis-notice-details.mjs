@@ -11,7 +11,6 @@
  *   node scripts/retry-eis-notice-details.mjs --db db.json
  */
 
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,7 +22,7 @@ import {
 } from "./import-eis-client.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
-import { writeDb } from "./lib/db-write.mjs";
+import { readDb, writeDb } from "./lib/db-write.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -35,11 +34,11 @@ const argv = process.argv.slice(2);
 const dbArg = argv[argv.indexOf("--db") + 1];
 const dbPath =
   dbArg && !dbArg.startsWith("--") ? dbArg : path.join(ROOT, "db.json");
-const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+const db = await readDb(dbPath);
 
 const summary = db.eisImportSummary;
 if (!summary)
-  throw new Error("В db.json нет eisImportSummary — сначала запустите импорт");
+  throw new Error("В данных нет eisImportSummary — сначала запустите импорт");
 
 const failedNumbers = [
   ...new Set(

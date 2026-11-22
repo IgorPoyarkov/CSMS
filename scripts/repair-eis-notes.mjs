@@ -12,10 +12,9 @@
  *   node scripts/repair-eis-notes.mjs --db db.json --dry-run --replace
  */
 
-import fs from "node:fs";
 import path from "node:path";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
-import { writeDb } from "./lib/db-write.mjs";
+import { readDb, writeDb } from "./lib/db-write.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (name, fallback) => {
@@ -34,7 +33,7 @@ function textYear(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-const db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+const db = await readDb(dbPath);
 const notices = structuredClone(db.notices ?? []);
 const before = db.purchaseNotes ?? [];
 

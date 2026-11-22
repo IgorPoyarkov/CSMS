@@ -1,10 +1,9 @@
 /**
- * Адаптер PostgreSQL с контрактом json-server.
+ * Адаптер PostgreSQL с контрактом json-server — единственный бэкенд данных.
  *
- * Фронт по-прежнему думает, что общается с json-server на :3001: те же пути,
- * те же параметры фильтрации и пагинации, тот же «голый» JSON в ответе.
- * Коллекции из PG_COLLECTIONS читаются и пишутся в PostgreSQL, остальные
- * прозрачно проксируются на json-server.
+ * Фронт по-прежнему думает, что общается с json-server: те же пути, параметры
+ * фильтрации, пагинации и `_expand`, тот же «голый» JSON и X-Total-Count.
+ * json-server и db.json больше не участвуют: все коллекции читаются и пишутся в PG.
  *
  * Запуск: node scripts/pg-json-server.mjs
  */
@@ -19,7 +18,6 @@ import {
 } from "./lib/pg-store.mjs";
 
 const PORT = Number(process.env.PG_ADAPTER_PORT || 3002);
-const JSON_SERVER_URL = process.env.JSON_SERVER_URL || "http://localhost:3001";
 
 /** Ключи запроса, которые маппятся в вынесенные колонки. */
 const FILTER_COLUMNS = {
@@ -76,32 +74,6 @@ app.get("/__pg/health", async (_req, res) => {
     res.status(500).json({ ok: false, error: error.message });
   }
 });
-
-/** Прокси для коллекций, которые остались в json-server. */
-async function proxyToJsonServer(req, res) {
-  try {
-    const headers = { "Content-Type": "application/json" };
-    if (req.headers.authorization) {
-      headers.Authorization = req.headers.authorization;
-    }
-
-    const init = { method: req.method, headers };
-    if (!["GET", "HEAD"].includes(req.method)) {
-      init.body = JSON.stringify(req.body ?? {});
-    }
-
-    const response = await fetch(`${JSON_SERVER_URL}${req.originalUrl}`, init);
-    const body = await response.text();
-    res.status(response.status);
-    const contentType = response.headers.get("content-type");
-    if (contentType) res.setHeader("Content-Type", contentType);
-    const totalCount = response.headers.get("x-total-count");
-    if (totalCount) res.setHeader("X-Total-Count", totalCount);
-    res.send(body);
-  } catch (error) {
-    res.status(502).json({ error: `json-server недоступен: ${error.message}` });
-  }
-}
 
 /** Собирает WHERE по параметрам запроса в стиле json-server. */
 function buildWhere(collection, query) {
@@ -163,6 +135,47 @@ function buildPaging(query) {
   return "";
 }
 
+/** Имя коллекции для `_expand=structuralUnit` → `structuralUnits`. */
+function expandCollection(name) {
+  if (PG_COLLECTIONS.includes(name)) return name;
+  const plural = name.endsWith("y") ? `${name.slice(0, -1)}ies` : `${name}s`;
+  return PG_COLLECTIONS.includes(plural) ? plural : null;
+}
+
+/** Реализация json-server `_expand`: подставляет связанный документ по `<name>Id`. */
+async function applyExpand(docs, expand) {
+  const fields = String(expand)
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  if (fields.length === 0 || docs.length === 0) return docs;
+
+  for (const field of fields) {
+    const collection = expandCollection(field);
+    if (!collection) continue;
+
+    const ids = docs
+      .map((doc) => doc[`${field}Id`])
+      .filter((id) => id !== undefined && id !== null)
+      .map(String);
+    if (ids.length === 0) continue;
+
+    const result = await pool.query(
+      `SELECT doc_id, doc FROM ${PG_SCHEMA}.documents
+       WHERE collection = $1 AND doc_id = ANY($2::text[])`,
+      [collection, ids],
+    );
+    const byId = new Map(result.rows.map((row) => [row.doc_id, row.doc]));
+    for (const doc of docs) {
+      const id = doc[`${field}Id`];
+      if (id === undefined || id === null) continue;
+      doc[field] = byId.get(String(id)) ?? null;
+    }
+  }
+
+  return docs;
+}
+
 async function listDocuments(collection, query) {
   const { where, params } = buildWhere(collection, query);
   const base = `FROM ${PG_SCHEMA}.documents WHERE ${where}`;
@@ -178,16 +191,22 @@ async function listDocuments(collection, query) {
     `SELECT doc ${base} ORDER BY seq ASC ${paging}`,
     params,
   );
+  const docs = await applyExpand(
+    rows.rows.map((row) => row.doc),
+    query._expand,
+  );
 
-  return { docs: rows.rows.map((row) => row.doc), total };
+  return { docs, total };
 }
 
-async function getDocument(collection, id) {
+async function getDocument(collection, id, query) {
   const result = await pool.query(
     `SELECT doc FROM ${PG_SCHEMA}.documents WHERE collection = $1 AND doc_id = $2`,
     [collection, String(id)],
   );
-  return result.rows[0]?.doc ?? null;
+  if (!result.rows[0]) return null;
+  const [doc] = await applyExpand([result.rows[0].doc], query._expand);
+  return doc;
 }
 
 async function nextId(collection) {
@@ -202,12 +221,14 @@ async function nextId(collection) {
 
 // Express 5 не поддерживает `app.all("*")` — используем middleware без пути.
 app.use(async (req, res) => {
-  const segments = req.path.split("/").filter(Boolean);
+  // Vite может проксировать под префиксом /pg-api; адаптер принимает оба вида.
+  const pathname = req.path.replace(/^\/pg-api/, "") || "/";
+  const segments = pathname.split("/").filter(Boolean);
   const collection = segments[0];
   const id = segments[1];
 
-  if (!PG_COLLECTIONS.includes(collection)) {
-    await proxyToJsonServer(req, res);
+  if (!collection || !PG_COLLECTIONS.includes(collection)) {
+    res.status(404).json({});
     return;
   }
 
@@ -220,7 +241,7 @@ app.use(async (req, res) => {
     }
 
     if (req.method === "GET") {
-      const doc = await getDocument(collection, id);
+      const doc = await getDocument(collection, id, req.query);
       if (!doc) {
         res.status(404).json({});
         return;
@@ -230,14 +251,15 @@ app.use(async (req, res) => {
     }
 
     if (req.method === "POST") {
-      const doc = { ...(req.body ?? {}), id: await nextId(collection) };
+      const doc = { ...(req.body ?? {}) };
+      if (doc.id === undefined) doc.id = await nextId(collection);
       await upsertDocument(pool, collection, doc);
       res.status(201).json(doc);
       return;
     }
 
     if (req.method === "PUT" || req.method === "PATCH") {
-      const stored = await getDocument(collection, id);
+      const stored = await getDocument(collection, id, {});
       if (!stored) {
         res.status(404).json({});
         return;
@@ -252,10 +274,17 @@ app.use(async (req, res) => {
     }
 
     if (req.method === "DELETE") {
-      await pool.query(
-        `DELETE FROM ${PG_SCHEMA}.documents WHERE collection = $1 AND doc_id = $2`,
-        [collection, String(id)],
-      );
+      if (id === undefined) {
+        await pool.query(
+          `DELETE FROM ${PG_SCHEMA}.documents WHERE collection = $1`,
+          [collection],
+        );
+      } else {
+        await pool.query(
+          `DELETE FROM ${PG_SCHEMA}.documents WHERE collection = $1 AND doc_id = $2`,
+          [collection, String(id)],
+        );
+      }
       res.json({});
       return;
     }
@@ -271,6 +300,5 @@ await ensureSchema(pool);
 
 app.listen(PORT, () => {
   console.log(`PostgreSQL-адаптер json-server: http://localhost:${PORT}`);
-  console.log(`Остальное проксируется на ${JSON_SERVER_URL}`);
-  console.log(`В PostgreSQL: ${PG_COLLECTIONS.join(", ")}`);
+  console.log(`Все коллекции в PostgreSQL: ${PG_COLLECTIONS.length}`);
 });

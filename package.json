@@ -16,7 +16,7 @@
     "pg:seed": "node scripts/seed-postgres.mjs",
     "pg:server": "node scripts/pg-json-server.mjs",
     "api": "node scripts/start-api.mjs",
-    "start": "concurrently -n web,json,api -c cyan,magenta,green \"npm run dev\" \"npm run server\" \"npm run api\""
+    "start": "concurrently -n web,pg,api -c cyan,magenta,green \"npm run dev\" \"npm run pg:server\" \"npm run api\""
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.2",

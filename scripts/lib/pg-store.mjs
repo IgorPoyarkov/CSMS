@@ -9,19 +9,58 @@
 
 import pg from "pg";
 
-/** Коллекции, которые читаются и пишутся напрямую в PostgreSQL. */
+/**
+ * Все коллекции db.json, включая справочники и пользовательские данные.
+ * PostgreSQL — единственный источник: json-server больше не используется.
+ */
 export const PG_COLLECTIONS = [
+  "users",
+  "employees",
+  "organizations",
+  "structuralUnits",
+  "contractServices",
   "purchasePlans",
-  "notices",
-  "purchaseNotes",
   "procurements",
+  "notices",
+  "employeeEducations",
+  "tasks",
+  "taskEvaluations",
+  "leaves",
+  "contractProjects",
+  "smnpPlans",
+  "smnpReports",
+  "smnpProcurements",
   "contractRegistry",
   "contractStages",
   "contractPayments",
   "contractPenalties",
   "contractDeliveries",
+  "contractFunctions",
+  "okpd2Refs",
+  "legalActs",
+  "purchaseNotes",
+  "smpRegistry",
+  "contractSmpRecords",
+  "accessRequests",
+  "addressRegions",
+  "addressMunicipalities",
+  "edsCertificates",
+  "edsSignatureEvents",
+  "objectDescriptions",
+  "defectLists",
+  "bidEvaluations",
   "contractEvents",
+  "vacationSchedules",
+  "ktruRefs",
+  "order158nReports",
+  "notificationStates",
+  "purchasePlanVersions",
+  "koksRefs",
+  "smnpReports238",
 ];
+
+/** Один объект верхнего уровня db.json, который не является коллекцией. */
+export const PG_META_COLLECTION = "_meta";
 
 export const PG_SCHEMA = "csms";
 
@@ -240,5 +279,35 @@ export async function seedDocuments(client, db) {
     report[collection] = rows.length;
   }
 
+  // Сводка импорта — не коллекция, но скрипты читают её как db.eisImportSummary.
+  if (db.eisImportSummary !== undefined) {
+    await upsertDocument(client, PG_META_COLLECTION, {
+      id: "eisImportSummary",
+      value: db.eisImportSummary,
+    });
+  }
+
   return report;
+}
+
+/** Собирает объект db из PostgreSQL в том же виде, что и старый db.json. */
+export async function loadDbFromPg(client) {
+  const result = await client.query(
+    `SELECT collection, doc FROM ${PG_SCHEMA}.documents ORDER BY seq ASC`,
+  );
+
+  const db = {};
+  for (const row of result.rows) {
+    if (row.collection === PG_META_COLLECTION) {
+      db[row.doc.doc_id ?? row.doc.id] = row.doc.value;
+      continue;
+    }
+    if (!Array.isArray(db[row.collection])) db[row.collection] = [];
+    db[row.collection].push(row.doc);
+  }
+
+  for (const collection of PG_COLLECTIONS) {
+    if (!Array.isArray(db[collection])) db[collection] = [];
+  }
+  return db;
 }
