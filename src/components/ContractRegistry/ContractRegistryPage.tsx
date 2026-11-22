@@ -41,6 +41,7 @@ import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import SmpSection from "./ContractSmpSection";
 import ContractEventsSection from "./ContractEventsSection";
 import ContractEisSection from "./ContractEisSection";
+import ContractCardProjectionSection from "./ContractCardProjectionSection";
 import styles from "./ContractRegistry.module.scss";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1353,21 +1354,26 @@ function ContractRow({
             <div className={styles.cardBody}>
               <ContractEisSection contract={contract} />
               <PaymentSummary contract={contract} />
+              {/* Фактические акты приёмки и платёжные поручения из публичной
+                  карточки ЕИС: ручные contractPayments и contractDeliveries
+                  сейчас пусты, поэтому без проекции сводка показывает «0 %» */}
+              <ContractCardProjectionSection contractId={contract.id} />
               <ContractEventsSection contractId={contract.id ?? ""} />
               <StagesSection contractId={contract.id} />
               <PaymentsSection contractId={contract.id} />
               <PenaltiesSection contractId={contract.id} />
               <DeliveriesSection contractId={contract.id} />
-              {contract.subcontractingSmpNoteNumber && (
-                <SmpSection
-                  contractId={contract.id ?? ""}
-                  contractPrice={contract.contractPrice}
-                  smpRequiredPercent={contract.smpRequiredPercent}
-                  subcontractingSmpNoteNumber={
-                    contract.subcontractingSmpNoteNumber
-                  }
-                />
-              )}
+              {/* Требование СМП наследуется из служебки, но у контрактов,
+                  импортированных из ЕИС, его нет: блок не скрываем, иначе объём
+                  и уже загруженные сведения СМП вообще не увидеть */}
+              <SmpSection
+                contractId={contract.id ?? ""}
+                contractPrice={contract.contractPrice}
+                smpRequiredPercent={contract.smpRequiredPercent}
+                subcontractingSmpNoteNumber={
+                  contract.subcontractingSmpNoteNumber
+                }
+              />
 
               <div className={styles.cardFooter}>
                 <div className={styles.meta}>

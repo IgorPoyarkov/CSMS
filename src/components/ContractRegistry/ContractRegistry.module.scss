@@ -647,12 +647,69 @@
 }
 
 .smp-section__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin: 0;
   padding: 6px 16px;
   font-size: 12px;
   color: var(--text-secondary);
   background: var(--surface-raised);
   border-bottom: 1px solid var(--border);
+}
+
+/* Требование СМП можно задать прямо в карточке: у контрактов, импортированных
+   из ЕИС, процента и номера служебки нет */
+.smp-section__requirement {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.smp-section__requirementLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.smp-section__requirementInput {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--field-border);
+  border-radius: 4px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.smp-section__requirementError {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--state-danger);
+}
+
+.smp-section__requirementActions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.smp-section__requirementBtn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .smp-section__volume {
@@ -2338,3 +2395,85 @@
     }
   }
 }
+
+/* ===== Данные карточки ЕИС: акты приёмки и оплаты ===== */
+
+/* Сводка по выгрузке: акты, платёжные поручения, неоплаченный остаток */
+.projectionSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.projectionChip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Принято без оплаты — риск виден сразу, а не только в сумме */
+.projectionChipAlert {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-weight: 600;
+}
+
+.projectionEmpty {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Пояснение под номером документа: этап акта, тип платежа */
+.projectionNote {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Предмет приёмки и назначение платежа обрезаем по ширине графы */
+.projectionPurpose {
+  display: block;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectionMissing {
+  color: var(--state-warning);
+  font-size: 12px;
+}
+
+.projectionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.projectionLink {
+  color: var(--accent);
+  font-weight: 600;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 600px) {
+  .projectionPurpose {
+    max-width: 200px;
+  }
+}
+

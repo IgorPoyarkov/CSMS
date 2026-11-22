@@ -27,7 +27,10 @@ import {
   SOURCE_FILE_HINT,
   type SourceFileFields,
 } from "../../services/ContractSmp/sourceFile";
-import { useCreatePenalty } from "../../services/ContractRegistry/contractRegistry.api";
+import {
+  useCreatePenalty,
+  useUpdateContract,
+} from "../../services/ContractRegistry/contractRegistry.api";
 import styles from "./ContractRegistry.module.scss";
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
@@ -73,6 +76,15 @@ export default function SmpSection({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ContractSmpRecord | null>(null);
 
+  // Требование о привлечении СМП живёт в самом контракте: у контрактов,
+  // импортированных из ЕИС, процента и номера служебки нет — их можно задать
+  // прямо здесь, не уходя из карточки
+  const updateContract = useUpdateContract();
+  const [requirementOpen, setRequirementOpen] = useState(false);
+  const [percentDraft, setPercentDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [requirementError, setRequirementError] = useState("");
+
   // Объём: требуемый, факт, прогресс
   const volume = useMemo(
     () => computeSmpVolume(records, contractPrice, smpRequiredPercent),
@@ -81,6 +93,10 @@ export default function SmpSection({
 
   // Дедлайны: подрядчик + заказчик
   const deadlines = useMemo(() => computeSmpDeadlines(records), [records]);
+
+  // Процента из служебки нет — объём не считается: при required = 0 формула
+  // даёт ложное «объём привлечённых СМП закрыт полностью»
+  const hasRequirement = volume.required > 0;
 
   // Максимальная просрочка подрядчика (для неустойки)
   const maxOverdueDays = useMemo(
@@ -144,6 +160,39 @@ export default function SmpSection({
       description: penaltyResult.penalty.description,
       reference: penaltyResult.penalty.reference,
     });
+  }
+
+  // ─── Требование о привлечении СМП (процент и основание) ──────────────────
+
+  function openRequirement() {
+    setPercentDraft(String(smpRequiredPercent ?? ""));
+    setNoteDraft(subcontractingSmpNoteNumber ?? "");
+    setRequirementError("");
+    setRequirementOpen(true);
+  }
+
+  function saveRequirement() {
+    if (!contractId) return;
+
+    const percent = percentDraft.trim().replace(",", ".");
+    const percentValid =
+      percent === "" ||
+      (/^\d{1,3}(\.\d{1,2})?$/.test(percent) &&
+        Number(percent) >= 0 &&
+        Number(percent) <= 100);
+    if (!percentValid) {
+      setRequirementError("Процент от 0 до 100");
+      return;
+    }
+
+    updateContract.mutate(
+      {
+        id: contractId,
+        smpRequiredPercent: percent,
+        subcontractingSmpNoteNumber: noteDraft.trim(),
+      },
+      { onSuccess: () => setRequirementOpen(false) },
+    );
   }
 
   // ─── Подтверждение достоверности (п. 6 ПП РФ N 1466) ──────────────────────
@@ -239,11 +288,88 @@ export default function SmpSection({
         Привлечение СМП/СОНКО (ч. 5 ст. 30 44-ФЗ)
       </h4>
 
-      {/* Ссылка на служебку */}
-      {subcontractingSmpNoteNumber && (
+      {/* Требование: процент из служебки и её номер. У контрактов из ЕИС этих
+          данных нет — их можно задать здесь, остальное считается само */}
+      {requirementOpen ? (
+        <form
+          className={block("requirement")}
+          onSubmit={(event) => {
+            event.preventDefault();
+            saveRequirement();
+          }}
+        >
+          <div className={block("requirementField")}>
+            <label
+              className={block("requirementLabel")}
+              htmlFor="smp-required-percent"
+            >
+              Требуемый объём, % от цены контракта
+            </label>
+            <input
+              id="smp-required-percent"
+              className={block("requirementInput")}
+              value={percentDraft}
+              onChange={(event) => setPercentDraft(event.target.value)}
+              placeholder="10"
+              inputMode="decimal"
+            />
+          </div>
+
+          <div className={block("requirementField")}>
+            <label
+              className={block("requirementLabel")}
+              htmlFor="smp-note-number"
+            >
+              Номер служебной записки (основание)
+            </label>
+            <input
+              id="smp-note-number"
+              className={block("requirementInput")}
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              placeholder="например 12"
+            />
+          </div>
+
+          {requirementError && (
+            <span className={block("requirementError")}>{requirementError}</span>
+          )}
+
+          <div className={block("requirementActions")}>
+            <button
+              type="submit"
+              className={styles.btnPrimary}
+              disabled={updateContract.isPending}
+            >
+              {updateContract.isPending ? "Сохранение…" : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              className={styles.btnSmall}
+              onClick={() => setRequirementOpen(false)}
+            >
+              Отмена
+            </button>
+          </div>
+        </form>
+      ) : (
         <p className={block("note")}>
-          Требование из служебной записки № {subcontractingSmpNoteNumber} по
-          позиции плана-графика: {smpRequiredPercent}% от цены контракта
+          <span>
+            {hasRequirement
+              ? `Требуемый объём: ${smpRequiredPercent}% от цены контракта`
+              : "Требование о привлечении СМП не задано — объём не рассчитывается"}
+            {subcontractingSmpNoteNumber &&
+              ` · служебная записка № ${subcontractingSmpNoteNumber}`}
+          </span>
+          <button
+            type="button"
+            className={block("requirementBtn")}
+            onClick={openRequirement}
+          >
+            {hasRequirement || subcontractingSmpNoteNumber
+              ? "Изменить требование"
+              : "Указать требование"}
+          </button>
         </p>
       )}
 
@@ -251,7 +377,11 @@ export default function SmpSection({
       <div className={block("volume")}>
         <div className={block("volume-header")}>
           <span>Требуемый объём:</span>
-          <strong>{volume.required.toLocaleString("ru-RU")} ₽</strong>
+          <strong>
+            {hasRequirement
+              ? `${volume.required.toLocaleString("ru-RU")} ₽`
+              : "не задан"}
+          </strong>
         </div>
         <div className={block("volume-header")}>
           <span>Факт (принятые договоры с СМП):</span>
@@ -269,7 +399,13 @@ export default function SmpSection({
           />
         </div>
         <div className={block("volume-footer")}>
-          {volume.isComplete ? (
+          {!hasRequirement ? (
+            <span>
+              Процент не задан — объём не рассчитывается. Укажите его в блоке
+              требования выше: прогресс-бар, недобор и неустойка появятся
+              автоматически.
+            </span>
+          ) : volume.isComplete ? (
             <span style={{ color: "var(--state-success)" }}>
               ✓ Объём привлечённых СМП закрыт полностью
             </span>
