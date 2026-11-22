@@ -4323,15 +4323,53 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Проверки.** `npm run build` (включая `check:db` и `vite build`) — exit 0,
   `npx oxlint src` — exit 0 (только прежние warning), `node --check` новых
   скриптов — ок.
-- **Не доделано (для следующей сессии).** Автоматический dual-write в 4 скриптах
-  импорта (`import-eis-client.mjs`, `retry-eis-notice-details.mjs`,
-  `link-eis-chain.mjs`, `repair-eis-notes.mjs`) пока не введён: они по-прежнему
-  пишут только `db.json`. Пока правило простое — **после любого импорта
-  выполнить `npm run pg:seed`**, который подтянет изменения в PG. Это
-  предумышленно оставлено как отдельный шаг, чтобы не трогать работающий
-  импорт и не делать запись в БД обязательной для офлайн-скриптов.
+- **Dual-write (доделано).** `scripts/lib/db-write.mjs` — единая точка записи:
+  сначала `db.json`, затем в той же транзакции `seedDocuments` в PG. Подключены
+  все 4 скрипта: `import-eis-client.mjs` (3 точки записи),
+  `retry-eis-notice-details.mjs`, `link-eis-chain.mjs` (main стал async),
+  `repair-eis-notes.mjs`. `PG_SYNC=0` отключает синхронизацию, недоступная БД
+  не роняет импорт — только warning, `db.json` остаётся зеркалом. В `pgConfig`
+  добавлен `connectionTimeoutMillis` (5 с), чтобы офлайн-импорт не висел.
+  `seedDocuments` теперь и удаляет лишние строки в коллекции (иначе
+  `repair-eis-notes.mjs --replace` оставлял бы старые СЗ в PG), но не трогает
+  коллекции, которых нет в источнике.
+- **Проверка dual-write.** `repair-eis-notes.mjs --db <копия>` без `--replace`
+  (created: 0) оставил хэш файла прежним и записал `[pg] синхронизировано 1035
+  записей`; `.tmp/pg-full-diff.mjs` подтвердил побайтовое совпадение всех 1035
+  документов с `db.json`. `PG_SYNC=0` и `PGPORT=5999` отработали без падения
+  импорта. Удаление одной записи в источнике уменьшает счётчик СЗ 144 → 143 и
+  возвращается к 144 после ROLLBACK. Важно: `link-eis-chain.mjs` при прямом
+  запуске **пересчитывает** связи (`ikzPositionKey` → `procurementId`, меняет
+  `eisImportSummary` и задачи), поэтому тестировать его запись на боевых
+  данных нельзя; после случайного прогона PG восстановлен `npm run pg:seed`.
+- **Почему `db.json` не удалён.** Физическое удаление невозможно без отказа от
+  json-server: `npm run server` запускается именно с этим файлом и обслуживает
+  все остальные коллекции (пользователи, организации, сотрудники, объекты
+  описаний и т. д.), которые в PG не перенесены. Те же коллекции читают и
+  скрипты импорта. Удаление файла сейчас сломало бы и зеркало, и импорт.
 - **Не трогалось:** чужие правки `src/components/ContractRegistry/*`
   (`.module.scss`, `ContractRegistryPage.tsx`) и `Лес 3D.jpg` — в коммит не
   идут.
+
+## 120. Поля форм: отменено дефолтное выделение браузера (2026-11-22)
+
+- **Что сделано.** В `src/scss/global/_reboot.scss` базовое правило для
+  `input, select, textarea` получило `outline: none` — системный синий контур,
+  который браузер рисует при фокусе, больше не дублирует рамку темы. Взамен
+  добавлено `:focus-visible` с `outline: 2px solid var(--accent)` и
+  `outline-offset: 1px`, поэтому клавиатурный фокус остаётся видимым; правила
+  компонентов и тем (`_controls.scss`, `_theme-modern.scss`,
+  `_theme-floating3d.scss`) идут позже и с большей специфичностью, поэтому
+  сохраняют свой вид.
+- **Автозаполнение.** Добавлены правила `input:-webkit-autofill`
+  (hover/focus), `textarea:-webkit-autofill`, `select:-webkit-autofill`:
+  жёлтый/синий фон Chrome и Edge перекрывается вставкой
+  `-webkit-box-shadow: 0 0 0 1000px var(--surface-field) inset`, текст и
+  каретка берут цвета темы (`-webkit-text-fill-color`, `caret-color`),
+  `transition: background-color 9999s` не даёт браузеру перекрасить поле заново.
+- **Проверки.** `tsc -b --pretty false` — 0 ошибок, `vite build` — зелёный,
+  `sass` по `src/scss/global.scss` — SASS_OK, мобильный аудит
+  `/contract-registry` на 375px — `ok 375x812 scroll=375 offenders=0
+  small-targets=0`.
 
 
