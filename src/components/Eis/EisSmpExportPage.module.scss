@@ -1,7 +1,69 @@
 @import "variables";
 
 .eis-page {
-  padding: 20px 0;
+  // Контейнер приложения не задаёт горизонтальных отступов (страницы делают
+  // это сами), поэтому без них содержимое выгрузки упиралось в край экрана.
+  padding: 20px 16px;
+}
+
+@media (max-width: 600px) {
+  .eis-page {
+    padding: 14px 12px;
+  }
+
+  .eis-page__title {
+    font-size: 17px;
+    line-height: 1.3;
+    margin-bottom: 14px;
+  }
+
+  .eis-page__actions {
+    gap: 8px;
+    margin-bottom: 14px;
+
+    // Кнопки «Скачать CSV», «Подписать пакет», «Отметить выгруженными»
+    // в одну колонку: иначе они рвутся по словам в две строки
+    > * {
+      flex: 1 1 100%;
+    }
+  }
+
+  .eis-page__stats {
+    gap: 8px;
+  }
+
+  .eis-page__stat {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    padding: 10px 12px;
+  }
+
+  .eis-page__cardHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  // Список контрактов: карточка обрезает содержимое (overflow: hidden),
+  // поэтому статистика и таблица записей обязаны переноситься
+  .eis-page__cardStats {
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding: 8px 12px;
+  }
+
+  .eis-page__table {
+    font-size: 12px;
+
+    th,
+    td {
+      padding: 6px 8px;
+    }
+  }
+
+  .eis-page__signer {
+    padding: 12px;
+  }
 }
 
 .eis-page__title {

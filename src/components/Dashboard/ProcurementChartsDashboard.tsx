@@ -137,7 +137,7 @@ export default function ProcurementChartsDashboard({
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={monthlySeries}
-                  margin={{ top: 10, right: 12, left: 4, bottom: 0 }}
+                  margin={{ top: 10, right: 4, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -247,7 +247,7 @@ export default function ProcurementChartsDashboard({
                   <BarChart
                     data={contractStatuses}
                     layout="vertical"
-                    margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
+                    margin={{ top: 0, right: 4, left: 0, bottom: 0 }}
                   >
                     <XAxis type="number" hide />
                     <YAxis

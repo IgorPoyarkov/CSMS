@@ -547,6 +547,12 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 7. **Проверка контрагентов (§77, бэк готов).** Подключить
    `/api/eis/counterparties/check` к карточке контрагента на фронте, показать
    дату и id выгрузки как снимок источника.
+8. **Адаптивность (§129).** Аудит 390 px пройден по всем роутам; остались
+   необязательные улучшения: увеличить тач-цели `.btn--sm` (`×` 29×44) и
+   ссылок «← назад» (24 px по высоте) до 40–44 px, проверить модалки
+   (`PurchaseNoteModal`, `BidEvaluationModal`, `DefectListModal`,
+   `VacationRowModal`, `PurchasePlanImportModal`) — их таблицы 700–1040 px
+   сейчас прокручиваются внутри `overflow-x: auto`.
 
 **Не трогать:** чужую WIP. На 2026-11-20 в рабочем дереве `csms` была чужая
 незакоммиченная работа: `db.json` и `src/services/KoksRef/`. На 2026-11-21
@@ -4784,5 +4790,62 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   незакоммиченные правки §125 (аналитика, шапка, `AnalyticsPage`,
   `BudgetExecutionMonitorD3`, `uiSolutions.config`): они вошли в тот же коммит.
   `Лес 3D.jpg` не коммитился — код на него не ссылается.
+
+## 129. Адаптивность: сквозной аудит на 390 px (2026-11-22)
+
+- **Запрос пользователя.** Пройти все роуты на телефонной ширине (390 px) и
+  убрать горизонтальные переполнения и нечитаемые блоки.
+- **Инструмент.** `.tmp/scan-adaptive.mjs` (headless Chrome через CDP):
+  для каждого роута печатает `doc=<scrollWidth>`, `outside=<n>`, `tables=<n>`,
+  `clipped=<n>`, `small=<n>` и сохраняет JSON в `.tmp/shots-390-*.json`.
+  Запуск: `$env:ROUTES='/a,/b'; $env:WIDTH='390'; $env:SHOTS='0';
+  $env:OUT='final.json'; $env:WAIT='3000'; node .tmp/scan-adaptive.mjs`.
+  Ловушки: `Emulation.setDeviceMetricsOverride.mobile` должен быть `false`
+  (иначе `innerWidth` не равен заданной ширине); авторизация — только через
+  `Page.addScriptToEvaluateOnNewDocument` с `localStorage.user_email`, без неё
+  страницы рисуются пустыми. Точечный разбор виновников —
+  `.tmp/probe-box.mjs` (`ROUTE=<путь>`; печатает элементы, у которых
+  `right > documentElement.clientWidth`, с цепочкой родителей и их
+  `grid-template-columns`).
+- **Найденное и исправленное:**
+  - корневой `Container` не даёт горизонтальных отступов — страницы обязаны
+    задавать свои (`EisSmpExportPage`: `padding: 20px 16px`);
+  - `NoticeInfoForm` использует BEM-классы `eis-main__*`, а не
+    `notice-info-form__*`: медиа-правила для `__fio-grid`, `__ikz-grid`,
+    `__object-grid` нужно писать под `.eis-main`, иначе они не применяются
+    (три поля ФИО по 140 px растягивали документ до 453 px);
+  - `ProcurementDocumentsPage`: `grid-template-columns: 1fr` в
+    `@media (max-width: 980px)` раздувал `.workspace` по `min-content`
+    ребёнка — заменено на `minmax(0, 1fr)`;
+  - `Loader` в базовом варианте: иконки 200×200 в узком контейнере
+    выталкивали страницу (приёмки — до 816 px) — добавлен `overflow: hidden`;
+  - `SmnpSonek` (отчёты СМП): табы не переносились — на 600 px `flex-wrap`,
+    уменьшены отступы и кегль;
+  - таблицы с `min-width` 700–1100 px оставлены в `overflow-x: auto`
+    (прокручиваются внутри карточки, а не сжимаются в нечитаемое);
+  - Recharts: `overflow: hidden` у `.chart-box` и уменьшенные `margin` осей;
+  - `NoticeInfoForm.__close`: глобальный `.btn` красил «✕» в цвет на акценте —
+    крестик был невидим на прозрачном фоне, добавлен `color`/`display: flex`.
+- **Итог прогона (390 px).** `doc=375` (переполнений нет) на всех проверенных
+  роутах: `/`, `/tasks`, `/tasks/1001`, `/analytics`, `/purchase-plans`,
+  `/purchase-plans/new`, карточка и форма редактирования ПГ
+  `eisp-202601442000018001`, `/purchase-plans/:id/positions/new`,
+  `/purchase-notes`, `/contract-service`, `/procurement-processing`,
+  `/procurement-processing/.../notice-info`, `/contract-projects`,
+  `/reports/smnp`, `/reports/order-158n`, `/contract-registry`,
+  `/contract-changes`, `/contract-changes/new`, `/acceptances`,
+  `/acceptances/new`, `/eis/smp-export`, `/eis/packages`, `/eis/schemas`,
+  `/eis/chains`, `/okpd2`, `/norming-requirements`, `/legal-acts`,
+  `/liability-mapping`, `/eds/journal`, `/nmck-calculator`, `/defect-lists`,
+  `/bid-evaluations`, `/vacation-schedule`, `/notifications`, `/documents`,
+  `/ui-solutions`, `/visit-card`, `/account`.
+  Остаточные `outside` — только таблицы внутри своих скроллеров;
+  `small` — текстовые ссылки «← назад» высотой 24 px и `.btn--sm`
+  (`×` 29×44) в карточках; `clipped` — декоративный `visit__hero-glow`
+  (обрезается героем намеренно) и `.visually-hidden`.
+- **Проверки.** `npx tsc -b` — exit 0; `npx oxlint src` — 0 ошибок
+  (78 предупреждений react-compiler, существовавших до задачи);
+  `npx vite build` — exit 0 (только предупреждение о размере чанков).
+
 
 

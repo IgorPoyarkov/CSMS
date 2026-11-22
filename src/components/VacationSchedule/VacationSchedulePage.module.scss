@@ -695,4 +695,48 @@
     line-height: 1.5;
     color: var(--text-secondary);
   }
+
+  // ─── Узкие экраны ─────────────────────────────────────────────────────────
+  // Страница — одна колонка карточек, поэтому резиновость сводится к отступам,
+  // размеру заголовка и тач-зонам: переключатель года 26 px и кнопки строк
+  // «изменить/удалить» на телефоне мельче пальца.
+  @media (max-width: 600px) {
+    padding: 14px 12px 32px;
+    gap: 14px;
+
+    &__header {
+      padding: 14px 12px;
+    }
+
+    &__title {
+      font-size: 18px;
+    }
+
+    &__card {
+      padding: 12px;
+    }
+
+    &__create {
+      padding: 18px 12px;
+    }
+
+    &__year {
+      padding: 4px 8px;
+    }
+
+    &__year-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    &__mini {
+      min-height: 36px;
+      padding: 8px 10px;
+    }
+
+    &__notice-text {
+      padding: 10px;
+      font-size: 12px;
+    }
+  }
 }

@@ -704,4 +704,81 @@
       flex: 0 0 180px;
     }
   }
+
+// ─── Узкие экраны ───────────────────────────────────────────────────────────
+// Редактор особых закупок — таблица с одиннадцатью заданными ширинами
+// (до 320 px на колонку). На телефоне её нельзя сжать: поля ввода
+// превращаются в полоски. Поэтому до 900 px блок прокручивается по X,
+// а таблица сохраняет рабочую ширину; форма детализации КБК перестаёт
+// быть двухколоночной, чтобы значение не сжималось до 100 px.
+@media (max-width: 900px) {
+  .special-purchases {
+    padding: 10px;
+
+    &__table-wrap {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    &__table {
+      min-width: 900px;
+    }
+
+    // КБК-детализация — самая широкая часть: девять разрядов + деньги
+    &__table--kbk {
+      min-width: 960px;
+    }
+
+    &__detail-field {
+      grid-template-columns: minmax(0, 1fr);
+      width: 100%;
+      gap: 4px;
+      align-items: start;
+    }
+
+    &__subcontrol {
+      width: 100%;
+      margin-left: 0;
+    }
+
+    &__wizard-field {
+      flex: 1 1 100%;
+
+      &--year {
+        flex: 1 1 100%;
+      }
+    }
+
+    &__koks-cell .special-purchases__input {
+      flex: 1 1 140px;
+    }
+  }
+}
+
+@media (max-width: 600px) {
+  .special-purchases {
+    &__table {
+      font-size: 11px;
+
+      th {
+        padding: 6px 4px;
+        font-size: 10px;
+      }
+
+      td {
+        padding: 5px 4px;
+      }
+    }
+
+    &__bottom-actions {
+      justify-content: stretch;
+
+      > * {
+        flex: 1 1 100%;
+      }
+    }
+  }
+}
+
 }
