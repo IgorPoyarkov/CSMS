@@ -179,23 +179,48 @@ public sealed class AcceptanceActParser
                     Attr(bank, "ИдПлатежнРеквКонт"))));
     }
 
-    private static List<AcceptanceWorkItemDto> ParseWorkItems(XElement root) =>
-        root.Descendants()
+    private static List<AcceptanceWorkItemDto> ParseWorkItems(XElement root)
+    {
+        // <СведТРУКонт> лежит рядом с ВидРаб (в НаимИСт/ДопПолеСтрИнф), поэтому
+        // собираем идентификаторы КТРУ по номеру строки отдельно.
+        var ktruByLine = root.Descendants()
+            .Where(element => NameIs(element, "СведТРУКонт"))
+            .GroupBy(element => Attr(element, "НомСтр") ?? string.Empty, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.Ordinal);
+
+        return root.Descendants()
             .Where(element => NameIs(element, "ВидРаб"))
-            .Select(item => new AcceptanceWorkItemDto(
-                Attr(item, "НомСтр"),
-                Attr(item, "НаимТов"),
-                Attr(Element(item, "КодТов"), "Код")
-                    ?? Attr(item, "ОКПД2")
-                    ?? Attr(item, "ОКПД"),
-                Value(item, "КолТов"),
-                Attr(item, "НаимЕдИзм"),
-                ParseMoney(Attr(item, "ЦенаТов")),
-                ParseMoney(Attr(item, "СтТовБезНДС")),
-                ParseMoney(Attr(item, "СтТовУчНал")),
-                Value(item, "НалСтПостр") ?? Attr(item, "НалСтПостр"),
-                ParseMoney(Value(item, "СумНал"))))
+            .Select(item =>
+            {
+                var code = Element(item, "КодТов");
+                var okpd2Element = code ?? item;
+                var (okpd2Code, ktruCode) = ClassifierCodes.Split(
+                    Attr(code, "Код") ?? Attr(item, "ОКПД2") ?? Attr(item, "ОКПД"));
+                ktruByLine.TryGetValue(Attr(item, "НомСтр") ?? string.Empty, out var ktru);
+                var (_, ktruFromBlock) = ClassifierCodes.Split(Attr(ktru, "КодТов"));
+
+                return new AcceptanceWorkItemDto(
+                    Attr(item, "НомСтр"),
+                    Attr(item, "НаимТов"),
+                    okpd2Code,
+                    Attr(code, "Наим") ?? Attr(okpd2Element, "ОКПД2Name"),
+                    ktruCode ?? ktruFromBlock,
+                    Attr(ktru, "ИдТРУ"),
+                    Attr(ktru, "ТехИдТРУ"),
+                    Attr(ktru, "ЭАИдТРУ"),
+                    Value(item, "КолТов"),
+                    Attr(item, "НаимЕдИзм"),
+                    ParseMoney(Attr(item, "ЦенаТов")),
+                    ParseMoney(Attr(item, "СтТовБезНДС")),
+                    ParseMoney(Attr(item, "СтТовУчНал")),
+                    Value(item, "НалСтПостр") ?? Attr(item, "НалСтПостр"),
+                    ParseMoney(Value(item, "СумНал")));
+            })
             .ToList();
+    }
 
     private static AcceptanceTotalsDto ParseTotals(XElement root)
     {

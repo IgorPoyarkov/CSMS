@@ -46,6 +46,11 @@ public sealed class AcceptanceActParserTests
 
         var item = Assert.Single(act.WorkItems);
         Assert.Equal("42.11.20.200", item.Okpd2Code);
+        Assert.Equal("Работы по ремонту автомобильных дорог", item.Okpd2Name);
+        Assert.Null(item.KtruCode);
+        Assert.Equal("4F08D8CC1263414985617C99658939A1", item.KtruId);
+        Assert.Equal("804440311", item.TechnicalKtruId);
+        Assert.Equal("01a0d8bfabb670aba5609628579d14a0", item.EaKtruId);
         Assert.Equal(9_941_150.80m, item.SumWithVat);
         Assert.Equal("22%", item.VatRate);
         Assert.Equal(9_941_150.80m, act.Totals.SumWithVat);
@@ -197,7 +202,8 @@ public sealed class AcceptanceActParserTests
         var customer = Assert.Single(act.Parties, party => party.Role == "Заказчик");
         Assert.Equal("0274023088", customer.Inn);
         Assert.Equal(5, act.WorkItems.Count);
-        Assert.Equal("01.13.43.110-00000002", act.WorkItems[0].Okpd2Code);
+        Assert.Equal("01.13.43.110", act.WorkItems[0].Okpd2Code);
+        Assert.Equal("01.13.43.110-00000002", act.WorkItems[0].KtruCode);
         Assert.Equal(55_272m, act.Totals.SumWithVat);
         Assert.Contains(act.Signatories, signatory => signatory.LastName == "Абдувохидов");
     }

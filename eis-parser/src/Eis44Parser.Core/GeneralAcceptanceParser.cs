@@ -125,17 +125,32 @@ public sealed class GeneralAcceptanceParser
     private static List<AcceptanceWorkItemDto> ParseWorkItems(XElement? doc) =>
         (doc?.Descendants() ?? Enumerable.Empty<XElement>())
             .Where(element => NameIs(element, "СведТов"))
-            .Select(item => new AcceptanceWorkItemDto(
-                Attr(item, "НомСтр"),
-                Attr(item, "НаимТов"),
-                Attr(Element(item, "ДопСведТов"), "КодТов"),
-                Attr(item, "КолТов"),
-                Attr(item, "НаимЕдИзм"),
-                ParseMoney(Attr(item, "ЦенаТов")),
-                ParseMoney(Attr(item, "СтТовБезНДС")),
-                ParseMoney(Attr(item, "СтТовУчНал")),
-                Attr(item, "НалСт"),
-                ParseMoney(Value(item, "СумНал"))))
+            .Select(item =>
+            {
+                // В ОН_НСЧФДОПPR атрибут КодТов — это код КТРУ, ОКПД2 является
+                // его префиксом до дефиса (например, 01.13.43.110-00000002).
+                var (okpd2Code, ktruCode) = ClassifierCodes.Split(
+                    Attr(Element(item, "ДопСведТов"), "КодТов")
+                    ?? Attr(item, "ОКПД2")
+                    ?? Attr(item, "ОКПД"));
+
+                return new AcceptanceWorkItemDto(
+                    Attr(item, "НомСтр"),
+                    Attr(item, "НаимТов"),
+                    okpd2Code,
+                    Attr(item, "ОКПД2Name"),
+                    ktruCode,
+                    null,
+                    null,
+                    null,
+                    Attr(item, "КолТов"),
+                    Attr(item, "НаимЕдИзм"),
+                    ParseMoney(Attr(item, "ЦенаТов")),
+                    ParseMoney(Attr(item, "СтТовБезНДС")),
+                    ParseMoney(Attr(item, "СтТовУчНал")),
+                    Attr(item, "НалСт"),
+                    ParseMoney(Value(item, "СумНал")));
+            })
             .ToList();
 
     private static AcceptanceTotalsDto ParseTotals(XElement? doc)

@@ -66,11 +66,20 @@ public sealed record BankRequisitesDto(
     string? CounterpartyName,
     string? RequisitesId);
 
-/// <summary>Строка работ/товаров в акте.</summary>
+/// <summary>
+/// Строка работ/товаров в акте. ОКПД2 и КТРУ — разные классификаторы:
+/// ОКПД2 имеет вид 42.11.20.200, код КТРУ — 01.13.43.110-00000002.
+/// В ОН_АКТРЕЗРАБП КТРУ доступен идентификаторами блока СведТРУКонт.
+/// </summary>
 public sealed record AcceptanceWorkItemDto(
     string? LineNumber,
     string? Name,
     string? Okpd2Code,
+    string? Okpd2Name,
+    string? KtruCode,
+    string? KtruId,
+    string? TechnicalKtruId,
+    string? EaKtruId,
     string? Quantity,
     string? UnitName,
     decimal? Price,
