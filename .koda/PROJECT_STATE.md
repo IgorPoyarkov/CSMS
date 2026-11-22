@@ -5587,3 +5587,27 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (общий `oxlint src` даёт 78 предупреждений в чужих файлах — не трогали),
   `npx vite build` — ok.
 
+## 143. Очистка демо-организаций и пользователей доступа (2026-11-22)
+
+- **Запрос пользователя:** «удали всех кроме текущей организации». Текущая —
+  организация 6, ОКУ «Курскавтодор», ИНН 4629040439.
+- **Backup до изменений:** `%TEMP%\opencode\csms_eis-before-cleanup-20261122.dump`
+  (`pg_dump -Fc`, 26,8 МБ, 21:18 +03). Восстановление: `pg_restore --clean --if-exists
+  -h localhost -p 5433 -U postgres -d csms_eis <файл>`.
+- **Удалено в одной транзакции:** `access.organizations` 1–5; `access.users`
+  `test1..test4@test.test` и `belov@belgorod.test` (5), 1 `user_roles`, 5
+  `sessions`, 39 `employees`, 4 `contract_services`, 2 `requests`;
+  `csms.documents` — 5 организаций, 39 сотрудников, 4 `contractRegistry` и
+  1 `contractCardProjections`, относящиеся к организациям 1–5.
+- **Осталось:** организаций 1 (id 6), пользователей 2
+  (`zakupki@kurskavtodor.ru` id 5 и `poyarkova_nyu@mail.ru` id 7 с ролью
+  `administrator`), сотрудников 4 (41–44), контрактная служба 1, системные
+  функции 5, сессии 20 только user 7, `contractRegistry` 519,
+  `contractCardProjections` 111. Сертификат ЭЦП user 7 и журнал EDS сохранены.
+- API не перезапускался: `EfCoreAccessStore` читает PostgreSQL на каждый
+  запрос. В уже открытом браузере нужно обновить страницу/сбросить кэш
+  React Query, чтобы старый профиль не висел в памяти.
+- **P2 по ГК-вставкам не начинался:** после чистки пользователь подтвердил
+  полный объём, формулировки брать из текущего конструктора; реестр
+  `legal.clause_templates`, API и UI ещё предстоит сделать.
+
