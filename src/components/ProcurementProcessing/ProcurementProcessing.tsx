@@ -2,6 +2,7 @@ import type React from "react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
+import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import {
   useDeleteProcurement,
   useGetProcurements,
@@ -21,6 +22,9 @@ import Loader from "../UI/Loader";
 
 type StatusFilter = NoticeStatus | "all";
 
+// Масштаб страницы: тот же набор, что в остальных реестрах проекта
+const PAGE_SIZES = [10, 25, 50, "all"] as const;
+
 const ProcurementProcessing: React.FC = () => {
   const { bem } = useUtils();
   const block = bem(styles, "procurement-processing");
@@ -34,6 +38,8 @@ const ProcurementProcessing: React.FC = () => {
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [query, setQuery] = useState("");
+  const [pageSize, setPageSize] = useState<PageSizeValue>(10);
+  const [page, setPage] = useState(1);
 
   // В разделе — только текущие извещения: отменённые записи скрыты
   const currentProcurements = useMemo(
@@ -63,6 +69,22 @@ const ProcurementProcessing: React.FC = () => {
       );
     });
   }, [currentProcurements, statusFilter, query]);
+
+  // ─── Пагинация ────────────────────────────────────────────────────────────
+  // Как в реестрах контрактов и НПА: масштаб задаётся PageSizePicker, «Все»
+  // выключает разбиение. Смена фильтров, поиска и масштаба возвращает на
+  // первую страницу — setPage(1) в обработчиках событий, без useEffect
+  // со setState (каскадный рендер).
+  const totalPages =
+    pageSize === "all"
+      ? 1
+      : Math.max(1, Math.ceil(visibleProcurements.length / Number(pageSize)));
+  const safePage = Math.min(page, totalPages);
+  const start = pageSize === "all" ? 0 : (safePage - 1) * Number(pageSize);
+  const pagedProcurements =
+    pageSize === "all"
+      ? visibleProcurements
+      : visibleProcurements.slice(start, start + Number(pageSize));
 
   const handleAction = (action: ProcurementActionType, item: Procurement) => {
     switch (action) {
@@ -148,14 +170,28 @@ const ProcurementProcessing: React.FC = () => {
       )}
 
       <div className={block("toolbar")}>
-        <input
-          type="search"
-          className={block("search")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Поиск по названию или номеру извещения…"
-          aria-label="Поиск по названию или номеру извещения"
-        />
+        <div className={block("toolbar-row")}>
+          <input
+            type="search"
+            className={block("search")}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Поиск по названию или номеру извещения…"
+            aria-label="Поиск по названию или номеру извещения"
+          />
+
+          <PageSizePicker
+            sizes={PAGE_SIZES}
+            value={pageSize}
+            onChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
+        </div>
 
         <div
           className={block("filters")}
@@ -164,25 +200,34 @@ const ProcurementProcessing: React.FC = () => {
         >
           <button
             type="button"
-            className={block(
-              "filter",
-              statusFilter === "all" ? ["active"] : [],
-            )}
-            onClick={() => setStatusFilter("all")}
+            className={block("chip", statusFilter === "all" ? ["active"] : [])}
+            onClick={() => {
+              setStatusFilter("all");
+              setPage(1);
+            }}
           >
-            Все ({currentProcurements.length})
+            Все
+            <span className={block("chip-count")}>
+              {currentProcurements.length}
+            </span>
           </button>
           {NOTICE_FILTER_STATUSES.map((status) => (
             <button
               key={status}
               type="button"
               className={block(
-                "filter",
+                "chip",
                 statusFilter === status ? ["active"] : [],
               )}
-              onClick={() => setStatusFilter(status)}
+              onClick={() => {
+                setStatusFilter(status);
+                setPage(1);
+              }}
             >
-              {noticeStatusLabel(status)} ({statusCounts.get(status) ?? 0})
+              {noticeStatusLabel(status)}
+              <span className={block("chip-count")}>
+                {statusCounts.get(status) ?? 0}
+              </span>
             </button>
           ))}
         </div>
@@ -197,17 +242,51 @@ const ProcurementProcessing: React.FC = () => {
               : `Нет извещений со статусом «${noticeStatusLabel(statusFilter)}»`}
         </p>
       ) : (
-        <ul className={block("list")}>
-          {visibleProcurements.map((item) => (
-            <ProcurementRow
-              key={item.id}
-              procurement={item}
-              onAction={handleAction}
-              isDeleting={isDeleting}
-              isStatusPending={isStatusPending}
-            />
-          ))}
-        </ul>
+        <>
+          <ul className={block("list")}>
+            {pagedProcurements.map((item) => (
+              <ProcurementRow
+                key={item.id}
+                procurement={item}
+                onAction={handleAction}
+                isDeleting={isDeleting}
+                isStatusPending={isStatusPending}
+              />
+            ))}
+          </ul>
+
+          {totalPages > 1 && (
+            <div className={block("pager")}>
+              <button
+                type="button"
+                className={block("pager-btn")}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={safePage === 1}
+              >
+                Назад
+              </button>
+              <span className={block("pager-info")}>
+                {start + 1}–
+                {Math.min(
+                  start + pagedProcurements.length,
+                  visibleProcurements.length,
+                )}{" "}
+                из {visibleProcurements.length} · страница {safePage} из{" "}
+                {totalPages}
+              </span>
+              <button
+                type="button"
+                className={block("pager-btn")}
+                onClick={() =>
+                  setPage((current) => Math.min(totalPages, current + 1))
+                }
+                disabled={safePage === totalPages}
+              >
+                Вперёд
+              </button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

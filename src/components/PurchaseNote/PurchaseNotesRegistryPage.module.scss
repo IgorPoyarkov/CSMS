@@ -86,13 +86,13 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface-raised);
+    padding: 6px 12px;
+    font-family: inherit;
     font-size: 12px;
-    font-weight: 600;
     color: var(--text-primary);
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
     cursor: pointer;
 
     &:hover {
@@ -100,14 +100,53 @@
     }
 
     &--active {
+      background: var(--accent);
       border-color: var(--accent);
-      background: var(--accent-soft);
-      color: var(--accent-emphasis);
+      color: var(--text-on-accent);
+      font-weight: 600;
     }
   }
 
+  // Счётчик внутри чипа: тот же вид, что в реестрах контрактов, изменений,
+  // приёмки и дефектовок. Раньше здесь стоял PurchaseNoteStatusBadge со своей
+  // рамкой — получалась рамка внутри рамки.
+  &__chip-count {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+  }
+
+  &__chip--active &__chip-count {
+    background: var(--surface-panel);
+    color: var(--text-primary);
+  }
+
+  // Поиск, фильтр по году и масштаб страницы — одна строка под чипами
+  &__filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__year {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__year-caption {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
   &__search {
-    width: 100%;
+    flex: 1 1 280px;
+    min-width: 0;
     padding: 8px 12px;
     font-family: inherit;
     font-size: 13px;
@@ -348,5 +387,47 @@
         color: var(--text-on-accent);
       }
     }
+  }
+
+  // ─── Пагинация ─────────────────────────────────────────────────────────────
+  // Как в реестрах контрактов и НПА: «Назад» — диапазон — «Вперёд»
+  &__pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px;
+  }
+
+  &__pager-btn {
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--surface-field);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__pager-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
   }
 }

@@ -29,6 +29,13 @@ const defaults = {
   EisSchemas__Update__Enabled: "false",
   /** Проверка контрагентов по выгрузке ст. 19.28 КоАП — только вручную. */
   EisCounterparties__Update__Enabled: "false",
+  /**
+   * Альтернативная интеграция ЕИС через ЛК (логин/пароль): выключена до
+   * получения учётных данных, WSDL и тестового контура. См.
+   * docs/tasks/eis-alternative-integration.md.
+   */
+  EisGateway__Enabled: "false",
+  EisGateway__Transport: "mock",
 };
 
 const env = { ...process.env };

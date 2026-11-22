@@ -75,8 +75,18 @@
     margin-bottom: 14px;
   }
 
+  // Поиск слева, масштаб страницы справа — как в реестре контрактов
+  &__toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
   &__search {
-    width: 100%;
+    flex: 1 1 320px;
+    width: auto;
     max-width: 520px;
     padding: 8px 12px;
     font-family: inherit;
@@ -92,38 +102,52 @@
     }
   }
 
-  // Фильтр по статусу извещения
+  // Фильтр по статусу извещения — контейнер чипов
   &__filters {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  &__filter {
+  // Чипы статусов — те же, что в реестрах контрактов, изменений, приёмки и
+  // дефектовок: pill без вложенных рамок, счётчик отдельной пилюлей
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 6px 12px;
-    border: 1px solid var(--border-strong);
-    border-radius: 20px;
-    background: var(--surface-raised);
     font-family: inherit;
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--text-primary);
+    background: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
     cursor: pointer;
-    transition:
-      background-color $transition-300,
-      border-color $transition-300,
-      color $transition-300;
 
     &:hover {
       border-color: var(--accent);
-      color: var(--accent);
     }
 
     &--active {
+      background: var(--accent);
       border-color: var(--accent);
-      background: var(--accent-soft);
-      color: var(--accent-emphasis);
+      color: var(--text-on-accent);
       font-weight: 600;
     }
+  }
+
+  &__chip-count {
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+  }
+
+  &__chip--active &__chip-count {
+    background: var(--surface-panel);
+    color: var(--text-primary);
   }
 
   &__list {
@@ -133,5 +157,46 @@
     margin: 0;
     padding: 0;
     list-style: none;
+  }
+
+  // ─── Пагинация ─────────────────────────────────────────────────────────────
+  &__pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px;
+  }
+
+  &__pager-btn {
+    padding: 6px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--surface-field);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition:
+      background-color $transition-300,
+      border-color $transition-300;
+
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__pager-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
   }
 }

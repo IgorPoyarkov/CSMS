@@ -22,9 +22,22 @@ import {
   exportPurchaseNoteToPdf,
 } from "../../services/PurchaseNote/purchaseNoteExport";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
+import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import styles from "./PurchaseNotesRegistryPage.module.scss";
 
 type FilterStatus = "all" | PurchaseNoteStatus;
+
+// Масштаб страницы реестра: тот же набор, что в реестрах контрактов и НПА
+const PAGE_SIZES = [10, 25, 50, "all"] as const;
+
+// Год служебной записки для фильтра: «all» — без ограничения
+const ALL_YEARS = "all";
+
+const noteYear = (year?: string) => {
+  if (!year) return "";
+  const match = /^(\d{4})/.exec(year.trim());
+  return match ? match[1] : "";
+};
 
 const formatMoney = (raw?: string) => {
   if (!raw) return "—";
@@ -75,6 +88,9 @@ export default function PurchaseNotesRegistryPage() {
 
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [yearFilter, setYearFilter] = useState<string>(ALL_YEARS);
+  const [pageSize, setPageSize] = useState<PageSizeValue>(10);
+  const [page, setPage] = useState(1);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -83,22 +99,9 @@ export default function PurchaseNotesRegistryPage() {
     [plans],
   );
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<PurchaseNoteStatus, number> = {
-      draft: 0,
-      in_review: 0,
-      approved: 0,
-      rejected: 0,
-      cancelled: 0,
-    };
-    for (const note of notes) {
-      const s = (note.status ?? "draft") as PurchaseNoteStatus;
-      if (s in counts) counts[s] += 1;
-    }
-    return counts;
-  }, [notes]);
-
-  const filteredNotes = useMemo(() => {
+  // Набор после «мягких» условий (год и поиск): от него считаются счётчики в
+  // чипах, чтобы числа совпадали с тем, что реально попадёт в список.
+  const scopedNotes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return [...notes]
       .sort((a, b) =>
@@ -107,7 +110,10 @@ export default function PurchaseNotesRegistryPage() {
         ),
       )
       .filter((note) => {
-        if (statusFilter !== "all" && (note.status ?? "draft") !== statusFilter) {
+        if (
+          yearFilter !== ALL_YEARS &&
+          noteYear(note.noteDate || note.createdAt) !== yearFilter
+        ) {
           return false;
         }
         if (!q) return true;
@@ -125,7 +131,65 @@ export default function PurchaseNotesRegistryPage() {
           .toLowerCase();
         return haystack.includes(q);
       });
-  }, [notes, statusFilter, searchQuery]);
+  }, [notes, searchQuery, yearFilter]);
+
+  // Счётчики статусов — по набору выше: при выбранном годе или поисковом
+  // запросе чипы показывают реальные числа, а не общий итог по всем СЗ.
+  const statusCounts = useMemo(() => {
+    const counts: Record<PurchaseNoteStatus, number> = {
+      draft: 0,
+      in_review: 0,
+      approved: 0,
+      rejected: 0,
+      cancelled: 0,
+    };
+    for (const note of scopedNotes) {
+      const s = (note.status ?? "draft") as PurchaseNoteStatus;
+      if (s in counts) counts[s] += 1;
+    }
+    return counts;
+  }, [scopedNotes]);
+
+  // Годы служебных записок для фильтра: по дате СЗ, а если её нет — по дате
+  // создания. Новые годы сверху, чтобы свежий период был первым.
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    for (const note of notes) {
+      const year = noteYear(note.noteDate || note.createdAt);
+      if (year) years.add(year);
+    }
+    return [...years].sort((a, b) => b.localeCompare(a));
+  }, [notes]);
+
+  // Статус — последнее условие: счётчики в чипах считаются до него.
+  const filteredNotes = useMemo(
+    () =>
+      statusFilter === "all"
+        ? scopedNotes
+        : scopedNotes.filter(
+            (note) => (note.status ?? "draft") === statusFilter,
+          ),
+    [scopedNotes, statusFilter],
+  );
+
+  // ─── Пагинация ────────────────────────────────────────────────────────────
+  // Тот же расчёт, что в реестрах контрактов и НПА: масштаб страницы задаётся
+  // PageSizePicker, «Все» выключает разбиение.
+  const totalPages =
+    pageSize === "all"
+      ? 1
+      : Math.max(1, Math.ceil(filteredNotes.length / Number(pageSize)));
+  const safePage = Math.min(page, totalPages);
+  const start = pageSize === "all" ? 0 : (safePage - 1) * Number(pageSize);
+  const pagedNotes =
+    pageSize === "all"
+      ? filteredNotes
+      : filteredNotes.slice(start, start + Number(pageSize));
+
+  // Смена фильтров, поиска и масштаба возвращает к первой странице: иначе
+  // после сужения выборки можно остаться на странице, которой уже нет.
+  // Сброс делается в обработчиках событий, а не в useEffect: эффект со
+  // setState — лишний каскадный рендер (react(set-state-in-effect)).
 
   const resolvePlanAndPosition = (note: PurchaseNote) => {
     const plan =
@@ -139,10 +203,7 @@ export default function PurchaseNotesRegistryPage() {
     return { plan, position };
   };
 
-  const handleExport = async (
-    note: PurchaseNote,
-    format: "docx" | "pdf",
-  ) => {
+  const handleExport = async (note: PurchaseNote, format: "docx" | "pdf") => {
     const key = `${String(note.id ?? note.noteNumber)}:${format}`;
     setExportingKey(key);
     setExportError(null);
@@ -230,8 +291,8 @@ export default function PurchaseNotesRegistryPage() {
           </h1>
           <p className={block("subtitle")}>
             {organization?.shortName || organization?.fullName} · всего СЗ:{" "}
-            {notes.length}. Для каждой СЗ показан статус согласования и
-            доступна выгрузка в .docx / .pdf для подписания вне системы.
+            {notes.length}. Для каждой СЗ показан статус согласования и доступна
+            выгрузка в .docx / .pdf для подписания вне системы.
           </p>
         </div>
 
@@ -245,34 +306,79 @@ export default function PurchaseNotesRegistryPage() {
       </header>
 
       <div className={block("filters")}>
-        <div className={block("chips")} role="group" aria-label="Фильтр по статусу">
+        <div
+          className={block("chips")}
+          role="group"
+          aria-label="Фильтр по статусу"
+        >
           <button
             type="button"
             className={block("chip", statusFilter === "all" ? ["active"] : [])}
-            onClick={() => setStatusFilter("all")}
+            onClick={() => {
+              setStatusFilter("all");
+              setPage(1);
+            }}
           >
-            Все ({notes.length})
+            Все
+            <span className={block("chip-count")}>{scopedNotes.length}</span>
           </button>
           {PURCHASE_NOTE_STATUSES.map((st) => (
-              <button
-                key={st}
-                type="button"
-                className={block("chip", statusFilter === st ? ["active"] : [])}
-                onClick={() => setStatusFilter(st)}
-              >
-                <PurchaseNoteStatusBadge status={st} compact />
-                <span>{statusCounts[st]}</span>
-              </button>
+            <button
+              key={st}
+              type="button"
+              className={block("chip", statusFilter === st ? ["active"] : [])}
+              onClick={() => {
+                setStatusFilter(st);
+                setPage(1);
+              }}
+            >
+              {PURCHASE_NOTE_STATUS_META[st].label}
+              <span className={block("chip-count")}>{statusCounts[st]}</span>
+            </button>
           ))}
         </div>
 
-        <input
-          type="search"
-          className={block("search")}
-          placeholder="Поиск по № СЗ, предмету закупки, ИКЗ, КБК, ПГ или инициатору…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className={block("filter-row")}>
+          <input
+            type="search"
+            className={block("search")}
+            placeholder="Поиск по № СЗ, предмету закупки, ИКЗ, КБК, ПГ или инициатору…"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          <label className={block("year")}>
+            <span className={block("year-caption")}>Год СЗ:</span>
+            <select
+              className={block("select")}
+              value={yearFilter}
+              onChange={(e) => {
+                setYearFilter(e.target.value);
+                setPage(1);
+              }}
+              disabled={yearOptions.length === 0}
+            >
+              <option value={ALL_YEARS}>Все годы</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <PageSizePicker
+            sizes={PAGE_SIZES}
+            value={pageSize}
+            onChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
+        </div>
       </div>
 
       {exportError && (
@@ -298,7 +404,7 @@ export default function PurchaseNotesRegistryPage() {
         </div>
       ) : (
         <ul className={block("list")}>
-          {filteredNotes.map((note) => {
+          {pagedNotes.map((note) => {
             const noteKey = String(note.id ?? note.noteNumber);
             const { plan, position } = resolvePlanAndPosition(note);
             const canOpenForm =
@@ -313,10 +419,7 @@ export default function PurchaseNotesRegistryPage() {
             const statusMeta = getPurchaseNoteStatusMeta(note.status);
 
             return (
-              <li
-                key={noteKey}
-                className={block("card", [statusMeta.tone])}
-              >
+              <li key={noteKey} className={block("card", [statusMeta.tone])}>
                 <div className={block("card-head")}>
                   <div className={block("card-title-row")}>
                     <PurchaseNoteStatusBadge status={note.status} />
@@ -342,7 +445,9 @@ export default function PurchaseNotesRegistryPage() {
                 </div>
 
                 <p className={block("subject")}>
-                  {note.subject || position?.objectOfPurchase || "Предмет не указан"}
+                  {note.subject ||
+                    position?.objectOfPurchase ||
+                    "Предмет не указан"}
                 </p>
 
                 <dl className={block("meta")}>
@@ -362,7 +467,9 @@ export default function PurchaseNotesRegistryPage() {
                   <div>
                     <dt>ИКЗ</dt>
                     <dd className={block("mono")}>
-                      {note.ikz || position?.identificationCode || "не сформирован"}
+                      {note.ikz ||
+                        position?.identificationCode ||
+                        "не сформирован"}
                     </dd>
                   </div>
                   <div>
@@ -464,6 +571,34 @@ export default function PurchaseNotesRegistryPage() {
             );
           })}
         </ul>
+      )}
+
+      {totalPages > 1 && (
+        <div className={block("pager")}>
+          <button
+            type="button"
+            className={block("pager-btn")}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={safePage === 1}
+          >
+            Назад
+          </button>
+          <span className={block("pager-info")}>
+            {start + 1}–
+            {Math.min(start + pagedNotes.length, filteredNotes.length)} из{" "}
+            {filteredNotes.length} · страница {safePage} из {totalPages}
+          </span>
+          <button
+            type="button"
+            className={block("pager-btn")}
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            disabled={safePage === totalPages}
+          >
+            Вперёд
+          </button>
+        </div>
       )}
     </section>
   );
