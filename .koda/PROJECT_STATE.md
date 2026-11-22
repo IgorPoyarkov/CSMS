@@ -5398,7 +5398,12 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `src/services/Contractor/contractor.api.ts` (`ContractSmpRecordInput`
   объявлен и не используется) — параллельный агент правил файл прямо во
   время прогона; через минуту проверка снова зелёная. Чужое не чинить,
-  перепроверять.
+  перепроверять. К моменту коммита `src/services/Contractor/` (untracked)
+  снова в работе: `contractor.schema.ts(417,1)` — `TS1128: Declaration or
+  statement expected`, полная проверка `tsc -b` из-за этого падает. Свои
+  четыре файла проверены точечно:
+  `npx tsc --ignoreConfig --noEmit … src/components/ContractRegistry/*.tsx` —
+  exit 0; `oxlint` по трём новым компонентам — 0 warnings.
 - **Не сделано / нужен отдельный заход.** Перенос данных СМП в `csms-api`:
   бэкенд лежит в соседнем репозитории `../csms-api` (Clean Architecture,
   EF Core, миграции), доменной модели СМП там нет — только `Smp` в
