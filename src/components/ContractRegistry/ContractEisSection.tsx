@@ -37,7 +37,14 @@ export default function ContractEisSection({
 
   const updateContract = useUpdateContract();
 
-  const storedNumber = contract.eisRegistryNumber ?? "";
+  // Реестровый номер может прийти из выгрузки ЕИС как номер контракта: у
+  // импортированных карточек `eisRegistryNumber` пуст, а 19-значный
+  // `contractNumber` — это и есть реестровый номер. Без такой подстановки
+  // блок писал «не указан» рядом с контрактом, у которого номер есть
+  const importNumber = contract.contractNumber ?? "";
+  const storedNumber =
+    contract.eisRegistryNumber ||
+    (isEisContractNumber(importNumber) ? importNumber : "");
   const storedIkz = contract.ikz ?? "";
   const ikzBroken = storedIkz !== "" && !isIkz(storedIkz);
 

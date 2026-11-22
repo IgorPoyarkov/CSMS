@@ -284,7 +284,10 @@ export const computeSmpVolume = (
   actualOverride?: number,
 ): SmpVolumeResult => {
   const required = smpRequiredAmount(contractPrice, requiredPercent) ?? 0;
-  const actual = actualOverride ?? smpActualAmount(records);
+  // Ручной учёт приоритетнее: субдоговоры из ЕИС — резервный источник, пока
+  // заказчик не завёл записи сам
+  const manual = smpActualAmount(records);
+  const actual = manual > 0 ? manual : (actualOverride ?? 0);
   const shortfall = Math.max(0, required - actual);
   const progress = smpVolumeProgress(actual, required);
 

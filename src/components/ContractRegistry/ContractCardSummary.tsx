@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,6 +9,12 @@ import {
   prefetchContract,
   useContractPaymentsSummary,
 } from "../../services/ContractRegistry/contractRegistry.api";
+import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
+import {
+  contractCardSmpRequirement,
+  contractCardSmpRows,
+  contractCardSmpTotal,
+} from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useContractSmpVolume } from "../../services/ContractSmp/contractSmp.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useAcceptanceSummary } from "../ContractAcceptance/acceptanceSummary";
@@ -55,10 +62,31 @@ export default function ContractCardSummary({
     organizationId || undefined,
     contractId === undefined ? undefined : String(contractId),
   );
+
+  // Требование о привлечении СМП может быть только в ЕИС: у контрактов из
+  // реестра своего процента нет, и без этой ветки сводка показывала
+  // «требуется 0,00 ₽», хотя в карточке ЕИС условие заполнено
+  const { data: projection } = useContractCardProjection(contractId);
+  const eisRequirement = useMemo(
+    () => contractCardSmpRequirement(projection?.Smp ?? []),
+    [projection],
+  );
+  const eisActual = useMemo(
+    () => contractCardSmpTotal(contractCardSmpRows(projection?.Smp ?? [])),
+    [projection],
+  );
+
+  const ownPercent =
+    Number(contract.smpRequiredPercent ?? 0) > 0
+      ? contract.smpRequiredPercent
+      : undefined;
+  const smpPercentSource = ownPercent ?? eisRequirement.percent ?? undefined;
+
   const { data: smpVolume } = useContractSmpVolume(
     contractId,
     contract.contractPrice,
-    contract.smpRequiredPercent,
+    smpPercentSource,
+    eisActual > 0 ? eisActual : undefined,
   );
 
   const paymentCount = paymentsSummary?.count ?? 0;
@@ -132,9 +160,7 @@ export default function ContractCardSummary({
           </strong>
           <span className={styles.summaryHint}>
             требуется {formatMoney(smp.required)} ₽
-            {contract.smpRequiredPercent
-              ? ` (${contract.smpRequiredPercent}%)`
-              : ""}
+            {smpPercentSource ? ` (${smpPercentSource}%)` : ""}
             {smp.shortfall > 0 ? ` · дефицит ${formatMoney(smp.shortfall)} ₽` : ""}
           </span>
           <div className={styles.summaryTrack}>

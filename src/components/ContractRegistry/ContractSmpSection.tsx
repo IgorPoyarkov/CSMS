@@ -123,7 +123,8 @@ export default function SmpSection({
 
   // Объём: требуемый, факт, прогресс. Факт берём из ручных записей, а если их
   // нет — из субдоговоров карточки ЕИС, чтобы прогресс не показывал ноль
-  const eisActual = records.length === 0 && eisTotal > 0 ? eisTotal : undefined;
+  const eisActual = eisTotal > 0 ? eisTotal : undefined;
+  const usesEisActual = records.length === 0 && eisTotal > 0;
   const volume = useMemo(
     () => computeSmpVolume(records, contractPrice, effectivePercent, eisActual),
     [records, contractPrice, effectivePercent, eisActual],
@@ -425,7 +426,7 @@ export default function SmpSection({
         </div>
         <div className={block("volume-header")}>
           <span>
-            {eisActual
+            {usesEisActual
               ? "Факт (субдоговоры из карточки ЕИС):"
               : "Факт (принятые договоры с СМП):"}
           </span>

@@ -48,15 +48,22 @@ export const useContractSmpRecords = (
  * на изменение записей или условий контракта — таблице секции нужен полный
  * список, а прогресс-бару в реестре — только три числа.
  */
+/**
+ * Объём СМП по контракту: требуемый (из процента контракта или ЕИС) и факт.
+ * `eisActual` — сумма субдоговоров из карточки ЕИС: используется, пока ручных
+ * записей нет, иначе сводка показывает «требуется 0,00 ₽» при заполненном
+ * условии привлечения в ЕИС.
+ */
 export const useContractSmpVolume = (
   contractId: string | number | undefined,
   contractPrice: string | number | undefined,
   smpRequiredPercent: string | number | undefined,
+  eisActual?: number,
 ) => {
   const select = useCallback(
     (records: ContractSmpRecord[]) =>
-      computeSmpVolume(records, contractPrice, smpRequiredPercent),
-    [contractPrice, smpRequiredPercent],
+      computeSmpVolume(records, contractPrice, smpRequiredPercent, eisActual),
+    [contractPrice, smpRequiredPercent, eisActual],
   );
 
   return useQuery({
