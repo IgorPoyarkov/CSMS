@@ -10,10 +10,7 @@ import {
 } from "../../services/LiabilityMapping/liabilityMapping.api";
 import type { LiabilityMappingOverviewItem } from "../../services/LiabilityMapping/liabilityMapping.schema";
 import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
-import {
-  searchKtru,
-  useKtruDictionary,
-} from "../../services/KtruRef/ktruRef.api";
+import { useKtruSearch } from "../../services/KtruRef/ktruRef.api";
 import styles from "./LiabilityMappingPage.module.scss";
 
 const degreeLabels: Record<string, string> = {
@@ -49,7 +46,9 @@ const LiabilityMappingPage = () => {
   const [search, setSearch] = useState("");
   const [section, setSection] = useState("");
   const [ktruSearch, setKtruSearch] = useState("");
-  const ktruQuery = useKtruDictionary();
+  // Поиск по каталогу КТРУ идёт на сервере: полный снимок (до 5 000 позиций)
+  // в браузер не загружается, показываются первые совпадения
+  const ktruQuery = useKtruSearch(ktruSearch, 20);
   const resultQuery = useLiabilityResult(activeDutyId);
   const mapMutation = useMapLiabilityDuty();
 
@@ -79,10 +78,7 @@ const LiabilityMappingPage = () => {
     [items],
   );
 
-  const ktruItems = useMemo(
-    () => searchKtru(ktruQuery.data ?? EMPTY_KTRU, ktruSearch, undefined, 20),
-    [ktruQuery.data, ktruSearch],
-  );
+  const ktruItems = ktruQuery.data ?? EMPTY_KTRU;
 
   const active = items.find((item) => item.dutyId === activeDutyId) ?? null;
   const result = resultQuery.data;
@@ -352,7 +348,7 @@ const LiabilityMappingPage = () => {
               КТРУ для описания объекта закупки
             </h2>
             <p className={page("ktru-subtitle")}>
-              Снимок НСИ из ЕИС ({ktruQuery.data?.length ?? 0} позиций).
+              Поиск по каталогу КТРУ из снимка НСИ ЕИС выполняется на сервере.
               Код, ОКПД2, наименование и единица измерения подставляются
               в формы закупки из каталога.
             </p>

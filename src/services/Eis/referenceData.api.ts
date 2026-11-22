@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import axios from "axios";
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -75,6 +76,8 @@ export interface ReferenceItemQuery {
   search?: string;
   parentCode?: string;
   take?: number;
+  /** Смещение для серверной пагинации (по умолчанию 0). */
+  skip?: number;
 }
 
 /**
@@ -124,7 +127,14 @@ export const useReferenceItems = (
   enabled = true,
 ) =>
   useQuery({
-    queryKey: ["referenceItems", dataset, query.search ?? "", query.parentCode ?? "", query.take ?? 0],
+    queryKey: [
+      "referenceItems",
+      dataset,
+      query.search ?? "",
+      query.parentCode ?? "",
+      query.take ?? 0,
+      query.skip ?? 0,
+    ],
     enabled: enabled && Boolean(query.search || query.parentCode),
     staleTime: 10 * 60_000,
     retry: false,
@@ -137,12 +147,68 @@ export const useReferenceItems = (
           search: query.search || undefined,
           parentCode: query.parentCode || undefined,
           take: query.take,
+          skip: query.skip,
         },
       });
 
       return readReferenceItems(data);
     },
   });
+
+/**
+ * Постраничное чтение снимка НСИ: те же `search`/`parentCode`, что у
+ * `useReferenceItems`, но с догрузкой следующей страницы по `skip`.
+ *
+ * Нужен справочникам ОКПД2 (21 066 записей) и КТРУ (до 5 000), чтобы не
+ * тянуть весь каталог в браузер: выдача приходит порциями по `take`.
+ * Признак последней страницы — короткая порция (сервер отдаёт не больше
+ * `take` записей); при этом смещение считается по фактически полученным
+ * строкам, а не по номеру страницы.
+ */
+export const useInfiniteReferenceItems = (
+  dataset: string,
+  query: Omit<ReferenceItemQuery, "skip">,
+  enabled = true,
+) => {
+  const pageSize = query.take ?? 50;
+
+  return useInfiniteQuery({
+    queryKey: [
+      "referenceItems",
+      dataset,
+      "infinite",
+      query.search ?? "",
+      query.parentCode ?? "",
+      pageSize,
+    ],
+    enabled: enabled && Boolean(query.search || query.parentCode),
+    staleTime: 10 * 60_000,
+    retry: false,
+    initialPageParam: 0,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ pageParam, signal }): Promise<ReferenceItemInfo[]> => {
+      const { data } = await referenceApi.get(
+        `/api/references/${dataset}/items`,
+        {
+          params: {
+            search: query.search || undefined,
+            parentCode: query.parentCode || undefined,
+            take: pageSize,
+            skip: pageParam,
+          },
+          signal,
+        },
+      );
+
+      return readReferenceItems(data);
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < pageSize) return undefined;
+
+      return allPages.reduce((sum, page) => sum + page.length, 0);
+    },
+  });
+};
 
 export const useReferenceDatasetEvents = (enabled: boolean) => {
   const queryClient = useQueryClient();

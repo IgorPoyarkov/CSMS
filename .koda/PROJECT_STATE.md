@@ -5694,3 +5694,36 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   СМП в ЕИС-выгрузке отсутствуют — только ручной ввод или выгрузка из реестра
   договоров.
 
+## 146. НСИ: серверный поиск и пагинация КТРУ/ОКПД2 (2026-11-22)
+
+- **Проблема.** `useKtruDictionary` обходил `/api/references/nsiKTRU/items`
+  страницами по 500 до 5 000 записей (до 10 запросов), хотя выпадающему
+  списку нужны позиции одного ОКПД2. `useOkpd2Dictionary` тянет весь снимок
+  nsiOKPD2 (21 066 записей) и размечает нормирование по правилам НПА.
+- **API уже поддерживает пагинацию:** `/api/references/{dataset}/items`
+  принимает `search`, `parentCode`, `take`, `skip`. Фронт использовал только
+  `take`, а для КТРУ вручную перебирал страницы.
+- **Сделано:**
+  - `useInfiniteReferenceItems` в `referenceData.api.ts` — `useInfiniteQuery`
+    с `skip` по фактически полученным строкам; короткая порция считается
+    последней. `ReferenceItemQuery` получил `skip`.
+  - `ktruRef.api.ts`: экспортирован маппер `ktruFromReferenceItem`,
+    добавлены `useKtruByOkpd2(okpd2Code)` (серверный `parentCode`, `take: 200`)
+    и `useKtruSearch(query, limit)` (серверный поиск для витрин).
+    `useKtruDictionary` получил флаг `enabled` и остался запасным источником.
+  - `KtruSelect` больше не грузит полный каталог: выборка по ОКПД2 идёт на
+    сервере, при ошибке API включается локальный справочник.
+  - `Okpd2Select`: дебаунс 250 мс (`hooks/useDebouncedValue.ts`), серверный
+    поиск порциями по `OKPD2_LIMIT` и кнопка «Показать ещё»; серверная выдача
+    показывается, не дожидаясь загрузки локального справочника.
+  - `LiabilityMappingPage`: поиск КТРУ через `useKtruSearch`, полный снимок
+    на страницу больше не загружается.
+- **Ограничение.** Полную серверную пагинацию `useOkpd2Dictionary` нельзя
+  включить, пока нормативные проверки (`collectNormingViolations`,
+  `validatePlacingWayAgainstAuctionList`, `checkOkpd2AuctionList`,
+  `findOkpd2ByCode`) синхронно работают по всему массиву, а сам хук публикует
+  глобальный индекс правил НПА (`setNpaDirectRules`). Для этого нужен
+  серверный эндпоинт проверки/флага `isNormed` — задача P2.
+- Проверки: `npx tsc -b` — 0; `oxlint` по затронутым файлам — 0/0;
+  `npx vite build` — ok.
+

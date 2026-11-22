@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import useDebouncedValue from "../../../hooks/useDebouncedValue";
 import useUtils from "../../../hooks/useUtils";
 import { checkOkpd2AuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import {
@@ -7,7 +8,7 @@ import {
   useOkpd2Dictionary,
 } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../../services/Okpd2Ref/okpd2Ref.schema";
-import { useReferenceItems } from "../../../services/Eis/referenceData.api";
+import { useInfiniteReferenceItems } from "../../../services/Eis/referenceData.api";
 import styles from "./Okpd2Select.module.scss";
 
 interface Okpd2SelectProps {
@@ -87,9 +88,7 @@ export default function Okpd2Select({
   const selectedLabel = code ? `${code}${name ? ` — ${name}` : ""}` : "";
   const items = useMemo(
     () =>
-      searchOkpd2(availableDictionary, query)
-        .slice()
-        .sort(compareOkpd2ByCode),
+      searchOkpd2(availableDictionary, query).slice().sort(compareOkpd2ByCode),
     [availableDictionary, query],
   );
 
@@ -97,14 +96,26 @@ export default function Okpd2Select({
   const typedAllowed = !allowedSet || allowedSet.has(typed);
 
   // Официальный снимок ОКПД2 на бэке (Tasks 16, `/api/references/nsiOKPD2`):
-  // дополняет локальный справочник, когда в нём нет нужного кода. Без сервиса
-  // выдача пустая и форма работает по `db.json` как раньше.
-  const { data: referenceItems = [], isFetching: isReferenceLoading } =
-    useReferenceItems(
-      "nsiOKPD2",
-      { search: typed, take: OKPD2_LIMIT },
-      isOpen && !allowedSet && typed.length >= 2 && items.length === 0,
-    );
+  // поиск идёт на сервере по `search` и отдаёт порции по `take`, а не весь
+  // каталог на 21 066 записей. Задержка в 250 мс убирает запрос на каждый
+  // символ; «Показать ещё» догружает следующую порцию.
+  const debouncedTyped = useDebouncedValue(typed, 250);
+  const {
+    data: referencePages,
+    isFetching: isReferenceLoading,
+    hasNextPage: hasMoreReference,
+    fetchNextPage: fetchMoreReference,
+    isFetchingNextPage: isReferencePageLoading,
+  } = useInfiniteReferenceItems(
+    "nsiOKPD2",
+    { search: debouncedTyped, take: OKPD2_LIMIT },
+    isOpen && !allowedSet && debouncedTyped.length >= 2,
+  );
+
+  const referenceItems = useMemo(
+    () => (referencePages?.pages ?? []).flat(),
+    [referencePages],
+  );
 
   // Выдача = локальные позиции + коды из снимка ЕИС (без дублей)
   const options = useMemo<Okpd2Ref[]>(() => {
@@ -325,8 +336,9 @@ export default function Okpd2Select({
             </li>
           )}
 
-          {!isLoading &&
-            options.map((item, index) => {
+          {/* Серверная выдача показывается сразу, не дожидаясь полной
+              загрузки локального справочника на 21 066 записей */}
+          {options.map((item, index) => {
               const auctionRes = checkOkpd2AuctionList(item.code, dictionary);
               return (
                 <li
@@ -397,6 +409,31 @@ export default function Okpd2Select({
                 Использовать «{query.trim()}» как код ОКПД2 (в справочнике нет
                 такой позиции)
               </span>
+            </li>
+          )}
+
+          {hasMoreReference && (
+            <li className={block("item")}>
+              <button
+                type="button"
+                className={block("name")}
+                style={{
+                  background: "none",
+                  border: 0,
+                  padding: 0,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  color: "inherit",
+                }}
+                disabled={isReferencePageLoading}
+                // Список не должен закрыться от клика «вне компонента»
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void fetchMoreReference()}
+              >
+                {isReferencePageLoading
+                  ? "Загрузка следующей порции…"
+                  : "Показать ещё из справочника ЕИС"}
+              </button>
             </li>
           )}
         </ul>

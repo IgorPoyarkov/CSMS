@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   findKtruByOkpd2,
+  useKtruByOkpd2,
   useKtruDictionary,
 } from "../../../services/KtruRef/ktruRef.api";
 import type { KtruRef } from "../../../services/KtruRef/ktruRef.schema";
@@ -34,11 +35,18 @@ export default function KtruSelect({
   placeholder = "— Без КТРУ —",
   className,
 }: KtruSelectProps) {
-  const { data: dictionary = [] } = useKtruDictionary();
+  // Серверная выборка по коду ОКПД2: выпадающему списку в таблице позиций
+  // не нужен весь каталог КТРУ (до 5 000 записей, 10 страниц по 500)
+  const server = useKtruByOkpd2(okpd2Code);
+  // API снимка НСИ недоступен — остаётся локальный справочник db.json
+  const local = useKtruDictionary(server.isError);
 
   const items = useMemo(
-    () => findKtruByOkpd2(dictionary, okpd2Code),
-    [dictionary, okpd2Code],
+    () =>
+      server.isError
+        ? findKtruByOkpd2(local.data ?? [], okpd2Code)
+        : (server.data ?? []),
+    [server.isError, server.data, local.data, okpd2Code],
   );
 
   if (!okpd2Code) {
@@ -56,6 +64,8 @@ export default function KtruSelect({
   }
 
   if (items.length === 0) {
+    const loading = server.isLoading || (server.isError && local.isLoading);
+
     return (
       <span
         style={{
@@ -64,7 +74,9 @@ export default function KtruSelect({
           color: "var(--text-secondary)",
         }}
       >
-        Для кода ОКПД2 позиций КТРУ нет
+        {loading
+          ? "Загрузка позиций КТРУ…"
+          : "Для кода ОКПД2 позиций КТРУ нет"}
       </span>
     );
   }

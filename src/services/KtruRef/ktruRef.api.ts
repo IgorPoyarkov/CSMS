@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import {
   readReferenceItems,
@@ -13,7 +13,14 @@ import { KtruRefListSchema, type KtruRef } from "./ktruRef.schema";
  * требования — их можно уточнить в карточке закупки, но код и наименование
  * из КТРУ подставляются автоматически.
  */
-const fromReferenceItem = (item: ReferenceItemInfo): KtruRef | null => {
+/**
+ * Позиция снимка НСИ → форма справочника КТРУ. Экспортируется, чтобы
+ * серверные выборки (`useKtruByOkpd2`, `useKtruSearch`) отдавали тот же
+ * тип, что и полный каталог из `useKtruDictionary`.
+ */
+export const ktruFromReferenceItem = (
+  item: ReferenceItemInfo,
+): KtruRef | null => {
   let payload: Record<string, unknown> = {};
   try {
     payload = item.payloadJson ? JSON.parse(item.payloadJson) : {};
@@ -64,9 +71,10 @@ const fromReferenceItem = (item: ReferenceItemInfo): KtruRef | null => {
  * локальный db.json остаётся оверлеем для позиций, которых нет в снимке.
  * Если API недоступен, формы продолжают работать на локальных данных.
  */
-export const useKtruDictionary = () =>
+export const useKtruDictionary = (enabled = true) =>
   useQuery<KtruRef[]>({
     queryKey: ["ktruRefs"],
+    enabled,
     queryFn: async () => {
       const merged = new Map<string, KtruRef>();
 
@@ -82,7 +90,7 @@ export const useKtruDictionary = () =>
           );
           const page = readReferenceItems(data);
           for (const reference of page) {
-            const item = fromReferenceItem(reference);
+            const item = ktruFromReferenceItem(reference);
             if (item) merged.set(item.ktruCode, item);
           }
           if (page.length < pageSize) break;
@@ -105,6 +113,59 @@ export const useKtruDictionary = () =>
     staleTime: 60 * 60 * 1000,
     retry: false,
   });
+
+/**
+ * Позиции КТРУ одного кода ОКПД2 — серверная выборка по `parentCode`.
+ *
+ * Выпадающему списку в таблице позиций не нужен весь каталог (до 5 000
+ * записей, 10 страниц по 500): у одного ОКПД2 обычно десятки позиций.
+ * `take: 200` покрывает такие группы с запасом.
+ */
+export const useKtruByOkpd2 = (okpd2Code: string | undefined) =>
+  useQuery<KtruRef[]>({
+    queryKey: ["ktruByOkpd2", okpd2Code ?? ""],
+    enabled: Boolean(okpd2Code),
+    staleTime: 60 * 60 * 1000,
+    retry: 0,
+    // Переключение между кодами ОКПД2 не должно обнулять список на мгновение
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
+      const { data } = await referenceApi.get("/api/references/nsiKTRU/items", {
+        params: { parentCode: okpd2Code, take: 200 },
+        signal,
+      });
+
+      return readReferenceItems(data)
+        .map(ktruFromReferenceItem)
+        .filter((item): item is KtruRef => item !== null);
+    },
+  });
+
+/**
+ * Серверный поиск КТРУ по коду или наименованию — для витрин и подсказок,
+ * которым не нужен полный каталог. Пустой запрос возвращает начало каталога
+ * (как раньше вёл себя клиентский `searchKtru`).
+ */
+export const useKtruSearch = (query: string, limit = 20) => {
+  const search = query.trim();
+
+  return useQuery<KtruRef[]>({
+    queryKey: ["ktruSearch", search, limit],
+    staleTime: 10 * 60_000,
+    retry: 0,
+    placeholderData: keepPreviousData,
+    queryFn: async ({ signal }) => {
+      const { data } = await referenceApi.get("/api/references/nsiKTRU/items", {
+        params: { search: search || undefined, take: limit },
+        signal,
+      });
+
+      return readReferenceItems(data)
+        .map(ktruFromReferenceItem)
+        .filter((item): item is KtruRef => item !== null);
+    },
+  });
+};
 
 const normalize = (value: string) =>
   value
