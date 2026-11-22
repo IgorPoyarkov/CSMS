@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img"
+    aria-label="CSMS — контрактная служба заказчика">
+    <!-- Фавикон CSMS: тёмно-зелёная плитка, документ и галочка приёмки.
+       Цвета взяты из палитры проекта (--accent светлой темы #235347). -->
+    <defs>
+        <linearGradient id="csms-bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0b2b26" />
+            <stop offset="1" stop-color="#051f20" />
+        </linearGradient>
+    </defs>
+
+    <rect width="64" height="64" rx="14" fill="url(#csms-bg)" />
+
+    <!-- Лист документа с загнутым уголком -->
+    <path d="M20 13h18l8 8v30a2 2 0 0 1-2 2H20a2 2 0 0 1-2-2V15a2 2 0 0 1 2-2Z" fill="#daf1de" />
+    <path d="M38 13l8 8h-8V13Z" fill="#8eb69b" />
+
+    <!-- Строки текста -->
+    <rect x="24" y="27" width="16" height="3" rx="1.5" fill="#235347" opacity=".55" />
+    <rect x="24" y="33" width="12" height="3" rx="1.5" fill="#235347" opacity=".4" />
+
+    <!-- Галочка приёмки -->
+    <path d="M24 41.5l4 4 9-9" fill="none" stroke="#235347" stroke-width="3.4" stroke-linecap="round"
+        stroke-linejoin="round" />
+</svg>
