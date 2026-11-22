@@ -60,6 +60,8 @@ import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
+import ClauseSuggestionsPanel from "./ClauseSuggestionsPanel";
+import type { ClauseTemplate } from "../../services/ContractProject/clauseTemplates.api";
 import styles from "./ContractProject.module.scss";
 
 interface ContractLocationState {
@@ -456,6 +458,47 @@ export default function ContractProjectForm() {
     );
   };
 
+  /**
+   * Вставка утверждаемой формулировки. Если раздел переопределён вручную,
+   * дописываем в override — иначе предпросмотр всё равно берёт только его.
+   * В обычном случае пишем в целевое поле, откуда текст попадёт и в
+   * contractDocument.ts, и в выгрузку ЕИС.
+   */
+  const insertClause = (template: ClauseTemplate) => {
+    const overrides = methods.getValues("sectionOverrides") ?? [];
+    const override = overrides.find((item) => item.id === template.sectionId);
+    if (override?.text) {
+      if (override.text.includes(template.body)) return;
+      methods.setValue(
+        "sectionOverrides",
+        overrides.map((item) =>
+          item.id === template.sectionId
+            ? { ...item, text: `${item.text}\n${template.body}` }
+            : item,
+        ),
+        { shouldDirty: true, shouldValidate: true },
+      );
+      return;
+    }
+
+    const path = template.targetPath as FieldPath<ContractProject>;
+    const current = String(methods.getValues(path) ?? "");
+    if (current.includes(template.body)) return;
+    methods.setValue(
+      path,
+      current ? `${current}\n${template.body}` : template.body,
+      { shouldDirty: true, shouldValidate: true },
+    );
+  };
+
+  // Предмет закупки для подбора института ГК и утверждённой вставки
+  const clauseSubject = [
+    project.subject.objectName,
+    project.subject.description,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   const applyDefaultAppendices = () => {
     methods.setValue(
       "appendices",
@@ -850,6 +893,12 @@ export default function ContractProjectForm() {
                 переопределения.
               </p>
             )}
+            <ClauseSuggestionsPanel
+              subject={clauseSubject}
+              contractKind={project.kind}
+              sectionId={section.id}
+              onInsert={insertClause}
+            />
           </>
         )}
       </section>

@@ -5727,3 +5727,43 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - Проверки: `npx tsc -b` — 0; `oxlint` по затронутым файлам — 0/0;
   `npx vite build` — ok.
 
+## 145. P2: реестр утверждённых формулировок и вставка в конструктор (2026-11-22)
+
+- **Запрос пользователя:** доделать P2 полностью — `legal.clause_templates`
+  в `csms-api`, API и UI вставки в проект контракта. Формулировки только из
+  текущего конструктора, свободную генерацию LLM не применять; `legalBasis` из
+  P1 остаётся обоснованием для проверяющего, а не текстом пункта.
+- **`csms-api`.** Миграция `20261122210000_AddClauseTemplates` создаёт
+  `legal.clause_templates`; версия вставки уникальна по
+  `(template_key, body_sha256)`, правовая привязка — `norm_reference` +
+  `text_sha256` плюс `act_code`, `source_url`, `snapshot_sha256`. Сид
+  `Seeds/clause-templates.json` — 10 дословных формулировок из
+  `contractProjectPrefill.ts`/`contractDocument.ts` (включая значение по
+  умолчанию `5 %` для `smp-terms`); хеши статей сверены со снимком
+  `443E72D5…`. Разделы: `change`, `rightsCustomer`, `acceptance`,
+  `responsibility`, `smp`. Добавлены `InMemoryClauseTemplateCatalog`,
+  `EfCoreClauseTemplateCatalog` (сид при старте), DI и эндпоинты
+  `GET /api/clause-templates`, `GET /api/clause-templates/suggestions` в
+  `Program.cs`. При расхождении предмета (`goods` + `works`) показываются оба
+  института и `reviewRequired=true`, даже если форма передаёт один
+  `contractKind` — проверяющий выбирает формулировку вручную.
+- **Фронт.** `clauseTemplates.api.ts` (zod-проверка ответа, один запрос на
+  предмет/вид контракта, `staleTime` 10 мин) и
+  `ClauseSuggestionsPanel.tsx` рядом с полями раздела: институт, дословный
+  текст, норма с хешем и ссылкой на источник, кнопка «Вставить», пометка
+  «требуется проверка предмета». Вставка пишется в `sectionOverrides[].text`,
+  если раздел переопределён, иначе в целевое поле (`change.changeConditions`,
+  `term.acceptanceProcedure` и т. д.); текст попадает в `buildContractDocument()`
+  и выгрузку ЕИС. Повторная вставка того же тела не дублируется.
+- **БД/API.** Миграция применена к локальной `csms_eis` (:5433); API
+  перезапускался, в postgres-режиме реестр отдаёт 10 записей, подбор для
+  «Работы по поставке телевизора» — `mixed`, оба института, 4 формулировки.
+- **Проверки.** `dotnet build` — 0 предупреждений / 0 ошибок; `dotnet test`
+  (альтернативный OutputPath из-за запущенного API) — 346 пройдено,
+  10 пропущено, 0 провалов; 9 новых `ClauseTemplateTests` зелёные.
+  `npx tsc -b` — 0, `npx oxlint src` — только штатные предупреждения в чужих
+  файлах, `npx vite build` — ok, `npm run test:scripts` — 24/24.
+- **Не трогали.** Чужие незакоммиченные `Header.tsx`, `Contractor/`, `Лес 3D.jpg`
+  (фронт) и `InMemoryReferenceDataStore.cs` (API). Временные
+  `.tmp-print-articles.mjs`, `.tmp-verify-seed.mjs` удалены.
+

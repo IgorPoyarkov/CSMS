@@ -105,20 +105,61 @@ normKind, quote, sourceUrl, textSha256 }`, отсортированный так
 `validateAgainstSnapshot(result, snapshot)` запрещает результат, если какой-то
 из использованных статей нет в снимке.
 
-## Что сделано в P0–P1 и чего нет
+## Что сделано в P0–P1
 
 - ✅ версионированный снимок с хешами, таксономия, матрица, детерминированный
   классификатор, 12 unit-тестов, прогон по 112 реальным предметам.
-- ⛔ нет обращений к сети и БД, изменений API, frontend и схем `legal.*`.
-  API не перезапускался: идёт параллельный КоАП-прогон.
-- ⛔ нет готового текста пункта контракта: следующий этап — отдельный
-  реестр утверждённых шаблонов (`legal.clause_templates`) с привязкой к
-  `reference + textSha256`. Пока `legalBasis` — это обоснование для проверяющего,
-  а не авто-вставка в проект контракта.
+- ✅ `legalBasis` остаётся **обоснованием для проверяющего**, а не готовым
+  текстом пункта: цитата дословно из снимка, с редакцией через `textSha256`.
+
+## P2: реестр утверждённых формулировок (2026-11-22)
+
+### `csms-api`
+
+- Схема `legal.clause_templates` (миграция `20261122210000_AddClauseTemplates`).
+  Версия вставки уникальна по `(template_key, body_sha256)`; правовая привязка —
+  `norm_reference + text_sha256` плюс `act_code`, `source_url` и
+  `snapshot_sha256` снимка. Старые версии не перезаписываются, активна одна.
+- Сид `src/Csms.Infrastructure/Seeds/clause-templates.json` — 10 дословных
+  формулировок из действующего конструктора (`contractProjectPrefill.ts`,
+  `contractDocument.ts`), включая подстановку значения по умолчанию `5 %` в
+  `smp-terms`. Разделы: `change`, `rightsCustomer`, `acceptance`,
+  `responsibility`, `smp`. Текст не придуман и не сгенерирован LLM.
+- `GET /api/clause-templates` — активный реестр;
+  `GET /api/clause-templates/suggestions?subject=…&contractKind=…&sectionId=…`
+  — классификация предмета, институты и подходящие вставки. При расхождении
+  предмета (`goods` + `works`) показываются оба института, даже если в форме
+  выбран один вид контракта: `reviewRequired=true` запрещает молчаливый выбор.
+- Хранилища `InMemoryClauseTemplateCatalog` (тесты) и
+  `EfCoreClauseTemplateCatalog` (PostgreSQL, сид на старте), DI и регистрация
+  эндпоинтов в `Program.cs`. 9 unit-тестов; полный набор `Csms.Tests`: 346
+  пройдено, 10 пропущено (только PostgreSQL), 0 провалов.
+
+### Фронт
+
+- `src/services/ContractProject/clauseTemplates.api.ts` — клиент с zod-проверкой
+  ответа; один запрос на предмет/вид контракта, разделы фильтруют результат
+  локально (`staleTime` 10 минут).
+- `src/components/ContractProject/ClauseSuggestionsPanel.tsx` — подсказки рядом
+  с полями раздела: институт, дословный текст, норма с хешем статьи и ссылкой на
+  источник, кнопка «Вставить». При расхождении предмета показывается пометка
+  «требуется проверка предмета».
+- Вставка идёт в `sectionOverrides[].text`, если раздел уже переопределён;
+  иначе — в целевое поле (`change.changeConditions` и др.), откуда текст
+  попадает в `buildContractDocument()` и выгрузку ЕИС. Повторная вставка того же
+  тела не дублируется. Чужые незакоммиченные файлы не тронуты.
 
 ## Команды
 
 ```bash
+# P0–P1 (фронт)
 node --test scripts/tests/civil-law.test.mjs
 npm run test:scripts
+
+# P2 (csms-api)
+dotnet build src/Csms.Api/Csms.Api.csproj
+dotnet test tests/Csms.Tests/Csms.Tests.csproj
+
+# P2 (фронт)
+npx tsc -b && npx oxlint src && npx vite build
 ```
