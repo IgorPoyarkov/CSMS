@@ -77,6 +77,33 @@
       "api": "/api/npa/documents/pp-2604/rules"
     }
   ],
+  "legalSnapshots": [
+    {
+      "code": "civilCodeAnd44FzArticles",
+      "version": "consultant-20261122-1742",
+      "capturedAt": "2026-11-22T17:27:56.939Z",
+      "file": "docs/snapshots/civil-code-snapshot.json",
+      "fileSha256": "443E72D5AE017D7375E192A2010C9E11EC682E03792C70894B0604974EE87244",
+      "articleCount": 46,
+      "sources": [
+        "https://www.consultant.ru/document/cons_doc_LAW_5142/",
+        "https://www.consultant.ru/document/cons_doc_LAW_9027/?print=1",
+        "https://www.consultant.ru/document/cons_doc_LAW_144624/?print=1"
+      ],
+      "consumers": ["scripts/lib/civil-law.mjs"],
+      "note": "Статьи ГК РФ и 44-ФЗ для цепочки предмет → институт ГК → обоснование в проект контракта. Формулировки вставок не генерируются, каждая статья хранит URL и SHA-256 текста."
+    },
+    {
+      "code": "contractSubjects2026",
+      "version": "pg-contracts-20261122-112",
+      "file": "docs/snapshots/contract-subjects-2026.json",
+      "fileSha256": "56567240F3E42C4B64C6FDC6D4D193FA61D8BFD3B811822A0B62178F138F8558",
+      "itemCount": 112,
+      "source": "PG /pg-api/contractRegistry, соединение с our-cards-2026 по contractNumber/eisRegistryNumber",
+      "consumers": ["scripts/tests/civil-law.test.mjs"],
+      "note": "Контрольный набор предметов для детерминированного классификатора; в БД не импортируется."
+    }
+  ],
   "schemas": {
     "catalogVersion": "17.0",
     "catalogHash": "D6B47DEB90FBD7EA167846DA0009B40FB706FA830379B628DB92D949BBC24AB3",
