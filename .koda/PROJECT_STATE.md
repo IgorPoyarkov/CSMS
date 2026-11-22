@@ -5616,3 +5616,39 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   полный объём, формулировки брать из текущего конструктора; реестр
   `legal.clause_templates`, API и UI ещё предстоит сделать.
 
+## 144. React Query: точечные инвалидации, prefetch и селекторы (2026-11-22)
+
+- **Инвалидации сужены.** В `contractRegistry.api.ts` введены ключи
+  `contractKey/stagesKey/paymentsKey/penaltiesKey/deliveriesKey/eventsKey`
+  и `allStagesKey/allPaymentsKey/allPenaltiesKey`, плюс хелпер
+  `invalidateScoped(qc, scope, contractId, allKey)`. Раньше любое сохранение
+  сбрасывало `["contractRegistry"]` целиком (контракты + этапы + платежи +
+  неустойки + поставки + события); теперь обновляется ветка одного контракта
+  и сводный список типа. При отсутствии `contractId` (удаление по id) —
+  только ветка типа.
+- **Prefetch карточки.** `prefetchContract(queryClient, id)` пишет в тот же
+  ключ, что `useContractById` (`staleTime` 60 с). Вызывается по
+  `onMouseEnter` строки реестра (`ContractRow`) и по hover/focus ссылки
+  «Открыть карточку контракта» (`ContractCardSummary`).
+- **Селекторы тяжёлых проекций:**
+  `useContractPaymentsSummary` (количество + сумма `totalPaid`),
+  `useAcceptanceSummary` в `components/ContractAcceptance/acceptanceSummary.ts`
+  (принято/в работе/ошибки + сортированные строки; `useAcceptances` получил
+  опциональный `select`), `useContractSmpVolume` (объём СМП через
+  `computeSmpVolume`). Кэш общий с секциями карточки, агрегаты не считаются
+  на каждом рендере.
+- **`keepPreviousData`** добавлен только к `useReferenceItems` — серверному
+  поиску НСИ, где ключ меняется на каждый ввод. В реестрах он не нужен:
+  серверная пагинация есть только у `useContractRegistryRows`
+  (`useInfiniteQuery` уже хранит предыдущие страницы), остальные реестры
+  фильтруются на клиенте, а показ данных предыдущей организации недопустим.
+- **`retry: 0` у статичных справочников:** AddressRef (субъекты и
+  муниципалитеты), KoksRef, OkeiRef (было `1`), LegalAct, `useReferenceDatasets`,
+  `eisSchemaCatalog`, `smpRegistry`, `useLiabilityDuties` (было `1`).
+  KtruRef, Okpd2Ref, SpecialPurchaseType, Pp2604, `order158nPool`,
+  `useReferenceItems` уже были с `retry: false`.
+- Проверки: `npx tsc -b` — 0 ошибок; `oxlint` по затронутым каталогам — 0
+  ошибок (24 предупреждения в чужих `AcceptanceFormPage`/`AcceptanceDetailPage`);
+  `npx vite build` — ok. Коммит `3548f70` (правки API реестра и страницы
+  реестра вошли ранее в `caf394e`).
+
