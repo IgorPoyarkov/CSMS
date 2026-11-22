@@ -5261,13 +5261,61 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Проверки.** `npx.cmd tsc -b --pretty false` — чисто; `npx.cmd oxlint` по
   5 изменённым файлам — 0 предупреждений; `npx.cmd vite build` — собрано
   (только прежние предупреждения о размере чанков).
-- ⚠️ **Адаптер на :3002 надо перезапустить** (`npm run pg:server`): процесс
-  поднят до правки `scripts/lib/pg-store.mjs`, поэтому в работающем экземпляре
-  коллекции `contractCardProjections` в списке ещё нет и запрос отдаёт 404
-  (секция просто не появится, ошибок не будет).
+- ⚠️ **Окружение на момент проверки (22.11.2026):** служба
+  `postgresql-x64-17` поднята на `:5432`, а `:5433` никто не слушает, поэтому
+  `npm run pg:server` падает в `ensureSchema` с `ECONNREFUSED ::1:5433`
+  (`scripts/lib/pg-store.mjs` по умолчанию берёт порт 5433). Варианты:
+  поднять кластер на 5433 (как раньше) либо запускать
+  `$env:PGPORT='5432'; npm run pg:server`. Порты 3002, 3012 и 5099 не
+  слушаются — фронт и адаптер сейчас не запущены, живую проверку секции в
+  браузере сделать нельзя, пока БД не поднята. `npm run test:scripts` —
+  12/12 (изменения их не касались).
 - **Осталось по аудиту:** встроить `acceptances` в карточку (список, суммы,
-  ссылка `/acceptances?contractId=…`) и пункт меню; вывести
-  `eisRegistryNumber` из `eisUrl` при импорте; решить судьбу
+  ссылка `/acceptances?contractId=…`) и пункт меню; решить судьбу
   `contractDeliveries` (мост к `acceptances` или удаление); при необходимости
   ручного учёта — формы платежа/акта; перенос данных СМП в `csms-api`.
+  Пункт «вывести `eisRegistryNumber` из `eisUrl`» снимается: в
+  `import-contract-registry.mjs` и `import-contract-card-projections.mjs` уже
+  есть `lastEisNumber`/`fromUrl`, а в `ContractEisSection.tsx` номер выводится
+  и правится вручную.
+
+## 133. Парсер ЕИС: субподрядчики СМП/СОНО и справочник подрядчиков по ИНН (2026-11-22)
+
+- **Запрос.** Забирать из сведений о контракте информацию о субподрядчиках,
+  соисполнителях из числа СМП/СОНО, но не дублировать реквизиты: в связи
+  хранить только ИНН, а карточку организации вести отдельно и обогащать по
+  API ФНС. Справочник общий для ролей: любой субподрядчик может стать
+  генподрядчиком.
+- **Где лежат данные.** Блок `subContractorsSum/subContractors/subContractor`
+  в сведениях о контракте (`contract_*.xml`, схема 16.3). В проекте контракта
+  (`cp-*`, `contractProcedure`) есть только `subcontractorsAttractionConditionsInfo`
+  с процентом — списка организаций там нет. Проверено на
+  `eis-parser/test-data/contract-2462904043925000011-25.zip`: 25 субподрядчиков,
+  13 юрлиц и 12 ИП, у всех статус 30 (СМП).
+- **Разбор.** `EisDocumentParser.ParseSubcontractors` читает обе ветки —
+  `legalEntityRF` и `individualBusinessmanRF` (у ИП ФИО собирается из
+  `lastName/firstName/middleName`), ИНН, КПП, статус (`statusInfo/code`),
+  реквизиты субдоговора (`subContractDate`, `subContractNumber`,
+  `subContractSubject`, `subContractPriceInfo/price`) и первый ОКПД2 из
+  `subPurchaseObjectsInfo`. Результат — `SubcontractorDto` в
+  `ParsedEisDocument.Subcontractors`.
+- **Хранение.** Таблица `contractors` — справочник по ИНН (наименование,
+  полное наименование, КПП, ОГРН, адрес, статус ЕИС/ФНС, `is_smp`, `is_sono`,
+  `source`, `fns_checked_at`, `fns_payload`). Таблица
+  `contract_subcontractors` — связь контракта с субподрядчиком: только ИНН,
+  КПП и реквизиты субдоговора. Заказчик и поставщик тоже заводятся в
+  `contractors`, поэтому роль не влияет на карточку.
+- **Обогащение ФНС.** `IFnsContractorClient` и две реализации:
+  `ApiFnsContractorClient` (`GET /api/egr?req={ИНН}&key=…`, ключ в User Secrets
+  `Fns:ApiKey`) и `TransparentBusinessContractorClient` («Прозрачный бизнес»,
+  без ключа, form-urlencoded с браузерными заголовками). Композитный клиент
+  выбирает провайдера по `Fns:Provider` и пробует второй при неудаче.
+  `ContractorEnrichmentService` обновляет карточки старше `Fns:CacheDays`.
+- **CLI.** `dotnet run --project eis-parser/src/Eis44Parser.Worker --
+  --enrich-contractors --limit 100 [--inn 4632306640]`.
+  `--parse-file` теперь печатает и субподрядчиков.
+- **Проверки.** `dotnet build eis-parser/Eis44Parser.sln` — 0 ошибок;
+  `dotnet test --no-build` — 72/72; разбор фикстуры: 25 субподрядчиков, ИП
+  определяется с ФИО. DDL добавлен в оба скрипта (`001_pipeline.sql`,
+  `001_pipeline.sqlite.sql`), тесты на SQLite проходят.
 
