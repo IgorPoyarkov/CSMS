@@ -1,8 +1,8 @@
 /**
- * Перенос коллекций из файла (обычно старого db.json) в PostgreSQL.
+ * Перенос коллекций из файла в PostgreSQL.
  *
- * Сейчас данные уже живут в PG и db.json удалён: без аргумента скрипт просто
- * сообщает об этом. Явно указанный путь к бэкапу позволяет восстановить БД.
+ * Сейчас данные уже живут в PG: без аргумента скрипт просто сообщает об этом.
+ * Явно указанный путь к бэкапу позволяет восстановить БД.
  * Повторный запуск обновляет записи по (collection, id).
  */
 
@@ -10,10 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { createPgPool, ensureSchema, seedDocuments } from "./lib/pg-store.mjs";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
-
 const arg = process.argv[2];
-const dbPath = arg ? path.resolve(arg) : path.join(ROOT, "db.json");
+const dbPath = arg ? path.resolve(arg) : "";
 
 if (!fs.existsSync(dbPath)) {
   if (arg) {
@@ -21,7 +19,7 @@ if (!fs.existsSync(dbPath)) {
     process.exit(1);
   }
   console.log(
-    "db.json отсутствует — данные уже в PostgreSQL. Для переноса из бэкапа: npm run pg:seed -- <путь>",
+    "Данные уже в PostgreSQL. Для переноса из файла: npm run pg:seed -- <путь>",
   );
   process.exit(0);
 }

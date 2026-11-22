@@ -10,7 +10,7 @@
 import pg from "pg";
 
 /**
- * Все коллекции db.json, включая справочники и пользовательские данные.
+ * Все коллекции, включая справочники и пользовательские данные.
  * PostgreSQL — единственный источник: json-server больше не используется.
  */
 export const PG_COLLECTIONS = [
@@ -59,7 +59,7 @@ export const PG_COLLECTIONS = [
   "smnpReports238",
 ];
 
-/** Один объект верхнего уровня db.json, который не является коллекцией. */
+/** Один объект верхнего уровня, который не является коллекцией. */
 export const PG_META_COLLECTION = "_meta";
 
 export const PG_SCHEMA = "csms";
@@ -252,9 +252,9 @@ export async function upsertDocument(client, collection, doc, context = {}) {
 }
 
 /**
- * Переносит коллекции из db.json в PostgreSQL. Повторный прогон безопасен.
+ * Переносит коллекции в PostgreSQL. Повторный прогон безопасен.
  *
- * Коллекции, которых в источнике нет, не трогаются: частичный db.json не должен
+ * Коллекции, которых в источнике нет, не трогаются: частичный дамп не должен
  * очищать уже перенесённые данные. Для коллекций, которые есть, лишние строки
  * удаляются — иначе пересборка СЗ с `--replace` оставляла бы старые записи в PG.
  */
@@ -290,7 +290,7 @@ export async function seedDocuments(client, db) {
   return report;
 }
 
-/** Собирает объект db из PostgreSQL в том же виде, что и старый db.json. */
+/** Собирает объект db из PostgreSQL. */
 export async function loadDbFromPg(client) {
   const result = await client.query(
     `SELECT collection, doc FROM ${PG_SCHEMA}.documents ORDER BY seq ASC`,

@@ -8,11 +8,8 @@
  * СЗ/цепочки/задачи теми же функциями, что и основной импорт.
  *
  * Запуск:
- *   node scripts/retry-eis-notice-details.mjs --db db.json
+ *   node scripts/retry-eis-notice-details.mjs [--db <путь к копии>]
  */
-
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   fetchNoticesCsv,
@@ -24,16 +21,13 @@ import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { readDb, writeDb } from "./lib/db-write.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 const argv = process.argv.slice(2);
 const dbArg = argv[argv.indexOf("--db") + 1];
-const dbPath =
-  dbArg && !dbArg.startsWith("--") ? dbArg : path.join(ROOT, "db.json");
+const dbPath = dbArg && !dbArg.startsWith("--") ? dbArg : "";
 const db = await readDb(dbPath);
 
 const summary = db.eisImportSummary;

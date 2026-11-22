@@ -8,8 +8,8 @@
  *
  * Пример:
  *   node scripts/repair-eis-notes.mjs --dry-run
- *   node scripts/repair-eis-notes.mjs --db db.json --replace --year 2026
- *   node scripts/repair-eis-notes.mjs --db db.json --dry-run --replace
+ *   node scripts/repair-eis-notes.mjs --replace --year 2026
+ *   node scripts/repair-eis-notes.mjs --dry-run --replace
  */
 
 import path from "node:path";
@@ -24,7 +24,8 @@ const argValue = (name, fallback) => {
 const dryRun = args.includes("--dry-run");
 const replace = args.includes("--replace");
 const yearArg = textYear(argValue("--year", "2026"));
-const dbPath = path.resolve(argValue("--db", "db.json"));
+const dbArg = argValue("--db", "");
+const dbPath = dbArg ? path.resolve(dbArg) : "";
 
 function textYear(value) {
   const source = String(value ?? "").trim();

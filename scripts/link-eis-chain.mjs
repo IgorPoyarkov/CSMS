@@ -20,18 +20,15 @@
  * подразделения) или инициатора закупки (вне КС). Выдуманные данные не используются.
  *
  * Использование:
- *   node scripts/link-eis-chain.mjs [--db path/to/db.json] [--dry-run]
+ *   node scripts/link-eis-chain.mjs [--db <путь к копии>] [--dry-run]
  */
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDb, writeDb } from "./lib/db-write.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..");
-
 export function parseArgs(argv) {
-  const args = { db: path.join(ROOT, "db.json"), dryRun: false };
+  const args = { db: "", dryRun: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dry-run") {
       args.dryRun = true;
@@ -738,7 +735,7 @@ function syncNoticeTasks(db, byNotice) {
   return { rebuilt: rebuilt.length, kept: userTasks.length };
 }
 
-/** Применить все связи к db.json. Возвращает отчёт для импортера и CLI. */
+/** Применить все связи к данным. Возвращает отчёт для импортера и CLI. */
 /**
  * Контракты, выгруженные из публичного реестра, несут `customerOrganizationId`,
  * но поле `organizationId` остаётся пустым. Без него списки с фильтром по

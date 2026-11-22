@@ -5,7 +5,7 @@
  * поиском находятся последние N планов-графиков (окно = срок договора) и
  * последние M извещений (окно = 2 года, как в настройке маппинга). Результаты
  * поиска скачиваются официальным CSV/Excel-экспортом ЕИС, карточки fetched
- * как печатные формы, после чего всё раскладывается в db.json json-server.
+ * как печатные формы, после чего всё раскладывается в PostgreSQL.
  *
  * ЭЦП, токены ЕИС и закрытые документы не используются: только publichные
  * страницы zakupki.gov.ru, доступные без авторизации.
@@ -32,8 +32,6 @@ import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { readDb, writeDb } from "./lib/db-write.mjs";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(HERE, "..");
 const CURL = process.platform === "win32" ? "curl.exe" : "curl";
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0 Safari/537.36";
@@ -83,7 +81,7 @@ function sleep(ms) {
 
 function parseArgs(argv) {
   const args = {
-    db: path.join(ROOT, "db.json"),
+    db: "",
     inn: "",
     years: 3,
     noticeYears: 2,
@@ -1179,8 +1177,7 @@ function pruneDb(db, org, employee, importedProcurementIds) {
     }
   }
   // Ссылок на старые демо-процедуры у части контрактов больше нет. Удаляем
-  // ключ целиком: json-server считает null «висячей» ссылкой и при любом DELETE
-  // пытается каскадно удалить все такие контракты.
+  // ключ целиком, чтобы не оставлять висячих ссылок.
   const valid = new Set(importedProcurementIds.map(String));
   for (const contract of db.contractRegistry) {
     if (

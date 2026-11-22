@@ -2,7 +2,7 @@
 // touch-зон на заданных ширинах экрана. Работает через Chrome DevTools
 // Protocol, без playwright/puppeteer — только headless-браузер и Node 22+.
 //
-// Запуск (dev-сервер и json-server должны быть подняты):
+// Запуск (dev-сервер и PG-адаптер должны быть подняты):
 //   npm run check:mobile
 // Другой набор страниц/ширин/темы:
 //   node scripts/mobile-audit.mjs --widths=320,375 --theme=floating3d
@@ -87,7 +87,7 @@ const withShots = args.has("shots");
 const showSmall = args.has("small");
 // Вход «как заказчик»: реестры показывают данные только при сохранённом email
 // (useFetchCurrentUser читает user_email из localStorage). Пароль не нужен —
-// пользователь берётся из json-server по email.
+// пользователь берётся из PostgreSQL по email.
 const auditUser = args.get("user") ?? "";
 // Полностраничный снимок: на длинных реестрах вьюпорт показывает только верх,
 // а интересное (таблица, пагинация, карточки) — ниже
