@@ -4826,26 +4826,41 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   - Recharts: `overflow: hidden` у `.chart-box` и уменьшенные `margin` осей;
   - `NoticeInfoForm.__close`: глобальный `.btn` красил «✕» в цвет на акценте —
     крестик был невидим на прозрачном фоне, добавлен `color`/`display: flex`.
-- **Итог прогона (390 px).** `doc=375` (переполнений нет) на всех проверенных
-  роутах: `/`, `/tasks`, `/tasks/1001`, `/analytics`, `/purchase-plans`,
-  `/purchase-plans/new`, карточка и форма редактирования ПГ
-  `eisp-202601442000018001`, `/purchase-plans/:id/positions/new`,
+- **Финальный прогон (2026-11-22, 47 роутов, `.tmp/final-a|b|c.json`).**
+  `doc=375` (или `doc=390` на `/account` и `/contract-registry`) у всех роутов:
+  `/`, `/analytics`, `/account`, `/account/login`, `/account/register`,
+  `/account/profile`, `/tasks`, `/tasks/1001`, `/purchase-plans`,
+  `/purchase-plans/new`, карточка, правка и `/purchase-plans/:id/positions/new`,
   `/purchase-notes`, `/contract-service`, `/procurement-processing`,
-  `/procurement-processing/.../notice-info`, `/contract-projects`,
-  `/reports/smnp`, `/reports/order-158n`, `/contract-registry`,
-  `/contract-changes`, `/contract-changes/new`, `/acceptances`,
-  `/acceptances/new`, `/eis/smp-export`, `/eis/packages`, `/eis/schemas`,
-  `/eis/chains`, `/okpd2`, `/norming-requirements`, `/legal-acts`,
-  `/liability-mapping`, `/eds/journal`, `/nmck-calculator`, `/defect-lists`,
-  `/bid-evaluations`, `/vacation-schedule`, `/notifications`, `/documents`,
-  `/ui-solutions`, `/visit-card`, `/account`.
-  Остаточные `outside` — только таблицы внутри своих скроллеров;
-  `small` — текстовые ссылки «← назад» высотой 24 px и `.btn--sm`
-  (`×` 29×44) в карточках; `clipped` — декоративный `visit__hero-glow`
-  (обрезается героем намеренно) и `.visually-hidden`.
+  `/procurement-processing/:id/notice-info`, `/contract-project`,
+  `/contract-projects`, `/reports/smnp`, `/reports/order-158n`,
+  `/contract-registry`, `/contract-changes`, `/contract-changes/new`,
+  `/contract-changes/:id`, `/contract-changes/:id/edit`, `/acceptances`,
+  `/acceptances/new`, `/acceptances/:id`, `/acceptances/:id/edit`,
+  `/eis/smp-export`, `/eis/packages`, `/eis/schemas`, `/eis/chains`, `/okpd2`,
+  `/norming-requirements`, `/legal-acts`, `/liability-mapping`, `/eds/journal`,
+  `/nmck-calculator`, `/defect-lists`, `/bid-evaluations`,
+  `/vacation-schedule`, `/notifications`, `/documents`, `/ui-solutions`,
+  `/visit-card`.
+  Оставшиеся флаги `outside` — только таблицы внутри собственных
+  `overflow-x: auto` (`scrolled = true`, документ не расширяется):
+  `.purchase-plan-list__table` (765 px), `.position-form__table--ikz` (1136 px),
+  `.contract-service__table` (993 px), `.eis-main__positions-table` (914 px),
+  `.market-nmck__table` (1030 px).
+- **Детальные роуты `contract-changes/:id` и `acceptances/:id`.** Изначально они
+  не проверялись: `csms-api` (:5099) был не запущен, `vite` отдавал 502 на
+  `/api/*`, а `json-server` :3001 этих коллекций не содержит вовсе. Для проверки
+  поднят `dotnet run --project src/Csms.Api` и созданы два черновика через
+  `POST /api/acceptances/` и `POST /api/contract-changes/`
+  (`basisCode: price_reduction`, `kind: Modification`). Репозитории пакетов
+  в памяти — после перезапуска API черновики исчезнут.
+- **Остаточные `small` (тач-цели).** `.norming-requirements__back-link` — ссылки
+  «←» высотой 24 px, `.btn--sm` (`×` 29×44) в карточке задачи и 158н — это уже
+  занесено в §9 п.8 как необязательный долг, вёрстку страниц не ломает.
 - **Проверки.** `npx tsc -b` — exit 0; `npx oxlint src` — 0 ошибок
   (78 предупреждений react-compiler, существовавших до задачи);
   `npx vite build` — exit 0 (только предупреждение о размере чанков).
+
 
 
 
