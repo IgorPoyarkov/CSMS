@@ -1,0 +1,835 @@
+// Личный кабинет подрядчика: вход по ИНН, реестр контрактов по заказчикам
+// и направление сведений о привлечении СМП.
+//
+// Палитра берётся из ролей темы (var(--surface-panel) и т. п.), как и в
+// остальном интерфейсе: кабинет подрядчика — тот же продукт, а не отдельный
+// сайт, поэтому он обязан переключаться вместе с темой заказчика.
+
+// ─── Общие элементы ─────────────────────────────────────────────────────────
+
+.btnPrimary {
+  padding: 10px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+}
+
+.btnSmall {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+.btnDanger {
+  padding: 7px 14px;
+  border: 1px solid var(--state-danger);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--state-danger);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-danger-soft);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    padding: 9px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 12px;
+    background: var(--surface-raised);
+  }
+}
+
+.moneyCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rowDanger {
+  background: var(--state-danger-soft);
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+// ─── Экран входа ────────────────────────────────────────────────────────────
+
+.contractor-login {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 16px 56px;
+}
+
+.contractor-login__card {
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-panel);
+}
+
+.contractor-login__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.contractor-login__title {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contractor-login__text {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.contractor-login__form {
+  display: grid;
+  gap: 16px;
+}
+
+.contractor-login__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @media (max-width: 620px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.contractor-login__field {
+  display: grid;
+  gap: 5px;
+}
+
+.contractor-login__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.contractor-login__input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+}
+
+.contractor-login__hint,
+.contractor-login__note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.contractor-login__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--state-danger);
+  border-radius: 4px;
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-size: 13px;
+}
+
+.contractor-login__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.contractor-login__directory {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+
+.contractor-login__directoryTitle {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.contractor-login__directoryList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contractor-login__directoryBtn {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+  }
+}
+
+.contractor-login__directoryName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contractor-login__directoryMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor-login__directoryFoot {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+// ─── Кабинет: реестр контрактов по заказчикам ───────────────────────────────
+
+.contractor {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.contractor__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.contractor__eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.contractor__title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contractor__requisites {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor__headActions {
+  display: flex;
+  gap: 8px;
+}
+
+.contractor__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.contractor__stat {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.contractor__statLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contractor__statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor__statOf {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.contractor__statNote {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.contractor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.contractor__filter {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.contractor__filterSelect {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.contractor__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contractor__loading,
+.contractor__empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.contractor__empty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  line-height: 1.6;
+}
+
+.contractor__group {
+  margin-bottom: 26px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.contractor__groupHead {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.contractor__customer {
+  margin: 0 0 3px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contractor__groupMeta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor__row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--surface-raised);
+  }
+}
+
+.contractor__row--open {
+  background: var(--surface-accent);
+
+  &:hover {
+    background: var(--surface-accent);
+  }
+}
+
+.contractor__sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.contractor__dates {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.contractor__detailRow td {
+  padding: 0;
+  background: var(--surface-raised);
+}
+
+.contractor__detail {
+  display: grid;
+  gap: 16px;
+  padding: 18px 16px 22px;
+}
+
+.contractor__detailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.contractor__detailLabel {
+  margin: 0 0 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.contractor__detailValue {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.contractor__action {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.contractor__action--submit {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.contractor__action--shortfall {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.contractor__action--rejected {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.contractor__action--closed {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.contractor__actionHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+// ─── Секция сведений о привлечении СМП ─────────────────────────────────────
+
+.contractor-smp {
+  display: grid;
+  gap: 18px;
+}
+
+.contractor-smp__absent {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-panel);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__subTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contractor-smp__volume {
+  display: grid;
+  gap: 7px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.contractor-smp__volumeRow {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  strong {
+    font-size: 15px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.contractor-smp__progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-field);
+  overflow: hidden;
+}
+
+.contractor-smp__progressFill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.contractor-smp__pending {
+  color: var(--state-warning);
+}
+
+.contractor-smp__foot {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.contractor-smp__ok {
+  color: var(--state-success);
+}
+
+.contractor-smp__warn {
+  color: var(--state-warning);
+}
+
+.contractor-smp__deadlines,
+.contractor-smp__records {
+  display: grid;
+  gap: 8px;
+}
+
+.contractor-smp__basis {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__deadlineStatus {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__deadlineStatus--met {
+  color: var(--state-success);
+}
+
+.contractor-smp__deadlineStatus--overdue {
+  color: var(--state-danger);
+}
+
+.contractor-smp__deadlineStatus--pending {
+  color: var(--state-warning);
+}
+
+.contractor-smp__recordsHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+
+  .contractor-smp__subTitle {
+    margin: 0;
+  }
+}
+
+.contractor-smp__empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.contractor-smp__status {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+}
+
+.contractor-smp__status--submitted {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.contractor-smp__status--accepted {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.contractor-smp__status--pushedToEis {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.contractor-smp__status--rejected {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+// ─── Форма направления сведений ────────────────────────────────────────────
+
+.contractor-smp__form {
+  display: grid;
+  gap: 14px;
+  padding: 18px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.contractor-smp__formHead {
+  display: grid;
+  gap: 4px;
+}
+
+.contractor-smp__formTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contractor-smp__formContract {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.contractor-smp__field {
+  display: grid;
+  gap: 4px;
+}
+
+.contractor-smp__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+}
+
+textarea.contractor-smp__input {
+  resize: vertical;
+  min-height: 48px;
+}
+
+.contractor-smp__fieldError {
+  margin: 0;
+  font-size: 11px;
+  color: var(--state-danger);
+}
+
+.contractor-smp__flags {
+  display: grid;
+  gap: 8px;
+}
+
+.contractor-smp__check,
+.contractor-smp__confirm {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  input {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    margin-top: 1px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+}
+
+.contractor-smp__confirm {
+  padding: 10px 12px;
+  border: 1px solid var(--accent-soft);
+  border-radius: 8px;
+  background: var(--surface-raised);
+}
+
+.contractor-smp__file {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.contractor-smp__fileInput {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.contractor-smp__fileInfo {
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.contractor-smp__fileHint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.contractor-smp__formError {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--state-danger);
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-size: 13px;
+}
+
+.contractor-smp__formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

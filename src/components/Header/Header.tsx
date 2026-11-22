@@ -65,8 +65,8 @@ const MORE_GROUPS: NavGroup[] = [
     title: "Сквозной контур",
     links: [
       { to: "/contract-projects", label: "Проект контракта" },
-      { to: "/acceptances", label: "Электронное актирование" },
       { to: "/eis/chains", label: "Цепочка ЕИС" },
+      { to: "/contractor", label: "Кабинет подрядчика" },
       { to: "/documents", label: "Типовые документы", requiresAuth: true },
       { to: "/notifications", label: "Сроки и риски", requiresAuth: true },
     ],
