@@ -17,11 +17,37 @@ const liabilityApi = axios.create({
 
 export const LIABILITY_OVERVIEW_KEY = "liability-mapping-overview";
 export const LIABILITY_RESULT_KEY = "liability-mapping-result";
+export const LIABILITY_DUTIES_KEY = "liability-mapping-duties";
+
+/** Строка справочника обязанностей: форма Сущности А для конвейера. */
+export interface LiabilityDutyRow {
+  duty: unknown;
+  dutyId?: string;
+}
 
 const fetchOverview = async (): Promise<LiabilityMappingOverviewItem[]> => {
   const { data } = await liabilityApi.get("/liability-mapping/overview");
   return LiabilityMappingOverviewItemSchema.array().parse(data);
 };
+
+/**
+ * Справочник 41 обязанности 158н — статические данные. Кэшируем его
+ * бессрочно: раньше страница тянула этот список прямым fetch при каждом
+ * запуске сопоставления, минуя React Query и общий кэш.
+ */
+export const fetchLiabilityDuties = async (): Promise<LiabilityDutyRow[]> => {
+  const { data } = await liabilityApi.get("/liability-mapping/duties");
+  return data as LiabilityDutyRow[];
+};
+
+export const useLiabilityDuties = () =>
+  useQuery({
+    queryKey: [LIABILITY_DUTIES_KEY],
+    queryFn: fetchLiabilityDuties,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: 1,
+  });
 
 const fetchResult = async (
   dutyId: string,

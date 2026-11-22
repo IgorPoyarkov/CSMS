@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import useUtils from "../../hooks/useUtils";
 import {
+  LIABILITY_DUTIES_KEY,
+  fetchLiabilityDuties,
   useLiabilityOverview,
   useLiabilityResult,
   useMapLiabilityDuty,
@@ -40,6 +43,7 @@ const EMPTY_KTRU: KtruRef[] = [];
 const LiabilityMappingPage = () => {
   const { bem } = useUtils();
   const page = bem(styles, "liability-mapping");
+  const queryClient = useQueryClient();
   const overviewQuery = useLiabilityOverview();
   const [activeDutyId, setActiveDutyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -88,12 +92,19 @@ const LiabilityMappingPage = () => {
     void overviewQuery.refetch();
     // Форма Сущности А приходит из того же API: чтобы не дублировать 41 пункт
     // на клиенте, берём обязанность из справочника и сразу отправляем в конвейер.
-    void fetch(`/api/liability-mapping/duties`)
-      .then((response) => response.json())
-      .then((rows: Array<{ duty: unknown; dutyId?: string }>) => {
+    // fetchQuery берёт строки из общего кэша React Query (staleTime — бесконечно),
+    // поэтому повторные запуски не дёргают API.
+    void queryClient
+      .fetchQuery({
+        queryKey: [LIABILITY_DUTIES_KEY],
+        queryFn: fetchLiabilityDuties,
+        staleTime: Number.POSITIVE_INFINITY,
+      })
+      .then((rows) => {
         const row = rows.find(
-          (entry) => (entry.duty as { identifiers?: { dutyId?: string } })
-            ?.identifiers?.dutyId === item.dutyId,
+          (entry) =>
+            (entry.duty as { identifiers?: { dutyId?: string } })?.identifiers
+              ?.dutyId === item.dutyId,
         );
         if (!row) throw new Error("Обязанность не найдена в справочнике");
         return mapMutation.mutateAsync(row.duty);
