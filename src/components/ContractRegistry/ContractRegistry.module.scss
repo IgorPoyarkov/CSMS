@@ -1609,7 +1609,7 @@
   background: var(--surface-panel);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 12px 32px var(--shadow);
 }
 
 .kbkOption {
@@ -1772,7 +1772,6 @@
   cursor: pointer;
   transition:
     border-color 0.2s,
-    transform 0.2s,
     box-shadow 0.2s;
 
   // Ярлык папки: цветная полоса по левому краю
@@ -1790,8 +1789,9 @@
 
   &:hover {
     border-color: var(--accent);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    // Только неоновая кромка внутри плитки: без transform и внешних теней,
+    // иначе плитка прыгала под курсором и тень выходила за сетку папок.
+    box-shadow: inset 0 0 0 1px var(--accent);
 
     &::before {
       background: var(--accent);

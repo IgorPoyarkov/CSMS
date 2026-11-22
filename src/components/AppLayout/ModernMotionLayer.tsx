@@ -4,19 +4,21 @@ import { useEffect } from "react";
 //
 // Тема двигает две группы элементов, и обе зависят от геометрии, которую CSS
 // не знает:
-//   • большие стационарные блоки — неоновая комета по контуру и подъём от
-//     правого нижнего угла. «Большой» — это порог по площади, поэтому
-//     элемент помечается из JS: data-modern-comet="after|before" и
-//     data-modern-lift (стили в _theme-modern.scss);
+//   • большие стационарные блоки — неоновая мерцающая подсветка по контуру,
+//     по нему бежит комета с хвостом (голова — циан, хвост — магента), а на
+//     hover по краям загорается неон. Блок при этом не двигается: «большой»
+//     определяется порогом по площади, поэтому элемент помечается из JS:
+//     data-modern-comet="after|before" и data-modern-lift (стили в
+//     _theme-modern.scss);
 //   • короткие списки (4–6 чипов, табы, пункты меню) — магнитное расхождение:
 //     элемент отходит на 12% своего размера перпендикулярно движению курсора.
 //     Набор помечается data-modern-magnet, смещение считается здесь.
 //
 // Псевдоэлемент для кометы выбирается по занятости: у части карточек ::after
 // уже занят своим декором, поэтому берём свободный слот. Модалки получают
-// комету, но не подъём: transform на position: fixed сдвинул бы окно от
-// вьюпорта. Все слушатели живут только пока включена тема; при
-// prefers-reduced-motion и на тач-экранах движение выключено.
+// комету, но не неоновую подсветку на hover: у них своя рамка. Все слушатели
+// живут только пока включена тема; при prefers-reduced-motion и на тач-экранах
+// движение выключено.
 
 const MODERN_THEME = "modern";
 
@@ -53,23 +55,6 @@ const MAGNET_SELECTOR = [
 const COMET_MIN_WIDTH = 560;
 const COMET_MIN_HEIGHT = 240;
 const COMET_MIN_SIDE_GAP = 32;
-
-// Потомки, из-за которых подъём блока запрещён: transform делает предка
-// containing block, и position: fixed внутри (оверлеи, тултипы, выпадающие
-// списки) начал бы позиционироваться по блоку, а не по вьюпорту.
-const FIXED_HINTS = [
-  "[class*='overlay']",
-  "[class*='modal']",
-  "[class*='tooltip']",
-  "[class*='popup']",
-  "[class*='dropdown']",
-  "[class*='fixed']",
-].join(", ");
-
-// Точная проверка по computed-стилю дорогая, поэтому панели крупнее порога
-// подъём не получают: у них и наклон в 2 px незаметен, а риск сломать
-// позиционирование окна внутри — реальный.
-const LIFT_SCAN_LIMIT = 800;
 
 // Магнит: радиус действия, доля размера элемента (12%) и предел площади —
 // крупные панели не должны ездить под курсором.
@@ -117,27 +102,6 @@ export default function ModernMotionLayer() {
     let dirY = 0;
     let hasPointer = false;
 
-    // Можно ли поднимать блок: внутри не должно быть fixed-потомков.
-    const canLift = (el: HTMLElement) => {
-      if (el.querySelector(FIXED_HINTS)) {
-        return false;
-      }
-
-      const nodes = el.querySelectorAll<HTMLElement>("*");
-
-      if (nodes.length > LIFT_SCAN_LIMIT) {
-        return false;
-      }
-
-      for (const node of nodes) {
-        if (getComputedStyle(node).position === "fixed") {
-          return false;
-        }
-      }
-
-      return true;
-    };
-
     // Комета по контуру: помечаем только блоки, у которых есть свободный
     // псевдоэлемент. Занятый ::after — не повод терять блок: пробуем ::before.
     const markPanels = () => {
@@ -174,13 +138,11 @@ export default function ModernMotionLayer() {
         }
 
         el.setAttribute("data-modern-comet", slot);
-        // Модалка и таблица подъём не получают: у первой position: fixed,
-        // у второй transform ломает прилипание шапки при прокрутке.
+        // Модалка и таблица неоновую подсветку не получают: у модалки своя
+        // рамка, у таблицы inset-тень размазывается по ячейкам.
         const tag = el.tagName.toLowerCase();
-        const liftable =
-          tag !== "table" && el.getAttribute("role") !== "dialog";
 
-        if (liftable && canLift(el)) {
+        if (tag !== "table" && el.getAttribute("role") !== "dialog") {
           el.setAttribute("data-modern-lift", "");
         }
 

@@ -276,26 +276,28 @@
   --modal-dot: #{$color-modern-cyan};
   --modal-dot-glow: #{rgba($color-modern-cyan, 0.6)};
 
-  // Объём: блик по верхней грани плюс три слоя тени. Неон в тени появляется
-  // только на hover — иначе страница светится целиком и контур кометы теряется.
+  // Объём: блик по верхней грани и тень по нижней — всё внутри блока.
+  // Внешних размытых теней нет: они выходили за родителя и затемняли соседние
+  // блоки, из-за чего страница «прыгала» по яркости при наведении.
   --edge-highlight: #{rgba($color-modern-paper, 0.16)};
   --shadow-3d:
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 #{rgba($color-modern-void, 0.6)},
-    0 2px 6px #{rgba($color-modern-void, 0.55)},
-    0 14px 28px #{rgba($color-modern-void, 0.45)},
-    0 32px 64px #{rgba($color-modern-void, 0.38)};
+    inset 0 -26px 34px -32px #{rgba($color-modern-void, 0.75)};
+  // Неон по краям на hover: тонкая кромка по всему периметру, сверху — шире и
+  // ярче (яркая линия + мягкая полоса света). Тоже inset, поэтому свечение не
+  // выходит за блок и не затемняет соседей; никакого transform — блок стоит на
+  // месте.
   --shadow-3d-hover:
-    inset 0 1px 0 #{rgba($color-modern-cyan, 0.42)},
-    inset 0 -1px 0 #{rgba($color-modern-void, 0.65)},
-    0 4px 12px #{rgba($color-modern-void, 0.6)},
-    0 20px 40px #{rgba($color-modern-void, 0.5)},
-    0 46px 88px #{rgba($color-modern-void, 0.42)},
-    0 0 34px #{rgba($color-modern-cyan, 0.2)};
+    inset 0 0 0 1px #{rgba($color-modern-cyan, 0.55)},
+    inset 0 2px 0 -1px #{rgba($color-modern-cyan, 0.85)},
+    inset 0 8px 0 -3px #{rgba($color-modern-cyan, 0.4)},
+    inset 0 16px 24px -14px #{rgba($color-modern-cyan, 0.5)},
+    inset 0 -1px 0 #{rgba($color-modern-void, 0.6)},
+    inset 0 -26px 34px -32px #{rgba($color-modern-void, 0.75)};
 
-  // Декор: наклон подъёма от правого нижнего угла, скорость обхода кометой
-  // контура и три цвета неона (голова кометы — циан, хвост — магента).
-  --panel-tilt: -0.45deg;
+  // Декор: скорость обхода кометой контура и три цвета неона
+  // (голова кометы — циан, хвост — магента).
   --comet-duration: 8s;
   --neon-a: #{$color-modern-cyan};
   --neon-b: #{$color-modern-indigo};
