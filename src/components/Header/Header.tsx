@@ -81,6 +81,7 @@ const MORE_GROUPS: NavGroup[] = [
   {
     title: "Отчётность и контроль",
     links: [
+      { to: "/analytics", label: "Аналитика закупок" },
       { to: "/reports/order-158n", label: "Отчёты 158н" },
       { to: "/liability-mapping", label: "Ответственность КС" },
       { to: "/ui-solutions", label: "UI-решения" },

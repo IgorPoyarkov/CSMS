@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import * as d3 from "d3";
 import type {
@@ -33,6 +33,12 @@ const formatCompact = (v: number) => {
   return String(Math.round(v));
 };
 
+// Сколько строк контрактов рисовать в мониторе. У крупного заказчика в реестре
+// сотни контрактов: по строке на каждый график превращался в «простыню» на
+// десятки тысяч пикселей. Показываем крупнейшие, остальные объединяем в одну
+// строку «Прочие» — суммы и проценты при этом не теряются.
+const MAX_CONTRACT_ROWS = 24;
+
 export default function BudgetExecutionMonitorD3({
   analytics,
 }: BudgetExecutionMonitorD3Props) {
@@ -46,6 +52,60 @@ export default function BudgetExecutionMonitorD3({
   const svgRef = useRef<SVGSVGElement>(null);
 
   const { budgetContracts, budgetByYear, kpis } = analytics;
+
+  // Свёртка длинного хвоста контрактов в одну агрегированную строку
+  const contractRows = useMemo(() => {
+    if (budgetContracts.length <= MAX_CONTRACT_ROWS) return budgetContracts;
+
+    const sorted = [...budgetContracts].sort(
+      (a, b) => b.contractPrice - a.contractPrice,
+    );
+    const top = sorted.slice(0, MAX_CONTRACT_ROWS);
+    const rest = sorted.slice(MAX_CONTRACT_ROWS);
+    const sum = rest.reduce(
+      (acc, item) => ({
+        plannedNmck: acc.plannedNmck + item.plannedNmck,
+        contractPrice: acc.contractPrice + item.contractPrice,
+        paidAmount: acc.paidAmount + item.paidAmount,
+        scheduledAmount: acc.scheduledAmount + item.scheduledAmount,
+        penaltiesAmount: acc.penaltiesAmount + item.penaltiesAmount,
+        remainingToPay: acc.remainingToPay + item.remainingToPay,
+        stagesCount: acc.stagesCount + item.stagesCount,
+        completedStagesCount:
+          acc.completedStagesCount + item.completedStagesCount,
+      }),
+      {
+        plannedNmck: 0,
+        contractPrice: 0,
+        paidAmount: 0,
+        scheduledAmount: 0,
+        penaltiesAmount: 0,
+        remainingToPay: 0,
+        stagesCount: 0,
+        completedStagesCount: 0,
+      },
+    );
+
+    return [
+      ...top,
+      {
+        contractId: "__rest__",
+        contractNumber: `Прочие (${rest.length})`,
+        contractName: `Объединены ${rest.length} контрактов с меньшей ценой`,
+        supplierName: "—",
+        status: "in_execution" as const,
+        statusLabel: "Объединены",
+        ...sum,
+        executionPercent:
+          sum.contractPrice > 0
+            ? Math.min(
+                100,
+                Math.round((sum.paidAmount / sum.contractPrice) * 1000) / 10,
+              )
+            : 0,
+      },
+    ];
+  }, [budgetContracts]);
 
   useEffect(() => {
     const node = wrapRef.current;
@@ -68,29 +128,42 @@ export default function BudgetExecutionMonitorD3({
     svg.selectAll("*").remove();
 
     if (mode === "contracts") {
-      if (budgetContracts.length === 0) return;
+      if (contractRows.length === 0) return;
 
       const margin = { top: 14, right: 80, bottom: 30, left: 165 };
-      const innerWidth = Math.max(200, containerWidth - margin.left - margin.right);
+      const innerWidth = Math.max(
+        200,
+        containerWidth - margin.left - margin.right,
+      );
       const rowHeight = 52;
-      const innerHeight = budgetContracts.length * rowHeight;
+      const innerHeight = contractRows.length * rowHeight;
       const totalHeight = innerHeight + margin.top + margin.bottom;
 
-      svg.attr("viewBox", `0 0 ${containerWidth} ${totalHeight}`).attr("height", totalHeight);
+      svg
+        .attr("viewBox", `0 0 ${containerWidth} ${totalHeight}`)
+        .attr("height", totalHeight);
 
       const g = svg
         .append("g")
         .attr("transform", `translate(${margin.left},${margin.top})`);
 
       const maxVal =
-        d3.max(budgetContracts, (d) =>
-          Math.max(d.plannedNmck, d.contractPrice, d.paidAmount + d.scheduledAmount),
+        d3.max(contractRows, (d) =>
+          Math.max(
+            d.plannedNmck,
+            d.contractPrice,
+            d.paidAmount + d.scheduledAmount,
+          ),
         ) ?? 1;
 
-      const x = d3.scaleLinear().domain([0, maxVal * 1.06]).nice().range([0, innerWidth]);
+      const x = d3
+        .scaleLinear()
+        .domain([0, maxVal * 1.06])
+        .nice()
+        .range([0, innerWidth]);
       const y = d3
         .scaleBand<string>()
-        .domain(budgetContracts.map((d) => d.contractId))
+        .domain(contractRows.map((d) => d.contractId))
         .range([0, innerHeight])
         .padding(0.28);
 
@@ -131,7 +204,7 @@ export default function BudgetExecutionMonitorD3({
 
       // Ось Y (номера контрактов)
       const labelById = new Map(
-        budgetContracts.map((c) => [c.contractId, c.contractNumber]),
+        contractRows.map((c) => [c.contractId, c.contractNumber]),
       );
       g.append("g")
         .call(
@@ -151,7 +224,7 @@ export default function BudgetExecutionMonitorD3({
 
       const rows = g
         .selectAll<SVGGElement, BudgetContractItem>(".budget-row")
-        .data(budgetContracts)
+        .data(contractRows)
         .enter()
         .append("g")
         .attr("class", "budget-row")
@@ -164,10 +237,26 @@ export default function BudgetExecutionMonitorD3({
             title: `Контракт № ${d.contractNumber}`,
             lines: [
               { label: "Статус", value: d.statusLabel },
-              { label: "План (НМЦК)", value: formatRub(d.plannedNmck), color: "#94a3b8" },
-              { label: "Цена контракта", value: formatRub(d.contractPrice), color: "#3b82f6" },
-              { label: "Оплачено", value: formatRub(d.paidAmount), color: "#16a34a" },
-              { label: "В графике", value: formatRub(d.scheduledAmount), color: "#d97706" },
+              {
+                label: "План (НМЦК)",
+                value: formatRub(d.plannedNmck),
+                color: "#94a3b8",
+              },
+              {
+                label: "Цена контракта",
+                value: formatRub(d.contractPrice),
+                color: "#3b82f6",
+              },
+              {
+                label: "Оплачено",
+                value: formatRub(d.paidAmount),
+                color: "#16a34a",
+              },
+              {
+                label: "В графике",
+                value: formatRub(d.scheduledAmount),
+                color: "#d97706",
+              },
               { label: "Исполнение", value: `${d.executionPercent}%` },
             ],
           });
@@ -271,11 +360,16 @@ export default function BudgetExecutionMonitorD3({
     if (budgetByYear.length === 0) return;
 
     const margin = { top: 18, right: 20, bottom: 34, left: 70 };
-    const innerWidth = Math.max(220, containerWidth - margin.left - margin.right);
+    const innerWidth = Math.max(
+      220,
+      containerWidth - margin.left - margin.right,
+    );
     const innerHeight = 250;
     const totalHeight = innerHeight + margin.top + margin.bottom;
 
-    svg.attr("viewBox", `0 0 ${containerWidth} ${totalHeight}`).attr("height", totalHeight);
+    svg
+      .attr("viewBox", `0 0 ${containerWidth} ${totalHeight}`)
+      .attr("height", totalHeight);
 
     const g = svg
       .append("g")
@@ -283,8 +377,16 @@ export default function BudgetExecutionMonitorD3({
 
     const seriesKeys = [
       { key: "plannedAmount" as const, label: "План-график", color: "#3b82f6" },
-      { key: "contractedAmount" as const, label: "Законтрактовано", color: "#0d9488" },
-      { key: "paidAmount" as const, label: "Фактически оплачено", color: "#16a34a" },
+      {
+        key: "contractedAmount" as const,
+        label: "Законтрактовано",
+        color: "#0d9488",
+      },
+      {
+        key: "paidAmount" as const,
+        label: "Фактически оплачено",
+        color: "#16a34a",
+      },
     ];
 
     const x0 = d3
@@ -304,7 +406,11 @@ export default function BudgetExecutionMonitorD3({
         Math.max(b.plannedAmount, b.contractedAmount, b.paidAmount),
       ) ?? 1;
 
-    const y = d3.scaleLinear().domain([0, maxY * 1.1]).nice().range([innerHeight, 0]);
+    const y = d3
+      .scaleLinear()
+      .domain([0, maxY * 1.1])
+      .nice()
+      .range([innerHeight, 0]);
 
     g.append("g")
       .call(
@@ -335,7 +441,12 @@ export default function BudgetExecutionMonitorD3({
       });
 
     g.append("g")
-      .call(d3.axisLeft(y).ticks(5).tickFormat((d) => formatCompact(Number(d))))
+      .call(
+        d3
+          .axisLeft(y)
+          .ticks(5)
+          .tickFormat((d) => formatCompact(Number(d))),
+      )
       .call((axis) => {
         axis.select(".domain").remove();
         axis
@@ -377,9 +488,21 @@ export default function BudgetExecutionMonitorD3({
           y: event.clientY,
           title: `${d.yearLabel} год — ${d.label}`,
           lines: [
-            { label: "План-график", value: formatRub(d.bucket.plannedAmount), color: "#3b82f6" },
-            { label: "Законтрактовано", value: formatRub(d.bucket.contractedAmount), color: "#0d9488" },
-            { label: "Фактически оплачено", value: formatRub(d.bucket.paidAmount), color: "#16a34a" },
+            {
+              label: "План-график",
+              value: formatRub(d.bucket.plannedAmount),
+              color: "#3b82f6",
+            },
+            {
+              label: "Законтрактовано",
+              value: formatRub(d.bucket.contractedAmount),
+              color: "#0d9488",
+            },
+            {
+              label: "Фактически оплачено",
+              value: formatRub(d.bucket.paidAmount),
+              color: "#16a34a",
+            },
           ],
         });
       })
@@ -393,7 +516,7 @@ export default function BudgetExecutionMonitorD3({
       .duration(450)
       .attr("y", (d) => y(d.value))
       .attr("height", (d) => Math.max(0, innerHeight - y(d.value)));
-  }, [mode, budgetContracts, budgetByYear, containerWidth]);
+  }, [mode, contractRows, budgetByYear, containerWidth]);
 
   return (
     <div className={styles.monitor}>
@@ -407,6 +530,13 @@ export default function BudgetExecutionMonitorD3({
             заключённых контрактов и кассовых выплат. Наведите на полосы или
             нажмите на контракт для детализации.
           </p>
+          {contractRows.length < budgetContracts.length && (
+            <p className={styles.subtitle}>
+              Для читаемости показаны {MAX_CONTRACT_ROWS} крупнейших контрактов;
+              остальные {budgetContracts.length - MAX_CONTRACT_ROWS} объединены
+              в строку «Прочие» — суммы и проценты сохранены.
+            </p>
+          )}
         </div>
 
         <div className={styles["mode-switch"]} role="tablist">

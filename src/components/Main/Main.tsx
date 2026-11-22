@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
+import {
+  currentPurchasePlanPath,
+  findCurrentPurchasePlan,
+} from "../../services/PurchasePlan/purchasePlanCurrent";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
 import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
 import {
   useAllContractPayments,
-  useAllContractPenalties,
   useAllContractStages,
   useContractRegistry,
 } from "../../services/ContractRegistry/contractRegistry.api";
@@ -18,9 +21,6 @@ import {
   buildProcurementNotifications,
   summarizeNotifications,
 } from "../../services/Notifications/deadlineNotifications";
-import { buildDashboardAnalytics } from "../../services/Dashboard/dashboardAnalytics";
-import ProcurementChartsDashboard from "../Dashboard/ProcurementChartsDashboard";
-import BudgetExecutionMonitorD3 from "../Dashboard/BudgetExecutionMonitorD3";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Main.module.scss";
 
@@ -61,9 +61,6 @@ const Main = () => {
       year: "numeric",
     }),
   );
-  const [selectedYear, setSelectedYear] = useState(() =>
-    new Date().getFullYear(),
-  );
 
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
@@ -81,7 +78,6 @@ const Main = () => {
   const { data: purchaseNotes } = usePurchaseNotes(orgId);
   const { data: allStages = [] } = useAllContractStages(Boolean(orgId));
   const { data: allPayments = [] } = useAllContractPayments(Boolean(orgId));
-  const { data: allPenalties = [] } = useAllContractPenalties(Boolean(orgId));
   const { data: orgTasks = [] } = useOrganizationTasks(orgId);
   const { data: ackStates = [] } = useNotificationStates(orgId);
 
@@ -90,6 +86,13 @@ const Main = () => {
   // Закупка относится к организации, если её ИКЗ есть в позициях планов этого
   // заказчика либо на неё ссылается проект контракта или контракт реестра.
   const planList = useMemo(() => plans ?? [], [plans]);
+
+  // Кнопка на главной открывает действующий план-график, а не форму создания:
+  // заказчику нужен документ текущего года, новый план создаётся из реестра
+  const currentPlanPath = useMemo(
+    () => currentPurchasePlanPath(findCurrentPurchasePlan(planList)),
+    [planList],
+  );
   const planPositions = planList.flatMap((plan) => plan.positions ?? []);
   const planIkz = new Set(
     planPositions
@@ -147,27 +150,6 @@ const Main = () => {
   const alertStats = useMemo(
     () => summarizeNotifications(activeAlerts),
     [activeAlerts],
-  );
-
-  // Аналитика для Recharts и D3 монитора исполнения бюджета
-  const analytics = useMemo(
-    () =>
-      buildDashboardAnalytics({
-        plans: planList,
-        contracts: registryContracts ?? [],
-        stages: allStages,
-        payments: allPayments,
-        penalties: allPenalties,
-        selectedYear,
-      }),
-    [
-      planList,
-      registryContracts,
-      allStages,
-      allPayments,
-      allPenalties,
-      selectedYear,
-    ],
   );
 
   const steps = [
@@ -309,6 +291,11 @@ const Main = () => {
       title: "Исполнение и контроль",
       links: [
         {
+          to: "/analytics",
+          title: "Аналитика закупок",
+          hint: "динамика, бюджет и статусы контрактов",
+        },
+        {
           to: "/contract-service",
           title: "Контрактная служба",
           hint: "приказ № 158н, п. 2.1",
@@ -422,14 +409,14 @@ const Main = () => {
         </div>
 
         <div className={main("hero-actions")}>
-          <Link
-            className={main("action", ["primary"])}
-            to="/purchase-plans/new"
-          >
-            Новый план-график
+          <Link className={main("action", ["primary"])} to={currentPlanPath}>
+            Текущий план-график
           </Link>
           <Link className={main("action")} to="/purchase-notes">
             Реестр потребностей
+          </Link>
+          <Link className={main("action")} to="/analytics">
+            Аналитика закупок
           </Link>
         </div>
 
@@ -541,18 +528,6 @@ const Main = () => {
           ))}
         </ol>
       </section>
-
-      {/* === Аналитика: Recharts и D3 в одной панели === */}
-      {orgId && (
-        <section className={main("card")}>
-          <ProcurementChartsDashboard
-            analytics={analytics}
-            onYearChange={setSelectedYear}
-          />
-          <div className={main("divider")} />
-          <BudgetExecutionMonitorD3 analytics={analytics} />
-        </section>
-      )}
 
       {/* === Разделы === */}
       <section className={main("card")}>

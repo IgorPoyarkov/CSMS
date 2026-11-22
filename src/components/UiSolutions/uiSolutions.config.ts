@@ -654,11 +654,11 @@ export const uiSolutionGroups: UiSolutionGroup[] = [
         id: "analytics",
         title: "Аналитика и отчёты",
         purpose:
-          "Дашборды, отчётность 158н и 238, реестры СМП, оценка заявок, НМЦК, дефектовки и график отпусков — на общих карточках, таблицах и фильтрах.",
+          "Дашборды, отчётность 158н и 238, реестры СМП, оценка заявок, НМЦК, дефектовки и график отпусков — на общих карточках, таблицах и фильтрах. Графики Recharts и D3 вынесены на отдельный ленивый маршрут `/analytics`, чтобы главная не грузила тяжёлые библиотеки.",
         usage:
-          "Главная, «Отчёты 158н», «Отчётность СМП», «Оценка заявок», «НМЦК», «Дефектовки», «График отпусков».",
+          "«Аналитика» (/analytics), «Отчёты 158н», «Отчётность СМП», «Оценка заявок», «НМЦК», «Дефектовки», «График отпусков».",
         implementation:
-          "src/components/Reports/, src/components/BidEvaluation/, src/components/Nmck/, src/components/DefectList/, src/components/VacationSchedule/",
+          "src/pages/AnalyticsPage/, src/components/Dashboard/, src/components/Reports/, src/components/BidEvaluation/, src/components/Nmck/, src/components/DefectList/, src/components/VacationSchedule/",
       },
       {
         id: "documents-export",

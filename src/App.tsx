@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import HomePage from "./pages/HomePage/HomePage";
 import AppLayout from "./components/AppLayout/AppLayout";
@@ -45,12 +46,38 @@ import DeadlineNotificationsPage from "./components/Notifications/DeadlineNotifi
 import ProcurementDocumentsPage from "./components/ProcurementDocuments/ProcurementDocumentsPage";
 import UiSolutionsPage from "./components/UiSolutions/UiSolutionsPage";
 
+// Аналитика тянет Recharts и D3 — самый тяжёлый код интерфейса. Отдельный
+// ленивый чанк держит главную лёгкой: графики загружаются только при переходе
+// на /analytics.
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage/AnalyticsPage"));
+
 const router = createBrowserRouter([
   {
     path: "/",
     element: <AppLayout />,
     children: [
       { path: "/", element: <HomePage /> },
+      {
+        // Тяжёлые графики вынесены с главной: маршрут подгружается по требованию
+        path: "/analytics",
+        element: (
+          <Suspense
+            fallback={
+              <div
+                style={{
+                  padding: "48px 16px",
+                  color: "var(--text-secondary)",
+                  textAlign: "center",
+                }}
+              >
+                Загрузка аналитики…
+              </div>
+            }
+          >
+            <AnalyticsPage />
+          </Suspense>
+        ),
+      },
       {
         path: "/account",
         element: <AccountPage />,

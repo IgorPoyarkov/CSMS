@@ -1,0 +1,113 @@
+@import "variables";
+
+.analytics {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  @media (max-width: 600px) {
+    padding: 16px 12px 4px;
+    gap: 14px;
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  &__head-main {
+    min-width: 0;
+  }
+
+  &__back {
+    display: inline-block;
+    color: var(--accent-emphasis);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+
+  &__title {
+    margin: 8px 0 0;
+    color: var(--text-primary);
+    font-size: clamp(22px, 3vw, 28px);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+
+  &__subtitle {
+    max-width: 82ch;
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  &__card {
+    padding: 22px 24px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+
+    @media (max-width: 600px) {
+      padding: 16px 14px;
+      border-radius: 12px;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 28px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+  }
+
+  &__empty-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  &__empty-text {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  &__empty-link {
+    margin-top: 6px;
+    padding: 9px 16px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 9px;
+    color: var(--text-on-accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+  }
+}
