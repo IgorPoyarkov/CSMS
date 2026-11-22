@@ -7,6 +7,7 @@ using Eis44Parser.Data.Services;
 using Eis44Parser.Worker;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,10 @@ using Microsoft.Extensions.Options;
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
 // --parse-xlsx <путь> — разобрать XLSX шаблон КТРУ экспертного совета,
 // --contract-card <реестровый номер> — скачать и разобрать акты/платежи публичной карточки,
+// --smp-html — дополнительно разобрать сведения о привлечении СМП из HTML-карточки
+//   (с 2026 года субподрядчики публикуются на сайте, а не в XML),
+// --smp-html-only — обновить только подтаблицу СМП из HTML по списку номеров
+//   (--contract-card / --numbers-file / --inn, --year, --limit, --out) — XML не скачивается,
 // --reparse-card-dir <папка> — переразобрать уже скачанные XML карточек без сети
 //   (после изменения парсера; JSON-проекции перезаписываются),
 // --numbers-file <путь> — то же для явного списка реестровых номеров (по одному в строке);
@@ -42,6 +47,7 @@ var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
 var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
 var enrichContractors = args.Contains("--enrich-contractors", StringComparer.OrdinalIgnoreCase);
+var smpHtml = args.Contains("--smp-html", StringComparer.OrdinalIgnoreCase);
 
 // ContentRoot привязан к каталогу исполняемого файла: туда копируется
 // appsettings.json. Иначе при запуске из корня репозитория (dotnet run
@@ -289,6 +295,139 @@ if (parseXlsxPath is not null)
     }
 }
 
+// Обновление только подтаблицы СМП из HTML-карточки. XML не скачивается:
+// режим нужен, когда в XML сведений о субподрядчиках нет, а на сайте они есть.
+// Существующая JSON-проекция читается и перезаписывается, остальные поля не
+// трогаются; если проекции ещё нет — создаётся минимальная (её дополнит импорт).
+var smpHtmlOnly = args.Contains("--smp-html-only", StringComparer.OrdinalIgnoreCase);
+if (smpHtmlOnly)
+{
+    var outputDirectory = GetArgumentValue(args, "--out");
+    if (outputDirectory is null)
+    {
+        Console.Error.WriteLine("--smp-html-only требует --out <папка с проекциями>");
+        return 1;
+    }
+
+    var singleNumber = GetArgumentValue(args, "--contract-card");
+    var numbersFile = GetArgumentValue(args, "--numbers-file");
+    var htmlOnlyCustomerInn = GetArgumentValue(args, "--inn");
+    var year = int.TryParse(GetArgumentValue(args, "--year"), out var parsedYear)
+        ? parsedYear
+        : 2026;
+    var limit = int.TryParse(GetArgumentValue(args, "--limit"), out var parsedLimit)
+        ? parsedLimit
+        : int.MaxValue;
+
+    var htmlClient = new PublicContractCardClient();
+    var htmlParser = new ContractSmpHtmlParser();
+    var numbers = new List<string>();
+    if (singleNumber is not null)
+    {
+        numbers.Add(singleNumber);
+    }
+    else if (numbersFile is not null)
+    {
+        if (!File.Exists(numbersFile))
+        {
+            Console.Error.WriteLine($"Файл номеров не найден: {numbersFile}");
+            return 1;
+        }
+
+        numbers.AddRange(File.ReadLines(numbersFile)
+            .Select(line => line.Trim())
+            .Where(line => line.Length == 19 && line.All(char.IsDigit)));
+    }
+    else if (htmlOnlyCustomerInn is not null)
+    {
+        numbers.AddRange((await htmlClient.EnumerateContractsByInnAsync(htmlOnlyCustomerInn))
+            .Where(number => PublicContractCardClient.YearFromRegNumber(number) == year));
+    }
+    else
+    {
+        Console.Error.WriteLine(
+            "--smp-html-only требует --contract-card, --numbers-file или --inn");
+        return 1;
+    }
+
+    numbers = numbers
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(number => number, StringComparer.Ordinal)
+        .Take(limit)
+        .ToList();
+
+    Directory.CreateDirectory(outputDirectory);
+    var htmlJsonOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    var updated = 0;
+    var withoutSmp = 0;
+    var failed = 0;
+    foreach (var regNumber in numbers)
+    {
+        try
+        {
+            var html = await htmlClient.GetPrintFormHtmlAsync(regNumber);
+            var smp = htmlParser.Parse(html, regNumber);
+            if (smp is null)
+            {
+                withoutSmp++;
+                Console.Error.WriteLine($"{regNumber}: блока СМП в HTML нет");
+                continue;
+            }
+
+            var path = Path.Combine(outputDirectory, $"{regNumber}.json");
+            JsonObject projection;
+            if (File.Exists(path))
+            {
+                projection = JsonNode.Parse(await File.ReadAllTextAsync(path))?.AsObject()
+                    ?? new JsonObject();
+            }
+            else
+            {
+                projection = new JsonObject
+                {
+                    ["RegNumber"] = regNumber,
+                    ["regNumber"] = regNumber,
+                    ["Acts"] = new JsonArray(),
+                    ["Decisions"] = new JsonArray(),
+                    ["Payments"] = new JsonArray(),
+                    ["Messages"] = new JsonArray(),
+                    ["Executions"] = new JsonArray(),
+                    ["SkippedFiles"] = new JsonArray(),
+                };
+            }
+
+            projection["RegNumber"] = regNumber;
+            projection["regNumber"] = regNumber;
+            projection["Smp"] = JsonSerializer.SerializeToNode(new[] { smp }, htmlJsonOptions);
+            await File.WriteAllTextAsync(path, projection.ToJsonString(htmlJsonOptions));
+
+            updated++;
+            Console.Error.WriteLine(
+                $"{regNumber}: требование {smp.RequirementPercent}%, " +
+                $"субподрядчиков {smp.Subcontractors.Count}");
+        }
+        catch (Exception exception)
+        {
+            failed++;
+            Console.Error.WriteLine($"{regNumber}: ОШИБКА {exception.Message}");
+        }
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        total = numbers.Count,
+        updated,
+        withoutSmp,
+        failed,
+    }, htmlJsonOptions));
+    return 0;
+}
+
 // Скачивание и полный разбор публичной карточки контракта: только общий доступ,
 // токен ЕИС не нужен. Результат — projecting со всеми полями для фронта.
 var cardRegNumber = GetArgumentValue(args, "--contract-card");
@@ -454,7 +593,8 @@ if (cardRegNumber is not null || customerInn is not null || numbersFilePath is n
                 var saveDirectory = outputDirectory is null
                     ? null
                     : Path.Combine(outputDirectory, regNumber);
-                var view = await importer.ImportAsync(regNumber, year, saveDirectory);
+                var view = await importer.ImportAsync(
+                    regNumber, year, saveDirectory, includeHtmlSmp: smpHtml);
                 all.Add(view);
                 Console.Error.WriteLine(
                     $"{regNumber}: актов {view.Acts.Count}, решений {view.Decisions.Count}, " +

@@ -19,6 +19,8 @@ public sealed class PublicContractCardClient
     private const string BaseUrl = "https://zakupki.gov.ru";
     private const string FileUrl = BaseUrl + "/44fz/filestore/public/1.0/download/rgk2/file.html?uid=";
     private const string DocumentsUrl = BaseUrl + "/epz/contract/contractCard/document-info.html?reestrNumber=";
+    private const string CommonInfoUrl = BaseUrl + "/epz/contract/contractCard/common-info.html?reestrNumber=";
+    private const string PrintFormUrl = BaseUrl + "/epz/contract/printForm/view.html?contractReestrNumber=";
     private const string SearchUrl = BaseUrl + "/epz/contract/search/results.html?customerINN={0}&recordsPerPage=_500&pageNumber={1}";
     private const int MaxAttempts = 8;
 
@@ -45,6 +47,34 @@ public sealed class PublicContractCardClient
         {
             _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (CSMS parser)");
         }
+    }
+
+    /// <summary>
+    /// HTML печатной формы карточки контракта. В XML контрактов 2026 года
+    /// заказчик не публикует блок subContractorsSum, но на сайте сведения о
+    /// привлечении СМП/СОНО видны. Печатная форма — полный источник: таблица
+    /// субподрядчиков отдаётся целиком, без пагинации вкладки «Общая информация».
+    /// Разбор — в <see cref="ContractSmpHtmlParser"/>.
+    /// </summary>
+    public async Task<string> GetPrintFormHtmlAsync(
+        string regNumber,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await GetWithRetryAsync(PrintFormUrl + regNumber, cancellationToken);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// HTML вкладки «Общая информация». Оставлен как запасной источник:
+    /// таблица субподрядчиков здесь обрезается до 10 строк, но требование
+    /// и первая страница списка доступны без печатной формы.
+    /// </summary>
+    public async Task<string> GetCommonInfoHtmlAsync(
+        string regNumber,
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await GetWithRetryAsync(CommonInfoUrl + regNumber, cancellationToken);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     /// <summary>Все вложения вкладки «Документы» по реестровому номеру.</summary>

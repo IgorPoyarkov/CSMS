@@ -18,12 +18,19 @@ public sealed class ContractCardImportService(
     ContractExecutionParser executionParser,
     ContractSmpParser smpParser)
 {
+    private readonly ContractSmpHtmlParser _smpHtmlParser = new();
+
     /// <summary>Импортировать один контракт; year — фильтр по году (null = все).</summary>
+    /// <param name="includeHtmlSmp">
+    /// Дополнительно разобрать подтаблицу СМП из HTML-карточки: с 2026 года
+    /// заказчик не публикует субподрядчиков в XML, но на сайте они есть.
+    /// </param>
     public async Task<ContractCardViewDto> ImportAsync(
         string regNumber,
         int? year,
         string? saveDirectory = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool includeHtmlSmp = false)
     {
         var acts = new List<AcceptanceActViewDto>();
         var decisions = new List<AcceptanceDecisionDto>();
@@ -91,7 +98,65 @@ public sealed class ContractCardImportService(
             }
         }
 
+        // XML 2026 года часто содержит только условие привлечения, без
+        // субподрядчиков. Добираем таблицу с сайта: она публикуется отдельно
+        // от XML и приходит только в HTML вкладки «Общая информация».
+        if (includeHtmlSmp)
+        {
+            try
+            {
+                var html = await client.GetPrintFormHtmlAsync(regNumber, cancellationToken);
+                smp = MergeSmp(smp, _smpHtmlParser.Parse(html, regNumber));
+            }
+            catch (Exception exception)
+            {
+                // Сеть или 429 не должны ронять уже собранную XML-проекцию:
+                // фиксируем пропуск, следующий прогон повторит запрос.
+                skipped.Add($"html-smp: {exception.Message}");
+            }
+        }
+
         return BuildView(regNumber, acts, decisions, payments, messages, executions, smp, skipped);
+    }
+
+    /// <summary>
+    /// Слить сведения СМП из XML и HTML. XML — авторитетный источник там, где
+    /// он что-то содержит; HTML закрывает пробелы: у 2026 года в XML только
+    /// требование, а субподрядчики — в HTML.
+    /// </summary>
+    private static List<ContractSmpViewDto> MergeSmp(
+        List<ContractSmpViewDto> xml,
+        ContractSmpViewDto? html)
+    {
+        if (html is null)
+        {
+            return xml;
+        }
+
+        // В XML уже есть фактические субподрядчики — оставляем XML как есть
+        if (xml.Any(item => item.Subcontractors.Count > 0))
+        {
+            return xml;
+        }
+
+        if (xml.Count == 0)
+        {
+            return [html];
+        }
+
+        var requirement = xml.FirstOrDefault(item =>
+            item.RequirementPercent is not null || item.RequirementSum is not null);
+
+        return
+        [
+            new ContractSmpViewDto(
+                RequirementPercent: html.RequirementPercent ?? requirement?.RequirementPercent,
+                RequirementSum: html.RequirementSum ?? requirement?.RequirementSum,
+                // Текст ответственности есть только в XML — сохраняем его
+                Responsibility: requirement?.Responsibility ?? html.Responsibility,
+                Subcontractors: html.Subcontractors,
+                SourceFile: html.SourceFile),
+        ];
     }
 
     /// <summary>
