@@ -286,7 +286,126 @@ public sealed class EisPipelineRepository(EisDbContext db) : IEisPipelineReposit
             document.CustomerKpp, document.CustomerName, rawId, cancellationToken);
         await UpsertParticipantAsync(contract.Id, null, "supplier", document.SupplierInn,
             document.SupplierKpp, document.SupplierName, rawId, cancellationToken);
+
+        // Справочник подрядчиков: заказчик и поставщик — тоже контрагенты.
+        // Карточка заводится по ИНН, поэтому субподрядчик, выросший до
+        // генподрядчика, не потребует новой сущности.
+        await UpsertContractorAsync(
+            document.CustomerInn, document.CustomerKpp, document.CustomerName, null, null,
+            cancellationToken);
+        await UpsertContractorAsync(
+            document.SupplierInn, document.SupplierKpp, document.SupplierName, null, null,
+            cancellationToken);
+
+        // Субподрядчики/соисполнители: в связи — только ИНН и реквизиты
+        // субдоговора, реквизиты организации подтянет справочник по ФНС.
+        foreach (var subcontractor in document.Subcontractors)
+        {
+            await UpsertContractorAsync(
+                subcontractor.Inn, subcontractor.Kpp, subcontractor.Name,
+                subcontractor.StatusCode, subcontractor.StatusName, cancellationToken);
+            await UpsertContractSubcontractorAsync(
+                contract.Id, subcontractor, rawId, cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Заводит или обновляет карточку контрагента по ИНН. Данные из ЕИС
+    /// заполняют только пустые поля: карточку, уже обогащённую по API ФНС,
+    /// повторный разбор архива не должен затирать.
+    /// </summary>
+    private async Task UpsertContractorAsync(
+        string? inn,
+        string? kpp,
+        string? name,
+        string? statusCode,
+        string? statusName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(inn))
+        {
+            return;
+        }
+
+        var normalized = inn.Trim();
+        var now = DateTimeOffset.UtcNow;
+        var contractor = await db.Contractors
+            .SingleOrDefaultAsync(item => item.Inn == normalized, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (contractor is null)
+        {
+            contractor = new ContractorRecord { Inn = normalized, CreatedAt = now };
+            db.Contractors.Add(contractor);
+        }
+
+        if (!string.IsNullOrWhiteSpace(kpp))
+        {
+            contractor.Kpp = kpp.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            contractor.Name = name.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(statusCode))
+        {
+            var code = statusCode.Trim();
+            contractor.StatusCode = code;
+            contractor.IsSmp = code == "30";
+            contractor.IsSono = code == "40";
+        }
+
+        if (!string.IsNullOrWhiteSpace(statusName))
+        {
+            contractor.StatusName = statusName.Trim();
+        }
+
+        contractor.Source ??= "eis";
+        contractor.UpdatedAt = now;
+    }
+
+    private async Task UpsertContractSubcontractorAsync(
+        long contractId,
+        SubcontractorDto subcontractor,
+        long rawId,
+        CancellationToken cancellationToken)
+    {
+        var inn = subcontractor.Inn.Trim();
+        var number = subcontractor.ContractNumber?.Trim();
+        var now = DateTimeOffset.UtcNow;
+
+        var existing = await db.ContractSubcontractors
+            .SingleOrDefaultAsync(link =>
+                    link.ContractId == contractId &&
+                    link.Inn == inn &&
+                    link.DocumentNumber == number,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        if (existing is null)
+        {
+            existing = new ContractSubcontractorRecord
+            {
+                ContractId = contractId,
+                Inn = inn,
+                CreatedAt = now,
+            };
+            db.ContractSubcontractors.Add(existing);
+        }
+
+        existing.Kpp = subcontractor.Kpp;
+        existing.StatusCode = subcontractor.StatusCode;
+        existing.Amount = subcontractor.ContractSum;
+        existing.DocumentNumber = number;
+        existing.DocumentDate = subcontractor.ContractDate;
+        existing.Subject = subcontractor.ContractSubject;
+        existing.Okpd2Code = subcontractor.Okpd2Code;
+        existing.RawDocumentId = rawId;
+        existing.UpdatedAt = now;
     }
 
     private async Task UpsertParticipantAsync(

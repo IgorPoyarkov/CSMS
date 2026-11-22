@@ -19,6 +19,8 @@ public sealed class EisDbContext : DbContext
     public DbSet<PurchaseItemRecord> PurchaseItems => Set<PurchaseItemRecord>();
     public DbSet<ContractRecord> Contracts => Set<ContractRecord>();
     public DbSet<ParticipantRecord> Participants => Set<ParticipantRecord>();
+    public DbSet<ContractorRecord> Contractors => Set<ContractorRecord>();
+    public DbSet<ContractSubcontractorRecord> ContractSubcontractors => Set<ContractSubcontractorRecord>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -187,6 +189,61 @@ public sealed class EisDbContext : DbContext
             entity.Property(participant => participant.RawDocumentId).HasColumnName("raw_document_id");
             entity.HasIndex(participant => participant.Inn)
                 .HasDatabaseName("ix_participants_inn");
+        });
+
+        // Справочник подрядчиков: ИНН — естественный ключ, поэтому отдельный
+        // суррогатный Id нужен только для EF, а уникальность держит индекс.
+        modelBuilder.Entity<ContractorRecord>(entity =>
+        {
+            entity.ToTable("contractors");
+            entity.HasKey(contractor => contractor.Id);
+            entity.Property(contractor => contractor.Id).HasColumnName("id");
+            entity.Property(contractor => contractor.Inn).HasColumnName("inn").IsRequired();
+            entity.Property(contractor => contractor.Kpp).HasColumnName("kpp");
+            entity.Property(contractor => contractor.Name).HasColumnName("name");
+            entity.Property(contractor => contractor.FullName).HasColumnName("full_name");
+            entity.Property(contractor => contractor.Ogrn).HasColumnName("ogrn");
+            entity.Property(contractor => contractor.Address).HasColumnName("address");
+            entity.Property(contractor => contractor.StatusCode).HasColumnName("status_code");
+            entity.Property(contractor => contractor.StatusName).HasColumnName("status_name");
+            entity.Property(contractor => contractor.IsSmp).HasColumnName("is_smp");
+            entity.Property(contractor => contractor.IsSono).HasColumnName("is_sono");
+            entity.Property(contractor => contractor.FnsStatus).HasColumnName("fns_status");
+            entity.Property(contractor => contractor.Source).HasColumnName("source");
+            entity.Property(contractor => contractor.FnsCheckedAt).HasColumnName("fns_checked_at");
+            entity.Property(contractor => contractor.FnsPayload).HasColumnName("fns_payload");
+            entity.Property(contractor => contractor.CreatedAt).HasColumnName("created_at");
+            entity.Property(contractor => contractor.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(contractor => contractor.Inn)
+                .IsUnique()
+                .HasDatabaseName("uq_contractors_inn");
+            entity.HasIndex(contractor => contractor.FnsCheckedAt)
+                .HasDatabaseName("ix_contractors_fns_checked");
+        });
+
+        // Связь контракта с субподрядчиком: только ИНН + реквизиты субдоговора.
+        modelBuilder.Entity<ContractSubcontractorRecord>(entity =>
+        {
+            entity.ToTable("contract_subcontractors");
+            entity.HasKey(link => link.Id);
+            entity.Property(link => link.Id).HasColumnName("id");
+            entity.Property(link => link.ContractId).HasColumnName("contract_id");
+            entity.Property(link => link.Inn).HasColumnName("inn").IsRequired();
+            entity.Property(link => link.Kpp).HasColumnName("kpp");
+            entity.Property(link => link.StatusCode).HasColumnName("status_code");
+            entity.Property(link => link.Amount).HasColumnName("amount").HasPrecision(20, 2);
+            entity.Property(link => link.DocumentNumber).HasColumnName("document_number");
+            entity.Property(link => link.DocumentDate).HasColumnName("document_date");
+            entity.Property(link => link.Subject).HasColumnName("subject");
+            entity.Property(link => link.Okpd2Code).HasColumnName("okpd2_code");
+            entity.Property(link => link.RawDocumentId).HasColumnName("raw_document_id");
+            entity.Property(link => link.CreatedAt).HasColumnName("created_at");
+            entity.Property(link => link.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(link => new { link.ContractId, link.Inn, link.DocumentNumber })
+                .IsUnique()
+                .HasDatabaseName("uq_contract_subcontractors_link");
+            entity.HasIndex(link => link.Inn)
+                .HasDatabaseName("ix_contract_subcontractors_inn");
         });
     }
 }

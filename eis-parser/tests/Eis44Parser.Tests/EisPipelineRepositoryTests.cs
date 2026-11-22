@@ -156,4 +156,65 @@ public sealed class EisPipelineRepositoryTests
         Assert.Equal(1, await db.RawDocuments.CountAsync());
         Assert.Equal("TenderPlan", await db.RawDocuments.Select(r => r.DocumentKind).SingleAsync());
     }
+
+    [Fact]
+    public async Task ContractWithSubcontractors_PersistsContractorsAndLinks()
+    {
+        using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<EisDbContext>().UseSqlite(connection).Options;
+        using var db = new EisDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+        var repository = new EisPipelineRepository(db);
+
+        var candidate = new ArchiveCandidate(
+            "https://example.test/contract.zip", "31", EisSubsystems.Priz, "contract", null, null);
+        Assert.True(await repository.EnqueueAsync(candidate));
+        var claimed = await repository.ClaimNextAsync();
+        Assert.NotNull(claimed);
+
+        var contract = new ParsedEisDocument
+        {
+            FileName = "contract.xml",
+            DocumentSha256 = new string('e', 64),
+            Kind = EisDocumentKind.Contract,
+            RegNumber = "2462904043925000011",
+            PurchaseNumber = "0144200001825000020",
+            CustomerInn = "4629040439",
+            SupplierInn = "4621009123",
+            Price = 271_568_111.92m,
+            Subcontractors =
+            [
+                new SubcontractorDto(
+                    "4632306640", "463201001", "ООО «Лидер Групп»", "30", "СМП",
+                    0m, "2026-10-28", "01/09/26/20Р", "Услуги", "42.11.20.200"),
+                new SubcontractorDto(
+                    "463227720470", null, "Кочетков Юрий Алексеевич", "30", "СМП",
+                    0m, "2026-03-18", "Д-73", "Услуги", "42.11.20.200"),
+            ],
+        };
+
+        await repository.PersistDocumentAsync(claimed!.Id, contract);
+        // Повторный разбор того же XML не должен плодить связи.
+        await repository.PersistDocumentAsync(claimed.Id, contract);
+
+        Assert.Equal(1, await db.Contracts.CountAsync());
+        Assert.Equal(2, await db.ContractSubcontractors.CountAsync());
+        // Заказчик, поставщик и два субподрядчика — все в справочнике.
+        Assert.Equal(4, await db.Contractors.CountAsync());
+
+        var link = await db.ContractSubcontractors.SingleAsync(item => item.Inn == "4632306640");
+        Assert.Equal("01/09/26/20Р", link.DocumentNumber);
+        Assert.Equal("30", link.StatusCode);
+        Assert.Equal("42.11.20.200", link.Okpd2Code);
+
+        var contractor = await db.Contractors.SingleAsync(item => item.Inn == "4632306640");
+        Assert.True(contractor.IsSmp);
+        Assert.False(contractor.IsSono);
+        Assert.Equal("eis", contractor.Source);
+        Assert.Null(contractor.FnsCheckedAt);
+
+        // ИП хранится по ИНН так же, как юрлицо.
+        Assert.NotNull(await db.Contractors.SingleOrDefaultAsync(item => item.Inn == "463227720470"));
+    }
 }

@@ -119,3 +119,48 @@ CREATE TABLE IF NOT EXISTS participants (
 );
 
 CREATE INDEX IF NOT EXISTS ix_participants_inn ON participants (inn);
+
+-- Справочник подрядчиков/контрагентов по ИНН. Заполняется из XML ЕИС
+-- минимальными реквизитами, затем обогащается по API ФНС.
+CREATE TABLE IF NOT EXISTS contractors (
+    id              BIGSERIAL PRIMARY KEY,
+    inn             TEXT NOT NULL,
+    kpp             TEXT,
+    name            TEXT,
+    full_name       TEXT,
+    ogrn            TEXT,
+    address         TEXT,
+    status_code     TEXT,
+    status_name     TEXT,
+    is_smp          BOOLEAN,
+    is_sono         BOOLEAN,
+    fns_status      TEXT,
+    source          TEXT,
+    fns_checked_at  TIMESTAMPTZ,
+    fns_payload     TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_contractors_inn UNIQUE (inn)
+);
+
+CREATE INDEX IF NOT EXISTS ix_contractors_fns_checked ON contractors (fns_checked_at);
+
+-- Связь контракта с субподрядчиком: только ИНН + реквизиты субдоговора.
+CREATE TABLE IF NOT EXISTS contract_subcontractors (
+    id                BIGSERIAL PRIMARY KEY,
+    contract_id       BIGINT NOT NULL REFERENCES contracts (id) ON DELETE CASCADE,
+    inn               TEXT NOT NULL,
+    kpp               TEXT,
+    status_code       TEXT,
+    amount            NUMERIC(20, 2),
+    document_number   TEXT,
+    document_date     TEXT,
+    subject           TEXT,
+    okpd2_code        TEXT,
+    raw_document_id   BIGINT REFERENCES raw_documents (id) ON DELETE SET NULL,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_contract_subcontractors_link UNIQUE (contract_id, inn, document_number)
+);
+
+CREATE INDEX IF NOT EXISTS ix_contract_subcontractors_inn ON contract_subcontractors (inn);

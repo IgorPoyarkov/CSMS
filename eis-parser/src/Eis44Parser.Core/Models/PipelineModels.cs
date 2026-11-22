@@ -9,6 +9,25 @@ public sealed record PurchaseItemDto(
     decimal? Quantity,
     decimal? Price);
 
+/// <summary>
+/// Субподрядчик/соисполнитель из блока subContractorsSum сведений о контракте.
+/// Реквизиты организации здесь только те, что есть в XML: ИНН — ключ связи,
+/// остальное (КПП, название, адрес) справочник подрядчиков уточняет по ФНС.
+/// </summary>
+public sealed record SubcontractorDto(
+    string Inn,
+    string? Kpp,
+    string? Name,
+    /// <summary>Код статуса: 30 — СМП, 40 — СОНО (пусто, если статус не указан).</summary>
+    string? StatusCode,
+    string? StatusName,
+    /// <summary>Сумма субподрядного договора (subContractPriceInfo/price).</summary>
+    decimal? ContractSum,
+    string? ContractDate,
+    string? ContractNumber,
+    string? ContractSubject,
+    string? Okpd2Code);
+
 /// <summary>Результат разбора одного XML-файла из архива.</summary>
 public sealed record ParsedEisDocument
 {
@@ -34,6 +53,8 @@ public sealed record ParsedEisDocument
     public string? ObjectInfo { get; init; }
     public string? PrintFormUrl { get; init; }
     public IReadOnlyList<PurchaseItemDto> Items { get; init; } = [];
+    /// <summary>Субподрядчики (СМП/СОНО) из сведений о контракте.</summary>
+    public IReadOnlyList<SubcontractorDto> Subcontractors { get; init; } = [];
     public string RawXml { get; init; } = string.Empty;
 }
 

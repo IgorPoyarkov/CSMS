@@ -88,4 +88,74 @@ public sealed class EisDocumentParserTests
         Assert.Equal("2462904043926000006", result.RegNumber);
         Assert.Equal("2462904043926000006", result.PurchaseNumber);
     }
+
+    [Fact]
+    public void Parse_Contract_ReadsSubcontractorsFromSubContractorsSum()
+    {
+        var xml = """
+            <contract schemeVersion="16.3">
+              <regNum>2462904043925000011</regNum>
+              <subContractorsSum>
+                <sumInPercents>25.0</sumInPercents>
+                <subContractors>
+                  <subContractor>
+                    <legalEntityRF>
+                      <fullName>ООО «Лидер Групп»</fullName>
+                      <INN>4632306640</INN>
+                      <KPP>463201001</KPP>
+                      <statusInfo><code>30</code><name>СМП</name></statusInfo>
+                      <subContractInfo>
+                        <subContractDate>2026-10-28</subContractDate>
+                        <subContractNumber>01/09/26/20Р</subContractNumber>
+                        <subContractSubject>Услуги спецтехники</subContractSubject>
+                        <subContractPriceInfo><price>1000.50</price></subContractPriceInfo>
+                      </subContractInfo>
+                      <subPurchaseObjectsInfo>
+                        <subPurchaseObjectInfo>
+                          <OKPD2><code>42.11.20.200</code></OKPD2>
+                        </subPurchaseObjectInfo>
+                      </subPurchaseObjectsInfo>
+                    </legalEntityRF>
+                  </subContractor>
+                  <subContractor>
+                    <individualBusinessmanRF>
+                      <lastName>Кочетков</lastName>
+                      <firstName>Юрий</firstName>
+                      <middleName>Алексеевич</middleName>
+                      <INN>463227720470</INN>
+                      <statusInfo><code>30</code><name>СМП</name></statusInfo>
+                      <subContractInfo>
+                        <subContractDate>2026-03-18</subContractDate>
+                        <subContractNumber>Д-73</subContractNumber>
+                        <subContractSubject>Услуги спецтехники</subContractSubject>
+                        <subContractPriceInfo><price>0.00</price></subContractPriceInfo>
+                      </subContractInfo>
+                    </individualBusinessmanRF>
+                  </subContractor>
+                </subContractors>
+              </subContractorsSum>
+            </contract>
+            """;
+
+        var result = _parser.Parse(XDocument.Parse(xml), "contract.xml");
+
+        Assert.Equal(2, result.Subcontractors.Count);
+
+        var company = result.Subcontractors[0];
+        Assert.Equal("4632306640", company.Inn);
+        Assert.Equal("463201001", company.Kpp);
+        Assert.Equal("ООО «Лидер Групп»", company.Name);
+        Assert.Equal("30", company.StatusCode);
+        Assert.Equal("СМП", company.StatusName);
+        Assert.Equal(1000.50m, company.ContractSum);
+        Assert.Equal("01/09/26/20Р", company.ContractNumber);
+        Assert.Equal("2026-10-28", company.ContractDate);
+        Assert.Equal("42.11.20.200", company.Okpd2Code);
+
+        var entrepreneur = result.Subcontractors[1];
+        Assert.Equal("463227720470", entrepreneur.Inn);
+        // У ИП нет fullName — ФИО собирается из lastName/firstName/middleName.
+        Assert.Equal("Кочетков Юрий Алексеевич", entrepreneur.Name);
+        Assert.Null(entrepreneur.Kpp);
+    }
 }

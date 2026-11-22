@@ -73,6 +73,7 @@ public sealed class EisDocumentParser
             ObjectInfo = GetValue(root, "purchaseObjectInfo", "contractSubject", "objectInfo", "subject", "name"),
             PrintFormUrl = GetPrintFormUrl(root),
             Items = ParseItems(root),
+            Subcontractors = ParseSubcontractors(root),
             RawXml = code,
         };
     }
@@ -194,6 +195,94 @@ public sealed class EisDocumentParser
         }
 
         return items;
+    }
+
+    /// <summary>
+    /// Субподрядчики/соисполнители из сведений о контракте:
+    /// subContractorsSum/subContractors/subContractor. В проектах контракта
+    /// (contractProcedure) этого блока нет — там только требование
+    /// subcontractorsAttractionConditionsInfo, поэтому ищем именно subContractors.
+    /// </summary>
+    private static IReadOnlyList<SubcontractorDto> ParseSubcontractors(XElement? root)
+    {
+        if (root is null)
+        {
+            return [];
+        }
+
+        var result = new List<SubcontractorDto>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var container in root.DescendantsAndSelf().Where(element =>
+                     element.Name.LocalName.Equals("subContractors", StringComparison.OrdinalIgnoreCase)))
+        {
+            foreach (var contractor in container.Elements().Where(element =>
+                         element.Name.LocalName.Equals("subContractor", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Юрлицо или ИП: ИНН в обеих ветках — прямой ребёнок.
+                var party = contractor.Elements().FirstOrDefault(element =>
+                                element.Name.LocalName.Equals("legalEntityRF", StringComparison.OrdinalIgnoreCase))
+                            ?? contractor.Elements().FirstOrDefault(element =>
+                                element.Name.LocalName.Equals("individualBusinessmanRF", StringComparison.OrdinalIgnoreCase));
+                if (party is null)
+                {
+                    continue;
+                }
+
+                var inn = GetOwnValue(party, "INN");
+                if (string.IsNullOrWhiteSpace(inn))
+                {
+                    continue;
+                }
+
+                var statusInfo = party.Elements().FirstOrDefault(element =>
+                    element.Name.LocalName.Equals("statusInfo", StringComparison.OrdinalIgnoreCase));
+                var contractInfo = party.Elements().FirstOrDefault(element =>
+                    element.Name.LocalName.Equals("subContractInfo", StringComparison.OrdinalIgnoreCase));
+
+                var dto = new SubcontractorDto(
+                    Inn: inn.Trim(),
+                    Kpp: GetOwnValue(party, "KPP"),
+                    // У ИП нет fullName: ФИО лежит отдельными полями.
+                    Name: GetOwnValue(party, "fullName", "shortName", "name")
+                        ?? BuildIndividualName(party),
+                    StatusCode: GetOwnValue(statusInfo, "code"),
+                    StatusName: GetOwnValue(statusInfo, "name"),
+                    ContractSum: ParseMoney(GetValue(contractInfo, "price")),
+                    ContractDate: GetOwnValue(contractInfo, "subContractDate"),
+                    ContractNumber: GetOwnValue(contractInfo, "subContractNumber"),
+                    ContractSubject: GetOwnValue(contractInfo, "subContractSubject"),
+                    Okpd2Code: GetSubcontractOkpd2Code(party));
+
+                // Один и тот же ИНН может встречаться с разными субдоговорами,
+                // поэтому ключ — ИНН + номер договора, а не только ИНН.
+                var key = $"{dto.Inn}|{dto.ContractNumber}";
+                if (seen.Add(key))
+                {
+                    result.Add(dto);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static string? BuildIndividualName(XElement party)
+    {
+        var parts = new[] { "lastName", "firstName", "middleName" }
+            .Select(field => GetOwnValue(party, field))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+
+        return parts.Length == 0 ? null : string.Join(" ", parts);
+    }
+
+    private static string? GetSubcontractOkpd2Code(XElement party)
+    {
+        var okpd2 = party.DescendantsAndSelf().FirstOrDefault(element =>
+            element.Name.LocalName.Equals("OKPD2", StringComparison.OrdinalIgnoreCase));
+
+        return GetOwnValue(okpd2, "code");
     }
 
     private static string? GetClassifierCode(XElement item, string classifier)

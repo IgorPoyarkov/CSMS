@@ -1,7 +1,9 @@
 ﻿using Eis44Parser.Core;
 using Eis44Parser.Core.Abstractions;
+using Eis44Parser.Core.Fns;
 using Eis44Parser.Core.Models;
 using Eis44Parser.Data;
+using Eis44Parser.Data.Services;
 using Eis44Parser.Worker;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -24,6 +26,8 @@ using Microsoft.Extensions.Options;
 // --numbers-file <путь> — то же для явного списка реестровых номеров (по одному в строке);
 //   поиск ЕИС не фильтрует по ИНН, поэтому надёжный источник списка — свои номера из БД,
 // --inn <ИНН заказчика> — то же для всех контрактов заказчика за --year,
+// --enrich-contractors — обогатить справочник подрядчиков по API ФНС
+//   (--limit <n> — сколько карточек, --inn <ИНН> — только одна),
 // --year <год> — фильтр года (по умолчанию 2026), --limit <n> — ограничение числа контрактов,
 // --out <папка> — сохранить сырые XML и JSON-проекцию,
 // --incremental — только новые номера старше курсора из --state (ежедневная проверка),
@@ -35,6 +39,7 @@ var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase)
 var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
 var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
+var enrichContractors = args.Contains("--enrich-contractors", StringComparer.OrdinalIgnoreCase);
 
 // ContentRoot привязан к каталогу исполняемого файла: туда копируется
 // appsettings.json. Иначе при запуске из корня репозитория (dotnet run
@@ -217,6 +222,17 @@ if (parseFilePath is not null)
         {
             Console.WriteLine($"  {item.LineNo}: КТРУ {item.KtruCode} | ОКПД2 {item.Okpd2Code} | {item.ItemName}");
             Console.WriteLine($"     количество {item.Quantity}, цена {item.Price}");
+        }
+
+        Console.WriteLine($"Субподрядчиков: {parsed.Subcontractors.Count}");
+        foreach (var subcontractor in parsed.Subcontractors)
+        {
+            Console.WriteLine(
+                $"  ИНН {subcontractor.Inn} | КПП {subcontractor.Kpp} | статус {subcontractor.StatusCode} | " +
+                $"{subcontractor.Name}");
+            Console.WriteLine(
+                $"     договор №{subcontractor.ContractNumber} от {subcontractor.ContractDate} " +
+                $"на {subcontractor.ContractSum} | ОКПД2 {subcontractor.Okpd2Code} | {subcontractor.ContractSubject}");
         }
 
         return 0;
@@ -528,6 +544,29 @@ builder.Services.AddSingleton<ITenderRepository, TenderRepository>();
 builder.Services.AddSingleton<PollingWorker>();
 builder.Services.AddHostedService(service => service.GetRequiredService<PollingWorker>());
 
+// Обогащение справочника подрядчиков по API ФНС. Ключ api-fns.ru хранится
+// в User Secrets (Fns:ApiKey), провайдер выбирается в appsettings.
+builder.Services.Configure<FnsOptions>(builder.Configuration.GetSection(FnsOptions.SectionName));
+var fnsSettings = builder.Configuration.GetSection(FnsOptions.SectionName).Get<FnsOptions>()
+    ?? new FnsOptions();
+var fnsTimeout = TimeSpan.FromSeconds(Math.Max(5, fnsSettings.TimeoutSeconds));
+
+builder.Services.AddHttpClient<ApiFnsContractorClient>(client =>
+{
+    client.Timeout = fnsTimeout;
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("CSMS-Eis44Parser/1.0");
+});
+builder.Services.AddHttpClient<TransparentBusinessContractorClient>(client =>
+{
+    client.Timeout = fnsTimeout;
+    // Сервис ФНС отвечает только браузерным клиентам.
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36");
+});
+builder.Services.AddTransient<IFnsContractorClient, CompositeFnsContractorClient>();
+builder.Services.AddScoped<ContractorEnrichmentService>();
+
 var provider = builder.Configuration.GetValue<string>("Database:Provider") ?? "Sqlite";
 var connectionString = builder.Configuration.GetConnectionString("EisDb") ?? "Data Source=eis44.db";
 
@@ -626,6 +665,34 @@ if (pipelineOnce)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ошибка конвейера ЕИС: {exception.Message}");
+        return 1;
+    }
+}
+
+if (enrichContractors)
+{
+    try
+    {
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<EisDbContext>();
+        await db.Database.EnsureCreatedAsync();
+        await EisPipelineSchema.EnsureAsync(db);
+
+        var limitValue = GetArgumentValue(args, "--limit");
+        var limit = int.TryParse(limitValue, out var parsedLimit) ? parsedLimit : 100;
+        var inn = GetArgumentValue(args, "--inn");
+
+        var result = await scope.ServiceProvider.GetRequiredService<ContractorEnrichmentService>()
+            .EnrichAsync(limit, inn, CancellationToken.None);
+
+        Console.WriteLine(
+            $"Подрядчики: проверено {result.Requested}, обновлено {result.Updated}, " +
+            $"без данных {result.Skipped}.");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка обогащения справочника подрядчиков: {exception.Message}");
         return 1;
     }
 }
