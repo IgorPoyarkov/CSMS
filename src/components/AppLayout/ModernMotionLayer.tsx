@@ -24,6 +24,11 @@ import { useEffect } from "react";
 // крутит его сам. Все слушатели живут только пока включена тема; на тач-экранах
 // магнитное движение выключено, при prefers-reduced-motion комета не
 // останавливается, а замедляется в CSS (магнит выключен и здесь).
+//
+// Обёртки без скругления (section со списком карточек, div с классом panel)
+// декор не получают: рамка по их прямым углам не совпадает с формой
+// скруглённых карточек внутри. Декор уходит на сами карточки — см.
+// roundedChildren().
 
 const MODERN_THEME = "modern";
 
@@ -60,6 +65,22 @@ const MAGNET_SELECTOR = [
 const COMET_MIN_WIDTH = 560;
 const COMET_MIN_HEIGHT = 240;
 const COMET_MIN_SIDE_GAP = 32;
+
+// Прямоугольные обёртки. У части страниц панелью (section, div с классом
+// panel) служит контейнер без скругления, а внутри лежат скруглённые карточки:
+// на /tasks это section с списком li.task-item (border-radius: 8px). Неоновая
+// рамка по прямым углам такой обёртки не совпадает с формой карточек, поэтому
+// декор уходит на них: подсветка на hover — всем, комета — только тем, кто
+// проходит порог большого блока (мелкая карточка получает мигающую обводку).
+const ROUNDED_MIN_RADIUS = 4;
+const INNER_MIN_HEIGHT = 64;
+const INNER_MIN_WIDTH_RATIO = 0.6;
+// Доля высоты обёртки, после которой вложенная панель считается «главной» и
+// получает комету. В списке карточек каждая занимает проценты высоты — комета
+// на каждой превращала бы страницу в гирлянду, поэтому там остаётся только
+// подсветка на hover.
+const INNER_COMET_MIN_COVER = 0.5;
+const INNER_LIMIT = 80;
 
 // Магнит: радиус действия, доля размера элемента (12%) и предел площади —
 // крупные панели не должны ездить под курсором.
@@ -99,6 +120,10 @@ export default function ModernMotionLayer() {
     let frame = 0;
     let rebuildTimer = 0;
     let panels: HTMLElement[] = [];
+    // Все элементы с декором (комета и/или подсветка). Нужен отдельно от
+    // panels: подсветку получают и мелкие скруглённые карточки, у которых
+    // кометы нет, а снимать атрибуты при деактивации нужно со всех.
+    let decorated: HTMLElement[] = [];
     let magnets: MagnetEntry[] = [];
     let magnetEls: HTMLElement[] = [];
     let pointerX = 0;
@@ -162,8 +187,7 @@ export default function ModernMotionLayer() {
 
       // При reduced-motion CSS замедляет полосу в 4,5 раза — фолбэк держит ту
       // же скорость, иначе рамка побежит быстрее, чем задумано для этой темы.
-      const period =
-        cometSeconds() * (prefersReducedMotion() ? 4.5 : 1) * 1000;
+      const period = cometSeconds() * (prefersReducedMotion() ? 4.5 : 1) * 1000;
 
       fallbackFrame = window.requestAnimationFrame(function tick() {
         fallbackFrame = window.requestAnimationFrame(tick);
@@ -217,12 +241,101 @@ export default function ModernMotionLayer() {
     // Атрибуты трогаем только при реальном изменении: снятие и повторная
     // установка перезапускают CSS-анимацию кометы с нуля, и на странице с
     // частыми обновлениями разметки полоса «стоит» на одном месте.
+    const freeSlot = (el: HTMLElement) => {
+      const free = (value: string) => value === "none" || value === "normal";
+      const after = getComputedStyle(el, "::after").content;
+
+      if (free(after)) {
+        return "after";
+      }
+
+      return free(getComputedStyle(el, "::before").content) ? "before" : null;
+    };
+
+    // Скруглённые панели внутри прямоугольной обёртки. Берём только потомков,
+    // которые занимают заметную часть обёртки по ширине и не являются
+    // строчными мелочами: иначе подсветка расползётся по чипам и бейджам.
+    const roundedChildren = (host: HTMLElement, hostRect: DOMRect) => {
+      const minWidth = hostRect.width * INNER_MIN_WIDTH_RATIO;
+      const found: { el: HTMLElement; rect: DOMRect }[] = [];
+
+      host.querySelectorAll<HTMLElement>("*").forEach((child) => {
+        if (found.length >= INNER_LIMIT) {
+          return;
+        }
+
+        // Скрытые ветки отсекаются сами: у них нулевые размеры.
+        const rect = child.getBoundingClientRect();
+
+        if (rect.width < minWidth || rect.height < INNER_MIN_HEIGHT) {
+          return;
+        }
+
+        const style = getComputedStyle(child);
+        const radius = Number.parseFloat(style.borderTopLeftRadius) || 0;
+
+        if (radius < ROUNDED_MIN_RADIUS) {
+          return;
+        }
+
+        // У таблицы со «схлопнутыми» границами радиус не применяется: считать
+        // её скруглённой панелью нельзя, иначе декор пропадёт с обёртки.
+        if (style.borderCollapse === "collapse") {
+          return;
+        }
+
+        found.push({ el: child, rect });
+      });
+
+      return found;
+    };
+
     const markPanels = () => {
       const minWidth = Math.min(
         COMET_MIN_WIDTH,
         window.innerWidth - COMET_MIN_SIDE_GAP,
       );
-      const next: HTMLElement[] = [];
+      const next = new Set<HTMLElement>();
+      const nextPanels = new Set<HTMLElement>();
+
+      const decorate = (
+        el: HTMLElement,
+        rect: DOMRect,
+        allowLift: boolean,
+        allowComet: boolean,
+      ) => {
+        const big = rect.width >= minWidth && rect.height >= COMET_MIN_HEIGHT;
+        const slot = allowComet && big ? freeSlot(el) : null;
+
+        if (slot) {
+          if (el.getAttribute("data-modern-comet") !== slot) {
+            el.setAttribute("data-modern-comet", slot);
+          }
+
+          nextPanels.add(el);
+        } else if (el.hasAttribute("data-modern-comet")) {
+          el.removeAttribute("data-modern-comet");
+        }
+
+        // Модалка и таблица неоновую подсветку не получают: у модалки своя
+        // рамка, у таблицы inset-тень размазывается по ячейкам.
+        const wantLift =
+          allowLift &&
+          el.tagName.toLowerCase() !== "table" &&
+          el.getAttribute("role") !== "dialog";
+
+        if (wantLift) {
+          if (!el.hasAttribute("data-modern-lift")) {
+            el.setAttribute("data-modern-lift", "");
+          }
+        } else if (el.hasAttribute("data-modern-lift")) {
+          el.removeAttribute("data-modern-lift");
+        }
+
+        if (slot || wantLift) {
+          next.add(el);
+        }
+      };
 
       document.querySelectorAll<HTMLElement>(PANEL_SELECTOR).forEach((el) => {
         const rect = el.getBoundingClientRect();
@@ -236,40 +349,60 @@ export default function ModernMotionLayer() {
           return;
         }
 
-        const after = getComputedStyle(el, "::after").content;
-        const before = getComputedStyle(el, "::before").content;
-        const free = (value: string) => value === "none" || value === "normal";
-        const slot = free(after) ? "after" : free(before) ? "before" : null;
+        const radius =
+          Number.parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
 
-        if (!slot) {
-          return;
+        if (radius < ROUNDED_MIN_RADIUS) {
+          const inner = roundedChildren(el, rect);
+
+          if (inner.length) {
+            // Обёртка прямоугольная, а содержимое скруглённое: рамку по её
+            // прямым углам не рисуем. Подсветку получают сами карточки;
+            // комету — только те, кто проходит порог, и только снаружи
+            // (у вложенной панели уже есть своя рамка).
+            const innerSet = new Set(inner.map((item) => item.el));
+            const insidePanel = (node: HTMLElement) => {
+              for (
+                let parent = node.parentElement;
+                parent;
+                parent = parent.parentElement
+              ) {
+                if (innerSet.has(parent)) {
+                  return true;
+                }
+              }
+
+              return false;
+            };
+
+            inner.forEach(({ el: child, rect: childRect }) => {
+              // Комета — только «главной» панели обёртки: у вложенной внутри
+              // другой панели и у карточки списка её нет.
+              const allowComet =
+                !insidePanel(child) &&
+                childRect.height >= rect.height * INNER_COMET_MIN_COVER;
+
+              decorate(child, childRect, true, allowComet);
+            });
+
+            // Если ни одна вложенная панель декор не получила (например, всё
+            // содержимое — таблицы), обёртка остаётся с прежней подсветкой:
+            // иначе страница теряет неон совсем.
+            if (!inner.some((item) => next.has(item.el))) {
+              decorate(el, rect, true, true);
+            }
+
+            return;
+          }
         }
 
-        if (el.getAttribute("data-modern-comet") !== slot) {
-          el.setAttribute("data-modern-comet", slot);
-        }
-
-        // Модалка и таблица неоновую подсветку не получают: у модалки своя
-        // рамка, у таблицы inset-тень размазывается по ячейкам.
-        const tag = el.tagName.toLowerCase();
-        const wantsLift = tag !== "table" && el.getAttribute("role") !== "dialog";
-        const hasLift = el.hasAttribute("data-modern-lift");
-
-        if (wantsLift && !hasLift) {
-          el.setAttribute("data-modern-lift", "");
-        } else if (!wantsLift && hasLift) {
-          el.removeAttribute("data-modern-lift");
-        }
-
-        next.push(el);
+        decorate(el, rect, true, true);
       });
 
       // Декор снимаем только с тех, кто больше не подходит: сменил размер,
       // попал в скрытую ветку или ушёл из разметки.
-      const keep = new Set(next);
-
-      panels.forEach((el) => {
-        if (keep.has(el)) {
+      decorated.forEach((el) => {
+        if (next.has(el)) {
           return;
         }
 
@@ -277,7 +410,8 @@ export default function ModernMotionLayer() {
         el.removeAttribute("data-modern-lift");
       });
 
-      panels = next;
+      panels = [...nextPanels];
+      decorated = [...next];
       probeCometMotion();
     };
 
@@ -488,12 +622,13 @@ export default function ModernMotionLayer() {
       resetMagnets();
       stopCometFallback();
       magnets = [];
-      panels.forEach((el) => {
+      decorated.forEach((el) => {
         el.removeAttribute("data-modern-comet");
         el.removeAttribute("data-modern-lift");
       });
       magnetEls.forEach((el) => el.removeAttribute("data-modern-magnet"));
       panels = [];
+      decorated = [];
       magnetEls = [];
     };
 
