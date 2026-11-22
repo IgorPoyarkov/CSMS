@@ -23,21 +23,30 @@ import {
 import useUtils from "../../hooks/useUtils";
 import styles from "./VisitCardPage.module.scss";
 
+type RevealVariant = "up" | "left" | "right" | "zoom";
+
 interface RevealProps {
   children: ReactNode;
   className?: string;
   delay?: number;
+  variant?: RevealVariant;
 }
 
 /**
  * Обёртка для появления при прокрутке. Сам наблюдатель один на страницу:
  * он ищет все [data-reveal] и снимает наблюдение после первого показа.
- * При prefers-reduced-motion контент показывается сразу.
+ * Вариант задаёт направление/масштаб, delay — ступенчатую задержку.
+ * При prefers-reduced-motion CSS оставляет только мягкое проявление opacity.
  */
-const Reveal = ({ children, className, delay = 0 }: RevealProps) => (
+const Reveal = ({
+  children,
+  className,
+  delay = 0,
+  variant = "up",
+}: RevealProps) => (
   <div
     className={className}
-    data-reveal=""
+    data-reveal={variant}
     style={{ transitionDelay: `${delay}ms` }}
   >
     {children}
@@ -129,10 +138,7 @@ const VisitCardPage = () => {
       root.querySelectorAll<HTMLElement>("[data-reveal]"),
     );
 
-    if (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      typeof IntersectionObserver === "undefined"
-    ) {
+    if (typeof IntersectionObserver === "undefined") {
       nodes.forEach((node) => {
         node.dataset.revealed = "true";
       });
@@ -148,12 +154,21 @@ const VisitCardPage = () => {
           observer.unobserve(entry.target);
         });
       },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+      // Элемент начинает проявляться чуть раньше нижней границы экрана
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
     );
 
-    nodes.forEach((node) => observer.observe(node));
+    // Даём браузеру отрисовать стартовое состояние (opacity: 0), иначе
+    // элементы первого экрана получают data-revealed до первой отрисовки
+    // и анимации не видно
+    const frame = window.requestAnimationFrame(() => {
+      nodes.forEach((node) => observer.observe(node));
+    });
 
-    return () => observer.disconnect();
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, []);
 
   // Шапка и индикатор прочтения. Прогресс пишем прямо в style, чтобы
@@ -287,7 +302,7 @@ const VisitCardPage = () => {
               </ul>
             </Reveal>
 
-            <Reveal className={page("hero-visual")} delay={140}>
+            <Reveal className={page("hero-visual")} delay={140} variant="right">
               <div className={page("mock")} aria-hidden="true">
                 <div className={page("mock-head")}>
                   <span className={page("mock-dot")} />
@@ -354,7 +369,7 @@ const VisitCardPage = () => {
 
         {/* ─── Цифры ────────────────────────────────────────────────────── */}
         <section className={page("numbers")} id="numbers" aria-label="Цифры">
-          <Reveal className={page("numbers-grid")}>
+          <Reveal className={page("numbers-grid")} variant="zoom">
             {METRICS.map((metric) => (
               <div className={page("metric")} key={metric.label}>
                 <strong>{metric.value}</strong>
@@ -383,7 +398,8 @@ const VisitCardPage = () => {
               <Reveal
                 className={page("feature-wrap")}
                 key={feature.title}
-                delay={index * 60}
+                delay={index * 80}
+                variant="zoom"
               >
                 <article className={page("feature")}>
                   <span className={page("feature-icon")}>
@@ -415,7 +431,7 @@ const VisitCardPage = () => {
               <Reveal
                 className={page("step-wrap")}
                 key={step.title}
-                delay={index * 50}
+                delay={index * 60}
               >
                 <li className={page("step")}>
                   <span className={page("step-index")}>
@@ -432,7 +448,7 @@ const VisitCardPage = () => {
         {/* ─── Проверки ─────────────────────────────────────────────────── */}
         <section className={page("section")}>
           <div className={page("split")}>
-            <Reveal className={page("split-copy")}>
+            <Reveal className={page("split-copy")} variant="left">
               <p className={page("section-eyebrow")}>Контроль</p>
               <h2 className={page("section-title")}>
                 Ошибки видны до публикации
@@ -462,7 +478,7 @@ const VisitCardPage = () => {
               </Link>
             </Reveal>
 
-            <Reveal className={page("audit")} delay={120}>
+            <Reveal className={page("audit")} delay={160} variant="right">
               <div className={page("audit-head")}>
                 <span className={page("audit-icon")}>
                   <ShieldCheck size={18} aria-hidden="true" />
@@ -501,7 +517,7 @@ const VisitCardPage = () => {
 
         {/* ─── Контакты ─────────────────────────────────────────────────── */}
         <section className={page("section")} id="contacts">
-          <Reveal className={page("cta")}>
+          <Reveal className={page("cta")} variant="zoom">
             <div className={page("cta-copy")}>
               <p className={page("section-eyebrow")}>Начать</p>
               <h2 className={page("section-title")}>

@@ -74,15 +74,35 @@
 
   [data-reveal] {
     opacity: 0;
-    transform: translateY(24px);
     transition:
-      opacity 0.7s var(--vc-ease),
-      transform 0.7s var(--vc-ease);
-    will-change: opacity, transform;
+      opacity 0.75s var(--vc-ease),
+      transform 0.75s var(--vc-ease),
+      filter 0.75s var(--vc-ease);
+    will-change: opacity, transform, filter;
+  }
+
+  // Направление появления: секции поднимаются, боковые блоки выезжают,
+  // карточки мягко увеличиваются из лёгкого размытия
+  [data-reveal="up"] {
+    transform: translateY(36px);
+  }
+
+  [data-reveal="left"] {
+    transform: translateX(-40px);
+  }
+
+  [data-reveal="right"] {
+    transform: translateX(40px);
+  }
+
+  [data-reveal="zoom"] {
+    filter: blur(6px);
+    transform: scale(0.94);
   }
 
   [data-reveal][data-revealed="true"] {
     opacity: 1;
+    filter: none;
     transform: none;
     will-change: auto;
   }
@@ -306,11 +326,7 @@
       #000 20%,
       transparent 100%
     );
-    mask-image: radial-gradient(
-      70% 70% at 50% 30%,
-      #000 20%,
-      transparent 100%
-    );
+    mask-image: radial-gradient(70% 70% at 50% 30%, #000 20%, transparent 100%);
     pointer-events: none;
   }
 
@@ -406,11 +422,7 @@
     }
 
     &--primary {
-      background: linear-gradient(
-        120deg,
-        var(--vc-accent),
-        var(--vc-accent-2)
-      );
+      background: linear-gradient(120deg, var(--vc-accent), var(--vc-accent-2));
       border-color: transparent;
       color: #04120c;
 
@@ -687,11 +699,7 @@
     background: var(--vc-bg-soft);
 
     strong {
-      background: linear-gradient(
-        100deg,
-        var(--vc-accent),
-        var(--vc-accent-2)
-      );
+      background: linear-gradient(100deg, var(--vc-accent), var(--vc-accent-2));
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -1248,10 +1256,12 @@
   // ─── Меньше движения ──────────────────────────────────────────────────────
 
   @media (prefers-reduced-motion: reduce) {
+    // Движение убираем, но мягкое проявление оставляем: пользователь видит,
+    // что блок появился, без смещения и масштабирования
     [data-reveal] {
-      opacity: 1;
-      transform: none;
-      transition: none;
+      transform: none !important;
+      filter: none !important;
+      transition: opacity 0.35s ease;
     }
 
     &__mock-chart span,
