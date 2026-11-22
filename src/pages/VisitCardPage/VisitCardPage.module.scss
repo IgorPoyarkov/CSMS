@@ -81,18 +81,20 @@
     will-change: opacity, transform, filter;
   }
 
-  // Направление появления: секции поднимаются, боковые блоки выезжают,
-  // карточки мягко увеличиваются из лёгкого размытия
+  // Направление появления: секции поднимаются, боковые блоки выезжают
+  // из-за края с лёгким размытием, карточки увеличиваются из размытия
   [data-reveal="up"] {
     transform: translateY(36px);
   }
 
   [data-reveal="left"] {
-    transform: translateX(-40px);
+    filter: blur(4px);
+    transform: translateX(-56px);
   }
 
   [data-reveal="right"] {
-    transform: translateX(40px);
+    filter: blur(4px);
+    transform: translateX(56px);
   }
 
   [data-reveal="zoom"] {
@@ -1227,6 +1229,18 @@
     &__features-grid,
     &__steps {
       grid-template-columns: 1fr;
+    }
+
+    // На узком экране полный выезд в 56 px выглядит как рывок —
+    // оставляем половину амплитуды и меньшее размытие
+    [data-reveal="left"] {
+      filter: blur(3px);
+      transform: translateX(-28px);
+    }
+
+    [data-reveal="right"] {
+      filter: blur(3px);
+      transform: translateX(28px);
     }
 
     &__numbers-grid {

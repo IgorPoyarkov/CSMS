@@ -272,7 +272,7 @@ const VisitCardPage = () => {
           <div className={page("hero-grid-lines")} aria-hidden="true" />
 
           <div className={page("hero-grid")}>
-            <Reveal className={page("hero-copy")}>
+            <Reveal className={page("hero-copy")} variant="left">
               <p className={page("eyebrow")}>
                 <Sparkles size={14} aria-hidden="true" />
                 44-ФЗ · приказ 158н · ЕИС
@@ -390,7 +390,7 @@ const VisitCardPage = () => {
 
         {/* ─── Возможности ──────────────────────────────────────────────── */}
         <section className={page("section")} id="features">
-          <Reveal className={page("section-head")}>
+          <Reveal className={page("section-head")} variant="left">
             <p className={page("section-eyebrow")}>Возможности</p>
             <h2 className={page("section-title")}>
               Один контур вместо десяти таблиц
@@ -424,7 +424,7 @@ const VisitCardPage = () => {
 
         {/* ─── Процесс ──────────────────────────────────────────────────── */}
         <section className={page("section", ["alt"])} id="process">
-          <Reveal className={page("section-head")}>
+          <Reveal className={page("section-head")} variant="right">
             <p className={page("section-eyebrow")}>Процесс</p>
             <h2 className={page("section-title")}>
               Шесть этапов — одна история
@@ -437,10 +437,13 @@ const VisitCardPage = () => {
 
           <ol className={page("steps")}>
             {STEPS.map((step, index) => (
+              // Этапы выезжают навстречу друг другу: чётные слева, нечётные
+              // справа — цепочка читается как движение по маршруту закупки
               <Reveal
                 className={page("step-wrap")}
                 key={step.title}
                 delay={index * 60}
+                variant={index % 2 === 0 ? "left" : "right"}
               >
                 <li className={page("step")}>
                   <span className={page("step-index")}>
