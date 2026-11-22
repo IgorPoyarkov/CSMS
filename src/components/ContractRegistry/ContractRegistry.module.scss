@@ -314,6 +314,16 @@
   }
 }
 
+// Лист собирается построчно: пара строк контракта (название + реквизиты)
+// раскрывается сверху вниз, следующая — с задержкой. Задержку считает
+// страница (animation-delay инлайном), здесь только сама анимация.
+// backwards, а не both: после анимации clip-path и transform возвращаются к
+// обычным значениям и не обрезают наведение и outline кнопок в ячейках.
+.contractTitleRow,
+.contractRow {
+  animation: contractRowIn 0.44s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+
 .contractRowOverdue td:first-child {
   box-shadow: inset 3px 0 0 var(--state-danger);
 }
@@ -418,6 +428,53 @@
 
 .expandedRow {
   background: var(--surface-panel);
+}
+
+// Подробности раскрываются шторкой сверху вниз. Анимируем внутренний блок, а
+// не `<tr>`: на табличных строках clip-path и transform часть браузеров
+// применяет непредсказуемо (в Chromium строка обрезается вместе с ячейками), и
+// раскрытие выглядело мгновенной подменой без движения.
+.expandedRow .cardBody {
+  animation: contractDetailsIn 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+
+// Раскрытие строки листа: шторка сверху вниз (clip-path) плюс короткий подъём.
+// transform на <tr> в Chromium работает, layout строки при этом не меняется —
+// соседние записи не дёргаются.
+@keyframes contractRowIn {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-6px);
+  }
+
+  55% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+@keyframes contractDetailsIn {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-10px);
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
 }
 
 .description {
@@ -1825,39 +1882,54 @@
   }
 }
 
-// Появление плиток: лёгкий подъём с задержкой по порядку — сетка читается
-// как собранная, а не вывалившаяся одним куском. Повторно анимация не
-// запускается: при выборе папки узлы не перемонтируются, а уезжают в рельс.
+// Появление плиток: полёт по параболе из центра сетки на своё место. Путь
+// (offset-path) считает страница — он зависит от раскладки и ширины плиток,
+// в CSS его не выразить; готовый path() приходит в --fly-path. Если переменной
+// нет или браузер не знает offset-path, остаётся мягкое проявление: карточки
+// просто гаснут и появляются на местах.
+// offset-anchor: center — в точку пути встаёт центр карточки (в паре с
+// половинным размером в конце пути это даёт точное попадание на место).
+// offset-rotate: 0deg — иначе карточка доворачивается по направлению пути.
 .folderGrid > .folderCard {
-  animation: folderTileIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  offset-path: var(--fly-path, none);
+  offset-anchor: center;
+  offset-rotate: 0deg;
+  // 0.8 s: полёт должен читаться как движение, а не как «моргнуло и появилось»
+  animation: folderTileFly 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+// Веер: каждая следующая плитка стартует на 70 мс позже, иначе семь карточек
+// вылетают из центра одной кучей и траектории не разобрать.
+.folderGrid > .folderCard:nth-child(1) {
+  animation-delay: 0.08s;
 }
 
 .folderGrid > .folderCard:nth-child(2) {
-  animation-delay: 0.06s;
+  animation-delay: 0.15s;
 }
 
 .folderGrid > .folderCard:nth-child(3) {
-  animation-delay: 0.12s;
+  animation-delay: 0.22s;
 }
 
 .folderGrid > .folderCard:nth-child(4) {
-  animation-delay: 0.18s;
+  animation-delay: 0.29s;
 }
 
 .folderGrid > .folderCard:nth-child(5) {
-  animation-delay: 0.24s;
-}
-
-.folderGrid > .folderCard:nth-child(6) {
-  animation-delay: 0.3s;
-}
-
-.folderGrid > .folderCard:nth-child(7) {
   animation-delay: 0.36s;
 }
 
+.folderGrid > .folderCard:nth-child(6) {
+  animation-delay: 0.43s;
+}
+
+.folderGrid > .folderCard:nth-child(7) {
+  animation-delay: 0.5s;
+}
+
 .folderGrid > .folderCard:nth-child(n + 8) {
-  animation-delay: 0.42s;
+  animation-delay: 0.57s;
 }
 
 // Открытая папка помечена и в рельсе, и в стартовой сетке: видно, откуда
@@ -1873,6 +1945,10 @@
 
 // Рельс: плитки компактные — год читается, мета мелкая, стрелка всегда видна
 .folderStageOpen .folderCard {
+  // offset-path и полёт снимаются: в рельсе плитки уже на местах, иначе
+  // карточка осталась бы в нулевой точке траектории (центре сетки)
+  offset-path: none;
+  animation: none;
   min-height: 0;
   gap: 0;
   padding: 9px 26px 10px 16px;
@@ -1984,17 +2060,23 @@
   }
 }
 
-// Появление плиток: подъём на 10 px — движение только по вертикали, поэтому
-// сетка не «разъезжается» по ширине и не задевает соседей.
-@keyframes folderTileIn {
+// Полёт плитки: старт в центре сетки (offset-distance 0 %), финиш — ровно на
+// своём месте. Прозрачность набирается в первые 30 % пути, чтобы карточки не
+// «вспыхивали» общей кучей. Только offset-distance и opacity: scale/rotate
+// искажают дугу, потому что считаются вокруг статичного центра карточки.
+@keyframes folderTileFly {
   from {
+    offset-distance: 0%;
     opacity: 0;
-    transform: translateY(10px);
+  }
+
+  30% {
+    opacity: 1;
   }
 
   to {
+    offset-distance: 100%;
     opacity: 1;
-    transform: none;
   }
 }
 
@@ -2143,8 +2225,16 @@
 
   .folderGrid > .folderCard,
   .folderStageOpen .folderGrid,
-  .folderPanel {
+  .folderPanel,
+  .contractTitleRow,
+  .contractRow,
+  .expandedRow .cardBody {
     animation: none;
+  }
+
+  // Без анимации offset-path оставил бы плитку в точке старта (центр сетки)
+  .folderGrid > .folderCard {
+    offset-path: none;
   }
 }
 

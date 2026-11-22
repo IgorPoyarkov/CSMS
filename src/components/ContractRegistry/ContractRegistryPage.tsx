@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -640,6 +642,96 @@ export default function ContractRegistryPage() {
     setPage(1);
   };
 
+  // ─── Траектории плиток папок ──────────────────────────────────────────────
+  // Параболу в CSS не выразить: path() требует конкретные координаты, а они
+  // зависят от раскладки (четыре колонки, три, две — разные ширины плиток).
+  // Поэтому меряем сетку и каждую плитку по layout-координатам и кладём путь в
+  // --fly-path. Точка старта у всех плиток одна — центр сетки: они вылетают
+  // «веером» и приходят каждая на своё место.
+  const folderGridRef = useRef<HTMLDivElement | null>(null);
+
+  const layoutFolderFlight = useCallback(() => {
+    const grid = folderGridRef.current;
+    if (!grid) return;
+    const cards = Array.from(
+      grid.querySelectorAll<HTMLElement>("[data-folder-tile]"),
+    );
+    if (cards.length === 0) return;
+    // Сумма offsetLeft/offsetTop по цепочке offsetParent: у сетки и у плитки
+    // offsetParent может быть разным, сравнивать координаты «в лоб» нельзя.
+    // offsetLeft не зависит от transform, поэтому уже запущенная анимация замер
+    // не портит.
+    const absoluteOffset = (element: HTMLElement) => {
+      let x = 0;
+      let y = 0;
+      let node: HTMLElement | null = element;
+      while (node) {
+        x += node.offsetLeft;
+        y += node.offsetTop;
+        node = node.offsetParent as HTMLElement | null;
+      }
+      return { x, y };
+    };
+    const gridOrigin = absoluteOffset(grid);
+    const centerX = gridOrigin.x + grid.offsetWidth / 2;
+    const centerY = gridOrigin.y + grid.offsetHeight / 2;
+
+    cards.forEach((card) => {
+      const origin = absoluteOffset(card);
+      const halfW = card.offsetWidth / 2;
+      const halfH = card.offsetHeight / 2;
+      // Насколько центр плитки отстоит от центра сетки — это и есть размах дуги
+      const dx = centerX - (origin.x + halfW);
+      const dy = centerY - (origin.y + halfH);
+      // offset-anchor ставит в точку пути центр карточки, а сами координаты
+      // пути отсчитываются от её статичного левого верхнего угла. Значит старт
+      // пути — «смещение до центра сетки + полуразмер», а финиш — ровно
+      // полуразмер: иначе плитка встаёт мимо своего места на полкорпуса.
+      // В path() координаты безразмерные: «M 10px 20px» — невалидный SVG-путь,
+      // и объявление отбрасывается целиком.
+      const startX = dx + halfW;
+      const startY = dy + halfH;
+      // Контрольная точка выше середины хорды: путь выгибается параболой, а не
+      // идёт отрезком. Подъём растёт с размахом, чтобы дуга читалась и у
+      // боковых плиток, и у средних.
+      const controlX = startX / 2 + halfW / 2 + dx * 0.05;
+      const controlY =
+        startY / 2 + halfH / 2 - Math.max(60, Math.abs(dx) * 0.26);
+      card.style.setProperty(
+        "--fly-path",
+        `path("M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${controlX.toFixed(1)} ${controlY.toFixed(1)} ${halfW.toFixed(1)} ${halfH.toFixed(1)}")`,
+      );
+    });
+  }, []);
+
+  // Замер до первой отрисовки: анимация стартует сразу с готовой траекторией.
+  // Сетка появляется только после загрузки контрактов, поэтому мало
+  // useLayoutEffect — подписка идёт на момент монтирования узла: к этому
+  // времени плитки уже в DOM, и путь считается до первого кадра.
+  const attachFolderGrid = useCallback(
+    (node: HTMLDivElement | null) => {
+      folderGridRef.current = node;
+      if (node) layoutFolderFlight();
+    },
+    [layoutFolderFlight],
+  );
+
+  // Возврат из открытого листа: плитки снова сеткой — пересчитываем путь
+  useLayoutEffect(() => {
+    if (!folderOpen) layoutFolderFlight();
+  }, [folderOpen, layoutFolderFlight]);
+
+  // Ресайз меняет ширину плитки, а вместе с ней и «полуразмер» в конце пути:
+  // без пересчёта карточка осталась бы смещённой на половину разницы ширин,
+  // ведь offset-distance уже стоит на 100 %.
+  useEffect(() => {
+    const onResize = () => {
+      if (!folderOpen) layoutFolderFlight();
+    };
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, [folderOpen, layoutFolderFlight]);
+
   // ─── Пагинация ────────────────────────────────────────────────────────────
   const totalPages =
     pageSize === "all"
@@ -933,12 +1025,14 @@ export default function ContractRegistryPage() {
             }`}
           >
             <div
+              ref={attachFolderGrid}
               className={styles.folderGrid}
               role="group"
               aria-label="Папки по годам заключения"
             >
               <button
                 type="button"
+                data-folder-tile=""
                 className={`${styles.folderCard} ${styles.folderCardAll} ${
                   showAllFolders ? styles.folderCardActive : ""
                 }`}
@@ -960,6 +1054,7 @@ export default function ContractRegistryPage() {
                 <button
                   key={folder.year}
                   type="button"
+                  data-folder-tile=""
                   className={`${styles.folderCard} ${
                     activeFolder?.year === folder.year
                       ? styles.folderCardActive
@@ -1072,10 +1167,11 @@ export default function ContractRegistryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pagedContracts.map((contract) => (
+                      {pagedContracts.map((contract, rowIndex) => (
                         <ContractRow
                           key={contract.id}
                           contract={contract}
+                          index={rowIndex}
                           expanded={expandedId === contract.id}
                           onToggle={() => toggleExpand(contract.id)}
                           onSupplierClick={toggleSupplierFilter}
@@ -1141,6 +1237,8 @@ export default function ContractRegistryPage() {
 
 interface ContractRowProps {
   contract: ContractRegistryItem;
+  /** Порядковый номер в выборке: задаёт задержку построчного раскрытия */
+  index: number;
   expanded: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -1157,6 +1255,7 @@ interface ContractRowProps {
  */
 function ContractRow({
   contract,
+  index,
   expanded,
   onToggle,
   onDelete,
@@ -1165,10 +1264,14 @@ function ContractRow({
   formatDate,
 }: ContractRowProps) {
   const overdue = isContractOverdue(contract);
+  // Каскад построчного раскрытия: задержка растёт по порядку, но не дальше
+  // восьмой строки — на 25 записях лист не должен пустовать почти секунду.
+  const rowStyle = { animationDelay: `${Math.min(index, 8) * 40}ms` };
 
   return (
     <>
       <tr
+        style={rowStyle}
         className={`${styles.contractTitleRow} ${
           overdue ? styles.contractRowOverdue : ""
         } ${expanded ? styles.contractRowExpanded : ""}`}
@@ -1178,6 +1281,7 @@ function ContractRow({
       </tr>
 
       <tr
+        style={rowStyle}
         className={`${styles.contractRow} ${
           expanded ? styles.contractRowExpanded : ""
         }`}
