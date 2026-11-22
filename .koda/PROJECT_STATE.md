@@ -5599,11 +5599,16 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `sessions`, 39 `employees`, 4 `contract_services`, 2 `requests`;
   `csms.documents` — 5 организаций, 39 сотрудников, 4 `contractRegistry` и
   1 `contractCardProjections`, относящиеся к организациям 1–5.
-- **Осталось:** организаций 1 (id 6), пользователей 2
+- **Осталось после первой чистки:** организаций 1 (id 6), пользователей 2
   (`zakupki@kurskavtodor.ru` id 5 и `poyarkova_nyu@mail.ru` id 7 с ролью
   `administrator`), сотрудников 4 (41–44), контрактная служба 1, системные
   функции 5, сессии 20 только user 7, `contractRegistry` 519,
   `contractCardProjections` 111. Сертификат ЭЦП user 7 и журнал EDS сохранены.
+- **Дополнительно по просьбе пользователя удалён `zakupki@kurskavtodor.ru`**
+  (user 5): ролей, сессий, сертификатов и событий EDS у него не было. У employee
+  41 (`Говоров А. Н.`) связь `UserKey` очищена, сам сотрудник оставлен в штате.
+  Backup схемы `access`: `%TEMP%\opencode\csms_eis-access-before-user5-20261122.dump`.
+  В доступе осталась одна учётка — `poyarkova_nyu@mail.ru` (id 7, `administrator`).
 - API не перезапускался: `EfCoreAccessStore` читает PostgreSQL на каждый
   запрос. В уже открытом браузере нужно обновить страницу/сбросить кэш
   React Query, чтобы старый профиль не висел в памяти.
