@@ -9,25 +9,12 @@ import {
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  totalPaid,
-  paymentPercent,
-  totalPenalties,
   isContractOverdue,
   contractIkzError,
-  paymentDeadlineDate,
-  paymentXsdCodeFor,
   type ContractRegistryItem,
-  type ContractStage,
-  type ContractPayment,
-  type ContractPenalty,
-  type ContractDelivery,
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
   useContractRegistry,
-  useContractStages,
-  useContractPayments,
-  useContractPenalties,
-  useContractDeliveries,
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -38,71 +25,12 @@ import { positionKbkCodes } from "../../services/PurchasePlan/purchasePlan.schem
 import { ikzPositionKey } from "../../services/Eis/eisIdentifiers";
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
-import SmpSection from "./ContractSmpSection";
-import ContractEventsSection from "./ContractEventsSection";
-import ContractEisSection from "./ContractEisSection";
-import ContractCardProjectionSection from "./ContractCardProjectionSection";
-import ContractAcceptanceSection from "./ContractAcceptanceSection";
-import ContractPaymentForm from "./ContractPaymentForm";
-import ContractDeliveryForm from "./ContractDeliveryForm";
+import ContractCardSummary from "./ContractCardSummary";
+import { CONTRACT_STATUS_LABELS, formatMoney } from "./contractRegistryFormat";
 import styles from "./ContractRegistry.module.scss";
 
-const STATUS_LABELS: Record<string, string> = {
-  signed: "Заключён",
-  in_execution: "Исполняется",
-  completed: "Завершён",
-  terminated: "Расторгнут",
-  suspended: "Приостановлен",
-};
-
-const STAGE_LABELS: Record<string, string> = {
-  planned: "Запланирован",
-  in_progress: "Выполняется",
-  completed: "Выполнен",
-  delayed: "Просрочен",
-};
-
-const PAYMENT_LABELS: Record<string, string> = {
-  advance: "Аванс",
-  intermediate: "Промежуточный",
-  final: "Финальный",
-};
-
-const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  scheduled: "Запланирован",
-  sent: "Отправлен",
-  paid: "Оплачен",
-  rejected: "Отклонён",
-};
-
-const PENALTY_LABELS: Record<string, string> = {
-  delay: "Просрочка",
-  quality: "Качество",
-  delivery: "Поставка",
-  other: "Прочее",
-};
-
-const PENALTY_STATUS_LABELS: Record<string, string> = {
-  accrued: "Начислена",
-  collected: "Взыскана",
-  disputed: "Оспорена",
-  written_off: "Списана",
-};
-
-const DELIVERY_LABELS: Record<string, string> = {
-  accepted: "Принято",
-  accepted_with_notes: "Принято с замечаниями",
-  rejected: "Отклонено",
-};
-
-const formatMoney = (value: string | number | undefined | null): string => {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (!num && num !== 0) return "—";
-  return num.toLocaleString("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-};
+/** Подписи статусов — общий модуль с карточкой контракта. */
+const STATUS_LABELS = CONTRACT_STATUS_LABELS;
 
 /**
  * Папка реестра: контракты одного года заключения. Год берётся из
@@ -1355,32 +1283,12 @@ function ContractRow({
         <tr className={styles.expandedRow}>
           <td colSpan={8} className={styles.expandedCell}>
             <div className={styles.cardBody}>
-              <ContractEisSection contract={contract} />
-              <PaymentSummary contract={contract} />
-              {/* Фактические акты приёмки и платёжные поручения из публичной
-                  карточки ЕИС: ручные contractPayments и contractDeliveries
-                  сейчас пусты, поэтому без проекции сводка показывает «0 %» */}
-              <ContractCardProjectionSection contractId={contract.id} />
-              {/* Приёмка из нашего контура (csms-api): документы, которые
-                  проходят сценарии ст. 94, в отличие от выгрузки ЕИС выше */}
-              <ContractAcceptanceSection contractId={contract.id} />
-              <ContractEventsSection contractId={contract.id ?? ""} />
-              <StagesSection contractId={contract.id} />
-              <PaymentsSection contractId={contract.id} />
-              <PenaltiesSection contractId={contract.id} />
-              <DeliveriesSection contractId={contract.id} />
-              {/* Требование СМП наследуется из служебки, но у контрактов,
-                  импортированных из ЕИС, его нет: блок не скрываем, иначе объём
-                  и уже загруженные сведения СМП вообще не увидеть */}
-              <SmpSection
-                contractId={contract.id ?? ""}
-                contractPrice={contract.contractPrice}
-                smpRequiredPercent={contract.smpRequiredPercent}
-                subcontractingSmpNoteNumber={
-                  contract.subcontractingSmpNoteNumber
-                }
+              {/* Сводка исполнения вместо восьми секций: подробности переехали
+                  на роут карточки контракта, список не «задумывается» */}
+              <ContractCardSummary
+                contract={contract}
+                cardLink={`/contract-registry/${String(contract.id ?? "")}`}
               />
-
               <div className={styles.cardFooter}>
                 <div className={styles.meta}>
                   {contractIkzError(contract.ikz) && (
@@ -1436,305 +1344,10 @@ function ContractRow({
   );
 }
 
-// ─── Сводка по оплатам ──────────────────────────────────────────────────────
-
-function PaymentSummary({ contract }: { contract: ContractRegistryItem }) {
-  const { data: payments } = useContractPayments(contract.id);
-  const paid = totalPaid(payments ?? []);
-  const percent = paymentPercent(paid, contract.contractPrice);
-
-  return (
-    <div className={styles.summaryBar}>
-      <div className={styles.summaryBarInfo}>
-        <span>
-          Оплачено: <strong>{formatMoney(paid)} ₽</strong> из{" "}
-          <strong>{formatMoney(contract.contractPrice)} ₽</strong>
-        </span>
-        <span className={percent >= 100 ? styles.cellSuccess : undefined}>
-          {percent}%
-        </span>
-      </div>
-      <div className={styles.progressTrack}>
-        <div
-          className={styles.progressValue}
-          style={{ width: `${Math.min(percent, 100)}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 // ─── Этапы ──────────────────────────────────────────────────────────────────
-
-function StagesSection({ contractId }: { contractId?: string | number }) {
-  const { data: stages } = useContractStages(contractId);
-
-  if (!stages || stages.length === 0) return null;
-
-  return (
-    <section className={styles.subSection}>
-      <h4 className={styles.subTitle}>Этапы исполнения</h4>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>№</th>
-            <th>Идентификатор ЕИС (sid)</th>
-            <th>Наименование</th>
-            <th>Период</th>
-            <th>Сумма, ₽</th>
-            <th>По годам (paymentsSumInfo)</th>
-            <th>Оплачено, ₽</th>
-            <th>Статус</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stages.map((s: ContractStage) => (
-            <tr key={s.id}>
-              <td>{s.stageNumber}</td>
-              <td>{s.sid || "—"}</td>
-              <td>{s.name}</td>
-              <td>
-                {s.startDate} — {s.endDate}
-              </td>
-              <td>{formatMoney(s.amount)}</td>
-              <td>
-                {[
-                  s.paymentsSumInfo?.currentYear,
-                  s.paymentsSumInfo?.firstYear,
-                  s.paymentsSumInfo?.secondYear,
-                  s.paymentsSumInfo?.subsequentYears,
-                ]
-                  .map((value) => formatMoney(value))
-                  .join(" / ")}
-              </td>
-              <td>{formatMoney(s.paidAmount)}</td>
-              <td>
-                <span
-                  className={`${styles.stageBadge} ${styles[`stage_${s.status}`]}`}
-                >
-                  {STAGE_LABELS[s.status]}
-                </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
 
 // ─── Платежи ────────────────────────────────────────────────────────────────
 
-function PaymentsSection({ contractId }: { contractId?: string | number }) {
-  const { data: payments } = useContractPayments(contractId);
-  const [formOpen, setFormOpen] = useState(false);
-
-  if (!contractId) return null;
-
-  const list = payments ?? [];
-
-  return (
-    <section className={styles.subSection}>
-      <div className={styles.subHeader}>
-        <h4 className={styles.subTitle}>
-          Платежи (ручной учёт, ст. 34 ч. 12, 13.1)
-        </h4>
-        {!formOpen && (
-          <button
-            type="button"
-            className={styles.btnSmall}
-            onClick={() => setFormOpen(true)}
-          >
-            + Платёж
-          </button>
-        )}
-      </div>
-
-      {formOpen && (
-        <ContractPaymentForm
-          contractId={contractId}
-          onDone={() => setFormOpen(false)}
-        />
-      )}
-
-      {list.length === 0 ? (
-        <p className={styles.projectionEmpty}>
-          Ручных платежей нет. Фактическая оплата из выгрузки ЕИС — в секции
-          «Приёмка и оплата по данным карточки ЕИС».
-        </p>
-      ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Документ</th>
-              <th>Дата</th>
-              <th>Тип</th>
-              <th>Код XSD</th>
-              <th>Сумма, ₽</th>
-              <th>Банковский документ</th>
-              <th>Реестровый номер исполнения</th>
-              <th>Срок оплаты</th>
-              <th>Статус</th>
-              <th>Казначейство</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((p: ContractPayment) => (
-              <tr key={p.id}>
-                <td>{p.paymentDocumentNumber || "—"}</td>
-                <td>{p.paymentDate || "—"}</td>
-                <td>{PAYMENT_LABELS[p.paymentType]}</td>
-                <td>{p.paymentTypeCode || paymentXsdCodeFor(p.paymentType)}</td>
-                <td>{formatMoney(p.amount)}</td>
-                <td>{p.bankDocumentNumber || "—"}</td>
-                <td>{p.regNumberExecution || "—"}</td>
-                <td>{paymentDeadlineDate(p) || "—"}</td>
-                <td>
-                  <span
-                    className={`${styles.payBadge} ${styles[`pay_${p.status}`]}`}
-                  >
-                    {PAYMENT_STATUS_LABELS[p.status]}
-                  </span>
-                </td>
-                <td>{p.treasuryExecution ? "Да" : "Нет"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
-  );
-}
-
 // ─── Неустойки ──────────────────────────────────────────────────────────────
 
-function PenaltiesSection({ contractId }: { contractId?: string | number }) {
-  const { data: penalties } = useContractPenalties(contractId);
-
-  if (!penalties || penalties.length === 0) return null;
-
-  const total = totalPenalties(penalties);
-
-  return (
-    <section className={styles.subSection}>
-      <h4 className={styles.subTitle}>
-        Неустойки (ст. 34 ч. 5) — итого: {formatMoney(total)} ₽
-      </h4>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>Выявлено</th>
-            <th>Тип</th>
-            <th>Нарушение</th>
-            <th>Сумма, ₽</th>
-            <th>Статус</th>
-            <th>Основание</th>
-          </tr>
-        </thead>
-        <tbody>
-          {penalties.map((p: ContractPenalty) => (
-            <tr key={p.id}>
-              <td>{p.detectedDate}</td>
-              <td>{PENALTY_LABELS[p.type]}</td>
-              <td className={styles.description}>{p.description}</td>
-              <td className={styles.cellDanger}>{formatMoney(p.amount)}</td>
-              <td>{PENALTY_STATUS_LABELS[p.status]}</td>
-              <td className={styles.reference}>{p.reference}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
-
 // ─── Поставки ───────────────────────────────────────────────────────────────
-
-function DeliveriesSection({ contractId }: { contractId?: string | number }) {
-  const { data: deliveries } = useContractDeliveries(contractId);
-  const [formOpen, setFormOpen] = useState(false);
-
-  if (!contractId) return null;
-
-  const list = deliveries ?? [];
-
-  return (
-    <section className={styles.subSection}>
-      <div className={styles.subHeader}>
-        <h4 className={styles.subTitle}>
-          Поставки и приёмка (ручной реестр, ст. 94)
-        </h4>
-        {!formOpen && (
-          <button
-            type="button"
-            className={styles.btnSmall}
-            onClick={() => setFormOpen(true)}
-          >
-            + Акт
-          </button>
-        )}
-      </div>
-
-      {formOpen && (
-        <ContractDeliveryForm
-          contractId={contractId}
-          onDone={() => setFormOpen(false)}
-        />
-      )}
-
-      {list.length === 0 ? (
-        <p className={styles.projectionEmpty}>
-          Поставок нет. Полный сценарий приёмки — с расхождениями, отказом и
-          регистрацией в ЕИС — ведётся в электронном актировании.
-        </p>
-      ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Дата</th>
-              <th>Наименование</th>
-              <th>Кол-во</th>
-              <th>Сумма, ₽</th>
-              <th>Акт</th>
-              <th>Результат</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((d: ContractDelivery) => (
-              <tr key={d.id}>
-                <td>{d.deliveryDate}</td>
-                <td>{d.itemName}</td>
-                <td>
-                  {d.quantity} {d.unit}
-                </td>
-                <td>{formatMoney(d.amount)}</td>
-                <td>
-                  {d.acceptanceActNumber}
-                  {d.acceptanceActDate ? ` от ${d.acceptanceActDate}` : ""}
-                </td>
-                <td>
-                  <span
-                    className={`${styles.deliveryBadge} ${styles[`del_${d.result}`]}`}
-                  >
-                    {DELIVERY_LABELS[d.result]}
-                  </span>
-                  {d.notes && <div className={styles.notes}>{d.notes}</div>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <div className={styles.projectionMeta}>
-        <span>Новые приёмки оформляются в электронном актировании</span>
-        <Link
-          className={styles.projectionLink}
-          to={`/acceptances?contractId=${String(contractId)}`}
-        >
-          Открыть приёмки по контракту
-        </Link>
-      </div>
-    </section>
-  );
-}

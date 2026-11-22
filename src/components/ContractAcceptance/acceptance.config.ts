@@ -37,6 +37,23 @@ export const acceptanceStatusOrder: AcceptanceStatus[] = [
   "Cancelled",
 ];
 
+/**
+ * Статусы, при которых приёмка состоялась: её сумма идёт в исполнение
+ * контракта. Один источник для списка приёмок в карточке и для сводки
+ * реестра — иначе «принято» считалось бы по-разному на двух экранах.
+ */
+export const acceptedAcceptanceStatuses: AcceptanceStatus[] = [
+  "Accepted",
+  "AcceptedWithDiscrepancies",
+  "RegisteredInEis",
+];
+
+/** Документы, которые ещё в работе: направлены или возвращены на уточнение. */
+export const reviewAcceptanceStatuses: AcceptanceStatus[] = [
+  "Submitted",
+  "ReturnedForRevision",
+];
+
 export const acceptanceKindLabels: Record<AcceptanceKind, string> = {
   Primary: "Документ о приёмке",
   Correction: "Корректировочный документ",

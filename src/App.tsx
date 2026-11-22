@@ -22,6 +22,7 @@ import ContractProjectsPage from "./components/ContractProject/ContractProjectsP
 import SmnpSonekPage from "./components/Reports/SmnpSonekPage";
 import Order158nReportsPage from "./components/Reports/Order158nReportsPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
+import ContractCardPage from "./components/ContractRegistry/ContractCardPage";
 import ContractChangeRegistryPage from "./components/ContractChange/ContractChangeRegistryPage";
 import ContractChangeFormPage from "./components/ContractChange/ContractChangeFormPage";
 import ContractChangeDetailPage from "./components/ContractChange/ContractChangeDetailPage";
@@ -54,6 +55,34 @@ const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage/AnalyticsPage"));
 // Визитка — самостоятельная одностраничная посадочная без шапки приложения.
 // Ленивый маршрут: на рабочий стол её CSS и разметка не влияют.
 const VisitCardPage = lazy(() => import("./pages/VisitCardPage/VisitCardPage"));
+
+// Кабинет подрядчика — внешний контур: вход по ИНН, реестр контрактов по
+// заказчикам и направление сведений о привлечении СМП. Ленивые маршруты,
+// потому что подрядчик не открывает рабочий стол контрактной службы.
+const ContractorLoginPage = lazy(
+  () => import("./components/Contractor/ContractorLoginPage"),
+);
+const ContractorDashboardPage = lazy(
+  () => import("./components/Contractor/ContractorDashboardPage"),
+);
+
+const lazySection = (node: React.ReactNode) => (
+  <Suspense
+    fallback={
+      <div
+        style={{
+          padding: "48px 16px",
+          color: "var(--text-secondary)",
+          textAlign: "center",
+        }}
+      >
+        Загрузка…
+      </div>
+    }
+  >
+    {node}
+  </Suspense>
+);
 
 const router = createBrowserRouter([
   {
@@ -162,6 +191,23 @@ const router = createBrowserRouter([
       {
         path: "/contract-registry",
         element: <ContractRegistryPage />,
+      },
+      {
+        // Карточка контракта: реестр показывает только сводку с прогрессбарами,
+        // детали (этапы, платежи, приёмки, поставки, СМП) — на этом роуте
+        path: "/contract-registry/:id",
+        element: <ContractCardPage />,
+      },
+      {
+        // Личный кабинет подрядчика: вход по ИНН поставщика (Tasks 9 п. 6 —
+        // «подрядчик сам загружает сведения и направляет их заказчику»)
+        path: "/contractor",
+        element: lazySection(<ContractorLoginPage />),
+      },
+      {
+        // Реестр контрактов подрядчика по заказчикам + направление СМП
+        path: "/contractor/registry",
+        element: lazySection(<ContractorDashboardPage />),
       },
       {
         // Изменение и расторжение контрактов по ст. 95 44-ФЗ: реестр,

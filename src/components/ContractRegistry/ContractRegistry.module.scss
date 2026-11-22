@@ -121,6 +121,79 @@
   transition: width 0.3s ease;
 }
 
+/* ===== Сводка исполнения: оплата, приёмка, СМП ===== */
+
+.summarySection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.summaryLabel {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.summaryValue {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.summaryHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.summaryTrack {
+  height: 8px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.summaryFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.summaryFillOk {
+  background: var(--state-success);
+}
+
+.summaryPercent {
+  align-self: flex-end;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.summaryFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ===== Подсекции ===== */
 
 .subSection {
@@ -651,6 +724,84 @@
   &:hover {
     background: var(--state-danger-soft);
   }
+}
+
+/* Основное действие: переход в карточку контракта из сводки реестра */
+.btnPrimary {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--surface-panel);
+  text-decoration: none;
+  flex-shrink: 0;
+
+  &:hover {
+    filter: brightness(1.08);
+  }
+}
+
+/* Компактная кнопка внутри секций: «+ Платёж», «+ Акт» */
+.btnSmall {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  flex-shrink: 0;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+/* ===== Страница карточки контракта (/contract-registry/:id) ===== */
+
+.cardPage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 32px;
+  max-width: 1400px;
+}
+
+.cardPageTop {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.cardPageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.cardPageTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cardPageMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 /* ===== Привлечение СМП (Tasks 9, п. 7) ===== */

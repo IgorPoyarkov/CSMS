@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import { useAcceptances } from "../../services/Acceptance/acceptance.api";
-import type { AcceptanceResponse } from "../../services/Acceptance/acceptance.types";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
+  acceptedAcceptanceStatuses,
   acceptanceKindLabels,
   acceptanceResultLabels,
   acceptanceStatusLabels,
   acceptanceStatusTone,
   formatMoney,
   issueIsError,
+  reviewAcceptanceStatuses,
 } from "../ContractAcceptance/acceptance.config";
 import styles from "./ContractRegistry.module.scss";
 
@@ -29,17 +30,6 @@ interface ContractAcceptanceSectionProps {
   contractId?: string | number;
 }
 
-const acceptedStatuses: AcceptanceResponse["status"][] = [
-  "Accepted",
-  "AcceptedWithDiscrepancies",
-  "RegisteredInEis",
-];
-
-const reviewStatuses: AcceptanceResponse["status"][] = [
-  "Submitted",
-  "ReturnedForRevision",
-];
-
 export default function ContractAcceptanceSection({
   contractId,
 }: ContractAcceptanceSectionProps) {
@@ -54,14 +44,14 @@ export default function ContractAcceptanceSection({
   if (contractId === undefined || acceptances.length === 0) return null;
 
   const accepted = acceptances.filter((acceptance) =>
-    acceptedStatuses.includes(acceptance.status),
+    acceptedAcceptanceStatuses.includes(acceptance.status),
   );
   const acceptedTotal = accepted.reduce(
     (sum, acceptance) => sum + acceptance.totalWithVat,
     0,
   );
   const onReview = acceptances.filter((acceptance) =>
-    reviewStatuses.includes(acceptance.status),
+    reviewAcceptanceStatuses.includes(acceptance.status),
   ).length;
   const errors = acceptances.reduce(
     (sum, acceptance) =>

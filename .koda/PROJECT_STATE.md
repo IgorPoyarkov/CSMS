@@ -5412,3 +5412,69 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   входит. Живая проверка секций в браузере не выполнена: адаптер :3002 не
   поднимается (кластер на :5432, `pg-store.mjs` ждёт :5433).
 
+## 139. Реестр контрактов: сводка с прогрессбарами, детали — на роуте карточки (2026-11-22)
+
+- **Запрос.** Раскрытие строки реестра держало сервер в напряжении: одна
+  строка монтировала 8 секций и делала до 7–8 запросов (платежи, проекция
+  ЕИС, приёмки, события, этапы, неустойки, поставки, СМП). Требование:
+  в реестре — только общие сведения по оплате/приёмке/СМП с прогрессбарами
+  и цифрами, полная информация — на отдельном роуте «Карточка контракта».
+- **Новый роут.** `App.tsx`: `/contract-registry/:id` →
+  `ContractCardPage` (`src/components/ContractRegistry/ContractCardPage.tsx`),
+  сразу после `/contract-registry`. Страница берёт контракт из уже
+  загруженного списка `useContractRegistry(orgId)` (find по `String(id)`),
+  показывает шапку (номер/наименование, статус, цена, поставщик, даты,
+  реестровый номер ЕИС, ошибка ИКЗ) и действия: «← К реестру»,
+  «Изменение / расторжение», «Приёмка», «Все приёмки», «Удалить»
+  (`window.confirm` + `useDeleteContract` → navigate в реестр).
+- **Сводка.** `ContractCardSummary.tsx` — три карточки: оплата
+  (`totalPaid`/`paymentPercent` по ручным платежам), приёмка (сумма по
+  статусам `acceptedAcceptanceStatuses` от цены контракта, «на рассмотрении»),
+  СМП (`computeSmpVolume` — факт/требуется/дефицит/прогресс). Ровно три
+  запроса с общими ключами react-query; в реестре передаётся `cardLink`,
+  внутри карточки — без ссылки. Прогресс — `.summaryTrack/.summaryFill`
+  (`--accent`), 100 % и больше — `.summaryFillOk` (`--state-success`).
+- **Реестр.** `ContractRow` при `expanded` рендерит только сводку
+  (`ContractCardSummary`) со ссылкой `/contract-registry/:id`; остальные
+  секции из раскрытия убраны. В подвале раскрытия остались кнопки на формы
+  («Изменение / расторжение», «Приёмка», «Удалить») — они не делают запросов.
+- **Вынос секций.** Локальные `StagesSection`, `PaymentsSection`,
+  `PenaltiesSection`, `DeliveriesSection` и `PaymentSummary` удалены из
+  `ContractRegistryPage.tsx` и переехали в отдельные файлы:
+  `ContractStagesSection.tsx`, `ContractPaymentsSection.tsx`,
+  `ContractPenaltiesSection.tsx`, `ContractDeliveriesSection.tsx`.
+  `ContractRegistryPage.tsx` сократился с 1740 до ~1420 строк.
+- **Общие подписи и деньги.** Новый `contractRegistryFormat.ts`:
+  `CONTRACT_STATUS_LABELS`, `STAGE_LABELS`, `PAYMENT_LABELS`,
+  `PAYMENT_STATUS_LABELS`, `PENALTY_LABELS`, `PENALTY_STATUS_LABELS`,
+  `DELIVERY_LABELS`, `formatMoney`, `percentOf`, `plural`. Локальные копии
+  в реестре удалены (раньше `formatMoney` и лейблы дублировались).
+- **Статусы приёмки — один источник.** В `ContractAcceptance/acceptance.config.ts`
+  добавлены `acceptedAcceptanceStatuses` и `reviewAcceptanceStatuses`;
+  `ContractAcceptanceSection` и `ContractCardSummary` используют их, чтобы
+  «принято» считалось одинаково.
+- **Стили.** `ContractRegistry.module.scss`: блок «Сводка исполнения»
+  (`.summarySection/.summaryGrid/.summaryCard/.summaryLabel/.summaryValue/
+  .summaryHint/.summaryTrack/.summaryFill/.summaryFillOk/.summaryPercent/
+  .summaryFooter`), `.btnPrimary`, `.btnSmall` (раньше `styles.btnSmall`
+  использовался, но класса не было — кнопки «+ Платёж»/«+ Акт» были без
+  стилей), страница карточки (`.cardPage/.cardPageTop/.cardPageHeader/
+  .cardPageTitle/.cardPageMeta`). Только существующие токены темы.
+- **Проверки.** `npx tsc -p tsconfig.cardcheck.json --noEmit` (временный
+  конфиг: `extends tsconfig.app.json`, include — `src/components/ContractRegistry`
+  и `acceptance.config.ts`) — 0 ошибок; `npx oxlint` по восьми затронутым
+  файлам — 0 warnings; `vite build` — успешно за 12.78 с.
+- **Ловушка.** Полный `tsc -b` по-прежнему красный из-за чужого
+  `src/services/Contractor/contractor.schema.ts` (`TS1128`, 417,1) и правок
+  другого агента в `LiabilityMappingPage.tsx`, `liabilityMapping.api.ts`,
+  `main.tsx`, `Header.tsx` — эти файлы не трогались и в коммит не попали.
+  Поэтому проверка типов шла временным `tsconfig.cardcheck.json` (удалён
+  после прогона). `vite build` в 30-секундный лимит не укладывается —
+  запускать через `Start-Process` с логом в `$env:TEMP`.
+- **Следующий шаг (производительность).** Сводка всё ещё делает 3 запроса на
+  раскрытую строку. Нужен агрегат: `GET /api/contracts/{id}/summary`
+  (csms-api) или поля-агрегаты в списке контрактов PG-адаптера —
+  `paidAmount`, `acceptanceAmount`, `smpActual`; заодно решается вопрос
+  N+1 при раскрытии нескольких строк.
+
+
