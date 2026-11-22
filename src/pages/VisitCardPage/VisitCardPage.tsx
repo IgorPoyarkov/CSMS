@@ -55,6 +55,66 @@ const Reveal = ({
   </div>
 );
 
+interface TypewriterProps {
+  text: string;
+  className?: string;
+  caretClassName?: string;
+  speed?: number;
+  startDelay?: number;
+}
+
+/**
+ * Лозунг, который печатается по буквам. При prefers-reduced-motion текст
+ * показывается сразу: анимация не должна задерживать чтение.
+ */
+const Typewriter = ({
+  text,
+  className,
+  caretClassName,
+  speed = 55,
+  startDelay = 600,
+}: TypewriterProps) => {
+  const [visible, setVisible] = useState(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? text.length
+      : 0,
+  );
+
+  useEffect(() => {
+    // Начальное состояние уже учитывает reduced-motion: текст показан целиком
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    let index = 0;
+    let interval = 0;
+
+    const timeout = window.setTimeout(() => {
+      interval = window.setInterval(() => {
+        index += 1;
+        setVisible(index);
+
+        if (index >= text.length) {
+          window.clearInterval(interval);
+        }
+      }, speed);
+    }, startDelay);
+
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+    };
+  }, [text, speed, startDelay]);
+
+  return (
+    <p className={className} aria-label={text}>
+      <span aria-hidden="true">{text.slice(0, visible)}</span>
+      <span className={caretClassName} aria-hidden="true" />
+    </p>
+  );
+};
+
 const NAV_LINKS = [
   { href: "#features", label: "Возможности" },
   { href: "#process", label: "Процесс" },
@@ -169,13 +229,18 @@ const VisitCardPage = () => {
 
     // Даём браузеру отрисовать стартовое состояние (opacity: 0), иначе
     // элементы первого экрана получают data-revealed до первой отрисовки
-    // и анимации не видно
-    const frame = window.requestAnimationFrame(() => {
-      nodes.forEach((node) => observer.observe(node));
+    // и анимации не видно. Двух кадров достаточно: первый фиксирует
+    // стартовый стиль, второй запускает наблюдение уже после paint
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        nodes.forEach((node) => observer.observe(node));
+      });
     });
 
     return () => {
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
       observer.disconnect();
     };
   }, []);
@@ -272,11 +337,18 @@ const VisitCardPage = () => {
           <div className={page("hero-grid-lines")} aria-hidden="true" />
 
           <div className={page("hero-grid")}>
-            <Reveal className={page("hero-copy")} variant="left">
+            <Reveal className={page("hero-copy")} delay={80} variant="left">
               <p className={page("eyebrow")}>
                 <Sparkles size={14} aria-hidden="true" />
                 44-ФЗ · приказ 158н · ЕИС
               </p>
+
+              <Typewriter
+                className={page("tagline")}
+                caretClassName={page("tagline-caret")}
+                text="Порядок в каждой закупке"
+                startDelay={700}
+              />
 
               <h1 className={page("hero-title")}>
                 Закупки под контролем —{" "}
@@ -311,7 +383,7 @@ const VisitCardPage = () => {
               </ul>
             </Reveal>
 
-            <Reveal className={page("hero-visual")} delay={140} variant="right">
+            <Reveal className={page("hero-visual")} delay={300} variant="right">
               <div className={page("mock")} aria-hidden="true">
                 <div className={page("mock-head")}>
                   <span className={page("mock-dot")} />
