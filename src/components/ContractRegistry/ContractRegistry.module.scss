@@ -16,6 +16,15 @@
   text-align: center;
   padding: 48px;
   color: var(--text-secondary);
+
+  p {
+    margin: 0;
+  }
+}
+
+/* Кнопка в пустом состоянии: добрать ещё не прочитанную часть реестра */
+.emptyAction {
+  margin-top: 16px;
 }
 
 /* ===== Подсказка о группе реестра ===== */
@@ -1826,6 +1835,34 @@
   font-size: 13px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* ===== Прогрессивная загрузка реестра ===== */
+
+/* Пока прочитана не вся выборка: сколько загружено и кнопка «добрать» */
+.loadMoreBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.loadMoreText {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Страница ещё не прочитана: вместо пустого листа — строка «Подгружаем…» */
+.loadingRow {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
 /* ===== Фильтр по КБК: комбинированное поле (поиск + выбор + ввод) ===== */

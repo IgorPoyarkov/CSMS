@@ -1,12 +1,10 @@
-import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   contractIkzError,
   isContractOverdue,
-  type ContractRegistryItem,
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
-  useContractRegistry,
+  useContractById,
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -37,14 +35,9 @@ export default function ContractCardPage() {
   const { formatDate } = useUtils();
   const { data: organization, isLoading: isOrganizationLoading } =
     useCurrentOrganization();
-  const organizationId = organization ? String(organization.id) : "";
-  const { data: contracts, isLoading } = useContractRegistry(organizationId);
+  // Один контракт по id: карточке не нужен весь реестр организации
+  const { data: contract, isLoading } = useContractById(id);
   const { mutate: deleteContract, isPending: isDeleting } = useDeleteContract();
-
-  const contract = useMemo<ContractRegistryItem | undefined>(
-    () => (contracts ?? []).find((item) => String(item.id) === id),
-    [contracts, id],
-  );
 
   if (isLoading || isOrganizationLoading) {
     return (
@@ -54,7 +47,13 @@ export default function ContractCardPage() {
     );
   }
 
-  if (!contract) {
+  // Чужой контракт не показываем: разграничение по организации остаётся
+  // клиентским, потому что запись читается по одному id
+  const anotherOrganization =
+    Boolean(contract && organization) &&
+    String(contract?.organizationId) !== String(organization?.id);
+
+  if (!contract || anotherOrganization) {
     return (
       <section className={styles.cardPage}>
         <Link className={styles.projectionLink} to="/contract-registry">

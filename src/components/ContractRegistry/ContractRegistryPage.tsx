@@ -8,13 +8,16 @@ import {
   type KeyboardEvent,
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   isContractOverdue,
   contractIkzError,
   type ContractRegistryItem,
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
-  useContractRegistry,
+  CONTRACT_REGISTRY_PAGE_SIZE,
+  prefetchContract,
+  useContractRegistryRows,
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -129,6 +132,15 @@ const matchesKbkFilter = (
 // Сколько контрактов показывать на странице
 const PAGE_SIZES = [5, 10, 25, "all"] as const;
 
+/**
+ * До скольких строк реестр добирается сам после первой отрисовки. Первая
+ * порция — пагинальные строки (её видно сразу), дальше четыре порции фоном:
+ * счётчики папок, суммы и пул КБК считаются по загруженной части, и на пустом
+ * месте они были бы заведомо неполными. Всё, что выше, — только по явному
+ * действию пользователя (пейджер, «Все», кнопка «Загрузить остальные»).
+ */
+const AUTOLOAD_ROWS = CONTRACT_REGISTRY_PAGE_SIZE * 4;
+
 /** Сортировка таблицы контрактов: колонка и направление. */
 type SortDirection = "asc" | "desc";
 
@@ -218,7 +230,19 @@ export default function ContractRegistryPage() {
   const orgId = organization?.id;
   const { formatDate } = useUtils();
 
-  const { data: contracts, isLoading } = useContractRegistry(orgId);
+  // Реестр приходит порциями: сначала только строки первой страницы, остальные
+  // догружаются по мере необходимости — см. эффект ниже и кнопки пейджера.
+  const {
+    contracts,
+    total: contractsTotal,
+    loaded: contractsLoaded,
+    hasMore: contractsHasMore,
+    isLoading,
+    isFetchingNextPage,
+    loadMore,
+    loadAll,
+    loadUntil,
+  } = useContractRegistryRows(orgId);
   const { mutate: deleteContract } = useDeleteContract();
 
   // Параметры адреса: ?group=competitive | ?group=single — группа из подменю
@@ -283,7 +307,7 @@ export default function ContractRegistryPage() {
     });
 
     const map = new Map<string, string[]>();
-    (contracts ?? []).forEach((contract) => {
+    contracts.forEach((contract) => {
       if (contract.id === undefined || contract.id === null) return;
       const fromPlan = kbkByPlanIkz.get(
         ikzPositionKey(contract.ikz ?? "") ?? "",
@@ -324,10 +348,29 @@ export default function ContractRegistryPage() {
   // Поставщик выбирается кликом по его названию в строке контракта
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
 
+  // ─── Порционная догрузка реестра ──────────────────────────────────────────
+  // Первая порция (пагинальные строки) уже на экране — её отдал react-query.
+  // Дальше добираем до AUTOLOAD_ROWS в фоне, не блокируя список: папки, суммы
+  // и пул КБК считаются по загруженной части. Масштаб «Все» — явная просьба
+  // показать весь реестр, поэтому догружаем до конца. Пока порция в пути,
+  // новый запрос не отправляем (иначе они пойдут пачкой).
+  useEffect(() => {
+    if (!contractsHasMore || isFetchingNextPage) return;
+    if (pageSize === "all" || contractsLoaded < AUTOLOAD_ROWS) {
+      void loadMore();
+    }
+  }, [
+    contractsHasMore,
+    isFetchingNextPage,
+    contractsLoaded,
+    pageSize,
+    loadMore,
+  ]);
+
   // Выборка до фильтра по КБК: по ней же строим список доступных КБК,
   // чтобы в подсказках не оставался единственный уже выбранный код
   const filteredContracts = useMemo(() => {
-    const list = contracts ?? [];
+    const list = contracts;
     let result: ContractRegistryItem[];
     if (group === "all") {
       result = list;
@@ -665,16 +708,51 @@ export default function ContractRegistryPage() {
   }, [folderOpen, layoutFolderFlight]);
 
   // ─── Пагинация ────────────────────────────────────────────────────────────
+  // Фильтры и папки применяются к загруженной части, поэтому её размер знает
+  // только клиент. Когда фильтров нет и открыт «Весь реестр», общее число
+  // контрактов известно серверу (`contractsTotal`) — по нему и строим пейджер,
+  // иначе «Вперёд» упирался бы в последнюю загруженную страницу.
+  const hasFilters =
+    group !== "all" ||
+    statusFilter !== "all" ||
+    Boolean(dateFrom) ||
+    Boolean(dateTo) ||
+    Boolean(supplierFilter) ||
+    selectedKbks.length > 0;
+  const pagerRows =
+    showAllFolders && !hasFilters
+      ? Math.max(activeContracts.length, contractsTotal)
+      : activeContracts.length;
   const totalPages =
     pageSize === "all"
       ? 1
-      : Math.max(1, Math.ceil(activeContracts.length / Number(pageSize)));
+      : Math.max(1, Math.ceil(pagerRows / Number(pageSize)));
   const safePage = Math.min(page, totalPages);
   const start = pageSize === "all" ? 0 : (safePage - 1) * Number(pageSize);
   const pagedContracts =
     pageSize === "all"
       ? activeContracts
       : activeContracts.slice(start, start + Number(pageSize));
+  // Сколько строк на странице по выбранному масштабу: нужно для подписи пейджера
+  const rowsOnPage =
+    pageSize === "all" ? pagedContracts.length : Number(pageSize);
+
+  /**
+   * Переход по страницам. Без фильтров размер выборки знает сервер — добираем
+   * сразу до нужной страницы. С фильтрами (они применяются к загруженной
+   * части) размер известен только клиенту, поэтому просим очередную порцию:
+   * она добавит строк и страниц, и «Вперёд» не упрётся в конец прочитанного.
+   */
+  const goToPage = (next: number) => {
+    setPage(next);
+    if (pageSize === "all" || !contractsHasMore) return;
+    if (hasFilters) void loadMore();
+    else void loadUntil(next * Number(pageSize));
+  };
+
+  // «Вперёд» доступно, пока есть следующая страница или непрочитанные строки
+  const canGoNext =
+    pageSize !== "all" && (safePage < totalPages || contractsHasMore);
 
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
@@ -712,6 +790,15 @@ export default function ContractRegistryPage() {
           ? "Папка раскрыта: папки остаются на экране — любую можно выбрать одним кликом, «Все папки» закрывает лист."
           : "Выберите папку по году заключения — внутри неё весь список контрактов за этот год."}
       </p>
+      {/* Реестр читается порциями: пока он прочитан не целиком, предупреждаем
+          об этом рядом с папками — их счётчики и суммы считаются по загруженным */}
+      {contractsHasMore && (
+        <p className={styles.groupHint}>
+          Реестр открывается порциями: загружено {contractsLoaded} из{" "}
+          {contractsTotal} контрактов, счётчики и суммы папок — по загруженным
+          строкам.
+        </p>
+      )}
 
       {/* ─── Панель фильтров и сортировки ──────────────────────────────────── */}
       <div className={styles.toolbar}>
@@ -925,7 +1012,25 @@ export default function ContractRegistryPage() {
 
       {visibleContracts.length === 0 ? (
         <div className={styles.empty}>
-          Контрактов по заданным условиям не найдено
+          <p>
+            {contractsHasMore
+              ? `Среди загруженных ${contractsLoaded} из ${contractsTotal} контрактов ничего не найдено.`
+              : "Контрактов по заданным условиям не найдено"}
+          </p>
+          {/* Совпадение может быть в ещё не прочитанной части реестра —
+              предлагаем добрать остальные строки, а не утверждаем «нет» */}
+          {contractsHasMore && (
+            <button
+              type="button"
+              className={`${styles.btnSecondary} ${styles.emptyAction}`}
+              onClick={() => void loadAll()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage
+                ? "Подгружаем…"
+                : `Проверить остальные (${contractsTotal - contractsLoaded})`}
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -1099,6 +1204,16 @@ export default function ContractRegistryPage() {
                       </tr>
                     </thead>
                     <tbody>
+                      {/* Прыжок на ещё не загруженную страницу: вместо пустого
+                          листа показываем, что строки в пути */}
+                      {pagedContracts.length === 0 &&
+                        (contractsHasMore || isFetchingNextPage) && (
+                          <tr>
+                            <td colSpan={8} className={styles.loadingRow}>
+                              Подгружаем строки…
+                            </td>
+                          </tr>
+                        )}
                       {pagedContracts.map((contract, rowIndex) => (
                         <ContractRow
                           key={contract.id}
@@ -1129,30 +1244,42 @@ export default function ContractRegistryPage() {
                     <button
                       type="button"
                       className={styles.pagerButton}
-                      onClick={() =>
-                        setPage((current) => Math.max(1, current - 1))
-                      }
+                      onClick={() => goToPage(Math.max(1, safePage - 1))}
                       disabled={safePage === 1}
                     >
                       Назад
                     </button>
                     <span className={styles.pagerInfo}>
                       {start + 1}–
-                      {Math.min(
-                        start + pagedContracts.length,
-                        activeContracts.length,
-                      )}{" "}
-                      из {activeContracts.length}
+                      {Math.min(start + rowsOnPage, pagerRows)} из {pagerRows}
                     </span>
                     <button
                       type="button"
                       className={styles.pagerButton}
-                      onClick={() =>
-                        setPage((current) => Math.min(totalPages, current + 1))
-                      }
-                      disabled={safePage === totalPages}
+                      onClick={() => goToPage(safePage + 1)}
+                      disabled={!canGoNext}
                     >
                       Вперёд
+                    </button>
+                  </div>
+                )}
+
+                {/* Прогрессивная загрузка: пока реестр прочитан не целиком,
+                    честно показываем, сколько строк в работе, и даём добрать
+                    остальные одним действием */}
+                {contractsHasMore && (
+                  <div className={styles.loadMoreBar}>
+                    <span className={styles.loadMoreText}>
+                      Загружено {contractsLoaded} из {contractsTotal} контрактов
+                      {isFetchingNextPage ? " · подгружаем…" : ""}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.btnSecondary}
+                      onClick={() => void loadAll()}
+                      disabled={isFetchingNextPage}
+                    >
+                      Загрузить остальные ({contractsTotal - contractsLoaded})
                     </button>
                   </div>
                 )}
@@ -1196,9 +1323,17 @@ function ContractRow({
   formatDate,
 }: ContractRowProps) {
   const overdue = isContractOverdue(contract);
+  const queryClient = useQueryClient();
   // Каскад построчного раскрытия: задержка растёт по порядку, но не дальше
   // восьмой строки — на 25 записях лист не должен пустовать почти секунду.
   const rowStyle = { animationDelay: `${Math.min(index, 8) * 40}ms` };
+
+  // Наведение на строку заранее тянет карточку контракта: клик по названию
+  // раскрывает сводку, а переход в карточку открывается уже из кэша
+  const prefetchCard = () => {
+    if (contract.id === undefined || contract.id === null) return;
+    void prefetchContract(queryClient, contract.id);
+  };
 
   return (
     <>
@@ -1208,6 +1343,7 @@ function ContractRow({
           overdue ? styles.contractRowOverdue : ""
         } ${expanded ? styles.contractRowExpanded : ""}`}
         onClick={onToggle}
+        onMouseEnter={prefetchCard}
       >
         <td colSpan={8}>{contract.contractName}</td>
       </tr>
@@ -1218,6 +1354,7 @@ function ContractRow({
           expanded ? styles.contractRowExpanded : ""
         }`}
         onClick={onToggle}
+        onMouseEnter={prefetchCard}
       >
         <td className={styles.contractNumber}>{contract.contractNumber}</td>
         <td>

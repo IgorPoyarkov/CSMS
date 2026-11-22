@@ -1,4 +1,11 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import {
   ContractRegistryItemListSchema,
@@ -13,6 +20,7 @@ import {
   ContractDeliverySchema,
   ContractEventListSchema,
   ContractEventSchema,
+  totalPaid,
   type ContractRegistryItem,
   type ContractStage,
   type ContractPayment,
@@ -56,6 +64,48 @@ const fetchContractsByOrg = async (
     params: { organizationId },
   });
   return ContractRegistryItemListSchema.parse(response.data);
+};
+
+/**
+ * Размер порции реестра при прогрессивной загрузке. Кратен всем масштабам
+ * `PageSizePicker` (5 / 10 / 25), поэтому первая порция сразу закрывает первую
+ * страницу любого размера и не заставляет перезапрашивать данные.
+ */
+export const CONTRACT_REGISTRY_PAGE_SIZE = 25;
+
+/** Одна порция реестра: строки страницы и всего контрактов у организации. */
+export interface ContractRegistryPortion {
+  items: ContractRegistryItem[];
+  total: number;
+}
+
+/**
+ * Порция реестра через `_page/_limit`. Адаптер в стиле json-server отдаёт
+ * общее число записей в `X-Total-Count` — по нему решаем, есть ли ещё строки.
+ * Без заголовка (старый json-server) считаем, что порция последняя.
+ */
+const fetchContractsPortion = async (
+  organizationId: string | number,
+  page: number,
+  limit: number,
+): Promise<ContractRegistryPortion> => {
+  const response = await api.get(CONTRACTS_ENDPOINT, {
+    params: { organizationId, _page: page, _limit: limit },
+  });
+  const items = ContractRegistryItemListSchema.parse(response.data);
+  const header = response.headers["x-total-count"];
+  const total = header === undefined ? items.length : Number(header);
+  return { items, total: Number.isFinite(total) ? total : items.length };
+};
+
+/** Один контракт по id — карточке не нужен весь реестр организации. */
+const fetchContractById = async (
+  contractId: string | number,
+): Promise<ContractRegistryItem> => {
+  const response = await api.get(
+    `${CONTRACTS_ENDPOINT}/${String(contractId)}`,
+  );
+  return ContractRegistryItemSchema.parse(response.data);
 };
 
 const createContract = async (
@@ -386,6 +436,50 @@ const deleteEvent = async (id: string | number): Promise<string | number> => {
 
 export const contractRegistryQueryKey = ["contractRegistry"];
 
+// ─── Ключи кэша ─────────────────────────────────────────────────────────────
+// Точечные ключи нужны, чтобы мутация одной сущности не перезагружала весь
+// реестр: раньше любое сохранение инвалидировало contractRegistryQueryKey
+// целиком — контракты, этапы, платежи, неустойки, поставки и события сразу.
+
+const contractsKey = [...contractRegistryQueryKey, "contracts"] as const;
+
+const contractKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "contract", String(contractId)] as const;
+
+const stagesKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "stages", String(contractId)] as const;
+
+const paymentsKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "payments", String(contractId)] as const;
+
+const penaltiesKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "penalties", String(contractId)] as const;
+
+const deliveriesKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "deliveries", String(contractId)] as const;
+
+const eventsKey = (contractId: string | number) =>
+  [...contractRegistryQueryKey, "events", String(contractId)] as const;
+
+const allStagesKey = [...contractRegistryQueryKey, "stages", "all"] as const;
+const allPaymentsKey = [...contractRegistryQueryKey, "payments", "all"] as const;
+const allPenaltiesKey = [...contractRegistryQueryKey, "penalties", "all"] as const;
+
+/**
+ * Предзагрузка карточки контракта по наведению на строку реестра. Запрос
+ * уходит в тот же ключ, что у `useContractById`, поэтому открытие карточки
+ * сразу получает данные из кэша.
+ */
+export const prefetchContract = (
+  queryClient: QueryClient,
+  contractId: string | number,
+): Promise<void> =>
+  queryClient.prefetchQuery({
+    queryKey: contractKey(contractId),
+    queryFn: () => fetchContractById(contractId),
+    staleTime: 60_000,
+  });
+
 // Контракты
 export const useContractRegistry = (
   organizationId: string | number | undefined,
@@ -400,12 +494,146 @@ export const useContractRegistry = (
     enabled: Boolean(organizationId),
   });
 
+/**
+ * Реестр для списка: первая порция — только пагинальные строки, остальные
+ * догружаются по мере необходимости (`loadMore` / `loadAll`).
+ *
+ * Полный список по-прежнему отдаёт `useContractRegistry`: он нужен отчётам,
+ * дашборду и формам, где реестр читается целиком. Здесь же ключ кэша другой
+ * (`…/rows`), поэтому два режима не мешают друг другу.
+ */
+export const useContractRegistryRows = (
+  organizationId: string | number | undefined,
+) => {
+  const query = useInfiniteQuery({
+    queryKey: [
+      ...contractRegistryQueryKey,
+      "contracts",
+      String(organizationId),
+      "rows",
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchContractsPortion(
+        organizationId as string | number,
+        pageParam,
+        CONTRACT_REGISTRY_PAGE_SIZE,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.items.length, 0);
+      return lastPage.items.length > 0 && loaded < lastPage.total
+        ? pages.length + 1
+        : undefined;
+    },
+    enabled: Boolean(organizationId),
+  });
+
+  const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = query;
+
+  const contracts = useMemo(
+    () => (data?.pages ?? []).flatMap((page) => page.items),
+    [data],
+  );
+  const total = data?.pages[0]?.total ?? 0;
+
+  /** Догрузить одну порцию; повторный вызов во время загрузки игнорируется. */
+  const loadMore = useCallback(async (): Promise<void> => {
+    if (!hasNextPage || isFetchingNextPage) return;
+    await fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  /**
+   * Догрузить реестр до конца — когда пользователь явно попросил весь список
+   * («Все» в масштабе страницы, пустое состояние, кнопка «Загрузить остальные»).
+   * Ограничение по числу шагов — страховка от бесконечного цикла, если сервер
+   * отдаёт пустые порции.
+   */
+  const loadAll = useCallback(async (): Promise<void> => {
+    for (let guard = 0; guard < 500; guard += 1) {
+      if (!hasNextPage || isFetchingNextPage) return;
+      const result = await fetchNextPage();
+      if (!result.hasNextPage || result.isError) return;
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  /**
+   * Догрузить порции, пока загруженных строк не станет не меньше `rows`
+   * (или реестр не кончится). Нужно пейджеру: прыжок на дальнюю страницу
+   * не должен показывать пустую таблицу, пока строка не прочитана.
+   */
+  const loadUntil = useCallback(
+    async (rows: number): Promise<void> => {
+      const countRows = (pages?: typeof data) =>
+        (pages?.pages ?? []).reduce((sum, page) => sum + page.items.length, 0);
+
+      let loaded = countRows(data);
+      let hasNext = Boolean(hasNextPage);
+      for (let guard = 0; guard < 500 && hasNext && loaded < rows; guard += 1) {
+        const result = await fetchNextPage();
+        if (result.isError) return;
+        hasNext = Boolean(result.hasNextPage);
+        loaded = countRows(result.data);
+      }
+    },
+    [data, hasNextPage, fetchNextPage],
+  );
+
+  return {
+    ...query,
+    contracts,
+    total,
+    loaded: contracts.length,
+    hasMore: Boolean(hasNextPage),
+    loadMore,
+    loadAll,
+    loadUntil,
+  };
+};
+
+/**
+ * Инвалидирует только затронутую ветку кэша. Если у сущности нет contractId
+ * (удаление по id), обновляется вся ветка типа, но не весь реестр.
+ */
+const invalidateScoped = (
+  queryClient: QueryClient,
+  scope: string,
+  contractId: string | number | null | undefined,
+  allKey: readonly unknown[],
+): void => {
+  if (contractId === undefined || contractId === null || contractId === "") {
+    void queryClient.invalidateQueries({
+      queryKey: [...contractRegistryQueryKey, scope],
+    });
+    return;
+  }
+
+  void queryClient.invalidateQueries({
+    queryKey: [...contractRegistryQueryKey, scope, String(contractId)],
+  });
+  void queryClient.invalidateQueries({ queryKey: allKey });
+};
+
+/** Один контракт по id: карточка не тянет весь реестр организации. */
+export const useContractById = (contractId: string | number | undefined) =>
+  useQuery({
+    queryKey: contractKey(contractId as string | number),
+    queryFn: () => fetchContractById(contractId as string | number),
+    enabled: Boolean(contractId),
+    // Карточка по id либо есть, либо нет: повторять запрос к 404 незачем,
+    // иначе «Контракт не найден» показывался бы через три таймаута
+    retry: false,
+  });
+
 export const useCreateContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createContract,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (contract) => {
+      void qc.invalidateQueries({ queryKey: contractsKey });
+      if (contract.id !== undefined && contract.id !== null) {
+        void qc.invalidateQueries({ queryKey: contractKey(contract.id) });
+      }
+    },
   });
 };
 
@@ -413,8 +641,12 @@ export const useUpdateContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateContract,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (contract) => {
+      void qc.invalidateQueries({ queryKey: contractsKey });
+      if (contract.id !== undefined && contract.id !== null) {
+        void qc.invalidateQueries({ queryKey: contractKey(contract.id) });
+      }
+    },
   });
 };
 
@@ -422,15 +654,17 @@ export const useDeleteContract = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteContract,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (id) => {
+      void qc.invalidateQueries({ queryKey: contractsKey });
+      void qc.invalidateQueries({ queryKey: contractKey(id) });
+    },
   });
 };
 
 // Этапы
 export const useContractStages = (contractId: string | number | undefined) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "stages", String(contractId)],
+    queryKey: stagesKey(contractId as string | number),
     queryFn: () => fetchStagesByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
@@ -439,8 +673,7 @@ export const useCreateStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createStage,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (stage) => invalidateScoped(qc, "stages", stage.contractId, allStagesKey),
   });
 };
 
@@ -448,8 +681,7 @@ export const useUpdateStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateStage,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (stage) => invalidateScoped(qc, "stages", stage.contractId, allStagesKey),
   });
 };
 
@@ -457,25 +689,54 @@ export const useDeleteStage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteStage,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () => invalidateScoped(qc, "stages", null, allStagesKey),
   });
 };
 
 // Платежи
 export const useContractPayments = (contractId: string | number | undefined) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "payments", String(contractId)],
+    queryKey: paymentsKey(contractId as string | number),
     queryFn: () => fetchPaymentsByContract(contractId as string | number),
     enabled: Boolean(contractId),
+  });
+
+/** Компактная сводка оплаты: количество документов и уплаченная сумма. */
+export interface ContractPaymentsSummary {
+  count: number;
+  /** Сумма в том же строковом виде, что и `totalPaid` (деньги не теряют точность). */
+  paid: string;
+}
+
+const selectPaymentsSummary = (
+  payments: ContractPayment[],
+): ContractPaymentsSummary => ({
+  count: payments.length,
+  paid: totalPaid(payments),
+});
+
+/**
+ * Сводка по платежам для реестра и карточки: запрос тот же, что у
+ * `useContractPayments`, но в компонент попадают только два числа. Селектор
+ * стабилен по ссылке, поэтому сумма пересчитывается лишь при изменении данных,
+ * а не на каждом рендере строки реестра.
+ */
+export const useContractPaymentsSummary = (
+  contractId: string | number | undefined,
+) =>
+  useQuery({
+    queryKey: paymentsKey(contractId as string | number),
+    queryFn: () => fetchPaymentsByContract(contractId as string | number),
+    enabled: Boolean(contractId),
+    select: selectPaymentsSummary,
   });
 
 export const useCreatePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createPayment,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (payment) =>
+      invalidateScoped(qc, "payments", payment.contractId, allPaymentsKey),
   });
 };
 
@@ -483,8 +744,8 @@ export const useUpdatePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updatePayment,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (payment) =>
+      invalidateScoped(qc, "payments", payment.contractId, allPaymentsKey),
   });
 };
 
@@ -492,15 +753,14 @@ export const useDeletePayment = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deletePayment,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () => invalidateScoped(qc, "payments", null, allPaymentsKey),
   });
 };
 
 // Неустойки
 export const useContractPenalties = (contractId: string | number | undefined) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "penalties", String(contractId)],
+    queryKey: penaltiesKey(contractId as string | number),
     queryFn: () => fetchPenaltiesByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
@@ -509,8 +769,8 @@ export const useCreatePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createPenalty,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (penalty) =>
+      invalidateScoped(qc, "penalties", penalty.contractId, allPenaltiesKey),
   });
 };
 
@@ -518,8 +778,8 @@ export const useUpdatePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updatePenalty,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (penalty) =>
+      invalidateScoped(qc, "penalties", penalty.contractId, allPenaltiesKey),
   });
 };
 
@@ -527,8 +787,7 @@ export const useDeletePenalty = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deletePenalty,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () => invalidateScoped(qc, "penalties", null, allPenaltiesKey),
   });
 };
 
@@ -537,7 +796,7 @@ export const useContractDeliveries = (
   contractId: string | number | undefined,
 ) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "deliveries", String(contractId)],
+    queryKey: deliveriesKey(contractId as string | number),
     queryFn: () => fetchDeliveriesByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
@@ -546,8 +805,8 @@ export const useCreateDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createDelivery,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (delivery) =>
+      invalidateScoped(qc, "deliveries", delivery.contractId, []),
   });
 };
 
@@ -555,8 +814,8 @@ export const useUpdateDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateDelivery,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (delivery) =>
+      invalidateScoped(qc, "deliveries", delivery.contractId, []),
   });
 };
 
@@ -564,15 +823,14 @@ export const useDeleteDelivery = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteDelivery,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () => invalidateScoped(qc, "deliveries", null, []),
   });
 };
 
 // Чекпоинты процесса
 export const useContractEvents = (contractId: string | number | undefined) =>
   useQuery({
-    queryKey: [...contractRegistryQueryKey, "events", String(contractId)],
+    queryKey: eventsKey(contractId as string | number),
     queryFn: () => fetchEventsByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
@@ -581,8 +839,8 @@ export const useCreateContractEvent = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createEvent,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (event) =>
+      invalidateScoped(qc, "events", event.contractId, []),
   });
 };
 
@@ -590,8 +848,8 @@ export const useUpdateContractEvent = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: updateEvent,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: (event) =>
+      invalidateScoped(qc, "events", event.contractId, []),
   });
 };
 
@@ -599,8 +857,7 @@ export const useDeleteContractEvent = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteEvent,
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: contractRegistryQueryKey }),
+    onSuccess: () => invalidateScoped(qc, "events", null, []),
   });
 };
 
