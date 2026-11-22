@@ -111,7 +111,10 @@ export const ContractCardPaymentSchema = z.object({
   AcceptanceDocumentNumber: text,
   AcceptanceDocumentDate: text,
   PayerName: text,
+  // Получатель платежа — это и есть подрядчик (поставщик, исполнитель):
+  // реестр контрактов его не отдаёт, а платёжное поручение содержит
   RecipientName: text,
+  RecipientInn: text,
   Kbk: text,
   DocumentId: text,
   FileName: text,

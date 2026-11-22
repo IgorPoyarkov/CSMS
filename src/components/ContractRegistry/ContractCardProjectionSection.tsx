@@ -64,7 +64,7 @@ export default function ContractCardProjectionSection({
   // ручные «Платежи» и «Поставки и приёмка», и без неё ссылка ведёт в никуда.
   if (!projection) {
     return (
-      <section className={styles.subSection}>
+      <section id="contract-execution" className={styles.subSection}>
         <h4 className={styles.subTitle}>
           Приёмка и оплата по данным карточки ЕИС
         </h4>
@@ -84,7 +84,7 @@ export default function ContractCardProjectionSection({
   const unpaidTotal = Math.max(0, acceptedTotal - paidTotal);
 
   return (
-    <section className={styles.subSection}>
+    <section id="contract-execution" className={styles.subSection}>
       <h4 className={styles.subTitle}>
         Приёмка и оплата по данным карточки ЕИС
       </h4>
@@ -112,76 +112,83 @@ export default function ContractCardProjectionSection({
         </p>
       )}
 
-      {acts.length > 0 && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Акт</th>
-              <th>Дата</th>
-              <th>Предмет приёмки</th>
-              <th>Позиций</th>
-              <th>Сумма с НДС, ₽</th>
-              <th>Решение заказчика</th>
-              <th>Оплачено, ₽</th>
-            </tr>
-          </thead>
-          <tbody>
-            {acts.map((act, index) => (
-              <ProjectionActRow
-                key={act.FileName ?? `${act.ActNumber}-${act.ActDate}-${index}`}
-                act={act}
-                payments={payments}
-                decisions={decisions}
-              />
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {payments.length > 0 && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Платёжное поручение</th>
-              <th>Дата</th>
-              <th>Сумма, ₽</th>
-              <th>Акт приёмки</th>
-              <th>Назначение платежа</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((payment, index) => (
-              <tr key={payment.DocumentId ?? payment.FileName ?? index}>
-                <td>
-                  № {payment.DocumentNumber ?? "—"}
-                  {payment.PaymentType && (
-                    <span className={styles.projectionNote}>
-                      {payment.PaymentType}
-                    </span>
-                  )}
-                </td>
-                <td>{shortDate(payment.DocumentDate)}</td>
-                <td className={styles.moneyCell}>{money(payment.Sum)}</td>
-                <td>
-                  {payment.AcceptanceDocumentNumber
-                    ? `№ ${payment.AcceptanceDocumentNumber} от ${shortDate(
-                        payment.AcceptanceDocumentDate,
-                      )}`
-                    : "—"}
-                </td>
-                <td>
-                  <span
-                    className={styles.projectionPurpose}
-                    title={payment.Purpose ?? undefined}
-                  >
-                    {clamp(payment.Purpose)}
-                  </span>
-                </td>
+      {/* Якоря для плиток сводки: оплата и приёмка ведут к своим таблицам.
+          Обёртки есть всегда — переход не должен упираться в пустоту, когда
+          документов нет */}
+      <div id="contract-acceptance">
+        {acts.length > 0 && (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Акт</th>
+                <th>Дата</th>
+                <th>Предмет приёмки</th>
+                <th>Позиций</th>
+                <th>Сумма с НДС, ₽</th>
+                <th>Решение заказчика</th>
+                <th>Оплачено, ₽</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {acts.map((act, index) => (
+                <ProjectionActRow
+                  key={act.FileName ?? `${act.ActNumber}-${act.ActDate}-${index}`}
+                  act={act}
+                  payments={payments}
+                  decisions={decisions}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div id="contract-payments">
+        {payments.length > 0 && (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Платёжное поручение</th>
+                <th>Дата</th>
+                <th>Сумма, ₽</th>
+                <th>Акт приёмки</th>
+                <th>Назначение платежа</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((payment, index) => (
+                <tr key={payment.DocumentId ?? payment.FileName ?? index}>
+                  <td>
+                    № {payment.DocumentNumber ?? "—"}
+                    {payment.PaymentType && (
+                      <span className={styles.projectionNote}>
+                        {payment.PaymentType}
+                      </span>
+                    )}
+                  </td>
+                  <td>{shortDate(payment.DocumentDate)}</td>
+                  <td className={styles.moneyCell}>{money(payment.Sum)}</td>
+                  <td>
+                    {payment.AcceptanceDocumentNumber
+                      ? `№ ${payment.AcceptanceDocumentNumber} от ${shortDate(
+                          payment.AcceptanceDocumentDate,
+                        )}`
+                      : "—"}
+                  </td>
+                  <td>
+                    <span
+                      className={styles.projectionPurpose}
+                      title={payment.Purpose ?? undefined}
+                    >
+                      {clamp(payment.Purpose)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className={styles.projectionMeta}>
         <span>

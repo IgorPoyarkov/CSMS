@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   contractIkzError,
@@ -7,6 +8,8 @@ import {
   useContractById,
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
+import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
+import { contractCardSmpRequirement } from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import ContractEisSection from "./ContractEisSection";
@@ -14,9 +17,7 @@ import ContractCardProjectionSection from "./ContractCardProjectionSection";
 import ContractAcceptanceSection from "./ContractAcceptanceSection";
 import ContractCardSummary from "./ContractCardSummary";
 import ContractStagesSection from "./ContractStagesSection";
-import ContractPaymentsSection from "./ContractPaymentsSection";
 import ContractPenaltiesSection from "./ContractPenaltiesSection";
-import ContractDeliveriesSection from "./ContractDeliveriesSection";
 import ContractEventsSection from "./ContractEventsSection";
 import SmpSection from "./ContractSmpSection";
 import { CONTRACT_STATUS_LABELS, formatMoney } from "./contractRegistryFormat";
@@ -38,6 +39,17 @@ export default function ContractCardPage() {
   // Один контракт по id: карточке не нужен весь реестр организации
   const { data: contract, isLoading } = useContractById(id);
   const { mutate: deleteContract, isPending: isDeleting } = useDeleteContract();
+  // Выгрузка карточки ЕИС нужна и сводке, и заголовку: по ней видно, есть ли
+  // у контракта обязанность привлекать СМП. Ключ запроса общий, данные из кэша
+  const { data: projection } = useContractCardProjection(contract?.id ?? id);
+  const smpRequirement = useMemo(
+    () => contractCardSmpRequirement(projection?.Smp ?? []),
+    [projection],
+  );
+  const hasSmpRequirement =
+    Number(contract?.smpRequiredPercent ?? 0) > 0 ||
+    Boolean(smpRequirement.percent) ||
+    Number(smpRequirement.sum ?? 0) > 0;
 
   if (isLoading || isOrganizationLoading) {
     return (
@@ -70,6 +82,18 @@ export default function ContractCardPage() {
   const contractId = contract.id ?? "";
   const overdue = isContractOverdue(contract);
   const ikzError = contractIkzError(contract.ikz);
+  // Выгрузка из ЕИС (есть ссылка на карточку портала) — не наш документ:
+  // удалить запись реестра контрактов нельзя, её снимают сведениями в ЕИС
+  const isEisContract = Boolean(contract.eisUrl);
+  // Поставщика реестр контрактов не отдаёт, но получатель платежа в выгрузке
+  // ЕИС — это подрядчик: показываем его, чтобы шапка не оставалась пустой у
+  // контракта, по которому уже прошла оплата
+  const eisRecipient = projection?.Payments.find(
+    (payment) => payment.RecipientName,
+  );
+  const supplierName =
+    contract.supplierName || eisRecipient?.RecipientName || "";
+  const supplierInn = contract.supplierInn || eisRecipient?.RecipientInn || "";
 
   const handleDelete = () => {
     if (!contract.id) return;
@@ -100,27 +124,26 @@ export default function ContractCardPage() {
           >
             Изменение / расторжение
           </Link>
-          {/* Электронное актирование по ст. 94 */}
-          <Link
-            className={styles.btnSecondary}
-            to={`/acceptances/new?contractId=${String(contractId)}`}
-          >
-            Приёмка
-          </Link>
+          {/* Электронное актирование — только просмотр: документы о приёмке
+              включаются в реестр контрактов, а не составляются в карточке */}
           <Link
             className={styles.btnSecondary}
             to={`/acceptances?contractId=${String(contractId)}`}
           >
             Все приёмки
           </Link>
-          <button
-            type="button"
-            className={styles.btnDanger}
-            onClick={handleDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? "Удаление…" : "Удалить"}
-          </button>
+          {/* Удалять можно только запись, заведённую в системе. Контракт из
+              выгрузки ЕИС удалению не подлежит */}
+          {!isEisContract && (
+            <button
+              type="button"
+              className={styles.btnDanger}
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Удаление…" : "Удалить"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -136,13 +159,27 @@ export default function ContractCardPage() {
               {CONTRACT_STATUS_LABELS[contract.status]}
             </span>
             {overdue && <span className={styles.overdueBadge}>Просрочен</span>}
+            {hasSmpRequirement && (
+              <span
+                className={styles.smpBadge}
+                title="Контракт с привлечением СМП/СОНКО"
+              >
+                СМП
+              </span>
+            )}
           </span>
           <span>Цена: {formatMoney(contract.contractPrice)} ₽</span>
-          <span>Поставщик: {contract.supplierName || "не указан"}</span>
+          <span>Подрядчик: {supplierName || "не указан в выгрузке"}</span>
+          {supplierInn && <span>ИНН: {supplierInn}</span>}
           <span>Заключён: {formatDate(contract.contractDate)}</span>
+          {/* Импорт ЕИС не всегда отдаёт дату начала исполнения: тогда срок
+              читается как «до <дата>», а не «— — дата» */}
           <span>
-            Срок: {formatDate(contract.executionStartDate)} —{" "}
-            {formatDate(contract.executionEndDate)}
+            Срок исполнения:{" "}
+            {contract.executionStartDate
+              ? `${formatDate(contract.executionStartDate)} — `
+              : "до "}
+            {formatDate(contract.executionEndDate) || "не указан"}
           </span>
           {contract.eisRegistryNumber && (
             <span>Реестровый номер ЕИС: {contract.eisRegistryNumber}</span>
@@ -156,21 +193,24 @@ export default function ContractCardPage() {
 
       <div className={styles.cardBody}>
         <ContractEisSection contract={contract} />
+        {/* Факт исполнения — из выгрузки ЕИС: акты приёмки и платёжные
+            поручения. Ручных платежей и поставок в карточке нет: это
+            документы реестра контрактов, а не наши учётные записи */}
         <ContractCardProjectionSection contractId={contract.id} />
         <ContractAcceptanceSection contractId={contract.id} />
-        <ContractStagesSection contractId={contract.id} />
-        <ContractPaymentsSection contractId={contract.id} />
+        <ContractStagesSection contractId={contract.id} contract={contract} />
         <ContractPenaltiesSection contractId={contract.id} />
-        <ContractDeliveriesSection contractId={contract.id} />
         <ContractEventsSection contractId={contractId} />
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
             контрактов его нет, но объём и загруженные сведения показываем */}
-        <SmpSection
-          contractId={contractId}
-          contractPrice={contract.contractPrice}
-          smpRequiredPercent={contract.smpRequiredPercent}
-          subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
-        />
+        <div id="contract-smp">
+          <SmpSection
+            contractId={contractId}
+            contractPrice={contract.contractPrice}
+            smpRequiredPercent={contract.smpRequiredPercent}
+            subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
+          />
+        </div>
 
         <div className={styles.cardFooter}>
           <div className={styles.meta}>

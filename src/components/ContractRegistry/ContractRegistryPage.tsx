@@ -347,6 +347,14 @@ export default function ContractRegistryPage() {
   const [dateTo, setDateTo] = useState("");
   // Поставщик выбирается кликом по его названию в строке контракта
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
+  // Поиск по реестровому номеру, номеру контракта, подрядчику и его ИНН: по
+  // этим полям ищут конкретную запись, а не листают папки по годам
+  const [query, setQuery] = useState("");
+  // Наличие аванса: в реестре есть и контракты без аванса, и с частичной
+  // предоплатой — фильтр отделяет одни от других
+  const [advanceFilter, setAdvanceFilter] = useState<"all" | "with" | "without">(
+    "all",
+  );
 
   // ─── Порционная догрузка реестра ──────────────────────────────────────────
   // Первая порция (пагинальные строки) уже на экране — её отдал react-query.
@@ -354,9 +362,15 @@ export default function ContractRegistryPage() {
   // и пул КБК считаются по загруженной части. Масштаб «Все» — явная просьба
   // показать весь реестр, поэтому догружаем до конца. Пока порция в пути,
   // новый запрос не отправляем (иначе они пойдут пачкой).
+  // Поиск по номеру тоже читает реестр целиком: искать запись за пределами
+  // первых ста строк — обычное дело, и пустой ответ по неполным данным врал бы
   useEffect(() => {
     if (!contractsHasMore || isFetchingNextPage) return;
-    if (pageSize === "all" || contractsLoaded < AUTOLOAD_ROWS) {
+    if (
+      pageSize === "all" ||
+      contractsLoaded < AUTOLOAD_ROWS ||
+      query.trim() !== ""
+    ) {
       void loadMore();
     }
   }, [
@@ -364,6 +378,7 @@ export default function ContractRegistryPage() {
     isFetchingNextPage,
     contractsLoaded,
     pageSize,
+    query,
     loadMore,
   ]);
 
@@ -404,6 +419,33 @@ export default function ContractRegistryPage() {
       result = result.filter((c) => (c.supplierName ?? "") === supplierFilter);
     }
 
+    // ─── Поиск: реестровый номер, номер контракта, подрядчик, ИНН ──────────
+    // «ё» и регистр не различаем: номер вводят и копированием, и руками
+    const needle = query.trim().toLowerCase().replace(/ё/g, "е");
+    if (needle) {
+      result = result.filter((c) =>
+        [
+          c.contractNumber,
+          c.eisRegistryNumber,
+          c.supplierName,
+          c.supplierInn,
+          c.contractName,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .replace(/ё/g, "е")
+          .includes(needle),
+      );
+    }
+
+    // ─── Наличие аванса ────────────────────────────────────────────────────
+    if (advanceFilter !== "all") {
+      result = result.filter((c) => {
+        const hasAdvance = (Number(c.advanceAmount) || 0) > 0;
+        return advanceFilter === "with" ? hasAdvance : !hasAdvance;
+      });
+    }
+
     return result;
   }, [
     contracts,
@@ -413,6 +455,8 @@ export default function ContractRegistryPage() {
     dateFrom,
     dateTo,
     supplierFilter,
+    query,
+    advanceFilter,
   ]);
 
   // КБК текущего пула контрактов — тот самый список, из которого выбирают:
@@ -625,6 +669,14 @@ export default function ContractRegistryPage() {
   // «веером» и приходят каждая на своё место.
   const folderGridRef = useRef<HTMLDivElement | null>(null);
 
+  // Разлёт плиток включаем после первого кадра: если анимация стартует в том
+  // же кадре, где сетка впервые попала в DOM, её начало приходится на время
+  // до первой отрисовки — пользователь видит только хвост движения. На
+  // телефоне первый рендер дольше, поэтому там полёт читался, а на десктопе
+  // выглядел как «плитки просто появились». Класс готовности ставит
+  // attachFolderGrid, когда сетка уже в DOM
+  const [foldersAnimated, setFoldersAnimated] = useState(false);
+
   const layoutFolderFlight = useCallback(() => {
     const grid = folderGridRef.current;
     if (!grid) return;
@@ -686,7 +738,12 @@ export default function ContractRegistryPage() {
   const attachFolderGrid = useCallback(
     (node: HTMLDivElement | null) => {
       folderGridRef.current = node;
-      if (node) layoutFolderFlight();
+      if (!node) return;
+      layoutFolderFlight();
+      // Сетка только что смонтирована: снимаем готовность и включаем её
+      // следующим кадром, чтобы полёт начался уже на отрисованной сетке
+      setFoldersAnimated(false);
+      requestAnimationFrame(() => setFoldersAnimated(true));
     },
     [layoutFolderFlight],
   );
@@ -718,7 +775,9 @@ export default function ContractRegistryPage() {
     Boolean(dateFrom) ||
     Boolean(dateTo) ||
     Boolean(supplierFilter) ||
-    selectedKbks.length > 0;
+    selectedKbks.length > 0 ||
+    Boolean(query.trim()) ||
+    advanceFilter !== "all";
   const pagerRows =
     showAllFolders && !hasFilters
       ? Math.max(activeContracts.length, contractsTotal)
@@ -803,6 +862,48 @@ export default function ContractRegistryPage() {
       {/* ─── Панель фильтров и сортировки ──────────────────────────────────── */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarFilters}>
+          {/* Поиск: реестровый номер, номер контракта, подрядчик, ИНН.
+              Работает и по папкам: совпадение сразу сужает годы до тех, где
+              такие контракты есть */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label className={styles.toolbarLabel} htmlFor="contract-search">
+              Поиск
+            </label>
+            <input
+              id="contract-search"
+              className={styles.toolbarInput}
+              type="search"
+              value={query}
+              placeholder="Номер или подрядчик"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          {/* Аванс: есть ли предоплата по контракту */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label className={styles.toolbarLabel} htmlFor="contract-advance">
+              Аванс
+            </label>
+            <select
+              id="contract-advance"
+              className={styles.toolbarSelect}
+              value={advanceFilter}
+              onChange={(event) => {
+                setAdvanceFilter(
+                  event.target.value as "all" | "with" | "without",
+                );
+                setPage(1);
+              }}
+            >
+              <option value="all">все</option>
+              <option value="with">есть аванс</option>
+              <option value="without">без аванса</option>
+            </select>
+          </div>
+
           {/* Статус */}
           <div className={styles.toolbarFiltersGroup}>
             <label className={styles.toolbarLabel}>Статус</label>
@@ -1063,7 +1164,9 @@ export default function ContractRegistryPage() {
           >
             <div
               ref={attachFolderGrid}
-              className={styles.folderGrid}
+              className={`${styles.folderGrid} ${
+                foldersAnimated ? styles.folderGridReady : ""
+              }`}
               role="group"
               aria-label="Папки по годам заключения"
             >

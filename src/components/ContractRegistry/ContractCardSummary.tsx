@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -135,6 +135,11 @@ export default function ContractCardSummary({
 
   const smp = smpVolume ?? EMPTY_SMP_VOLUME;
   const smpPercent = Math.round(smp.progress);
+  // Требование о привлечении СМП есть не в каждом контракте: без условия и без
+  // объёма плитки просто нет. Раньше она висела у всех и писала «0 из 0»,
+  // хотя привлекать субподрядчиков по такому контракту не обязаны
+  const showSmpTile =
+    Boolean(smpPercentSource) || smp.required > 0 || smp.actual > 0;
 
   // Наведение на ссылку заранее тянет карточку: переход открывается из кэша
   const prefetch = () => {
@@ -145,69 +150,65 @@ export default function ContractCardSummary({
   return (
     <section className={styles.summarySection}>
       <div className={styles.summaryGrid}>
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>Оплата</span>
-          <strong className={styles.summaryValue}>{formatMoney(paid)} ₽</strong>
-          <span className={styles.summaryHint}>
-            из {formatMoney(contract.contractPrice)} ₽ · {paymentCount}{" "}
-            {plural(paymentCount, ["платёж", "платежа", "платежей"])}
-            {usesEisPayments ? " · по выгрузке ЕИС" : ""}
-          </span>
-          <div className={styles.summaryTrack}>
-            <div
-              className={`${styles.summaryFill} ${
-                paidPercent >= 100 ? styles.summaryFillOk : ""
-              }`}
-              style={{ width: `${Math.min(paidPercent, 100)}%` }}
-            />
-          </div>
-          <span className={styles.summaryPercent}>{paidPercent}%</span>
-        </div>
+        <SummaryTile
+          label="Оплата"
+          value={`${formatMoney(paid)} ₽`}
+          hint={
+            <>
+              из {formatMoney(contract.contractPrice)} ₽ · {paymentCount}{" "}
+              {plural(paymentCount, ["платёж", "платежа", "платежей"])}
+            </>
+          }
+          percent={paidPercent}
+          complete={paidPercent >= 100}
+          title="Перейти к платёжным поручениям"
+          to={cardLink ? `${cardLink}#contract-payments` : undefined}
+          href={cardLink ? undefined : "#contract-payments"}
+          onPrefetch={prefetch}
+        />
 
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>Приёмка</span>
-          <strong className={styles.summaryValue}>
-            {formatMoney(acceptedTotal)} ₽
-          </strong>
-          <span className={styles.summaryHint}>
-            {acceptedCount}{" "}
-            {plural(acceptedCount, ["документ", "документа", "документов"])} ·{" "}
-            {inReview > 0
-              ? `на рассмотрении: ${inReview}`
-              : "нет документов в работе"}
-            {usesEisActs ? " · по выгрузке ЕИС" : ""}
-          </span>
-          <div className={styles.summaryTrack}>
-            <div
-              className={`${styles.summaryFill} ${
-                acceptedPercent >= 100 ? styles.summaryFillOk : ""
-              }`}
-              style={{ width: `${Math.min(acceptedPercent, 100)}%` }}
-            />
-          </div>
-          <span className={styles.summaryPercent}>{acceptedPercent}%</span>
-        </div>
+        <SummaryTile
+          label="Приёмка"
+          value={`${formatMoney(acceptedTotal)} ₽`}
+          hint={
+            <>
+              {acceptedCount}{" "}
+              {plural(acceptedCount, ["документ", "документа", "документов"])} ·{" "}
+              {inReview > 0
+                ? `на рассмотрении: ${inReview}`
+                : "нет документов в работе"}
+            </>
+          }
+          percent={acceptedPercent}
+          complete={acceptedPercent >= 100}
+          title="Перейти к документам о приёмке"
+          to={cardLink ? `${cardLink}#contract-acceptance` : undefined}
+          href={cardLink ? undefined : "#contract-acceptance"}
+          onPrefetch={prefetch}
+        />
 
-        <div className={styles.summaryCard}>
-          <span className={styles.summaryLabel}>Привлечение СМП</span>
-          <strong className={styles.summaryValue}>
-            {formatMoney(smp.actual)} ₽
-          </strong>
-          <span className={styles.summaryHint}>
-            требуется {formatMoney(smp.required)} ₽
-            {smpPercentSource ? ` (${smpPercentSource}%)` : ""}
-            {smp.shortfall > 0 ? ` · дефицит ${formatMoney(smp.shortfall)} ₽` : ""}
-          </span>
-          <div className={styles.summaryTrack}>
-            <div
-              className={`${styles.summaryFill} ${
-                smpPercent >= 100 ? styles.summaryFillOk : ""
-              }`}
-              style={{ width: `${Math.min(smpPercent, 100)}%` }}
-            />
-          </div>
-          <span className={styles.summaryPercent}>{smpPercent}%</span>
-        </div>
+        {showSmpTile && (
+          <SummaryTile
+            label="Привлечение СМП"
+            badge="СМП"
+            value={`${formatMoney(smp.actual)} ₽`}
+            hint={
+              <>
+                требуется {formatMoney(smp.required)} ₽
+                {smpPercentSource ? ` (${smpPercentSource}%)` : ""}
+                {smp.shortfall > 0
+                  ? ` · дефицит ${formatMoney(smp.shortfall)} ₽`
+                  : ""}
+              </>
+            }
+            percent={smpPercent}
+            complete={smpPercent >= 100}
+            title="Перейти к сведениям о привлечении СМП"
+            to={cardLink ? `${cardLink}#contract-smp` : undefined}
+            href={cardLink ? undefined : "#contract-smp"}
+            onPrefetch={prefetch}
+          />
+        )}
       </div>
 
       {cardLink && (
@@ -225,3 +226,96 @@ export default function ContractCardSummary({
     </section>
   );
 }
+
+interface SummaryTileProps {
+  label: string;
+  value: string;
+  hint: ReactNode;
+  percent: number;
+  /** Полоса зелёная, когда показатель закрыт на 100 %. */
+  complete: boolean;
+  /** Переход в другое место приложения: реестр → карточка с якорем. */
+  to?: string;
+  /** Якорь внутри карточки: секция, о которой говорит плитка. */
+  href?: string;
+  title?: string;
+  /** Пометка в углу плитки: у контрактов с СМП — «СМП». */
+  badge?: string;
+  onPrefetch?: () => void;
+}
+
+/**
+ * Плитка сводки: заголовок, сумма, пояснение и прогресс.
+ *
+ * Строки заданы сеткой с фиксированным местом подсказки: полоса прогресса у
+ * соседних плиток стоит на одной линии, даже если пояснение заняло одну
+ * строку, а не две.
+ *
+ * Плитка кликабельна: оплата ведёт к платёжным поручениям, приёмка — к актам,
+ * СМП — к сведениям о привлечении. Стрелка в заголовке появляется при
+ * наведении: видно, что это переход, а не просто цифра.
+ */
+function SummaryTile({
+  label,
+  value,
+  hint,
+  percent,
+  complete,
+  to,
+  href,
+  title,
+  badge,
+  onPrefetch,
+}: SummaryTileProps) {
+  const content = (
+    <>
+      <span className={styles.summaryHead}>
+        <span className={styles.summaryLabel}>{label}</span>
+        {badge && <span className={styles.summaryBadge}>{badge}</span>}
+        <span className={styles.summaryArrow} aria-hidden="true">
+          →
+        </span>
+      </span>
+      <strong className={styles.summaryValue}>{value}</strong>
+      <span className={styles.summaryHint}>{hint}</span>
+      <div className={styles.summaryTrack}>
+        <div
+          className={`${styles.summaryFill} ${
+            complete ? styles.summaryFillOk : ""
+          }`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </div>
+      <span className={styles.summaryPercent}>{percent}%</span>
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link
+        className={`${styles.summaryCard} ${styles.summaryCardLink}`}
+        to={to}
+        title={title}
+        onMouseEnter={onPrefetch}
+        onFocus={onPrefetch}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  if (href) {
+    return (
+      <a
+        className={`${styles.summaryCard} ${styles.summaryCardLink}`}
+        href={href}
+        title={title}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <div className={styles.summaryCard}>{content}</div>;
+}
+
