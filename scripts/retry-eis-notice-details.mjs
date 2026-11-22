@@ -55,7 +55,7 @@ const org =
   db.organizations.find((item) => item.id === 6);
 const employee =
   db.employees.find((item) => item.userId === 7) ??
-  db.employees.find((item) => item.email === "poyarkova_nyy@mail.ru");
+  db.employees.find((item) => item.email === "poyarkova_nyu@mail.ru");
 if (!org || !employee)
   throw new Error("Не найдены организация или ответственный работник");
 

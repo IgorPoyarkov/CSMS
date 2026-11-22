@@ -1197,7 +1197,7 @@ async function main() {
     ?? db.organizations.find((item) => item.id === 6);
   if (!org) throw new Error(`В данных нет организации с ИНН ${args.inn}`);
   const employee = db.employees.find((item) => item.userId === 7)
-    ?? db.employees.find((item) => item.email === "poyarkova_nyy@mail.ru");
+    ?? db.employees.find((item) => item.email === "poyarkova_nyu@mail.ru");
   if (!employee) throw new Error("В данных нет связанного работника пользователя");
 
   if (args.enrichPlans) {

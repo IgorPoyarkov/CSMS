@@ -152,7 +152,7 @@ objectDescriptions 5 · edsCertificates 4 · edsSignatureEvents 4 · okpd2Refs 1
   Менделеева 2 — реквизиты из открытых источников, для пилота по СМП/ЭП).
 - Учётки: `test1..test4@test.test` → org 1..4, **`zakupki@kurskavtodor.ru` /
   `qwerty12` → org 6** (user id5 → employee id41 Говоров А. Н., отдел id33
-  «Управление государственных закупок»), **`poyarkova_nyy@mail.ru` /
+  «Управление государственных закупок»), **`poyarkova_nyu@mail.ru` /
   `qwerty12` → org 6** (user id7 → employee id42 Пояркова Н. Ю., руководитель
   КС id5, отдел id33; `administrator` + `contract_service_head`, все 7 прав;
   создан через `POST /api/access/import`). Связь с штаткой — поле
@@ -2490,7 +2490,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   4629040439) распарсено **517 контрактов**, добавлены в `contractRegistry`
   (всего 523). Это самый дешёвый способ онбординга: публичный поиск без ЭЦП и
   токена, но только реестр контрактов — закрытые документы/подписи так не получить.
-- Создан пользователь `poyarkova_nyy@mail.ru` / `qwerty12` (user id7, employee
+- Создан пользователь `poyarkova_nyu@mail.ru` / `qwerty12` (user id7, employee
   id42, КС id5 org6), `POST /api/access/login` и `/api/access/me` → 200,
   `myRole="Руководитель службы (п. 2.3)"`, `isHead=true`,
   `roles=["administrator","contract_service_head"]`, все 7 прав. Исправлены
@@ -2549,10 +2549,10 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (517 контрактов клиента сохранены). Zod-проверка: планы 3/3, извещения 3/3,
   задачи 12/12. Ловушка: в позициях плана обязательны `kbk: ""`,
   `kbkEntries: []`.
-- Логин доведен до требуемого `poyarkova_nyy@mail.ru` / `qwerty12`
+- Логин доведен до требуемого `poyarkova_nyu@mail.ru` / `qwerty12`
   (ранее в импортированной базе оставался `nyu`). После правки `db.json`
   повторно выполнено
-  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyy@mail.ru'`:
+  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyu@mail.ru'`:
   `/api/access/me` → 200, `user id=7`, `employee id=42`,
   `structuralUnitId=33` и у КС, `myRole="Руководитель службы (п. 2.3)"`,
   `isHead=true`, `roles=["administrator","contract_service_head"]`, 7 прав.
@@ -2633,7 +2633,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   контракта с `reawardChain=true`, платёж по старому ИКЗ привязался к первому
   (расторгнутому) контракту.
 - **Синхронизация:** после правки `db.json` выполнен
-  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyy@mail.ru'`;
+  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyu@mail.ru'`;
   `/api/access/login` + `/api/access/me` → roles
   `administrator,contract_service_head`, `isHead=true`,
   `contractService.creationMethod="structural_unit"` (перезапуск API не
@@ -2689,7 +2689,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   существующие предупреждения; `npx.cmd vite build` — успешно;
   `node --check` обоих скриптов — чисто.
 - **Синхронизация:** после правки `db.json` повторно выполнен
-  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyy@mail.ru'`.
+  `../csms-api/scripts/import-access.ps1 -AdministratorEmail 'poyarkova_nyu@mail.ru'`.
   В момент проверки API перезапускался пользователем, поэтому повторный
   `login` сначала вернул 409 из-за перезапуска API; после повторного импорта
   и стабильного запуска `/api/access/login` + `/me` снова отдают роль
@@ -4467,9 +4467,14 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (LAN-IP текущей машины, порт 5173 слушает все интерфейсы). Браузер на другом
   устройстве видит только Vite: `/pg-api/*` → PG, `/api/*` → csms-api :5099.
   `localStorage` привязан к origin, поэтому на новом устройстве/адресе нужно
-  один раз войти: `poyarkova_nyy@mail.ru` / `qwerty12`. После входа
+  один раз войти: `poyarkova_nyu@mail.ru` / `qwerty12`. После входа
   `/eis/chains` показывает «Всего цепочек: 697», все `/pg-api/...` — 200.
   «Сохранить» в браузерных проверках не нажималось.
+- **Смена логина учётки (2026-11-22).** `poyarkova_nyy@mail.ru` →
+  `poyarkova_nyu@mail.ru` (пароль `qwerty12`, user id 7, employee 42). Обновлены
+  документы `users` и `employees` в PG, запись `access.users` и работающий API
+  (in-memory): новый логин — 200, старый — 409. Скрипты импорта ЕИС ищут
+  сотрудника по новому email. Где вход был выполнен раньше — выйти и войти заново.
 - **Проверки.** `npm run build` (включая `check:db` из PG) — exit 0,
   `npx oxlint src` — exit 0, `node scripts/verify-pg-sync.mjs` — 11/11,
   `prettier --check` по изменённым скриптам — чисто. Остались известные
