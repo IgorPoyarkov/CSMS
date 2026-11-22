@@ -16,9 +16,14 @@ import { useEffect } from "react";
 //
 // Псевдоэлемент для кометы выбирается по занятости: у части карточек ::after
 // уже занят своим декором, поэтому берём свободный слот. Модалки получают
-// комету, но не неоновую подсветку на hover: у них своя рамка. Все слушатели
-// живут только пока включена тема; при prefers-reduced-motion и на тач-экранах
-// движение выключено.
+// комету, но не неоновую подсветку на hover: у них своя рамка. Атрибуты декора
+// ставятся идемпотентно (только при изменении): снятие и повторная установка
+// атрибута перезапускают CSS-анимацию, из-за чего на «живых» страницах комета
+// замирала у начала контура. Дополнительно здесь есть запасной путь для
+// браузеров без интерполяции @property: если угол кометы не меняется, JS
+// крутит его сам. Все слушатели живут только пока включена тема; на тач-экранах
+// магнитное движение выключено, при prefers-reduced-motion комета не
+// останавливается, а замедляется в CSS (магнит выключен и здесь).
 
 const MODERN_THEME = "modern";
 
@@ -102,19 +107,122 @@ export default function ModernMotionLayer() {
     let dirY = 0;
     let hasPointer = false;
 
+    // --- Движение кометы без @property ---------------------------------------
+    // Угол конического градиента интерполируется только у зарегистрированного
+    // кастомного свойства. Там, где такой регистрации нет, keyframes
+    // modern-comet-run ничего не меняет и рамка стоит на месте в одном
+    // положении. Поэтому после разметки дважды замеряем угол: если он не
+    // сдвинулся — крутим его сами, раз в два кадра (30 fps хватает: полный
+    // оборот идёт 8 с). CSS-анимация при этом остаётся: она приоритетнее
+    // инлайн-значения, так что при ложном срабатывании ничего не ломается.
+    let fallbackFrame = 0;
+    let detectTimer = 0;
+
+    const cometSeconds = () => {
+      const raw = getComputedStyle(root)
+        .getPropertyValue("--comet-duration")
+        .trim();
+      const value = Number.parseFloat(raw);
+
+      if (!Number.isFinite(value) || value <= 0) {
+        return 8;
+      }
+
+      return raw.endsWith("ms") ? value / 1000 : value;
+    };
+
+    const cometAngle = (el: HTMLElement) => {
+      const pseudo =
+        el.getAttribute("data-modern-comet") === "before"
+          ? "::before"
+          : "::after";
+
+      return getComputedStyle(el, pseudo)
+        .getPropertyValue("--modern-comet-angle")
+        .trim();
+    };
+
+    const stopCometFallback = () => {
+      if (fallbackFrame) {
+        window.cancelAnimationFrame(fallbackFrame);
+        fallbackFrame = 0;
+      }
+
+      // Чистим по селектору, а не только по текущему списку: панель могла
+      // выпасть из разметки декора после того, как угол уже был выставлен.
+      document
+        .querySelectorAll<HTMLElement>("[data-modern-comet]")
+        .forEach((el) => el.style.removeProperty("--modern-comet-angle"));
+    };
+
+    const startCometFallback = () => {
+      if (fallbackFrame || !active) {
+        return;
+      }
+
+      // При reduced-motion CSS замедляет полосу в 4,5 раза — фолбэк держит ту
+      // же скорость, иначе рамка побежит быстрее, чем задумано для этой темы.
+      const period =
+        cometSeconds() * (prefersReducedMotion() ? 4.5 : 1) * 1000;
+
+      fallbackFrame = window.requestAnimationFrame(function tick() {
+        fallbackFrame = window.requestAnimationFrame(tick);
+
+        if (document.visibilityState !== "visible") {
+          return;
+        }
+
+        const angle = ((performance.now() % period) / period) * 360;
+        const value = `${angle.toFixed(2)}deg`;
+
+        panels.forEach((el) => {
+          if (el.isConnected) {
+            el.style.setProperty("--modern-comet-angle", value);
+          }
+        });
+      });
+    };
+
+    const probeCometMotion = () => {
+      window.clearTimeout(detectTimer);
+
+      if (!active || fallbackFrame || !panels.length) {
+        return;
+      }
+
+      detectTimer = window.setTimeout(() => {
+        const el = panels.find((panel) => panel.isConnected);
+
+        if (!active || !el) {
+          return;
+        }
+
+        const first = cometAngle(el);
+
+        detectTimer = window.setTimeout(() => {
+          if (!active || !el.isConnected) {
+            return;
+          }
+
+          if (first && cometAngle(el) === first) {
+            startCometFallback();
+          }
+        }, 450);
+      }, 600);
+    };
+
+    // --- Разметка панелей ----------------------------------------------------
     // Комета по контуру: помечаем только блоки, у которых есть свободный
     // псевдоэлемент. Занятый ::after — не повод терять блок: пробуем ::before.
+    // Атрибуты трогаем только при реальном изменении: снятие и повторная
+    // установка перезапускают CSS-анимацию кометы с нуля, и на странице с
+    // частыми обновлениями разметки полоса «стоит» на одном месте.
     const markPanels = () => {
-      panels.forEach((el) => {
-        el.removeAttribute("data-modern-comet");
-        el.removeAttribute("data-modern-lift");
-      });
-      panels = [];
-
       const minWidth = Math.min(
         COMET_MIN_WIDTH,
         window.innerWidth - COMET_MIN_SIDE_GAP,
       );
+      const next: HTMLElement[] = [];
 
       document.querySelectorAll<HTMLElement>(PANEL_SELECTOR).forEach((el) => {
         const rect = el.getBoundingClientRect();
@@ -137,17 +245,40 @@ export default function ModernMotionLayer() {
           return;
         }
 
-        el.setAttribute("data-modern-comet", slot);
+        if (el.getAttribute("data-modern-comet") !== slot) {
+          el.setAttribute("data-modern-comet", slot);
+        }
+
         // Модалка и таблица неоновую подсветку не получают: у модалки своя
         // рамка, у таблицы inset-тень размазывается по ячейкам.
         const tag = el.tagName.toLowerCase();
+        const wantsLift = tag !== "table" && el.getAttribute("role") !== "dialog";
+        const hasLift = el.hasAttribute("data-modern-lift");
 
-        if (tag !== "table" && el.getAttribute("role") !== "dialog") {
+        if (wantsLift && !hasLift) {
           el.setAttribute("data-modern-lift", "");
+        } else if (!wantsLift && hasLift) {
+          el.removeAttribute("data-modern-lift");
         }
 
-        panels.push(el);
+        next.push(el);
       });
+
+      // Декор снимаем только с тех, кто больше не подходит: сменил размер,
+      // попал в скрытую ветку или ушёл из разметки.
+      const keep = new Set(next);
+
+      panels.forEach((el) => {
+        if (keep.has(el)) {
+          return;
+        }
+
+        el.removeAttribute("data-modern-comet");
+        el.removeAttribute("data-modern-lift");
+      });
+
+      panels = next;
+      probeCometMotion();
     };
 
     const refreshMagnetCenters = () => {
@@ -300,6 +431,13 @@ export default function ModernMotionLayer() {
 
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
+    // Смена настройки «уменьшить движение» меняет скорость кометы в CSS:
+    // сбрасываем JS-фолбэк, чтобы он пересчитал период, и пересобираем декор.
+    const handleMotionChange = () => {
+      stopCometFallback();
+      scheduleRebuild();
+    };
+
     const activate = () => {
       if (active) {
         return;
@@ -318,7 +456,7 @@ export default function ModernMotionLayer() {
         capture: true,
       });
       document.documentElement.addEventListener("mouseleave", resetMagnets);
-      motionQuery.addEventListener("change", scheduleRebuild);
+      motionQuery.addEventListener("change", handleMotionChange);
     };
 
     const deactivate = () => {
@@ -328,6 +466,7 @@ export default function ModernMotionLayer() {
 
       active = false;
       window.clearTimeout(rebuildTimer);
+      window.clearTimeout(detectTimer);
 
       if (frame) {
         window.cancelAnimationFrame(frame);
@@ -344,9 +483,10 @@ export default function ModernMotionLayer() {
       window.removeEventListener("resize", scheduleRebuild);
       window.removeEventListener("scroll", handleScroll, true);
       document.documentElement.removeEventListener("mouseleave", resetMagnets);
-      motionQuery.removeEventListener("change", scheduleRebuild);
+      motionQuery.removeEventListener("change", handleMotionChange);
 
       resetMagnets();
+      stopCometFallback();
       magnets = [];
       panels.forEach((el) => {
         el.removeAttribute("data-modern-comet");

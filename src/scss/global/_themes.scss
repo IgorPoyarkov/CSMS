@@ -284,15 +284,17 @@
     inset 0 1px 0 var(--edge-highlight),
     inset 0 -1px 0 #{rgba($color-modern-void, 0.6)},
     inset 0 -26px 34px -32px #{rgba($color-modern-void, 0.75)};
-  // Неон по краям на hover: тонкая кромка по всему периметру, сверху — шире и
-  // ярче (яркая линия + мягкая полоса света). Тоже inset, поэтому свечение не
-  // выходит за блок и не затемняет соседей; никакого transform — блок стоит на
-  // месте.
+  // Неон по краям на hover: тонкая кромка по всему периметру остаётся внутри
+  // блока, а верхняя подсветка вынесена НАРУЖУ (положительные смещения без
+  // inset). Внутренние верхние слои ложились на содержимое: полоса 8 px
+  // перекрывала заголовки панелей и первые строки таблиц. Снаружи тот же свет
+  // читается как ореол над блоком и ничего не закрашивает; никакого transform
+  // при этом нет — блок стоит на месте.
   --shadow-3d-hover:
     inset 0 0 0 1px #{rgba($color-modern-cyan, 0.55)},
-    inset 0 2px 0 -1px #{rgba($color-modern-cyan, 0.85)},
-    inset 0 8px 0 -3px #{rgba($color-modern-cyan, 0.4)},
-    inset 0 16px 24px -14px #{rgba($color-modern-cyan, 0.5)},
+    0 -1px 0 #{rgba($color-modern-cyan, 0.85)},
+    0 -6px 0 -2px #{rgba($color-modern-cyan, 0.32)},
+    0 -14px 22px -12px #{rgba($color-modern-cyan, 0.55)},
     inset 0 -1px 0 #{rgba($color-modern-void, 0.6)},
     inset 0 -26px 34px -32px #{rgba($color-modern-void, 0.75)};
 
