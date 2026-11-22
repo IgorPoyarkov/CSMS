@@ -116,9 +116,9 @@ export function buildCivilLlmPrompt({
     "",
     "Правила ответа:",
     "- ref и paragraph бери только из списка фрагментов;",
-    "- quote — дословная подстрока текста выбранного фрагмента, без пересказа;",
-    "- condition — коротко, какое условие контракта следует из цитаты;",
-    "- если цитату нельзя взять дословно — не включай вывод;",
+    "- quote — необязательная подсказка: краткая дословная подстрока. Если не уверен в дословности, оставь quote пустым: система сама подставит текст абзаца из снимка;",
+    "- condition — коротко, какое условие контракта следует из нормы;",
+    "- не пересказывай норму вместо цитаты и не изобретай другие статьи;",
     "- ответ строго в JSON, без пояснений вне JSON.",
     "",
     "Предмет контракта: " + JSON.stringify(subject),
@@ -146,8 +146,10 @@ function parseJsonResponse(raw) {
 }
 
 /**
- * Проверяет ответ модели по снимку. Возвращает только те выводы, у которых
- * цитата дословно найдена в переданном абзаце.
+ * Проверяет ответ модели по снимку. Модель выбирает статью, пункт и режим;
+ * дословный текст цитаты подставляется из снимка. Пересказанная моделью
+ * цитата не отбрасывает находку, а заменяется текстом абзаца — так результат
+ * всегда содержит только проверенную формулировку нормы.
  */
 export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSha256 = null }) {
   const rejected = [];
@@ -188,10 +190,10 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
   const findings = [];
   const seen = new Set();
   const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
+  let adjustedQuotes = 0;
   for (const [index, item] of rawFindings.entries()) {
     const key = `${item?.ref}#${item?.paragraph}`;
     const candidate = byRefParagraph.get(key);
-    const quote = norm(item?.quote);
     if (!MODES.includes(item?.mode)) {
       rejected.push({ index, reason: "Неизвестный mode", raw: item });
       continue;
@@ -200,14 +202,15 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
       rejected.push({ index, reason: "Ссылки нет среди переданных фрагментов", raw: item });
       continue;
     }
-    if (quote.length < 10 || !normalizedCandidates.get(key)?.includes(quote)) {
-      rejected.push({ index, reason: "Цитата не найдена дословно в снимке", raw: item });
-      continue;
-    }
     if (typeof item?.condition !== "string" || !item.condition.trim()) {
       rejected.push({ index, reason: "Нет формулировки условия", raw: item });
       continue;
     }
+    const modelQuote = norm(item?.quote);
+    const exact =
+      modelQuote.length >= 10 && normalizedCandidates.get(key)?.includes(modelQuote);
+    if (!exact) adjustedQuotes += 1;
+    const quote = exact ? String(item.quote).trim() : candidate.text;
     const dedupe = `${key}|${item.mode}|${quote}`;
     if (seen.has(dedupe)) continue;
     seen.add(dedupe);
@@ -215,7 +218,8 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
       mode: item.mode,
       ref: item.ref,
       paragraph: item.paragraph,
-      quote: String(item.quote).trim(),
+      quote,
+      quoteSource: exact ? "model" : "snapshot",
       condition: item.condition.trim(),
       sourceUrl: candidate.sourceUrl,
       textSha256: candidate.textSha256 ?? null,
@@ -243,16 +247,23 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
         ? "preliminary"
         : "confirmed";
 
+  const diagnostics = [];
+  if (status === "unconfirmed" && !rawFindings.length) {
+    diagnostics.push("Модель не нашла прямых указаний в переданных фрагментах снимка");
+  }
+  if (adjustedQuotes > 0) {
+    diagnostics.push(
+      `Для ${adjustedQuotes} выводов модель пересказала цитату: использован дословный абзац снимка`,
+    );
+  }
+
   return {
     status,
     subject,
     findings: grounded,
     rejected: [...rejected, ...failed.map((item) => ({ ref: item.ref, reason: "Цитата не подтверждена снимком" }))],
     snapshotSha256,
-    diagnostics:
-      status === "unconfirmed" && !rawFindings.length
-        ? ["Модель не нашла прямых указаний в переданных фрагментах снимка"]
-        : [],
+    diagnostics,
   };
 }
 

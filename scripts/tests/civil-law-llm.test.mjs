@@ -62,11 +62,12 @@ test("дословная цитата из снимка подтверждает
   assert.equal(result.status, "confirmed");
   assert.equal(result.findings.length, 1);
   assert.equal(result.findings[0].grounded, true);
+  assert.equal(result.findings[0].quoteSource, "model");
   assert.equal(result.findings[0].textSha256, candidate.textSha256);
   assert.equal(result.snapshotSha256, "test-sha");
 });
 
-test("выдуманная цитата и статья вне списка отбрасываются", () => {
+test("пересказанная цитата заменяется текстом снимка, статья вне списка отбрасывается", () => {
   const candidate = candidates.find((item) => item.ref === "gk2:702");
   const result = validateCivilLlmResponse(
     {
@@ -76,8 +77,8 @@ test("выдуманная цитата и статья вне списка от
           mode: "required",
           ref: candidate.ref,
           paragraph: candidate.paragraph,
-          quote: "Заказчик обязан.accepts результат в течение пяти лет",
-          condition: "Выдуманное условие",
+          quote: "Заказчик обязан принять результат в течение пяти лет",
+          condition: "Условие о приёмке результата",
         },
         {
           mode: "prohibited",
@@ -90,9 +91,12 @@ test("выдуманная цитата и статья вне списка от
     },
     { candidates, snapshot },
   );
-  assert.equal(result.status, "unconfirmed");
-  assert.equal(result.findings.length, 0);
-  assert.equal(result.rejected.length, 2);
+  assert.equal(result.status, "preliminary");
+  assert.equal(result.findings.length, 1);
+  assert.equal(result.findings[0].quoteSource, "snapshot");
+  assert.equal(result.findings[0].quote, candidate.text);
+  assert.equal(result.rejected.length, 1);
+  assert.match(result.diagnostics[0], /пересказала цитату/);
 });
 
 test("честный отказ модели сохраняется как unconfirmed", () => {
