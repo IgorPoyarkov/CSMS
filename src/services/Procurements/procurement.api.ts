@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   ProcurementListSchema,
   type BudgetObligation,
@@ -63,9 +68,7 @@ export const useBudgetObligations = () => {
   return useQuery<BudgetObligation[]>({
     queryKey: ["budgetObligations"],
     queryFn: async () => {
-      const { data } = await api.get<BudgetObligation[]>(
-        "/budgetObligations",
-      );
+      const { data } = await api.get<BudgetObligation[]>("/budgetObligations");
       return Array.isArray(data) ? data : [];
     },
   });
@@ -98,3 +101,104 @@ export const useDeleteProcurement = () => {
     },
   });
 };
+
+/**
+ * Пагинированная порция закупок для реестра извещений.
+ *
+ * В отличие от `useGetProcurements` (возвращает полный массив для отчётов
+ * и дашбордов), этот хук отдаёт одну страницу и общее число — сервер
+ * фильтрует, ищет по двум полям и считает X-Total-Count.
+ *
+ * `placeholderData: keepPreviousData` не показывает «нет данных» при
+ * переключении страницы — пользователь видит предыдущую страницу
+ * до загрузки новой.
+ */
+export interface ProcurementPageParams {
+  page: number;
+  pageSize: number | "all";
+  status: NoticeStatus | "all";
+  search: string;
+}
+
+export interface ProcurementPageResult {
+  items: Procurement[];
+  total: number;
+}
+
+export const useGetProcurementPage = ({
+  page,
+  pageSize,
+  status,
+  search,
+}: ProcurementPageParams) =>
+  useQuery<ProcurementPageResult>({
+    queryKey: ["procurements", "page", page, pageSize, status, search],
+    queryFn: async () => {
+      const params: Record<string, unknown> = {};
+
+      if (typeof pageSize === "number") {
+        params._page = page;
+        params._limit = pageSize;
+      }
+
+      if (status !== "all") {
+        params["Статус извещения"] = status;
+      } else {
+        params["Статус извещения_ne"] = "cancelled";
+      }
+
+      if (search) {
+        params._search = search;
+        params._searchFields = "Наименование закупки,Номер извещения";
+      }
+
+      const response = await api.get("/procurements", { params });
+      const items = ProcurementListSchema.parse(response.data);
+      const header = response.headers["x-total-count"];
+      const total = header === undefined ? items.length : Number(header);
+      return {
+        items,
+        total: Number.isFinite(total) ? total : items.length,
+      };
+    },
+    staleTime: 15_000,
+    placeholderData: keepPreviousData,
+  });
+
+/**
+ * Счётчики по статусам для чипов-фильтров реестра.
+ *
+ * Один GROUP BY вместо выгрузки всех записей на клиент.
+ * Фильтры передаются такие же, как у списка, чтобы счётчики
+ * соответствовали текущей выборке (например, поиск по названию).
+ */
+export const useNoticeStatusFacets = ({
+  status,
+  search,
+}: {
+  status: NoticeStatus | "all";
+  search: string;
+}) =>
+  useQuery<Record<string, number>>({
+    queryKey: ["procurements", "facets", status, search],
+    queryFn: async () => {
+      const params: Record<string, unknown> = { field: "Статус извещения" };
+
+      if (status !== "all") {
+        params["Статус извещения"] = status;
+      } else {
+        params["Статус извещения_ne"] = "cancelled";
+      }
+
+      if (search) {
+        params._search = search;
+        params._searchFields = "Наименование закупки,Номер извещения";
+      }
+
+      const { data } = await api.get("/__pg/facets/procurements", {
+        params,
+      });
+      return data as Record<string, number>;
+    },
+    staleTime: 15_000,
+  });

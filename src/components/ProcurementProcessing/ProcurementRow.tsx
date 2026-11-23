@@ -1,10 +1,14 @@
 import type React from "react";
+import { memo } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
   noticeStatusLabel,
   type Procurement,
 } from "../../services/Procurements/procurement.schema";
-import { noticeActions, type ProcurementActionType } from "./procurement.config";
+import {
+  noticeActions,
+  type ProcurementActionType,
+} from "./procurement.config";
 import styles from "./ProcurementRow.module.scss";
 
 interface ProcurementRowProps {
@@ -129,4 +133,10 @@ const ProcurementRow: React.FC<ProcurementRowProps> = ({
   );
 };
 
-export default ProcurementRow;
+/**
+ * Строка мемоизирована: реестр показывает по 10–50 карточек, а состояние
+ * страницы (ввод поиска, листание, смена масштаба) меняется гораздо чаще,
+ * чем реквизиты конкретной закупки. Смысл мемо даёт стабильная ссылка
+ * `onAction` в родителе (`useCallback` в `ProcurementProcessing`).
+ */
+export default memo(ProcurementRow);

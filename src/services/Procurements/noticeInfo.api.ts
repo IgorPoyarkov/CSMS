@@ -6,6 +6,10 @@ import {
 } from "../StaffingTable/StaffingTable.schema";
 import type { NoticeInfoFormValues } from "./noticeInfo.schema";
 import {
+  procedureDatesPatch,
+  procurementStatusPatch,
+} from "./procurement.schema";
+import {
   normalizeNoticeAttachments,
   upsertNoticeAttachment,
   type NoticeAttachment,
@@ -76,6 +80,46 @@ export const useNotices = () => {
   });
 };
 
+/**
+ * Перекладывает сроки процедуры и статус извещения в запись закупки.
+ *
+ * Реестр извещений (`/procurement-processing`) читает коллекцию
+ * `procurements`, а форма извещения пишет в `notices`. Без этой синхронизации
+ * четыре поля сроков («Начало подачи заявок», «Окончание подачи заявок»,
+ * «Рассмотрение заявок», «Подведение итогов») оставались пустыми, а статус
+ * жил только в виде правила на клиенте — серверные фильтры реестра по нему
+ * не работали бы.
+ *
+ * Ошибку не поднимаем: извещение сохранено, а сбой служебной синхронизации не
+ * должен выглядеть как неудачное сохранение. Заполнимые поля перетираются,
+ * пустые — не трогаются (`procedureDatesPatch` отдаёт только заполненное).
+ */
+const syncProcurementFromNotice = async (payload: NoticeInfoFormValues) => {
+  const procurementId = payload.procurementId;
+  // «new» — creation route, записи закупки ещё нет
+  if (!procurementId || String(procurementId) === "new") return;
+
+  try {
+    const { data: current } = await api.get<{
+      "Статус извещения"?: string;
+    }>(`/procurements/${String(procurementId)}`);
+
+    const patch = {
+      ...procedureDatesPatch(payload.procedureInfo),
+      ...procurementStatusPatch(
+        current?.["Статус извещения"],
+        Boolean(payload.generalInfo.noticeNumber),
+      ),
+    };
+
+    if (Object.keys(patch).length === 0) return;
+
+    await api.patch(`/procurements/${String(procurementId)}`, patch);
+  } catch (error) {
+    console.warn("Не удалось синхронизировать сроки закупки:", error);
+  }
+};
+
 export const useCreateNotice = () => {
   const queryClient = useQueryClient();
 
@@ -85,10 +129,13 @@ export const useCreateNotice = () => {
         "/notices",
         omitEmptyReferences(payload as Record<string, unknown>),
       );
+      await syncProcurementFromNotice(payload);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notices"] });
+      // Сроки и статус ушли в запись закупки — реестр перечитывает её
+      queryClient.invalidateQueries({ queryKey: ["procurements"] });
     },
   });
 };

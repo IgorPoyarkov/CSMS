@@ -75,7 +75,69 @@ app.get("/__pg/health", async (_req, res) => {
   }
 });
 
-/** Собирает WHERE по параметрам запроса в стиле json-server. */
+/** SQL-выражение поля: вынесенная колонка либо ключ jsonb. */
+const fieldExpr = (key) => FILTER_COLUMNS[key] ?? null;
+
+/**
+ * Счётчики по значению поля — для чипов-фильтров реестра.
+ *
+ * Раньше счётчики считались на клиенте по всей выгруженной коллекции: чтобы
+ * показать «Размещено: 183», фронт скачивал все 183 записи. Здесь — один
+ * `GROUP BY`, документы на сет не уходят.
+ *
+ * Фильтры принимаются те же, что у списка (`<поле>=`, `_ne`, `_like`,
+ * `_search`), поэтому счётчики могут соответствовать активной выборке.
+ * Ответ: `{ "<значение поля>": <число> }`, отсутствующее поле — в ключе "".
+ */
+app.get("/__pg/facets/:collection", async (req, res) => {
+  const collection = req.params.collection;
+  const field = String(req.query.field ?? "").trim();
+
+  if (!PG_COLLECTIONS.includes(collection) || !field) {
+    res.status(400).json({ error: "Нужны коллекция и параметр field" });
+    return;
+  }
+
+  // Параметр field задаёт поле группировки, а не условие фильтрации
+  const { field: _facetField, ...filters } = req.query;
+  const { where, params } = buildWhere(collection, filters);
+
+  // Вынесенная колонка либо ключ jsonb: во втором случае имя поля — параметр
+  const column = fieldExpr(field);
+  const target = column ?? `doc->>$${params.length + 1}`;
+  const values = column ? params : [...params, field];
+
+  try {
+    const result = await pool.query(
+      `SELECT coalesce(${target}, '') AS value, count(*)::int AS total
+       FROM ${PG_SCHEMA}.documents
+       WHERE ${where}
+       GROUP BY 1
+       ORDER BY 2 DESC`,
+      values,
+    );
+    res.json(
+      Object.fromEntries(result.rows.map((row) => [row.value, row.total])),
+    );
+  } catch (error) {
+    console.error(`[pg] facets ${req.originalUrl}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Собирает WHERE по параметрам запроса в стиле json-server.
+ *
+ * Поддержаны операторы, которые используют реестры фронта:
+ *  - `<поле>=` — точное совпадение (значение всегда строка, как в json-server);
+ *  - `<поле>_like` — подстрока без учёта регистра;
+ *  - `<поле>_ne` — «не равно». Отсутствующее поле считается не равным
+ *    (`IS DISTINCT FROM`): в json-server сравнение `undefined !== value` тоже
+ *    истинно, и запись без поля проходит фильтр.
+ * Плюс расширение для поиска по реестрам: `_search=<подстрока>` по перечню
+ * полей `_searchFields=a,b` — условие OR между полями (json-server умеет
+ * только AND, а поиск «по названию или номеру» требует OR).
+ */
 function buildWhere(collection, query) {
   const params = [];
   let index = 1;
@@ -90,28 +152,65 @@ function buildWhere(collection, query) {
     if (rawKey.startsWith("_")) continue;
 
     const isLike = rawKey.endsWith("_like");
-    const key = isLike ? rawKey.slice(0, -5) : rawKey;
-    const column = FILTER_COLUMNS[key];
+    const isNe = !isLike && rawKey.endsWith("_ne");
+    const key = isLike
+      ? rawKey.slice(0, -5)
+      : isNe
+        ? rawKey.slice(0, -3)
+        : rawKey;
+    const target = fieldExpr(key);
 
-    if (column) {
+    if (target) {
       const placeholder = add(String(rawValue));
-      clauses.push(
-        isLike
-          ? `${column} ILIKE '%' || ${placeholder} || '%'`
-          : `${column} = ${placeholder}`,
-      );
+      if (isNe) clauses.push(`${target} IS DISTINCT FROM ${placeholder}`);
+      else if (isLike)
+        clauses.push(`${target} ILIKE '%' || ${placeholder} || '%'`);
+      else clauses.push(`${target} = ${placeholder}`);
     } else {
       const keyPlaceholder = add(key);
       const valuePlaceholder = add(String(rawValue));
-      clauses.push(
-        isLike
-          ? `doc->>${keyPlaceholder} ILIKE '%' || ${valuePlaceholder} || '%'`
-          : `doc->>${keyPlaceholder} = ${valuePlaceholder}`,
-      );
+      if (isNe)
+        clauses.push(
+          `doc->>${keyPlaceholder} IS DISTINCT FROM ${valuePlaceholder}`,
+        );
+      else if (isLike)
+        clauses.push(
+          `doc->>${keyPlaceholder} ILIKE '%' || ${valuePlaceholder} || '%'`,
+        );
+      else clauses.push(`doc->>${keyPlaceholder} = ${valuePlaceholder}`);
     }
   }
 
-  return { where: clauses.join(" AND "), params };
+  clauses.push(buildSearchClause(query, add, fieldExpr));
+
+  return { where: clauses.filter(Boolean).join(" AND "), params };
+}
+
+/**
+ * Условие `_search` по перечню `_searchFields` (через запятую).
+ *
+ * Спецсимволы ILIKE (`%`, `_`) и обратный слэш экранируются: поиск по строке
+ * «50%» не должен превращаться в «что угодно после 50».
+ */
+function buildSearchClause(query, add, fieldExpr) {
+  const needle = String(query._search ?? "").trim();
+  if (!needle) return "";
+
+  const fields = String(query._searchFields ?? "")
+    .split(",")
+    .map((field) => field.trim())
+    .filter(Boolean);
+  if (fields.length === 0) return "";
+
+  const pattern = `%${needle.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+  const patternPlaceholder = add(pattern);
+
+  const conditions = fields.map((field) => {
+    const target = fieldExpr(field) ?? `doc->>${add(field)}`;
+    return `${target} ILIKE ${patternPlaceholder}`;
+  });
+
+  return `(${conditions.join(" OR ")})`;
 }
 
 function buildPaging(query) {
