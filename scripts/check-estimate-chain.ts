@@ -363,6 +363,23 @@ assert.equal(syncedSchedule.schedule.plannedStart, "2026-12-01");
 assert.equal(syncedSchedule.schedule.stages.length, 1);
 assert.equal(estimateScheduleTotal(syncedSchedule), 145_599.3);
 
+// Пустая ссылка на акт в дефектовке не затирает выбранный акт сметы.
+const syncedWithoutAct = syncScheduleFromDefect(
+  {
+    ...withNmck,
+    schedule: {
+      ...withNmck.schedule,
+      stages: [],
+      legalActId: "minstroy-336pr",
+    },
+  },
+  {
+    ...emptyDefectSchedule,
+    schedule: { ...emptyDefectSchedule.schedule, legalActId: "" },
+  },
+);
+assert.equal(syncedWithoutAct.schedule.legalActId, "minstroy-336pr");
+
 // Расхождение графика со сметой — предупреждение, не ошибка.
 const brokenSchedule: ContractEstimateDocument = {
   ...rebuiltSchedule,
@@ -437,7 +454,8 @@ assert.ok(
   validateEstimateDocument(stageBrokenPeriod, {
     defect: defectWithSchedule,
   }).some(
-    (issue) => issue.code === "schedule-stage-period" && issue.level === "error",
+    (issue) =>
+      issue.code === "schedule-stage-period" && issue.level === "error",
   ),
 );
 

@@ -318,7 +318,7 @@ export const syncScheduleFromDefect = (
       plannedStart:
         defect.schedule.plannedStart || document.schedule.plannedStart,
       plannedEnd: defect.schedule.plannedEnd || document.schedule.plannedEnd,
-      legalActId: defect.schedule.legalActId ?? document.schedule.legalActId,
+      legalActId: defect.schedule.legalActId || document.schedule.legalActId,
     },
   };
 
