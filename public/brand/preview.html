@@ -54,6 +54,47 @@
       }
       .card.dark { background: var(--ink); border-color: #235347; }
       .card.dark .cap { color: var(--summer); }
+      /* Неоновый комплект — основной: ночной индиго-графит */
+      .card.neon {
+        background:
+          radial-gradient(120% 90% at 12% 0%, rgba(34,211,238,.14), transparent 58%),
+          radial-gradient(120% 90% at 100% 100%, rgba(244,114,182,.12), transparent 60%),
+          #070b14;
+        border-color: #1d2d49;
+        color: #e8f0ff;
+      }
+      .card.neon .cap { color: #a8b8d0; }
+      .card.neon .note { font-size: 11px; color: #a8b8d0; line-height: 1.5; margin: 0; }
+      .badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: linear-gradient(120deg, #22d3ee, #7c8cff);
+        color: #070b14;
+        font-size: 9px;
+        letter-spacing: .12em;
+      }
+      /* 3D-сцена: авто-наклон знака; при reduced-motion остаётся статичным */
+      .neon-3d {
+        display: inline-block;
+        width: 128px;
+        height: 128px;
+        perspective: 620px;
+      }
+      .neon-3d img {
+        width: 100%;
+        height: 100%;
+        animation: neon-tilt 7.5s ease-in-out infinite;
+        filter: drop-shadow(0 12px 24px rgba(4, 8, 18, .55));
+      }
+      @keyframes neon-tilt {
+        0%, 100% { transform: rotateX(-5deg) rotateY(-11deg); }
+        50% { transform: rotateX(7deg) rotateY(11deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .neon-3d img { animation: none; }
+      }
       .cap {
         font-size: 10px;
         letter-spacing: .14em;
@@ -88,9 +129,57 @@
         Система управления контрактной службой заказчика. Знак: строгая «К» в плитке —
         контракт; верхняя полка — лист документа и строка регламента,
         нижняя ножка — скрепление дела. Без мелких деталей: знак работает от 16 px.
+        Основной вариант — неоновый; классический зелёный комплект сохранён для печати.
       </p>
 
-      <h2>Основной логотип · светлый фон</h2>
+      <h2>Основной комплект · неон <span class="badge">основной</span></h2>
+      <div class="grid cols-2">
+        <div class="card neon">
+          <span class="cap">3D-знак</span>
+          <div class="neon-3d">
+            <img src="csms-mark-modern.svg" alt="КСЗ — основной неоновый знак" width="128" height="128" />
+          </div>
+          <p class="note">
+            Плитка наклоняется, свечение дышит, блик скользит по грани.
+            При prefers-reduced-motion движение отключается.
+          </p>
+        </div>
+        <div class="card neon">
+          <span class="cap">Горизонтальный логотип</span>
+          <img src="csms-logo-horizontal-modern.svg" alt="КСЗ — основной неоновый логотип" width="470" />
+        </div>
+        <div class="card neon">
+          <span class="cap">Вертикальная компоновка</span>
+          <img src="csms-logo-stacked-modern.svg" alt="КСЗ — неоновый вертикальный логотип" width="270" />
+        </div>
+        <div class="card neon">
+          <span class="cap">Для документов · с владельцем</span>
+          <img src="csms-logo-owner-modern.svg" alt="КСЗ — неоновый логотип с реквизитами владельца" width="470" />
+        </div>
+        <div class="card">
+          <span class="cap">Монохром чёрный · для печати</span>
+          <img src="csms-logo-horizontal-modern-mono-black.svg" alt="КСЗ — неоновый логотип, монохром чёрный" width="470" />
+        </div>
+        <div class="card neon">
+          <span class="cap">Монохром белый · для тёмного фона</span>
+          <img src="csms-logo-horizontal-modern-mono-white.svg" alt="КСЗ — неоновый логотип, монохром белый" width="470" />
+        </div>
+      </div>
+
+      <h2>Неоновая палитра</h2>
+      <div class="swatches">
+        <div class="swatch"><i style="background:#070b14"></i><span>#070B14 · void</span></div>
+        <div class="swatch"><i style="background:#0d1524"></i><span>#0D1524 · abyss</span></div>
+        <div class="swatch"><i style="background:#16233a"></i><span>#16233A · slate</span></div>
+        <div class="swatch"><i style="background:#1d2d49"></i><span>#1D2D49 · glass</span></div>
+        <div class="swatch"><i style="background:#22d3ee"></i><span>#22D3EE · cyan</span></div>
+        <div class="swatch"><i style="background:#7c8cff"></i><span>#7C8CFF · indigo</span></div>
+        <div class="swatch"><i style="background:#f472b6"></i><span>#F472B6 · magenta</span></div>
+        <div class="swatch"><i style="background:#e8f0ff"></i><span>#E8F0FF · paper</span></div>
+        <div class="swatch"><i style="background:#a8b8d0"></i><span>#A8B8D0 · mist</span></div>
+      </div>
+
+      <h2>Классический комплект · светлый фон</h2>
       <div class="grid cols-2">
         <div class="card">
           <span class="cap">Цвет</span>
@@ -154,7 +243,7 @@
         </div>
       </div>
 
-      <h2>Палитра</h2>
+      <h2>Классическая палитра</h2>
       <div class="swatches">
         <div class="swatch"><i style="background:#051f20"></i><span>#051F20 · основной</span></div>
         <div class="swatch"><i style="background:#163832"></i><span>#163832 · глубокий</span></div>

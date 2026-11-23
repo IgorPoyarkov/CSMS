@@ -59,19 +59,12 @@
     }
   }
 
+  // Знак бренда — неоновая плитка (NeonMark3D): фон и размеры задаёт сам
+  // компонент, здесь только отступ от подписи и запрет сжатия
   &__brand-mark {
-    display: grid;
-    place-items: center;
+    flex-shrink: 0;
     width: 36px;
     height: 36px;
-    border-radius: 10px;
-    background: linear-gradient(140deg, var(--accent), var(--accent-hover));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-    color: var(--text-on-accent);
-    font-family: $ff-accent;
-    font-size: 15px;
-    font-weight: 700;
-    line-height: 1;
   }
 
   &__brand-text {

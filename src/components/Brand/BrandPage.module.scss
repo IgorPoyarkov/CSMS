@@ -83,6 +83,29 @@
     color: var(--text-secondary);
   }
 
+  // Пометка у заголовка: какой комплект основной, а какой — для печати
+  &__badge-primary,
+  &__badge-muted {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    vertical-align: middle;
+  }
+
+  &__badge-primary {
+    color: #070b14;
+    background: linear-gradient(120deg, #22d3ee, #7c8cff);
+  }
+
+  &__badge-muted {
+    color: #a8b8d0;
+    border: 1px solid #1d2d49;
+  }
+
   &__grid {
     display: grid;
     gap: 16px;
@@ -116,6 +139,30 @@
       color: #daf1de;
     }
 
+    // Неоновый комплект: ночной индиго-графит вместо зелёного
+    &--neon {
+      border-color: #1d2d49;
+      background:
+        radial-gradient(
+          120% 90% at 12% 0%,
+          rgba(34, 211, 238, 0.14),
+          transparent 58%
+        ),
+        radial-gradient(
+          120% 90% at 100% 100%,
+          rgba(244, 114, 182, 0.12),
+          transparent 60%
+        ),
+        #070b14;
+      color: #e8f0ff;
+    }
+
+    &--hero {
+      align-items: center;
+      min-height: 300px;
+      text-align: center;
+    }
+
     &--center {
       align-items: center;
       text-align: center;
@@ -131,6 +178,10 @@
     .brand-page__card--dark & {
       color: #8eb69b;
     }
+
+    .brand-page__card--neon & {
+      color: #a8b8d0;
+    }
   }
 
   &__logo {
@@ -142,6 +193,39 @@
     &--stacked {
       max-width: 270px;
     }
+  }
+
+  // Ряд миниатюр под неоновым логотипом: цветной знак и два монохрома
+  &__hero-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__hero-chip {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border: 1px solid #1d2d49;
+    border-radius: 12px;
+    background: #0d1524;
+
+    &--light {
+      border-color: #c7d4ea;
+      background: #e8f0ff;
+    }
+
+    img {
+      display: block;
+    }
+  }
+
+  &__hero-note {
+    font-size: 11px;
+    line-height: 1.4;
+    color: #a8b8d0;
   }
 
   &__marks {
@@ -215,6 +299,10 @@
       background: var(--surface-accent);
       font-size: 11px;
     }
+
+    .brand-page__card--neon & {
+      color: #a8b8d0;
+    }
   }
 
   &__palette {
@@ -278,7 +366,11 @@
       ),
       linear-gradient(rgba(124, 140, 255, 0.045) 1px, transparent 1px),
       linear-gradient(90deg, rgba(124, 140, 255, 0.045) 1px, transparent 1px);
-    background-size: auto, auto, 44px 44px, 44px 44px;
+    background-size:
+      auto,
+      auto,
+      44px 44px,
+      44px 44px;
     color: #e8f0ff;
   }
 

@@ -1,5 +1,6 @@
 import useUtils from "../../hooks/useUtils";
 import { asset } from "../utils/asset";
+import NeonMark3D from "./NeonMark3D";
 import styles from "./BrandPage.module.scss";
 
 /**
@@ -33,32 +34,78 @@ const MODERN_PALETTE = [
 ];
 
 const MARKS = [
-  { file: "csms-mark.svg", label: "Цветной", dark: false },
-  { file: "csms-mark-dark.svg", label: "Для тёмного фона", dark: true },
-  { file: "csms-mark-mono-black.svg", label: "Монохром чёрный", dark: false },
-  { file: "csms-mark-mono-white.svg", label: "Монохром белый", dark: true },
+  { file: "csms-mark-modern.svg", label: "Неон · основной", dark: true },
+  {
+    file: "csms-mark-modern-mono-black.svg",
+    label: "Неон · моно чёрный",
+    dark: false,
+  },
+  {
+    file: "csms-mark-modern-mono-white.svg",
+    label: "Неон · моно белый",
+    dark: true,
+  },
+  { file: "csms-mark.svg", label: "Классика · цветной", dark: false },
+  { file: "csms-mark-dark.svg", label: "Классика · тёмный фон", dark: true },
+  {
+    file: "csms-mark-mono-black.svg",
+    label: "Классика · моно чёрный",
+    dark: false,
+  },
+  {
+    file: "csms-mark-mono-white.svg",
+    label: "Классика · моно белый",
+    dark: true,
+  },
 ];
 
 const DOWNLOADS = [
-  { file: "csms-logo-horizontal.svg", label: "Логотип, светлый фон" },
-  { file: "csms-logo-horizontal-inverse.svg", label: "Логотип, тёмный фон" },
-  {
-    file: "csms-logo-horizontal-mono-black.svg",
-    label: "Логотип, моно чёрный",
-  },
-  { file: "csms-logo-horizontal-mono-white.svg", label: "Логотип, моно белый" },
-  { file: "csms-logo-stacked.svg", label: "Вертикальная компоновка" },
-  { file: "csms-logo-owner.svg", label: "Для документов, с реквизитами" },
-  { file: "csms-mark.svg", label: "Знак, цветной" },
-  { file: "csms-mark-dark.svg", label: "Знак, тёмный фон" },
   {
     file: "csms-logo-horizontal-modern.svg",
-    label: "Логотип, тема «Современные закупки»",
+    label: "Основной логотип, неон",
+  },
+  { file: "csms-mark-modern.svg", label: "Основной знак, неон" },
+  {
+    file: "csms-logo-horizontal-modern-mono-black.svg",
+    label: "Неон, логотип · моно чёрный",
   },
   {
-    file: "csms-mark-modern.svg",
-    label: "Знак, тема «Современные закупки»",
+    file: "csms-logo-horizontal-modern-mono-white.svg",
+    label: "Неон, логотип · моно белый",
   },
+  {
+    file: "csms-logo-stacked-modern.svg",
+    label: "Неон, вертикальная компоновка",
+  },
+  {
+    file: "csms-logo-owner-modern.svg",
+    label: "Неон, для документов с реквизитами",
+  },
+  {
+    file: "csms-mark-modern-mono-black.svg",
+    label: "Неон, знак · моно чёрный",
+  },
+  {
+    file: "csms-mark-modern-mono-white.svg",
+    label: "Неон, знак · моно белый",
+  },
+  { file: "csms-logo-horizontal.svg", label: "Классика, светлый фон" },
+  {
+    file: "csms-logo-horizontal-inverse.svg",
+    label: "Классика, тёмный фон",
+  },
+  {
+    file: "csms-logo-horizontal-mono-black.svg",
+    label: "Классика, моно чёрный",
+  },
+  {
+    file: "csms-logo-horizontal-mono-white.svg",
+    label: "Классика, моно белый",
+  },
+  { file: "csms-logo-stacked.svg", label: "Классика, вертикальная" },
+  { file: "csms-logo-owner.svg", label: "Классика, с реквизитами" },
+  { file: "csms-mark.svg", label: "Классика, знак цветной" },
+  { file: "csms-mark-dark.svg", label: "Классика, знак на тёмном" },
 ];
 
 export default function BrandPage() {
@@ -76,11 +123,99 @@ export default function BrandPage() {
           строка регламента, нижняя ножка — как скрепление дела. Без мелких
           деталей: знак работает от 16 px.
         </p>
+        <p className={block("subtitle")}>
+          <strong>Основной вариант — неоновый:</strong> стеклянная плитка на
+          ночном индиго-графите, контур циан → индиго → магента и мягкое
+          свечение. Он используется в интерфейсе и шапке системы. Классический
+          зелёный комплект сохранён для печати и документов, где свечение
+          недопустимо.
+        </p>
         <p className={block("owner")}>Владелец: ИП · ИНН 462302564694</p>
       </header>
 
       <section className={block("section")}>
-        <h2 className={block("section-title")}>Основной логотип</h2>
+        <h2 className={block("section-title")}>
+          Основной логотип — неон
+          <span className={block("badge-primary")}>основной</span>
+        </h2>
+        <div className={block("grid", ["two"])}>
+          <article className={block("card", ["neon", "hero"])}>
+            <span className={block("caption")}>3D-знак · наведите курсор</span>
+            <NeonMark3D size={132} label="КСЗ — основной фирменный знак" />
+            <p className={block("hint")}>
+              Плитка наклоняется за курсором, свечение дышит, блик скользит по
+              грани. Слои разнесены по глубине, поэтому знак читается объёмным.
+              При <code>prefers-reduced-motion</code> движение отключается.
+            </p>
+          </article>
+          <article className={block("card", ["neon"])}>
+            <span className={block("caption")}>
+              Горизонтальный логотип · основной
+            </span>
+            <img
+              className={block("logo")}
+              src={asset("/brand/csms-logo-horizontal-modern.svg")}
+              alt="КСЗ — основной неоновый логотип"
+              width={470}
+            />
+            <div className={block("hero-row")}>
+              <span className={block("hero-chip")}>
+                <img
+                  src={asset("/brand/csms-mark-modern.svg")}
+                  alt=""
+                  width={40}
+                  height={40}
+                />
+              </span>
+              <span className={block("hero-chip", ["light"])}>
+                <img
+                  src={asset("/brand/csms-mark-modern-mono-black.svg")}
+                  alt="КСЗ — неоновый знак, монохром чёрный"
+                  width={40}
+                  height={40}
+                />
+              </span>
+              <span className={block("hero-chip")}>
+                <img
+                  src={asset("/brand/csms-mark-modern-mono-white.svg")}
+                  alt="КСЗ — неоновый знак, монохром белый"
+                  width={40}
+                  height={40}
+                />
+              </span>
+              <span className={block("hero-note")}>
+                Цвет · моно ч/б для печати
+              </span>
+            </div>
+          </article>
+          <article className={block("card", ["neon", "center"])}>
+            <span className={block("caption")}>Вертикальная компоновка</span>
+            <img
+              className={block("logo", ["stacked"])}
+              src={asset("/brand/csms-logo-stacked-modern.svg")}
+              alt="КСЗ — неоновый вертикальный логотип"
+              width={270}
+            />
+          </article>
+          <article className={block("card", ["neon"])}>
+            <span className={block("caption")}>
+              Для документов · с владельцем
+            </span>
+            <img
+              className={block("logo")}
+              src={asset("/brand/csms-logo-owner-modern.svg")}
+              alt="КСЗ — неоновый логотип с реквизитами владельца"
+              width={470}
+            />
+          </article>
+        </div>
+      </section>
+
+      <section className={block("section")}>
+        <h2 className={block("section-title")}>
+          Классический комплект
+          <span className={block("badge-muted")}>для печати</span>
+        </h2>
         <div className={block("grid", ["two"])}>
           <article className={block("card")}>
             <span className={block("caption")}>Цвет · светлый фон</span>

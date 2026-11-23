@@ -7,6 +7,7 @@ import useUtils from "../../hooks/useUtils";
 import useTheme, { type ThemeName } from "../../hooks/useTheme";
 import EisCoverageModal from "../Eis/EisCoverageModal";
 import ReferenceDataBadge from "../Eis/ReferenceDataBadge";
+import NeonMark3D from "../Brand/NeonMark3D";
 import AgentsHelpModal from "./AgentsHelpModal";
 import styles from "./Header.module.scss";
 
@@ -336,11 +337,15 @@ const Header = () => {
             to={"/"}
             onClick={() => setIsNavOpen(false)}
           >
-            <span className={header("brand-mark")} aria-hidden="true">
-              Ц
-            </span>
+            {/* Основной знак бренда — неоновая плитка с 3D-наклоном.
+                Компактный вариант: амплитуда меньше, чтобы шапка не «плясала» */}
+            <NeonMark3D
+              className={header("brand-mark")}
+              size={36}
+              variant="compact"
+            />
             <span className={header("brand-text")}>
-              <span className={header("brand-name")}>ЦСМС</span>
+              <span className={header("brand-name")}>КСЗ</span>
               <span className={header("brand-sub")}>Контрактная служба</span>
             </span>
           </NavLink>
