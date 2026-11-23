@@ -98,6 +98,49 @@ type PlanCardTab =
   | "versions"
   | "events";
 
+/**
+ * Год записи для сортировки: планируемый год размещения извещения, а если он
+ * не заполнен — год даты размещения записи. Ноль означает «данных нет».
+ */
+const positionRecencyYear = (position: PurchasePlanPosition): number => {
+  const planned = Number(position.plannedPlacementYear);
+
+  if (Number.isFinite(planned) && planned > 0) {
+    return planned;
+  }
+
+  const statusYear = Number(String(position.statusDate ?? "").slice(0, 4));
+
+  return Number.isFinite(statusYear) && statusYear > 0 ? statusYear : 0;
+};
+
+/**
+ * Сортировка позиций по умолчанию — от более позднего к более раннему:
+ * сначала свежие годы размещения, внутри года — поздние номера. Так
+ * исполненные позиции прошлых лет не открывают список.
+ */
+const comparePositionsByRecency = (
+  first: PurchasePlanPosition,
+  second: PurchasePlanPosition,
+): number => {
+  const byYear = positionRecencyYear(second) - positionRecencyYear(first);
+
+  if (byYear !== 0) {
+    return byYear;
+  }
+
+  const bySerial =
+    (toNumber(second.serialNumber) ?? 0) - (toNumber(first.serialNumber) ?? 0);
+
+  if (bySerial !== 0) {
+    return bySerial;
+  }
+
+  return String(second.uniqueNumber ?? "").localeCompare(
+    String(first.uniqueNumber ?? ""),
+  );
+};
+
 export default function PurchasePlanCard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -238,7 +281,7 @@ export default function PurchasePlanCard() {
     const query = searchQuery.trim().toLowerCase();
     const compactQuery = query.replace(/\s/g, "");
 
-    return positions.filter((position) => {
+    const matched = positions.filter((position) => {
       if (!query) {
         return true;
       }
@@ -266,6 +309,8 @@ export default function PurchasePlanCard() {
         (position.identificationCode ?? "").toLowerCase().includes(compactQuery)
       );
     });
+
+    return matched.sort(comparePositionsByRecency);
   }, [positions, searchQuery]);
 
   const isPaged = pageSize !== ALL_PAGES;
