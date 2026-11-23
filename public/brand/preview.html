@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CSMS — фирменный знак</title>
+    <style>
+      :root {
+        --ink: #051f20;
+        --fir: #163832;
+        --plantation: #235347;
+        --summer: #8eb69b;
+        --mint: #daf1de;
+        --paper: #ffffff;
+        --page: #eef4ef;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 40px 32px 64px;
+        background: var(--page);
+        color: var(--ink);
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+      .wrap { max-width: 1120px; margin: 0 auto; }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        letter-spacing: .2em;
+        text-transform: uppercase;
+        color: var(--plantation);
+      }
+      .lead { margin: 0 0 32px; font-size: 14px; color: var(--plantation); max-width: 760px; }
+      h2 {
+        margin: 40px 0 14px;
+        font-size: 11px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--plantation);
+      }
+      .grid { display: grid; gap: 18px; }
+      .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .card {
+        background: var(--paper);
+        border: 1px solid rgba(5, 31, 32, .14);
+        border-radius: 14px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 148px;
+        justify-content: center;
+      }
+      .card.dark { background: var(--ink); border-color: #235347; }
+      .card.dark .cap { color: var(--summer); }
+      .cap {
+        font-size: 10px;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+        color: var(--plantation);
+      }
+      .logos { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+      img { display: block; max-width: 100%; }
+      .mark-sizes { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+      .mark-sizes figure { margin: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+      .mark-sizes figcaption { font-size: 10px; color: var(--plantation); letter-spacing: .06em; }
+      .dark .mark-sizes figcaption { color: var(--summer); }
+      .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+      .swatch { border-radius: 10px; overflow: hidden; border: 1px solid rgba(5,31,32,.12); background: #fff; }
+      .swatch i { display: block; height: 54px; }
+      .swatch span { display: block; padding: 8px 9px; font-size: 9px; letter-spacing: .06em; color: var(--plantation); }
+      .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .rule { background: #fff; border: 1px solid rgba(5,31,32,.12); border-radius: 12px; padding: 16px; }
+      .rule b { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+      .rule p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--plantation); }
+      .owner { margin-top: 36px; padding-top: 18px; border-top: 1px solid rgba(5,31,32,.16); font-size: 11px; color: var(--plantation); letter-spacing: .06em; }
+      @media (max-width: 860px) {
+        .cols-2, .cols-3, .rules { grid-template-columns: 1fr; }
+        .swatches { grid-template-columns: repeat(3, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>CSMS · фирменный знак</h1>
+      <p class="lead">
+        Система управления контрактной службой заказчика. Знак: строгая «К» в плитке —
+        контракт; верхняя полка читается как лист документа и строка регламента,
+        нижняя — как скрепление дела. Без мелких деталей: знак работает от 16 px.
+      </p>
+
+      <h2>Основной логотип · светлый фон</h2>
+      <div class="grid cols-2">
+        <div class="card">
+          <span class="cap">Цвет</span>
+          <img src="csms-logo-horizontal.svg" alt="CSMS — горизонтальный цветной логотип" width="470" />
+        </div>
+        <div class="card">
+          <span class="cap">Монохром</span>
+          <img src="csms-logo-horizontal-mono-black.svg" alt="CSMS — горизонтальный монохромный логотип" width="470" />
+        </div>
+        <div class="card">
+          <span class="cap">Вертикальная компоновка</span>
+          <img src="csms-logo-stacked.svg" alt="CSMS — вертикальный логотип" width="270" />
+        </div>
+        <div class="card">
+          <span class="cap">Для документов · с владельцем</span>
+          <img src="csms-logo-owner.svg" alt="CSMS — логотип с реквизитами владельца" width="470" />
+        </div>
+      </div>
+
+      <h2>Тёмный фон</h2>
+      <div class="grid cols-2">
+        <div class="card dark">
+          <span class="cap">Инверсия</span>
+          <img src="csms-logo-horizontal-inverse.svg" alt="CSMS — инверсный логотип" width="470" />
+        </div>
+        <div class="card dark">
+          <span class="cap">Монохром белый</span>
+          <img src="csms-logo-horizontal-mono-white.svg" alt="CSMS — белый монохромный логотип" width="470" />
+        </div>
+        <div class="card dark">
+          <span class="cap">Вертикальная компоновка</span>
+          <img src="csms-logo-stacked-inverse.svg" alt="CSMS — вертикальный инверсный логотип" width="270" />
+        </div>
+        <div class="card dark">
+          <span class="cap">Знак без плитки</span>
+          <img src="csms-mark-dark.svg" alt="CSMS — знак для тёмного фона" width="72" />
+        </div>
+      </div>
+
+      <h2>Масштабирование знака</h2>
+      <div class="grid cols-2">
+        <div class="card">
+          <span class="cap">Светлый фон</span>
+          <div class="mark-sizes">
+            <figure><img src="csms-mark.svg" width="64" height="64" alt="" /><figcaption>64</figcaption></figure>
+            <figure><img src="csms-mark.svg" width="48" height="48" alt="" /><figcaption>48</figcaption></figure>
+            <figure><img src="csms-mark.svg" width="32" height="32" alt="" /><figcaption>32</figcaption></figure>
+            <figure><img src="csms-mark.svg" width="24" height="24" alt="" /><figcaption>24</figcaption></figure>
+            <figure><img src="csms-mark.svg" width="16" height="16" alt="" /><figcaption>16</figcaption></figure>
+          </div>
+        </div>
+        <div class="card dark">
+          <span class="cap">Тёмный фон</span>
+          <div class="mark-sizes">
+            <figure><img src="csms-mark-dark.svg" width="64" height="64" alt="" /><figcaption>64</figcaption></figure>
+            <figure><img src="csms-mark-dark.svg" width="48" height="48" alt="" /><figcaption>48</figcaption></figure>
+            <figure><img src="csms-mark-dark.svg" width="32" height="32" alt="" /><figcaption>32</figcaption></figure>
+            <figure><img src="csms-mark-dark.svg" width="24" height="24" alt="" /><figcaption>24</figcaption></figure>
+            <figure><img src="csms-mark-dark.svg" width="16" height="16" alt="" /><figcaption>16</figcaption></figure>
+          </div>
+        </div>
+      </div>
+
+      <h2>Палитра</h2>
+      <div class="swatches">
+        <div class="swatch"><i style="background:#051f20"></i><span>#051F20 · основной</span></div>
+        <div class="swatch"><i style="background:#163832"></i><span>#163832 · глубокий</span></div>
+        <div class="swatch"><i style="background:#235347"></i><span>#235347 · акцент</span></div>
+        <div class="swatch"><i style="background:#8eb69b"></i><span>#8EB69B · лист</span></div>
+        <div class="swatch"><i style="background:#daf1de"></i><span>#DAF1DE · знак</span></div>
+        <div class="swatch"><i style="background:#ffffff"></i><span>#FFFFFF · бумага</span></div>
+      </div>
+
+      <h2>Правила</h2>
+      <div class="rules">
+        <div class="rule">
+          <b>Охранное поле</b>
+          <p>Свободное поле вокруг логотипа — не меньше высоты знака. Ничего не размещаем ближе.</p>
+        </div>
+        <div class="rule">
+          <b>Минимальные размеры</b>
+          <p>Знак — 16 px, горизонтальный логотип — 120 px по ширине. Меньше — только знак.</p>
+        </div>
+        <div class="rule">
+          <b>Что нельзя</b>
+          <p>Не менять пропорции, не перекрашивать вне палитры, не добавлять тени, обводки и градиенты на текст.</p>
+        </div>
+      </div>
+
+      <p class="owner">Владелец: ИП · ИНН 462302564694 · CSMS — система управления контрактной службой заказчика</p>
+    </div>
+  </body>
+</html>
