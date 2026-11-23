@@ -4,7 +4,6 @@ import {
 } from "../Procurements/noticeInfo.schema";
 import {
   normalizeNoticeAttachments,
-  type NoticeAttachment,
   type NoticeAttachmentStatus,
 } from "../Procurements/noticeAttachment.schema";
 import { normalizeEisAttachments, type EisAttachment } from "./eisAttachments";
@@ -51,24 +50,6 @@ export type EisNoticeReadinessSource = Pick<
   NoticeInfoFormValues,
   "id" | "generalInfo" | "attachedDocs"
 >;
-
-/**
- * Код вида документа читается «мягко»: поле появилось в модели извещения
- * позже (`NoticeAttachment.docKindCode`), а старые записи и черновики форм его
- * не содержат. Без кода ЕИС отклонит вложение, поэтому проверка о нём
- * предупреждает, но извещение из-за него не блокируется.
- */
-const docKindOf = (
-  doc: NoticeAttachment,
-): { docKindCode?: string; docKindName?: string } => {
-  const extra = doc as NoticeAttachment & {
-    docKindCode?: string;
-    docKindName?: string;
-  };
-
-  return { docKindCode: extra.docKindCode, docKindName: extra.docKindName };
-};
-
 
 /**
  * Вложение в терминах шлюза.
@@ -128,7 +109,8 @@ export const eisNoticeReadiness = (
         url: doc.url,
         storageRef: doc.storageRef,
         publishedInEis: doc.status === "published",
-        ...docKindOf(doc),
+        docKindCode: doc.docKindCode,
+        docKindName: doc.docKindName,
       })),
     ).map(toPackageAttachment),
     checkedAt: options.now ?? new Date().toISOString(),
@@ -138,6 +120,31 @@ export const eisNoticeReadiness = (
     ikz: notice.generalInfo.ikz ?? "",
   };
 };
+
+/**
+ * Блокирующие замечания простым списком строк — то, что уходит в шлюз полем
+ * `attachmentBlockingIssues`.
+ *
+ * Зачем дублировать замечания, если шлюз получает и снимок: снимок шлюз пока
+ * не разбирает, а список строк — уже работающий контракт (`EisPackageService`
+ * на `Notification` отказывает 409, если список не пуст). Это страхующая
+ * проверка на стороне сервера: даже если интерфейс обойдут или соберут пакет
+ * из другого клиента, извещение с неполным Разделом 2 в ЕИС не уйдёт.
+ *
+ * Нормализация повторяет серверную (убрать пустые, обрезать пробелы, убрать
+ * повторы): тогда тело запроса совпадает с тем, что шлюз вывел бы в тексте
+ * отказа, и лишние строки не раздувают пакет.
+ */
+export const eisNoticeBlockingIssues = (
+  readiness: EisNoticeReadiness,
+): string[] =>
+  Array.from(
+    new Set(
+      readiness.blocking
+        .map((issue) => issue.message.trim())
+        .filter((message) => message.length > 0),
+    ),
+  );
 
 /**
  * Текст блокировки для формы: что именно мешает передать извещение в ЕИС.

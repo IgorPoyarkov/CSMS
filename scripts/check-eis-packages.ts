@@ -24,6 +24,7 @@ import {
   eisPackageSchema,
 } from "../src/services/Eis/eisPackages.schema";
 import {
+  eisNoticeBlockingIssues,
   eisNoticeReadiness,
   eisNoticeReadinessError,
   eisNoticeReadinessSummary,
@@ -46,8 +47,10 @@ import type { NoticeInfoFormValues } from "../src/services/Procurements/noticeIn
  * цепочка показывает приёмку и оплату, а сведение исполнения считается по
  * реестровому номеру сведений (`regNumberExecution`), а не по факту «есть
  * платёж», а также стык Раздела 2 извещения с пакетом: неполный состав
- * документов блокирует передачу, снимок проверки уходит в шлюз, сохранённый
- * проект контракта становится вложением извещения.
+ * документов блокирует передачу, блокирующие замечания уходят в шлюз плоским
+ * списком (`attachmentBlockingIssues`) и снимком проверки, коды вида документа
+ * из nsiEPDocTypes доезжают до пакета, сохранённый проект контракта становится
+ * вложением извещения.
  *
  * Запуск: npm run check:eis-packages.
  */
@@ -420,6 +423,85 @@ assert.equal(snapshot.ok, true);
 assert.equal(snapshot.attachments.length, 4);
 assert.deepEqual(snapshot.warnings, readiness.warnings);
 
+// Блокирующие замечания плоским списком — поле, которое шлюз проверяет сам
+// (`EisPackageService`: непустой список для Notification — отказ 409).
+// Полный Раздел 2 — пустой массив, а не отсутствие поля: «проверили, чисто».
+assert.deepEqual(
+  eisNoticeBlockingIssues(readiness),
+  [],
+  "готовое извещение не несёт блокирующих замечаний",
+);
+assert.equal(
+  eisNoticeBlockingIssues(incomplete).length,
+  incomplete.blocking.length,
+  "в список уходят только блокирующие, предупреждения — нет",
+);
+// Предупреждения в список блокировок не попадают: отсутствие кода вида
+// документа из nsiEPDocTypes ЕИС стерпит не всегда, но сервер из-за него
+// отказывать не должен — иначе нельзя сохранить и выгрузить извещение, пока
+// справочник не заполнен.
+const withWarnings = eisNoticeReadiness(
+  noticeFor([
+    noticeDoc("object_description"),
+    noticeDoc("nmck_justification"),
+    noticeDoc("application_requirements"),
+    noticeDoc("contract_project"),
+  ]),
+);
+
+assert.equal(withWarnings.ok, true, "код вида документа — предупреждение, не блокировка");
+assert.ok(
+  withWarnings.warnings.length > 0,
+  "без кодов nsiEPDocTypes проверка предупреждает",
+);
+assert.deepEqual(eisNoticeBlockingIssues(withWarnings), []);
+
+// Коды вида документа из модели извещения доходят до проверки: с ними
+// предупреждений нет, а блокирующих замечаний по-прежнему ноль.
+const withDocKinds = eisNoticeReadiness(
+  noticeFor([
+    noticeDoc("object_description", {
+      docKindCode: "001",
+      docKindName: "Описание объекта закупки",
+    }),
+    noticeDoc("nmck_justification", {
+      docKindCode: "002",
+      docKindName: "Обоснование начальной (максимальной) цены контракта",
+    }),
+    noticeDoc("application_requirements", {
+      docKindCode: "003",
+      docKindName: "Требования к содержанию заявки",
+    }),
+    noticeDoc("contract_project", {
+      docKindCode: "004",
+      docKindName: "Проект контракта",
+    }),
+  ]),
+);
+
+assert.deepEqual(withDocKinds.warnings, [], "код вида документа снимает предупреждение");
+assert.equal(withDocKinds.attachments.length, 4);
+assert.equal(
+  withDocKinds.attachments.find(
+    (item) => item.fileName === "contract_project.pdf",
+  )?.docKindCode,
+  "004",
+  "код вида документа уходит в пакет",
+);
+
+// Нормализация как на сервере: пробелы обрезаны, пустые строки и повторы
+// убраны — тело запроса совпадает с тем, что шлюз вывел бы в тексте отказа.
+const duplicated = eisNoticeReadinessSchema.parse({
+  ...readiness,
+  blocking: [
+    { severity: "error", category: "nmck_justification", message: "  нет НМЦК  " },
+    { severity: "error", category: "nmck_justification", message: "нет НМЦК" },
+    { severity: "error", category: null, message: "   " },
+  ],
+});
+
+assert.deepEqual(eisNoticeBlockingIssues(duplicated), ["нет НМЦК"]);
+
 const createBody = createEisPackageInputSchema.parse({
   documentType: "Notification",
   contractEisNumber: "",
@@ -427,10 +509,47 @@ const createBody = createEisPackageInputSchema.parse({
   payloadXml: "<notification/>",
   attachments: readiness.attachments,
   attachmentReadiness: readiness,
+  attachmentBlockingIssues: eisNoticeBlockingIssues(readiness),
 });
 
 assert.equal(createBody.attachmentReadiness?.ok, true);
 assert.equal(createBody.attachments?.length, 4);
+// Пустой массив — не то же самое, что отсутствие поля: первый говорит шлюзу
+// «Раздел 2 проверили, чисто», второе — «не проверяли вовсе». Поэтому в теле
+// он должен остаться после сериализации, а не потеряться.
+assert.deepEqual(createBody.attachmentBlockingIssues, []);
+assert.deepEqual(
+  JSON.parse(JSON.stringify(createBody)).attachmentBlockingIssues,
+  [],
+  "пустой список блокировок переживает сериализацию",
+);
+
+const blockedBody = createEisPackageInputSchema.parse({
+  documentType: "Notification",
+  contractEisNumber: "",
+  ikz: IKZ,
+  attachmentReadiness: incomplete,
+  attachmentBlockingIssues: eisNoticeBlockingIssues(incomplete),
+});
+
+assert.equal(
+  blockedBody.attachmentBlockingIssues?.length,
+  3,
+  "неполный Раздел 2 несёт три блокирующих текста — шлюз ответит 409",
+);
+
+const projectBody = createEisPackageInputSchema.parse({
+  documentType: "ContractProject",
+  contractEisNumber: "0373100000123000001",
+  ikz: IKZ,
+  payloadXml: "<contractProject/>",
+});
+
+assert.equal(
+  projectBody.attachmentBlockingIssues,
+  undefined,
+  "для проекта контракта готовность извещения не передаётся",
+);
 
 // Шлюз снимок пока не возвращает — карточка обязана открываться и без него.
 assert.equal(eisPackageSchema.parse(packageRejected).attachmentReadiness, null);

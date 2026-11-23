@@ -40,6 +40,7 @@ import {
 } from "../../services/Eis/eis17Types";
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
 import {
+  eisNoticeBlockingIssues,
   eisNoticeReadiness,
   eisNoticeReadinessError,
   eisNoticeReadinessSummary,
@@ -295,6 +296,8 @@ export default function EisPackagesPage() {
     // обоснования НМЦК и проекта контракта ЕИС отклонит документ, а подпись
     // под исправленным извещением станет второй. Проверка та же, что и при
     // публикации (`noticeAttachmentReadiness`), — правила не дублируются.
+    // Шлюз проверяет то же самое по `attachmentBlockingIssues` и вернул бы
+    // 409, но человеку нужен ответ до подписи, а не после отказа.
     if (noticeReadiness && !noticeReadiness.ok) {
       setFormError(eisNoticeReadinessError(noticeReadiness));
       return;
@@ -414,6 +417,12 @@ export default function EisPackagesPage() {
         // извещение — даже если извещение с тех пор правили
         attachments: noticeReadiness?.attachments,
         attachmentReadiness: noticeReadiness ?? undefined,
+        // Плоский список блокирующих замечаний — то поле, которое шлюз уже
+        // проверяет сам (409 на непустой список). Отправляется и пустым:
+        // наличие поля означает «Раздел 2 проверен»
+        attachmentBlockingIssues: noticeReadiness
+          ? eisNoticeBlockingIssues(noticeReadiness)
+          : undefined,
       });
 
       setContractEisNumber("");
