@@ -17,6 +17,10 @@ interface CustomSelectProps<TItem> {
   searchable?: boolean;
   searchPlaceholder?: string;
   getSearchText?: (item: TItem) => string;
+  /** Запрет выбора (режим только для чтения и поля с источником данных) */
+  disabled?: boolean;
+  /** Класс для тонкой подстройки под форму */
+  className?: string;
 }
 
 export default function CustomSelect<TItem>({
@@ -32,6 +36,8 @@ export default function CustomSelect<TItem>({
   searchable = false,
   searchPlaceholder = "Поиск…",
   getSearchText,
+  disabled = false,
+  className,
 }: CustomSelectProps<TItem>) {
   const { bem } = useUtils();
   const select = bem(styles, "custom-select");
@@ -96,6 +102,7 @@ export default function CustomSelect<TItem>({
     : placeholder;
 
   const toggleOpen = () => {
+    if (disabled) return;
     if (isOpen) setQuery("");
     setIsOpen(!isOpen);
   };
@@ -111,9 +118,14 @@ export default function CustomSelect<TItem>({
   return (
     <div
       ref={wrapperRef}
-      className={select("", isOpen ? [...modifier, "open"] : modifier)}
+      className={`${select("", isOpen ? [...modifier, "open"] : modifier)}${className ? ` ${className}` : ""}`}
     >
-      <button type="button" className={select("trigger")} onClick={toggleOpen}>
+      <button
+        type="button"
+        className={select("trigger")}
+        disabled={disabled}
+        onClick={toggleOpen}
+      >
         <span className={select("value", !selectedItem ? ["placeholder"] : [])}>
           {displayLabel}
         </span>

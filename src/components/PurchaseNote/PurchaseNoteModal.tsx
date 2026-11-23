@@ -583,13 +583,9 @@ export default function PurchaseNoteModal({
           quantity: firstQty,
           unitPrice: "",
           totalPrice: String(position.amountTotal ?? ""),
-          // Национальный режим ставится по умолчанию по ПП РФ № 1875:
-          // на этапе служебной записки заказчик уже видит ожидаемый режим
-          nationalRegimeType:
-            checkOkpd2NationalRegime(
-              position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
-              okpd2Refs,
-            ).regime ?? "none",
+          // Национальный режим по ПП РФ № 1875 по объектам устанавливают
+          // позже закупщик/юрист КС. В СЗ он не подставляется автоматически.
+          nationalRegimeType: "none",
           isSupplyDuringWorks: false,
         },
       ],
@@ -745,6 +741,15 @@ export default function PurchaseNoteModal({
       watchedOozId !== undefined &&
       String(desc.id) === String(watchedOozId),
   );
+  // Если объект закупки внесён через ООЗ, она единственный источник правды:
+  // ручное добавление/удаление объектов и правка реквизитов закрываются.
+  const oozIsSource =
+    Boolean(selectedOoz) ||
+    watchedItems.some(
+      (item) => item.objectDescriptionId !== undefined &&
+        item.objectDescriptionId !== null &&
+        String(item.objectDescriptionId) !== "",
+    );
   // Готовность ООЗ и полнота закупок по позиции плана-графика.
   // По умолчанию оба флага включены: заказчик снимает их осознанно,
   // когда набор объектов ещё не сформирован или закупка не последняя.
@@ -1176,6 +1181,41 @@ export default function PurchaseNoteModal({
     });
   };
 
+  // Цена за единицу и стоимость объектов приходят из обоснования НМЦК,
+  // количество — из ООЗ. Пересчитываем все позиции по суммарному количеству,
+  // чтобы итог по объектам совпадал с НМЦК.
+  const applyNmckToItems = (nmckTotalOverride?: number) => {
+    if (isReadOnly) return;
+    const nmckTotal =
+      nmckTotalOverride ??
+      toNumber(watchedNmckCalculation?.nmckTotal) ??
+      toNumber(watch("initialMaxPrice")) ??
+      0;
+    if (nmckTotal <= 0) return;
+
+    const items = (getValues("items") ?? []) as PurchaseNoteObjectItem[];
+    const quantities = items.map((item) =>
+      Math.max(
+        1,
+        Number.parseFloat(String(item.quantity || "1").replace(",", ".")) || 1,
+      ),
+    );
+    const totalQty = quantities.reduce((sum, qty) => sum + qty, 0);
+    if (totalQty <= 0) return;
+
+    const unitPrice = nmckTotal / totalQty;
+    items.forEach((_, idx) => {
+      setValue(`items.${idx}.unitPrice`, unitPrice.toFixed(2), {
+        shouldDirty: true,
+      });
+      setValue(
+        `items.${idx}.totalPrice`,
+        (unitPrice * quantities[idx]).toFixed(2),
+        { shouldDirty: true },
+      );
+    });
+  };
+
   // Единый переключатель «невозможно определить количество» синхронизирует quantity = "1" у всех объектов
   const handleToggleIndeterminate = (checked: boolean) => {
     if (isReadOnly) return;
@@ -1187,6 +1227,7 @@ export default function PurchaseNoteModal({
       });
       setValue("quantity", "1");
     }
+    applyNmckToItems();
   };
 
   // Единое структурированное ООЗ на служебную записку: набор характеристик
@@ -1202,25 +1243,18 @@ export default function PurchaseNoteModal({
     if (!found) return;
 
     setValue("items.0.name", found.title);
-    if (found.okpd2Code) {
-      setValue("items.0.okpd2Code", found.okpd2Code);
-      // Национальный режим по умолчанию — по ПП РФ № 1875
-      setValue(
-        "items.0.nationalRegimeType",
-        checkOkpd2NationalRegime(
-          found.okpd2Code,
-          okpd2RefForChecks(okpd2Refs, found.okpd2Code),
-        ).regime ?? "none",
-        { shouldDirty: true },
-      );
-    }
+    // Национальный режим не подставляем: его по объектам устанавливают позже
+    // закупщик/юрист КС, ответственные по 44-ФЗ.
+    if (found.okpd2Code) setValue("items.0.okpd2Code", found.okpd2Code);
     if (found.okpd2Name) setValue("items.0.okpd2Name", found.okpd2Name);
     setValue("items.0.ktruCode", found.ktruCode ?? "");
-    setValue("items.0.ktruName", "");
+    setValue("items.0.ktruName", found.ktruName ?? "");
     if (found.unit) setValue("items.0.unit", found.unit);
-    if (!watchedIndeterminate && found.quantity) {
-      setValue("items.0.quantity", found.quantity);
-    }
+    setValue(
+      "items.0.quantity",
+      watchedIndeterminate ? "1" : found.quantity || "1",
+    );
+    applyNmckToItems();
 
     if (!watch("subject")?.trim()) {
       setValue("subject", found.title);
@@ -1230,21 +1264,14 @@ export default function PurchaseNoteModal({
     }
   };
 
-  // Выбор ОКПД2 в позиции: наименование, национальный режим по ПП РФ № 1875
-  // и сброс КТРУ, если оно относится к другому коду
+  // Выбор ОКПД2 в позиции: наименование и сброс КТРУ, если оно относится
+  // к другому коду. Нацрежим по ПП РФ № 1875 здесь не трогаем — его позже
+  // устанавливают закупщик/юрист КС.
   const handleSelectItemOkpd2 = (index: number, selected: Okpd2Ref | null) => {
     if (isReadOnly) return;
     const code = selected?.code ?? "";
     setValue(`items.${index}.okpd2Code`, code);
     setValue(`items.${index}.okpd2Name`, selected?.name ?? "");
-    setValue(
-      `items.${index}.nationalRegimeType`,
-      checkOkpd2NationalRegime(
-        code,
-        okpd2RefForChecks(okpd2Refs, code),
-      ).regime ?? "none",
-      { shouldDirty: true },
-    );
 
     const currentKtru = getValues(`items.${index}.ktruCode`);
     if (
@@ -1274,6 +1301,8 @@ export default function PurchaseNoteModal({
   };
 
   // ООЗ конкретного объекта закупки: характеристики живут под своей позицией
+  // и являются единственным источником правды для наименования, ОКПД2/КТРУ,
+  // единицы и количества. Нацрежим заполняется позже закупщиком/юристом КС.
   const handleSelectItemOoz = (index: number, selectedId: string) => {
     if (isReadOnly) return;
     setValue(`items.${index}.objectDescriptionId`, selectedId || undefined);
@@ -1282,27 +1311,19 @@ export default function PurchaseNoteModal({
     );
     if (!found) return;
 
-    if (!getValues(`items.${index}.name`)) {
-      setValue(`items.${index}.name`, found.title);
-    }
-    if (found.okpd2Code && !getValues(`items.${index}.okpd2Code`)) {
+    setValue(`items.${index}.name`, found.title);
+    if (found.okpd2Code) {
       setValue(`items.${index}.okpd2Code`, found.okpd2Code);
       setValue(`items.${index}.okpd2Name`, found.okpd2Name ?? "");
-      setValue(
-        `items.${index}.nationalRegimeType`,
-        checkOkpd2NationalRegime(
-          found.okpd2Code,
-          okpd2RefForChecks(okpd2Refs, found.okpd2Code),
-        ).regime ?? "none",
-        { shouldDirty: true },
-      );
     }
-    if (found.ktruCode && !getValues(`items.${index}.ktruCode`)) {
-      setValue(`items.${index}.ktruCode`, found.ktruCode);
-    }
-    if (found.unit && !getValues(`items.${index}.unit`)) {
-      setValue(`items.${index}.unit`, found.unit);
-    }
+    setValue(`items.${index}.ktruCode`, found.ktruCode ?? "");
+    setValue(`items.${index}.ktruName`, found.ktruName ?? "");
+    if (found.unit) setValue(`items.${index}.unit`, found.unit);
+    setValue(
+      `items.${index}.quantity`,
+      watchedIndeterminate ? "1" : found.quantity || "1",
+    );
+    applyNmckToItems();
   };
 
   // Гарантия качества даёт право установить обеспечение гарантийных обязательств
@@ -2146,9 +2167,11 @@ export default function PurchaseNoteModal({
             <label className={block("label")} htmlFor="note-subject">
               Предмет закупки *
             </label>
-            <input
+            <textarea
               id="note-subject"
-              className={block("input")}
+              className={block("textarea")}
+              rows={3}
+              placeholder="Развёрнутый предмет закупки — текст переносится и полностью виден в форме"
               {...register("subject")}
             />
             {errorText("subject") && (
@@ -2182,27 +2205,22 @@ export default function PurchaseNoteModal({
                 <ExternalLink size={12} aria-hidden="true" />
               </Link>
             </div>
-            <Select
-              id="note-ooz"
-              className={block("select")}
-              disabled={isReadOnly}
-              value={
+            <CustomSelect
+              listData={objectDescriptions}
+              selectedValue={
                 watchedOozId !== null && watchedOozId !== undefined
                   ? String(watchedOozId)
-                  : ""
+                  : null
               }
-              onChange={(e) => handleSelectNoteOoz(e.target.value)}
-            >
-              <option value="">
-                — Не выбрано (заполнить вручную / позже) —
-              </option>
-              {objectDescriptions.map((desc) => (
-                <option key={String(desc.id)} value={String(desc.id)}>
-                  {desc.title} ({desc.okpd2Code}
-                  {desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})
-                </option>
-              ))}
-            </Select>
+              placeholder="— Не выбрано (заполнить вручную / позже) —"
+              getKey={(desc) => String(desc.id)}
+              getLabel={(desc) =>
+                `${desc.title} (${desc.okpd2Code}${desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})`
+              }
+              searchable
+              searchPlaceholder="Поиск по наименованию ООЗ…"
+              onClick={(id) => handleSelectNoteOoz(String(id))}
+            />
             {selectedOoz ? (
               <span className={block("hint")}>
                 Источник:{" "}
@@ -2344,14 +2362,16 @@ export default function PurchaseNoteModal({
                               >
                                 Редактировать
                               </button>
-                              <button
-                                type="button"
-                                className={block("danger-btn")}
-                                disabled={isReadOnly}
-                                onClick={() => removeItem(idx)}
-                              >
-                                Удалить
-                              </button>
+                              {!oozIsSource && (
+                                <button
+                                  type="button"
+                                  className={block("danger-btn")}
+                                  disabled={isReadOnly}
+                                  onClick={() => removeItem(idx)}
+                                >
+                                  Удалить
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2373,10 +2393,14 @@ export default function PurchaseNoteModal({
                                 >
                                   Наименование объекта закупки *
                                 </label>
-                                <input
+                                <textarea
                                   id={`note-item-name-${idx}`}
-                                  className={block("input")}
-                                  placeholder="Наименование"
+                                  className={block("textarea", [
+                                    itemDesc ? "readonly" : "",
+                                  ])}
+                                  rows={2}
+                                  readOnly={Boolean(itemDesc)}
+                                  placeholder="Наименование объекта закупки"
                                   {...register(`items.${idx}.name`)}
                                 />
                               </div>
@@ -2389,7 +2413,7 @@ export default function PurchaseNoteModal({
                                   <Okpd2Select
                                     code={itemOkpd2}
                                     allowedCodes={allowedOkpd2Codes}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || Boolean(itemDesc)}
                                     onSelect={(selected) =>
                                       handleSelectItemOkpd2(idx, selected)
                                     }
@@ -2398,7 +2422,7 @@ export default function PurchaseNoteModal({
                                     className={block("select")}
                                     okpd2Code={itemOkpd2}
                                     ktruCode={itemKtru}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || Boolean(itemDesc)}
                                     onSelect={(ktru) =>
                                       handleSelectItemKtru(idx, ktru)
                                     }
@@ -2428,7 +2452,7 @@ export default function PurchaseNoteModal({
                                   </span>
                                   <OkeiSelect
                                     value={itemUnit}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || Boolean(itemDesc)}
                                     onChange={(val) =>
                                       setValue(`items.${idx}.unit`, val)
                                     }
@@ -2442,7 +2466,9 @@ export default function PurchaseNoteModal({
                                   <input
                                     className={block("input")}
                                     disabled={
-                                      isReadOnly || watchedIndeterminate
+                                      isReadOnly ||
+                                      watchedIndeterminate ||
+                                      Boolean(itemDesc)
                                     }
                                     value={
                                       watchedIndeterminate ? "1" : itemQuantity
@@ -2468,6 +2494,7 @@ export default function PurchaseNoteModal({
                                   <MoneyInput
                                     className={block("input")}
                                     value={itemUnitPrice}
+                                    readOnly={Boolean(watchedNmckCalculation)}
                                     onChange={(next) => {
                                       const nextPrice = next
                                         ? String(next)
@@ -2491,6 +2518,7 @@ export default function PurchaseNoteModal({
                                   <MoneyInput
                                     className={block("input")}
                                     value={itemTotalPrice}
+                                    readOnly={Boolean(watchedNmckCalculation)}
                                     onChange={(next) =>
                                       setValue(
                                         `items.${idx}.totalPrice`,
@@ -2505,23 +2533,24 @@ export default function PurchaseNoteModal({
                                   <span className={block("label")}>
                                     Национальный режим
                                   </span>
-                                  <Select
-                                    className={block("select")}
-                                    {...register(
-                                      `items.${idx}.nationalRegimeType`,
-                                    )}
-                                  >
-                                    {NATIONAL_REGIME_OPTIONS.filter(
+                                  <CustomSelect
+                                    listData={NATIONAL_REGIME_OPTIONS.filter(
                                       (opt) =>
                                         opt.id !== "advantage" ||
                                         itemAdvantageApplicable ||
                                         itemRegimeValue === "advantage",
-                                    ).map((opt) => (
-                                      <option key={opt.id} value={opt.id}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                  </Select>
+                                    )}
+                                    selectedValue={itemRegimeValue}
+                                    getKey={(opt) => opt.id}
+                                    getLabel={(opt) => opt.label}
+                                    onClick={(id) =>
+                                      setValue(
+                                        `items.${idx}.nationalRegimeType`,
+                                        id as "none" | "ban" | "restriction" | "advantage",
+                                        { shouldDirty: true },
+                                      )
+                                    }
+                                  />
                                   {itemAdvantageApplicable && (
                                     <span className={block("hint")}>
                                       «Преимущество» — право заказчика: можно
@@ -2587,14 +2616,16 @@ export default function PurchaseNoteModal({
                                 >
                                   Сохранить
                                 </button>
-                                <button
-                                  type="button"
-                                  className={block("danger-btn")}
-                                  disabled={isReadOnly}
-                                  onClick={() => removeItem(idx)}
-                                >
-                                  Удалить
-                                </button>
+                                {!oozIsSource && (
+                                  <button
+                                    type="button"
+                                    className={block("danger-btn")}
+                                    disabled={isReadOnly}
+                                    onClick={() => removeItem(idx)}
+                                  >
+                                    Удалить
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -2611,36 +2642,25 @@ export default function PurchaseNoteModal({
                                 >
                                   ООЗ объекта закупки
                                 </label>
-                                <Select
-                                  id={`note-item-ooz-${idx}`}
-                                  className={block("select")}
-                                  disabled={isReadOnly}
-                                  value={
+                                <CustomSelect
+                                  listData={objectDescriptions}
+                                  selectedValue={
                                     itemOozId !== null &&
                                     itemOozId !== undefined
                                       ? String(itemOozId)
-                                      : ""
+                                      : null
                                   }
-                                  onChange={(e) =>
-                                    handleSelectItemOoz(idx, e.target.value)
+                                  placeholder="— Не выбрано (характеристики не заданы) —"
+                                  getKey={(desc) => String(desc.id)}
+                                  getLabel={(desc) =>
+                                    `${desc.title} (${desc.okpd2Code}${desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})`
                                   }
-                                >
-                                  <option value="">
-                                    — Не выбрано (характеристики не заданы) —
-                                  </option>
-                                  {objectDescriptions.map((desc) => (
-                                    <option
-                                      key={String(desc.id)}
-                                      value={String(desc.id)}
-                                    >
-                                      {desc.title} ({desc.okpd2Code}
-                                      {desc.ktruCode
-                                        ? ` · КТРУ ${desc.ktruCode}`
-                                        : ""}
-                                      )
-                                    </option>
-                                  ))}
-                                </Select>
+                                  searchable
+                                  searchPlaceholder="Поиск ООЗ…"
+                                  onClick={(id) =>
+                                    handleSelectItemOoz(idx, String(id))
+                                  }
+                                />
                               </div>
                               {itemDesc ? (
                                 itemDesc.characteristics.length > 0 ? (
@@ -2678,32 +2698,36 @@ export default function PurchaseNoteModal({
               </table>
             </div>
 
-            <button
-              type="button"
-              className={block("link-btn")}
-              disabled={isReadOnly}
-              onClick={() => {
-                const id = `item-${Date.now()}`;
-                appendItem({
-                  id,
-                  objectDescriptionId: undefined,
-                  name: "",
-                  okpd2Code: "",
-                  okpd2Name: "",
-                  ktruCode: "",
-                  ktruName: "",
-                  unit: "",
-                  quantity: "1",
-                  unitPrice: "",
-                  totalPrice: "",
-                  nationalRegimeType: "none",
-                  isSupplyDuringWorks: false,
-                });
-                expandItem(id);
-              }}
-            >
-              + Добавить объект закупки
-            </button>
+            {/* ООЗ — единственный источник правды для объекта закупки:
+                ручное добавление объектов после её выбора не нужно */}
+            {!oozIsSource && (
+              <button
+                type="button"
+                className={block("link-btn")}
+                disabled={isReadOnly}
+                onClick={() => {
+                  const id = `item-${Date.now()}`;
+                  appendItem({
+                    id,
+                    objectDescriptionId: undefined,
+                    name: "",
+                    okpd2Code: "",
+                    okpd2Name: "",
+                    ktruCode: "",
+                    ktruName: "",
+                    unit: "",
+                    quantity: "1",
+                    unitPrice: "",
+                    totalPrice: "",
+                    nationalRegimeType: "none",
+                    isSupplyDuringWorks: false,
+                  });
+                  expandItem(id);
+                }}
+              >
+                + Добавить объект закупки
+              </button>
+            )}
 
             {/* Сводка по национальному режиму (ПП РФ N 1875): ожидаемый режим
                 по перечням приложений N 1 и N 2 против выбранного в позициях */}
@@ -2767,940 +2791,53 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
-      {/* 3. Способ, относительные/абсолютные сроки поставки, приёмка, места поставки */}
-      <fieldset className={block("section")} disabled={isReadOnly}>
-        <legend>
-          3. Способ определения поставщика, сроки поставки, приёмки и места
-        </legend>
-        <div className={block("grid")}>
-          <div className={block("field")}>
-            <span className={block("label")}>
-              Способ определения поставщика
-            </span>
-            {/* Кастомный список: нативный select с длинными названиями
-                способов выпадал за пределы экрана */}
-            <CustomSelect
-              listData={PLACING_WAYS_ALL}
-              selectedValue={watchedPlacingWay || null}
-              placeholder="Выберите способ"
-              getKey={(way) => way.code}
-              getLabel={(way) => way.label}
-              renderItem={(way) => way.label}
-              searchable
-              searchPlaceholder="Поиск способа закупки…"
-              onClick={(_key, way) =>
-                setValue("placingWayCode", way.code, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            {auctionValidation.hasViolation &&
-              auctionValidation.warningMessage && (
-                <div className={block("alert-warning")} role="alert">
-                  <div>{auctionValidation.warningMessage}</div>
-                  {!isReadOnly && (
-                    <button
-                      type="button"
-                      className={block("link-btn")}
-                      onClick={() => setValue("placingWayCode", "EA20")}
-                    >
-                      Установить электронный аукцион (EA20)
-                    </button>
-                  )}
-                </div>
-              )}
-            {!auctionValidation.hasViolation &&
-              auctionValidation.infoMessage && (
-                <span className={block("hint")}>
-                  {auctionValidation.infoMessage}
-                </span>
-              )}
-          </div>
-
-          {/* Основание процедуры и проект контракта: протокол-основание,
-              номер заявки победителя, структурированная форма и файлы
-              переносятся в извещение и проект контракта без ручного ввода */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("subblock")}>
-              <h3 className={block("subtitle")}>
-                Основание процедуры и проект контракта
-              </h3>
-              <div className={block("grid")}>
-                <div className={block("field")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="note-protocol-name"
-                  >
-                    Протокол-основание — наименование
-                  </label>
-                  <input
-                    id="note-protocol-name"
-                    className={block("input")}
-                    placeholder="Протокол подведения итогов"
-                    {...register("protocolName")}
-                  />
-                </div>
-                <div className={block("field")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="note-protocol-number"
-                  >
-                    Номер протокола
-                  </label>
-                  <input
-                    id="note-protocol-number"
-                    className={block("input")}
-                    placeholder="1"
-                    {...register("protocolNumber")}
-                  />
-                </div>
-                <div className={block("field")}>
-                  <label
-                    className={block("label")}
-                    htmlFor="note-protocol-date"
-                  >
-                    Дата публикации протокола
-                  </label>
-                  <input
-                    id="note-protocol-date"
-                    className={block("input")}
-                    type="date"
-                    {...register("protocolPublishDate")}
-                  />
-                </div>
-                <div className={block("field")}>
-                  <label className={block("label")} htmlFor="note-app-number">
-                    Номер заявки победителя
-                  </label>
-                  <input
-                    id="note-app-number"
-                    className={block("input")}
-                    placeholder="1"
-                    {...register("appNumber")}
-                  />
-                </div>
-              </div>
-
-              <CustomCheckbox
-                label="Проект контракта формируется в структурированной форме"
-                checked={watchedStructuredForm}
-                disabled={isReadOnly}
-                onChange={(event) =>
-                  setValue("isStructuredForm", event.target.checked, {
+      {/* 3. НМЦК: отдельный блок сразу после ООЗ. ООЗ задаёт количество и
+          единицу измерения, НМЦК — цену за единицу и стоимость объектов */}
+      {oozReady && (
+        <fieldset className={block("section")} disabled={isReadOnly}>
+          <legend>3. Обоснование НМЦК (ст. 22 Закона № 44-ФЗ)</legend>
+          <div className={block("grid")}>
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="note-nmck">
+                НМЦК, рублей *
+              </label>
+              <MoneyInput
+                id="note-nmck"
+                className={block("input")}
+                value={watch("initialMaxPrice")}
+                ariaLabel="Начальная (максимальная) цена контракта"
+                onChange={(next) =>
+                  setValue("initialMaxPrice", next ? String(next) : "", {
                     shouldDirty: true,
+                    shouldValidate: true,
                   })
                 }
               />
-              {!watchedStructuredForm && (
-                <span className={block("hint")}>
-                  При неструктурированной форме ЕИС требует приложить файлы
-                  проекта контракта — без них документ будет отклонён.
+              <span className={block("hint")}>
+                По умолчанию — сумма из обоснования, если расчёт выполнен;
+                иначе объём финансового обеспечения из плана-графика.
+              </span>
+              {errorText("initialMaxPrice") && (
+                <span className={block("error")}>
+                  {errorText("initialMaxPrice")}
                 </span>
               )}
-
-              <div className={block("file-list")}>
-                {contractProjectFileFields.map((field, fileIndex) => (
-                  <div className={block("file-row")} key={field.id}>
-                    <input
-                      className={block("input")}
-                      placeholder="Имя файла проекта контракта"
-                      {...register(
-                        `contractProjectFiles.${fileIndex}.fileName`,
-                      )}
-                    />
-                    <input
-                      className={block("input")}
-                      placeholder="Описание"
-                      {...register(
-                        `contractProjectFiles.${fileIndex}.description`,
-                      )}
-                    />
-                    <button
-                      type="button"
-                      className={block("remove")}
-                      onClick={() => removeContractProjectFile(fileIndex)}
-                    >
-                      Убрать
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className={block("add")}
-                  onClick={() =>
-                    appendContractProjectFile({
-                      id: `contract-project-file-${Date.now()}`,
-                      fileName: "",
-                      description: "",
-                    })
-                  }
-                >
-                  Добавить файл проекта контракта
-                </button>
-              </div>
             </div>
-          </div>
 
-          {/* Критерии оценки заявок — рядом со способом закупки, чтобы было
-              видно, за что и как оцениваются заявки */}
-          {evaluationApplies && (
             <div className={block("field", ["wide"])}>
-              <div className={block("evaluation-box")}>
-                <div className={block("label-row")}>
-                  <strong>Критерии оценки заявок (ПП РФ № 2604)</strong>
-                  <span className={block("hint")}>
-                    Сумма значимости критериев — 100%
-                  </span>
-                </div>
-                <p className={block("hint")}>
-                  {procedureApplicabilityHint[evaluationKind]}
-                </p>
-
-                <div className={block("grid")}>
-                  <div className={block("field")}>
-                    <label
-                      className={block("label")}
-                      htmlFor="note-eval-category"
-                    >
-                      Категория объекта закупки (приложение N 2)
-                    </label>
-                    <Select
-                      id="note-eval-category"
-                      className={block("select")}
-                      {...register("evaluationObjectCategory")}
-                    >
-                      {mapping.categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.label}
-                        </option>
-                      ))}
-                    </Select>
-                    <span className={block("hint")}>
-                      Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
-                      {evaluationLimits.maxExpenses === null
-                        ? "не применяются"
-                        : `не более ${evaluationLimits.maxExpenses}%`}
-                      , характеристики и квалификация — не более{" "}
-                      {evaluationLimits.maxNonCost}%.
-                    </span>
-                  </div>
-
-                  <div className={block("field")}>
-                    <span className={block("label")}>
-                      Связь с ОКПД2 позиции плана-графика
-                    </span>
-                    {detectedCategory.matches.length === 0 ? (
-                      <span className={block("hint")}>
-                        Коды ОКПД2 в объектах закупки не указаны — категория
-                        выбрана вручную.
-                      </span>
-                    ) : (
-                      <span className={block("hint")}>
-                        {detectedCategory.matches
-                          .map(
-                            (match) =>
-                              `${match.code} → ${
-                                match.category
-                                  ? objectCategoryLimits(
-                                      match.category,
-                                      mapping,
-                                    ).label
-                                  : "правило не найдено"
-                              }`,
-                          )
-                          .join("; ")}
-                        {detectedCategory.conflict
-                          ? ". Объекты попали в разные категории — выберите категорию вручную."
-                          : ""}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className={block("evaluation-criteria")}>
-                  {evaluationCriteria.map((criterion, index) => (
-                    <div
-                      className={block("evaluation-criterion")}
-                      key={criterion.type}
-                    >
-                      <label className={block("checkbox")}>
-                        <input
-                          type="checkbox"
-                          {...register(`evaluationCriteria.${index}.enabled`)}
-                        />
-                        <span>{criterionShortLabels[criterion.type]}</span>
-                      </label>
-
-                      {criterion.enabled && (
-                        <>
-                          <div className={block("evaluation-criterion-head")}>
-                            <label className={block("label")}>
-                              Значимость критерия, %
-                            </label>
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              step="0.01"
-                              className={block("input", ["code"])}
-                              {...register(
-                                `evaluationCriteria.${index}.weightPercent`,
-                              )}
-                            />
-                          </div>
-                          <p className={block("hint")}>
-                            {criterionFormulaText[criterion.type]}
-                          </p>
-
-                          {criterion.type !== "price" && (
-                            <div className={block("indicator-list")}>
-                              <span className={block("label")}>
-                                Детализирующие показатели критерия (сумма
-                                значимости — 100%)
-                              </span>
-                              {criterion.indicators.map((_, indicatorIndex) => (
-                                <div
-                                  className={block("indicator-row")}
-                                  key={indicatorIndex}
-                                >
-                                  <input
-                                    className={block("input")}
-                                    placeholder="Наименование показателя"
-                                    aria-label={`Показатель ${indicatorIndex + 1}`}
-                                    {...register(
-                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.name`,
-                                    )}
-                                  />
-                                  <input
-                                    className={block("input", ["code"])}
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    step="0.01"
-                                    placeholder="%"
-                                    aria-label={`Значимость показателя ${indicatorIndex + 1}, %`}
-                                    {...register(
-                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.weightPercent`,
-                                    )}
-                                  />
-                                  <Select
-                                    className={block("select")}
-                                    aria-label={`Направление оценки показателя ${indicatorIndex + 1}`}
-                                    {...register(
-                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.best`,
-                                    )}
-                                  >
-                                    {BEST_DIRECTIONS.map((direction) => (
-                                      <option key={direction} value={direction}>
-                                        {bestDirectionLabels[direction]}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                  <Select
-                                    className={block("select")}
-                                    aria-label={`Способ оценки показателя ${indicatorIndex + 1}`}
-                                    {...register(
-                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.scoring`,
-                                    )}
-                                  >
-                                    {SCORING_MODES.map((mode) => (
-                                      <option key={mode} value={mode}>
-                                        {scoringModeLabels[mode]}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                  <button
-                                    type="button"
-                                    className={block("danger-btn")}
-                                    onClick={() =>
-                                      removeCriterionIndicator(
-                                        index,
-                                        indicatorIndex,
-                                      )
-                                    }
-                                  >
-                                    Удалить
-                                  </button>
-                                </div>
-                              ))}
-                              <button
-                                type="button"
-                                className={block("link-btn")}
-                                onClick={() => addCriterionIndicator(index)}
-                              >
-                                + Добавить показатель
-                              </button>
-                              <span className={block("hint")}>
-                                {indicatorFormulaHint}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {evaluationIssues.length > 0 && (
-                  <div className={block("evaluation-issues")}>
-                    {evaluationIssues.map((issue, index) => (
-                      <div
-                        key={`${issue.level}-${index}`}
-                        className={block("alert-warning")}
-                        role="alert"
-                      >
-                        {issue.level === "error" ? "Ошибка: " : "Внимание: "}
-                        {issue.message}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Сроки поставки: относительные или абсолютные */}
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>Срок поставки / исполнения</span>
-            <div className={block("subbox")}>
-              <div className={block("radio-row")}>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    value="relative"
-                    checked={watchedDeliveryMode === "relative"}
-                    onChange={() => setValue("deliveryTermMode", "relative")}
-                  />
-                  <span>Относительный срок (в днях от даты заключения)</span>
-                </label>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    value="absolute"
-                    checked={watchedDeliveryMode === "absolute"}
-                    onChange={() => setValue("deliveryTermMode", "absolute")}
-                  />
-                  <span>Абсолютный срок (календарными датами)</span>
-                </label>
-              </div>
-
-              {watchedDeliveryMode === "relative" ? (
-                <div className={block("grid", ["aligned"])}>
-                  <div className={block("field", ["wide"])}>
-                    <label className={block("checkbox")}>
-                      <input
-                        type="checkbox"
-                        {...register("deliveryTermFromContractDate")}
-                      />
-                      <span>С даты заключения контракта</span>
-                    </label>
-                  </div>
-                  <div className={block("field")}>
-                    <label
-                      className={block("label")}
-                      htmlFor="note-start-offset"
-                    >
-                      {watchedDeliveryFromContract
-                        ? "Начало через (дней с даты заключения контракта)"
-                        : "Начало через (дней с даты, указанной в закупке)"}
-                    </label>
-                    <input
-                      id="note-start-offset"
-                      type="number"
-                      min={0}
-                      className={block("input")}
-                      {...register("deliveryStartOffsetDays")}
-                    />
-                  </div>
-                  <div className={block("field")}>
-                    <label className={block("label")} htmlFor="note-exec-days">
-                      Срок поставки / выполнения (дней)
-                    </label>
-                    <input
-                      id="note-exec-days"
-                      type="number"
-                      min={0}
-                      className={block("input")}
-                      {...register("executionTermDays")}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className={block("grid", ["aligned"])}>
-                  <div className={block("field")}>
-                    <label className={block("label")} htmlFor="note-start-date">
-                      Дата начала исполнения
-                    </label>
-                    <input
-                      id="note-start-date"
-                      type="date"
-                      className={block("input")}
-                      {...register("desiredStartDate")}
-                    />
-                  </div>
-                  <div className={block("field")}>
-                    <label className={block("label")} htmlFor="note-end-date">
-                      Дата окончания исполнения
-                    </label>
-                    <input
-                      id="note-end-date"
-                      type="date"
-                      className={block("input")}
-                      {...register("desiredEndDate")}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Сроки приёмки: от события или датой */}
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>Срок приёмки (ст. 94 44-ФЗ)</span>
-            <div className={block("subbox")}>
-              <div className={block("radio-row")}>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    value="event"
-                    checked={watchedAcceptanceMode === "event"}
-                    onChange={() => setValue("acceptanceTermMode", "event")}
-                  />
-                  <span>От события (рабочих дней после наступления)</span>
-                </label>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    value="date"
-                    checked={watchedAcceptanceMode === "date"}
-                    onChange={() => setValue("acceptanceTermMode", "date")}
-                  />
-                  <span>Конкретной датой</span>
-                </label>
-              </div>
-
-              {watchedAcceptanceMode === "event" ? (
-                <div className={block("grid")}>
-                  <div className={block("field", ["wide"])}>
-                    <label
-                      className={block("label")}
-                      htmlFor="note-accept-event"
-                    >
-                      Событие, от которого исчисляется срок приёмки
-                    </label>
-                    <input
-                      id="note-accept-event"
-                      className={block("input")}
-                      {...register("acceptanceEventBase")}
-                      placeholder="с даты поступления заказчику документа о приёмке в ЕИС"
-                    />
-                  </div>
-                  <div className={block("field")}>
-                    <label
-                      className={block("label")}
-                      htmlFor="note-accept-days"
-                    >
-                      Срок приёмки (рабочих дней)
-                    </label>
-                    <input
-                      id="note-accept-days"
-                      type="number"
-                      min={1}
-                      className={block("input")}
-                      {...register("acceptanceTermDays")}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className={block("grid")}>
-                  <div className={block("field")}>
-                    <label
-                      className={block("label")}
-                      htmlFor="note-accept-date"
-                    >
-                      Дата окончания приёмки
-                    </label>
-                    <input
-                      id="note-accept-date"
-                      type="date"
-                      className={block("input")}
-                      {...register("acceptanceDate")}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Множественные места поставки — тот же каскад, что в Извещении */}
-          <div className={block("field", ["wide"])}>
-            <span className={block("label")}>
-              Места поставки товара, выполнения работы или оказания услуги
-            </span>
-            {placeFields.map((placeField, pIndex) => {
-              const currentPlace =
-                watch(`deliveryPlaces.${pIndex}`) ?? placeField;
-
-              return (
-                <div key={placeField.id} className={block("item-card")}>
-                  <div className={block("item-card-header")}>
-                    <span>Место поставки № {pIndex + 1}</span>
-                    {placeFields.length > 1 && (
-                      <button
-                        type="button"
-                        className={block("danger-btn")}
-                        disabled={isReadOnly}
-                        onClick={() => removePlace(pIndex)}
-                      >
-                        Удалить место поставки
-                      </button>
-                    )}
-                  </div>
-                  <AddressCascade
-                    idPrefix={`sz-delivery-place-${pIndex}`}
-                    disabled={isReadOnly}
-                    value={currentPlace}
-                    onChange={(next) =>
-                      setValue(
-                        `deliveryPlaces.${pIndex}`,
-                        { ...currentPlace, ...next },
-                        { shouldValidate: true },
-                      )
-                    }
-                  />
-                </div>
-              );
-            })}
-
-            <button
-              type="button"
-              className={block("link-btn")}
-              disabled={isReadOnly}
-              onClick={() =>
-                appendPlace(emptyDeliveryPlace(String(Date.now())))
-              }
-            >
-              + Добавить место поставки товара, выполнения работы или оказания
-              услуги
-            </button>
-          </div>
-        </div>
-      </fieldset>
-
-      {/* 4. Финансирование, КБК по годам, НМЦК, аванс и сопровождение */}
-      <fieldset className={block("section")} disabled={isReadOnly}>
-        <legend>
-          4. Финансирование, НМЦК, аванс и сопровождение (ст. 22, 34)
-        </legend>
-        <div className={block("grid")}>
-          {/* Верхний уровень раздела: НМЦК, аванс и сопровождение. Дальше
-              идёт расшифровка — КБК, обоснование, файл и запрос. */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("finance-summary")}>
-              <div className={block("finance-summary-col")}>
-                <div className={block("field")}>
-                  <label className={block("label")} htmlFor="note-nmck">
-                    НМЦК, рублей *
-                  </label>
-                  <MoneyInput
-                    id="note-nmck"
-                    className={block("input")}
-                    value={watch("initialMaxPrice")}
-                    ariaLabel="Начальная (максимальная) цена контракта"
-                    onChange={(next) =>
-                      setValue("initialMaxPrice", next ? String(next) : "", {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }
-                  />
-                  <span className={block("hint")}>
-                    По умолчанию — сумма из обоснования, если расчёт выполнен;
-                    иначе объём финансового обеспечения из плана-графика.
-                  </span>
-                  {errorText("initialMaxPrice") && (
-                    <span className={block("error")}>
-                      {errorText("initialMaxPrice")}
-                    </span>
-                  )}
-                </div>
-
-                <div className={block("field")}>
-                  <span className={block("label")}>Аванс</span>
-                  <label className={block("checkbox")}>
-                    <input type="checkbox" {...register("hasAdvance")} />
-                    <span>Предусмотрен аванс</span>
-                  </label>
-                  {watchedHasAdvance && (
-                    <input
-                      className={block("input")}
-                      {...register("advancePercent")}
-                      placeholder="Размер аванса, %"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Казначейское сопровождение — отдельный блок */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("support-block")}>
-              <span className={block("label")}>
-                Казначейское сопровождение (ст. 242.23 БК РФ)
-              </span>
-              <div className={block("radio-row")}>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    checked={!watchedTreasury}
-                    onChange={() => {
-                      setValue("requiresTreasurySupport", false);
-                      setValue("treasurySupportType", "");
-                    }}
-                  />
-                  <span>Не требуется</span>
-                </label>
-                <label className={block("radio")}>
-                  <input
-                    type="radio"
-                    checked={watchedTreasury}
-                    onChange={() => {
-                      setValue("requiresTreasurySupport", true);
-                      if (!watch("treasurySupportType")) {
-                        setValue("treasurySupportType", "full");
-                      }
-                    }}
-                  />
-                  <span>Требуется</span>
-                </label>
-              </div>
-              {watchedTreasury && (
-                <Select
-                  aria-label="Вид казначейского сопровождения"
-                  className={block("select")}
-                  {...register("treasurySupportType")}
-                >
-                  <option value="full">
-                    Полное казначейское сопровождение
-                  </option>
-                  <option value="advance_only">
-                    Казначейское сопровождение только аванса
-                  </option>
-                </Select>
-              )}
-              <span className={block("hint")}>
-                Казначейское сопровождение расчётов по контракту ведётся
-                территориальным органом Федерального казначейства.
-              </span>
-            </div>
-          </div>
-
-          {/* Банковское сопровождение — отдельный блок */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("support-block")}>
-              <span className={block("label")}>Банковское сопровождение</span>
-              <label className={block("checkbox")}>
-                <input type="checkbox" {...register("requiresBankSupport")} />
-                <span>Требуется банковское сопровождение контракта</span>
+              <label className={block("label")} htmlFor="note-price-basis">
+                Обоснование НМЦК (ст. 22 Закона № 44-ФЗ)
               </label>
-              <span className={block("hint")}>
-                Банковское сопровождение устанавливается отдельно от
-                казначейского — по решению заказчика.
-              </span>
+              <textarea
+                id="note-price-basis"
+                rows={2}
+                className={block("textarea")}
+                {...register("priceBasis")}
+              />
             </div>
-          </div>
 
-          {/* КБК: суммы правятся по годам, «всего» считается; превышать
-              объёмы плана-графика нельзя + запрос на изменение КБК/КВР */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("kbk-box")}>
-              <div className={block("label-row")}>
-                <strong>КБК и финансирование по годам</strong>
-                <span className={block("hint")}>
-                  Годовые суммы правятся в пределах объёмов плана-графика,
-                  «Всего» рассчитывается автоматически
-                </span>
-              </div>
-
-              <div style={{ overflowX: "auto" }}>
-                <table className={block("kbk-table")}>
-                  <thead>
-                    <tr>
-                      <th>КБК</th>
-                      {KBK_YEAR_COLUMNS.map((column) => (
-                        <th key={column.field}>{column.label}</th>
-                      ))}
-                      <th title="Итог по КБК рассчитывается по годовым суммам и не редактируется">
-                        Всего (расчёт), руб.
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kbkFundingRows.map((row) => (
-                      <tr key={row.id}>
-                        <td className={block("mono")}>
-                          {row.kbk || "не указан"}
-                        </td>
-                        {KBK_YEAR_COLUMNS.map((column) => {
-                          const amount = row[column.field] ?? 0;
-                          const limit = row[column.limitField];
-                          const overLimit =
-                            limit !== null && amount - limit > 0.005;
-
-                          return (
-                            <td key={column.field}>
-                              <div
-                                className={block("kbk-cell", [
-                                  overLimit ? "over" : "",
-                                ])}
-                              >
-                                <MoneyInput
-                                  className={block("input")}
-                                  value={row[column.field] ?? ""}
-                                  disabled={isReadOnly}
-                                  ariaLabel={`${column.label} по КБК ${row.kbk || "без кода"}`}
-                                  onChange={(next) =>
-                                    setKbkFundingYear(row, column.field, next)
-                                  }
-                                />
-                                {limit !== null && overLimit && (
-                                  <span className={block("error")}>
-                                    лимит ПГ: {formatRub(limit)}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td>
-                          <strong>{formatRub(row.total)}</strong>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {kbkLimitViolations.length > 0 && (
-                <div className={block("warning")}>
-                  Превышение объёмов плана-графика:{" "}
-                  {kbkLimitViolations
-                    .map(
-                      (issue) =>
-                        `${issue.kbk || "без кода"} (${issue.label}) — ${formatRub(issue.amount)} при лимите ${formatRub(issue.limit)}`,
-                    )
-                    .join("; ")}
-                </div>
-              )}
-
-              <div className={block("kbk-summary")}>
-                <span>
-                  Итого по КБК: <strong>{formatRub(kbkFundingTotal)}</strong>
-                </span>
-                <span>
-                  НМЦК: <strong>{formatRub(nmckValue)}</strong>
-                </span>
-                {Math.abs(kbkFundingDiff) > 0.01 && (
-                  <span className={block("warning")}>
-                    Расхождение: {formatRub(kbkFundingDiff)} — проверьте суммы
-                    по КБК
-                  </span>
-                )}
-              </div>
-
-              <label className={block("checkbox")}>
-                <input
-                  type="checkbox"
-                  disabled={isReadOnly || !canDisagreeKbk}
-                  {...register("kbkDisagreement")}
-                />
-                <span>
-                  Запрос на изменение КБК (КВР) — например, если бухгалтерия
-                  указала, что это не ОС или по выбранному КВР нельзя провести
-                  расход
-                </span>
-              </label>
-
-              {watchedKbkDisagreement && (
-                <div className={block("nested-box")}>
-                  <div className={block("grid")}>
-                    <div className={block("field")}>
-                      <label
-                        className={block("label")}
-                        htmlFor="note-kbk-suggested"
-                      >
-                        Предлагаемый КБК
-                      </label>
-                      <input
-                        id="note-kbk-suggested"
-                        className={block("input")}
-                        disabled={isReadOnly || !canDisagreeKbk}
-                        {...register("kbkSuggested")}
-                        placeholder="20-значный код КБК"
-                      />
-                    </div>
-                    <div className={block("field", ["wide"])}>
-                      <label
-                        className={block("label")}
-                        htmlFor="note-kbk-comment"
-                      >
-                        Обоснование запроса на изменение КБК в ПГ
-                      </label>
-                      <input
-                        id="note-kbk-comment"
-                        className={block("input")}
-                        disabled={isReadOnly || !canDisagreeKbk}
-                        {...register("kbkDisagreementComment")}
-                        placeholder="Укажите замечание бухгалтерии / предлагаемый КВР и КОСГУ…"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-budget-level">
-              Уровень бюджета заказчика
-            </label>
-            <input
-              id="note-budget-level"
-              className={block("input", ["readonly"])}
-              value={orgBudgetLevelLabel}
-              readOnly
-              disabled
-            />
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-funding-source">
-              Источник финансирования (текстом)
-            </label>
-            <input
-              id="note-funding-source"
-              className={block("input")}
-              {...register("fundingSource")}
-              placeholder="Бюджет Курской области / средства ОМС / ПД…"
-            />
-          </div>
-
-          <div className={block("field", ["wide"])}>
-            <label className={block("label")} htmlFor="note-price-basis">
-              Обоснование НМЦК (ст. 22 Закона № 44-ФЗ)
-            </label>
-            <textarea
-              id="note-price-basis"
-              rows={2}
-              className={block("textarea")}
-              {...register("priceBasis")}
-            />
-          </div>
-
-          {/* Файл обоснования НМЦК, запрос на него и кнопка провалиться/начать делать расчёт */}
-          <div className={block("field", ["wide"])}>
+            {/* Файл обоснования НМЦК, запрос на него и кнопка провалиться/начать делать расчёт */}
+            <div className={block("field", ["wide"])}>
             <div className={block("nmck-box")}>
               <div className={block("label-row")}>
                 <strong>
@@ -3734,19 +2871,6 @@ export default function PurchaseNoteModal({
                   </button>
                 </div>
               </div>
-
-              {!oozReady && (
-                <div className={block("alert-warning")} role="status">
-                  <strong>Сначала описание объекта закупки.</strong> Пока ООЗ не
-                  сформирован и набор объектов не признан конечным, задание на
-                  подготовку НМЦК и расчёт заблокированы: для сопоставимых цен
-                  нужны идентичные или сопоставимые товары, а без описания
-                  невозможно сформулировать запрос.
-                  {nmckMethodSoft
-                    ? " Для тарифного и затратного методов ограничение мягче, но их состав тоже может включать товар — проверьте описание."
-                    : ""}
-                </div>
-              )}
 
               {watchedNmckCalculation && (
                 <div className={block("nmck-card")}>
@@ -4476,6 +3600,9 @@ export default function PurchaseNoteModal({
                     setValue("priceBasis", basisText);
                     setValue("nmckOffers", record.offers);
                     setValue("nmckCalculation", record);
+                    // Цена за единицу и стоимость объектов — из НМЦК,
+                    // количество остаётся из ООЗ
+                    applyNmckToItems(record.nmckTotal);
                     setValue(
                       "nmckFileName",
                       `Обоснование_НМЦК_СЗ_${watch("noteNumber") || "черновик"}.docx`,
@@ -4495,8 +3622,911 @@ export default function PurchaseNoteModal({
               )}
             </div>
           </div>
+          </div>
+        </fieldset>
+      )}
+
+      {/* 4. Способ, относительные/абсолютные сроки поставки, приёмка, места */}
+      {laterSectionsReady && (
+      <fieldset className={block("section")} disabled={isReadOnly}>
+        <legend>
+          4. Способ определения поставщика, сроки поставки, приёмки и места
+        </legend>
+        <div className={block("grid")}>
+          <div className={block("field")}>
+            <span className={block("label")}>
+              Способ определения поставщика
+            </span>
+            {/* Кастомный список: нативный select с длинными названиями
+                способов выпадал за пределы экрана */}
+            <CustomSelect
+              listData={PLACING_WAYS_ALL}
+              selectedValue={watchedPlacingWay || null}
+              placeholder="Выберите способ"
+              getKey={(way) => way.code}
+              getLabel={(way) => way.label}
+              renderItem={(way) => way.label}
+              searchable
+              searchPlaceholder="Поиск способа закупки…"
+              onClick={(_key, way) =>
+                setValue("placingWayCode", way.code, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+            {auctionValidation.hasViolation &&
+              auctionValidation.warningMessage && (
+                <div className={block("alert-warning")} role="alert">
+                  <div>{auctionValidation.warningMessage}</div>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className={block("link-btn")}
+                      onClick={() => setValue("placingWayCode", "EA20")}
+                    >
+                      Установить электронный аукцион (EA20)
+                    </button>
+                  )}
+                </div>
+              )}
+            {!auctionValidation.hasViolation &&
+              auctionValidation.infoMessage && (
+                <span className={block("hint")}>
+                  {auctionValidation.infoMessage}
+                </span>
+              )}
+          </div>
+
+          {/* Основание процедуры и проект контракта: протокол-основание,
+              номер заявки победителя, структурированная форма и файлы
+              переносятся в извещение и проект контракта без ручного ввода */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("subblock")}>
+              <h3 className={block("subtitle")}>
+                Основание процедуры и проект контракта
+              </h3>
+              <div className={block("grid")}>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-name"
+                  >
+                    Протокол-основание — наименование
+                  </label>
+                  <input
+                    id="note-protocol-name"
+                    className={block("input")}
+                    placeholder="Протокол подведения итогов"
+                    {...register("protocolName")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-number"
+                  >
+                    Номер протокола
+                  </label>
+                  <input
+                    id="note-protocol-number"
+                    className={block("input")}
+                    placeholder="1"
+                    {...register("protocolNumber")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label
+                    className={block("label")}
+                    htmlFor="note-protocol-date"
+                  >
+                    Дата публикации протокола
+                  </label>
+                  <input
+                    id="note-protocol-date"
+                    className={block("input")}
+                    type="date"
+                    {...register("protocolPublishDate")}
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label className={block("label")} htmlFor="note-app-number">
+                    Номер заявки победителя
+                  </label>
+                  <input
+                    id="note-app-number"
+                    className={block("input")}
+                    placeholder="1"
+                    {...register("appNumber")}
+                  />
+                </div>
+              </div>
+
+              <CustomCheckbox
+                label="Проект контракта формируется в структурированной форме"
+                checked={watchedStructuredForm}
+                disabled={isReadOnly}
+                onChange={(event) =>
+                  setValue("isStructuredForm", event.target.checked, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              {!watchedStructuredForm && (
+                <span className={block("hint")}>
+                  При неструктурированной форме ЕИС требует приложить файлы
+                  проекта контракта — без них документ будет отклонён.
+                </span>
+              )}
+
+              <div className={block("file-list")}>
+                {contractProjectFileFields.map((field, fileIndex) => (
+                  <div className={block("file-row")} key={field.id}>
+                    <input
+                      className={block("input")}
+                      placeholder="Имя файла проекта контракта"
+                      {...register(
+                        `contractProjectFiles.${fileIndex}.fileName`,
+                      )}
+                    />
+                    <input
+                      className={block("input")}
+                      placeholder="Описание"
+                      {...register(
+                        `contractProjectFiles.${fileIndex}.description`,
+                      )}
+                    />
+                    <button
+                      type="button"
+                      className={block("remove")}
+                      onClick={() => removeContractProjectFile(fileIndex)}
+                    >
+                      Убрать
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className={block("add")}
+                  onClick={() =>
+                    appendContractProjectFile({
+                      id: `contract-project-file-${Date.now()}`,
+                      fileName: "",
+                      description: "",
+                    })
+                  }
+                >
+                  Добавить файл проекта контракта
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Критерии оценки заявок — рядом со способом закупки, чтобы было
+              видно, за что и как оцениваются заявки */}
+          {evaluationApplies && (
+            <div className={block("field", ["wide"])}>
+              <div className={block("evaluation-box")}>
+                <div className={block("label-row")}>
+                  <strong>Критерии оценки заявок (ПП РФ № 2604)</strong>
+                  <span className={block("hint")}>
+                    Сумма значимости критериев — 100%
+                  </span>
+                </div>
+                <p className={block("hint")}>
+                  {procedureApplicabilityHint[evaluationKind]}
+                </p>
+
+                <div className={block("grid")}>
+                  <div className={block("field")}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-eval-category"
+                    >
+                      Категория объекта закупки (приложение N 2)
+                    </label>
+                    <Select
+                      id="note-eval-category"
+                      className={block("select")}
+                      {...register("evaluationObjectCategory")}
+                    >
+                      {mapping.categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </Select>
+                    <span className={block("hint")}>
+                      Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
+                      {evaluationLimits.maxExpenses === null
+                        ? "не применяются"
+                        : `не более ${evaluationLimits.maxExpenses}%`}
+                      , характеристики и квалификация — не более{" "}
+                      {evaluationLimits.maxNonCost}%.
+                    </span>
+                  </div>
+
+                  <div className={block("field")}>
+                    <span className={block("label")}>
+                      Связь с ОКПД2 позиции плана-графика
+                    </span>
+                    {detectedCategory.matches.length === 0 ? (
+                      <span className={block("hint")}>
+                        Коды ОКПД2 в объектах закупки не указаны — категория
+                        выбрана вручную.
+                      </span>
+                    ) : (
+                      <span className={block("hint")}>
+                        {detectedCategory.matches
+                          .map(
+                            (match) =>
+                              `${match.code} → ${
+                                match.category
+                                  ? objectCategoryLimits(
+                                      match.category,
+                                      mapping,
+                                    ).label
+                                  : "правило не найдено"
+                              }`,
+                          )
+                          .join("; ")}
+                        {detectedCategory.conflict
+                          ? ". Объекты попали в разные категории — выберите категорию вручную."
+                          : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={block("evaluation-criteria")}>
+                  {evaluationCriteria.map((criterion, index) => (
+                    <div
+                      className={block("evaluation-criterion")}
+                      key={criterion.type}
+                    >
+                      <label className={block("checkbox")}>
+                        <input
+                          type="checkbox"
+                          {...register(`evaluationCriteria.${index}.enabled`)}
+                        />
+                        <span>{criterionShortLabels[criterion.type]}</span>
+                      </label>
+
+                      {criterion.enabled && (
+                        <>
+                          <div className={block("evaluation-criterion-head")}>
+                            <label className={block("label")}>
+                              Значимость критерия, %
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step="0.01"
+                              className={block("input", ["code"])}
+                              {...register(
+                                `evaluationCriteria.${index}.weightPercent`,
+                              )}
+                            />
+                          </div>
+                          <p className={block("hint")}>
+                            {criterionFormulaText[criterion.type]}
+                          </p>
+
+                          {criterion.type !== "price" && (
+                            <div className={block("indicator-list")}>
+                              <span className={block("label")}>
+                                Детализирующие показатели критерия (сумма
+                                значимости — 100%)
+                              </span>
+                              {criterion.indicators.map((_, indicatorIndex) => (
+                                <div
+                                  className={block("indicator-row")}
+                                  key={indicatorIndex}
+                                >
+                                  <input
+                                    className={block("input")}
+                                    placeholder="Наименование показателя"
+                                    aria-label={`Показатель ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.name`,
+                                    )}
+                                  />
+                                  <input
+                                    className={block("input", ["code"])}
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    step="0.01"
+                                    placeholder="%"
+                                    aria-label={`Значимость показателя ${indicatorIndex + 1}, %`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.weightPercent`,
+                                    )}
+                                  />
+                                  <Select
+                                    className={block("select")}
+                                    aria-label={`Направление оценки показателя ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.best`,
+                                    )}
+                                  >
+                                    {BEST_DIRECTIONS.map((direction) => (
+                                      <option key={direction} value={direction}>
+                                        {bestDirectionLabels[direction]}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                  <Select
+                                    className={block("select")}
+                                    aria-label={`Способ оценки показателя ${indicatorIndex + 1}`}
+                                    {...register(
+                                      `evaluationCriteria.${index}.indicators.${indicatorIndex}.scoring`,
+                                    )}
+                                  >
+                                    {SCORING_MODES.map((mode) => (
+                                      <option key={mode} value={mode}>
+                                        {scoringModeLabels[mode]}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                  <button
+                                    type="button"
+                                    className={block("danger-btn")}
+                                    onClick={() =>
+                                      removeCriterionIndicator(
+                                        index,
+                                        indicatorIndex,
+                                      )
+                                    }
+                                  >
+                                    Удалить
+                                  </button>
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                className={block("link-btn")}
+                                onClick={() => addCriterionIndicator(index)}
+                              >
+                                + Добавить показатель
+                              </button>
+                              <span className={block("hint")}>
+                                {indicatorFormulaHint}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {evaluationIssues.length > 0 && (
+                  <div className={block("evaluation-issues")}>
+                    {evaluationIssues.map((issue, index) => (
+                      <div
+                        key={`${issue.level}-${index}`}
+                        className={block("alert-warning")}
+                        role="alert"
+                      >
+                        {issue.level === "error" ? "Ошибка: " : "Внимание: "}
+                        {issue.message}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Сроки поставки: относительные или абсолютные */}
+          <div className={block("field", ["wide"])}>
+            <span className={block("label")}>Срок поставки / исполнения</span>
+            <div className={block("subbox")}>
+              <div className={block("radio-row")}>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="relative"
+                    checked={watchedDeliveryMode === "relative"}
+                    onChange={() => setValue("deliveryTermMode", "relative")}
+                  />
+                  <span>Относительный срок (в днях от даты заключения)</span>
+                </label>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="absolute"
+                    checked={watchedDeliveryMode === "absolute"}
+                    onChange={() => setValue("deliveryTermMode", "absolute")}
+                  />
+                  <span>Абсолютный срок (календарными датами)</span>
+                </label>
+              </div>
+
+              {watchedDeliveryMode === "relative" ? (
+                <div className={block("grid", ["aligned"])}>
+                  <div className={block("field", ["wide"])}>
+                    <label className={block("checkbox")}>
+                      <input
+                        type="checkbox"
+                        {...register("deliveryTermFromContractDate")}
+                      />
+                      <span>С даты заключения контракта</span>
+                    </label>
+                  </div>
+                  <div className={block("field")}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-start-offset"
+                    >
+                      {watchedDeliveryFromContract
+                        ? "Начало через (дней с даты заключения контракта)"
+                        : "Начало через (дней с даты, указанной в закупке)"}
+                    </label>
+                    <input
+                      id="note-start-offset"
+                      type="number"
+                      min={0}
+                      className={block("input")}
+                      {...register("deliveryStartOffsetDays")}
+                    />
+                  </div>
+                  <div className={block("field")}>
+                    <label className={block("label")} htmlFor="note-exec-days">
+                      Срок поставки / выполнения (дней)
+                    </label>
+                    <input
+                      id="note-exec-days"
+                      type="number"
+                      min={0}
+                      className={block("input")}
+                      {...register("executionTermDays")}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className={block("grid", ["aligned"])}>
+                  <div className={block("field")}>
+                    <label className={block("label")} htmlFor="note-start-date">
+                      Дата начала исполнения
+                    </label>
+                    <input
+                      id="note-start-date"
+                      type="date"
+                      className={block("input")}
+                      {...register("desiredStartDate")}
+                    />
+                  </div>
+                  <div className={block("field")}>
+                    <label className={block("label")} htmlFor="note-end-date">
+                      Дата окончания исполнения
+                    </label>
+                    <input
+                      id="note-end-date"
+                      type="date"
+                      className={block("input")}
+                      {...register("desiredEndDate")}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Сроки приёмки: от события или датой */}
+          <div className={block("field", ["wide"])}>
+            <span className={block("label")}>Срок приёмки (ст. 94 44-ФЗ)</span>
+            <div className={block("subbox")}>
+              <div className={block("radio-row")}>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="event"
+                    checked={watchedAcceptanceMode === "event"}
+                    onChange={() => setValue("acceptanceTermMode", "event")}
+                  />
+                  <span>От события (рабочих дней после наступления)</span>
+                </label>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    value="date"
+                    checked={watchedAcceptanceMode === "date"}
+                    onChange={() => setValue("acceptanceTermMode", "date")}
+                  />
+                  <span>Конкретной датой</span>
+                </label>
+              </div>
+
+              {watchedAcceptanceMode === "event" ? (
+                <div className={block("grid")}>
+                  <div className={block("field", ["wide"])}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-accept-event"
+                    >
+                      Событие, от которого исчисляется срок приёмки
+                    </label>
+                    <input
+                      id="note-accept-event"
+                      className={block("input")}
+                      {...register("acceptanceEventBase")}
+                      placeholder="с даты поступления заказчику документа о приёмке в ЕИС"
+                    />
+                  </div>
+                  <div className={block("field")}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-accept-days"
+                    >
+                      Срок приёмки (рабочих дней)
+                    </label>
+                    <input
+                      id="note-accept-days"
+                      type="number"
+                      min={1}
+                      className={block("input")}
+                      {...register("acceptanceTermDays")}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className={block("grid")}>
+                  <div className={block("field")}>
+                    <label
+                      className={block("label")}
+                      htmlFor="note-accept-date"
+                    >
+                      Дата окончания приёмки
+                    </label>
+                    <input
+                      id="note-accept-date"
+                      type="date"
+                      className={block("input")}
+                      {...register("acceptanceDate")}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Множественные места поставки — тот же каскад, что в Извещении */}
+          <div className={block("field", ["wide"])}>
+            <span className={block("label")}>
+              Места поставки товара, выполнения работы или оказания услуги
+            </span>
+            {placeFields.map((placeField, pIndex) => {
+              const currentPlace =
+                watch(`deliveryPlaces.${pIndex}`) ?? placeField;
+
+              return (
+                <div key={placeField.id} className={block("item-card")}>
+                  <div className={block("item-card-header")}>
+                    <span>Место поставки № {pIndex + 1}</span>
+                    {placeFields.length > 1 && (
+                      <button
+                        type="button"
+                        className={block("danger-btn")}
+                        disabled={isReadOnly}
+                        onClick={() => removePlace(pIndex)}
+                      >
+                        Удалить место поставки
+                      </button>
+                    )}
+                  </div>
+                  <AddressCascade
+                    idPrefix={`sz-delivery-place-${pIndex}`}
+                    disabled={isReadOnly}
+                    value={currentPlace}
+                    onChange={(next) =>
+                      setValue(
+                        `deliveryPlaces.${pIndex}`,
+                        { ...currentPlace, ...next },
+                        { shouldValidate: true },
+                      )
+                    }
+                  />
+                </div>
+              );
+            })}
+
+            <button
+              type="button"
+              className={block("link-btn")}
+              disabled={isReadOnly}
+              onClick={() =>
+                appendPlace(emptyDeliveryPlace(String(Date.now())))
+              }
+            >
+              + Добавить место поставки товара, выполнения работы или оказания
+              услуги
+            </button>
+          </div>
         </div>
       </fieldset>
+
+      )}
+
+      {/* 5. Финансирование, КБК по годам, аванс и сопровождение */}
+      {laterSectionsReady && (
+      <fieldset className={block("section")} disabled={isReadOnly}>
+        <legend>
+          5. Финансирование, аванс и сопровождение (ст. 34)
+        </legend>
+        <div className={block("grid")}>
+          {/* Верхний уровень раздела: аванс. НМЦК и её обоснование
+              вынесены в отдельный блок сразу после ООЗ. */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("finance-summary")}>
+              <div className={block("finance-summary-col")}>
+                <div className={block("field")}>
+                  <span className={block("label")}>Аванс</span>
+                  <label className={block("checkbox")}>
+                    <input type="checkbox" {...register("hasAdvance")} />
+                    <span>Предусмотрен аванс</span>
+                  </label>
+                  {watchedHasAdvance && (
+                    <input
+                      className={block("input")}
+                      {...register("advancePercent")}
+                      placeholder="Размер аванса, %"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Казначейское сопровождение — отдельный блок */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("support-block")}>
+              <span className={block("label")}>
+                Казначейское сопровождение (ст. 242.23 БК РФ)
+              </span>
+              <div className={block("radio-row")}>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    checked={!watchedTreasury}
+                    onChange={() => {
+                      setValue("requiresTreasurySupport", false);
+                      setValue("treasurySupportType", "");
+                    }}
+                  />
+                  <span>Не требуется</span>
+                </label>
+                <label className={block("radio")}>
+                  <input
+                    type="radio"
+                    checked={watchedTreasury}
+                    onChange={() => {
+                      setValue("requiresTreasurySupport", true);
+                      if (!watch("treasurySupportType")) {
+                        setValue("treasurySupportType", "full");
+                      }
+                    }}
+                  />
+                  <span>Требуется</span>
+                </label>
+              </div>
+              {watchedTreasury && (
+                <Select
+                  aria-label="Вид казначейского сопровождения"
+                  className={block("select")}
+                  {...register("treasurySupportType")}
+                >
+                  <option value="full">
+                    Полное казначейское сопровождение
+                  </option>
+                  <option value="advance_only">
+                    Казначейское сопровождение только аванса
+                  </option>
+                </Select>
+              )}
+              <span className={block("hint")}>
+                Казначейское сопровождение расчётов по контракту ведётся
+                территориальным органом Федерального казначейства.
+              </span>
+            </div>
+          </div>
+
+          {/* Банковское сопровождение — отдельный блок */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("support-block")}>
+              <span className={block("label")}>Банковское сопровождение</span>
+              <label className={block("checkbox")}>
+                <input type="checkbox" {...register("requiresBankSupport")} />
+                <span>Требуется банковское сопровождение контракта</span>
+              </label>
+              <span className={block("hint")}>
+                Банковское сопровождение устанавливается отдельно от
+                казначейского — по решению заказчика.
+              </span>
+            </div>
+          </div>
+
+          {/* КБК: суммы правятся по годам, «всего» считается; превышать
+              объёмы плана-графика нельзя + запрос на изменение КБК/КВР */}
+          <div className={block("field", ["wide"])}>
+            <div className={block("kbk-box")}>
+              <div className={block("label-row")}>
+                <strong>КБК и финансирование по годам</strong>
+                <span className={block("hint")}>
+                  Годовые суммы правятся в пределах объёмов плана-графика,
+                  «Всего» рассчитывается автоматически
+                </span>
+              </div>
+
+              <div style={{ overflowX: "auto" }}>
+                <table className={block("kbk-table")}>
+                  <thead>
+                    <tr>
+                      <th>КБК</th>
+                      {KBK_YEAR_COLUMNS.map((column) => (
+                        <th key={column.field}>{column.label}</th>
+                      ))}
+                      <th title="Итог по КБК рассчитывается по годовым суммам и не редактируется">
+                        Всего (расчёт), руб.
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kbkFundingRows.map((row) => (
+                      <tr key={row.id}>
+                        <td className={block("mono")}>
+                          {row.kbk || "не указан"}
+                        </td>
+                        {KBK_YEAR_COLUMNS.map((column) => {
+                          const amount = row[column.field] ?? 0;
+                          const limit = row[column.limitField];
+                          const overLimit =
+                            limit !== null && amount - limit > 0.005;
+
+                          return (
+                            <td key={column.field}>
+                              <div
+                                className={block("kbk-cell", [
+                                  overLimit ? "over" : "",
+                                ])}
+                              >
+                                <MoneyInput
+                                  className={block("input")}
+                                  value={row[column.field] ?? ""}
+                                  disabled={isReadOnly}
+                                  ariaLabel={`${column.label} по КБК ${row.kbk || "без кода"}`}
+                                  onChange={(next) =>
+                                    setKbkFundingYear(row, column.field, next)
+                                  }
+                                />
+                                {limit !== null && overLimit && (
+                                  <span className={block("error")}>
+                                    лимит ПГ: {formatRub(limit)}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                        <td>
+                          <strong>{formatRub(row.total)}</strong>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {kbkLimitViolations.length > 0 && (
+                <div className={block("warning")}>
+                  Превышение объёмов плана-графика:{" "}
+                  {kbkLimitViolations
+                    .map(
+                      (issue) =>
+                        `${issue.kbk || "без кода"} (${issue.label}) — ${formatRub(issue.amount)} при лимите ${formatRub(issue.limit)}`,
+                    )
+                    .join("; ")}
+                </div>
+              )}
+
+              <div className={block("kbk-summary")}>
+                <span>
+                  Итого по КБК: <strong>{formatRub(kbkFundingTotal)}</strong>
+                </span>
+                <span>
+                  НМЦК: <strong>{formatRub(nmckValue)}</strong>
+                </span>
+                {Math.abs(kbkFundingDiff) > 0.01 && (
+                  <span className={block("warning")}>
+                    Расхождение: {formatRub(kbkFundingDiff)} — проверьте суммы
+                    по КБК
+                  </span>
+                )}
+              </div>
+
+              <label className={block("checkbox")}>
+                <input
+                  type="checkbox"
+                  disabled={isReadOnly || !canDisagreeKbk}
+                  {...register("kbkDisagreement")}
+                />
+                <span>
+                  Запрос на изменение КБК (КВР) — например, если бухгалтерия
+                  указала, что это не ОС или по выбранному КВР нельзя провести
+                  расход
+                </span>
+              </label>
+
+              {watchedKbkDisagreement && (
+                <div className={block("nested-box")}>
+                  <div className={block("grid")}>
+                    <div className={block("field")}>
+                      <label
+                        className={block("label")}
+                        htmlFor="note-kbk-suggested"
+                      >
+                        Предлагаемый КБК
+                      </label>
+                      <input
+                        id="note-kbk-suggested"
+                        className={block("input")}
+                        disabled={isReadOnly || !canDisagreeKbk}
+                        {...register("kbkSuggested")}
+                        placeholder="20-значный код КБК"
+                      />
+                    </div>
+                    <div className={block("field", ["wide"])}>
+                      <label
+                        className={block("label")}
+                        htmlFor="note-kbk-comment"
+                      >
+                        Обоснование запроса на изменение КБК в ПГ
+                      </label>
+                      <input
+                        id="note-kbk-comment"
+                        className={block("input")}
+                        disabled={isReadOnly || !canDisagreeKbk}
+                        {...register("kbkDisagreementComment")}
+                        placeholder="Укажите замечание бухгалтерии / предлагаемый КВР и КОСГУ…"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className={block("field")}>
+            <label className={block("label")} htmlFor="note-budget-level">
+              Уровень бюджета заказчика
+            </label>
+            <input
+              id="note-budget-level"
+              className={block("input", ["readonly"])}
+              value={orgBudgetLevelLabel}
+              readOnly
+              disabled
+            />
+          </div>
+
+          <div className={block("field")}>
+            <label className={block("label")} htmlFor="note-funding-source">
+              Источник финансирования (текстом)
+            </label>
+            <input
+              id="note-funding-source"
+              className={block("input")}
+              {...register("fundingSource")}
+              placeholder="Бюджет Курской области / средства ОМС / ПД…"
+            />
+          </div>
+
+        </div>
+      </fieldset>
+
+      )}
 
       {!laterSectionsReady && (
         <div className={block("pending-notice")}>
@@ -4507,7 +4537,7 @@ export default function PurchaseNoteModal({
 
       {laterSectionsReady && (
         <>
-      {/* 5. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
+      {/* 6. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>
           5. СМП/СОНКО (ст. 30) и требования к участникам (ст. 31, ПП 1482, ПП
@@ -4865,10 +4895,10 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
-      {/* 6. Обеспечение заявки, контракта, гарантия качества и обеспечение гарантий */}
+      {/* 7. Обеспечение заявки, контракта, гарантия качества и обеспечение гарантий */}
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>
-          6. Обеспечение заявки, контракта, гарантия качества и реквизиты
+          7. Обеспечение заявки, контракта, гарантия качества и реквизиты
         </legend>
 
         <div className={block("toolbar-row")}>

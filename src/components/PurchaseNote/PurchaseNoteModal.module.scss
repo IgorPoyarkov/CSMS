@@ -543,6 +543,15 @@
       opacity: 0.78;
       cursor: not-allowed;
     }
+
+    // Наименование из ООЗ доступно только для чтения
+    &--readonly {
+      background: var(--stripe);
+      color: var(--text-secondary);
+      border-color: var(--border);
+      cursor: default;
+      resize: none;
+    }
   }
 
   &__error {

@@ -285,10 +285,10 @@ export default function ObjectDescriptionEditor({
             <label className={block("label")} htmlFor="ooz-title">
               Наименование объекта закупки *
             </label>
-            <input
+            <textarea
               id="ooz-title"
-              className={block("input")}
-              type="text"
+              className={block("textarea")}
+              rows={2}
               placeholder="Например: Поставка медицинской функциональной кровати"
               value={draft.title}
               onChange={(e) => patch("title", e.target.value)}

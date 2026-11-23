@@ -29,16 +29,75 @@ const priorityRank = new Map<string, number>(
   PRIORITY_OKEI_CODES.map((code, idx) => [code, idx]),
 );
 
+const okeiUnit = (
+  code: string,
+  name: string,
+  symbolRu: string,
+  symbolEn = "",
+  synonyms: string[] = [],
+): OkeiUnit => ({
+  code,
+  name,
+  symbolRu,
+  symbolEn,
+  section: "",
+  group: "",
+  synonyms,
+});
+
 /**
- * Справочник единиц измерения ОКЕИ, получаемый из публичного API через /api/okei.
- * Справочник содержит ~543 записи и практически неизменен, поэтому кэшируется на час.
+ * Локальный снимок часто используемых в закупках единиц ОКЕИ.
+ *
+ * Публичный API через /api/okei в рабочем контуре недоступен (404), поэтому
+ * без снимка выпадающий список оставался пустым и заказчик не мог выбрать
+ * реальную единицу измерения. Снимок не заменяет полный справочник: если API
+ * отвечает, его записи объединяются с локальным снимком.
+ */
+const FALLBACK_OKEI_UNITS: OkeiUnit[] = [
+  okeiUnit("796", "Штука", "шт", "pc", ["штука", "шт"]),
+  okeiUnit("876", "Условная единица", "усл. ед", "", ["условная единица"]),
+  okeiUnit("839", "Комплект", "компл", "", ["комплект"]),
+  okeiUnit("778", "Упаковка", "упак", "", ["упаковка"]),
+  okeiUnit("166", "Килограмм", "кг", "kg", ["килограмм"]),
+  okeiUnit("163", "Грамм", "г", "g", ["грамм"]),
+  okeiUnit("168", "Тонна", "т", "t", ["тонна"]),
+  okeiUnit("112", "Литр", "л", "l", ["литр"]),
+  okeiUnit("006", "Метр", "м", "m", ["метр"]),
+  okeiUnit("005", "Километр", "км", "km", ["километр"]),
+  okeiUnit("004", "Сантиметр", "см", "cm", ["сантиметр"]),
+  okeiUnit("003", "Миллиметр", "мм", "mm", ["миллиметр"]),
+  okeiUnit("055", "Квадратный метр", "м2", "m2", ["квадратный метр"]),
+  okeiUnit("113", "Кубический метр", "м3", "m3", ["кубический метр"]),
+  okeiUnit("356", "Час", "ч", "h", ["час"]),
+  okeiUnit("359", "Сутки", "сут", "", ["сутки", "день"]),
+  okeiUnit("362", "Месяц", "мес", "", ["месяц"]),
+  okeiUnit("212", "Ватт", "Вт", "W", ["ватт"]),
+  okeiUnit("214", "Киловатт", "кВт", "kW", ["киловатт"]),
+  okeiUnit("383", "Рубль", "руб", "", ["рубль", "руб."]),
+  okeiUnit("384", "Тысяча рублей", "тыс. руб", "", ["тысяча рублей"]),
+];
+
+const mergeOkeiUnits = (...lists: OkeiUnit[][]): OkeiUnit[] =>
+  Array.from(
+    new Map(lists.flat().map((unit) => [unit.code, unit])).values(),
+  );
+
+/**
+ * Справочник единиц измерения ОКЕИ: локальный снимок плюс данные публичного
+ * API через /api/okei, если он доступен. Статичен, поэтому кэшируется на час.
  */
 export const useOkeiDictionary = () =>
   useQuery<OkeiUnit[]>({
     queryKey: ["okeiRefs"],
     queryFn: async () => {
-      const { data } = await api.get("/okei");
-      return OkeiUnitListSchema.parse(data);
+      try {
+        const { data } = await api.get("/okei");
+        return mergeOkeiUnits(FALLBACK_OKEI_UNITS, OkeiUnitListSchema.parse(data));
+      } catch {
+        // API НСИ в контуре недоступен — работаем на локальном снимке,
+        // иначе селект единиц измерения остаётся пустым.
+        return FALLBACK_OKEI_UNITS;
+      }
     },
     staleTime: 60 * 60 * 1000,
     // Официальный справочник статичен: одна неудачная попытка — достаточно

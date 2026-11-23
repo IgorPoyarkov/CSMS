@@ -5,7 +5,7 @@ import {
   useKtruDictionary,
 } from "../../../services/KtruRef/ktruRef.api";
 import type { KtruRef } from "../../../services/KtruRef/ktruRef.schema";
-import Select from "../Select";
+import CustomSelect from "../CustomSelect";
 
 interface KtruSelectProps {
   /** Код ОКПД2 позиции: выдача ограничивается позициями каталога этого кода */
@@ -16,17 +16,22 @@ interface KtruSelectProps {
   onSelect: (item: KtruRef | null) => void;
   disabled?: boolean;
   placeholder?: string;
-  /** Класс нативного select (стили формы) */
+  /** Класс обёртки селекта (стили формы) */
   className?: string;
+}
+
+interface KtruOption {
+  code: string;
+  label: string;
+  item: KtruRef | null;
 }
 
 /**
  * Выбор позиции КТРУ для позиции объекта закупки.
  *
  * Бэкенд отдаёт КТРУ вместе с привязкой к ОКПД2, поэтому список сокращается
- * до позиций выбранного кода. Нативный select выбран намеренно: список
- * короткий (позиции одного ОКПД2), а выпадающий слой не обрезается
- * контейнерами таблицы.
+ * до позиций выбранного кода. Используется проектный кастомный селект с
+ * поиском: даже внутри одного ОКПД2 кодов может быть несколько десятков.
  */
 export default function KtruSelect({
   okpd2Code,
@@ -48,6 +53,19 @@ export default function KtruSelect({
         ? findKtruByOkpd2(local.data ?? [], okpd2Code)
         : (server.data ?? []),
     [server.isError, server.data, local.data, okpd2Code],
+  );
+
+  // Пустая позиция нужна, чтобы снять уже выбранный КТРУ
+  const options = useMemo<KtruOption[]>(
+    () => [
+      { code: "", label: placeholder, item: null },
+      ...items.map((item) => ({
+        code: item.ktruCode,
+        label: `${item.ktruCode} — ${item.name}`,
+        item,
+      })),
+    ],
+    [items, placeholder],
   );
 
   if (!okpd2Code) {
@@ -83,22 +101,18 @@ export default function KtruSelect({
   }
 
   return (
-    <Select
-      className={className}
-      value={ktruCode ?? ""}
+    <CustomSelect
+      listData={options}
+      selectedValue={ktruCode ?? ""}
+      placeholder={placeholder}
+      getKey={(option) => option.code}
+      getLabel={(option) => option.label}
+      getSearchText={(option) => `${option.code} ${option.label}`}
+      searchable
+      searchPlaceholder="Поиск по коду или наименованию КТРУ…"
       disabled={disabled}
-      onChange={(event) => {
-        const code = event.target.value;
-        const found = items.find((item) => item.ktruCode === code) ?? null;
-        onSelect(found);
-      }}
-    >
-      <option value="">{placeholder}</option>
-      {items.map((item) => (
-        <option key={item.ktruCode} value={item.ktruCode}>
-          {item.ktruCode} — {item.name}
-        </option>
-      ))}
-    </Select>
+      className={className}
+      onClick={(_code, option) => onSelect(option.item)}
+    />
   );
 }
