@@ -143,13 +143,28 @@ const Main = () => {
     Boolean(procurement.noticeNumber),
   );
 
+  // Уведомления на главной считаем только по контрактам текущего года
+  // (год заключения contractDate). В реестре лежат и прошлые годы, но их
+  // просрочки уже не требуют действий и только завышают счётчик.
+  // Этапы и платежи отсекаются сами: билдер ищет их родителя в этом же
+  // списке контрактов. Проекты контрактов, закупки и задачи КС остаются —
+  // они привязаны к году закупки/сроку задачи, а не к заключённому контракту.
+  const currentContractYear = todayIso.slice(0, 4);
+  const yearContracts = useMemo(
+    () =>
+      (registryContracts ?? []).filter(
+        (contract) => contract.contractDate?.slice(0, 4) === currentContractYear,
+      ),
+    [registryContracts, currentContractYear],
+  );
+
   // Уведомления о приближении сроков и рисках санкций 44-ФЗ
   const activeAlerts = useMemo(() => {
     if (!orgId) return [];
     const ackSet = new Set(ackStates.map((s) => s.notificationKey));
     return buildProcurementNotifications({
       todayIso,
-      contracts: registryContracts ?? [],
+      contracts: yearContracts,
       stages: allStages,
       payments: allPayments,
       contractProjects: contractProjects ?? [],
@@ -160,7 +175,7 @@ const Main = () => {
     orgId,
     ackStates,
     todayIso,
-    registryContracts,
+    yearContracts,
     allStages,
     allPayments,
     contractProjects,
