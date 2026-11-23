@@ -294,11 +294,28 @@ export default function ModernMotionLayer() {
     // грани, и рамка проходит сквозь текст заголовка. У border браузер
     // оставляет под легендой прорезь, а у box-shadow и псевдоэлемента кометы
     // прорези нет — на hover неоновая линия перечёркивала название раздела.
-    // Спокойная подсветка рамки для таких блоков живёт в _theme-modern.scss
-    // (правило fieldset:has(> legend)).
+    // Подсветка таких блоков живёт в _theme-modern.scss: там же, где раньше
+    // была кромка рамки, теперь горит сам заголовок (правило
+    // fieldset:has(> legend) > legend).
     const hasFieldsetLegend = (el: HTMLElement) =>
       el.tagName.toLowerCase() === "fieldset" &&
       el.querySelector(":scope > legend") !== null;
+
+    // Блок без собственной рамки неон не получает. Кромку рисует inset-слой
+    // box-shadow, а комета — псевдоэлемент по периметру: там, где рамки нет,
+    // линия возникает из пустоты и читается как непонятно откуда взявшаяся
+    // граница. Так вела себя форма контрактной службы: у самого <form> границ
+    // нет, а при наведении вокруг него загорался обведённый контур.
+    const hasOwnBorder = (el: HTMLElement) => {
+      const style = getComputedStyle(el);
+
+      return [
+        style.borderTopWidth,
+        style.borderRightWidth,
+        style.borderBottomWidth,
+        style.borderLeftWidth,
+      ].some((width) => (Number.parseFloat(width) || 0) > 0);
+    };
 
     const markPanels = () => {
       const minWidth = Math.min(
@@ -314,7 +331,7 @@ export default function ModernMotionLayer() {
         allowLift: boolean,
         allowComet: boolean,
       ) => {
-        if (hasFieldsetLegend(el)) {
+        if (hasFieldsetLegend(el) || !hasOwnBorder(el)) {
           el.removeAttribute("data-modern-comet");
           el.removeAttribute("data-modern-lift");
 
