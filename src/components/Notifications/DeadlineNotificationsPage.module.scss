@@ -271,6 +271,57 @@
   font-size: 14px;
 }
 
+// ─── Пагинация ──────────────────────────────────────────────────────────────
+// Уведомления вычисляются из серверных данных на клиенте, поэтому страницы
+// переключаются по готовому списку; блок показывает диапазон и общее число.
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--surface-accent);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.page-current {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 900px) {
   // Переключатель «показывать закрытые» — чекбокс с подписью: высоту задаём
   // label, чтобы по нему можно было попасть пальцем
@@ -279,6 +330,10 @@
   }
 
   .ack-btn {
+    min-height: 44px;
+  }
+
+  .page-btn {
     min-height: 44px;
   }
 }

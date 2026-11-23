@@ -29,6 +29,10 @@ export interface ProcurementDeadlineAlert {
   entityNumber?: string;
   entityName?: string;
   dueDate?: string;
+  // Год объекта: для контракта — год заключения, для этапа/платежа — год
+  // родительского контракта, для проекта/задачи — год срока. Нужен фильтру
+  // «по годам» в центре уведомлений; null — дат нет.
+  year?: number | null;
   daysRemaining: number | null;
   penaltyRisk44Fz: string;
   recommendation: string;
@@ -50,6 +54,12 @@ const parseIsoDate = (dateStr?: string): number | null => {
   }
   const ts = Date.parse(`${dateStr}T00:00:00Z`);
   return Number.isFinite(ts) ? ts : null;
+};
+
+const yearOf = (date?: string | null): number | null => {
+  const match = date ? /^(\d{4})-\d{2}-\d{2}$/.exec(date) : null;
+
+  return match ? Number(match[1]) : null;
 };
 
 export const diffDaysIso = (
@@ -145,6 +155,9 @@ export const buildProcurementNotifications = ({
           entityNumber: contract.contractNumber,
           entityName: contract.contractName,
           dueDate: contract.executionEndDate,
+          year:
+            yearOf(contract.contractDate) ??
+            yearOf(contract.executionEndDate),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ч. 6–8 ст. 34 44-ФЗ, ПП РФ № 1042: заказчик обязан направить требование об уплате пени (≥ 1/300 ставки ЦБ РФ) либо штрафа",
@@ -172,6 +185,7 @@ export const buildProcurementNotifications = ({
           entityNumber: contract.contractNumber,
           entityName: contract.contractName,
           dueDate: eisDue ?? undefined,
+          year: yearOf(contract.contractDate) ?? yearOf(eisDue),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ч. 3 ст. 103 44-ФЗ, ст. 7.31 КоАП РФ: штраф на должностное лицо до 20 000 ₽ за нарушение 3-дневного срока",
@@ -219,6 +233,7 @@ export const buildProcurementNotifications = ({
           entityNumber: `${parentContract.contractNumber} / Этап ${stage.stageNumber}`,
           entityName: stage.name,
           dueDate: stage.endDate,
+          year: yearOf(parentContract.contractDate) ?? yearOf(stage.endDate),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ч. 7 ст. 34 44-ФЗ: начисление пеней за нарушение промежуточных сроков исполнения этапов контракта",
@@ -250,6 +265,7 @@ export const buildProcurementNotifications = ({
           entityNumber: parentContract.contractNumber,
           entityName: stage.name,
           dueDate: payDue ?? undefined,
+          year: yearOf(parentContract.contractDate) ?? yearOf(payDue),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ч. 13.1 ст. 34 44-ФЗ, ст. 7.32.5 КоАП РФ: нарушение 7-дневного срока оплаты грозит штрафом 30 000–50 000 ₽ на должностное лицо",
@@ -276,6 +292,8 @@ export const buildProcurementNotifications = ({
         entityNumber: parentContract.contractNumber,
         entityName: parentContract.contractName,
         dueDate: payment.paymentDate || todayIso,
+        year:
+          yearOf(parentContract.contractDate) ?? yearOf(payment.paymentDate),
         daysRemaining: payment.paymentDate
           ? diffDaysIso(payment.paymentDate, todayIso)
           : 0,
@@ -306,6 +324,8 @@ export const buildProcurementNotifications = ({
           entityNumber: parentContract.contractNumber,
           entityName: parentContract.contractName,
           dueDate: payment.paymentDate,
+          year:
+            yearOf(parentContract.contractDate) ?? yearOf(payment.paymentDate),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ч. 13.1 ст. 34 44-ФЗ: несоблюдение сроков оплаты контракта (7 / 10 рабочих дней)",
@@ -342,6 +362,7 @@ export const buildProcurementNotifications = ({
           entityNumber: project.ikz || project.noticeNumber,
           entityName: project.contractName,
           dueDate: project.conclusionDate,
+          year: yearOf(project.conclusionDate),
           daysRemaining: days,
           penaltyRisk44Fz:
             "ст. 51 44-ФЗ, ст. 7.32 КоАП РФ: нарушение порядка и сроков заключения контракта (штраф до 50 000 ₽)",
@@ -377,6 +398,8 @@ export const buildProcurementNotifications = ({
         entityNumber: proc.noticeNumber,
         entityName: proc.name,
         dueDate: undefined,
+        year:
+          yearOf(proc.applicationStartDate) ?? yearOf(proc.summingUpDate),
         daysRemaining: null,
         penaltyRisk44Fz:
           "ч. 2 ст. 51 44-ФЗ: проект контракта размещается не позднее 2 рабочих дней со дня размещения итогового протокола",
@@ -406,6 +429,7 @@ export const buildProcurementNotifications = ({
         entityNumber: task.order158nPoolCode || undefined,
         entityName: task.title,
         dueDate: task.dueDate,
+        year: yearOf(task.dueDate),
         daysRemaining: days,
         penaltyRisk44Fz:
           task.legalBasis ||

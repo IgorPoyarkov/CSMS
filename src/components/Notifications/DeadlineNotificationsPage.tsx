@@ -52,7 +52,10 @@ export default function DeadlineNotificationsPage() {
   const [categoryFilter, setCategoryFilter] = useState<
     NotificationCategory | "all"
   >("all");
+  const [yearFilter, setYearFilter] = useState<number | "all" | "none">("all");
   const [showAcknowledged, setShowAcknowledged] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: user } = useFetchCurrentUser();
   const { data: organization } = useCurrentOrganization();
@@ -133,10 +136,43 @@ export default function DeadlineNotificationsPage() {
         if (categoryFilter !== "all" && item.category !== categoryFilter) {
           return false;
         }
+        if (yearFilter === "none" && item.year) return false;
+        if (typeof yearFilter === "number" && item.year !== yearFilter) {
+          return false;
+        }
         return true;
       }),
-    [allAlerts, ackMap, showAcknowledged, severityFilter, categoryFilter],
+    [
+      allAlerts,
+      ackMap,
+      showAcknowledged,
+      severityFilter,
+      categoryFilter,
+      yearFilter,
+    ],
   );
+
+  // Годы берём из самих уведомлений: пустые значения не показываем, а
+  // уведомления без дат доступны отдельным пунктом «Без года».
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    allAlerts.forEach((item) => {
+      if (item.year) years.add(item.year);
+    });
+    return [...years].sort((a, b) => b - a);
+  }, [allAlerts]);
+  const hasAlertsWithoutYear = useMemo(
+    () => allAlerts.some((item) => !item.year),
+    [allAlerts],
+  );
+
+  // Уведомления не хранятся на сервере: сервер отдаёт контракты, этапы,
+  // платежи и задачи, а список предупреждений вычисляется из них. Поэтому
+  // пагинация клиентская, по уже отфильтрованному списку.
+  const totalPages = Math.max(1, Math.ceil(visibleAlerts.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageAlerts = visibleAlerts.slice(pageStart, pageStart + pageSize);
 
   const formatDaysLabel = (days: number | null) => {
     if (days === null) return "Без точной даты";
@@ -195,7 +231,10 @@ export default function DeadlineNotificationsPage() {
             className={`${styles["filter-btn"]} ${
               severityFilter === "all" ? styles["filter-btn--active"] : ""
             }`}
-            onClick={() => setSeverityFilter("all")}
+            onClick={() => {
+              setSeverityFilter("all");
+              setPage(1);
+            }}
           >
             Все уровни
           </button>
@@ -206,7 +245,10 @@ export default function DeadlineNotificationsPage() {
               className={`${styles["filter-btn"]} ${
                 severityFilter === sev ? styles["filter-btn--active"] : ""
               }`}
-              onClick={() => setSeverityFilter(sev)}
+              onClick={() => {
+                setSeverityFilter(sev);
+                setPage(1);
+              }}
             >
               {SEVERITY_LABELS[sev]}
             </button>
@@ -217,9 +259,12 @@ export default function DeadlineNotificationsPage() {
           <Select
             className={styles["filter-btn"]}
             value={categoryFilter}
-            onChange={(e) =>
-              setCategoryFilter(e.target.value as NotificationCategory | "all")
-            }
+            onChange={(e) => {
+              setCategoryFilter(
+                e.target.value as NotificationCategory | "all",
+              );
+              setPage(1);
+            }}
             aria-label="Фильтр по разделу"
           >
             <option value="all">Все разделы</option>
@@ -232,11 +277,35 @@ export default function DeadlineNotificationsPage() {
             )}
           </Select>
 
+          <Select
+            className={styles["filter-btn"]}
+            value={String(yearFilter)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setYearFilter(
+                value === "all" || value === "none" ? value : Number(value),
+              );
+              setPage(1);
+            }}
+            aria-label="Фильтр по году"
+          >
+            <option value="all">Все годы</option>
+            {availableYears.map((year) => (
+              <option key={year} value={String(year)}>
+                {year}
+              </option>
+            ))}
+            {hasAlertsWithoutYear && <option value="none">Без года</option>}
+          </Select>
+
           <label className={styles["toggle-label"]}>
             <input
               type="checkbox"
               checked={showAcknowledged}
-              onChange={(e) => setShowAcknowledged(e.target.checked)}
+              onChange={(e) => {
+                setShowAcknowledged(e.target.checked);
+                setPage(1);
+              }}
             />
             Показывать подтверждённые ({ackStates.length})
           </label>
@@ -249,8 +318,9 @@ export default function DeadlineNotificationsPage() {
           не найдено.
         </div>
       ) : (
-        <div className={styles.list}>
-          {visibleAlerts.map((alert) => {
+        <>
+          <div className={styles.list}>
+            {pageAlerts.map((alert) => {
             const ack = ackMap.get(alert.id);
             return (
               <article
@@ -329,8 +399,56 @@ export default function DeadlineNotificationsPage() {
                 </div>
               </article>
             );
-          })}
-        </div>
+            })}
+          </div>
+
+          <div className={styles.pagination}>
+          <span className={styles["pagination-info"]}>
+            {visibleAlerts.length === 0
+              ? "Ничего не найдено"
+              : `${pageStart + 1}–${Math.min(
+                  pageStart + pageSize,
+                  visibleAlerts.length,
+                )} из ${visibleAlerts.length}`}
+          </span>
+          <div className={styles["pagination-controls"]}>
+            <button
+              type="button"
+              className={styles["page-btn"]}
+              disabled={safePage <= 1}
+              onClick={() => setPage(safePage - 1)}
+            >
+              ← Назад
+            </button>
+            <span className={styles["page-current"]}>
+              Стр. {safePage} из {totalPages}
+            </span>
+            <button
+              type="button"
+              className={styles["page-btn"]}
+              disabled={safePage >= totalPages}
+              onClick={() => setPage(safePage + 1)}
+            >
+              Вперёд →
+            </button>
+            <Select
+              className={styles["filter-btn"]}
+              value={String(pageSize)}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              aria-label="Уведомлений на странице"
+            >
+              {[10, 25, 50].map((size) => (
+                <option key={size} value={size}>
+                  {size} на странице
+                </option>
+              ))}
+            </Select>
+            </div>
+          </div>
+        </>
       )}
     </section>
   );
