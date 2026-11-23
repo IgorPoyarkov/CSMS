@@ -97,6 +97,17 @@ const AttachedDocsSection = () => {
     }));
   };
 
+  // Код вида документа из nsiEPDocTypes: его знает только заказчик (справочник
+  // ЕИС), поэтому вводится вручную. Пока пуст — предупреждение о ФЛК, не запрет.
+  const handleDocKindCode = (index: number, code: string) => {
+    const current = fields[index];
+
+    update(index, {
+      ...current,
+      docKindCode: code.slice(0, 10).trim() || undefined,
+    });
+  };
+
   const handleStatus = (
     index: number,
     status: NoticeAttachmentStatus,
@@ -229,6 +240,29 @@ const AttachedDocsSection = () => {
                                 {sourceLabel}
                               </span>
                             </span>
+
+                            <label className={block("doc-kind")}>
+                              <span className={block("doc-kind-label")}>
+                                Код вида документа (nsiEPDocTypes)
+                              </span>
+                              <input
+                                className={block("input")}
+                                maxLength={10}
+                                placeholder="код из справочника ЕИС"
+                                value={doc.docKindCode ?? ""}
+                                onChange={(event) =>
+                                  handleDocKindCode(
+                                    doc.index,
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                              {!doc.docKindCode && (
+                                <span className={block("doc-kind-warning")}>
+                                  Без кода вложение не пройдёт ФЛК ЕИС
+                                </span>
+                              )}
+                            </label>
                           </div>
 
                           <div className={block("doc-actions")}>

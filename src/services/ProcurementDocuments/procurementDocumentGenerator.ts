@@ -680,6 +680,10 @@ export interface GeneratedDocumentAttachmentInput {
   purchaseNoteId?: string | number | null;
   uploadedBy?: string;
   category?: NoticeAttachmentCategory;
+  // Код вида документа из nsiEPDocTypes: его знает вызывающий код (справочник
+  // ЕИС), генератор подставлять значение «по догадке» не должен.
+  docKindCode?: string;
+  docKindName?: string;
 }
 
 /**
@@ -695,6 +699,8 @@ export const buildGeneratedDocumentAttachment = ({
   purchaseNoteId,
   uploadedBy,
   category = "additional_docs",
+  docKindCode,
+  docKindName,
 }: GeneratedDocumentAttachmentInput): NoticeAttachment => {
   const fingerprint = documentFingerprint(doc.fullPlainText);
 
@@ -705,6 +711,8 @@ export const buildGeneratedDocumentAttachment = ({
     sourceId: doc.docType,
     sourceVersion: doc.docDateRu,
     status: "draft",
+    docKindCode,
+    docKindName,
     fileName: `${doc.fileBaseName}.docx`,
     description: [doc.title, doc.docNumber ? `№ ${doc.docNumber}` : ""]
       .filter(Boolean)

@@ -216,6 +216,13 @@ export const NoticeAttachmentSchema = z.object({
 
   status: z.enum(NOTICE_ATTACHMENT_STATUSES).optional(),
 
+  // Код вида документа из справочника ЕИС `nsiEPDocTypes` — обязателен в
+  // `attachmentWithKindType` (XSD 17.0). Коды не выдумываем: пока поле пустое,
+  // выгрузка даёт предупреждение (ФЛК ЕИС), но не блокируется.
+  // Пределы XSD: code — text10Type, name — text2000Type.
+  docKindCode: z.string().max(10).optional(),
+  docKindName: z.string().max(2000).optional(),
+
   fileName: z.string(),
   description: z.string().optional(),
   mimeType: z.string().optional(),
@@ -352,6 +359,10 @@ export const upsertNoticeAttachment = (
     fileName: normalized.fileName || current.fileName,
     description: normalized.description || current.description,
     sourceVersion: normalized.sourceVersion ?? current.sourceVersion,
+    // Код вида документа — часть ручного заполнения: при повторной
+    // генерации не теряем уже указанный код.
+    docKindCode: normalized.docKindCode ?? current.docKindCode,
+    docKindName: normalized.docKindName ?? current.docKindName,
     sha256: normalized.sha256 ?? current.sha256,
     fingerprint: normalized.fingerprint ?? current.fingerprint,
     storageRef: normalized.storageRef ?? current.storageRef,
@@ -389,6 +400,26 @@ export const setNoticeAttachmentStatus = (
           : item.attachedAt,
     };
   });
+
+/**
+ * Задаёт код вида документа из `nsiEPDocTypes` (и наименование, если дано).
+ * Отдельная функция — чтобы UI не пересобирал запись целиком.
+ */
+export const setNoticeAttachmentDocKind = (
+  list: NoticeAttachment[] | undefined,
+  id: string,
+  docKindCode: string,
+  docKindName?: string,
+): NoticeAttachment[] =>
+  (list ?? []).map((item) =>
+    String(item.id) === String(id)
+      ? {
+          ...item,
+          docKindCode: docKindCode.trim() || undefined,
+          docKindName: docKindName?.trim() || item.docKindName,
+        }
+      : item,
+  );
 
 export const markNoticeAttachmentsPublished = (
   list: NoticeAttachment[] | undefined,
@@ -541,6 +572,19 @@ export const validateNoticeAttachments = ({
 }: ValidateNoticeAttachmentsOptions): NoticeAttachmentIssue[] => {
   const list = normalizeNoticeAttachments(docs);
   const issues: NoticeAttachmentIssue[] = [];
+
+  // Код вида документа из nsiEPDocTypes: без него вложение не пройдёт ФЛК ЕИС.
+  // Это предупреждение, а не блокировка — иначе нельзя было бы сохранить и
+  // выгрузить извещение, пока справочник не заполнен.
+  list.forEach((doc) => {
+    if (doc.docKindCode) return;
+
+    issues.push({
+      severity: "warning",
+      category: doc.category,
+      message: `Документ «${doc.fileName}»: не указан код вида документа из справочника nsiEPDocTypes — вложение не пройдёт ФЛК ЕИС.`,
+    });
+  });
 
   NOTICE_ATTACHMENT_CATEGORIES.forEach((meta) => {
     const required = isRequiredAttachmentCategory(meta.id, placingWayCode);

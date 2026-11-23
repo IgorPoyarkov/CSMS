@@ -628,6 +628,25 @@
     gap: 6px;
   }
 
+  // Код вида документа из nsiEPDocTypes: без него вложение не пройдёт ФЛК ЕИС,
+  // поэтому поле видно прямо у файла, а не спрятано в настройках
+  &__doc-kind {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 320px;
+  }
+
+  &__doc-kind-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &__doc-kind-warning {
+    font-size: 11px;
+    color: var(--state-warning);
+  }
+
   // Второстепенные действия с документом («отложить», «в черновик»)
   &__small-btn--ghost {
     color: var(--text-primary);
