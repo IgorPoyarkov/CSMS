@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createBrowserRouter, redirect, RouterProvider } from "react-router-dom";
+import { ACCESS_TOKEN_KEY } from "./services/Access/access.api";
 import HomePage from "./pages/HomePage/HomePage";
 import AppLayout from "./components/AppLayout/AppLayout";
 import AccountPage from "./pages/AccountPage/AccountPage";
@@ -86,12 +87,13 @@ const lazySection = (node: React.ReactNode) => (
   </Suspense>
 );
 
-// Визитка открывается первой только в новой вкладке: после входа на сайт
-// корень снова ведёт на рабочий стол, а не обратно на визитку.
+// Визитка открывается первой только в новой вкладке и только до входа:
+// авторизованного пользователя корень ведёт сразу на рабочий стол.
 const VISIT_CARD_SEEN_KEY = "csms.visitCardSeen";
 
 const visitCardSeen = () => {
   try {
+    if (localStorage.getItem(ACCESS_TOKEN_KEY)) return true;
     return sessionStorage.getItem(VISIT_CARD_SEEN_KEY) === "1";
   } catch {
     return false;
