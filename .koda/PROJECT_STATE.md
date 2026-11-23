@@ -7251,11 +7251,19 @@ src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок.
   `--tilt-x/--tilt-y`, слои с `translateZ` — тень ниже, плитка в нуле, блик
   выше), радиальный ореол с `neon-mark-breathe`, блик по координатам курсора
   (`--glare-x/--glare-y`). Пропсы `size` и `variant` (`hero` 96–132 px,
-  `compact` 36 px в шапке — амплитуда вдвое меньше). При
-  `prefers-reduced-motion: reduce` анимации и наклон отключаются и в CSS, и в
-  обработчике. В шапке (`Header.tsx`) бренд заменён: неоновый знак
-  `NeonMark3D size={36} variant="compact"` + подпись **КСЗ** / «Контрактная
-  служба»; фон и градиент у `header__brand-mark` убраны — их задаёт компонент.
+  `compact` 36 px в шапке — амплитуда вдвое меньше). В шапке (`Header.tsx`)
+  бренд заменён: неоновый знак `NeonMark3D size={36} variant="compact"` +
+  подпись **КСЗ** / «Контрактная служба»; фон и градиент у
+  `header__brand-mark` убраны — их задаёт компонент.
+- **Hover и `prefers-reduced-motion` (исправление).** Первая версия отключала
+  наклон при `prefers-reduced-motion: reduce`, и на машинах с включённым в
+  Windows «уменьшением анимации» 3D-знак не реагировал на курсор. Теперь эта
+  настройка убирает только автопроигрывание (парение и дыхание свечения), а
+  наклон за курсором остаётся — это отклик на действие. Добавлен CSS-фолбэк
+  `@media (hover: hover) { &:hover { --tilt-x: -8deg; --tilt-y: 10deg } }`,
+  который наклоняет плитку даже без `pointermove`; `resetTilt` снимает
+  инлайн-переменные (`removeProperty`), чтобы фолбэк работал при повторном
+  наведении без движения мыши.
 - **Проверки.** `npx.cmd tsc -b --pretty false` — 0 ошибок в файлах бренда
   (в рабочей копии падает чужой WIP `EisTestAccessPage.tsx`: нет
   `FNS_INTEGRATION_CHECKS`); `npx.cmd oxlint src/components/Brand

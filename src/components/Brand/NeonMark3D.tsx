@@ -15,15 +15,17 @@ interface NeonMark3DProps {
 
 // Предел наклона по каждой оси. В шапке знак маленький — большой угол
 // выглядел бы как «болтающаяся иконка», поэтому амплитуда вдвое меньше.
-const TILT_LIMIT = { hero: 16, compact: 7 } as const;
+const TILT_LIMIT = { hero: 18, compact: 9 } as const;
 
 /**
  * Знак КСЗ в 3D: стеклянная плитка наклоняется за курсором, свечение дышит,
  * блик скользит по грани. Слои разнесены по оси Z (тень ниже, блик выше),
  * поэтому при наклоне видна глубина, а не просто повёрнутая картинка.
  *
- * Движение отключается при `prefers-reduced-motion: reduce` — и в CSS, и в
- * обработчике: иначе JavaScript продолжал бы менять переменные наклона.
+ * `prefers-reduced-motion` отключает только автоматическое движение
+ * (парение и дыхание свечения). Реакция на наведение остаётся: это отклик на
+ * действие пользователя, а не самопроизвольная анимация. Плюс в CSS есть
+ * hover-фолбэк, если браузер не присылает pointermove.
  */
 export default function NeonMark3D({
   size = 96,
@@ -34,13 +36,10 @@ export default function NeonMark3D({
   const { bem } = useUtils();
   const block = bem(styles, "neon-mark3d");
   const tiltRef = useRef<HTMLDivElement>(null);
-  const reduceMotion = () =>
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     // На тач-экранах pointermove приходит при прокрутке — наклон не нужен
-    if (event.pointerType !== "mouse" || reduceMotion()) return;
+    if (event.pointerType !== "mouse") return;
 
     const node = tiltRef.current;
     if (!node) return;
@@ -60,15 +59,21 @@ export default function NeonMark3D({
     const node = tiltRef.current;
     if (!node) return;
 
-    node.style.setProperty("--tilt-x", "0deg");
-    node.style.setProperty("--tilt-y", "0deg");
-    node.style.setProperty("--glare-x", "30%");
-    node.style.setProperty("--glare-y", "22%");
+    // Снимаем инлайн-переменные, а не обнуляем их: иначе после первого
+    // наведения inline-значения перебивали бы CSS hover-фолбэк и повторный
+    // вход курсором без движения мыши оставлял знак плоским.
+    node.style.removeProperty("--tilt-x");
+    node.style.removeProperty("--tilt-y");
+    node.style.removeProperty("--glare-x");
+    node.style.removeProperty("--glare-y");
   };
 
   return (
     <span
-      className={[block("", variant === "compact" ? ["compact"] : []), className]
+      className={[
+        block("", variant === "compact" ? ["compact"] : []),
+        className,
+      ]
         .filter(Boolean)
         .join(" ")}
       style={{ "--mark-size": `${size}px` } as CSSProperties}
