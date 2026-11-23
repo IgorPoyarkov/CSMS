@@ -43,6 +43,20 @@
       cursor: pointer;
       background-color: var(--surface-panel);
     }
+
+    // Карточка ООЗ: длинное наименование ОКПД2 занимает две строки,
+    // всё остальное обрезается многоточием и раскрывается в title
+    &--multiline {
+      display: -webkit-box;
+      min-height: 54px;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.35;
+    }
   }
 
   &__arrow {

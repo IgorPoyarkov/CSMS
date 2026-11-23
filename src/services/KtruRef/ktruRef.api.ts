@@ -5,19 +5,51 @@ import {
   referenceApi,
   type ReferenceItemInfo,
 } from "../Eis/referenceData.api";
-import { KtruRefListSchema, type KtruRef } from "./ktruRef.schema";
+import {
+  KTRU_VALUE_TYPES,
+  KtruRefListSchema,
+  type KtruCharacteristic,
+  type KtruRef,
+  type KtruValueType,
+} from "./ktruRef.schema";
 
-/**
- * Перевод позиции НСИ в форму справочника КТРУ, которую используют формы.
- * Данные CHARACTERISTICS из печатной формы ЕИС сохраняются как текстовые
- * требования — их можно уточнить в карточке закупки, но код и наименование
- * из КТРУ подставляются автоматически.
- */
 /**
  * Позиция снимка НСИ → форма справочника КТРУ. Экспортируется, чтобы
  * серверные выборки (`useKtruByOkpd2`, `useKtruSearch`) отдавали тот же
  * тип, что и полный каталог из `useKtruDictionary`.
  */
+
+/** Строка characteristics из payload НСИ → характеристика справочника КТРУ. */
+const ktruCharacteristicFromRaw = (
+  raw: unknown,
+  code: string,
+  index: number,
+): KtruCharacteristic | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  if (typeof row.name !== "string" || !row.name.trim()) return null;
+
+  const valueType = KTRU_VALUE_TYPES.find((type) => type === row.valueType);
+  const text = (key: string) =>
+    typeof row[key] === "string" && (row[key] as string).trim()
+      ? (row[key] as string)
+      : undefined;
+
+  return {
+    id: `${code}-char-${index}`,
+    name: row.name,
+    unit: text("unit"),
+    valueType: (valueType ?? "text") as KtruValueType,
+    valueText: text("valueText") ?? text("value"),
+    minValue: text("minValue"),
+    maxValue: text("maxValue"),
+    // В снимке ЕИС обязательность может отсутствовать: по ПП 145
+    // характеристики позиции считаем обязательными по умолчанию.
+    isMandatory: typeof row.isMandatory === "boolean" ? row.isMandatory : true,
+    instruction: text("instruction"),
+  };
+};
+
 export const ktruFromReferenceItem = (
   item: ReferenceItemInfo,
 ): KtruRef | null => {
@@ -47,17 +79,8 @@ export const ktruFromReferenceItem = (
     name: item.name,
     unit: typeof payload.unit === "string" ? payload.unit : undefined,
     characteristics: rawCharacteristics.flatMap((raw, index) => {
-      const row = raw as Record<string, unknown>;
-      if (typeof row.name !== "string" || !row.name.trim()) return [];
-      return [
-        {
-          id: `${code}-char-${index}`,
-          name: row.name,
-          valueType: "text" as const,
-          valueText: typeof row.value === "string" ? row.value : undefined,
-          isMandatory: true,
-        },
-      ];
+      const characteristic = ktruCharacteristicFromRaw(raw, code, index);
+      return characteristic ? [characteristic] : [];
     }),
     note:
       typeof payload.actualTo === "string" && payload.actualTo

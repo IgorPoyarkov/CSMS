@@ -343,6 +343,86 @@
     color: var(--text-primary);
   }
 
+  &__head-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  &__ikz-badge {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface-raised);
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+
+    &--empty {
+      color: var(--text-secondary);
+      font-family: inherit;
+    }
+  }
+
+  &__field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
+  &__ktru-select {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__instruction-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  &__textarea--instruction {
+    min-height: 110px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  &__instruction-preview {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+
+    summary {
+      cursor: pointer;
+    }
+
+    pre {
+      max-height: 180px;
+      overflow: auto;
+      margin: 6px 0 0;
+      padding: 10px;
+      white-space: pre-wrap;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+  }
+
+  &__footer-hint {
+    margin: -8px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
   &__editor-actions,
   &__editor-footer {
     display: flex;
@@ -613,6 +693,27 @@
 
     &:disabled {
       opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &__approve-btn {
+    padding: 7px 14px;
+    border: 1px solid var(--state-success);
+    border-radius: 6px;
+    background: var(--state-success-soft);
+    color: var(--state-success);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--state-success);
+      color: var(--text-on-accent);
+    }
+
+    &:disabled {
+      opacity: 0.5;
       cursor: not-allowed;
     }
   }

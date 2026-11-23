@@ -13,8 +13,6 @@ import {
   characteristicValueTypeLabels,
   emptyCharacteristic,
   formatCharacteristicValue,
-  OBJECT_DESCRIPTION_STATUSES,
-  objectDescriptionStatusLabels,
   STANDARD_TYPES,
   standardTypeLabels,
   TRADEMARK_RULES,
@@ -23,10 +21,24 @@ import {
   type CharacteristicCategory,
   type ObjectCharacteristic,
   type ObjectDescription,
+  type ObjectDescriptionStatus,
   type ObjectStandardRef,
 } from "../../services/ObjectDescription/objectDescription.schema";
+import {
+  buildParticipantInstructionTemplate,
+  isGoodsObjectDescription,
+  mergeKtruCharacteristics,
+  ktruToObjectCharacteristics,
+  PARTICIPANT_INSTRUCTION_HINT,
+} from "../../services/ObjectDescription/descriptionTemplates";
+import {
+  findKtruByCode,
+  useKtruDictionary,
+} from "../../services/KtruRef/ktruRef.api";
+import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
 import type { ContractService } from "../../services/ContractService/contractService.schema";
 import type { EmployeeEducation } from "../../services/ContractService/education.schema";
+import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
@@ -81,6 +93,23 @@ export default function ObjectDescriptionEditor({
     ? templatesByCode[draft.okpd2Code]
     : undefined;
 
+  // Выбранная позиция КТРУ: единица измерения и характеристики берутся из неё,
+  // поэтому справочник нужен даже если селект уже вернул код при выборе
+  const { data: ktruDictionary = [] } = useKtruDictionary();
+  const selectedKtru = useMemo(
+    () => findKtruByCode(ktruDictionary, draft.ktruCode),
+    [ktruDictionary, draft.ktruCode],
+  );
+  const ktruUnit = selectedKtru?.unit?.trim() ? selectedKtru.unit : "";
+  const unitFromKtru = draft.useKtru && Boolean(ktruUnit);
+  // Пока КТРУ не выбран, единицу не трогаем: она придёт из каталога
+  const unitWaitingForKtru = draft.useKtru && !selectedKtru;
+  const showNewGoodsRequirement = isGoodsObjectDescription(draft);
+  const instructionTemplate = useMemo(
+    () => buildParticipantInstructionTemplate(draft),
+    [draft],
+  );
+
   const complianceIssues = useMemo(
     () => validateObjectDescriptionCompliance(draft),
     [draft],
@@ -107,6 +136,41 @@ export default function ObjectDescriptionEditor({
   ) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
     setSubmitError("");
+  };
+
+  const handleSelectKtru = (item: KtruRef | null) => {
+    setDraft((prev) => {
+      const next: ObjectDescription = {
+        ...prev,
+        ktruCode: item?.ktruCode ?? "",
+        ktruName: item?.name ?? "",
+        // Единица измерения из КТРУ: пока позиция выбрана, поле не редактируется
+        unit: item?.unit?.trim() ? item.unit : prev.unit,
+      };
+      if (item) {
+        next.characteristics = mergeKtruCharacteristics(
+          next.characteristics,
+          ktruToObjectCharacteristics(item),
+        );
+      }
+      return next;
+    });
+    setSubmitError("");
+  };
+
+  const handleApplyKtruCharacteristics = () => {
+    if (!selectedKtru) return;
+    patch(
+      "characteristics",
+      mergeKtruCharacteristics(
+        draft.characteristics,
+        ktruToObjectCharacteristics(selectedKtru),
+      ),
+    );
+  };
+
+  const handleApplyInstructionTemplate = () => {
+    patch("participantInstruction", instructionTemplate);
   };
 
   const handleApplyNormingTemplate = () => {
@@ -192,8 +256,14 @@ export default function ObjectDescriptionEditor({
     }
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
+  /**
+   * Сохранение — это действие, а не значение поля: черновик, передача в КС
+   * и утверждение руководителем выбираются кнопками внизу карточки.
+   */
+  const saveWithStatus = (requestedStatus: ObjectDescriptionStatus) => {
+    const status =
+      requestedStatus === "approved" && !isHead ? "ready" : requestedStatus;
+
     if (!draft.title.trim()) {
       setSubmitError("Укажите наименование объекта закупки.");
       return;
@@ -220,7 +290,7 @@ export default function ObjectDescriptionEditor({
     }
 
     // Блокируем перевод в статус «Готово» / «Утверждено», пока есть ошибки по 44-ФЗ / ПП 145
-    if (draft.status !== "draft" && blockingErrors.length > 0) {
+    if (status !== "draft" && blockingErrors.length > 0) {
       setSubmitError(
         "Устраните обязательные нарушения ст. 33 44-ФЗ / ПП РФ N 145 или сохраните документ как «Черновик».",
       );
@@ -229,12 +299,15 @@ export default function ObjectDescriptionEditor({
 
     const nextToSave: ObjectDescription = {
       ...draft,
+      status,
+      // При неопределённом объёме в ООЗ фиксируем 1 — ЕИС требует числовое значение
+      quantity: draft.isIndeterminateVolume ? "1" : draft.quantity,
       approvedByName:
-        draft.status === "approved"
+        status === "approved"
           ? draft.approvedByName || defaultApproverName
           : draft.approvedByName,
       approvedDate:
-        draft.status === "approved"
+        status === "approved"
           ? draft.approvedDate || new Date().toISOString().slice(0, 10)
           : draft.approvedDate,
     };
@@ -243,7 +316,10 @@ export default function ObjectDescriptionEditor({
   };
 
   return (
-    <form className={block("editor")} onSubmit={handleSubmit}>
+    <form
+      className={block("editor")}
+      onSubmit={(event) => event.preventDefault()}
+    >
       <div className={block("editor-head")}>
         <div>
           <h2 className={block("editor-title")}>
@@ -255,6 +331,24 @@ export default function ObjectDescriptionEditor({
             Структура сформирована по ст. 33 44-ФЗ, ПП РФ № 145 (Правила КТРУ)
             и п. 7 ПП РФ № 926 (нормирование).
           </p>
+          <div className={block("head-meta")}>
+            {draft.ikz ? (
+              <span className={block("ikz-badge")} title="ИКЗ из позиции плана-графика">
+                ИКЗ: {draft.ikz}
+              </span>
+            ) : (
+              <span className={block("ikz-badge", ["empty"])}>
+                ИКЗ не сформирован в плане-графике
+              </span>
+            )}
+            <span className={block("status-badge", [draft.status])}>
+              {draft.status === "draft"
+                ? "Черновик"
+                : draft.status === "ready"
+                  ? "Готово к согласованию"
+                  : "Утверждено"}
+            </span>
+          </div>
         </div>
         <div className={block("editor-actions")}>
           <button
@@ -295,41 +389,12 @@ export default function ObjectDescriptionEditor({
             />
           </div>
 
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="ooz-status">
-              Статус документа
-            </label>
-            <Select
-              id="ooz-status"
-              className={block("select")}
-              value={draft.status}
-              onChange={(e) =>
-                patch(
-                  "status",
-                  e.target.value as ObjectDescription["status"],
-                )
-              }
-            >
-              {OBJECT_DESCRIPTION_STATUSES.map((st) => (
-                <option
-                  key={st}
-                  value={st}
-                  disabled={st === "approved" && !isHead}
-                >
-                  {objectDescriptionStatusLabels[st]}
-                  {st === "approved" && !isHead
-                    ? " (только руководитель КС / КУ)"
-                    : ""}
-                </option>
-              ))}
-            </Select>
-          </div>
-
           <div className={block("field", ["wide"])}>
             <label className={block("label")}>Код по ОКПД2 *</label>
             <Okpd2Select
               code={draft.okpd2Code}
               name={draft.okpd2Name}
+              multilineLabel
               onSelect={(item) => {
                 setDraft((prev) => ({
                   ...prev,
@@ -373,9 +438,22 @@ export default function ObjectDescriptionEditor({
               value={draft.unit}
               valueMode="symbol"
               showCodeHint
+              disabled={unitFromKtru || unitWaitingForKtru}
               placeholder="шт, компл, усл. ед, кг (ОКЕИ)…"
               onChange={(nextUnit) => patch("unit", nextUnit)}
             />
+            {unitFromKtru ? (
+              <span className={block("field-hint")}>
+                Единица подставлена из позиции КТРУ — снимите КТРУ, чтобы
+                выбрать другую.
+              </span>
+            ) : (
+              <span className={block("field-hint")}>
+                {unitWaitingForKtru
+                  ? "Сначала выберите позицию КТРУ — единица подставится из каталога."
+                  : "Выберите единицу вручную (КТРУ не применяется)."}
+              </span>
+            )}
           </div>
 
           <div className={block("field")}>
@@ -387,19 +465,25 @@ export default function ObjectDescriptionEditor({
               className={block("input")}
               type="text"
               disabled={draft.isIndeterminateVolume}
-              placeholder={
-                draft.isIndeterminateVolume ? "Не определено (ч. 24 ст. 22)" : "1"
-              }
-              value={draft.isIndeterminateVolume ? "" : draft.quantity}
+              placeholder="1"
+              value={draft.isIndeterminateVolume ? "1" : draft.quantity}
               onChange={(e) => patch("quantity", e.target.value)}
             />
             <label className={block("checkbox-label")}>
               <input
                 type="checkbox"
                 checked={draft.isIndeterminateVolume}
-                onChange={(e) =>
-                  patch("isIndeterminateVolume", e.target.checked)
-                }
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setDraft((prev) => ({
+                    ...prev,
+                    isIndeterminateVolume: checked,
+                    // ЕИС всё равно требует число: при неопределённом объёме
+                    // фиксируем 1 и блокируем редактирование поля
+                    quantity: checked ? "1" : prev.quantity,
+                  }));
+                  setSubmitError("");
+                }}
               />
               <span>Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)</span>
             </label>
@@ -418,29 +502,33 @@ export default function ObjectDescriptionEditor({
               <span>Включать позицию каталога товаров, работ, услуг</span>
             </label>
             {draft.useKtru && (
-              <input
-                id="ooz-ktru"
-                className={block("input")}
-                type="text"
-                placeholder="Код позиции КТРУ (например: 32.50.14.110-00000012)"
-                value={draft.ktruCode}
-                onChange={(e) => patch("ktruCode", e.target.value)}
-              />
+              <>
+                <KtruSelect
+                  className={block("ktru-select")}
+                  okpd2Code={draft.okpd2Code}
+                  ktruCode={draft.ktruCode}
+                  onSelect={handleSelectKtru}
+                  disabled={!draft.okpd2Code}
+                  showCharacteristicFilter
+                />
+                {selectedKtru?.characteristics.length ? (
+                  <button
+                    type="button"
+                    className={block("inline-btn")}
+                    onClick={handleApplyKtruCharacteristics}
+                  >
+                    + Подставить характеристики КТРУ (
+                    {selectedKtru.characteristics.length})
+                  </button>
+                ) : null}
+              </>
             )}
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="ooz-ikz">
-              ИКЗ (если уже сформирован в ПГ)
-            </label>
-            <input
-              id="ooz-ikz"
-              className={block("input")}
-              type="text"
-              placeholder="36 знаков — привязка к позиции ПГ / СЗ"
-              value={draft.ikz}
-              onChange={(e) => patch("ikz", e.target.value)}
-            />
+            {draft.useKtru && !draft.ktruRefusalReason && !draft.ktruCode && (
+              <span className={block("field-hint")}>
+                Если позиция КТРУ не подходит, укажите обоснование отказа — оно
+                сохранится в ООЗ.
+              </span>
+            )}
           </div>
         </div>
       </fieldset>
@@ -934,17 +1022,34 @@ export default function ObjectDescriptionEditor({
 
           <div className={block("field", ["wide"])}>
             <label className={block("label")} htmlFor="ooz-instruction">
-              Общая инструкция по заполнению заявки участником (п. 2 ч. 1 ст.
-              33)
+              Инструкция по объекту закупки для участника (п. 2 ч. 1 ст. 33)
             </label>
+            <p className={block("field-hint")}>{PARTICIPANT_INSTRUCTION_HINT}</p>
+            <div className={block("instruction-toolbar")}>
+              <button
+                type="button"
+                className={block("inline-btn")}
+                onClick={handleApplyInstructionTemplate}
+              >
+                Подставить готовый шаблон по характеристикам
+              </button>
+              <span className={block("field-hint")}>
+                Шаблон учитывает диапазоны, «не менее» / «не более» и перечни
+                значений — текст можно отредактировать.
+              </span>
+            </div>
             <textarea
               id="ooz-instruction"
-              className={block("textarea")}
-              rows={2}
-              placeholder="Порядок указания конкретных показателей в первой части заявки (для диапазонов, «не менее»/«не более» и перечней)..."
+              className={block("textarea", ["instruction"])}
+              rows={5}
+              placeholder="Инструкция формируется из структурированных характеристик КТРУ / ООЗ…"
               value={draft.participantInstruction}
               onChange={(e) => patch("participantInstruction", e.target.value)}
             />
+            <details className={block("instruction-preview")}>
+              <summary>Что получится по текущим характеристикам</summary>
+              <pre>{instructionTemplate}</pre>
+            </details>
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -961,19 +1066,21 @@ export default function ObjectDescriptionEditor({
           </div>
 
           <div className={block("field", ["wide"])}>
-            <label className={block("checkbox-label")}>
-              <input
-                type="checkbox"
-                checked={draft.isNewGoodsRequired}
-                onChange={(e) =>
-                  patch("isNewGoodsRequired", e.target.checked)
-                }
-              />
-              <span>
-                Поставляемый товар должен быть новым (не бывшим в употреблении,
-                п. 7 ч. 1 ст. 33)
-              </span>
-            </label>
+            {showNewGoodsRequirement && (
+              <label className={block("checkbox-label")}>
+                <input
+                  type="checkbox"
+                  checked={draft.isNewGoodsRequired}
+                  onChange={(e) =>
+                    patch("isNewGoodsRequired", e.target.checked)
+                  }
+                />
+                <span>
+                  Поставляемый товар должен быть новым (не бывшим в
+                  употреблении, п. 7 ч. 1 ст. 33)
+                </span>
+              </label>
+            )}
             <label className={block("checkbox-label")}>
               <input
                 type="checkbox"
@@ -1057,13 +1164,42 @@ export default function ObjectDescriptionEditor({
           Отмена
         </button>
         <button
-          type="submit"
-          className={block("primary-btn")}
+          type="button"
+          className={block("secondary-btn")}
+          onClick={() => saveWithStatus("draft")}
           disabled={isSaving}
         >
-          {isSaving ? "Сохранение…" : "Сохранить описание объекта закупки"}
+          Сохранить как черновик
+        </button>
+        <button
+          type="button"
+          className={block("primary-btn")}
+          onClick={() => saveWithStatus("ready")}
+          disabled={isSaving}
+        >
+          {isSaving ? "Сохранение…" : "Сохранить и направить в КС"}
+        </button>
+        {/* Утверждение — отдельное действие руководителя КС: оно открывает
+            следующие этапы. Нац режим по ПП РФ № 1875 здесь не проверяем:
+            его задаёт КС позже, при подготовке извещения. */}
+        <button
+          type="button"
+          className={block("approve-btn")}
+          onClick={() => saveWithStatus("approved")}
+          disabled={isSaving || !isHead}
+          title={
+            isHead
+              ? "Утвердить ООЗ и открыть следующие этапы закупки"
+              : "Утверждает руководитель контрактной службы"
+          }
+        >
+          Утвердить
         </button>
       </footer>
+      <p className={block("footer-hint")}>
+        Национальный режим по ПП РФ № 1875 на этапе ООЗ не проверяется — его
+        устанавливает контрактная служба на следующих этапах закупки.
+      </p>
     </form>
   );
 }

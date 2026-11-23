@@ -7873,9 +7873,11 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   читает XLSX экспертного совета, мержит характеристики в полный активный
   снимок `nsiKTRU` и публикует новой версией через `PublishAsync` (729 исходных
   позиций не теряются; неизвестные коды добавляются с пометкой источника).
-  Новые тесты: 2 зелёных; весь набор — 355 passed / 10 skipped.
-- **Проверки.** Фронт: `npx tsc -b` — 0 на наших файлах (полный прогон падает
-  на чужой WIP `ContractPaymentForm.tsx` / `ContractPaymentsSection.tsx`),
+  Хеш `SourceSha256` считается по байтам загруженных XLSX, каждая новая позиция
+  несёт `sourceFile`/`sourceSha256`. Новые тесты: 2 зелёных; весь набор —
+  355 passed / 10 skipped.
+- **Проверки.** Фронт: `npx tsc -b --force` — 0 (в том числе чужие файлы,
+  ранее падавшие на WIP `ContractPaymentForm.tsx` / `ContractPaymentsSection.tsx`),
   `npx oxlint` по нашим каталогам — 0, `npx vite build` — зелёный. Бэк:
   `dotnet build` в отдельный OutDir — 0 ошибок (обычный `dotnet build` не смог
   скопировать DLL из-за запущенного API), `dotnet test` — зелёный.

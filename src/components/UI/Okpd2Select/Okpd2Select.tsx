@@ -28,6 +28,8 @@ interface Okpd2SelectProps {
   placeholder?: string;
   disabled?: boolean;
   id?: string;
+  /** Двухстрочный вывод выбранного кода с многоточием и подсказкой при ховере */
+  multilineLabel?: boolean;
 }
 
 const formatMoney = new Intl.NumberFormat("ru-RU", {
@@ -56,6 +58,7 @@ export default function Okpd2Select({
   placeholder = "Код или наименование ОКПД2…",
   disabled = false,
   id,
+  multilineLabel = false,
 }: Okpd2SelectProps) {
   const { bem } = useUtils();
   const block = bem(styles, "okpd2-select");
@@ -269,29 +272,45 @@ export default function Okpd2Select({
   return (
     <div ref={wrapperRef} className={block("", isOpen ? ["open"] : [])}>
       <div className={block("wrapper")}>
-        <input
-          ref={inputRef}
-          id={id}
-          className={block("input")}
-          type="text"
-          role="combobox"
-          aria-expanded={isOpen}
-          aria-autocomplete="list"
-          disabled={disabled}
-          placeholder={placeholder}
-          value={isOpen ? query : selectedLabel}
-          onFocus={open}
-          onClick={open}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setHighlighted(0);
+        {multilineLabel && !isOpen ? (
+          <div
+            id={id}
+            className={block("input", ["multiline"])}
+            role="combobox"
+            aria-expanded={false}
+            tabIndex={disabled ? -1 : 0}
+            title={selectedLabel || placeholder}
+            onClick={open}
+            onFocus={open}
+          >
+            {selectedLabel || placeholder}
+          </div>
+        ) : (
+          <input
+            ref={inputRef}
+            id={id}
+            className={block("input")}
+            type="text"
+            role="combobox"
+            aria-expanded={isOpen}
+            aria-autocomplete="list"
+            disabled={disabled}
+            placeholder={placeholder}
+            value={isOpen ? query : selectedLabel}
+            autoFocus={multilineLabel}
+            onFocus={open}
+            onClick={open}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setHighlighted(0);
 
-            if (!isOpen) {
-              setIsOpen(true);
-            }
-          }}
-          onKeyDown={handleKeyDown}
-        />
+              if (!isOpen) {
+                setIsOpen(true);
+              }
+            }}
+            onKeyDown={handleKeyDown}
+          />
+        )}
         <span className={block("arrow")}>▼</span>
       </div>
 

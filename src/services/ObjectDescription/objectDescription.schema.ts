@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { NoticeInfoFormValues } from "../Procurements/noticeInfo.schema";
+import { isGoodsObjectDescription } from "./descriptionTemplates";
 
 /**
  * Структурированное описание объекта закупки (ООЗ) по ст. 33 44-ФЗ,
@@ -465,10 +466,12 @@ export const buildObjectDescriptionSummaryText = (
     });
   }
 
-  lines.push(
-    "",
-    `Требование к новизне (п. 7 ч. 1 ст. 33): ${desc.isNewGoodsRequired ? "товар должен быть новым" : "допускается не новый товар / услуга"}`,
-  );
+  if (isGoodsObjectDescription(desc)) {
+    lines.push(
+      "",
+      `Требование к новизне (п. 7 ч. 1 ст. 33): ${desc.isNewGoodsRequired ? "товар должен быть новым" : "допускается не новый товар"}`,
+    );
+  }
   if (desc.warrantyTermMonths || desc.warrantyRequirements) {
     lines.push(
       `Гарантийные обязательства (ч. 4 ст. 33): ${[desc.warrantyTermMonths ? `срок ${desc.warrantyTermMonths} мес.` : "", desc.warrantyRequirements].filter(Boolean).join("; ")}`,
