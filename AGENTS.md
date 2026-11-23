@@ -30,4 +30,15 @@
 - Стек: React 19 + TypeScript + Vite, SCSS-модули, react-hook-form + zod,
   @tanstack/react-query, axios. Данные — PostgreSQL: PG-адаптер
   (`npm run pg:server`, порт 3002) и csms-api (порт 5099).
+- **Стили — только SCSS-модули и БЭМ.** Tailwind, utility-классы и
+  `@import "tailwindcss"` категорически запрещены (жёсткое табу): стили
+  пишутся в `*.module.scss`, классы собираются хелпером
+  `useUtils().bem(styles, "block")("elem", ["mod"])`. Файл `src/index.css`
+  с импортом Tailwind удалён, не возвращать.
+- **Состояние.** Серверные данные живут только в `@tanstack/react-query`
+  (React Query — это и есть наш стор для данных), формы — в react-hook-form,
+  навигация/фильтры — в URL. Общее UI-состояние, используемое более чем одним
+  экраном, выносится в Zustand; локальный `useState` для одного компонента
+  нормален. Не дублировать данные из React Query в стор — это источник
+  рассинхрона, а не ускорения.
 - Комментарии в коде — на русском, стиль существующих файлов сохранять.
