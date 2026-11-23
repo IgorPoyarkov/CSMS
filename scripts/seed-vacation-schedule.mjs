@@ -4,7 +4,7 @@
  *   2. Коллекцию vacationSchedules (3 графика)
  *   3. Фактические отпуска 2027 в leaves (для проверки конфликтов)
  *
- * Запуск: node seed-vacation-schedule.mjs
+ * Запуск: node scripts/seed-vacation-schedule.mjs
  */
 
 import { readFileSync, writeFileSync } from "node:fs";

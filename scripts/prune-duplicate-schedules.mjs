@@ -2,7 +2,7 @@
  * Удаляет из db.json дубли графиков, созданные вручную при проверке экрана
  * (id 4 и 5 для org 1 / 2027), и оставляет только сиды утилиты.
  *
- * Запуск: node prune-duplicate-schedules.mjs
+ * Запуск: node scripts/prune-duplicate-schedules.mjs
  */
 
 import { readFileSync, writeFileSync } from "node:fs";

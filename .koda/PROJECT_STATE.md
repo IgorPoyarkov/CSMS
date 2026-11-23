@@ -769,7 +769,7 @@ exclude`, угол через `@property` + JS-фолбэк), неоновая �
 - **КП:** в `NmckMarketOfferSchema` добавлен `supplierInn`; в `MarketNmckCalculator` — поле ИНН (подставляется из реестра контрактов).
 - **Сиды:** СЗ 1 — 3 КП, все СМП (100% → только СМП); СЗ 2 и 3 — 1 СМП из 4 (25% → привлечение).
 - **Проверки:** `npx tsc -b` — чисто, `npx oxlint src` — 0 ошибок (21 существующее предупреждение), `npx vite build` — успешно; логика проверена скриптом: note 1 → `smp_only` 100%, note 2 → `subcontracting` 25%. Визуальный смоук СЗ № 2 (`/purchase-notes` → «Открыть СЗ», раздел 4): таблица 4 КП (1 «Микропредприятие», 3 «не в реестре»), сводка «СМП: 1 из 4 · 25%», рекомендация «Привлечение СМП/СОНКО — 25%»; после нажатия «Применить рекомендацию» появилось сообщение, в разделе 6 включился чекбокс привлечения субподрядчиков и `25` % (объём при НМЦК 175,50 ₽ — 43,88 ₽).
-- ⚠️ В рабочем дереве остаётся незакоммиченная ветка второго агента (`src/components/VacationSchedule`, `src/services/VacationSchedule`, `seed-vacation-schedule.mjs`, правки `App.tsx`/`Header.tsx`/`Main.tsx`). Её сиды (`vacationSchedules`, `leaves`, `users`, `procurements`, `legalActs`, `edsSignatureEvents`) уже попали в `db.json` при коммите `033bff9` — в сообщении коммита это помечено.
+- ⚠️ В рабочем дереве остаётся незакоммиченная ветка второго агента (`src/components/VacationSchedule`, `src/services/VacationSchedule`, `scripts/seed-vacation-schedule.mjs`, правки `App.tsx`/`Header.tsx`/`Main.tsx`). Её сиды (`vacationSchedules`, `leaves`, `users`, `procurements`, `legalActs`, `edsSignatureEvents`) уже попали в `db.json` при коммите `033bff9` — в сообщении коммита это помечено.
 
 ## 17. КТРУ, сводная таблица объектов закупки и кастомные контролы (2026-11-18)
 
@@ -7531,7 +7531,7 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   16 warning в файлах, которых оптимизация не касалась; `npm test` — 43 теста
   и 7 доменных проверок; `npx vite build` — успех, 5,3 с. Перед коммитом
   исправлен пропуск агента: `emptyAcceptanceForm` / `emptyContractChangeForm`
-  — фабрики, их нужно вызывать (`()`) при формированииначальное значение.
+  — фабрики, их нужно вызывать (`()`) при формировании начального значения формы.
 - **Очередь / риски.** Проверить вживую: `head.employeeId`/`contractManager.employeeId`
   в данных — старые записи без этих полей потеряют права, которые раньше
   давала подпись роли. Поиск реестра покрывает только 5 полей адаптера;
@@ -7540,4 +7540,24 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   8,7 МБ и чанки `pdfmake` (771 кБ) + `vfs_fonts` (855 кБ / 469 кБ gzip)
   по-прежнему грузятся целиком — отдельная задача. 16 oxlint-warning в
   неоптимизированных файлах трогать «по пути» не стал.
+
+## ⏱ 2026-11-23 — уборка корня репозитория
+
+- **PDF.** Пять PDF (~4,4 МБ) в корне удалены из репозитория по прямому
+  указанию пользователя: макеты и нормативные документы ему были не нужны,
+  предыдущее восстановление из HEAD было ошибкой. Упоминания файлов в
+  `CurrentTasks.md` оставлены как исторический контекст задач.
+- **CSS-артефакты.** Удалены 16 файлов `*.module.css` и `*.module.css.map`
+  в корне: это скомпилированные копии SCSS из `src/components/...` со
+  source map на старые worktree `.gigacode_vsc/...`. Компоненты импортируют
+  `.module.scss`, поэтому на сборку удаление не влияет.
+- **Перемещения.** `prune-duplicate-schedules.mjs` и
+  `seed-vacation-schedule.mjs` → `scripts/` (комментарии о запуске
+  обновлены). Картинки `image*.png` и скриншоты тем → `docs/assets/`;
+  три ссылки в `CurrentTasks.md` переписаны на новые пути.
+- **Локальный мусор.** Удалены `api.log`, `dev.log`, `vite-build.log`,
+  `vite-build.err.log`, `test.txt`. `eis44.db` и `opencode.json` оставлены:
+  это локальные данные/конфиг инструментов, они уже в `.gitignore`.
+- **Проверки.** `npx tsc -b`, `npx oxlint src`, `npx vite build` — зелёные;
+  `npm test` — без изменений.
 
