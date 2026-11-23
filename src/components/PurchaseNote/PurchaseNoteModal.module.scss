@@ -1147,4 +1147,95 @@
     padding-left: 14px;
     border-left: 2px solid var(--accent);
   }
+
+  // Диагностика требований ПП РФ № 2571: позиции приложения, пороги НМЦК,
+  // связь с объектами закупки и подтверждающие документы
+  &__pp2571-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 12px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-panel);
+  }
+
+  &__pp2571-issues {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__pp2571-issue {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  &__pp2571-issue--error {
+    border-color: var(--state-danger);
+    background: var(--state-danger-soft);
+    color: var(--state-danger);
+  }
+
+  &__pp2571-issue--warning {
+    border-color: var(--state-warning);
+    background: var(--state-warning-soft);
+    color: var(--state-warning);
+  }
+
+  &__pp2571-issue-ref {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.8;
+  }
+
+  &__pp2571-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__pp2571-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__pp2571-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  &__pp2571-docs {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  &__pp2571-docs-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
 }

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import {
   PurchaseNoteListSchema,
+  PurchaseNoteReadSchema,
   PurchaseNoteSchema,
   type PurchaseNote,
 } from "./purchaseNote.schema";
@@ -51,7 +52,9 @@ export const useCreatePurchaseNote = () => {
         PurchaseNoteSchema.parse(omitEmptyReferences(note)),
       );
 
-      return PurchaseNoteSchema.parse(data);
+      // Ответ сервера читаем мягкой схемой: правила ПП РФ № 2571 уже
+      // проверены формой, а старая запись не должна ронять карточку.
+      return PurchaseNoteReadSchema.parse(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseNotesQueryKey });
@@ -72,7 +75,7 @@ export const useUpdatePurchaseNote = () => {
         omitEmptyReferences(changes),
       );
 
-      return PurchaseNoteSchema.parse(data);
+      return PurchaseNoteReadSchema.parse(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: purchaseNotesQueryKey });

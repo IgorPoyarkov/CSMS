@@ -14,6 +14,7 @@ import {
   NoticeInfoSchema,
   type NoticeInfoFormValues,
 } from "../../services/Procurements/noticeInfo.schema";
+import { normalizePp2571Positions } from "../../services/Pp2571/pp2571.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../services/Okpd2Ref/normingControl";
 import {
@@ -1055,7 +1056,7 @@ const NoticeInfoForm = () => {
         );
         setValue(
           "participantsRequirements.pp2571Positions",
-          matchedNote.pp2571Positions,
+          normalizePp2571Positions(matchedNote.pp2571Positions),
         );
       }
       if (matchedNote.requirementsPart2_1Art31 !== undefined) {

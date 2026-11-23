@@ -15,6 +15,8 @@ import {
   OBJECT_CATEGORY_IDS,
   PROCEDURE_KINDS,
 } from "../BidEvaluation/bidEvaluation.schema";
+import { validatePp2571Requirements } from "../Pp2571/pp2571.schema";
+
 
 /**
  * Потребность / служебная записка по позиции плана-графика.
@@ -147,7 +149,7 @@ export type PurchaseNoteContractProjectFile = z.infer<
   typeof PurchaseNoteContractProjectFileSchema
 >;
 
-export const PurchaseNoteSchema = z
+const PurchaseNoteBaseSchema = z
   .object({
     id: z.union([z.string(), z.number()]).optional(),
     organizationId: z.union([z.string(), z.number()]),
@@ -159,6 +161,11 @@ export const PurchaseNoteSchema = z
     positionSerialNumber: z.string().optional(),
     positionUniqueNumber: z.string().optional(),
     ikz: z.string().optional(),
+
+    // Связь закупки с проектом контракта (ПП РФ № 2604): критерии оценки
+    // и их показатели должны быть проверяемы по условиям проекта контракта.
+    contractProjectId: z.union([z.string(), z.number()]).nullable().optional(),
+    contractProjectNumber: z.string().optional(),
     procurementId: z.union([z.string(), z.number()]).nullable().optional(),
     objectDescriptionId: z
       .union([z.string(), z.number()])
@@ -372,8 +379,21 @@ export const PurchaseNoteSchema = z
     approvalComment: z.string().optional(),
     comment: z.string().optional(),
     createdAt: isoDate(),
-  })
-  .superRefine((note, ctx) => {
+  });
+
+/**
+ * Схема чтения сохранённых СЗ.
+ *
+ * Правила ПП РФ № 2571 (позиции приложения, пороги НМЦК, связь с объектами)
+ * проверяются при вводе и сохранении в форме. Чтение списка и карточек идёт
+ * по базовой схеме: старые записи могли сохранить флаг ч. 2 ст. 31 без
+ * перечня позиций, и реестр не должен из-за этого падать целиком.
+ */
+export const PurchaseNoteReadSchema = PurchaseNoteBaseSchema;
+
+/** Схема формы СЗ: базовая схема плюс правила ПП РФ № 2571 и связанных полей. */
+export const PurchaseNoteSchema = PurchaseNoteBaseSchema.superRefine(
+  (note, ctx) => {
     // 1. При включённой галочке привлечения СМП обязателен процент 5..100
     if (note.requiresSmpSubcontracting) {
       const val = note.smpRequiredPercent;
@@ -413,11 +433,52 @@ export const PurchaseNoteSchema = z
           "Обеспечение гарантийных обязательств устанавливается только при включённой гарантии качества",
       });
     }
+
+    // 4. Требования ПП РФ от 29.12.2021 № 2571: позиции приложения, пороги
+    // НМЦК по п. 3 «а», связь позиций с объектами закупки, подтверждающие
+    // документы, п. 4 и санкционный РНП по п. 1 «б». Черновик сохраняется
+    // с предупреждениями, остальные статусы — только без ошибок.
+    const nmck = Number.parseFloat(String(note.initialMaxPrice ?? ""));
+    const pp2571Items =
+      note.items && note.items.length > 0
+        ? note.items
+        : [
+            {
+              name: note.subject,
+              okpd2Code: note.okpd2Code,
+              okpd2Name: note.okpd2Name,
+            },
+          ];
+
+    validatePp2571Requirements({
+      nmck: Number.isFinite(nmck) ? nmck : 0,
+      placingWayCode: note.placingWayCode,
+      items: pp2571Items,
+      selectedPositions: note.pp2571Positions,
+      additionalRequirementsPart2Art31: note.additionalRequirementsPart2Art31,
+      additionalRequirementsPart2Art31Text:
+        note.additionalRequirementsPart2Art31Text,
+      point4Requirement: note.pp2571Point4Requirement,
+      point4RequirementText: note.pp2571Point4RequirementText,
+      requirementsPart2_1Art31: note.requirementsPart2_1Art31,
+      requirementsPart1_1Art31: note.requirementsPart1_1Art31,
+      sanctionsRnpRequirement: note.sanctionsRnpRequirement,
+      isDraft: (note.status ?? "draft") === "draft",
+    })
+      .filter((issue) => issue.level === "error")
+      .forEach((issue) =>
+        ctx.addIssue({
+          code: "custom",
+          path: issue.path,
+          message: issue.message,
+        }),
+      );
   });
+
 
 export type PurchaseNote = z.infer<typeof PurchaseNoteSchema>;
 export type PurchaseNoteInput = z.input<typeof PurchaseNoteSchema>;
-export const PurchaseNoteListSchema = z.array(PurchaseNoteSchema);
+export const PurchaseNoteListSchema = z.array(PurchaseNoteReadSchema);
 
 export const PURCHASE_NOTE_STATUSES = [
   "draft",

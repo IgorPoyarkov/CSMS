@@ -12,8 +12,11 @@ import { usePp2604MappingOrDefault } from "../../../services/Pp2604/pp2604.api";
 import {
   CRITERION_EIS_CODES,
   CRITERION_LABELS,
-  PP2571_POSITIONS,
 } from "../noticeInfo.config";
+import {
+  normalizePp2571Positions,
+  PP2571_POSITIONS,
+} from "../../../services/Pp2571/pp2571.schema";
 import SecurityRequisitesFields from "../../PurchaseNote/SecurityRequisitesFields";
 import styles from "../NoticeInfoForm.module.scss";
 
@@ -63,12 +66,18 @@ const ParticipantsRequirementsSection = () => {
   const rnpConflictWarning =
     Boolean(reqs.requirementsPart1_1Art31) &&
     Boolean(reqs.sanctionsRnpRequirement);
+  // Выбранные позиции приложения ПП РФ № 2571 в нормализованном виде
+  const selectedPp2571Positions = normalizePp2571Positions(
+    reqs.pp2571Positions,
+  );
 
-  const togglePp2571 = (pos: string) => {
-    const current = reqs.pp2571Positions || [];
-    const next = current.includes(pos)
-      ? current.filter((x) => x !== pos)
-      : [...current, pos];
+  const togglePp2571 = (id: string) => {
+    // В извещение позиции могут прийти из СЗ как идентификаторами, так и
+    // старыми текстовыми метками — сравниваем по нормализованному списку.
+    const current = normalizePp2571Positions(reqs.pp2571Positions);
+    const next = current.includes(id)
+      ? current.filter((x) => x !== id)
+      : [...current, id];
     setValue("participantsRequirements.pp2571Positions", next);
   };
 
@@ -416,14 +425,14 @@ const ParticipantsRequirementsSection = () => {
 
             {reqs.additionalRequirementsPart2Art31 && (
               <div className={block("sub-box")}>
-                {PP2571_POSITIONS.map((pos) => (
-                  <label key={pos} className={block("checkbox")}>
+                {PP2571_POSITIONS.map((position) => (
+                  <label key={position.id} className={block("checkbox")}>
                     <input
                       type="checkbox"
-                      checked={reqs.pp2571Positions.includes(pos)}
-                      onChange={() => togglePp2571(pos)}
+                      checked={selectedPp2571Positions.includes(position.id)}
+                      onChange={() => togglePp2571(position.id)}
                     />
-                    <span>{pos}</span>
+                    <span>{position.label}</span>
                   </label>
                 ))}
                 <textarea

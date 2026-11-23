@@ -1,3 +1,6 @@
+import { PP2571_POSITION_LABELS } from "../../services/Pp2571/pp2571.schema";
+
+
 export const ETP_OPTIONS = [
   { name: 'АО "РАД"', url: "https://lot-online.ru" },
   { name: 'АО "ЕЭТП"', url: "https://roseltorg.ru" },
@@ -90,13 +93,16 @@ export const CRITERION_LABELS: Record<string, string> = {
     "Квалификация участников закупки (финансовые ресурсы, оборудование, опыт, деловая репутация, специалисты)",
 };
 
+// Коды критериев XSD 17.0: CP — цена, MC — расходы на эксплуатацию и ремонт,
+// TC — стоимость жизненного цикла, EN — энергосервис; QF — характеристики
+// объекта, QO — квалификация участников.
 export const CRITERION_EIS_CODES: Record<string, string> = {
   price: "CP",
-  lifecycle_cost: "MC",
-  exploitation_expenses: "TC",
+  exploitation_expenses: "MC",
+  lifecycle_cost: "TC",
   energy_service_expenses: "EN",
-  qualitative_characteristics: "QO",
-  qualification: "QF",
+  qualitative_characteristics: "QF",
+  qualification: "QO",
 };
 
 export const EIS_PRODUCT_TYPE_OPTIONS = [
@@ -115,13 +121,7 @@ export const EIS_VOLUME_SPECIFYING_METHODS = [
   { value: "SF", label: "Текстовое описание объёма (SF)" },
 ] as const;
 
-export const PP2571_POSITIONS = [
-  "Позиция 1 разд. I ПП РФ № 2571 (Работы по сохранению объектов культурного наследия)",
-  "Позиция 6 разд. II ПП РФ № 2571 (Работы по строительству, реконструкции объекта кап. строительства)",
-  "Позиция 10 разд. II ПП РФ № 2571 (Работы по капитальному ремонту объекта кап. строительства)",
-  "Позиция 17 разд. III ПП РФ № 2571 (Работы по ремонту, содержанию автомобильных дорог)",
-  "Позиция 34 разд. VI ПП РФ № 2571 (Услуги по обеспечению охраны объектов)",
-];
+export const PP2571_POSITIONS = PP2571_POSITION_LABELS;
 
 /**
  * Минимальные сроки подачи заявок (календарные дни) по ч. 2 ст. 45 Закона

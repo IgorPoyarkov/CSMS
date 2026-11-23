@@ -9,6 +9,11 @@ import type {
   NoticeEvaluationCriterionType,
   NoticeInfoFormValues,
 } from "../Procurements/noticeInfo.schema";
+import { objectCategoryLimits } from "../BidEvaluation/bidEvaluation.schema";
+import {
+  normalizePp2571Positions,
+  pp2571PositionLabel,
+} from "../Pp2571/pp2571.schema";
 import type { ContractProject } from "../ContractProject/contractProject.schema";
 import {
   EIS_PACKET_DESCRIPTORS,
@@ -108,11 +113,11 @@ export const EIS_CRITERION_CODE_LABELS: Record<
   string
 > = {
   CP: "CP — Цена контракта, сумма цен единиц ТРУ",
-  MC: "MC — Стоимость жизненного цикла товара/объекта",
-  TC: "TC — Расходы на эксплуатацию и ремонт",
+  MC: "MC — Расходы на эксплуатацию и ремонт товаров, использование результатов работ",
+  TC: "TC — Стоимость жизненного цикла товара или созданного в результате работы объекта",
   EN: "EN — Сумма расходов по энергосервисному контракту",
-  QO: "QO — Качественные, функциональные и экологические характеристики",
-  QF: "QF — Квалификация участников закупки",
+  QF: "QF — Качественные, функциональные и экологические характеристики объекта закупки",
+  QO: "QO — Квалификация участников закупки",
 };
 
 export const EIS_PRODUCT_TYPES = ["PRODUCT", "WORK", "SERVICE"] as const;
@@ -345,6 +350,36 @@ export interface EisNotificationMedicine {
   registrationNumber?: string;
 }
 
+/**
+ * Показатель критерия оценки (indicatorDocOKType, IntegrationEPTypes.xsd).
+ *
+ * Значимость показателя суммируется до 100 % внутри критерия (п. 7, 8
+ * Положения № 2604). Порядок оценки кодируется как F (лучше большее),
+ * L (лучше меньшее) и O (шкала/иной порядок).
+ */
+export interface Eis17EvaluationIndicator {
+  externalSid?: string;
+  name?: string;
+  value: number;
+  addInfo?: string;
+  measurementOrder?: "F" | "L" | "O";
+  limitMin?: number;
+  limitMax?: number;
+}
+
+/**
+ * Критерий оценки извещения (criterionOKType). В XSD 17.0 стоимостной и
+ * нестоимостной критерии разведены по разным веткам (costCriterionInfo /
+ * qualitativeCriterionInfo), поэтому группа хранится явно.
+ */
+export interface Eis17EvaluationCriterion {
+  group: "cost" | "qualitative";
+  code: EisCostCriterionCode | EisQualitativeCriterionCode;
+  valueInfo: number;
+  addInfo?: string;
+  indicators: Eis17EvaluationIndicator[];
+}
+
 export interface EisNotification2020 {
   schemaVersion: "17.0";
   notificationType: EisNotificationType;
@@ -519,12 +554,7 @@ export interface EisNotification2020 {
         };
       }>;
     };
-    criteriaInfo: Array<{
-      group: "cost" | "qualitative";
-      code: EisCostCriterionCode | EisQualitativeCriterionCode;
-      valueInfo: number;
-      indicatorsCount: number;
-    }>;
+    criteriaInfo: Eis17EvaluationCriterion[];
     // preferensesInfo — преимущества участникам (ст. 28–30 44-ФЗ)
     preferensesInfo: Array<{
       code: string;
@@ -629,17 +659,17 @@ export const mapCriterionTypeToEis17 = (
   switch (type) {
     case "price":
       return { group: "cost", code: "CP" };
-    case "lifecycle_cost":
-      return { group: "cost", code: "MC" };
     case "exploitation_expenses":
+      return { group: "cost", code: "MC" };
+    case "lifecycle_cost":
       return { group: "cost", code: "TC" };
     case "energy_service_expenses":
       return { group: "cost", code: "EN" };
     case "qualification":
-      return { group: "qualitative", code: "QF" };
+      return { group: "qualitative", code: "QO" };
     case "qualitative_characteristics":
     default:
-      return { group: "qualitative", code: "QO" };
+      return { group: "qualitative", code: "QF" };
   }
 };
 
@@ -1021,9 +1051,15 @@ const mapNoticePreferences = (
       code: "TU44",
       name: "Дополнительные требования к участникам закупок (ч. 2 ст. 31)",
       content: requirements.additionalRequirementsPart2Art31Text || undefined,
-      addRequirements: requirements.pp2571Positions?.length
-        ? requirements.pp2571Positions
-        : undefined,
+      // В ЕИС уходит текст требований, а не внутренние идентификаторы:
+      // позиции приложения разворачиваем в человекочитаемые метки.
+      addRequirements:
+        requirements.pp2571Positions &&
+        requirements.pp2571Positions.length > 0
+          ? normalizePp2571Positions(requirements.pp2571Positions).map(
+              pp2571PositionLabel,
+            )
+          : undefined,
     });
   }
   if (requirements.requirementsPart1_1Art31) {
@@ -1093,6 +1129,56 @@ const mapNoticePreferences = (
   }
 
   return { preferensesInfo, requirementsInfo, restrictionsInfo };
+};
+
+/**
+ * Критерии оценки Положения № 2604 → структура criterionOKType (XSD 17.0).
+ *
+ * Для аукциона, котировок и иных процедур, где Положение не применяется,
+ * XSD всё равно требует блок criteriaInfo: выгружается единственный критерий
+ * «цена контракта» со значимостью 100 %. Для конкурса пустой набор — ошибка,
+ * её ловит validateNoticeInfoEis17.
+ */
+export const mapNoticeCriteriaToEis17 = (
+  notice: NoticeInfoFormValues,
+  notificationType: EisNotificationType = inferNotificationType(
+    notice.generalInfo.placingWayCode,
+    notice.notificationType,
+  ),
+): Eis17EvaluationCriterion[] => {
+  const criteria = notice.participantsRequirements.evaluationCriteria
+    .filter((criterion) => criterion.enabled)
+    .map((criterion): Eis17EvaluationCriterion => {
+      const mapped = mapCriterionTypeToEis17(criterion.type);
+
+      return {
+        group: mapped.group,
+        code: mapped.code,
+        valueInfo: criterion.weightPercent,
+        addInfo:
+          (criterion.additionalInfo || criterion.note || "").trim() || undefined,
+        indicators: (criterion.indicators ?? []).map((indicator) => ({
+          externalSid: indicator.id,
+          name: indicator.name?.trim() || undefined,
+          value: indicator.weightPercent ?? 0,
+          addInfo: indicator.scaleText?.trim() || undefined,
+          measurementOrder:
+            indicator.best === "min"
+              ? "L"
+              : indicator.best === "max"
+                ? "F"
+                : "O",
+          limitMin: indicator.limitMin,
+          limitMax: indicator.limitMax,
+        })),
+      };
+    });
+
+  if (criteria.length > 0 || notificationType === "EOK2020") {
+    return criteria;
+  }
+
+  return [{ group: "cost", code: "CP", valueInfo: 100, indicators: [] }];
 };
 
 /**
@@ -1386,17 +1472,7 @@ export const mapNoticeInfoToEis17 = (
           };
         }),
       },
-      criteriaInfo: notice.participantsRequirements.evaluationCriteria
-        .filter((crit) => crit.enabled)
-        .map((crit) => {
-          const mapped = mapCriterionTypeToEis17(crit.type);
-          return {
-            group: mapped.group,
-            code: mapped.code,
-            valueInfo: crit.weightPercent,
-            indicatorsCount: crit.indicators?.length ?? 0,
-          };
-        }),
+      criteriaInfo: mapNoticeCriteriaToEis17(notice, notificationType),
       flags: {
         purchaseObjectsCh9St37: Boolean(notice.purchaseObjectsCh9St37),
         competitionCh19St48: Boolean(notice.generalInfo.isPart19Art48),
@@ -1858,6 +1934,180 @@ export const validatePurchasePlanEis17 = (
   };
 };
 
+// ─── Критерии оценки: проверки Положения № 2604 ──────────────────────────────
+
+export const EIS_CRITERIA_WEIGHT_SUM = 100;
+
+// Подспособ «конкурс на строительные работы с проектной документацией»:
+// XSD 17.0 прямо запрещает для него нестоимостной критерий QF.
+export const EIS_PLACING_WAY_CONSTRUCTION_DOCS = "OKB504";
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * Проверки критериев оценки по Положению № 2604 и приложению № 2.
+ *
+ * Чистая функция: используется и валидатором извещения, и тестами. Пределы
+ * значимости берутся из офлайн-снимка каталога (он совпадает с API, пока
+ * версия каталога не изменилась).
+ */
+export const validateNoticeCriteria2604 = (
+  criteria: Eis17EvaluationCriterion[],
+  options: {
+    notificationType: EisNotificationType;
+    placingWayCode?: string;
+    objectCategory?: string;
+  },
+): Eis17ValidationIssue[] => {
+  const issues: Eis17ValidationIssue[] = [];
+  const push = (
+    severity: Eis17ValidationIssue["severity"],
+    field: string,
+    message: string,
+  ) => issues.push({ severity, field, message });
+  const isContest = options.notificationType === "EOK2020";
+
+  if (criteria.length === 0) {
+    if (isContest) {
+      push(
+        "error",
+        "participantsRequirements.evaluationCriteria",
+        "ПП РФ № 2604: для конкурса укажите критерии оценки и их значимость.",
+      );
+    }
+
+    return issues;
+  }
+
+  const total = round2(
+    criteria.reduce((sum, criterion) => sum + criterion.valueInfo, 0),
+  );
+
+  if (Math.abs(total - EIS_CRITERIA_WEIGHT_SUM) > 0.01) {
+    push(
+      "error",
+      "participantsRequirements.evaluationCriteria",
+      `Сумма значимостей критериев ${total} % — по п. 5 «д» Положения № 2604 должно быть 100 %.`,
+    );
+  }
+
+  const price = criteria.find((criterion) => criterion.code === "CP");
+
+  if (isContest && !price) {
+    push(
+      "error",
+      "participantsRequirements.evaluationCriteria",
+      "ПП РФ № 2604: критерий «цена контракта» (CP) обязателен для конкурса.",
+    );
+  }
+
+  criteria.forEach((criterion, index) => {
+    const field = `participantsRequirements.evaluationCriteria.${index}`;
+
+    if (criterion.valueInfo < 0 || criterion.valueInfo > 100) {
+      push(
+        "error",
+        `${field}.weightPercent`,
+        `Значимость критерия ${criterion.code} должна быть в пределах 0–100 %.`,
+      );
+    }
+
+    if (criterion.code === "CP" && criterion.indicators.length > 0) {
+      push(
+        "error",
+        `${field}.indicators`,
+        "Критерий «цена контракта» (CP) не имеет детализирующих показателей.",
+      );
+    }
+
+    if (criterion.code === "MC" && criterion.indicators.length === 0) {
+      push(
+        "warning",
+        `${field}.indicators`,
+        "Критерий «расходы на эксплуатацию и ремонт» (MC) оценивается по показателям — добавьте их.",
+      );
+    }
+
+    if (criterion.group === "qualitative" && criterion.indicators.length === 0) {
+      push(
+        "warning",
+        `${field}.indicators`,
+        `Критерий ${criterion.code}: добавьте детализирующие показатели — без них оценка по Положению № 2604 не рассчитывается.`,
+      );
+    }
+
+    if (criterion.group === "qualitative" && criterion.indicators.length > 0) {
+      const indicatorSum = round2(
+        criterion.indicators.reduce(
+          (sum, indicator) => sum + indicator.value,
+          0,
+        ),
+      );
+
+      if (Math.abs(indicatorSum - 100) > 0.01) {
+        push(
+          "error",
+          `${field}.indicators`,
+          `Показатели критерия ${criterion.code}: сумма значимостей ${indicatorSum} %, ожидается 100 %.`,
+        );
+      }
+    }
+  });
+
+  if (
+    options.placingWayCode === EIS_PLACING_WAY_CONSTRUCTION_DOCS &&
+    criteria.some((criterion) => criterion.code === "QF")
+  ) {
+    push(
+      "error",
+      "participantsRequirements.evaluationCriteria",
+      "XSD 17.0: для подспособа OKB504 не допускается критерий QF «качественные, функциональные и экологические характеристики».",
+    );
+  }
+
+  if (options.objectCategory) {
+    const limits = objectCategoryLimits(options.objectCategory);
+
+    if (price && price.valueInfo < limits.minPrice) {
+      push(
+        "error",
+        "participantsRequirements.evaluationCriteria",
+        `ПП РФ № 2604, приложение № 2 (поз. ${limits.appendixRow}): значимость цены ${price.valueInfo} % ниже минимума ${limits.minPrice} %.`,
+      );
+    }
+
+    const expenses = criteria.find((criterion) => criterion.code === "MC");
+
+    if (
+      limits.maxExpenses !== null &&
+      expenses &&
+      expenses.valueInfo > limits.maxExpenses
+    ) {
+      push(
+        "error",
+        "participantsRequirements.evaluationCriteria",
+        `ПП РФ № 2604, приложение № 2 (поз. ${limits.appendixRow}): значимость расходов ${expenses.valueInfo} % выше максимума ${limits.maxExpenses} %.`,
+      );
+    }
+
+    const nonCost = round2(
+      criteria
+        .filter((criterion) => criterion.group === "qualitative")
+        .reduce((sum, criterion) => sum + criterion.valueInfo, 0),
+    );
+
+    if (nonCost > limits.maxNonCost) {
+      push(
+        "error",
+        "participantsRequirements.evaluationCriteria",
+        `ПП РФ № 2604, приложение № 2 (поз. ${limits.appendixRow}): сумма нестоимостных критериев ${nonCost} % выше максимума ${limits.maxNonCost} %.`,
+      );
+    }
+  }
+
+  return issues;
+};
+
 export const validateNoticeInfoEis17 = (
   notice: NoticeInfoFormValues,
 ): Eis17ValidationResult => {
@@ -2095,6 +2345,43 @@ export const validateNoticeInfoEis17 = (
       field: "attachedDocs.evaluation_order",
       message:
         "Раздел 2: для конкурса приложите порядок рассмотрения и оценки заявок.",
+    });
+  }
+
+  // ПП РФ № 2604: критерии оценки, пределы значимости приложения № 2
+  issues.push(
+    ...validateNoticeCriteria2604(dto.notificationInfo.criteriaInfo, {
+      notificationType: dto.notificationType,
+      placingWayCode: dto.commonInfo.placingWayCode,
+      objectCategory: notice.participantsRequirements.evaluationObjectCategory,
+    }),
+  );
+
+  // Связь закупки с проектом контракта: по ПП РФ № 2604 критерии оценки
+  // должны быть проверяемы по условиям проекта, поэтому документ обязан
+  // быть привязан к закупке.
+  const contractProjectLinked = Boolean(
+    notice.contractProjectId ||
+      notice.contractProjectNumber ||
+      hasDoc("contract_project"),
+  );
+  if (!contractProjectLinked) {
+    issues.push({
+      severity: "warning",
+      field: "contractProjectId",
+      message:
+        "Закупка не связана с проектом контракта: привяжите карточку проекта или приложите документ «проект контракта» (ПП РФ № 2604).",
+    });
+  }
+  if (
+    notice.foundationInfo?.isStructuredForm === false &&
+    !notice.foundationInfo.contractProjectFiles?.length
+  ) {
+    issues.push({
+      severity: "error",
+      field: "foundationInfo.contractProjectFiles",
+      message:
+        "Проект контракта в неструктурированной форме: приложите файлы проекта, иначе ЕИС отклонит документ.",
     });
   }
 
@@ -2472,6 +2759,157 @@ export const buildTenderPlan2020XmlPreview = (plan: PurchasePlan): string => {
   });
 };
 
+// ─── Критерии оценки: сериализация и десериализация (XSD 17.0) ───────────────
+
+const unescapeXml = (value: string): string =>
+  value
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, '"')
+    .replace(/'/g, "'")
+    .replace(/&/g, "&");
+
+const xmlTagValue = (body: string, tag: string): string | undefined => {
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(body);
+
+  return match ? unescapeXml(match[1].trim()) : undefined;
+};
+
+const xmlTagNumber = (body: string, tag: string): number | undefined => {
+  const raw = xmlTagValue(body, tag);
+
+  if (raw === undefined || raw === "") return undefined;
+
+  const value = Number(raw.replace(",", "."));
+
+  return Number.isFinite(value) ? value : undefined;
+};
+
+const criterionIndicatorXml = (indicator: Eis17EvaluationIndicator): string =>
+  `<indicatorInfo>` +
+  (indicator.externalSid
+    ? `<externalSId>${escapeXml(indicator.externalSid)}</externalSId>`
+    : "") +
+  (indicator.name ? `<name>${escapeXml(indicator.name)}</name>` : "") +
+  `<value>${indicator.value}</value>` +
+  (indicator.addInfo ? `<addInfo>${escapeXml(indicator.addInfo)}</addInfo>` : "") +
+  (indicator.measurementOrder
+    ? `<measurementOrder>${indicator.measurementOrder}</measurementOrder>`
+    : "") +
+  `</indicatorInfo>`;
+
+/**
+ * Сериализация criteriaInfo по IntegrationEPTypes.xsd 17.0.
+ *
+ * В XSD 17.0 критерий — это choice из costCriterionInfo и
+ * qualitativeCriterionInfo; внутри стоимостного показатели допустимы только
+ * для MC (расходы), внутри нестоимостного — для QF/QO. Порядок элементов
+ * фиксирован: code → valueInfo → addInfo → показатели. Для аукциона
+ * (notificationEF2020) в начале блока допускается isCertainWorks.
+ */
+export const buildEis17CriteriaXml = (
+  criteria: Eis17EvaluationCriterion[],
+  options: { includeCertainWorks?: boolean; isCertainWorks?: boolean } = {},
+): string => {
+  if (criteria.length === 0) return "";
+
+  const items = criteria.map((criterion) => {
+    const indicators = criterion.indicators.length
+      ? `<indicatorsInfo>${criterion.indicators
+          .map(criterionIndicatorXml)
+          .join("")}</indicatorsInfo>`
+      : "";
+    const addInfo = criterion.addInfo
+      ? `<addInfo>${escapeXml(criterion.addInfo)}</addInfo>`
+      : "";
+
+    if (criterion.group === "cost") {
+      return (
+        `<criterionInfo><costCriterionInfo>` +
+        `<code>${criterion.code}</code>${indicators}` +
+        `<valueInfo>${criterion.valueInfo}</valueInfo>${addInfo}` +
+        `</costCriterionInfo></criterionInfo>`
+      );
+    }
+
+    return (
+      `<criterionInfo><qualitativeCriterionInfo>` +
+      `<code>${criterion.code}</code>` +
+      `<valueInfo>${criterion.valueInfo}</valueInfo>${addInfo}${indicators}` +
+      `</qualitativeCriterionInfo></criterionInfo>`
+    );
+  });
+
+  const certainWorks =
+    options.includeCertainWorks && options.isCertainWorks !== undefined
+      ? `<isCertainWorks>${options.isCertainWorks}</isCertainWorks>`
+      : "";
+
+  return `<criteriaInfo>${certainWorks}${items.join("")}</criteriaInfo>`;
+};
+
+/**
+ * Десериализация criteriaInfo: принимает фрагмент XML (превью или ответ ЕИС)
+ * и восстанавливает критерии с показателями. Нужна для сверки выгруженного
+ * пакета с моделью без обращения к DOM (работает и в Node-тестах).
+ */
+export const parseEis17Criteria = (xml: string): Eis17EvaluationCriterion[] => {
+  const criteria: Eis17EvaluationCriterion[] = [];
+  const criterionRe = /<criterionInfo>([\s\S]*?)<\/criterionInfo>/g;
+  let criterionMatch: RegExpExecArray | null;
+
+  while ((criterionMatch = criterionRe.exec(xml)) !== null) {
+    const block = criterionMatch[1];
+    const costMatch = /<costCriterionInfo>([\s\S]*?)<\/costCriterionInfo>/.exec(
+      block,
+    );
+    const qualitativeMatch =
+      /<qualitativeCriterionInfo>([\s\S]*?)<\/qualitativeCriterionInfo>/.exec(
+        block,
+      );
+    const group: "cost" | "qualitative" = costMatch ? "cost" : "qualitative";
+    const body = costMatch?.[1] ?? qualitativeMatch?.[1] ?? "";
+    const code = xmlTagValue(body, "code") as
+      | EisCostCriterionCode
+      | EisQualitativeCriterionCode
+      | undefined;
+
+    if (!code) continue;
+
+    const indicators: Eis17EvaluationIndicator[] = [];
+    const indicatorRe = /<indicatorInfo>([\s\S]*?)<\/indicatorInfo>/g;
+    let indicatorMatch: RegExpExecArray | null;
+
+    while ((indicatorMatch = indicatorRe.exec(body)) !== null) {
+      const indicatorBody = indicatorMatch[1];
+
+      indicators.push({
+        externalSid: xmlTagValue(indicatorBody, "externalSId"),
+        name: xmlTagValue(indicatorBody, "name"),
+        value: xmlTagNumber(indicatorBody, "value") ?? 0,
+        addInfo: xmlTagValue(indicatorBody, "addInfo"),
+        measurementOrder: xmlTagValue(indicatorBody, "measurementOrder") as
+          | "F"
+          | "L"
+          | "O"
+          | undefined,
+        limitMin: xmlTagNumber(indicatorBody, "limitMin"),
+        limitMax: xmlTagNumber(indicatorBody, "limitMax"),
+      });
+    }
+
+    criteria.push({
+      group,
+      code,
+      valueInfo: xmlTagNumber(body, "valueInfo") ?? 0,
+      addInfo: xmlTagValue(body, "addInfo"),
+      indicators,
+    });
+  }
+
+  return criteria;
+};
+
 export const buildNotification2020XmlPreview = (
   notice: NoticeInfoFormValues,
 ): string => {
@@ -2537,14 +2975,17 @@ export const buildNotification2020XmlPreview = (
     )
     .join("\n");
 
-  const criteriaXml = dto.notificationInfo.criteriaInfo
-    .map(
-      (c) => `        <criterionInfo>
-          <criterionCode>${c.code}</criterionCode>
-          <valueInfo>${c.valueInfo}</valueInfo>
-        </criterionInfo>`,
-    )
-    .join("\n");
+  // Критерии оценки — по IntegrationEPTypes.xsd 17.0: для аукциона в блоке
+  // есть isCertainWorks, для конкурса — сразу criterionInfo.
+  const criteriaXml = buildEis17CriteriaXml(
+    dto.notificationInfo.criteriaInfo,
+    {
+      includeCertainWorks: dto.notificationType === "EF2020",
+      isCertainWorks: Boolean(
+        notice.participantsRequirements.isNiokrOrConsulting,
+      ),
+    },
+  );
 
   const dayType = (value: "C" | "W"): string =>
     value === "W" ? "working" : "calendar";
@@ -2755,7 +3196,7 @@ ${objectsXml}
       ${dto.notificationInfo.purchaseObjectsInfo.totalSum !== undefined ? `<totalSum>${dto.notificationInfo.purchaseObjectsInfo.totalSum.toFixed(2)}</totalSum>` : ""}
       ${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency !== undefined ? `<totalSumCurrency>${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency.toFixed(2)}</totalSumCurrency>` : ""}
     </purchaseObjectsInfo>
-    ${criteriaXml ? `<criteriaInfo>\n${criteriaXml}\n    </criteriaInfo>` : ""}
+    ${criteriaXml}
 ${preferensesXml}
 ${requirementsXml}
 ${restrictionsXml}

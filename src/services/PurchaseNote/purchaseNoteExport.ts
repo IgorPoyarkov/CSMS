@@ -20,6 +20,10 @@ import {
   PLACING_WAYS_ALL,
 } from "../../services/Procurements/noticeInfo.config";
 import {
+  normalizePp2571Positions,
+  pp2571PositionLabel,
+} from "../Pp2571/pp2571.schema";
+import {
   COST_ITEM_CATEGORY_LABELS,
   MARKET_PRICE_SOURCE_SHORT,
   NMCK_METHOD_LABELS,
@@ -439,9 +443,14 @@ export const buildPurchaseNoteExportModel = ({
     );
   }
   if (note.additionalRequirementsPart2Art31) {
+    // В документ выводим подписи позиций: в записи хранятся идентификаторы
+    // каталога, а старые СЗ могут содержать готовые текстовые метки.
+    const positionLabels = normalizePp2571Positions(note.pp2571Positions).map(
+      pp2571PositionLabel,
+    );
     const posList =
-      note.pp2571Positions && note.pp2571Positions.length > 0
-        ? ` (позиции ПП РФ № 2571: ${note.pp2571Positions.join("; ")})`
+      positionLabels.length > 0
+        ? ` (позиции ПП РФ № 2571: ${positionLabels.join("; ")})`
         : "";
     requirementBullets.push(
       withDesc(

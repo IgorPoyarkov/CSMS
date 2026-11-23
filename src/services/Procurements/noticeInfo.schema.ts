@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { BudgetPart13Art44RequisitesSchema } from "../Organization/organization.schema";
+import { validatePp2571Requirements } from "../Pp2571/pp2571.schema";
+
 
 export const EisPhoneSchema = z.object({
   countryCode: z.string().max(4),
@@ -189,6 +191,13 @@ export const NoticeInfoSchema = z.object({
   purchaseNoteId: z.union([z.string(), z.number()]).nullable().optional(),
   objectDescriptionId: z.union([z.string(), z.number()]).nullable().optional(),
   ikz: z.string().optional(),
+
+  // Связь закупки с проектом контракта. По ПП РФ № 2604 критерии оценки
+  // (качество, квалификация, расходы) устанавливаются в извещении вместе
+  // с проектом контракта, поэтому документ должен быть привязан к закупке.
+  // Внутренняя ссылка — id карточки проекта, номер — реестровый номер в ЕИС.
+  contractProjectId: z.union([z.string(), z.number()]).nullable().optional(),
+  contractProjectNumber: z.string().optional(),
 
   // Основание процедуры и данные проекта контракта, которые появляются после
   // определения поставщика. Приходят из служебной записки, чтобы проект
@@ -557,7 +566,41 @@ export const NoticeInfoSchema = z.object({
 
   // ВКЛАДКА 6: Прилагаемые документы
   attachedDocs: z.array(AttachedDocItemSchema),
+}).superRefine((notice, ctx) => {
+  // Требования ПП РФ от 29.12.2021 № 2571. Извещение получает настройки из СЗ,
+  // поэтому пороги НМЦК и связи позиций с объектами здесь не блокируют
+  // документ (strict: false) — они остаются предупреждениями в форме СЗ.
+  // Блокируются только структурные противоречия: позиции без флага
+  // ч. 2 ст. 31, п. 4 без ч. 2.1 ст. 31, отсутствие санкционного РНП при
+  // отказе от требований ч. 1.1 ст. 31.
+  const requirements = notice.participantsRequirements;
+
+  validatePp2571Requirements({
+    nmck: notice.generalInfo.nmck,
+    placingWayCode: notice.generalInfo.placingWayCode,
+    items: notice.purchaseObjects.items,
+    selectedPositions: requirements.pp2571Positions,
+    additionalRequirementsPart2Art31:
+      requirements.additionalRequirementsPart2Art31,
+    additionalRequirementsPart2Art31Text:
+      requirements.additionalRequirementsPart2Art31Text,
+    point4Requirement: requirements.pp2571Point4Requirement,
+    point4RequirementText: requirements.pp2571Point4RequirementText,
+    requirementsPart2_1Art31: requirements.requirementsPart2_1Art31,
+    requirementsPart1_1Art31: requirements.requirementsPart1_1Art31,
+    sanctionsRnpRequirement: requirements.sanctionsRnpRequirement,
+    strict: false,
+  })
+    .filter((issue) => issue.level === "error")
+    .forEach((issue) =>
+      ctx.addIssue({
+        code: "custom",
+        path: ["participantsRequirements", ...issue.path],
+        message: issue.message,
+      }),
+    );
 });
+
 
 export type NoticeInfoFormValues = z.infer<typeof NoticeInfoSchema>;
 export type NoticeInfo = NoticeInfoFormValues;

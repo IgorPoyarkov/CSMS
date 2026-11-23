@@ -129,8 +129,15 @@ import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import {
   NATIONAL_REGIME_OPTIONS,
   PLACING_WAYS_ALL,
-  PP2571_POSITIONS,
 } from "../../services/Procurements/noticeInfo.config";
+import {
+  buildPp2571RequirementText,
+  normalizePp2571Positions,
+  validatePp2571Requirements,
+  type Pp2571Issue,
+} from "../../services/Pp2571/pp2571.schema";
+import Pp2571RequirementsPanel from "./Pp2571RequirementsPanel";
+
 import { formatDeliveryAddress } from "../../services/AddressRef/addressRef.schema";
 import { formatCharacteristicValue } from "../../services/ObjectDescription/objectDescription.schema";
 import {
@@ -476,7 +483,7 @@ export default function PurchaseNoteModal({
           note.warrantyTermAndVolume ||
           note.requiresWarrantySecurity,
         ),
-        pp2571Positions: note.pp2571Positions ?? [],
+        pp2571Positions: normalizePp2571Positions(note.pp2571Positions),
         requirementsPart1_1Art31: note.requirementsPart1_1Art31 ?? true,
         pp2571Point4RequirementText:
           note.pp2571Point4RequirementText || base.pp2571Point4RequirementText,
@@ -919,6 +926,32 @@ export default function PurchaseNoteModal({
   const nmckValue = toNumber(watch("initialMaxPrice")) ?? 0;
   const kbkFundingDiff = Number((kbkFundingTotal - nmckValue).toFixed(2));
 
+  // Требования ПП РФ от 29.12.2021 № 2571: в форме показываем все замечания
+  // (ошибки и предупреждения), в zod-схему попадают только ошибки —
+  // см. PurchaseNoteSchema.superRefine.
+  const watchedPart2Art31Text = watch("additionalRequirementsPart2Art31Text") ?? "";
+  const watchedPoint4Art31Text = watch("pp2571Point4RequirementText") ?? "";
+  const watchedPlacingWayCode = watch("placingWayCode");
+  const watchedNoteStatus = watch("status") ?? "draft";
+
+  // Валидатор лёгкий, а watch-массивы пересоздаются на каждом рендере —
+  // мемоизация здесь не даёт выигрыша и создаёт лишние зависимости.
+  const pp2571Issues: Pp2571Issue[] = validatePp2571Requirements({
+    nmck: nmckValue,
+    placingWayCode: watchedPlacingWayCode,
+    items: watchedItems,
+    selectedPositions: watchedPp2571,
+    additionalRequirementsPart2Art31: watchedPart2Art31,
+    additionalRequirementsPart2Art31Text: watchedPart2Art31Text,
+    point4Requirement: watchedPp2571Point4,
+    point4RequirementText: watchedPoint4Art31Text,
+    requirementsPart2_1Art31: watchedPart2_1Art31,
+    requirementsPart1_1Art31: watchedPart1_1Art31,
+    sanctionsRnpRequirement: watchedSanctionsRnp,
+    isDraft: watchedNoteStatus === "draft",
+  });
+
+
   // Валидация ст. 30 Закона № 44-ФЗ: ограничения по СМП зависят от НМЦК.
   // Преимущества ст. 28/29 определяются перечнями ОКПД2, а не размером НМЦК.
   const smpValidation = useMemo(
@@ -1196,14 +1229,6 @@ export default function PurchaseNoteModal({
     if (!checked) {
       setValue("requiresWarrantySecurity", false);
     }
-  };
-
-  const togglePp2571 = (pos: string) => {
-    if (isReadOnly) return;
-    const next = watchedPp2571.includes(pos)
-      ? watchedPp2571.filter((item) => item !== pos)
-      : [...watchedPp2571, pos];
-    setValue("pp2571Positions", next);
   };
 
   const handleApplyOrgRequisites = () => {
@@ -4582,18 +4607,39 @@ export default function PurchaseNoteModal({
                   </span>
                 </label>
 
+                {/* Позиции приложения, пороги НМЦК и подтверждающие документы.
+                    Замечания показываются всегда, чтобы рассинхрон флага
+                    ч. 2 ст. 31 и выбранных позиций был виден до сохранения */}
+                <Pp2571RequirementsPanel
+                  nmck={nmckValue}
+                  placingWayCode={watchedPlacingWayCode}
+                  items={watchedItems}
+                  selected={watchedPp2571}
+                  onChange={(next) =>
+                    setValue("pp2571Positions", next, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                  issues={pp2571Issues}
+                  onFillRequirementText={() => {
+                    setValue(
+                      "additionalRequirementsPart2Art31Text",
+                      buildPp2571RequirementText(watchedPp2571, nmckValue),
+                      { shouldDirty: true, shouldValidate: true },
+                    );
+                    if (!watchedPart2Art31) {
+                      setValue("additionalRequirementsPart2Art31", true, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                  disabled={isReadOnly}
+                />
+
                 {watchedPart2Art31 && (
                   <div className={block("nested-box")}>
-                    {PP2571_POSITIONS.map((pos) => (
-                      <label key={pos} className={block("checkbox")}>
-                        <input
-                          type="checkbox"
-                          checked={watchedPp2571.includes(pos)}
-                          onChange={() => togglePp2571(pos)}
-                        />
-                        <span>{pos}</span>
-                      </label>
-                    ))}
                     <textarea
                       rows={2}
                       className={block("textarea")}
