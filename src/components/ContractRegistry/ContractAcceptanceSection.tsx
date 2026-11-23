@@ -120,7 +120,7 @@ export default function ContractAcceptanceSection({
         {/* Аналог «+ Платёж»: документ о приёмке заводят в том же контуре,
             что и платёжные документы, но он входящий — его направил
             поставщик */}
-        <Link className={styles.btnSmall} to={newLink}>
+        <Link className={styles.btnSecondary} to={newLink}>
           + Приёмка
         </Link>
       </div>
