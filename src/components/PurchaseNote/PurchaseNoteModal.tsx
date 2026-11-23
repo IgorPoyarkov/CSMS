@@ -2048,7 +2048,37 @@ export default function PurchaseNoteModal({
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>1. Реквизиты потребности и согласование</legend>
         <div className={block("grid")}>
-          {/* Инициатор — первым, на всю ширину. Статус согласования
+          {/* Номер и дата СЗ — первая строка реквизитов. */}
+          <div className={block("field")}>
+            <label className={block("label")} htmlFor="note-number">
+              Номер СЗ *
+            </label>
+            <input
+              id="note-number"
+              className={block("input")}
+              {...register("noteNumber")}
+            />
+            {errorText("noteNumber") && (
+              <span className={block("error")}>{errorText("noteNumber")}</span>
+            )}
+          </div>
+
+          <div className={block("field")}>
+            <label className={block("label")} htmlFor="note-date">
+              Дата СЗ *
+            </label>
+            <input
+              id="note-date"
+              className={block("input")}
+              type="date"
+              {...register("noteDate")}
+            />
+            {errorText("noteDate") && (
+              <span className={block("error")}>{errorText("noteDate")}</span>
+            )}
+          </div>
+
+          {/* Инициатор — следующим, на всю ширину. Статус согласования
               показывается один раз — в шапке СЗ. */}
           <div className={block("field", ["wide"])}>
             <div className={block("initiator-row")}>
@@ -2091,35 +2121,6 @@ export default function PurchaseNoteModal({
             {/* Статус меняется автоматически по мере прохождения СЗ
                 и не редактируется вручную; показывается в шапке. */}
             <input type="hidden" {...register("status")} />
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-number">
-              Номер СЗ *
-            </label>
-            <input
-              id="note-number"
-              className={block("input")}
-              {...register("noteNumber")}
-            />
-            {errorText("noteNumber") && (
-              <span className={block("error")}>{errorText("noteNumber")}</span>
-            )}
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="note-date">
-              Дата СЗ *
-            </label>
-            <input
-              id="note-date"
-              className={block("input")}
-              type="date"
-              {...register("noteDate")}
-            />
-            {errorText("noteDate") && (
-              <span className={block("error")}>{errorText("noteDate")}</span>
-            )}
           </div>
 
           <div className={block("field", ["wide"])}>
