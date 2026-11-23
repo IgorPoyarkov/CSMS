@@ -173,6 +173,10 @@ export const ObjectDescriptionSchema = z.object({
   okpd2Name: optionalString(),
   useKtru: z.boolean().default(false),
   ktruCode: optionalString(),
+  ktruName: optionalString(),
+  // Мотивированный отказ от применения КТРУ, когда позиция не подходит.
+  // Приходит из позиции ПГ и сохраняется вместе с ООЗ.
+  ktruRefusalReason: optionalString(),
   unit: optionalString(),
   quantity: optionalString(),
   isIndeterminateVolume: z.boolean().default(false),
@@ -512,6 +516,8 @@ export const emptyObjectDescription = (
   okpd2Name: "",
   useKtru: false,
   ktruCode: "",
+  ktruName: "",
+  ktruRefusalReason: "",
   unit: "",
   quantity: "",
   isIndeterminateVolume: false,

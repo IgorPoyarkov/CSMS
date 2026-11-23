@@ -524,6 +524,10 @@ export const PurchasePlanPositionSchema = z
       2,
       "Укажите наименование объекта по ОКПД2 (товар, работа, услуга)",
     ),
+    // КТРУ под ОКПД2: когда позиция КТРУ применяется, код и наименование
+    // попадают в СЗ и ООЗ. Иначе фиксируется мотивированный отказ от применения.
+    useKtru: z.boolean().optional(),
+    ktruRefusalReason: z.string().max(1000).optional(),
     objectName: optionalText(
       5,
       "Укажите наименование объекта закупки (по КТРУ или в свободной форме)",
@@ -1138,6 +1142,8 @@ export const emptyPurchasePlanPosition = (): PurchasePlanPosition => ({
   okpd2Items: [],
   ktruCode: "",
   ktruName: "",
+  useKtru: false,
+  ktruRefusalReason: "",
   objectName: "",
   kbk: "",
   kbkEntries: [],

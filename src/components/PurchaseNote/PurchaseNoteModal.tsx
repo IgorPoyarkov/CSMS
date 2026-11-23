@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -268,6 +268,7 @@ export default function PurchaseNoteModal({
 }: PurchaseNoteModalProps) {
   const { bem, fullName } = useUtils();
   const block = bem(styles, "purchase-note-modal");
+  const location = useLocation();
   const {
     organization,
     employee,
@@ -427,6 +428,18 @@ export default function PurchaseNoteModal({
 
   const buildDefaults = (note?: PurchaseNote): PurchaseNote => {
     const base = emptyPurchaseNote(organizationId);
+    // Годовая разбивка финансирования заполняется сразу по всем кодам ПГ.
+    // Ранее в СЗ попадал только первый КБК, а лимиты по остальным кодам
+    // считались пустыми — НМЦК нельзя было проверить по детализации плана.
+    const initialFundingAmounts = kbkEntries.map((entry, idx) => ({
+      id: `kbk-${idx}`,
+      kbk: entry.kbk,
+      amountCurrentYear: String(entry.amountCurrentYear ?? ""),
+      amountPlanPeriodFirstYear: String(entry.amountPlanPeriodFirstYear ?? ""),
+      amountPlanPeriodSecondYear: String(entry.amountPlanPeriodSecondYear ?? ""),
+      amountSubsequentYears: String(entry.amountSubsequentYears ?? ""),
+    }));
+
     if (note) {
       const legacyItems: PurchaseNoteObjectItem[] =
         note.items && note.items.length > 0
@@ -438,8 +451,10 @@ export default function PurchaseNoteModal({
                 name: note.subject || position.objectOfPurchase || "",
                 okpd2Code: note.okpd2Code || position.okpd2Code || "",
                 okpd2Name: note.okpd2Name || position.okpd2Name || "",
-                ktruCode: "",
-                ktruName: "",
+                ktruCode: position.ktruCode || "",
+                ktruName: position.ktruName || "",
+                // ktruCode/ktruName живут в items и в ООЗ; верхний уровень СЗ
+                // их не хранит, поэтому берём снимок из позиции ПГ.
                 unit: note.unit || "",
                 quantity: note.isIndeterminateVolume
                   ? "1"
@@ -479,8 +494,17 @@ export default function PurchaseNoteModal({
             ? String(note.nmckCalculation.nmckTotal)
             : String(position.amountTotal ?? "")),
         initiatorEmployeeId: note.initiatorEmployeeId ?? undefined,
+        purchaseNumber: note.purchaseNumber || String(position.purchaseNumber ?? ""),
+        plannedPlacementYear:
+          note.plannedPlacementYear ?? position.plannedPlacementYear ?? "",
+        positionStatus: note.positionStatus || position.status || "",
+        positionStatusDate: note.positionStatusDate || position.statusDate || "",
         ikz: note.ikz || position.identificationCode || "",
         kbk: defaultKbk || note.kbk || "",
+        kbkFundingAmounts:
+          note.kbkFundingAmounts && note.kbkFundingAmounts.length > 0
+            ? note.kbkFundingAmounts
+            : initialFundingAmounts,
         budgetLevel: note.budgetLevel || orgBudgetLevelLabel,
         authorizedBodyName:
           note.authorizedBodyName || position.authorizedBodyName || "",
@@ -529,6 +553,10 @@ export default function PurchaseNoteModal({
       positionId: position.id,
       positionSerialNumber: String(position.serialNumber ?? ""),
       positionUniqueNumber: String(position.uniqueNumber ?? ""),
+      purchaseNumber: String(position.purchaseNumber ?? ""),
+      plannedPlacementYear: position.plannedPlacementYear ?? "",
+      positionStatus: position.status ?? "",
+      positionStatusDate: position.statusDate ?? "",
       ikz: position.identificationCode || "",
       initiatorEmployeeId: defaultInitiatorEmployee?.id,
       initiatorName: defaultInitiatorText,
@@ -536,6 +564,7 @@ export default function PurchaseNoteModal({
       authorizedBodyName: position.authorizedBodyName || "",
       jointOrganizerName: position.jointOrganizerName || "",
       kbk: defaultKbk,
+      kbkFundingAmounts: initialFundingAmounts,
       budgetLevel: orgBudgetLevelLabel,
       fundingSource: orgBudgetLevelLabel,
       subject: position.objectOfPurchase || autoMatchedDesc?.title || "",
@@ -547,8 +576,9 @@ export default function PurchaseNoteModal({
           name: position.objectOfPurchase || autoMatchedDesc?.title || "",
           okpd2Code: position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
           okpd2Name: position.okpd2Name || autoMatchedDesc?.okpd2Name || "",
-          ktruCode: autoMatchedDesc?.ktruCode ?? "",
-          ktruName: "",
+          ktruCode:
+            autoMatchedDesc?.ktruCode || position.ktruCode || "",
+          ktruName: autoMatchedDesc?.ktruName || position.ktruName || "",
           unit: autoMatchedDesc?.unit || "",
           quantity: firstQty,
           unitPrice: "",
@@ -606,6 +636,14 @@ export default function PurchaseNoteModal({
     reset,
     formState: { errors },
   } = methods;
+
+  // Возврат из конструктора ООЗ: новое описание приходит в query и сразу
+  // становится выбранным, чтобы цепочка «создал ООЗ → продолжил СЗ» не рвалась.
+  useEffect(() => {
+    const oozId = new URLSearchParams(location.search).get("oozId");
+    if (!oozId) return;
+    setValue("objectDescriptionId", oozId, { shouldDirty: true });
+  }, [location.search, setValue]);
 
   const {
     fields: itemFields,
@@ -869,6 +907,11 @@ export default function PurchaseNoteModal({
   const nmckMethod = watchedNmckCalculation?.method;
   const nmckMethodSoft = nmckMethod === "tariff" || nmckMethod === "cost";
   const oozReady = Boolean(selectedOoz) && watchedOozSetComplete;
+  // Обоснование НМЦК считается готовым, когда есть расчёт или загруженный
+  // файл обоснования. Пока ООЗ и НМЦК не готовы, остальные требования СЗ
+  // бессмысленны и скрываются, чтобы не заполнять их вслепую.
+  const hasNmck = Boolean(watchedNmckCalculation || watchedNmckFileName);
+  const laterSectionsReady = oozReady && hasNmck;
   const nmckRequestAllowed = oozReady || nmckMethodSoft;
 
   // Суммы финансирования по КБК правятся по годам: «всего» — расчётная
@@ -1888,6 +1931,23 @@ export default function PurchaseNoteModal({
     }
   };
 
+  // Контекст для конструктора ООЗ: он должен знать, из какой позиции ПГ и СЗ
+  // пришёл пользователь, чтобы создать описание с готовыми сквозными ссылками
+  // и вернуть его обратно в форму после сохранения.
+  const normingLinkParams = new URLSearchParams({
+    purchasePlanId: String(plan.id ?? ""),
+    positionId: String(position.id ?? ""),
+    purchaseNoteId: String(editingNoteId ?? ""),
+    ikz: watch("ikz") || position.identificationCode || "",
+    okpd2Code: watch("items.0.okpd2Code") || position.okpd2Code || "",
+    okpd2Name: watch("items.0.okpd2Name") || position.okpd2Name || "",
+    ktruCode: watch("items.0.ktruCode") || position.ktruCode || "",
+    useKtru: String(position.useKtru ?? false),
+    ktruRefusalReason: position.ktruRefusalReason || "",
+    title: watch("subject") || position.objectOfPurchase || "",
+    returnTo: `${location.pathname}${location.search}`,
+  }).toString();
+
   return (
     <form className={block()} onSubmit={handleSubmit(onSubmit)}>
       <header className={block("header")}>
@@ -2113,7 +2173,10 @@ export default function PurchaseNoteModal({
                 Структурированное ООЗ — единый набор характеристик (из
                 /norming-requirements)
               </label>
-              <Link to="/norming-requirements" className={block("inline-link")}>
+              <Link
+                to={`/norming-requirements?${normingLinkParams}`}
+                className={block("inline-link")}
+              >
                 Редактировать в конструкторе ООЗ
                 <ExternalLink size={12} aria-hidden="true" />
               </Link>
@@ -4434,6 +4497,15 @@ export default function PurchaseNoteModal({
         </div>
       </fieldset>
 
+      {!laterSectionsReady && (
+        <div className={block("pending-notice")}>
+          Сначала выберите структурированное ООЗ и подготовьте обоснование
+          НМЦК. Остальные требования служебной записки появятся после этого.
+        </div>
+      )}
+
+      {laterSectionsReady && (
+        <>
       {/* 5. Преимущества СМП, требования ст. 31, ПП 1482, ПП 2571 и санкционный РНП */}
       <fieldset className={block("section")} disabled={isReadOnly}>
         <legend>
@@ -5143,6 +5215,9 @@ export default function PurchaseNoteModal({
           </div>
         </div>
       </fieldset>
+
+        </>
+      )}
 
       {showNmckSign && editingNoteId !== undefined && editingNoteId !== "" && (
         <EdsSignModal

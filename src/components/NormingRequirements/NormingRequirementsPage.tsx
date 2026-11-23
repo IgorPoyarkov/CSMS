@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
 import { useOrganizationEducations } from "../../services/ContractService/education.api";
@@ -44,6 +44,24 @@ type ActiveTab = "descriptions" | "templates";
 export default function NormingRequirementsPage() {
   const { bem } = useUtils();
   const block = bem(styles, "norming-requirements");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const contextParams = useMemo(() => {
+    const read = (key: string) => searchParams.get(key) ?? "";
+    return {
+      purchasePlanId: read("purchasePlanId"),
+      positionId: read("positionId"),
+      purchaseNoteId: read("purchaseNoteId"),
+      ikz: read("ikz"),
+      okpd2Code: read("okpd2Code"),
+      okpd2Name: read("okpd2Name"),
+      ktruCode: read("ktruCode"),
+      useKtru: read("useKtru") === "true",
+      ktruRefusalReason: read("ktruRefusalReason"),
+      title: read("title"),
+      returnTo: read("returnTo"),
+    };
+  }, [searchParams]);
   const { organization, contractService, employee, user, isHead } =
     useMyContractRole();
 
@@ -146,15 +164,55 @@ export default function NormingRequirementsPage() {
     return objectDescriptions.slice(start, start + effectiveSize);
   }, [objectDescriptions, safePage, effectiveSize]);
 
+  const applyContextToDescription = (value: ObjectDescription) => {
+    if (contextParams.purchasePlanId)
+      value.purchasePlanId = contextParams.purchasePlanId;
+    if (contextParams.positionId) value.positionId = contextParams.positionId;
+    if (contextParams.purchaseNoteId)
+      value.purchaseNoteId = contextParams.purchaseNoteId;
+    if (contextParams.ikz) value.ikz = contextParams.ikz;
+    if (contextParams.okpd2Code) value.okpd2Code = contextParams.okpd2Code;
+    if (contextParams.okpd2Name) value.okpd2Name = contextParams.okpd2Name;
+    if (contextParams.ktruCode) value.ktruCode = contextParams.ktruCode;
+    value.useKtru = contextParams.useKtru || Boolean(contextParams.ktruCode);
+    if (contextParams.ktruRefusalReason)
+      value.ktruRefusalReason = contextParams.ktruRefusalReason;
+    if (contextParams.title) value.title = contextParams.title;
+    return value;
+  };
+
   const openNewEditor = () => {
     const fresh = emptyObjectDescription(
       organization?.id ?? null,
       "object_description",
     );
     fresh.authorName = currentFio;
+    applyContextToDescription(fresh);
     setActiveTab("descriptions");
     setEditingItem(fresh);
   };
+
+  // При переходе из СЗ/ПГ сразу открываем редактор с подставленным контекстом.
+  // Ключ контекста сравниваем во время рендера — без эффекта с setState.
+  const contextKey = contextParams.returnTo
+    ? [
+        contextParams.returnTo,
+        contextParams.positionId,
+        contextParams.purchaseNoteId,
+        organization?.id ?? "",
+      ].join("|")
+    : "";
+  const [appliedContextKey, setAppliedContextKey] = useState("");
+  if (contextKey && contextKey !== appliedContextKey) {
+    setAppliedContextKey(contextKey);
+    setActiveTab("descriptions");
+    const fresh = emptyObjectDescription(
+      organization?.id ?? null,
+      "object_description",
+    );
+    fresh.authorName = currentFio;
+    setEditingItem(applyContextToDescription(fresh));
+  }
 
   const openDuplicate = (source: ObjectDescription) => {
     const clone: ObjectDescription = {
@@ -209,6 +267,8 @@ export default function NormingRequirementsPage() {
           onSuccess: (saved) => {
             setEditingItem(null);
             attachObjectDescription(saved);
+            if (contextParams.returnTo)
+              navigate(`${contextParams.returnTo}&oozId=${saved.id ?? ""}`);
           },
         },
       );

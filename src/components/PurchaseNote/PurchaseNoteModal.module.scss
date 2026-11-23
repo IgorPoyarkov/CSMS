@@ -36,6 +36,16 @@
     }
   }
 
+  &__pending-notice {
+    padding: 16px 20px;
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+    background: var(--surface-muted);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
   &__header {
     display: flex;
     flex-wrap: wrap;
