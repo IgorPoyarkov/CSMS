@@ -178,6 +178,33 @@ assert.ok(
   ),
 );
 
+// 6a. Передача в КС без НМЦК — уже ошибка, а в черновике — лишь предупреждение.
+const reviewWithoutNmck: ContractEstimateDocument = {
+  ...validDocument,
+  nmck: undefined,
+  status: "review",
+};
+const reviewIssues = validateEstimateDocument(reviewWithoutNmck, { defect });
+assert.ok(
+  reviewIssues.some(
+    (issue) => issue.code === "nmck-missing" && issue.level === "error",
+  ),
+);
+assert.equal(estimateValidationSummary(reviewIssues).canSubmit, false);
+
+const draftWithoutNmck: ContractEstimateDocument = {
+  ...validDocument,
+  nmck: undefined,
+  status: "draft",
+};
+const draftIssues = validateEstimateDocument(draftWithoutNmck, { defect });
+assert.ok(
+  draftIssues.some(
+    (issue) => issue.code === "nmck-missing" && issue.level === "warning",
+  ),
+);
+assert.equal(estimateValidationSummary(draftIssues).canSubmit, true);
+
 // 7. Расхождение сметы и НМЦК — предупреждение, не ошибка.
 const mismatchDocument: ContractEstimateDocument = {
   ...validDocument,

@@ -197,6 +197,31 @@ export default function EstimateEditorPage() {
   });
   const summary = estimateValidationSummary(issues);
 
+  // Проверка «как будет после действия»: для передачи в КС НМЦК уже
+  // обязательна, для утверждения — ещё и подпись.
+  const validateAs = (status: "review" | "approved") =>
+    estimateValidationSummary(
+      validateEstimateDocument(
+        {
+          ...document,
+          status,
+          ...(status === "approved"
+            ? {
+                approvedAt: document.approvedAt || todayIso(),
+                approvedBy: document.approvedBy || authorName,
+              }
+            : {}),
+        },
+        {
+          defect: selectedDefect,
+          checkDefect: Boolean(selectedDefect || document.defectListId),
+        },
+      ),
+    );
+
+  const reviewSummary = validateAs("review");
+  const approvalSummary = validateAs("approved");
+
   const actor: EstimateActor = {
     employeeId: employee?.id,
     isContractServiceMember,
@@ -292,7 +317,7 @@ export default function EstimateEditorPage() {
   const handleSendToReview = () => {
     if (!canEdit) return;
 
-    if (!summary.canSubmit) {
+    if (!reviewSummary.canSubmit) {
       setActionError(
         "Перед передачей в КС устраните ошибки проверки: без них смету нельзя согласовать.",
       );
@@ -311,7 +336,7 @@ export default function EstimateEditorPage() {
   const handleApprove = () => {
     if (!canApprove) return;
 
-    if (!summary.canSubmit) {
+    if (!approvalSummary.canSubmit) {
       setActionError("Утверждение заблокировано: есть ошибки проверки.");
       return;
     }
