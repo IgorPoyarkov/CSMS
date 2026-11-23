@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
@@ -39,6 +39,11 @@ import {
   validateNoticeInfoEis17,
 } from "../../services/Eis/eis17Types";
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
+import {
+  eisNoticeReadiness,
+  eisNoticeReadinessError,
+  eisNoticeReadinessSummary,
+} from "../../services/Eis/eisNoticeReadiness";
 import EisPackageCard from "./EisPackageCard";
 import styles from "./EisPackagesPage.module.scss";
 import Select from "../UI/Select";
@@ -173,6 +178,15 @@ export default function EisPackagesPage() {
     null;
   const withPayload = isEisDocumentTypeWithPayload(documentType);
 
+  // Готовность Раздела 2 извещения: та же проверка, что блокирует публикацию.
+  // Считается на каждый рендер, а не в состоянии: правки в извещении приходят
+  // из кэша запросов, и устаревшая копия готовности пропустила бы неполный
+  // документ в ЕИС. Проверка дешёвая — семь категорий и список вложений.
+  const noticeReadiness =
+    documentType === "Notification" && pickedNotice
+      ? eisNoticeReadiness(pickedNotice)
+      : null;
+
   // Приёмки, из которых шлюз соберёт сведения об исполнении. Только принятые:
   // на остальных он сам вернёт 409, и показывать их как выбор нечестно.
   // Если в форму пришли из карточки контракта, его приёмки — первыми.
@@ -275,6 +289,14 @@ export default function EisPackagesPage() {
 
     if (documentType === "Notification" && !pickedNotice) {
       setFormError("Выберите сохранённое извещение — из него собирается XML.");
+      return;
+    }
+    // Раздел 2 извещения проверяется до сборки XML: без утверждённых ООЗ,
+    // обоснования НМЦК и проекта контракта ЕИС отклонит документ, а подпись
+    // под исправленным извещением станет второй. Проверка та же, что и при
+    // публикации (`noticeAttachmentReadiness`), — правила не дублируются.
+    if (noticeReadiness && !noticeReadiness.ok) {
+      setFormError(eisNoticeReadinessError(noticeReadiness));
       return;
     }
     if (documentType === "ContractProject" && !pickedProject) {
@@ -387,6 +409,11 @@ export default function EisPackagesPage() {
         payloadXml,
         source,
         customer,
+        // Документы и снимок проверки уходят вместе с XML: шлюз возвращает их
+        // в карточке пакета, и через месяц видно, с каким Разделом 2 ушло
+        // извещение — даже если извещение с тех пор правили
+        attachments: noticeReadiness?.attachments,
+        attachmentReadiness: noticeReadiness ?? undefined,
       });
 
       setContractEisNumber("");
@@ -538,6 +565,47 @@ export default function EisPackagesPage() {
             )}
           </label>
         </div>
+
+        {/* Готовность Раздела 2 показывается до сборки XML: человек видит и
+            причины блокировки, и то, какие документы реально уйдут в ЕИС */}
+        {noticeReadiness && (
+          <div className={block(noticeReadiness.ok ? "source" : "error")}>
+            {noticeReadiness.ok ? (
+              <>
+                Раздел 2 проверен: {eisNoticeReadinessSummary(noticeReadiness)}.
+                {noticeReadiness.warnings.length > 0 && (
+                  <>
+                    {" "}
+                    Предупреждения не блокируют передачу — ЕИС отклоняет документ
+                    только по ошибкам:{" "}
+                    {noticeReadiness.warnings
+                      .map((issue) => issue.message)
+                      .join(" ")}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <b>Извещение не готово к передаче в ЕИС.</b> Проверка та же, что и
+                при публикации: блокирующих замечаний{" "}
+                {noticeReadiness.blocking.length}.
+                {noticeReadiness.blocking.map((issue) => (
+                  <div key={issue.message}>{issue.message}</div>
+                ))}
+              </>
+            )}
+            {pickedNotice?.procurementId ? (
+              <div>
+                <Link
+                  className={block("link-button")}
+                  to={`/procurement-processing/${pickedNotice.procurementId}/notice-info`}
+                >
+                  Открыть извещение и Раздел 2
+                </Link>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {domainBuild ? (
           <div className={block("form-row")}>

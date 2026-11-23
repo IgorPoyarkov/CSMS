@@ -55,7 +55,11 @@ import {
   useUpdateContractProject,
 } from "../../services/ContractProject/contractProject.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
-import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import {
+  useAttachNoticeAttachment,
+  useNotices,
+} from "../../services/Procurements/noticeInfo.api";
+import { buildContractProjectAttachment } from "../../services/ContractProject/contractProjectAttachment";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
@@ -112,6 +116,11 @@ export default function ContractProjectForm() {
     useCreateContractProject();
   const { mutate: updateProject, isPending: isUpdating } =
     useUpdateContractProject();
+  // Проект контракта — документ Раздела 2 извещения (п. 5 формы). Сохранение
+  // в модуле проекта не должно оставлять извещение «неготовым»: без
+  // приложенного проекта публикация блокируется
+  const { mutate: attachToNotice, isPending: isAttaching } =
+    useAttachNoticeAttachment();
 
   const [activeSection, setActiveSection] = useState("preamble");
   const [saved, setSaved] = useState(false);
@@ -593,10 +602,34 @@ export default function ContractProjectForm() {
       setTimeout(() => setSaved(false), 2500);
     };
 
+    // Сохранённый проект сразу становится вложением своего извещения: иначе
+    // документ есть, а Раздел 2 «не готов» и публикация блокируется. Если
+    // извещения по закупке ещё нет (проект делают заранее) — прикладывать
+    // некуда, и это не ошибка: приложение появится вместе с извещением
+    const attachSavedProject = (savedProject: ContractProject) => {
+      markSaved();
+
+      const noticeId = matchedNotice?.id;
+      if (noticeId === undefined || noticeId === null) return;
+
+      attachToNotice({
+        noticeId,
+        attachment: buildContractProjectAttachment({
+          project: savedProject,
+          noticeId,
+          procurementId: savedProject.procurementId || id || null,
+          purchaseNoteId: matchedNotice?.purchaseNoteId ?? null,
+        }),
+      });
+    };
+
     if (existing?.id !== undefined) {
-      updateProject({ id: existing.id, ...payload }, { onSuccess: markSaved });
+      updateProject(
+        { id: existing.id, ...payload },
+        { onSuccess: attachSavedProject },
+      );
     } else {
-      createProject(payload, { onSuccess: markSaved });
+      createProject(payload, { onSuccess: attachSavedProject });
     }
   };
 
@@ -1448,7 +1481,7 @@ export default function ContractProjectForm() {
                 <button
                   type="submit"
                   className={styles.btnPrimary}
-                  disabled={isCreating || isUpdating}
+                  disabled={isCreating || isUpdating || isAttaching}
                 >
                   {existing
                     ? "Сохранить изменения"
@@ -1458,7 +1491,11 @@ export default function ContractProjectForm() {
                   Статус: {existing?.status ?? "черновик"}
                 </span>
                 {saved && (
-                  <span className={styles.savedMessage}>Проект сохранён</span>
+                  <span className={styles.savedMessage}>
+                    {matchedNotice
+                      ? "Проект сохранён и приложен к извещению"
+                      : "Проект сохранён"}
+                  </span>
                 )}
               </div>
             </form>

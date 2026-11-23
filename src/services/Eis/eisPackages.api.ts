@@ -7,7 +7,9 @@ import {
   isStatusPending,
   signatureTaskSchema,
   type EisDocumentType,
+  type EisNoticeReadiness,
   type EisPackage,
+  type EisPackageAttachment,
   type EisPackageCustomerSnapshot,
   type EisPackageSource,
 } from "./eisPackages.schema";
@@ -96,6 +98,21 @@ export interface CreateEisPackageInput {
   source?: EisPackageSource;
   /** Снимок заказчика на момент формирования пакета (Ф8). */
   customer?: EisPackageCustomerSnapshot;
+  /**
+   * Документы Раздела 2 извещения, приложенные к нему на момент сборки XML.
+   *
+   * Передаются отдельно от XML: шлюз не разбирает документ, чтобы показать
+   * список вложений в карточке пакета, а сверяет его с тем, что ушло.
+   */
+  attachments?: EisPackageAttachment[];
+  /**
+   * Снимок готовности извещения (проверка та же, что блокирует публикацию).
+   *
+   * Пока шлюз его только принимает и возвращает в карточке пакета; серверная
+   * блокировка по `ok: false` — на его стороне. Фронт всё равно проверяет
+   * готовность до запроса: иначе человек узнает об отказе после нажатия.
+   */
+  attachmentReadiness?: EisNoticeReadiness;
 }
 
 export const useCreateEisPackage = () => {

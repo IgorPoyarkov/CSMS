@@ -151,6 +151,56 @@ export const eisPackageAttachmentSchema = z.object({
 
 export type EisPackageAttachment = z.infer<typeof eisPackageAttachmentSchema>;
 
+/**
+ * Замечание проверки Раздела 2 извещения (вложения), как его видит публикация.
+ *
+ * `severity` здесь не для красоты: ЕИС отклоняет документ только по ошибкам,
+ * предупреждения — то, что она досчитает или стерпит (размер файла, отпечаток,
+ * отсутствующий код вида документа). Одна и та же проверка живёт в
+ * `noticeAttachmentReadiness` и в интерфейсе извещения.
+ */
+export const eisNoticeReadinessIssueSchema = z.object({
+  severity: z.enum(["error", "warning"]),
+  /** Категория документа Раздела 2 формы извещения. */
+  category: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  message: z.string(),
+});
+
+export type EisNoticeReadinessIssue = z.infer<
+  typeof eisNoticeReadinessIssueSchema
+>;
+
+/**
+ * Снимок готовности извещения к передаче в ЕИС.
+ *
+ * Снимок, а не «текущая готовность»: пакет живёт дольше, чем документ, и через
+ * неделю уже не объяснить, почему пакет ушёл с неполным Разделом 2. Поэтому
+ * момент проверки, документы и замечания передаются в шлюз вместе с XML, а
+ * шлюз возвращает их в карточке пакета.
+ */
+export const eisNoticeReadinessSchema = z.object({
+  ok: z.boolean(),
+  blocking: z.array(eisNoticeReadinessIssueSchema),
+  warnings: z.array(eisNoticeReadinessIssueSchema),
+  /** Документы Раздела 2, которые фактически уходят вместе с извещением. */
+  attachments: z.array(eisPackageAttachmentSchema),
+  checkedAt: z.string(),
+  noticeId: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  noticeNumber: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
+  ikz: z.string(),
+});
+
+export type EisNoticeReadiness = z.infer<typeof eisNoticeReadinessSchema>;
+
 export const eisPackageSchema = z.object({
   id: z.string(),
   documentType: z.enum(EIS_DOCUMENT_TYPES),
@@ -182,6 +232,16 @@ export const eisPackageSchema = z.object({
     .array(eisPackageAttachmentSchema)
     .nullish()
     .transform((value) => value ?? []),
+  /**
+   * Снимок готовности извещения, с которым пакет формировали.
+   *
+   * `null` — шлюз снимок ещё не возвращает (или пакет не извещения). Поле
+   * мягкое намеренно: карточка пакета должна открываться и без него, а
+   * проверка не должна зависеть от версии шлюза.
+   */
+  attachmentReadiness: eisNoticeReadinessSchema
+    .nullish()
+    .transform((value) => value ?? null),
   /** Реестровый номер сведений об исполнении, который присвоил ЕИС. */
   regNumberExecution: z
     .string()
@@ -266,6 +326,15 @@ export const createEisPackageInputSchema = z.object({
   payloadXml: z.string().optional(),
   source: eisPackageSourceSchema.optional(),
   customer: eisPackageCustomerSnapshotSchema.optional(),
+  /**
+   * Документы Раздела 2, приложенные к извещению.
+   *
+   * Передаются отдельно от XML, чтобы шлюз мог сверить список вложений с
+   * документом и вернуть его в карточке пакета как есть, не разбирая XML.
+   */
+  attachments: z.array(eisPackageAttachmentSchema).optional(),
+  /** Снимок готовности извещения: доказательство, что Раздел 2 проверен. */
+  attachmentReadiness: eisNoticeReadinessSchema.optional(),
 });
 
 /**

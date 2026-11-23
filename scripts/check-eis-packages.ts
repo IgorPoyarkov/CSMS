@@ -18,16 +18,36 @@ import type {
 } from "../src/services/ContractRegistry/contractRegistry.schema";
 import type { PurchasePlan } from "../src/services/PurchasePlan/purchasePlan.schema";
 import type { EisPackage } from "../src/services/Eis/eisPackages.schema";
+import {
+  createEisPackageInputSchema,
+  eisNoticeReadinessSchema,
+  eisPackageSchema,
+} from "../src/services/Eis/eisPackages.schema";
+import {
+  eisNoticeReadiness,
+  eisNoticeReadinessError,
+  eisNoticeReadinessSummary,
+  isEisPackageOfNotice,
+} from "../src/services/Eis/eisNoticeReadiness";
+import { buildContractProjectAttachment } from "../src/services/ContractProject/contractProjectAttachment";
+import {
+  emptyContractProject,
+  type ContractProject,
+} from "../src/services/ContractProject/contractProject.schema";
+import { upsertNoticeAttachment } from "../src/services/Procurements/noticeAttachment.schema";
+import type { NoticeInfoFormValues } from "../src/services/Procurements/noticeInfo.schema";
 
 /**
  * Smoke-проверка вложений пакета ЕИС и звеньев исполнения цепочки.
  *
  * Проверяются: уровни проверок вложений (что ЕИС отклонит — ошибка, что она
  * досчитает сама — предупреждение), порядок и имена элементов в XML по
- * Альбому 17.0 (`attachmentWithKindType`, `contractProjectFileType`) и то, что
+ * Альбому 17.0 (`attachmentWithKindType`, `contractProjectFileType`), то, что
  * цепочка показывает приёмку и оплату, а сведение исполнения считается по
  * реестровому номеру сведений (`regNumberExecution`), а не по факту «есть
- * платёж».
+ * платёж», а также стык Раздела 2 извещения с пакетом: неполный состав
+ * документов блокирует передачу, снимок проверки уходит в шлюз, сохранённый
+ * проект контракта становится вложением извещения.
  *
  * Запуск: npm run check:eis-packages.
  */
@@ -315,5 +335,166 @@ assert.ok(
     (item) => item.code === "acceptance.not_accepted",
   ),
 );
+
+// ─── 5. Готовность Раздела 2 извещения → пакет ЕИС ─────────────────────────
+//
+// Та же проверка, что блокирует публикацию извещения, решает, можно ли
+// сформировать пакет сведений. Здесь проверяется стык: что уходит в пакет,
+// что остаётся в системе и что видит шлюз.
+
+const noticeDoc = (
+  category: string,
+  patch: Record<string, unknown> = {},
+): Record<string, unknown> => ({
+  id: `doc-${category}`,
+  category,
+  status: "approved",
+  fileName: `${category}.pdf`,
+  description: category,
+  fileSize: 2048,
+  url: `https://example.test/files/${category}.pdf`,
+  ...patch,
+});
+
+const noticeFor = (docs: unknown[]): NoticeInfoFormValues =>
+  ({
+    id: "notice-1",
+    generalInfo: {
+      noticeNumber: "0123456789012345678",
+      placingWayCode: "EA20",
+      ikz: IKZ,
+    },
+    attachedDocs: docs,
+  }) as unknown as NoticeInfoFormValues;
+
+const readiness = eisNoticeReadiness(
+  noticeFor([
+    noticeDoc("object_description"),
+    noticeDoc("nmck_justification", { sha256: "abc12345" }),
+    noticeDoc("application_requirements"),
+    noticeDoc("contract_project"),
+    // Черновик доп. документа остаётся в системе, но в ЕИС не уходит
+    noticeDoc("additional_docs", { status: "draft" }),
+  ]),
+  { now: "2026-03-01T09:00:00Z" },
+);
+
+assert.equal(readiness.ok, true, "полный Раздел 2 не блокирует передачу");
+assert.deepEqual(readiness.blocking, []);
+assert.equal(readiness.attachments.length, 4, "в пакет уходят только готовые документы");
+assert.ok(
+  !readiness.attachments.some(
+    (item) => item.fileName === "additional_docs.pdf",
+  ),
+  "черновик не попадает в пакет",
+);
+assert.equal(
+  readiness.attachments.find(
+    (item) => item.fileName === "nmck_justification.pdf",
+  )?.fileFingerPrint,
+  "abc12345",
+  "sha256 документа становится отпечатком файла для ЕИС",
+);
+assert.equal(readiness.checkedAt, "2026-03-01T09:00:00Z");
+assert.equal(readiness.noticeId, "notice-1");
+assert.equal(readiness.noticeNumber, "0123456789012345678");
+assert.equal(readiness.ikz, IKZ);
+assert.match(eisNoticeReadinessSummary(readiness), /документов 4/);
+
+// Неполный Раздел 2 блокирует создание пакета — до сборки XML и подписи.
+const incomplete = eisNoticeReadiness(noticeFor([noticeDoc("object_description")]));
+
+assert.equal(incomplete.ok, false);
+assert.equal(incomplete.blocking.length, 3, "нет НМЦК, требований к заявке и проекта");
+assert.match(
+  eisNoticeReadinessError(incomplete),
+  /не готово к передаче в ЕИС/,
+);
+assert.equal(incomplete.attachments.length, 1, "готовый документ виден и при блокировке");
+
+// Снимок проверки — часть контракта шлюза: он же уходит в теле запроса и
+// возвращается в карточке пакета.
+const snapshot = eisNoticeReadinessSchema.parse(readiness);
+
+assert.equal(snapshot.ok, true);
+assert.equal(snapshot.attachments.length, 4);
+assert.deepEqual(snapshot.warnings, readiness.warnings);
+
+const createBody = createEisPackageInputSchema.parse({
+  documentType: "Notification",
+  contractEisNumber: "",
+  ikz: IKZ,
+  payloadXml: "<notification/>",
+  attachments: readiness.attachments,
+  attachmentReadiness: readiness,
+});
+
+assert.equal(createBody.attachmentReadiness?.ok, true);
+assert.equal(createBody.attachments?.length, 4);
+
+// Шлюз снимок пока не возвращает — карточка обязана открываться и без него.
+assert.equal(eisPackageSchema.parse(packageRejected).attachmentReadiness, null);
+
+const packageWithSnapshot = eisPackageSchema.parse({
+  ...packageRejected,
+  documentType: "Notification",
+  attachmentReadiness: readiness,
+});
+
+assert.equal(
+  packageWithSnapshot.attachmentReadiness?.checkedAt,
+  "2026-03-01T09:00:00Z",
+);
+assert.equal(isEisPackageOfNotice(packageWithSnapshot, readiness), true);
+assert.equal(
+  isEisPackageOfNotice(
+    { ikz: "1".repeat(36), documentType: "Notification" },
+    readiness,
+  ),
+  false,
+  "снимок другого ИКЗ к пакету не относится",
+);
+
+// ─── 6. Проект контракта как вложение извещения ────────────────────────────
+
+const project = {
+  ...emptyContractProject("org-1"),
+  id: "project-1",
+  procurementId: "proc-1",
+  ikz: IKZ,
+  contractNumber: "0373100000123000001",
+  contractName: "Поставка бумаги",
+  updatedAt: "2026-03-02",
+} as ContractProject;
+
+const projectAttachment = buildContractProjectAttachment({
+  project,
+  noticeId: "notice-1",
+  purchaseNoteId: "note-1",
+});
+
+assert.equal(projectAttachment.category, "contract_project");
+assert.equal(projectAttachment.sourceKind, "contract_project");
+assert.equal(projectAttachment.status, "attached", "сохранение прикладывает документ");
+assert.equal(projectAttachment.isRequiredForPublish, true);
+assert.equal(
+  projectAttachment.fileName,
+  "Проект_контракта_0373100000123000001.docx",
+);
+assert.ok(
+  projectAttachment.fingerprint && projectAttachment.fingerprint.length === 8,
+  "отпечаток по тексту документа",
+);
+assert.equal(projectAttachment.noticeId, "notice-1");
+assert.equal(projectAttachment.purchaseNoteId, "note-1");
+
+// Повторное сохранение обновляет вложение, а не добавляет второе.
+const reattached = upsertNoticeAttachment([projectAttachment], {
+  ...projectAttachment,
+  description: "изменено",
+});
+
+assert.equal(reattached.length, 1);
+assert.equal(reattached[0].description, "изменено");
 
 console.log("check-eis-packages: ok");

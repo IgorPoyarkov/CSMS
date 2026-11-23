@@ -26,6 +26,10 @@ import {
   EMBEDDED_BROWSER_HINT,
   isEmbeddedBrowser,
 } from "../../services/Eds/edsEnvironment";
+import {
+  eisNoticeReadinessSummary,
+  isEisPackageOfNotice,
+} from "../../services/Eis/eisNoticeReadiness";
 import styles from "./EisPackageCard.module.scss";
 import Select from "../UI/Select";
 
@@ -298,6 +302,44 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
             ))}
           </ul>
         </details>
+      )}
+
+      {item.attachmentReadiness && (
+        <div
+          className={block(
+            !item.attachmentReadiness.ok
+              ? "error"
+              : item.attachmentReadiness.warnings.length > 0
+                ? "notice"
+                : "signed",
+          )}
+        >
+          Проверка Раздела 2 извещения{" "}
+          {formatMoment(item.attachmentReadiness.checkedAt)} ·{" "}
+          {eisNoticeReadinessSummary(item.attachmentReadiness)}
+          {item.attachmentReadiness.noticeNumber
+            ? ` · извещение № ${item.attachmentReadiness.noticeNumber}`
+            : ""}
+          {/* Снимок и пакет сверяются по ИКЗ: если пакет собран из одного
+              извещения, а проверка — другого, это надо сказать, а не скрыть */}
+          {!isEisPackageOfNotice(item, item.attachmentReadiness) && (
+            <div>
+              Снимок сделан по ИКЗ{" "}
+              {item.attachmentReadiness.ikz || "который не указан"} — сверьте,
+              что пакет собран из того же извещения, что и проверка.
+            </div>
+          )}
+          {item.attachmentReadiness.blocking.map((issue) => (
+            <div key={issue.message}>{issue.message}</div>
+          ))}
+          {item.attachmentReadiness.warnings.length > 0 && (
+            <div>
+              {item.attachmentReadiness.warnings
+                .map((issue) => issue.message)
+                .join(" ")}
+            </div>
+          )}
+        </div>
       )}
 
       {item.flkErrors.length > 0 && (
