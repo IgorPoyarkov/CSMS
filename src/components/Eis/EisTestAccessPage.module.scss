@@ -1,0 +1,220 @@
+@use "variables" as *;
+
+.eis-test-access {
+  padding: 20px 0 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.eis-test-access__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.eis-test-access__lead,
+.eis-test-access__hint,
+.eis-test-access__meta,
+.eis-test-access__channel-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.eis-test-access__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.eis-test-access__card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eis-test-access__card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.eis-test-access__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.eis-test-access__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.eis-test-access__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.eis-test-access__input,
+.eis-test-access__textarea,
+.eis-test-access__select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.eis-test-access__textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.45;
+}
+
+.eis-test-access__textarea--large {
+  min-height: 260px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+
+.eis-test-access__actions,
+.eis-test-access__sign-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.eis-test-access__btn {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-raised);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-on-accent);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+  }
+}
+
+.eis-test-access__checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eis-test-access__check {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  font-size: 13px;
+  color: var(--text-primary);
+
+  input {
+    margin-top: 2px;
+  }
+}
+
+.eis-test-access__check-title {
+  display: block;
+  font-weight: 500;
+}
+
+.eis-test-access__check-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.eis-test-access__channels {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.eis-test-access__channel-link {
+  color: var(--accent);
+  word-break: break-word;
+}
+
+.eis-test-access__status {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid var(--border);
+
+  &--ok {
+    color: var(--state-success);
+    background: var(--state-success-soft);
+    border-color: var(--state-success);
+  }
+
+  &--warn {
+    color: var(--state-warning);
+    background: var(--state-warning-soft);
+    border-color: var(--state-warning);
+  }
+
+  &--danger {
+    color: var(--state-danger);
+    background: var(--state-danger-soft);
+    border-color: var(--state-danger);
+  }
+}
+
+.eis-test-access__small {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1100px) {
+  .eis-test-access__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .eis-test-access__grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -61,6 +61,7 @@ export const PG_COLLECTIONS = [
   "purchasePlanVersions",
   "koksRefs",
   "smnpReports238",
+  "eisTestAccessRequests",
 ];
 
 /** Один объект верхнего уровня, который не является коллекцией. */

@@ -464,7 +464,10 @@ export function buildOrder158nActivityReport(
       (!e.taskId && isIsoInPeriod(e.createdAt, periodStart, periodEnd)),
   );
 
-  const periodNotes = purchaseNotes.filter((n) =>
+  const visiblePurchaseNotes = purchaseNotes.filter(
+    (n) => n.isExternalEis !== true,
+  );
+  const periodNotes = visiblePurchaseNotes.filter((n) =>
     isIsoInPeriod(n.noteDate || n.createdAt, periodStart, periodEnd),
   );
   const periodOoz = objectDescriptions.filter((d) =>

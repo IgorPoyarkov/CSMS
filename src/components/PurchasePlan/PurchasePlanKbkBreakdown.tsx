@@ -8,7 +8,10 @@ import {
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
-import type { PurchaseNote } from "../../services/PurchaseNote/purchaseNote.schema";
+import {
+  filterVisiblePurchaseNotes,
+  type PurchaseNote,
+} from "../../services/PurchaseNote/purchaseNote.schema";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import type { NoticeInfoFormValues } from "../../services/Procurements/noticeInfo.schema";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
@@ -744,6 +747,10 @@ function KbkRecordsModal({
   const { data: procurements = [] } = useGetProcurements();
   const { data: notices = [] } = useNotices();
   const { data: purchaseNotes = [] } = usePurchaseNotes(plan.organizationId);
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
 
   // Документы считаем один раз на запись: они нужны и в графе, и под
   // наименованием на узких экранах
@@ -757,7 +764,7 @@ function KbkRecordsModal({
           record,
           procurements,
           notices,
-          purchaseNotes,
+          visiblePurchaseNotes,
           plan.organizationId,
         ),
       );
@@ -768,7 +775,7 @@ function KbkRecordsModal({
     group.records,
     procurements,
     notices,
-    purchaseNotes,
+    visiblePurchaseNotes,
     plan.organizationId,
   ]);
 

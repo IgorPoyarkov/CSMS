@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -26,6 +27,8 @@ import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { positionKbkCodes } from "../../services/PurchasePlan/purchasePlan.schema";
 import { ikzPositionKey } from "../../services/Eis/eisIdentifiers";
+// Даты форматирует строка (`ContractRow`), поэтому хук подключается здесь, а не
+// в странице: пропсом функция не передаётся и мемоизация строки не ломается
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import ContractCardSummary from "./ContractCardSummary";
@@ -234,7 +237,8 @@ function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
-  const { formatDate } = useUtils();
+  // Даты форматируются внутри строки (`ContractRow`), а не в странице: иначе
+  // функция передавалась бы пропсом и ломала мемоизацию строк
 
   // Реестр приходит порциями: сначала только строки первой страницы, остальные
   // догружаются по мере необходимости — см. эффект ниже и кнопки пейджера.
@@ -426,8 +430,15 @@ export default function ContractRegistryPage() {
     }
 
     // ─── Фильтрация по поставщику (клик по названию в строке) ──────────────
+    // Поставщик в строке может быть подставлен из карточки ЕИС, поэтому
+    // сравниваем и запись реестра, и значение из индекса исполнения
     if (supplierFilter) {
-      result = result.filter((c) => (c.supplierName ?? "") === supplierFilter);
+      result = result.filter((c) => {
+        const fromRecord = (c.supplierName ?? "").trim();
+        const fromCard =
+          executionIndex.byContract.get(String(c.id ?? ""))?.supplierName ?? "";
+        return (fromRecord || fromCard) === supplierFilter;
+      });
     }
 
     // ─── Поиск: реестровый номер, номер контракта, подрядчик, ИНН ──────────
@@ -468,6 +479,9 @@ export default function ContractRegistryPage() {
     supplierFilter,
     query,
     advanceFilter,
+    // Поставщик может подставляться из карточки, поэтому фильтр зависит и от
+    // индекса исполнения: без него клик по поставщику из ЕИС давал пусто
+    executionIndex.byContract,
   ]);
 
   // КБК текущего пула контрактов — тот самый список, из которого выбирают:
@@ -826,21 +840,32 @@ export default function ContractRegistryPage() {
 
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
 
-  const toggleExpand = (id: string | number | undefined) => {
+  const toggleExpand = useCallback((id: string | number | undefined) => {
     if (id === undefined) return;
     setExpandedId((prev) => (prev === id ? null : id));
-  };
+  }, []);
 
   const handleTableSort = (key: string) =>
     setTableSort((current) => toggleTableSort(current, key));
 
-  // Клик по поставщику включает фильтр по нему, повторный — снимает
-  const toggleSupplierFilter = (supplier: string | undefined) => {
+  // Клик по поставщику включает фильтр по нему, повторный — снимает.
+  // Стабильная ссылка: обработчик уходит пропсом в мемоизированную строку
+  const toggleSupplierFilter = useCallback((supplier: string | undefined) => {
     const value = (supplier ?? "").trim();
     if (!value) return;
     setSupplierFilter((prev) => (prev === value ? null : value));
     setPage(1);
-  };
+  }, []);
+
+  // Удаление одной строки. Подтверждение спрашиваем здесь, а не в строке:
+  // так обработчик не пересоздаётся на каждом рендере списка
+  const handleDeleteContract = useCallback(
+    (id: string | number | undefined) => {
+      if (!id) return;
+      if (confirm("Удалить контракт из реестра?")) deleteContract(id);
+    },
+    [deleteContract],
+  );
 
   if (isLoading) {
     return <div className={styles.loader}>Загрузка реестра контрактов...</div>;
@@ -1334,22 +1359,14 @@ export default function ContractRegistryPage() {
                           contract={contract}
                           index={rowIndex}
                           expanded={expandedId === contract.id}
-                          onToggle={() => toggleExpand(contract.id)}
+                          onToggle={toggleExpand}
                           execution={executionIndex.byContract.get(
                             String(contract.id ?? ""),
                           )}
                           executionLoading={executionIndex.loading}
                           onSupplierClick={toggleSupplierFilter}
                           activeSupplier={supplierFilter}
-                          onDelete={() => {
-                            if (
-                              contract.id &&
-                              confirm("Удалить контракт из реестра?")
-                            ) {
-                              deleteContract(contract.id);
-                            }
-                          }}
-                          formatDate={formatDate}
+                          onDelete={handleDeleteContract}
                         />
                       ))}
                     </tbody>
@@ -1417,24 +1434,47 @@ interface ContractRowProps {
   /** Порядковый номер в выборке: задаёт задержку построчного раскрытия */
   index: number;
   expanded: boolean;
-  onToggle: () => void;
-  onDelete: () => void;
+  /**
+   * Обработчики получают id контракта, а не замыкание на него: иначе при
+   * каждом рендере списка создавался новый колбэк, мемоизация строки не
+   * работала и большие списки перерисовывались целиком.
+   */
+  onToggle: (id: string | number | undefined) => void;
+  onDelete: (id: string | number | undefined) => void;
   onSupplierClick: (supplier: string | undefined) => void;
   activeSupplier: string | null;
-  formatDate: (date?: string) => string;
   /** Агрегаты исполнения для полос в строке (`useContractExecutionIndex`). */
   execution?: ContractExecutionEntry;
   /** Данные ещё грузятся: вместо «0 %» в полосах прочерк. */
   executionLoading: boolean;
 }
 
+/** Срок исполнения в строке: если одной из дат нет — пишем то, что известно. */
+const executionPeriodLabel = (
+  start: string,
+  end: string,
+  formatDate: (date?: string) => string,
+): string => {
+  const from = formatDate(start || undefined);
+  const to = formatDate(end || undefined);
+  if (from && to) return `${from} — ${to}`;
+  if (to) return `до ${to}`;
+  if (from) return `с ${from}`;
+  return "—";
+};
+
 /**
  * Строка таблицы контрактов: наименование — отдельной полноширинной строкой
  * (по нему чаще всего ищут контракт), реквизиты — в колонках общего заголовка,
  * подробности (ЕИС, платежи, этапы, неустойки, поставки, СМП) — в отдельной
  * строке, которая раскрывается по клику на название, реквизиты или шеврон.
+ *
+ * Строка мемоизирована: реестр — это сотни записей, и любое изменение
+ * состояния страницы (переключение пагинации, раскрытие соседней строки)
+ * перерисовывало весь список. Данные исполнения приходят готовым объектом из
+ * индекса, поэтому сравнение пропсов дешёвое.
  */
-function ContractRow({
+const ContractRow = memo(function ContractRow({
   contract,
   index,
   expanded,
@@ -1442,10 +1482,10 @@ function ContractRow({
   onDelete,
   onSupplierClick,
   activeSupplier,
-  formatDate,
   execution,
   executionLoading,
 }: ContractRowProps) {
+  const { formatDate } = useUtils();
   const overdue = isContractOverdue(contract);
   const queryClient = useQueryClient();
   // Каскад построчного раскрытия: задержка растёт по порядку, но не дальше
@@ -1459,6 +1499,19 @@ function ContractRow({
     void prefetchContract(queryClient, contract.id);
   };
 
+  // Реквизиты: публичный реестр ЕИС не отдаёт поставщика и дату начала
+  // исполнения, поэтому пустые поля записи дозаполняются из карточки контракта
+  const subject = execution?.subject?.trim() || contract.contractName;
+  const supplierName = (contract.supplierName ?? "").trim()
+    ? contract.supplierName
+    : (execution?.supplierName ?? "");
+  const executionStart =
+    contract.executionStartDate || execution?.executionStartDate || "";
+  const executionEnd =
+    contract.executionEndDate || execution?.executionEndDate || "";
+  const supplierInn =
+    (contract.supplierInn ?? "").trim() || execution?.supplierInn || "";
+
   return (
     <>
       <tr
@@ -1466,17 +1519,15 @@ function ContractRow({
         className={`${styles.contractTitleRow} ${
           overdue ? styles.contractRowOverdue : ""
         } ${expanded ? styles.contractRowExpanded : ""}`}
-        onClick={onToggle}
+        onClick={() => onToggle(contract.id)}
         onMouseEnter={prefetchCard}
       >
         <td colSpan={8}>
-          {/* Наименование и рядом — исполнение: плашка СМП и полосы оплаты и
+          {/* Предмет контракта, а под ним — исполнение: полосы оплаты и
               приёмки. Строку не нужно раскрывать, чтобы понять, идёт ли
               исполнение; подробные суммы — в раскрытии и в карточке */}
           <div className={styles.contractTitleCell}>
-            <span className={styles.contractTitleName}>
-              {contract.contractName}
-            </span>
+            <span className={styles.contractTitleName}>{subject}</span>
             <ContractExecutionStrip
               contract={contract}
               execution={execution}
@@ -1491,27 +1542,31 @@ function ContractRow({
         className={`${styles.contractRow} ${
           expanded ? styles.contractRowExpanded : ""
         }`}
-        onClick={onToggle}
+        onClick={() => onToggle(contract.id)}
         onMouseEnter={prefetchCard}
       >
         <td className={styles.contractNumber}>{contract.contractNumber}</td>
         <td>
-          {contract.supplierName ? (
+          {supplierName ? (
             <button
               type="button"
               className={`${styles.supplierButton} ${
-                activeSupplier === contract.supplierName
+                activeSupplier === supplierName
                   ? styles.supplierButtonActive
                   : ""
               }`}
-              aria-pressed={activeSupplier === contract.supplierName}
-              title="Показать контракты этого поставщика"
+              aria-pressed={activeSupplier === supplierName}
+              title={
+                supplierInn
+                  ? `ИНН ${supplierInn}. Показать контракты этого поставщика`
+                  : "Показать контракты этого поставщика"
+              }
               onClick={(event) => {
                 event.stopPropagation();
-                onSupplierClick(contract.supplierName);
+                onSupplierClick(supplierName);
               }}
             >
-              {contract.supplierName}
+              {supplierName}
             </button>
           ) : (
             "—"
@@ -1524,10 +1579,10 @@ function ContractRow({
           {formatMoney(contract.advanceAmount)}
         </td>
         <td>{formatDate(contract.contractDate)}</td>
-        <td>
-          {formatDate(contract.executionStartDate)} —{" "}
-          {formatDate(contract.executionEndDate)}
-        </td>
+        {/* Срок исполнения: в записи реестра часто только дата окончания,
+            начало добираем из карточки. Неполный срок показываем как есть,
+            а не пустым прочерком при известной дате */}
+        <td>{executionPeriodLabel(executionStart, executionEnd, formatDate)}</td>
         <td>
           <span className={styles.statusCell}>
             <span
@@ -1546,7 +1601,7 @@ function ContractRow({
             aria-label={expanded ? "Свернуть контракт" : "Развернуть контракт"}
             onClick={(event) => {
               event.stopPropagation();
-              onToggle();
+              onToggle(contract.id);
             }}
           >
             {expanded ? "▲" : "▼"}
@@ -1606,7 +1661,10 @@ function ContractRow({
                   >
                     Приёмка
                   </Link>
-                  <button className={styles.btnDanger} onClick={onDelete}>
+                  <button
+                    className={styles.btnDanger}
+                    onClick={() => onDelete(contract.id)}
+                  >
                     Удалить
                   </button>
                 </div>
@@ -1617,7 +1675,7 @@ function ContractRow({
       )}
     </>
   );
-}
+});
 
 /**
  * Секции карточки контракта вынесены в отдельные файлы:

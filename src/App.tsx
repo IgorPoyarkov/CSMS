@@ -38,6 +38,8 @@ import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
 import EisPackagesPage from "./components/Eis/EisPackagesPage";
 import EisSchemaExplorerPage from "./components/Eis/EisSchemaExplorerPage";
 import EisChainPage from "./components/Eis/EisChainPage";
+import EisTestAccessPage from "./components/Eis/EisTestAccessPage";
+import BrandPage from "./components/Brand/BrandPage";
 import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
@@ -272,6 +274,11 @@ const router = createBrowserRouter([
         element: <EisChainPage />,
       },
       {
+        // Обращение в ЕИС на получение тестового доступа
+        path: "/eis/test-access",
+        element: <EisTestAccessPage />,
+      },
+      {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования
         path: "/okpd2",
         element: <Okpd2Dictionary />,
@@ -341,6 +348,11 @@ const router = createBrowserRouter([
         // Полный структурированный перечень UI-решений: назначение, место применения и реализация
         path: "/ui-solutions",
         element: <UiSolutionsPage />,
+      },
+      {
+        // Фирменный знак: варианты, палитра, правила и файлы для скачивания
+        path: "/brand",
+        element: <BrandPage />,
       },
     ],
   },

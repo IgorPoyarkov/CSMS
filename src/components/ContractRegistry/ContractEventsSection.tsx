@@ -21,6 +21,7 @@ import {
   contractCardActDecision,
   contractCardActPaidTotal,
   contractCardActTotal,
+  contractCardExecutionPeriod,
   type ContractCardAct,
   type ContractCardDecision,
   type ContractCardPayment,
@@ -90,6 +91,10 @@ const actsForStage = (
       const actStage = act.Stage?.TechnicalSid ?? act.Stage?.Sid ?? null;
       return stageSid === null ? true : actStage === stageSid;
     })
+    // Внутри этапа акты идут в порядке календаря: чекпоинты читаются по времени
+    .sort((left, right) =>
+      String(left.ActDate ?? "").localeCompare(String(right.ActDate ?? "")),
+    )
     .map((act) => ({
       act,
       total: contractCardActTotal(act),
@@ -106,6 +111,8 @@ const buildStageCheckpoints = (
   acts: ContractCardAct[],
   payments: ContractCardPayment[],
   decisions: ContractCardDecision[],
+  /** Срок исполнения контракта целиком: он же период строки «Контракт целиком». */
+  contractPeriod: string,
 ): StageCheckpoints[] => {
   if (stages.length === 0) {
     const facts = actsForStage(acts, payments, decisions, null);
@@ -113,7 +120,7 @@ const buildStageCheckpoints = (
       {
         key: "contract",
         name: "Контракт целиком",
-        period: "",
+        period: contractPeriod,
         stageSid: null,
         acts: facts,
         acceptedTotal: facts.reduce((sum, item) => sum + (item.total ?? 0), 0),
@@ -122,7 +129,12 @@ const buildStageCheckpoints = (
     ];
   }
 
-  const result = stages.map((stage) => {
+  // Этапы в порядке исполнения: номер этапа главнее порядка ответа API
+  const orderedStages = [...stages].sort(
+    (left, right) => Number(left.stageNumber) - Number(right.stageNumber),
+  );
+
+  const result = orderedStages.map((stage) => {
     const stageSid = stage.sid || null;
     const facts = actsForStage(acts, payments, decisions, stageSid);
     const start = isoToDisplay(stage.startDate);
@@ -199,6 +211,16 @@ export default function ContractEventsSection({
   const ordered = useMemo(() => sortContractEvents(events), [events]);
   const nextCheckpoint = useMemo(() => nextContractEvent(events), [events]);
 
+  // Срок исполнения контракта целиком: запись реестра приоритетнее, выгрузка
+  // ЕИС подставляет его, когда реестр контрактов дат не отдал
+  const contractPeriod = useMemo(() => {
+    const eis = contractCardExecutionPeriod(projection);
+    const start = isoToDisplay(contract?.executionStartDate || eis.start);
+    const end = isoToDisplay(contract?.executionEndDate || eis.end);
+    if (!start && !end) return "";
+    return `${start || "…"} — ${end || "…"}`;
+  }, [contract, projection]);
+
   // Факты по этапам: акты приёмки и оплаты из выгрузки ЕИС. Пустой список
   // этапов — это один набор чекпоинтов на контракт целиком, а не «нет данных»
   const stageCheckpoints = useMemo(
@@ -208,8 +230,9 @@ export default function ContractEventsSection({
         projection?.Acts ?? [],
         projection?.Payments ?? [],
         projection?.Decisions ?? [],
+        contractPeriod,
       ),
-    [stages, projection],
+    [stages, projection, contractPeriod],
   );
 
   const [formOpen, setFormOpen] = useState(false);
@@ -333,6 +356,11 @@ export default function ContractEventsSection({
                 {formatDate(contract.contractDate)
                   ? `от ${formatDate(contract.contractDate)}`
                   : "дата не указана"}
+                {contractPeriod && (
+                  <span className={styles.projectionNote}>
+                    срок исполнения: {contractPeriod}
+                  </span>
+                )}
               </td>
               <td>—</td>
               <td>—</td>

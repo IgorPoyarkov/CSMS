@@ -57,13 +57,19 @@ const ExecutionBar = ({ label, percent, title, loading }: ExecutionBarProps) => 
 };
 
 /**
- * Индикаторы исполнения в строке реестра: плашка СМП и две полосы — оплата и
- * приёмка.
+ * Индикаторы исполнения в строке реестра: две полосы — оплата и приёмка, и
+ * плашка СМП справа от них.
  *
  * Зачем в списке: чтобы состояние контракта читалось не раскрывая строку и не
  * уходя в карточку — видно, идёт исполнение или нет. Подробные цифры и
  * расшифровка документов остаются в раскрытии строки (`ContractCardSummary`) и
  * на роуте карточки, здесь — только полоса и процент.
+ *
+ * Полосы всегда стоят первыми и в одном порядке: плашка СМП идёт после них,
+ * поэтому левый край «Оплаты» и «Приёмки» не сдвигается у контрактов без
+ * условия привлечения субподрядчиков. Полосы выровнены по вертикали одна под
+ * другой (одинаковая ширина подписи, полосы и процента), а сам блок в строке
+ * идёт отдельной строкой под предметом контракта.
  *
  * Источники те же, что у сводки карточки, и правила те же: ручные платёжные
  * поручения и электронное актирование приоритетнее, а у выгрузок ЕИС, где их
@@ -99,8 +105,7 @@ export default function ContractExecutionStrip({
     [contract.contractPrice, smpPercentSource],
   );
   const smpPercent = smpVolumeProgress(smpActual, smpRequired);
-  const showSmp =
-    !loading && (smpPercentSource !== null || smpActual > 0);
+  const showSmp = !loading && (smpPercentSource !== null || smpActual > 0);
 
   const paymentCount = execution?.paymentCount ?? 0;
   const acceptedCount = execution?.acceptedCount ?? 0;
@@ -108,23 +113,6 @@ export default function ContractExecutionStrip({
 
   return (
     <span className={styles.executionStrip}>
-      {showSmp && (
-        <span
-          className={`${styles.smpBadge} ${styles.executionSmp}`}
-          title={
-            smpPercentSource === null
-              ? `Привлечение СМП: ${formatMoney(smpActual)} ₽ по сведениям ЕИС`
-              : `Привлечение СМП: ${formatMoney(smpActual)} ₽ из ${formatMoney(
-                  smpRequired,
-                )} ₽ (${smpPercentSource}% от цены контракта, закрыто ${Math.round(
-                  smpPercent,
-                )}%)`
-          }
-        >
-          СМП
-        </span>
-      )}
-
       <ExecutionBar
         label="Оплата"
         percent={paidPercent}
@@ -144,6 +132,25 @@ export default function ContractExecutionStrip({
           onReview > 0 ? ` · в работе: ${onReview}` : ""
         }`}
       />
+
+      {/* Плашка СМП — напротив полос, а не перед ними: иначе у контрактов с
+          условием привлечения субподрядчиков полосы уезжали вправо */}
+      {showSmp && (
+        <span
+          className={`${styles.smpBadge} ${styles.executionSmp}`}
+          title={
+            smpPercentSource === null
+              ? `Привлечение СМП: ${formatMoney(smpActual)} ₽ по сведениям ЕИС`
+              : `Привлечение СМП: ${formatMoney(smpActual)} ₽ из ${formatMoney(
+                  smpRequired,
+                )} ₽ (${smpPercentSource}% от цены контракта, закрыто ${Math.round(
+                  smpPercent,
+                )}%)`
+          }
+        >
+          СМП
+        </span>
+      )}
     </span>
   );
 }

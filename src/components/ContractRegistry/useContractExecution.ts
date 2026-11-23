@@ -8,10 +8,13 @@ import {
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
   contractCardActsTotal,
+  contractCardExecutionPeriod,
   contractCardPaymentsTotal,
   contractCardSmpRequirement,
   contractCardSmpRows,
   contractCardSmpTotal,
+  contractCardSubject,
+  contractCardSupplier,
   type ContractCardProjection,
 } from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useAllContractCardProjections } from "../../services/ContractRegistry/contractCardProjection.api";
@@ -28,10 +31,11 @@ import {
 /**
  * Агрегаты исполнения одного контракта для строки реестра.
  *
- * Только деньги и счётчики: расшифровка документов живёт в сводке раскрытия и
- * в карточке. Суммы считаются теми же функциями, что и там (`totalPaid`,
- * `contractCardActsTotal`, `smpActualAmount`), чтобы строка списка и карточка
- * не расходились в цифрах.
+ * Деньги и счётчики считаются теми же функциями, что и в карточке
+ * (`totalPaid`, `contractCardActsTotal`, `smpActualAmount`), чтобы строка
+ * списка и карточка не расходились в цифрах. Реквизиты (подрядчик, предмет,
+ * срок исполнения) добавлены потому, что публичный реестр контрактов ЕИС их не
+ * отдаёт, а карточка — отдаёт: без них строка показывала прочерки.
  */
 export interface ContractExecutionEntry {
   /** Оплачено: ручные платёжные поручения, а если их нет — платежи из ЕИС. */
@@ -47,6 +51,22 @@ export interface ContractExecutionEntry {
   smpActual: number;
   /** Требуемый процент привлечения из карточки ЕИС — если своего в записи нет. */
   smpEisPercent: number | null;
+  /**
+   * Подрядчик из карточки ЕИС. Публичный реестр контрактов поставщика не
+   * отдаёт, поэтому в записи реестра поле пустое, а в карточке он есть —
+   * в блоке General, у получателя платежа или в сторонах акта.
+   */
+  supplierName: string;
+  supplierInn: string;
+  /**
+   * Предмет контракта из карточки ЕИС. В поле реестра `contractName` лежит
+   * наименование объекта закупки — это не предмет (`General.ContractName` или
+   * предмет акта приёмки).
+   */
+  subject: string;
+  /** Срок исполнения из карточки: в записи реестра часто только дата окончания. */
+  executionStartDate: string;
+  executionEndDate: string;
 }
 
 export interface ContractExecutionIndex {
@@ -179,6 +199,9 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
       const smpActual =
         manualSmp > 0 ? manualSmp : contractCardSmpTotal(eisSmpRows);
 
+      const supplier = contractCardSupplier(projection);
+      const period = contractCardExecutionPeriod(projection);
+
       index.set(key, {
         paid,
         paymentCount,
@@ -187,6 +210,11 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
         onReview,
         smpActual,
         smpEisPercent: contractCardSmpRequirement(projection?.Smp ?? []).percent,
+        supplierName: supplier.name,
+        supplierInn: supplier.inn,
+        subject: contractCardSubject(projection),
+        executionStartDate: period.start,
+        executionEndDate: period.end,
       });
     }
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paymentDeadlineDays } from "./contractRegistry.schema";
 
 /**
  * Проекция публичной карточки контракта ЕИС (`ContractCardViewDto` воркера
@@ -439,3 +440,275 @@ export const contractCardSmpRequirement = (
 export const contractCardSmpTotal = (
   rows: ContractCardSmpSubcontractor[],
 ): number => rows.reduce((sum, row) => sum + (row.ContractSum ?? 0), 0);
+
+// ─── Сведения для строки реестра и карточки ────────────────────────────────
+
+/**
+ * Наименование вида документа, а не предмета: так ЕИС подписывает УПД
+ * («Документ об отгрузке товаров (выполнении работ)…»). В `ObjectName` акта
+ * работ/услуг лежит предмет, в УПД — только вид документа.
+ */
+const DOCUMENT_TITLE = /^документ\s/i;
+
+/** Сжимаем пробелы и переводы строк из XML: в разметке они не нужны. */
+const tidy = (value: string | null | undefined): string =>
+  String(value ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * Предмет контракта.
+ *
+ * Приоритет источников: блок `General` карточки ЕИС (`ContractName` — это и
+ * есть «Предмет контракта» на вкладке «Общая информация»), затем предмет из
+ * акта приёмки — у актов работ и услуг в `ObjectName` лежит наименование
+ * объекта («Ремонт автомобильной дороги …»), а у УПД там только вид документа.
+ * Наименование объекта закупки из поисковой выдачи ЕИС (поле реестра
+ * `contractName`) — последний вариант, его подставляет вызывающая сторона.
+ */
+export const contractCardSubject = (
+  projection?: ContractCardProjection | null,
+): string => {
+  const general = tidy(projection?.General?.ContractName);
+  if (general) return general;
+
+  for (const act of projection?.Acts ?? []) {
+    const name = tidy(act.ObjectName);
+    if (!name || DOCUMENT_TITLE.test(name)) continue;
+    return name;
+  }
+
+  return "";
+};
+
+/**
+ * Подрядчик из выгрузки ЕИС.
+ *
+ * Реестр контрактов поставщика не отдаёт (в 2026 году заполнены единицы
+ * записей), поэтому имя берём из карточки: блок `General`, затем получатель
+ * платежа, затем сторона акта. Казначейство пишет подрядчика в скобках —
+ * «МИНИСТЕРСТВО ФИНАНСОВ … (ООО "ТЕРРА", л/с 712Ч5749001)», — поэтому из
+ * скобок вырезаем лицевой счёт, а если скобок нет, оставляем строку целиком.
+ */
+export const contractCardSupplier = (
+  projection?: ContractCardProjection | null,
+): { name: string; inn: string } => {
+  const general = projection?.General;
+  if (general?.SupplierName || general?.SupplierInn) {
+    return { name: tidy(general.SupplierName), inn: tidy(general.SupplierInn) };
+  }
+
+  for (const payment of projection?.Payments ?? []) {
+    const name = tidy(payment.RecipientName);
+    if (!name) continue;
+    const inside = name.match(/\(([^()]+)\)/)?.[1] ?? "";
+    // Кириллица не входит в \w, поэтому границу лицевого счёта задаём явно
+    const withoutAccount = inside
+      .split(/,?\s*л\/с(?=\s|$)/i)[0]
+      .replace(/,$/, "")
+      .trim();
+    return {
+      name: withoutAccount || name,
+      inn: tidy(payment.RecipientInn),
+    };
+  }
+
+  for (const act of projection?.Acts ?? []) {
+    for (const party of act.Parties) {
+      const role = tidy(party.Role).toLowerCase();
+      if (!role.includes("подрядчик") && !role.includes("поставщик")) continue;
+      const name = tidy(party.Name) || tidy(party.ShortName);
+      if (!name) continue;
+      return { name, inn: tidy(party.Inn) };
+    }
+  }
+
+  return { name: "", inn: "" };
+};
+
+/**
+ * Срок исполнения из карточки ЕИС (блок `General`). У выгрузок без разбора
+ * вкладки «Общая информация» поля пустые — карточка тогда берёт то, что есть
+ * в записи реестра.
+ */
+export const contractCardExecutionPeriod = (
+  projection?: ContractCardProjection | null,
+): { start: string; end: string } => ({
+  start: tidy(projection?.General?.ExecutionStartDate),
+  end: tidy(projection?.General?.ExecutionEndDate),
+});
+
+/**
+ * Вид документа о приёмке. КНД 1115131 — универсальный передаточный документ
+ * (УПД); остальные документы ЕИС — документы о приёмке (работ, услуг,
+ * товаров). Код КНД показываем рядом: по нему документ ищется в ЕИС и в ЭДО.
+ */
+export const contractCardActKind = (
+  act: ContractCardAct,
+): { label: string; code: string | null; isUpd: boolean } => {
+  const code = act.Knd;
+  const title = tidy(act.ObjectName);
+  const looksLikeUpd =
+    code === "1115131" || /отгрузке|передаче имущественных/i.test(title);
+
+  return looksLikeUpd
+    ? { label: "УПД", code, isUpd: true }
+    : { label: "Документ о приёмке", code, isUpd: false };
+};
+
+/**
+ * Предмет приёмки по структурированному составу акта (`WorkItems`), а не по
+ * наименованию вида документа: в актах работ там перечислены позиции сметы,
+ * в УПД — отгруженные товары. Длинный состав сворачиваем, полный список
+ * показывается в подсказке (`contractCardActSubjectFull`).
+ */
+export const contractCardActSubject = (
+  act: ContractCardAct,
+  limit = 3,
+): string => {
+  const names = act.WorkItems.map((item) => tidy(item.Name)).filter(Boolean);
+  if (names.length === 0) {
+    return tidy(act.Period?.OperationContent) || tidy(act.ObjectName);
+  }
+  if (names.length <= limit) return names.join("; ");
+  return `${names.slice(0, limit).join("; ")} · ещё ${names.length - limit}`;
+};
+
+/** Полный состав акта — для подсказки при наведении на предмет приёмки. */
+export const contractCardActSubjectFull = (act: ContractCardAct): string =>
+  act.WorkItems.map((item) => tidy(item.Name))
+    .filter(Boolean)
+    .join("; ") ||
+  tidy(act.Period?.OperationContent) ||
+  tidy(act.ObjectName);
+
+/**
+ * Акт приёмки, на который ссылается платёжное поручение. Обратное
+ * сопоставление к `contractCardActPayments`: нужно, чтобы связка «акт ↔ оплата»
+ * проверялась с двух сторон и несопоставленный документ был виден.
+ */
+export const contractCardPaymentAct = (
+  payment: ContractCardPayment,
+  acts: ContractCardAct[],
+): ContractCardAct | null =>
+  acts.find((act) =>
+    sameDocumentNumber(payment.AcceptanceDocumentNumber, act.ActNumber),
+  ) ?? null;
+
+/** Суммы платежей по годам: фактическая разбивка вместо paymentsSumInfo. */
+export const contractCardPaymentsByYear = (
+  payments: ContractCardPayment[],
+): { year: string; sum: number }[] => {
+  const byYear = new Map<string, number>();
+  for (const payment of payments) {
+    const year = tidy(payment.DocumentDate).slice(0, 4) || "без даты";
+    byYear.set(year, (byYear.get(year) ?? 0) + (payment.Sum ?? 0));
+  }
+  return [...byYear.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([year, sum]) => ({ year, sum }));
+};
+
+/**
+ * Дата подписания документа о приёмке: дата решения заказчика, а если решения
+ * ещё нет — дата самого акта. От неё отсчитывается срок оплаты по ч. 13.1
+ * ст. 34 44-ФЗ и проверяется срок приёмки.
+ */
+export const contractCardActAcceptedAt = (
+  act: ContractCardAct,
+  decisions: ContractCardDecision[],
+): string | null => {
+  const decision = contractCardActDecision(act, decisions);
+  return (
+    tidy(decision?.PostedDocumentDate) ||
+    tidy(decision?.InfoDate) ||
+    tidy(act.ActDate) ||
+    null
+  );
+};
+
+/**
+ * Дата из XML → `Date`. В выгрузке встречаются и `ГГГГ-ММ-ДД`, и ISO с временем,
+ * и `ДД.ММ.ГГГГ` из ручных записей: без нормализации сравнение сроков молча
+ * возвращало бы «нет данных» вместо реальной просрочки.
+ */
+const toDate = (value: string | null | undefined): Date | null => {
+  const raw = tidy(value);
+  if (!raw) return null;
+  const dotted = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+  const iso = dotted
+    ? `${dotted[3]}-${dotted[2]}-${dotted[1]}`
+    : raw.slice(0, 10);
+  const date = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** Разница дат в календарных днях: `b − a`. Отрицательная — `b` раньше `a`. */
+export const contractCardDaysBetween = (
+  a: string | null | undefined,
+  b: string | null | undefined,
+): number | null => {
+  const from = toDate(a);
+  const to = toDate(b);
+  if (!from || !to) return null;
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+};
+
+/**
+ * Дата, до которой заказчик обязан оплатить принятый документ по ч. 13.1
+ * ст. 34 44-ФЗ: 7 рабочих дней с даты подписания документа о приёмке, 10 — при
+ * казначейском сопровождении. Отсчёт ведём именно от подписания акта, а не от
+ * даты платежа: иначе просрочку заказчика не увидеть.
+ */
+export const contractCardPaymentDeadline = (
+  acceptedAt: string | null,
+  treasury = false,
+): string | null => {
+  const start = toDate(acceptedAt);
+  if (!start) return null;
+  const date = new Date(start.getTime());
+  const days = paymentDeadlineDays(treasury);
+  let added = 0;
+  while (added < days) {
+    date.setDate(date.getDate() + 1);
+    const weekday = date.getDay();
+    if (weekday !== 0 && weekday !== 6) added += 1;
+  }
+  return date.toISOString().slice(0, 10);
+};
+
+/** Первый платёж по акту — для колонки «Оплачен» в таблице актов. */
+export const contractCardActPayment = (
+  act: ContractCardAct,
+  payments: ContractCardPayment[],
+): ContractCardPayment | null => contractCardActPayments(act, payments)[0] ?? null;
+
+/**
+ * Получатель платежа в читаемом виде. В ЕИС он приходит строкой
+ * `МИНИСТЕРСТВО … (ООО "ТЕРРА", л/с 712Ч5749001)`: в скобках — контрагент и его
+ * лицевой счёт в казначействе. Лицевой счёт в колонке не нужен, а без него
+ * строка хотя бы показывает подрядчика рядом с распорядителем средств.
+ */
+export const contractCardRecipientName = (
+  value: string | null | undefined,
+): string => {
+  const raw = tidy(value);
+  if (!raw) return "";
+  return raw
+    .replace(/\s*\(([^()]*)\)\s*$/, (_match, inside: string) => {
+      const parts = String(inside)
+        .split(",")
+        .map((part) => part.trim())
+        .filter(
+          (part) =>
+            part &&
+            !/^л\/с/i.test(part) &&
+            !/^лицевой/i.test(part) &&
+            !/^\d{4,}/.test(part),
+        );
+      return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+    })
+    .trim();
+};
+
+
+
+

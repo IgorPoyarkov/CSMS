@@ -7,6 +7,8 @@ import {
   useUpdatePurchaseNote,
 } from "../../services/PurchaseNote/purchaseNote.api";
 import {
+  filterVisiblePurchaseNotes,
+  isVisiblePurchaseNote,
   latestPurchaseNoteForPosition,
   type PurchaseNote,
 } from "../../services/PurchaseNote/purchaseNote.schema";
@@ -188,10 +190,14 @@ export default function PurchaseNotePage() {
     });
   };
 
+  const visiblePurchaseNotes = filterVisiblePurchaseNotes(purchaseNotes);
   const selectedNote =
-    (noteIdParam
+    (noteIdParam && isVisiblePurchaseNote(
+      purchaseNotes.find((n) => String(n.id) === noteIdParam),
+    )
       ? purchaseNotes.find((n) => String(n.id) === noteIdParam)
-      : undefined) ?? latestPurchaseNoteForPosition(purchaseNotes, position.id);
+      : undefined) ??
+    latestPurchaseNoteForPosition(visiblePurchaseNotes, position.id);
 
   return (
     <PurchaseNoteModal

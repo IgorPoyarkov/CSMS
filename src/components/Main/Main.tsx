@@ -15,6 +15,7 @@ import {
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useOrganizationTasks } from "../../services/Tasks/tasks.api";
 import { useNotificationStates } from "../../services/Notifications/notifications.api";
 import {
@@ -80,6 +81,11 @@ const Main = () => {
   const { data: allPayments = [] } = useAllContractPayments(Boolean(orgId));
   const { data: orgTasks = [] } = useOrganizationTasks(orgId);
   const { data: ackStates = [] } = useNotificationStates(orgId);
+
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
 
   // Данные главной идут по цепочке закупки: план-график → позиция плана (ИКЗ)
   // → закупка (СЗ) → извещение → проект контракта → реестр контрактов.
@@ -168,7 +174,7 @@ const Main = () => {
     {
       title: "СЗ на закупку",
       hint: "Реестр потребностей по ПГ",
-      count: (purchaseNotes ?? []).length,
+      count: visiblePurchaseNotes.length,
       to: "/purchase-notes",
     },
     {
@@ -207,7 +213,7 @@ const Main = () => {
     {
       label: "Потребности",
       hint: "служебные записки",
-      value: (purchaseNotes ?? []).length,
+      value: visiblePurchaseNotes.length,
       to: "/purchase-notes",
     },
     {

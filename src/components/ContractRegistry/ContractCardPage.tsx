@@ -9,7 +9,14 @@ import {
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
-import { contractCardSmpRequirement } from "../../services/ContractRegistry/contractCardProjection.schema";
+import {
+  contractCardExecutionPeriod,
+  contractCardSmpRequirement,
+  contractCardSmpRows,
+  contractCardSubject,
+  contractCardSupplier,
+} from "../../services/ContractRegistry/contractCardProjection.schema";
+import { useContractSmpRecords } from "../../services/ContractSmp/contractSmp.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import ContractEisSection from "./ContractEisSection";
@@ -42,8 +49,15 @@ export default function ContractCardPage() {
   // Выгрузка карточки ЕИС нужна и сводке, и заголовку: по ней видно, есть ли
   // у контракта обязанность привлекать СМП. Ключ запроса общий, данные из кэша
   const { data: projection } = useContractCardProjection(contract?.id ?? id);
+  // Ручные записи о привлечении СМП: блок прячем, только если нет ни требования,
+  // ни сведений из ЕИС, ни уже внесённых субдоговоров
+  const { data: smpRecords } = useContractSmpRecords(contract?.id ?? id);
   const smpRequirement = useMemo(
     () => contractCardSmpRequirement(projection?.Smp ?? []),
+    [projection],
+  );
+  const smpEisRows = useMemo(
+    () => contractCardSmpRows(projection?.Smp ?? []),
     [projection],
   );
   const hasSmpRequirement =
@@ -85,15 +99,23 @@ export default function ContractCardPage() {
   // Выгрузка из ЕИС (есть ссылка на карточку портала) — не наш документ:
   // удалить запись реестра контрактов нельзя, её снимают сведениями в ЕИС
   const isEisContract = Boolean(contract.eisUrl);
-  // Поставщика реестр контрактов не отдаёт, но получатель платежа в выгрузке
-  // ЕИС — это подрядчик: показываем его, чтобы шапка не оставалась пустой у
-  // контракта, по которому уже прошла оплата
-  const eisRecipient = projection?.Payments.find(
-    (payment) => payment.RecipientName,
-  );
-  const supplierName =
-    contract.supplierName || eisRecipient?.RecipientName || "";
-  const supplierInn = contract.supplierInn || eisRecipient?.RecipientInn || "";
+  // Предмет, подрядчик и срок исполнения — из карточки ЕИС: реестр контрактов
+  // этих полей почти не отдаёт, а в выгрузке они есть. Запись реестра остаётся
+  // приоритетнее, чтобы ручные правки не перекрывались импортом
+  const eisSupplier = contractCardSupplier(projection);
+  const supplierName = contract.supplierName || eisSupplier.name;
+  const supplierInn = contract.supplierInn || eisSupplier.inn;
+  const subject = contractCardSubject(projection) || contract.contractName;
+  const eisExecution = contractCardExecutionPeriod(projection);
+  const executionStart = contract.executionStartDate || eisExecution.start;
+  const executionEnd = contract.executionEndDate || eisExecution.end;
+  // Обязанность привлекать СМП: служебка, процент, сведения ЕИС или уже
+  // внесённые субдоговоры. Без них блок оставался пустой оболочкой
+  const showSmpBlock =
+    hasSmpRequirement ||
+    Boolean(contract.subcontractingSmpNoteNumber) ||
+    smpEisRows.length > 0 ||
+    (smpRecords?.length ?? 0) > 0;
 
   const handleDelete = () => {
     if (!contract.id) return;
@@ -149,7 +171,7 @@ export default function ContractCardPage() {
 
       <header className={styles.cardPageHeader}>
         <h2 className={styles.cardPageTitle}>
-          {contract.contractNumber} — {contract.contractName}
+          {contract.contractNumber} — {subject}
         </h2>
         <div className={styles.cardPageMeta}>
           <span className={styles.statusCell}>
@@ -176,10 +198,8 @@ export default function ContractCardPage() {
               читается как «до <дата>», а не «— — дата» */}
           <span>
             Срок исполнения:{" "}
-            {contract.executionStartDate
-              ? `${formatDate(contract.executionStartDate)} — `
-              : "до "}
-            {formatDate(contract.executionEndDate) || "не указан"}
+            {executionStart ? `${formatDate(executionStart)} — ` : "до "}
+            {formatDate(executionEnd) || "не указан"}
           </span>
           {contract.eisRegistryNumber && (
             <span>Реестровый номер ЕИС: {contract.eisRegistryNumber}</span>
@@ -200,17 +220,20 @@ export default function ContractCardPage() {
         <ContractAcceptanceSection contractId={contract.id} />
         <ContractStagesSection contractId={contract.id} contract={contract} />
         <ContractPenaltiesSection contractId={contract.id} />
-          <ContractEventsSection contractId={contractId} contract={contract} />
+        <ContractEventsSection contractId={contractId} contract={contract} />
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
-            контрактов его нет, но объём и загруженные сведения показываем */}
-        <div id="contract-smp">
-          <SmpSection
-            contractId={contractId}
-            contractPrice={contract.contractPrice}
-            smpRequiredPercent={contract.smpRequiredPercent}
-            subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
-          />
-        </div>
+            контрактов его может не быть — тогда блока нет совсем, чтобы не
+            показывать пустую оболочку с редактором, который нечего настраивать */}
+        {showSmpBlock && (
+          <div id="contract-smp">
+            <SmpSection
+              contractId={contractId}
+              contractPrice={contract.contractPrice}
+              smpRequiredPercent={contract.smpRequiredPercent}
+              subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
+            />
+          </div>
+        )}
 
         <div className={styles.cardFooter}>
           <div className={styles.meta}>

@@ -106,12 +106,15 @@
 // Полосы оплаты и приёмки видны без раскрытия строки: по ним читается, идёт
 // исполнение или нет. Суммы и документы — в раскрытии и в карточке контракта.
 
+// Наименование контракта и под ним — исполнение: полосы оплаты и приёмки
+// стоят отдельной строкой строго под предметом контракта. Раньше блок шёл
+// справа от наименования (`space-between`), и при длинном предмете полосы
+// уезжали под колонки таблицы.
 .contractTitleCell {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .contractTitleName {
@@ -121,7 +124,7 @@
 .executionStrip {
   display: inline-flex;
   align-items: center;
-  gap: 4px 14px;
+  gap: 6px 14px;
   flex-wrap: wrap;
   font-size: 11px;
   font-weight: 400;
@@ -141,7 +144,10 @@
   gap: 6px;
 }
 
+// Одинаковая ширина подписи у «Оплаты» и «Приёмки»: полосы и проценты стоят
+// на одной вертикали, а не «лесенкой» из-за разной длины слова
 .executionLabel {
+  min-width: 54px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -2833,13 +2839,27 @@
   color: var(--text-secondary);
 }
 
-/* Предмет приёмки и назначение платежа обрезаем по ширине графы */
-.projectionPurpose {
-  display: block;
-  max-width: 420px;
+/* Получатель и назначение платежа: не больше трёх строк, полный текст — в
+   подсказке при ховере (`title`) */
+.projectionClamp3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 380px;
+  overflow-wrap: anywhere;
+}
+
+/* Нарушение срока оплаты или приёмки: подсвечиваем нарушение, а не всё поле */
+.projectionLate {
+  color: var(--state-danger);
+  font-weight: 600;
+}
+
+/* Срок соблюдён — зелёная отметка рядом с датой */
+.projectionOk {
+  color: var(--state-success);
+  font-size: 12px;
 }
 
 .projectionMissing {
@@ -2891,7 +2911,7 @@
 }
 
 @media (max-width: 600px) {
-  .projectionPurpose {
+  .projectionClamp3 {
     max-width: 200px;
   }
 }

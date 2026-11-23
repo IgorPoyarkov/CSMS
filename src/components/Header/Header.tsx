@@ -80,6 +80,7 @@ const MORE_GROUPS: NavGroup[] = [
       { to: "/eis/smp-export", label: "Выгрузка СМП / СОНКО" },
       { to: "/eis/packages", label: "Пакеты ЕИС" },
       { to: "/eis/schemas", label: "Схемы ЕИС" },
+      { to: "/eis/test-access", label: "Тестовый доступ ЕИС" },
     ],
   },
   {
