@@ -7242,7 +7242,10 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   панель (полупрозрачность + `backdrop-filter`) и магнитное расхождение
   чипов (`transform` 240 ms). Фон блока повторяет `body` темы: два радиальных
   пятна и техно-сетка 44 px. Анимации отключаются при
-  `prefers-reduced-motion`.
+  `prefers-reduced-motion`. Там же — представление логотипа в теме:
+  `csms-mark-modern.svg` и `csms-logo-horizontal-modern.svg` (стеклянная
+  плитка `#16233A→#070B14`, контур циан → индиго → магента, свечение
+  `feDropShadow`, монограмма paper/cyan/indigo), PNG в `public/brand/png`.
 - **Проверки.** `npx.cmd tsc -b --pretty false` — 0; `npx.cmd vite build` —
   успешно (2684 модуля). PNG проверены: 32-bit ARGB, размеры 962×176 /
   962×208 / 570×432 / 512×512. Владелец указан в `csms-logo-owner.svg` и

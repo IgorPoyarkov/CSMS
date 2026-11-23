@@ -51,6 +51,14 @@ const DOWNLOADS = [
   { file: "csms-logo-owner.svg", label: "Для документов, с реквизитами" },
   { file: "csms-mark.svg", label: "Знак, цветной" },
   { file: "csms-mark-dark.svg", label: "Знак, тёмный фон" },
+  {
+    file: "csms-logo-horizontal-modern.svg",
+    label: "Логотип, тема «Современные закупки»",
+  },
+  {
+    file: "csms-mark-modern.svg",
+    label: "Знак, тема «Современные закупки»",
+  },
 ];
 
 export default function BrandPage() {
@@ -219,6 +227,21 @@ export default function BrandPage() {
               расходятся за курсором. Всё движение отключается при
               prefers-reduced-motion.
             </p>
+          </div>
+
+          <div className={block("modern-logo")}>
+            <img
+              className={block("modern-logo-img")}
+              src={asset("/brand/csms-logo-horizontal-modern.svg")}
+              alt="КСЗ — логотип в теме «Современные закупки»"
+            />
+            <img
+              className={block("modern-logo-mark")}
+              src={asset("/brand/csms-mark-modern.svg")}
+              alt="КСЗ — знак в теме «Современные закупки»"
+              width={64}
+              height={64}
+            />
           </div>
 
           <div className={block("modern-palette")}>

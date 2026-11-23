@@ -35,6 +35,8 @@
 | `csms-logo-stacked.svg` | Вертикальная компоновка — светлый фон |
 | `csms-logo-stacked-inverse.svg` | Вертикальная компоновка — тёмный фон |
 | `csms-logo-owner.svg` | Логотип для документов, с реквизитами владельца |
+| `csms-mark-modern.svg` | Знак в теме «Современные закупки»: стеклянная плитка, неоновый контур, свечение |
+| `csms-logo-horizontal-modern.svg` | Горизонтальный логотип в теме «Современные закупки» |
 
 Имена файлов оставлены с префиксом `csms` для совместимости с уже
 подключёнными путями; содержательно это знак КСЗ.
@@ -50,6 +52,9 @@
   `csms-logo-horizontal-mono-black-2x.png`,
   `csms-logo-horizontal-mono-white-2x.png`;
 - `csms-logo-owner-2x.png` (962×208);
+- `csms-mark-modern-512.png` (512×512) и
+  `csms-logo-horizontal-modern-2x.png` (962×176) — тема «Современные
+  закупки»: стеклянная плитка, контур циан → индиго → магента, свечение;
 - `csms-logo-stacked-2x.png`, `csms-logo-stacked-inverse-2x.png` (570×432).
 
 ### Демонстрация
