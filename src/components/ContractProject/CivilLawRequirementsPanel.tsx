@@ -116,6 +116,13 @@ export default function CivilLawRequirementsPanel({
         </div>
       )}
 
+      {classification.okpd2Consistency?.status === "mismatch" && (
+        <div className={styles.alert}>
+          <strong>Первичная сверка вида предмета с ОКПД2: расхождение</strong>
+          <span>{classification.okpd2Consistency.message}</span>
+        </div>
+      )}
+
       {analysis.pendingArticles.length > 0 && (
         <div className={styles.pending}>
           Статьи без текста в снимке — вставки по ним не выдаются:{" "}

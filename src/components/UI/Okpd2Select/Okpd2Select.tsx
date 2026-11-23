@@ -8,6 +8,7 @@ import {
   useOkpd2Dictionary,
 } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../../services/Okpd2Ref/okpd2Ref.schema";
+import { okpd2Signal } from "../../../../scripts/lib/civil-law-core.mjs";
 import { useInfiniteReferenceItems } from "../../../services/Eis/referenceData.api";
 import styles from "./Okpd2Select.module.scss";
 
@@ -134,6 +135,7 @@ export default function Okpd2Select({
         return {
           code: item.code,
           name: item.name,
+          objectKind: okpd2Signal(item.code).kind,
           isNormed: false,
           isAuctionRequired: auctionCheck.inAuctionList,
           auctionNote: auctionCheck.note,
@@ -219,6 +221,7 @@ export default function Okpd2Select({
       id: undefined,
       code: typed,
       name: name ?? "",
+      objectKind: okpd2Signal(typed).kind,
       isNormed: false,
       isAuctionRequired: auctionCheck.inAuctionList,
       auctionNote: auctionCheck.note,

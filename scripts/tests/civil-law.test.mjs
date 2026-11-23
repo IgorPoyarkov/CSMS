@@ -9,6 +9,7 @@ import {
   classifyNormKind,
   classifyProcurement,
   loadCivilSnapshot,
+  normalizeDeclaredKind,
   okpd2Signal,
   validateAgainstSnapshot,
 } from "../lib/civil-law.mjs";
@@ -57,6 +58,45 @@ test("ОКПД2 — косвенный сигнал: без предмета о�
   assert.equal(result.mismatch.detected, false);
   assert.ok(result.institutes.some((item) => item.id === "works-contract-state"));
   assert.ok(result.institutes.some((item) => item.id === "works-construction"));
+});
+
+test("Первая отсечка: вид предмета из формы против ОКПД2 не меняет вердикт по ГК", () => {
+  const mismatch = classifyProcurement({
+    subject: "Выполнение работ по ремонту дороги",
+    declaredKind: "goods",
+    okpd2Codes: ["41.20"],
+  });
+  assert.equal(normalizeDeclaredKind("works_repair"), "works");
+  assert.equal(normalizeDeclaredKind("services_maintenance"), "services");
+  assert.equal(normalizeDeclaredKind("PRODUCT"), "goods");
+  assert.equal(mismatch.okpd2Consistency.source, "form");
+  assert.equal(mismatch.okpd2Consistency.signal, "works");
+  assert.equal(mismatch.okpd2Consistency.status, "mismatch");
+  assert.match(mismatch.okpd2Consistency.message, /ручная сверка/);
+  // Это сигнал к проверке, а не новое обвинение в нарушении.
+  assert.equal(mismatch.mismatch.detected, false);
+  assert.equal(mismatch.reviewRequired, true);
+
+  const match = classifyProcurement({
+    subject: "Выполнение работ по ремонту дороги",
+    declaredKind: "works",
+    okpd2Codes: ["41.20"],
+  });
+  assert.equal(match.okpd2Consistency.status, "match");
+
+  const ambiguous = classifyProcurement({
+    subject: "Выполнение работ по ремонту дороги",
+    declaredKind: "works",
+    okpd2Codes: ["71.11"],
+  });
+  assert.equal(ambiguous.okpd2Consistency.status, "ambiguous");
+  assert.equal(ambiguous.mismatch.detected, false);
+
+  const unknown = classifyProcurement({
+    subject: "Поставка телевизора",
+    declaredKind: "goods",
+  });
+  assert.equal(unknown.okpd2Consistency.status, "unknown");
 });
 
 test("«Поставка и монтаж» — смешанный предмет с оговоркой, не mismatch", () => {

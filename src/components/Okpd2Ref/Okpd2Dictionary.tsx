@@ -10,6 +10,7 @@ import {
   searchOkpd2,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
+import { OKPD2_OBJECT_KIND_LABELS } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import styles from "./Okpd2Dictionary.module.scss";
 
 // Просмотр справочника: поиск по коду и наименованию, отбор нормируемых и
@@ -165,6 +166,7 @@ export default function Okpd2Dictionary() {
                   <th>№</th>
                   <th>Код ОКПД2</th>
                   <th>Наименование товара, работы, услуги</th>
+                  <th>Вид объекта (по коду)</th>
                   <th>Аукционный перечень (471-р)</th>
                   <th>Обязательное нормирование</th>
                   <th>Предельная цена единицы, ₽</th>
@@ -181,6 +183,17 @@ export default function Okpd2Dictionary() {
                       <td>{start + index + 1}</td>
                       <td className={block("code")}>{item.code}</td>
                       <td>{item.name}</td>
+                      <td>
+                        <span
+                          className={block("tag", [
+                            item.objectKind === "ambiguous" ? "ambiguous" : "",
+                          ])}
+                          title="Вид выведен из раздела кода ОКПД2: это косвенный сигнал для сверки с предметом, а не юридический вывод"
+                        >
+                          {OKPD2_OBJECT_KIND_LABELS[item.objectKind] ??
+                            OKPD2_OBJECT_KIND_LABELS.unknown}
+                        </span>
+                      </td>
                       <td>
                         {auctionCheck.inAuctionList ? (
                           <span

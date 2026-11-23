@@ -315,6 +315,60 @@ export function okpd2Signal(code) {
   return { kind: "unknown", confidence: 0 };
 }
 
+const DECLARED_KIND_LABELS = Object.freeze({
+  goods: "товар",
+  works: "работа",
+  services: "услуга",
+  unknown: "не определён",
+});
+
+/** Вид предмета из формы закупки/контракта к видам ядра (36.44, 71 и т.п.). */
+export function normalizeDeclaredKind(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (["goods", "product", "товар", "товары"].includes(raw)) return "goods";
+  if (["works", "work", "работа", "работы", "design_survey", "пир"].includes(raw)) return "works";
+  if (["services", "service", "услуга", "услуги"].includes(raw)) return "services";
+  if (raw.startsWith("works_")) return "works";
+  if (raw.startsWith("services_")) return "services";
+  return "unknown";
+}
+
+/**
+ * Первая отсечка: вид предмета из формы против кода ОКПД2 объекта.
+ * Это слабый сигнал для человека, а не вывод о нарушении: 71 и пустой код
+ * остаются неопределёнными, а расхождение не меняет квалификацию по ГК.
+ */
+function buildOkpd2Consistency(okpdCodes, signal, formDeclared, subjectDeclared) {
+  const declared = formDeclared !== "unknown" ? formDeclared : subjectDeclared;
+  const code = okpdCodes.find(Boolean) ?? "";
+  let status = "unknown";
+  if (signal.kind === "ambiguous") status = "ambiguous";
+  else if (signal.kind !== "unknown" && declared !== "unknown") {
+    status = declared === signal.kind ? "match" : "mismatch";
+  }
+
+  const labels = DECLARED_KIND_LABELS;
+  const source = formDeclared !== "unknown" ? "форме" : "тексте предмета";
+  const message =
+    status === "mismatch"
+      ? `В ${source} заявлен «${labels[declared]}», а код ОКПД2 ${code} указывает на «${labels[signal.kind] ?? signal.kind}». Нужна ручная сверка, это не вывод о нарушении.`
+      : status === "ambiguous"
+        ? `Код ОКПД2 ${code} относится к неоднозначной группе: вид предмета по коду не проверен.`
+        : status === "match"
+          ? `Вид предмета и код ОКПД2 ${code} предварительно согласованы.`
+          : "Код ОКПД2 отсутствует или не распознан: первичная сверка не выполнена.";
+
+  return {
+    declared,
+    source: formDeclared !== "unknown" ? "form" : "subject",
+    code,
+    signal: signal.kind,
+    status,
+    confidence: signal.confidence,
+    message,
+  };
+}
+
 const PAIR_ARTICLES = Object.freeze({
   "goods-works": ["gk2:454", "gk2:506", "gk2:702", "gk2:703"],
   "goods-services": ["gk2:454", "gk2:779"],
@@ -339,6 +393,12 @@ export function classifyProcurement(input = {}) {
   const okpdSignals = okpdCodes.map(okpd2Signal).filter((signal) => signal.kind !== "unknown");
 
   const declared = firstKindByPosition(subject);
+  const okpd2Consistency = buildOkpd2Consistency(
+    okpdCodes,
+    okpdSignals[0] ?? okpd2Signal(okpdCodes[0]),
+    normalizeDeclaredKind(input.declaredKind),
+    declared.kind,
+  );
   const objectByWords = kindByScore(context || subject);
   const okpdKind = okpdSignals.length
     ? okpdSignals[0].kind
@@ -417,6 +477,11 @@ export function classifyProcurement(input = {}) {
   }
 
   const notes = [];
+  // Первая отсечка не меняет основной вердикт: это повод сверить предмет
+  // с объектом вручную, а не обвинение в нарушении.
+  if (okpd2Consistency.status === "mismatch" || okpd2Consistency.status === "ambiguous") {
+    notes.push(okpd2Consistency.message);
+  }
   // Ключевой вопрос пользователя: не слукавил ли заказчик, назвав «услугой»
   // то, что по ст. 702 ГК является работой с сдачей результата.
   if (declared.kind === "services" && any("works", subject)) {
@@ -426,6 +491,7 @@ export function classifyProcurement(input = {}) {
   }
   const reasons = [];
   reasons.push(`Заявленный предмет: ${declared.kind} (${declared.word || "не определён"})`);
+  reasons.push(`Сверка вида предмета с ОКПД2: ${okpd2Consistency.status}`);
   if (okpdSignals.length) reasons.push(`ОКПД2 указывает на: ${okpdKind}`);
   if (context) reasons.push(`Объект/характеристики: ${objectByWords.kind}`);
   if (mismatch) {
@@ -446,6 +512,7 @@ export function classifyProcurement(input = {}) {
     declaredKind: declared.kind,
     objectKind,
     effectiveKind,
+    okpd2Consistency,
     institutes,
     mismatch: mismatch
       ? {
@@ -799,6 +866,7 @@ export function buildContractRequirements(project, snapshot) {
     objectName: project?.subject?.objectName,
     characteristics: project?.subject?.description,
     okpd2Code: project?.subject?.okpd2Code,
+    declaredKind: project?.kind,
     flags: { lifecycle: /жизненного цикла/i.test(subject) },
   });
   const instituteIds = new Set(classification.institutes.map((item) => item.id));

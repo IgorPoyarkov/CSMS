@@ -12,6 +12,7 @@ import {
   resolveIndexedNpaRule,
   setNpaDirectRules,
 } from "../Npa/npaControl";
+import { okpd2Signal } from "../../../scripts/lib/civil-law-core.mjs";
 import { Okpd2RefListSchema, type Okpd2Ref } from "./okpd2Ref.schema";
 
 export type { Okpd2Ref };
@@ -41,7 +42,12 @@ const fetchSnapshot = async (signal?: AbortSignal): Promise<Okpd2Ref[]> => {
   // и всего их 21 066 — ровно столько, сколько отдаёт API.
   return readReferenceItems(data)
     .filter((item) => item.code.trim().length > 0)
-    .map((item) => ({ code: item.code, name: item.name, isNormed: false }));
+    .map((item) => ({
+      code: item.code,
+      name: item.name,
+      isNormed: false,
+      objectKind: okpd2Signal(item.code).kind,
+    }));
 };
 
 /** Признаки нормирования и нацрежима пока живут только в локальной выборке. */
@@ -114,8 +120,13 @@ export const useOkpd2Dictionary = () =>
       );
       const merged = official.map<Okpd2Ref>((item) => {
         const overlay = localByCode.get(normalizeCode(item.code));
+        // Вид объекта пересчитываем из официального кода: локальный оверлей
+        // хранит только признаки нормирования и нацрежима.
+        const objectKind = okpd2Signal(item.code).kind;
         return withNormingFlag(
-          overlay ? { ...overlay, code: item.code, name: item.name } : item,
+          overlay
+            ? { ...overlay, code: item.code, name: item.name, objectKind }
+            : { ...item, objectKind },
         );
       });
 

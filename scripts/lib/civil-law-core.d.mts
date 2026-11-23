@@ -33,10 +33,22 @@ export interface CivilMismatch {
   severity?: "high" | "medium";
 }
 
+/** Первая отсечка: вид предмета против кода ОКПД2 — сигнал к сверке, не вердикт. */
+export interface CivilOkpd2Consistency {
+  declared: string;
+  source: "form" | "subject";
+  code: string;
+  signal: string;
+  status: "match" | "mismatch" | "ambiguous" | "unknown";
+  confidence: number;
+  message: string;
+}
+
 export interface CivilClassification {
   declaredKind: string;
   objectKind: string;
   effectiveKind: string;
+  okpd2Consistency: CivilOkpd2Consistency;
   institutes: CivilInstitute[];
   mismatch: CivilMismatch;
   exceptions: string[];
@@ -135,15 +147,21 @@ export function articleText(snapshot: CivilSnapshot, reference: string): string 
 export function classifyNormKind(text: string): string;
 export function findNormQualifiers(text: string): string[];
 export function okpd2Signal(code: string | number | null | undefined): {
-  kind: string;
+  kind: "goods" | "works" | "services" | "ambiguous" | "unknown";
   confidence: number;
 };
+export function normalizeDeclaredKind(value: unknown):
+  | "goods"
+  | "works"
+  | "services"
+  | "unknown";
 export function classifyProcurement(input?: {
   subject?: string;
   objectName?: string;
   characteristics?: string;
   okpd2Code?: string;
   okpd2Codes?: string[];
+  declaredKind?: string;
   flags?: { lifecycle?: boolean };
 }): CivilClassification;
 export function buildLegalBasis(

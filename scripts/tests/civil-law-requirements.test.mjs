@@ -10,6 +10,7 @@ import { CIVIL_CONTRACT_REQUIREMENTS } from "../lib/civil-law-core.mjs";
 const snapshot = loadCivilSnapshot();
 
 const projectWith = (overrides = {}) => ({
+  kind: overrides.kind,
   subject: {
     objectName: "Поставка телевизора",
     description: "Телевизор с диагональю 55 дюймов",
@@ -68,6 +69,19 @@ test("поставка: условия ГК и императивы 44-ФЗ со
       result.counts.missing +
       result.counts.overridden,
   );
+});
+
+test("вид предмета из формы контракта доходит до сверки с ОКПД2", () => {
+  const result = buildContractRequirements(
+    projectWith({
+      kind: "works_repair",
+      subject: { objectName: "Ремонт дороги", okpd2Code: "26.20.1" },
+    }),
+    snapshot,
+  );
+  assert.equal(result.classification.okpd2Consistency.source, "form");
+  assert.equal(result.classification.okpd2Consistency.declared, "works");
+  assert.equal(result.classification.okpd2Consistency.status, "mismatch");
 });
 
 test("подряд: цена работы, приёмка и гарантия качества приходят из ГК", () => {

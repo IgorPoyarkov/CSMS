@@ -151,6 +151,8 @@ for (const item of items) {
     deterministic: {
       kind: requirementsResult.classification.effectiveKind,
       institutes: requirementsResult.classification.institutes.map((entry) => entry.id),
+      // В снимке предметов кодов ОКПД2 нет, поэтому сверка здесь будет unknown.
+      okpd2Consistency: requirementsResult.classification.okpd2Consistency,
     },
     ...result,
     elapsedMs,

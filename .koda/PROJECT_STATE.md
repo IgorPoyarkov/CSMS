@@ -6175,3 +6175,34 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   0 ошибок (прежние); `vite build` — успешно.
 - **Важно.** Одновременно другой агент правил `eis-parser` (ContractGeneralHtmlParser);
   в коммит вошли только файлы этой задачи.
+
+## 156. ГК/44-ФЗ: первая отсечка вида предмета по ОКПД2 (2026-11-23)
+
+- **Запрос пользователя.** В справочнике ОКПД2 нужны флаги товара/работы/услуги
+  для ранней проверки «предмет не соответствует ОКПД2». Подсказчик предлагал
+  записать сведения в БД; выбрано детерминированное вычисление из кода той же
+  функцией `okpd2Signal()`, чтобы не завести второй источник правды.
+- **Ядро.** `normalizeDeclaredKind()` (36.44, `works_*`, `design_survey`,
+  `services_*`, `PRODUCT` из ЕИС) и `okpd2Consistency` в `classifyProcurement()`:
+  `declared`, `source` (`form`/`subject`), `code`, `signal`, `status`
+  (`match|mismatch|ambiguous|unknown`), `confidence`, `message`. Код 71 и
+  отсутствие кода дают только `ambiguous`/`unknown`. `buildContractRequirements()`
+  передаёт `project.kind`; расхождение добавляет заметку и `reviewRequired`,
+  но **не меняет** `effectiveKind`, `mismatch` и набор требований P3.
+- **Справочник/UI.** `Okpd2Ref.objectKind` вычисляется в `okpd2Ref.api.ts`
+  (включая оверлей и ручной ввод в `Okpd2Select`); колонка «Вид объекта (по коду)»
+  в `Okpd2Dictionary.tsx`; предупреждение в `CivilLawRequirementsPanel.tsx`.
+- **Пилот.** В `contract-subjects-2026.json` кодов ОКПД2 нет, поэтому в выводе
+  пилота сверка честно остаётся `unknown`; это ограничение входных данных.
+- **Проверки.** `npm run test:scripts` — 42/42, `tsc -b` — без ошибок.
+- **Очистка компа (по разрешению пользователя).** Удалено 688 объектов из
+  `%TEMP%` (старые `.tmp`, `.cpuprofile`, chrome/puppeteer-профили, папки
+  аудитов): 58,75 → 48,34 ГБ. Ещё 8,37 ГБ дубля модели
+  `Qwen2.5-14B-Instruct-Q4_K_M.gguf` и папки `wfi1hijm`/`ysd2zwai` удались со
+  второго захода (в первый раз система не отпустила файлы). Оригинал модели
+  остаётся в `C:\Users\liven\.ollama\models`.
+  MySQL не установлен: ни сервисов, ни uninstall-записей, ни папок.
+- **Про ИИ в VS Code.** Установлен `yandex-cloud.sourcecraft-code-assist`
+  (SourceCraft Code Assistant) — это ассистент в IDE, а не пакетный API для
+  пилота; он даёт подсказки по коду, но не заменяет Ollama/Yandex AI Studio API
+  в скрипте. Контракты в облако без решения пользователя не отправляем.

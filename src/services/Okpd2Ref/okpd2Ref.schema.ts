@@ -14,7 +14,28 @@ import { z } from "zod";
  * (приложение N 1 — запрет, приложение N 2 — ограничение). Запись справочника
  * имеет приоритет над правилами префиксов из `NationalRegime/pp1875.ts`.
  * `nationalRegimeNote` — оговорка по позиции национального режима.
+ * `objectKind` — производный признак вида объекта (товар/работа/услуга) из
+ * раздела кода ОКПД2. Это косвенный сигнал для сверки с предметом закупки,
+ * а не юридический вывод; 71 и неопознанные коды помечаются неоднозначными.
  */
+
+export const Okpd2ObjectKindSchema = z.enum([
+  "goods",
+  "works",
+  "services",
+  "ambiguous",
+  "unknown",
+]);
+
+export type Okpd2ObjectKind = z.infer<typeof Okpd2ObjectKindSchema>;
+
+export const OKPD2_OBJECT_KIND_LABELS: Record<Okpd2ObjectKind, string> = {
+  goods: "Товар",
+  works: "Работа",
+  services: "Услуга",
+  ambiguous: "Неоднозначно",
+  unknown: "Не определено",
+};
 
 export const Okpd2RefSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
@@ -27,6 +48,7 @@ export const Okpd2RefSchema = z.object({
   name: z
     .string()
     .min(2, "Укажите наименование товара, работы, услуги по ОКПД2"),
+  objectKind: Okpd2ObjectKindSchema.default("unknown"),
   isNormed: z.boolean().default(false),
   normLimit: z.coerce.number().min(0).optional(),
   isAuctionRequired: z.boolean().optional(),
