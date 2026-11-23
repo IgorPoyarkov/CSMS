@@ -1,0 +1,1102 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://csms.local/schemas/order-841-pr.schema.json",
+    "title": "Машиночитаемая модель приложений приказа Минстроя России от 23.12.2019 № 841/пр",
+    "description": "Описывает состав, структуру, формы, таблицы, реквизиты, показатели и правила заполнения приложений к приказу 841/пр, а также связи между приложениями, пунктами и формулами.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schemaVersion",
+        "digitizedAt",
+        "source",
+        "scope",
+        "documents",
+        "clauses",
+        "appendices",
+        "formulas",
+        "relations",
+        "summary"
+    ],
+    "properties": {
+        "$schema": {
+            "type": "string"
+        },
+        "schemaVersion": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "digitizedAt": {
+            "type": "string",
+            "format": "date"
+        },
+        "language": {
+            "type": "string"
+        },
+        "subject": {
+            "type": "string"
+        },
+        "source": {
+            "$ref": "#/$defs/source"
+        },
+        "machineReadable": {
+            "$ref": "#/$defs/machineReadable"
+        },
+        "scope": {
+            "$ref": "#/$defs/scope"
+        },
+        "definitions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/definition"
+            }
+        },
+        "documents": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/document"
+            },
+            "minItems": 1
+        },
+        "clauses": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/clause"
+            }
+        },
+        "appendices": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/appendix"
+            },
+            "minItems": 1
+        },
+        "formulas": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/formula"
+            }
+        },
+        "relations": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/relation"
+            }
+        },
+        "consistencyNotes": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/consistencyNote"
+            }
+        },
+        "externalReferences": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/externalReference"
+            }
+        },
+        "summary": {
+            "$ref": "#/$defs/summary"
+        }
+    },
+    "$defs": {
+        "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "kind",
+                "issuer",
+                "number",
+                "date",
+                "title",
+                "registration",
+                "edition"
+            ],
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "const": "normative_act"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string",
+                    "format": "date"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "registration": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "authority",
+                        "date",
+                        "number"
+                    ],
+                    "properties": {
+                        "authority": {
+                            "type": "string"
+                        },
+                        "date": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "number": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "edition": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "revisionDate",
+                        "isCurrent",
+                        "amendingActs"
+                    ],
+                    "properties": {
+                        "revisionDate": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "isCurrent": {
+                            "type": "boolean"
+                        },
+                        "amendingActs": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                    "number",
+                                    "date"
+                                ],
+                                "properties": {
+                                    "number": {
+                                        "type": "string"
+                                    },
+                                    "date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "legalBasis": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "ref",
+                            "role"
+                        ],
+                        "properties": {
+                            "ref": {
+                                "type": "string"
+                            },
+                            "role": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "url",
+                            "usedFor"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "url": {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            "usedFor": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "disclaimer": {
+                    "type": "string"
+                }
+            }
+        },
+        "machineReadable": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "format",
+                "schema",
+                "validator",
+                "command"
+            ],
+            "properties": {
+                "format": {
+                    "type": "string",
+                    "const": "json"
+                },
+                "schema": {
+                    "type": "string"
+                },
+                "validator": {
+                    "type": "string"
+                },
+                "command": {
+                    "type": "string"
+                }
+            }
+        },
+        "scope": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "appliesTo",
+                "notAppliesTo",
+                "optionalApplication",
+                "pricingBasis"
+            ],
+            "properties": {
+                "appliesTo": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "notAppliesTo": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "optionalApplication": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "pricingBasis": {
+                    "type": "string"
+                }
+            }
+        },
+        "definition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "term",
+                "definition"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^def-[a-z0-9-]+$"
+                },
+                "term": {
+                    "type": "string"
+                },
+                "definition": {
+                    "type": "string"
+                }
+            }
+        },
+        "document": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "kind",
+                "number",
+                "date",
+                "title",
+                "appendixRefs"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+$"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "order",
+                        "appendix_to_order"
+                    ]
+                },
+                "number": {
+                    "type": [
+                        "string",
+                        "integer"
+                    ]
+                },
+                "date": {
+                    "type": "string",
+                    "format": "date"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "parent": {
+                    "type": "string"
+                },
+                "appendixRefs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "id",
+                            "number",
+                            "title",
+                            "clauses"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "number": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "clauses": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "clause": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "document",
+                "ref",
+                "title",
+                "summary",
+                "appendixRefs"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^(order|poryadok|metodika)-p[0-9-]+$"
+                },
+                "document": {
+                    "type": "string",
+                    "enum": [
+                        "order",
+                        "poryadok",
+                        "metodika"
+                    ]
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "appendixRefs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "formulaRefs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "appendix": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "document",
+                "number",
+                "label",
+                "title",
+                "kind",
+                "status",
+                "recommendedTemplate",
+                "purpose",
+                "legalBasis",
+                "applicability",
+                "placement",
+                "headerFields",
+                "tables",
+                "totals",
+                "signatures",
+                "fillRules",
+                "notes",
+                "relatedAppendices",
+                "formulaRefs"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^(poryadok|metodika)-app-[1-9]$"
+                },
+                "document": {
+                    "type": "string",
+                    "enum": [
+                        "poryadok",
+                        "metodika"
+                    ]
+                },
+                "number": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "label": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "protocol",
+                        "calculation",
+                        "register",
+                        "estimate_draft",
+                        "estimate",
+                        "estimate_changed",
+                        "resources_calculation"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "recommended_template",
+                        "mandatory"
+                    ]
+                },
+                "recommendedTemplate": {
+                    "type": "boolean"
+                },
+                "purpose": {
+                    "type": "string"
+                },
+                "legalBasis": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1
+                },
+                "applicability": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "placement": {
+                    "$ref": "#/$defs/placement"
+                },
+                "headerFields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/field"
+                    }
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/table"
+                    }
+                },
+                "totals": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "signatures": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "customer",
+                            "contractor",
+                            "composed_by",
+                            "checked_by"
+                        ]
+                    }
+                },
+                "footerFields": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/field"
+                    }
+                },
+                "fillRules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/fillRule"
+                    }
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "relatedAppendices": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "formulaRefs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "placement": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "where",
+                "publishInEis"
+            ],
+            "properties": {
+                "where": {
+                    "type": "string"
+                },
+                "publishInEis": {
+                    "type": "boolean"
+                },
+                "attachmentsRequired": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "field": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "label",
+                "dataType",
+                "required"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "dataType": {
+                    "type": "string",
+                    "enum": [
+                        "text",
+                        "text_list",
+                        "money",
+                        "number",
+                        "integer",
+                        "percent",
+                        "date",
+                        "attachment_list",
+                        "signature",
+                        "formula_text"
+                    ]
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "RUB"
+                    ]
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "condition": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "examples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "note": {
+                    "type": "string"
+                },
+                "fillRule": {
+                    "type": "string"
+                },
+                "computed": {
+                    "type": "string"
+                }
+            }
+        },
+        "table": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "title",
+                "columns",
+                "rows",
+                "totalRows",
+                "invariants"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9-]+-table$"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string",
+                    "enum": [
+                        "RUB"
+                    ]
+                },
+                "columns": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/$defs/column"
+                    }
+                },
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/tableRow"
+                    }
+                },
+                "totalRows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/tableRow"
+                    }
+                },
+                "invariants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/invariant"
+                    }
+                }
+            }
+        },
+        "column": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "no",
+                "id",
+                "label",
+                "dataType",
+                "required"
+            ],
+            "properties": {
+                "no": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "dataType": {
+                    "type": "string",
+                    "enum": [
+                        "text",
+                        "money",
+                        "number",
+                        "integer",
+                        "percent",
+                        "date"
+                    ]
+                },
+                "unit": {
+                    "type": "string",
+                    "enum": [
+                        "RUB"
+                    ]
+                },
+                "required": {
+                    "type": "boolean"
+                },
+                "condition": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "fillRule": {
+                    "type": "string"
+                },
+                "computed": {
+                    "type": "string"
+                },
+                "examples": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "tableRow": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "label",
+                "optional"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "optional": {
+                    "type": "boolean"
+                },
+                "condition": {
+                    "type": "string"
+                },
+                "rowCount": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "isTotal": {
+                    "type": "boolean"
+                },
+                "valueColumns": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "invariant": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "expression",
+                "text"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "expression": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "fillRule": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "appliesTo",
+                "text",
+                "clause"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "appliesTo": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1
+                },
+                "text": {
+                    "type": "string"
+                },
+                "clause": {
+                    "type": "string"
+                }
+            }
+        },
+        "formula": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "ref",
+                "document",
+                "clause",
+                "expression",
+                "variables",
+                "appliesTo"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^(f[0-9-]+|m-[a-z0-9-]+)$"
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "document": {
+                    "type": "string",
+                    "enum": [
+                        "poryadok",
+                        "metodika"
+                    ]
+                },
+                "clause": {
+                    "type": "string"
+                },
+                "expression": {
+                    "type": "string"
+                },
+                "variables": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "minProperties": 1
+                },
+                "appliesTo": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "relation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "type",
+                "from",
+                "to",
+                "description"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^rel-[a-z0-9-]+$"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "approves",
+                        "limits_application",
+                        "transitional_application",
+                        "requires_form",
+                        "defines_content",
+                        "defines_price",
+                        "defines_fill",
+                        "attachment",
+                        "basis_for",
+                        "evolves_to",
+                        "placed_in_eis",
+                        "computes_column"
+                    ]
+                },
+                "from": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                }
+            }
+        },
+        "consistencyNote": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "severity",
+                "appendix",
+                "text"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "info",
+                        "warning",
+                        "error"
+                    ]
+                },
+                "appendix": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "externalReference": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "id",
+                "document",
+                "article",
+                "usedIn",
+                "role"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^ext-[a-z0-9-]+$"
+                },
+                "document": {
+                    "type": "string"
+                },
+                "article": {
+                    "type": "string"
+                },
+                "usedIn": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "minItems": 1
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "summary": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "appendixCount",
+                "byDocument",
+                "byKind",
+                "formsWithTables",
+                "formsWithoutTables",
+                "publishedInEis",
+                "attachmentChain"
+            ],
+            "properties": {
+                "appendixCount": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "byDocument": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "byKind": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "formsWithTables": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "formsWithoutTables": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "publishedInEis": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "attachmentChain": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}
