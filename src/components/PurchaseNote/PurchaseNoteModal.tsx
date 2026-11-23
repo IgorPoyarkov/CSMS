@@ -54,6 +54,11 @@ import {
   useUpdatePurchaseNote,
 } from "../../services/PurchaseNote/purchaseNote.api";
 import {
+  useAttachNoticeAttachment,
+  useNotices,
+} from "../../services/Procurements/noticeInfo.api";
+import { buildNmckJustificationAttachment } from "../../services/Procurements/noticeAttachment.schema";
+import {
   exportPurchaseNoteToDocx,
   exportPurchaseNoteToPdf,
 } from "../../services/PurchaseNote/purchaseNoteExport";
@@ -301,6 +306,10 @@ export default function PurchaseNoteModal({
 
   const createNote = useCreatePurchaseNote();
   const updateNote = useUpdatePurchaseNote();
+  // Обоснование НМЦК — документ Раздела 2 извещения: при сохранении СЗ он
+  // прикладывается к связанному извещению, а не только остаётся в записке.
+  const { data: notices = [] } = useNotices();
+  const attachToNotice = useAttachNoticeAttachment();
   const updateOrganization = useUpdateOrganization();
 
   const [editingNoteId, setEditingNoteId] = useState<
@@ -1512,6 +1521,27 @@ export default function PurchaseNoteModal({
     };
 
     const handleAfterSave = (saved: PurchaseNote) => {
+      // НМЦК прикладываем к извещению, если оно уже заведено по этой записке
+      // или по закупке. Нет файла обоснования — нет и вложения.
+      const nmckAttachment = buildNmckJustificationAttachment({
+        note: saved,
+        uploadedBy: actorName,
+      });
+      const relatedNotice = notices.find(
+        (item) =>
+          (saved.id !== undefined &&
+            String(item.purchaseNoteId ?? "") === String(saved.id)) ||
+          (saved.procurementId !== undefined &&
+            String(item.procurementId ?? "") === String(saved.procurementId)),
+      );
+
+      if (nmckAttachment && relatedNotice?.id) {
+        attachToNotice.mutate({
+          noticeId: relatedNotice.id,
+          attachment: { ...nmckAttachment, noticeId: relatedNotice.id },
+        });
+      }
+
       onSaved?.(saved);
       if (shouldProceed && onSaveAndProceedToNotice) {
         onSaveAndProceedToNotice(saved);

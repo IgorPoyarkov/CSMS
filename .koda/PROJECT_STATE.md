@@ -6858,6 +6858,19 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   кнопки «Утвердить», «Отложить до публикации» (где разрешено), «В черновик»,
   «Удалить» и блок «Готовность к публикации» с теми же правилами, что и
   валидация. Стили — на переменных темы (`--state-success/warning/danger`).
+- **Прикладывание из своих модулей.** По замечанию Агента 1 ООЗ и обоснование
+  НМЦК прикладываются к извещению в момент сохранения/утверждения документа.
+  `useAttachNoticeAttachment` принимает и одиночное вложение, и пачку
+  (`attachments`): все upsert'ятся в текущий список одним PATCH.
+  `buildObjectDescriptionAttachment` (ООЗ) и `buildNmckJustificationAttachment`
+  (НМЦК) собирают вложение из доменного документа: `status: approved` —
+  только если документ/СЗ утверждён, иначе `draft`; `isRequiredForPublish:
+  true`; `sourceKind` — `object_description`/`nmck`. `NormingRequirementsPage`
+  прикладывает ООЗ в `onSuccess` create/update, `PurchaseNoteModal` — НМЦК в
+  `handleAfterSave`; извещение ищется по `procurementId` или `purchaseNoteId`.
+  Если извещения ещё нет, вложение не создаётся: оно появится при создании
+  извещения через `inheritAttachmentsFromPurchaseNote`. Проект контракта уже
+  прикладывается Агентом 3 (`contractProjectAttachment.ts`) — дубля нет.
 - **Проверки.** `npx.cmd tsc -b --pretty false` — чисто (чужой WIP
   `eisChainBuilder`/`EisChainPage` к этому моменту уже починен); targeted
   `oxlint` по 3 файлам — 0 предупреждений, 0 ошибок; `npx.cmd vite build` —
@@ -6868,10 +6881,24 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   подсказки категорий на месте; консоль без ошибок. Поле кода вида документа
   и кнопки статусов визуально не проверены: headless-браузер не умеет
   выбирать файл в `input[type=file]`, поэтому документ в список не попал.
-- **Осталось (Агент 1/3).** Подключить `noticeAttachmentReadiness` к серверной
-  точке публикации/передачи извещения в ЕИС (сейчас блокировка живёт в UI и
-  экспортированной функции); ООЗ/НМЦК/проект контракта прикладывать через
-  `useAttachNoticeAttachment` из своих модулей, когда там появится сохранение.
+- **Серверная блокировка и смоук (2026-11-23).** `csms-api` собран
+  (`dotnet build` — 0 ошибок), PID 19488 остановлен, API поднят на :5099.
+  `POST /api/eis/packages` с `documentType: Notification`:
+  непустой `attachmentBlockingIssues` → **409** с текстом «Извещение не готово
+  к передаче в ЕИС: …»; пустой список → проверка вложений пройдена (сервер
+  идёт дальше к XSD). Полный flow create→signing→signature→send→refresh на
+  `SmpAttraction` (серверная сборка) прошёл: Draft → Signed → SentToEis →
+  FlkChecking → AcceptedInLk. `eisNoticeReadiness.ts` использует ту же
+  `noticeAttachmentReadiness` и статусы `approved/attached/published`, что и
+  UI, — расхождений в правилах нет.
+- **Найдено (зона Cline, не правил).** `buildNotification2020XmlPreview`
+  собирает `<p:data>` с `externalId`/`versionNumber`/`commonInfo`, а XSD 17.0
+  (`fcsIntegration`) ждёт в начале `purchaseNumber`, `directDate`,
+  `docPublishDate`; сервер отвечает 409 «XML не соответствует XSD версии
+  17.0». Поэтому Notification-пакет с XML из формы сейчас не создаётся — это
+  не связано с вложениями.
+- **Осталось.** `docKindCode` остаётся ручным, пока в системе нет справочника
+  `nsiEPDocTypes`; расхождение XSD у генератора извещения — Агенту 3.
 
 ## 168. Седьмая тема «Морозный неон»: зимняя палитра на неоновой геометрии (2026-11-23)
 

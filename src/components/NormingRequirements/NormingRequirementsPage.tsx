@@ -5,6 +5,11 @@ import useUtils from "../../hooks/useUtils";
 import { useOrganizationEducations } from "../../services/ContractService/education.api";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import {
+  useAttachNoticeAttachment,
+  useNotices,
+} from "../../services/Procurements/noticeInfo.api";
+import { buildObjectDescriptionAttachment } from "../../services/Procurements/noticeAttachment.schema";
+import {
   useCreateObjectDescription,
   useDeleteObjectDescription,
   useNormingTemplates,
@@ -59,6 +64,36 @@ export default function NormingRequirementsPage() {
   const createMutation = useCreateObjectDescription();
   const updateMutation = useUpdateObjectDescription();
   const deleteMutation = useDeleteObjectDescription();
+  // ООЗ — документ Раздела 2 извещения: при сохранении он прикладывается к
+  // связанному извещению (по procurementId или purchaseNoteId), а не только
+  // остаётся в своём реестре. Статус следует за статусом ООЗ.
+  const { data: notices = [] } = useNotices();
+  const attachToNotice = useAttachNoticeAttachment();
+
+  const attachObjectDescription = (saved: ObjectDescription) => {
+    if (saved.kind !== "object_description") return;
+
+    const notice = notices.find(
+      (item) =>
+        (saved.procurementId !== undefined &&
+          String(item.procurementId ?? "") === String(saved.procurementId)) ||
+        (saved.purchaseNoteId !== undefined &&
+          String(item.purchaseNoteId ?? "") === String(saved.purchaseNoteId)),
+    );
+
+    if (!notice?.id) return;
+
+    attachToNotice.mutate({
+      noticeId: notice.id,
+      attachment: buildObjectDescriptionAttachment({
+        description: saved,
+        noticeId: notice.id,
+        procurementId: saved.procurementId,
+        purchaseNoteId: saved.purchaseNoteId,
+        uploadedBy: currentFio,
+      }),
+    });
+  };
 
   const [activeTab, setActiveTab] = useState<ActiveTab>("descriptions");
   const [editingItem, setEditingItem] = useState<ObjectDescription | null>(
@@ -171,12 +206,18 @@ export default function NormingRequirementsPage() {
       updateMutation.mutate(
         { ...normalized, id: normalized.id },
         {
-          onSuccess: () => setEditingItem(null),
+          onSuccess: (saved) => {
+            setEditingItem(null);
+            attachObjectDescription(saved);
+          },
         },
       );
     } else {
       createMutation.mutate(normalized, {
-        onSuccess: () => setEditingItem(null),
+        onSuccess: (saved) => {
+          setEditingItem(null);
+          attachObjectDescription(saved);
+        },
       });
     }
   };

@@ -542,6 +542,157 @@ export const inheritAttachmentsFromPurchaseNote = ({
   return result;
 };
 
+// ─── Фабрики документов из модулей-источников ────────────────────────────────
+
+/** Устойчивый отпечаток содержимого (FNV-1a, 8 hex) — как в генераторах. */
+const attachmentFingerprint = (text: string): string => {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return hash.toString(16).padStart(8, "0");
+};
+
+/** Имя файла не должно ломать выгрузку: слеши, кавычки и двоеточия — нет. */
+const fileNameSafe = (value: string): string =>
+  value.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_").trim();
+
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+export interface ObjectDescriptionAttachmentInput {
+  description: ObjectDescription;
+  noticeId?: string | number | null;
+  procurementId?: string | number | null;
+  purchaseNoteId?: string | number | null;
+  uploadedBy?: string;
+}
+
+/**
+ * ООЗ как вложение извещения. Утверждённый ООЗ попадает со статусом
+ * `approved`, остальные — `draft`: публиковать неутверждённое описание нельзя,
+ * но и терять черновик при сохранении не нужно.
+ */
+export const buildObjectDescriptionAttachment = ({
+  description,
+  noticeId,
+  procurementId,
+  purchaseNoteId,
+  uploadedBy,
+}: ObjectDescriptionAttachmentInput): NoticeAttachment => {
+  const isApproved = description.status === "approved";
+  const timestamp = new Date().toISOString();
+  const fingerprint = attachmentFingerprint(
+    JSON.stringify({
+      title: description.title,
+      okpd2Code: description.okpd2Code,
+      ktruCode: description.ktruCode,
+      unit: description.unit,
+      quantity: description.quantity,
+      characteristics: description.characteristics,
+      standards: description.standards,
+      warrantyTermMonths: description.warrantyTermMonths,
+      trademarkName: description.trademarkName,
+    }),
+  );
+
+  return normalizeNoticeAttachment({
+    id: `object-description-${String(
+      description.id ?? procurementId ?? purchaseNoteId ?? "new",
+    )}`,
+    category: "object_description",
+    sourceKind: "object_description",
+    sourceId: description.id ?? null,
+    sourceVersion: description.updatedAt,
+    status: isApproved ? "approved" : "draft",
+    fileName: `Описание_объекта_закупки_${
+      fileNameSafe(description.title) || "bez-nazvaniya"
+    }.docx`,
+    description: buildDescription(
+      description.title,
+      description.okpd2Code ? `ОКПД2 ${description.okpd2Code}` : undefined,
+      description.ktruCode ? `КТРУ ${description.ktruCode}` : undefined,
+    ),
+    mimeType: DOCX_MIME,
+    fingerprint,
+    noticeId: noticeId ?? null,
+    procurementId: procurementId ?? description.procurementId ?? null,
+    purchaseNoteId: purchaseNoteId ?? description.purchaseNoteId ?? null,
+    approvedAt: isApproved
+      ? description.approvedDate || timestamp
+      : undefined,
+    attachedAt: timestamp,
+    uploadedBy,
+    isRequiredForPublish: true,
+  });
+};
+
+export interface NmckJustificationAttachmentInput {
+  note: PurchaseNote;
+  noticeId?: string | number | null;
+  uploadedBy?: string;
+}
+
+/**
+ * Обоснование НМЦК как вложение извещения. Возвращает `null`, если у служебной
+ * записки ещё нет файла обоснования: подставлять пустое вложение нельзя.
+ * Статус следует за статусом СЗ: утверждённая записка даёт `approved`.
+ */
+export const buildNmckJustificationAttachment = ({
+  note,
+  noticeId,
+  uploadedBy,
+}: NmckJustificationAttachmentInput): NoticeAttachment | null => {
+  const fileName = note.nmckFileName || note.nmckSignature?.fileName;
+  if (!fileName) return null;
+
+  const isApproved = note.status === "approved";
+  const timestamp = new Date().toISOString();
+
+  return normalizeNoticeAttachment({
+    id: `nmck-justification-${String(note.id ?? "new")}`,
+    category: "nmck_justification",
+    sourceKind: "nmck",
+    sourceId: note.id ?? null,
+    sourceVersion: note.nmckFileUpdatedAt,
+    status: isApproved ? "approved" : "draft",
+    fileName,
+    description: buildDescription(
+      note.priceBasis || "Обоснование НМЦК (из служебной записки)",
+      note.nmckSignature
+        ? buildDescription(
+            "подписано ЭП",
+            note.nmckSignature.signedBy
+              ? `(${note.nmckSignature.signedBy})`
+              : undefined,
+            note.nmckSignature.signedAt,
+          )
+        : undefined,
+    ),
+    mimeType: DOCX_MIME,
+    fingerprint: attachmentFingerprint(
+      [
+        note.priceBasis,
+        note.nmckFileName,
+        note.nmckSignature?.fileName,
+        note.nmckSignature?.signedAt,
+        note.nmckFileUpdatedAt,
+      ]
+        .filter(Boolean)
+        .join("|"),
+    ),
+    noticeId: noticeId ?? null,
+    purchaseNoteId: note.id ?? null,
+    approvedAt: isApproved ? timestamp : undefined,
+    attachedAt: timestamp,
+    uploadedBy,
+    isRequiredForPublish: true,
+  });
+};
+
 // ─── Проверка готовности к публикации ────────────────────────────────────────
 
 export type NoticeAttachmentIssueSeverity = "error" | "warning";

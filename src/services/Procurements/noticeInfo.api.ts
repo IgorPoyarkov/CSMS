@@ -94,13 +94,14 @@ export const useCreateNotice = () => {
 };
 
 /**
- * Прикладывает документ к извещению без перезаписи остальных полей.
+ * Прикладывает документы к извещению без перезаписи остальных полей.
  *
- * Используется генераторами (приказы и протоколы, ООЗ, обоснование НМЦК,
- * проект контракта): документ не просто скачивается, а становится вложением
- * извещения со статусом и источником. Upsert идёт по паре
- * «источник + категория», поэтому повторная генерация обновляет запись, а не
- * плодит дубли.
+ * Используется генераторами и модулями-источниками (приказы и протоколы,
+ * ООЗ, обоснование НМЦК, проект контракта): документ не просто скачивается, а
+ * становится вложением извещения со статусом и источником. Upsert идёт по паре
+ * «источник + категория», поэтому повторное сохранение обновляет запись, а не
+ * плодит дубли. Можно передать один документ (`attachment`) или пачку
+ * (`attachments`) — например, ООЗ и НМЦК из одной служебной записки.
  */
 export const useAttachNoticeAttachment = () => {
   const queryClient = useQueryClient();
@@ -109,15 +110,21 @@ export const useAttachNoticeAttachment = () => {
     mutationFn: async ({
       noticeId,
       attachment,
+      attachments,
     }: {
       noticeId: string | number;
-      attachment: NoticeAttachment;
+      attachment?: NoticeAttachment;
+      attachments?: NoticeAttachment[];
     }) => {
       const { data: notice } = await api.get<NoticeInfoFormValues>(
         `/notices/${noticeId}`,
       );
       const current = normalizeNoticeAttachments(notice.attachedDocs);
-      const attachedDocs = upsertNoticeAttachment(current, attachment);
+      const incoming = attachments ?? (attachment ? [attachment] : []);
+      const attachedDocs = incoming.reduce(
+        (acc, item) => upsertNoticeAttachment(acc, item),
+        current,
+      );
 
       const { data: saved } = await api.patch<NoticeInfoFormValues>(
         `/notices/${noticeId}`,
