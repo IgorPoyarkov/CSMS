@@ -128,49 +128,10 @@ export const EIS_VOLUME_SPECIFYING_METHODS = [
  */
 export const PP2571_POSITIONS = PP2571_POSITION_LABELS;
 
-export const ATTACHED_DOC_CATEGORIES: Array<{
-  id:
-    | "nmck_justification"
-    | "contract_project"
-    | "object_description"
-    | "application_requirements"
-    | "evaluation_order"
-    | "additional_docs";
-  title: string;
-  required: boolean;
-  hint?: string;
-}> = [
-  {
-    id: "nmck_justification",
-    title: "Обоснование начальной (максимальной) цены контракта",
-    required: true,
-    hint: "В соответствии с п. 2 ч. 2 ст. 42 Закона № 44-ФЗ извещение должно содержать обоснование НМЦК.",
-  },
-  {
-    id: "contract_project",
-    title: "Проект контракта",
-    required: true,
-    hint: "В соответствии с п. 5 ч. 2 ст. 42 Закона № 44-ФЗ извещение должно содержать проект контракта.",
-  },
-  {
-    id: "object_description",
-    title: "Описание объекта закупки",
-    required: false,
-  },
-  {
-    id: "application_requirements",
-    title: "Требования к содержанию, составу заявки на участие в закупке",
-    required: false,
-  },
-  {
-    id: "evaluation_order",
-    title: "Порядок рассмотрения и оценки заявок на участие в конкурсах",
-    required: true,
-    hint: "В соответствии с ч. 2 ст. 42 Закона № 44-ФЗ извещение о проведении конкурса должно содержать порядок оценки заявок.",
-  },
-  {
-    id: "additional_docs",
-    title: "Дополнительная информация и документы",
-    required: false,
-  },
-];
+// Единый источник категорий документов — `noticeAttachment.schema.ts`.
+// Раньше список дублировался здесь и в конфиге формы, из-за чего набор и
+// признаки обязательности расходились. Оставлен реэкспорт для совместимости.
+export {
+  NOTICE_ATTACHMENT_CATEGORIES as ATTACHED_DOC_CATEGORIES,
+  type NoticeAttachmentCategoryMeta,
+} from "./noticeAttachment.schema";

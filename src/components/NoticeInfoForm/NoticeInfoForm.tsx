@@ -14,6 +14,7 @@ import {
   NoticeInfoSchema,
   type NoticeInfoFormValues,
 } from "../../services/Procurements/noticeInfo.schema";
+import { inheritAttachmentsFromPurchaseNote } from "../../services/Procurements/noticeAttachment.schema";
 import { normalizePp2571Positions } from "../../services/Pp2571/pp2571.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../services/Okpd2Ref/normingControl";
@@ -24,6 +25,7 @@ import {
 import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { hasSmpSubcontractingRequirement } from "../../services/PurchaseNote/purchaseNote.schema";
 import {
@@ -222,6 +224,11 @@ const NoticeInfoForm = () => {
   const { data: purchaseNotes = [] } = usePurchaseNotes(
     currentUser?.organizationId,
   );
+  // Внешние синтетические СЗ из ЕИС не участвуют в СЗ-функционале.
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
   // План-график нужен для сведений уровня планирования (общественное
   // обсуждение по ст. 20 44-ФЗ), которых нет в служебной записке
   const { data: purchasePlans = [] } = usePurchasePlans(
@@ -233,22 +240,22 @@ const NoticeInfoForm = () => {
 
   const matchedNote = useMemo(() => {
     if (state.purchaseNoteId !== undefined && state.purchaseNoteId !== "") {
-      const byId = purchaseNotes.find(
+      const byId = visiblePurchaseNotes.find(
         (n) => String(n.id) === String(state.purchaseNoteId),
       );
       if (byId) return byId;
     }
     if (id) {
-      const byProc = purchaseNotes
+      const byProc = visiblePurchaseNotes
         .filter((n) => String(n.procurementId ?? "") === String(id))
         .slice(-1)[0];
       if (byProc) return byProc;
     }
     if (state.ikz) {
-      return purchaseNotes.filter((n) => n.ikz === state.ikz).slice(-1)[0];
+      return visiblePurchaseNotes.filter((n) => n.ikz === state.ikz).slice(-1)[0];
     }
     return undefined;
-  }, [purchaseNotes, state.purchaseNoteId, state.ikz, id]);
+  }, [visiblePurchaseNotes, state.purchaseNoteId, state.ikz, id]);
 
   const matchedDesc = useMemo(() => {
     const descId =
@@ -1089,77 +1096,18 @@ const NoticeInfoForm = () => {
           matchedNote.sanctionsRnpRequirement,
         );
       }
-      // Файлы утверждённой СЗ (НМЦК и ООЗ) переносятся в прилагаемые
-      // документы извещения. Уже приложенные файлы не затираются: добавляем
-      // только те категории, которых в списке ещё нет.
-      const isNoteApproved = matchedNote.status === "approved";
-      const noticeNmckFileName =
-        matchedNote.nmckFileName || matchedNote.nmckSignature?.fileName;
-      const noticeOozFileName =
-        matchedNote.objectDescriptionFileName ||
-        (isNoteApproved && matchedDesc
-          ? `Описание_объекта_закупки_${matchedDesc.title}.docx`
-          : undefined);
+      // Документы СЗ → извещение: ООЗ и обоснование НМЦК наследуются вместе
+      // со статусом (утверждены только у утверждённой СЗ) и источником.
+      // Ручные и уже утверждённые документы не затираются — upsert идёт по
+      // паре «источник + категория» (см. noticeAttachment.schema.ts).
+      const inheritedDocs = inheritAttachmentsFromPurchaseNote({
+        note: matchedNote,
+        objectDescription: matchedDesc ?? null,
+        existing: getValues("attachedDocs") ?? [],
+      });
 
-      const existingDocs = getValues("attachedDocs") ?? [];
-      const additions: NoticeInfoFormValues["attachedDocs"] = [];
-
-      if (
-        noticeNmckFileName &&
-        (isNoteApproved || existingDocs.length === 0) &&
-        !existingDocs.some((doc) => doc.category === "nmck_justification")
-      ) {
-        const nmckSignature = matchedNote.nmckSignature;
-        const signatureNote = nmckSignature
-          ? [
-              "подписано ЭП",
-              nmckSignature.signedBy ? `(${nmckSignature.signedBy})` : "",
-              nmckSignature.signedAt || "",
-            ]
-              .filter(Boolean)
-              .join(" ")
-          : "";
-        additions.push({
-          id: "sz-nmck-doc",
-          category: "nmck_justification",
-          fileName: noticeNmckFileName,
-          description: [
-            matchedNote.priceBasis || "Обоснование НМЦК (из СЗ)",
-            signatureNote,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        });
-      }
-
-      if (
-        noticeOozFileName &&
-        !existingDocs.some((doc) => doc.category === "object_description")
-      ) {
-        const positionInfo = matchedDesc
-          ? [
-              matchedDesc.title,
-              matchedDesc.okpd2Code ? `ОКПД2 ${matchedDesc.okpd2Code}` : "",
-              matchedDesc.ktruCode ? `КТРУ ${matchedDesc.ktruCode}` : "",
-            ]
-              .filter(Boolean)
-              .join(", ")
-          : matchedNote.subject;
-        additions.push({
-          id: "sz-ooz-doc",
-          category: "object_description",
-          fileName: noticeOozFileName,
-          description: [
-            "Структурированное описание объекта закупки (из утверждённой СЗ)",
-            positionInfo,
-          ]
-            .filter(Boolean)
-            .join(" · "),
-        });
-      }
-
-      if (additions.length > 0) {
-        setValue("attachedDocs", [...existingDocs, ...additions]);
+      if (inheritedDocs.length > 0) {
+        setValue("attachedDocs", inheritedDocs);
       }
 
       if (matchedNote.advantageSmpPart3Art30 !== undefined) {

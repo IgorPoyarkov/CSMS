@@ -6788,6 +6788,65 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   select — сейчас таких мест нет (проверено поиском). `required` работает через
   скрытый select, но в проекте валидация в основном zod-овская.
 
+## 168. Документы закупки как составная часть извещения (2026-11-23, Агент 2)
+
+- **Модель.** `src/services/Procurements/noticeAttachment.schema.ts` —
+  контракт `NoticeAttachment`, совместимый со старым `AttachedDocItem`
+  (`id`, `category`, `fileName`, `description`): новые поля необязательны,
+  статус/источник/обязательность восстанавливает `normalizeNoticeAttachment`.
+  Поля: `noticeId`/`purchaseNoteId`/`procurementId`, `category`,
+  `sourceKind`/`sourceId`/`sourceVersion`, `status`, `fileName`,
+  `description`, `mimeType`, `fileSize`, `sha256`/`fingerprint`,
+  `storageRef`/`url`, `approvedAt`/`attachedAt`, `uploadedBy`,
+  `isRequiredForPublish`. `AttachedDocItemSchema` в `noticeInfo.schema.ts`
+  теперь реэкспорт `NoticeAttachmentSchema`.
+- **Категории (единый источник).** `NOTICE_ATTACHMENT_CATEGORIES`:
+  `object_description`, `nmck_justification`, `application_requirements`,
+  `evaluation_order`, `contract_project`, `additional_requirements`,
+  `additional_docs`. У каждой — `stage` (`purchase_note`/`notice`),
+  `requiredForPublish`, `canSuspend`, `hint`. Оба прежних
+  `ATTACHED_DOC_CATEGORIES` (services и components) стали реэкспортом, чтобы
+  набор и признаки обязательности больше не расходились. `evaluation_order`
+  обязателен только для конкурса (`isContestPlacingWay`).
+- **Статусы.** `draft`, `approved`, `attached`, `suspended_before_publish`,
+  `published` с метками и тонами. ООЗ и обоснование НМЦК нельзя откладывать
+  (`canSuspend: false`) — они утверждаются на этапе СЗ.
+- **Наследование СЗ → извещение.** `inheritAttachmentsFromPurchaseNote`
+  переносит ООЗ и НМЦК с `sourceKind`/`sourceId`, статусом (`approved` только
+  у утверждённой СЗ, иначе `draft`) и датами. Upsert идёт по паре
+  «источник + категория», ручные файлы не затираются; утверждённый или
+  опубликованный документ не понижается автоматически. Ручной блок
+  наследования в `NoticeInfoForm` заменён этим вызовом.
+- **Блокировка публикации.** `validateNoticeAttachments` /
+  `canPublishNotice` (`noticeInfo.schema.ts` → `noticeAttachmentReadiness`):
+  обязательная категория без утверждённого/приложенного документа —
+  `error`; отложенный документ допустим только при `canSuspend` (иначе
+  `error`, при публикации — `warning`); черновики — `warning`.
+- **Генераторы.** `useAttachNoticeAttachment` (`noticeInfo.api.ts`) — PATCH
+  `/notices/:id` только с `attachedDocs` (upsert без перезаписи остальных
+  полей). `buildGeneratedDocumentAttachment`
+  (`procurementDocumentGenerator.ts`) превращает сгенерированный приказ или
+  протокол в `NoticeAttachment` (`sourceKind: procurement_documents`,
+  `status: draft`, fingerprint FNV-1a по тексту). На странице
+  `/procurement-documents` появилась кнопка «Приложить к извещению» — она
+  активна, только если у закупки есть извещение.
+- **UI.** `AttachedDocsSection` показывает статус и источник каждого документа,
+  кнопки «Утвердить», «Отложить до публикации» (где разрешено), «В черновик»,
+  «Удалить» и блок «Готовность к публикации» с теми же правилами, что и
+  валидация. Стили — на переменных темы (`--state-success/warning/danger`).
+- **Проверки.** `npx tsc -b --pretty false` — чисто на момент правок;
+  targeted `oxlint` по 9 файлам — 0 ошибок (3 предупреждения существовали
+  раньше: `setState` в эффекте и `new Date()` в рендере); `npx vite build` —
+  успешно. **Визуальный смоук не выполнен**: параллельный агент (Frontend B,
+  `src/services/Eis/types/eisChainBuilder.ts`, `EisChainPage.tsx`) оставил
+  незакоммиченный WIP, который ломает `tsc -b` и dev-сервер
+  (`PARSE_ERROR` в `eisChainBuilder.ts:535`, отсутствуют `execution`,
+  `acceptance`, `payment`). Эти файлы не трогались.
+- **Осталось (Агент 1/3).** Подключить `noticeAttachmentReadiness` к серверной
+  точке публикации/передачи извещения в ЕИС (сейчас блокировка живёт в UI и
+  экспортированной функции); ООЗ/НМЦК/проект контракта прикладывать через
+  `useAttachNoticeAttachment` из своих модулей, когда там появится сохранение.
+
 ## 168. Седьмая тема «Морозный неон»: зимняя палитра на неоновой геометрии (2026-11-23)
 
 - **Запрос пользователя.** Добавить ещё одну тему по аналогии с «Современными

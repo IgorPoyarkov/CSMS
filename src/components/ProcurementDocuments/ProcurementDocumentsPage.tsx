@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
-import { useNotices } from "../../services/Procurements/noticeInfo.api";
+import {
+  useAttachNoticeAttachment,
+  useNotices,
+} from "../../services/Procurements/noticeInfo.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
@@ -12,6 +15,7 @@ import { useOrganizationBidEvaluations } from "../../services/BidEvaluation/bidE
 import {
   COMMISSION_ROLE_LABELS,
   PROCUREMENT_DOC_TYPE_LABELS,
+  buildGeneratedDocumentAttachment,
   buildInitialGeneratorDraft,
   generateProcurementDocument,
   matchProcurementContext,
@@ -239,6 +243,34 @@ export default function ProcurementDocumentsPage() {
     }
   };
 
+  // Извещение, к которому относится активная закупка: сгенерированный документ
+  // становится его вложением (Раздел 2), а не только скачанным файлом.
+  const noticeForProcurement = useMemo(
+    () =>
+      notices.find(
+        (notice) =>
+          String(notice.procurementId ?? "") ===
+          String(activeProcurement?.id ?? ""),
+      ) ?? null,
+    [notices, activeProcurement],
+  );
+
+  const attachMutation = useAttachNoticeAttachment();
+
+  const handleAttachToNotice = () => {
+    if (!generatedDoc || !noticeForProcurement?.id) return;
+
+    attachMutation.mutate({
+      noticeId: noticeForProcurement.id,
+      attachment: buildGeneratedDocumentAttachment({
+        doc: generatedDoc,
+        noticeId: noticeForProcurement.id,
+        procurementId: activeProcurement?.id,
+        purchaseNoteId: noticeForProcurement.purchaseNoteId,
+      }),
+    });
+  };
+
   const textForChecker =
     checkerMode === "custom"
       ? customText
@@ -313,6 +345,25 @@ export default function ProcurementDocumentsPage() {
             onClick={() => handleExport("pdf")}
           >
             {exporting === "pdf" ? "Экспорт PDF…" : "Скачать .pdf"}
+          </button>
+          <button
+            type="button"
+            className={`${styles.btn} ${styles["btn--subtle"]}`}
+            disabled={
+              !generatedDoc || !noticeForProcurement || attachMutation.isPending
+            }
+            title={
+              noticeForProcurement
+                ? "Добавить документ в прилагаемые документы извещения"
+                : "У закупки нет извещения — приложить документ некуда"
+            }
+            onClick={handleAttachToNotice}
+          >
+            {attachMutation.isPending
+              ? "Прикладываем…"
+              : attachMutation.isSuccess
+                ? "Приложено к извещению"
+                : "Приложить к извещению"}
           </button>
         </div>
       </header>

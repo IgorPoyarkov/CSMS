@@ -10,6 +10,11 @@ import {
   procedureKindLabels,
   type BidEvaluation,
 } from "../BidEvaluation/bidEvaluation.schema";
+import {
+  normalizeNoticeAttachment,
+  type NoticeAttachment,
+  type NoticeAttachmentCategory,
+} from "../Procurements/noticeAttachment.schema";
 
 /**
  * Генератор типовых форм документов закупок по 44-ФЗ на основе данных,
@@ -648,4 +653,70 @@ export const generateProcurementDocument = (
       linkedEntities,
     },
   };
+};
+
+// ─── Документ как вложение извещения ─────────────────────────────────────────
+
+/**
+ * Устойчивый отпечаток содержимого (FNV-1a, 32 бита в hex).
+ * Нужен, чтобы повторная генерация того же документа обновляла вложение,
+ * а не создавала дубль, и чтобы было видно, что текст изменился.
+ */
+const documentFingerprint = (text: string): string => {
+  let hash = 0x811c9dc5;
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+
+  return hash.toString(16).padStart(8, "0");
+};
+
+export interface GeneratedDocumentAttachmentInput {
+  doc: GeneratedProcurementDocument;
+  noticeId?: string | number | null;
+  procurementId?: string | number | null;
+  purchaseNoteId?: string | number | null;
+  uploadedBy?: string;
+  category?: NoticeAttachmentCategory;
+}
+
+/**
+ * Превращает сгенерированный документ в NoticeAttachment: он не только
+ * скачивается, но и становится вложением извещения (Раздел 2). Категория по
+ * умолчанию — «дополнительные документы»: приказы и протоколы не входят в
+ * обязательный состав, но должны быть видны вместе с извещением.
+ */
+export const buildGeneratedDocumentAttachment = ({
+  doc,
+  noticeId,
+  procurementId,
+  purchaseNoteId,
+  uploadedBy,
+  category = "additional_docs",
+}: GeneratedDocumentAttachmentInput): NoticeAttachment => {
+  const fingerprint = documentFingerprint(doc.fullPlainText);
+
+  return normalizeNoticeAttachment({
+    id: `gen-${doc.docType}-${doc.docNumber || fingerprint}`,
+    category,
+    sourceKind: "procurement_documents",
+    sourceId: doc.docType,
+    sourceVersion: doc.docDateRu,
+    status: "draft",
+    fileName: `${doc.fileBaseName}.docx`,
+    description: [doc.title, doc.docNumber ? `№ ${doc.docNumber}` : ""]
+      .filter(Boolean)
+      .join(" "),
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    fingerprint,
+    noticeId: noticeId ?? null,
+    procurementId: procurementId ?? null,
+    purchaseNoteId: purchaseNoteId ?? null,
+    attachedAt: new Date().toISOString(),
+    uploadedBy,
+    isRequiredForPublish: false,
+  });
 };

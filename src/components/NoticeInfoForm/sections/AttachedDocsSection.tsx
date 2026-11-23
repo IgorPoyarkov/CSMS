@@ -1,23 +1,64 @@
-import { useState } from "react";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
+import {
+  NOTICE_ATTACHMENT_SOURCE_LABELS,
+  NOTICE_ATTACHMENT_STATUS_LABELS,
+  canPublishNotice,
+  canSuspendAttachmentCategory,
+  isRequiredAttachmentCategory,
+  normalizeNoticeAttachments,
+  noticeAttachmentCategoryMeta,
+  noticeAttachmentStatusMeta,
+  type NoticeAttachmentStatus,
+} from "../../../services/Procurements/noticeAttachment.schema";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import { ATTACHED_DOC_CATEGORIES } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
 
+/**
+ * Раздел 2 формы извещения: документы закупки как составная часть извещения.
+ *
+ * Документы ООЗ и обоснование НМЦК приходят из утверждённой служебной записки
+ * (см. `inheritAttachmentsFromPurchaseNote`), остальные прикладываются здесь.
+ * У каждого документа есть статус: черновик, утверждён, приложен, отложен до
+ * публикации или опубликован. Блок «Готовность к публикации» использует те же
+ * правила, что и сохранение извещения, — расхождений между UI и валидацией нет.
+ */
 const AttachedDocsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { control } = useFormContext<NoticeInfoFormValues>();
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control,
     name: "attachedDocs",
+  });
+
+  const attachedDocs = useWatch({ control, name: "attachedDocs" });
+  const placingWayCode = useWatch({
+    control,
+    name: "generalInfo.placingWayCode",
   });
 
   const [draftFiles, setDraftFiles] = useState<
     Record<string, { fileName: string; description: string }>
   >({});
+
+  const normalized = useMemo(
+    () => normalizeNoticeAttachments(attachedDocs ?? []),
+    [attachedDocs],
+  );
+
+  const publishCheck = useMemo(
+    () =>
+      canPublishNotice({
+        docs: normalized,
+        placingWayCode,
+        forPublish: true,
+      }),
+    [normalized, placingWayCode],
+  );
 
   const handleFilePick = (categoryId: string, fileList: FileList | null) => {
     const file = fileList?.[0];
@@ -31,19 +72,23 @@ const AttachedDocsSection = () => {
     }));
   };
 
-  // Категории берём из схемы извещения, чтобы новый состав Раздела 2
-  // (ПП РФ N 60) не расходился между конфигом и типом
   const handleAttach = (
     categoryId: NoticeInfoFormValues["attachedDocs"][number]["category"],
   ) => {
     const draft = draftFiles[categoryId];
     if (!draft?.fileName) return;
 
+    const required = isRequiredAttachmentCategory(categoryId, placingWayCode);
+
     append({
-      id: String(Date.now()),
+      id: `doc-${Date.now()}`,
       category: categoryId,
+      sourceKind: "manual",
+      status: "attached",
       fileName: draft.fileName,
       description: draft.description || draft.fileName,
+      attachedAt: new Date().toISOString(),
+      isRequiredForPublish: required,
     });
 
     setDraftFiles((prev) => ({
@@ -52,9 +97,56 @@ const AttachedDocsSection = () => {
     }));
   };
 
+  const handleStatus = (
+    index: number,
+    status: NoticeAttachmentStatus,
+    categoryId: NoticeInfoFormValues["attachedDocs"][number]["category"],
+  ) => {
+    const current = fields[index];
+    const timestamp = new Date().toISOString();
+
+    update(index, {
+      ...current,
+      status,
+      approvedAt:
+        status === "approved"
+          ? (current.approvedAt ?? timestamp)
+          : current.approvedAt,
+      attachedAt:
+        status === "attached" || status === "published"
+          ? (current.attachedAt ?? timestamp)
+          : current.attachedAt,
+      isRequiredForPublish:
+        current.isRequiredForPublish ??
+        isRequiredAttachmentCategory(categoryId, placingWayCode),
+    });
+  };
+
   return (
     <section className={block("section")}>
       <h2 className={block("section-title")}>Прилагаемые документы</h2>
+
+      <div
+        className={block("publish-check", [publishCheck.ok ? "ok" : "blocked"])}
+      >
+        <strong>
+          {publishCheck.ok
+            ? "Состав документов готов к публикации"
+            : "Публикация заблокирована: не хватает обязательных документов"}
+        </strong>
+        {publishCheck.issues.length > 0 && (
+          <ul className={block("publish-issues")}>
+            {publishCheck.issues.map((issue, index) => (
+              <li
+                key={`${issue.category ?? "doc"}-${index}`}
+                className={block("publish-issue", [issue.severity])}
+              >
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className={block("form-grid")}>
         {ATTACHED_DOC_CATEGORIES.map((cat) => {
@@ -62,16 +154,21 @@ const AttachedDocsSection = () => {
             .map((f, idx) => ({ ...f, index: idx }))
             .filter((f) => f.category === cat.id);
           const draft = draftFiles[cat.id] || { fileName: "", description: "" };
+          const required = isRequiredAttachmentCategory(cat.id, placingWayCode);
+          const canSuspend = canSuspendAttachmentCategory(cat.id);
+          const categoryMeta = noticeAttachmentCategoryMeta(cat.id);
 
           return (
             <div key={cat.id} className={block("row")}>
               <span className={block("label")}>
                 {cat.title}
-                {cat.required && <sup>*</sup>}
+                {required && <sup>*</sup>}
               </span>
 
               <div className={block("field-col")}>
-                {cat.hint && <p className={block("red-note")}>{cat.hint}</p>}
+                {categoryMeta.hint && (
+                  <p className={block("red-note")}>{categoryMeta.hint}</p>
+                )}
 
                 <div className={block("inline-group")}>
                   <input
@@ -108,20 +205,82 @@ const AttachedDocsSection = () => {
                   </span>
                 ) : (
                   <ul className={block("doc-list")}>
-                    {categoryDocs.map((doc) => (
-                      <li key={doc.id} className={block("doc-item")}>
-                        <span>
-                          <strong>{doc.fileName}</strong> — {doc.description}
-                        </span>
-                        <button
-                          type="button"
-                          className={block("small-btn", ["danger"])}
-                          onClick={() => remove(doc.index)}
-                        >
-                          Удалить
-                        </button>
-                      </li>
-                    ))}
+                    {categoryDocs.map((doc) => {
+                      const status = noticeAttachmentStatusMeta(doc.status);
+                      const sourceLabel =
+                        NOTICE_ATTACHMENT_SOURCE_LABELS[
+                          doc.sourceKind ?? "manual"
+                        ];
+
+                      return (
+                        <li key={doc.id} className={block("doc-item")}>
+                          <div className={block("doc-main")}>
+                            <span>
+                              <strong>{doc.fileName}</strong> —{" "}
+                              {doc.description}
+                            </span>
+                            <span className={block("doc-meta")}>
+                              <span
+                                className={block("doc-status", [status.tone])}
+                              >
+                                {NOTICE_ATTACHMENT_STATUS_LABELS[status.status]}
+                              </span>
+                              <span className={block("doc-source")}>
+                                {sourceLabel}
+                              </span>
+                            </span>
+                          </div>
+
+                          <div className={block("doc-actions")}>
+                            {doc.status !== "approved" && (
+                              <button
+                                type="button"
+                                className={block("small-btn")}
+                                onClick={() =>
+                                  handleStatus(doc.index, "approved", cat.id)
+                                }
+                              >
+                                Утвердить
+                              </button>
+                            )}
+                            {canSuspend &&
+                              doc.status !== "suspended_before_publish" && (
+                                <button
+                                  type="button"
+                                  className={block("small-btn", ["ghost"])}
+                                  onClick={() =>
+                                    handleStatus(
+                                      doc.index,
+                                      "suspended_before_publish",
+                                      cat.id,
+                                    )
+                                  }
+                                >
+                                  Отложить до публикации
+                                </button>
+                              )}
+                            {doc.status !== "draft" && (
+                              <button
+                                type="button"
+                                className={block("small-btn", ["ghost"])}
+                                onClick={() =>
+                                  handleStatus(doc.index, "draft", cat.id)
+                                }
+                              >
+                                В черновик
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className={block("small-btn", ["danger"])}
+                              onClick={() => remove(doc.index)}
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>

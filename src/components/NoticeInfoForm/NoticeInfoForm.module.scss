@@ -567,6 +567,115 @@
     border-radius: 4px;
   }
 
+  &__doc-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &__doc-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  // Статус документа: цвет — смысл (утверждён, отложен, опубликован)
+  &__doc-status {
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+    background-color: var(--surface-panel);
+    border: 1px solid var(--border);
+
+    &--success {
+      color: var(--state-success);
+      border-color: var(--state-success);
+      background-color: var(--state-success-soft);
+    }
+
+    &--warning {
+      color: var(--state-warning);
+      border-color: var(--state-warning);
+      background-color: var(--state-warning-soft);
+    }
+
+    &--info {
+      color: var(--accent);
+      border-color: var(--accent);
+      background-color: var(--accent-soft);
+    }
+
+    &--danger {
+      color: var(--state-danger);
+      border-color: var(--state-danger);
+      background-color: var(--state-danger-soft);
+    }
+  }
+
+  &__doc-source {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__doc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  // Второстепенные действия с документом («отложить», «в черновик»)
+  &__small-btn--ghost {
+    color: var(--text-primary);
+    background-color: transparent;
+    border: 1px solid var(--border);
+
+    &:hover {
+      border-color: var(--accent);
+    }
+  }
+
+  // Готовность Раздела 2 к публикации: блокирующие замечания — ошибки,
+  // отложенные документы и черновики — предупреждения
+  &__publish-check {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background-color: var(--surface-raised);
+
+    &--ok {
+      border-color: var(--state-success);
+      color: var(--state-success);
+    }
+
+    &--blocked {
+      border-color: var(--state-danger);
+      color: var(--state-danger);
+    }
+  }
+
+  &__publish-issues {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    color: var(--text-primary);
+  }
+
+  &__publish-issue {
+    &--error {
+      color: var(--state-danger);
+    }
+
+    &--warning {
+      color: var(--state-warning);
+    }
+  }
+
   // Цена единицы нормируемой позиции выше предельной (ПП РФ N 926) — ошибка,
   // которая гасится только подписью главного подписанта
   &__input--invalid {

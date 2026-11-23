@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { BudgetPart13Art44RequisitesSchema } from "../Organization/organization.schema";
 import { validatePp2571Requirements } from "../Pp2571/pp2571.schema";
+import {
+  NoticeAttachmentSchema,
+  canPublishNotice,
+  type NoticeAttachment,
+} from "./noticeAttachment.schema";
 
 
 export const EisPhoneSchema = z.object({
@@ -166,24 +171,29 @@ export const EvaluationCriterionSchema = z.object({
   indicators: z.array(EvaluationIndicatorSchema).optional(),
 });
 
-export const AttachedDocItemSchema = z.object({
-  id: z.string(),
-  // Раздел 2 формы извещения (п. 8 Положения, ПП РФ N 60):
-  // 1) описание объекта; 2) обоснование НМЦК; 3) требования к заявке
-  // и инструкция; 4) порядок рассмотрения и оценки; 5) проект контракта;
-  // 6) перечень дополнительных требований
-  category: z.enum([
-    "nmck_justification",
-    "contract_project",
-    "object_description",
-    "application_requirements",
-    "evaluation_order",
-    "additional_requirements",
-    "additional_docs",
-  ]),
-  fileName: z.string(),
-  description: z.string(),
-});
+// Раздел 2 формы извещения (п. 8 Положения, ПП РФ N 60): описание объекта,
+// обоснование НМЦК, требования к заявке, порядок рассмотрения и оценки,
+// проект контракта, дополнительные требования и документы. Полный контракт
+// NoticeAttachment (статусы, источник, наследование из СЗ, блокировка
+// публикации) — в `noticeAttachment.schema.ts`. Здесь реэкспорт, чтобы
+// прежние импорты `AttachedDocItemSchema` продолжали работать.
+export const AttachedDocItemSchema = NoticeAttachmentSchema;
+export type AttachedDocItem = NoticeAttachment;
+
+/**
+ * Готовность Раздела 2 к публикации. Единая точка для UI (блок в
+ * `AttachedDocsSection`) и серверной проверки перед передачей извещения в ЕИС:
+ * без утверждённых ООЗ, обоснования НМЦК, проекта контракта и требований к
+ * заявке публикация блокируется; отложенные документы допустимы только там,
+ * где это разрешено категорией.
+ */
+export const noticeAttachmentReadiness = (
+  notice: Pick<NoticeInfoFormValues, "attachedDocs" | "generalInfo">,
+) =>
+  canPublishNotice({
+    docs: notice.attachedDocs,
+    placingWayCode: notice.generalInfo.placingWayCode,
+  });
 
 export const NoticeInfoSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),

@@ -5,6 +5,11 @@ import {
   type BaseEmployee,
 } from "../StaffingTable/StaffingTable.schema";
 import type { NoticeInfoFormValues } from "./noticeInfo.schema";
+import {
+  normalizeNoticeAttachments,
+  upsertNoticeAttachment,
+  type NoticeAttachment,
+} from "./noticeAttachment.schema";
 import type {
   OrganizationBudgetLevel,
   OrganizationProcurementRequisites,
@@ -81,6 +86,45 @@ export const useCreateNotice = () => {
         omitEmptyReferences(payload as Record<string, unknown>),
       );
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notices"] });
+    },
+  });
+};
+
+/**
+ * Прикладывает документ к извещению без перезаписи остальных полей.
+ *
+ * Используется генераторами (приказы и протоколы, ООЗ, обоснование НМЦК,
+ * проект контракта): документ не просто скачивается, а становится вложением
+ * извещения со статусом и источником. Upsert идёт по паре
+ * «источник + категория», поэтому повторная генерация обновляет запись, а не
+ * плодит дубли.
+ */
+export const useAttachNoticeAttachment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      noticeId,
+      attachment,
+    }: {
+      noticeId: string | number;
+      attachment: NoticeAttachment;
+    }) => {
+      const { data: notice } = await api.get<NoticeInfoFormValues>(
+        `/notices/${noticeId}`,
+      );
+      const current = normalizeNoticeAttachments(notice.attachedDocs);
+      const attachedDocs = upsertNoticeAttachment(current, attachment);
+
+      const { data: saved } = await api.patch<NoticeInfoFormValues>(
+        `/notices/${noticeId}`,
+        { attachedDocs },
+      );
+
+      return saved;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notices"] });
