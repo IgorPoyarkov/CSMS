@@ -6358,3 +6358,28 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   серверных проверок по ролям нет. `contractEstimates` не засеяна — документы
   создаются из существующих дефектовок.
 
+## 158. GigaCode: локальная модель 7B вместо облачной (2026-11-23)
+
+- **Причина.** Жалоба: «медленный и несёт ерунду, хеллоу ворд сам быстрее
+  напишу». В корне проекта лежит `opencode.json` (в `.gitignore`), созданный
+  22.11: `"model": "ollama/qwen2.5-coder-cline"` (Qwen2.5 Coder 7B, `num_ctx
+  16384`, ~4,7 ГБ) при VRAM RTX 3060 ~4 ГБ — часть слоёв считается на CPU,
+  плюс `ollama ps` пустой, то есть холодный старт на каждый запрос. Контекст
+  16k не вмещает такой репозиторий (один `PROJECT_STATE.md` — 6300+ строк),
+  отсюда и бессмысленные ответы.
+- **Проверка провайдеров.** `tools.opencode.models` показывает облачных
+  `opencode/*` (в том числе `opencode/big-pickle`, `opencode/deepseek-v4.1-flash-free`)
+  и локальный `ollama/*`. Провайдера `gigacode/GigaCode` в текущем рантайме
+  нет: запись в `state.vscdb` (`recentModels.0.providerID = "gigacode"`) —
+  историческая, GigaCode мигрировал на opencode. Там же несколько записей с
+  `errorMessage = "stdout maxBuffer length exceeded"`, `attempts = 3` —
+  симптом переполнения вывода, а не отсутствия модели.
+- **Решение пользователя.** Код и так уходит в GitHub, значит отправлять его
+  в облако можно. `opencode.json`: `"model": "opencode/big-pickle"`. Бэкап
+  прежнего конфига — `%TEMP%\opencode\opencode.json.bak-20261123`. Секция
+  `provider.ollama` оставлена как запасной вариант; чтобы вернуться,
+  достаточно заменить строку `model` обратно на `ollama/qwen2.5-coder-cline`.
+- **Ограничение.** Изменение в gitignored-файле, в коммите его нет. После
+  правки нужно перезапустить GigaCode/VS Code, чтобы он перечитал конфиг.
+  Cline и Kilo не трогались: у Cline DeepSeek, у Kilo локальный Ollama.
+
