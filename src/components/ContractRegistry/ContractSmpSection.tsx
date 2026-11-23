@@ -1038,7 +1038,10 @@ export default function SmpSection({
                   <td>
                     <button
                       className={styles.btnSmall}
-                      onClick={() => setEditing(record)}
+                      onClick={() => {
+                        setEisDraft(null);
+                        setEditing(record);
+                      }}
                     >
                       Ред
                     </button>
@@ -1091,8 +1094,10 @@ export default function SmpSection({
       )}
 
       {/* Форма создания / редактирования. Черновик из строки ЕИС открывается
-          тем же окном: это создание записи, а не правка существующей */}
-      {(showForm || eisDraft) && (
+          тем же окном: это создание записи, а не правка существующей.
+          Условие включает `editing`, иначе кнопка «Ред» только заполняла бы
+          состояние, а окно не открывалось */}
+      {(showForm || eisDraft || editing !== null) && (
         <ContractSmpRecordForm
           contractId={contractId}
           record={editing ?? null}

@@ -120,6 +120,14 @@ const PurchaseNoteBaseSchema = z
     positionId: z.union([z.string(), z.number()]).nullable().optional(),
     positionSerialNumber: z.string().optional(),
     positionUniqueNumber: z.string().optional(),
+    // Снимок реквизитов позиции ПГ: номер закупки и графа «Планируемый год
+    // размещения извещения» нужны в СЗ как основание, чтобы не возвращаться
+    // к плану-графику при заполнении извещения. Статус и дата позиции
+    // сохраняются для контроля актуальности снимка.
+    purchaseNumber: z.string().optional(),
+    plannedPlacementYear: z.union([z.string(), z.number()]).optional(),
+    positionStatus: z.string().optional(),
+    positionStatusDate: z.string().optional(),
     ikz: z.string().optional(),
 
     // Связь закупки с проектом контракта (ПП РФ № 2604): критерии оценки
@@ -590,6 +598,10 @@ export const emptyPurchaseNote = (
   noteDate: new Date().toISOString().slice(0, 10),
   initiatorName: "",
   basis: "",
+  purchaseNumber: "",
+  plannedPlacementYear: "",
+  positionStatus: "",
+  positionStatusDate: "",
   ikz: "",
   authorizedBodyName: "",
   jointOrganizerName: "",
