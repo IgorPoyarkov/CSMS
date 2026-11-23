@@ -1,4 +1,5 @@
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
 import CustomModal from "../UI/CustomModal";
@@ -666,6 +667,19 @@ export default function DefectListModal({
             там появится задача проверить документы и поставить позицию в
             план-график (срок рассмотрения — {DEFECT_LIST_REVIEW_DAYS} дней).
           </p>
+          {list?.id !== undefined && list.id !== null && (
+            <p className={block("estimate-link")}>
+              {list.estimateDocumentId ? (
+                <Link to={`/estimates/${list.estimateDocumentId}`}>
+                  Открыть смету и обоснование НМЦК
+                </Link>
+              ) : (
+                <Link to={`/estimates/new?defectListId=${String(list.id)}`}>
+                  Сформировать смету и обоснование НМЦК
+                </Link>
+              )}
+            </p>
+          )}
           <div className={block("footer-actions")}>
             <button type="button" onClick={onClose} disabled={isPending}>
               Отмена

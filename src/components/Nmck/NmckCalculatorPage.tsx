@@ -245,8 +245,7 @@ export default function NmckCalculatorPage() {
               {
                 ...selectedNote.items[0],
                 okpd2Code: resolvedOkpd2 || selectedNote.items[0].okpd2Code,
-                okpd2Name:
-                  resolvedOkpd2Name || selectedNote.items[0].okpd2Name,
+                okpd2Name: resolvedOkpd2Name || selectedNote.items[0].okpd2Name,
                 unit: record.unit || selectedNote.items[0].unit,
                 quantity: selectedNote.isIndeterminateVolume
                   ? "1"
@@ -412,6 +411,13 @@ export default function NmckCalculatorPage() {
             методы по Приказу МЭР № 567) сохраняется в Служебную записку
             (потребность) и не загромождает план-график.
           </p>
+          <p className={block("subtitle")}>
+            Смета контракта и обоснование в связке с дефектовкой — в разделе{" "}
+            <Link className={block("link-btn")} to="/estimates">
+              «Сметы и НМЦК»
+            </Link>
+            .
+          </p>
         </div>
       </header>
 
@@ -567,7 +573,8 @@ export default function NmckCalculatorPage() {
       {!canEditPurchaseNote && purchaseNoteDeniedReason && (
         <div className={block("banner", ["info"])} role="status">
           <span>
-            Сохранение в Служебную записку недоступно ({purchaseNoteDeniedReason}
+            Сохранение в Служебную записку недоступно (
+            {purchaseNoteDeniedReason}
             ), но вы можете выполнить расчёт и выгрузить файл обоснования
             (.docx).
           </span>
@@ -592,7 +599,9 @@ export default function NmckCalculatorPage() {
             />
             Обоснование НМЦК{" "}
             <strong>{formatNmckMoney(savedNotice.nmckTotal)} ₽</strong>{" "}
-            {savedNotice.createdNewNote ? "сохранено в новую СЗ" : "обновлено в СЗ"}{" "}
+            {savedNotice.createdNewNote
+              ? "сохранено в новую СЗ"
+              : "обновлено в СЗ"}{" "}
             <strong>№ {savedNotice.noteNumber}</strong>
             {savedNotice.updatedAmount
               ? " (плановый объём финансирования в ПГ также обновлён)."
@@ -643,7 +652,9 @@ export default function NmckCalculatorPage() {
           selectedNote?.ikz || selectedPosition?.identificationCode || ""
         }
         defaultCalculatorName={calculatorName}
-        organizationName={organization?.shortName || organization?.fullName || ""}
+        organizationName={
+          organization?.shortName || organization?.fullName || ""
+        }
         organization={organization ?? selectedPlan?.customer ?? null}
         planAmountLimit={existingPosAmountTotal}
         contractRegistryItems={contractRegistryItems}

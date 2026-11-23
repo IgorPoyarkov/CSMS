@@ -226,6 +226,10 @@ export const DefectListSchema = z.object({
   reviewedAt: isoDate(),
   reviewComment: z.string().optional(),
   taskId: idSchema(),
+  // Связь с отдельным документом «смета + обоснование НМЦК» (contractEstimates).
+  // Поле необязательное: старые дефектовки без него читаются и работают как
+  // раньше, а встроенный блок estimate остаётся снимком для печати.
+  estimateDocumentId: idSchema(),
 
   createdAt: isoDate(),
   updatedAt: isoDate(),
@@ -418,7 +422,9 @@ export const scheduleTotal = (stages: ScheduleStage[]): number =>
 export const scheduleDifference = (
   list: Pick<DefectList, "items" | "estimate" | "schedule">,
 ): number =>
-  round2(computeEstimateTotals(list).total - scheduleTotal(list.schedule.stages));
+  round2(
+    computeEstimateTotals(list).total - scheduleTotal(list.schedule.stages),
+  );
 
 const dayMs = 86_400_000;
 
@@ -454,10 +460,7 @@ export const buildScheduleStages = (
   const end = plannedEnd ? toTime(plannedEnd) : NaN;
   const hasPeriod = !isNaN(start) && !isNaN(end) && end >= start;
   const span = hasPeriod ? Math.max(end - start, dayMs) : 0;
-  const directTotal = groups.reduce(
-    (sum, group) => sum + group.directCost,
-    0,
-  );
+  const directTotal = groups.reduce((sum, group) => sum + group.directCost, 0);
 
   let allocated = 0;
 
@@ -502,7 +505,9 @@ export const defectListsOfEmployee = (
 ): DefectList[] =>
   employeeId === undefined || employeeId === ""
     ? []
-    : lists.filter((list) => String(list.authorEmployeeId) === String(employeeId));
+    : lists.filter(
+        (list) => String(list.authorEmployeeId) === String(employeeId),
+      );
 
 export const sortDefectLists = (lists: DefectList[]): DefectList[] =>
   [...lists].sort((first, second) =>

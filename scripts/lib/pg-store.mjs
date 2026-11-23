@@ -50,6 +50,8 @@ export const PG_COLLECTIONS = [
   "edsSignatureEvents",
   "objectDescriptions",
   "defectLists",
+  // Смета контракта + обоснование НМЦК (отдельный документ сквозного процесса)
+  "contractEstimates",
   "bidEvaluations",
   "contractEvents",
   "vacationSchedules",

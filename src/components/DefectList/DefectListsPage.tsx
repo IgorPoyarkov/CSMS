@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
 import { useContractService } from "../../services/ContractService/contractService.api";
@@ -28,6 +29,13 @@ import {
   useOrganizationDefectLists,
   useUpdateDefectList,
 } from "../../services/DefectList/defectList.api";
+import {
+  estimateDocumentStatusLabels,
+  estimateNmckTotal,
+  estimateTotals,
+  findEstimateForDefect,
+} from "../../services/Estimate/estimate.schema";
+import { useOrganizationEstimates } from "../../services/Estimate/estimate.api";
 import DefectListModal from "./DefectListModal";
 import styles from "./DefectListsPage.module.scss";
 
@@ -71,6 +79,7 @@ export default function DefectListsPage() {
   const orgId = organization?.id;
 
   const { data: lists = [], isLoading } = useOrganizationDefectLists(orgId);
+  const { data: estimates = [] } = useOrganizationEstimates(orgId);
   const { data: contractService } = useContractService(orgId);
 
   const createTask = useCreateTask();
@@ -303,6 +312,10 @@ export default function DefectListsPage() {
               schedule,
             });
             const editable = canEdit(list);
+            const linkedEstimate = findEstimateForDefect(estimates, list.id);
+            const linkedNmck = linkedEstimate
+              ? estimateNmckTotal(linkedEstimate)
+              : null;
             const isBusy =
               updateList.isPending &&
               String(updateList.variables?.id) === String(list.id);
@@ -360,6 +373,18 @@ export default function DefectListsPage() {
                     </dd>
                   </div>
                   <div className={block("meta-row")}>
+                    <dt>Смета и НМЦК</dt>
+                    <dd>
+                      {linkedEstimate
+                        ? `${estimateDocumentStatusLabels[linkedEstimate.status]} · ${money(
+                            estimateTotals(linkedEstimate).total,
+                          )} ₽ · НМЦК ${
+                            linkedNmck === null ? "—" : `${money(linkedNmck)} ₽`
+                          }`
+                        : "не сформированы"}
+                    </dd>
+                  </div>
+                  <div className={block("meta-row")}>
                     <dt>Создано</dt>
                     <dd>
                       {formatDate(list.createdAt) || "—"}
@@ -377,6 +402,24 @@ export default function DefectListsPage() {
                 </dl>
 
                 <div className={block("card-actions")}>
+                  {linkedEstimate ? (
+                    <Link
+                      className={block("action", ["primary"])}
+                      to={`/estimates/${linkedEstimate.id}`}
+                    >
+                      Смета и НМЦК
+                    </Link>
+                  ) : (
+                    (editable || isContractServiceMember) && (
+                      <Link
+                        className={block("action")}
+                        to={`/estimates/new?defectListId=${String(list.id)}`}
+                      >
+                        Сформировать смету
+                      </Link>
+                    )
+                  )}
+
                   {editable && (
                     <button
                       type="button"

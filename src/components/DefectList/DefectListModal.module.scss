@@ -280,4 +280,18 @@
       }
     }
   }
+
+  &__estimate-link {
+    margin: 0;
+    font-size: 12px;
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
 }

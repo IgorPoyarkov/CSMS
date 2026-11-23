@@ -41,6 +41,8 @@ import NormingRequirementsPage from "./components/NormingRequirements/NormingReq
 import EdsJournalPage from "./components/Eds/EdsJournalPage";
 import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
 import DefectListsPage from "./components/DefectList/DefectListsPage";
+import EstimatesPage from "./components/Estimate/EstimatesPage";
+import EstimateEditorPage from "./components/Estimate/EstimateEditorPage";
 import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
 import VacationSchedulePage from "./components/VacationSchedule/VacationSchedulePage";
 import DeadlineNotificationsPage from "./components/Notifications/DeadlineNotificationsPage";
@@ -285,6 +287,16 @@ const router = createBrowserRouter([
         // контракта (421/пр) и проект календарного графика (336/пр)
         path: "/defect-lists",
         element: <DefectListsPage />,
+      },
+      {
+        // Отдельный модуль «смета + обоснование НМЦК»: вход — дефектовка,
+        // выход — утверждённый документ, доступный из дефектовки
+        path: "/estimates",
+        element: <EstimatesPage />,
+      },
+      {
+        path: "/estimates/:id",
+        element: <EstimateEditorPage />,
       },
       {
         // Оценка заявок: критерии, значимость и баллы по ПП РФ N 2604
