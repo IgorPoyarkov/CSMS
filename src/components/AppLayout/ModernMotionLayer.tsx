@@ -290,6 +290,16 @@ export default function ModernMotionLayer() {
       return found;
     };
 
+    // fieldset с legend декор не получает: легенда сидит ровно на верхней
+    // грани, и рамка проходит сквозь текст заголовка. У border браузер
+    // оставляет под легендой прорезь, а у box-shadow и псевдоэлемента кометы
+    // прорези нет — на hover неоновая линия перечёркивала название раздела.
+    // Спокойная подсветка рамки для таких блоков живёт в _theme-modern.scss
+    // (правило fieldset:has(> legend)).
+    const hasFieldsetLegend = (el: HTMLElement) =>
+      el.tagName.toLowerCase() === "fieldset" &&
+      el.querySelector(":scope > legend") !== null;
+
     const markPanels = () => {
       const minWidth = Math.min(
         COMET_MIN_WIDTH,
@@ -304,6 +314,13 @@ export default function ModernMotionLayer() {
         allowLift: boolean,
         allowComet: boolean,
       ) => {
+        if (hasFieldsetLegend(el)) {
+          el.removeAttribute("data-modern-comet");
+          el.removeAttribute("data-modern-lift");
+
+          return;
+        }
+
         const big = rect.width >= minWidth && rect.height >= COMET_MIN_HEIGHT;
         const slot = allowComet && big ? freeSlot(el) : null;
 
@@ -338,6 +355,10 @@ export default function ModernMotionLayer() {
       };
 
       document.querySelectorAll<HTMLElement>(PANEL_SELECTOR).forEach((el) => {
+        if (hasFieldsetLegend(el)) {
+          return;
+        }
+
         const rect = el.getBoundingClientRect();
 
         if (

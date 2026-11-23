@@ -6657,3 +6657,29 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 
 
 
+## 166. Тема «Современные закупки»: неон больше не перечёркивает legend у fieldset (2026-11-23)
+
+- **Проблема.** Формы собирают разделы через `<fieldset><legend>…</legend>`, и в
+  теме modern при наведении неоновая кромка ложилась прямо на текст заголовка:
+  легенда стоит на верхней грани, прорезь под ней умеет делать только `border`,
+  а `box-shadow` (`--shadow-3d-hover`, слой `inset 0 0 0 1px`) и псевдоэлемент
+  кометы рисуют линию по всему периметру без прорези. Заметнее всего на
+  `/contract-service` (кнопка «Изменить сведения»): «РУКОВОДИТЕЛЬ КОНТРАКТНОЙ
+  СЛУЖБЫ» перечёркивался.
+- **Решение.** `ModernMotionLayer` больше не помечает `fieldset` с прямым
+  `legend` (`hasFieldsetLegend`): ни `data-modern-lift`, ни `data-modern-comet`
+  — проверка и в общем обходе `PANEL_SELECTOR`, и в `decorate` (иначе блок
+  получал атрибуты как «скруглённый ребёнок» прямоугольной обёртки).
+  В `_theme-modern.scss` добавлено спокойное состояние наведения —
+  `fieldset:has(> legend):hover/:focus-within { border-color: var(--border-strong) }`:
+  обратная связь осталась, но без свечения.
+- **Не тронуто.** Разметка компонентов (`ContractServiceForm`,
+  `BidEvaluationModal`, `DefectListModal`, `ContractSmpSection`, `EdsLoginForm`)
+  и fieldset'ы без legend — они по-прежнему получают комету и подсветку. Другие
+  темы не менялись: слой декора работает только при `data-theme="modern"`.
+- **Проверки.** `npx tsc -b` — чисто; `npx oxlint src` — 0 ошибок;
+  `npx vite build` — успешно. Браузерный смоук (CDP + headless Chrome, учётка
+  `poyarkova_nyu@mail.ru`) на `/contract-service` → «Изменить сведения»:
+  у fieldset'ов `lift=false`, `comet=null`, `box-shadow` = `--shadow-3d`, на
+  hover рамка rgba(34,211,238,0.38); на скриншоте линия не перекрывает легенду.
+
