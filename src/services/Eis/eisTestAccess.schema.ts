@@ -51,11 +51,11 @@ export const eisTestAccessStatusLabels: Record<EisTestAccessStatus, string> = {
   sent: "Отправлено в ЕИС",
 };
 
-export const FNS_INTEGRATION_CHECKS = [
+export const EIS_TEST_ACCESS_CHECKS = [
   {
     id: "inn",
     label: "ИНН организации заполнен",
-    hint: "ИНН нужен для идентификации участника/заказчика и проверок по ФНС.",
+    hint: "ИНН нужен для идентификации участника/заказчика в ЕИС.",
   },
   {
     id: "org",
@@ -68,9 +68,9 @@ export const FNS_INTEGRATION_CHECKS = [
     hint: "Обращение и файлы подписываются квалифицированной ЭП на рабочем месте.",
   },
   {
-    id: "fns_api",
-    label: "Проверена настройка API-интеграции с ФНС",
-    hint: "Для обмена и проверок контрагента должна быть настроена интеграция с ФНС/ЕРВЮЛ.",
+    id: "system_description",
+    label: "Описание системы подготовлено",
+    hint: "Краткое описание CSMS и цели интеграции включается в обращение.",
   },
   {
     id: "eis_registration",
@@ -79,7 +79,7 @@ export const FNS_INTEGRATION_CHECKS = [
   },
 ] as const;
 
-export type FnsIntegrationCheckId = (typeof FNS_INTEGRATION_CHECKS)[number]["id"];
+export type EisTestAccessCheckId = (typeof EIS_TEST_ACCESS_CHECKS)[number]["id"];
 
 export const EisTestAccessRequestSchema = z.object({
   id: z.string(),
@@ -110,6 +110,9 @@ export const EisTestAccessRequestSchema = z.object({
   eisRegistryNumber: z.string().optional().or(z.literal("")),
   eisSection: z.string().optional().or(z.literal("")),
   systemName: z.string().trim().min(1, "Укажите название системы"),
+  // Старые черновики сохранялись без описания: поле необязательно при чтении,
+  // новая форма всегда записывает непустое значение.
+  systemDescription: z.string().trim().default(""),
   purpose: z.string().trim().min(1, "Укажите цель обращения"),
   requestText: z.string().trim().min(1, "Текст обращения не должен быть пустым"),
 
@@ -117,8 +120,10 @@ export const EisTestAccessRequestSchema = z.object({
   checkInn: z.boolean().default(false),
   checkOrg: z.boolean().default(false),
   checkCertificate: z.boolean().default(false),
-  checkFnsApi: z.boolean().default(false),
+  checkSystemDescription: z.boolean().default(false),
   checkEisRegistration: z.boolean().default(false),
+  // Старые поля оставлены для совместимости с сохранёнными черновиками.
+  checkFnsApi: z.boolean().optional().default(false),
   fnsApiComment: z.string().optional().or(z.literal("")),
 
   // Подпись
@@ -153,15 +158,18 @@ export const createEmptyEisTestAccessRequest = (
   contactPhone: "",
   eisRegistryNumber: "",
   eisSection: "44-ФЗ / тестовый контур",
-  systemName: "CSMS (Система управления закупками)",
+  systemName: "CSMS — Система управления контрактной службой заказчика",
+  systemDescription:
+    "CSMS (Система управления контрактной службой заказчика) — внутренняя система организации для планирования закупок, формирования извещений и документов, ведения контрактов, контроля исполнения, работы с ЭП и подготовки обмена с ЕИС. Система используется заказчиком для автоматизации работы контрактной службы и интеграции с внешними государственными информационными системами.",
   purpose:
     "Получение тестового доступа к ЕИС для проверки обмена сведениями и интеграции.",
   requestText: "",
   checkInn: false,
   checkOrg: false,
   checkCertificate: false,
-  checkFnsApi: false,
+  checkSystemDescription: true,
   checkEisRegistration: false,
+  checkFnsApi: false,
   fnsApiComment: "",
   signedAt: "",
   signedBy: "",
@@ -195,10 +203,10 @@ export const buildEisTestAccessRequestText = (
     `Телефон: ${value.contactPhone || value.contractorPhone || "—"}`,
     "",
     `Система: ${value.systemName || "—"}`,
-    `Цель обращения: ${value.purpose || "—"}`,
+    "Краткое описание системы:",
+    value.systemDescription?.trim() || "—",
     "",
-    "Комментарий по настройке интеграции с ФНС:",
-    value.fnsApiComment?.trim() || "Настройка API-интеграции с ФНС проверена на стороне организации/подрядчика.",
+    `Цель обращения: ${value.purpose || "—"}`,
     "",
     "Просьба:",
     "1. Предоставить тестовый доступ к ЕИС/тестовому контуру для проверки интеграции.",

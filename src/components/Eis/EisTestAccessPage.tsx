@@ -14,7 +14,7 @@ import {
   createEmptyEisTestAccessRequest,
   EIS_TEST_ACCESS_CHANNELS,
   eisTestAccessStatusLabels,
-  FNS_INTEGRATION_CHECKS,
+  EIS_TEST_ACCESS_CHECKS,
   type EisTestAccessRequest,
   type EisTestAccessStatus,
 } from "../../services/Eis/eisTestAccess.schema";
@@ -56,7 +56,7 @@ export default function EisTestAccessPage() {
   const [request, setRequest] = useState<EisTestAccessRequest>(() =>
     createEmptyEisTestAccessRequest(),
   );
-  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  const [loadedRequestId, setLoadedRequestId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
 
   const activeCertificates = useMemo(
@@ -69,59 +69,71 @@ export default function EisTestAccessPage() {
   );
 
   useEffect(() => {
-    const orgInn = organization?.inn ?? "";
+    // Подгружаем последний сохранённый черновик один раз, но не блокируем
+    // предзаполнение данными организации.
+    const latest = savedRequests[0];
+    if (!latest || loadedRequestId === latest.id) return;
+    setLoadedRequestId(latest.id);
+    const defaultDescription = createEmptyEisTestAccessRequest().systemDescription;
+    setRequest((current) => ({
+      ...current,
+      ...latest,
+      contractorInn: latest.contractorInn || current.contractorInn || organization?.inn || "",
+      systemDescription:
+        latest.systemDescription || current.systemDescription || defaultDescription,
+      checkSystemDescription: Boolean(
+        latest.checkSystemDescription ??
+          current.checkSystemDescription ??
+          (latest.systemDescription || current.systemDescription || defaultDescription),
+      ),
+    }));
+  }, [savedRequests, loadedRequestId, organization?.inn]);
+
+  useEffect(() => {
+    if (!organization) return;
 
     setRequest((current) => {
-      const latest = savedRequests[0];
-      const base =
-        latest && hydratedId !== latest.id
-          ? (setHydratedId(latest.id), latest)
-          : hydratedId === current.id
-            ? current
-            : (setHydratedId(current.id), current);
-
-      // ИНН организации пользователя — главный дефолт. Если черновик был создан
-      // без ИНН или с устаревшим пустым значением, подтягиваем ИНН организации.
-      const contractorInn = base.contractorInn || orgInn || "";
-
+      const contractorInn = current.contractorInn || organization.inn || "";
       const next: EisTestAccessRequest = {
-        ...base,
+        ...current,
         contractorName:
-          base.contractorName || organization?.fullName || organization?.shortName || "",
-        contractorShortName: base.contractorShortName || organization?.shortName || "",
+          current.contractorName || organization.fullName || organization.shortName || "",
+        contractorShortName: current.contractorShortName || organization.shortName || "",
         contractorInn,
-        contractorKpp: base.contractorKpp || organization?.kpp || "",
-        contractorOgrn: base.contractorOgrn || organization?.ogrn || "",
+        contractorKpp: current.contractorKpp || organization.kpp || "",
+        contractorOgrn: current.contractorOgrn || organization.ogrn || "",
         contractorAddress:
-          base.contractorAddress ||
-          organization?.legalAddress ||
-          organization?.postalAddress ||
+          current.contractorAddress ||
+          organization.legalAddress ||
+          organization.postalAddress ||
           "",
-        contractorEmail: base.contractorEmail || organization?.email || "",
-        contractorPhone: base.contractorPhone || organization?.phone || "",
+        contractorEmail: current.contractorEmail || organization.email || "",
+        contractorPhone: current.contractorPhone || organization.phone || "",
         eisRegistryNumber:
-          base.eisRegistryNumber ||
-          organization?.registryNumber ||
-          organization?.regNum ||
+          current.eisRegistryNumber ||
+          organization.registryNumber ||
+          organization.regNum ||
           "",
-        contactName: base.contactName || organization?.responsiblePerson || "",
+        contactName: current.contactName || organization.responsiblePerson || "",
         contactPhone:
-          base.contactPhone || organization?.responsiblePhone || organization?.phone || "",
-        contactEmail: base.contactEmail || organization?.email || "",
-        checkInn: Boolean(base.checkInn || contractorInn),
-        checkOrg: Boolean(base.checkOrg || organization?.fullName || organization?.shortName),
-        checkCertificate: Boolean(base.checkCertificate || activeCertificates.length > 0),
+          current.contactPhone || organization.responsiblePhone || organization.phone || "",
+        contactEmail: current.contactEmail || organization.email || "",
+        checkInn: Boolean(current.checkInn || contractorInn),
+        checkOrg: Boolean(current.checkOrg || organization.fullName || organization.shortName),
+        checkCertificate: Boolean(current.checkCertificate || activeCertificates.length > 0),
         checkEisRegistration: Boolean(
-          base.checkEisRegistration || organization?.registryNumber || organization?.regNum,
+          current.checkEisRegistration ||
+            organization.registryNumber ||
+            organization.regNum,
         ),
       };
 
       const changed = (Object.keys(next) as Array<keyof EisTestAccessRequest>).some(
-        (key) => next[key] !== base[key],
+        (key) => next[key] !== current[key],
       );
-      return changed ? next : base;
+      return changed ? next : current;
     });
-  }, [organization, savedRequests, hydratedId, activeCertificates.length]);
+  }, [organization, activeCertificates.length]);
 
   useEffect(() => {
     setRequest((current) => {
@@ -129,7 +141,7 @@ export default function EisTestAccessPage() {
       if (current.requestText === text) return current;
       return { ...current, requestText: text };
     });
-  }, [request.contractorName, request.contractorShortName, request.contractorInn, request.contractorKpp, request.contractorOgrn, request.contractorAddress, request.contractorEmail, request.contractorPhone, request.contactName, request.contactPosition, request.contactEmail, request.contactPhone, request.eisRegistryNumber, request.eisSection, request.systemName, request.purpose, request.fnsApiComment]);
+  }, [request.contractorName, request.contractorShortName, request.contractorInn, request.contractorKpp, request.contractorOgrn, request.contractorAddress, request.contractorEmail, request.contractorPhone, request.contactName, request.contactPosition, request.contactEmail, request.contactPhone, request.eisRegistryNumber, request.eisSection, request.systemName, request.systemDescription, request.purpose]);
 
   function update<K extends keyof EisTestAccessRequest>(key: K, value: EisTestAccessRequest[K]) {
     setSaveMessage("");
@@ -138,11 +150,11 @@ export default function EisTestAccessPage() {
 
   const checks = useMemo(
     () => [
-      { ...FNS_INTEGRATION_CHECKS[0], value: request.checkInn },
-      { ...FNS_INTEGRATION_CHECKS[1], value: request.checkOrg },
-      { ...FNS_INTEGRATION_CHECKS[2], value: request.checkCertificate },
-      { ...FNS_INTEGRATION_CHECKS[3], value: request.checkFnsApi },
-      { ...FNS_INTEGRATION_CHECKS[4], value: request.checkEisRegistration },
+      { ...EIS_TEST_ACCESS_CHECKS[0], value: request.checkInn },
+      { ...EIS_TEST_ACCESS_CHECKS[1], value: request.checkOrg },
+      { ...EIS_TEST_ACCESS_CHECKS[2], value: request.checkCertificate },
+      { ...EIS_TEST_ACCESS_CHECKS[3], value: request.checkSystemDescription },
+      { ...EIS_TEST_ACCESS_CHECKS[4], value: request.checkEisRegistration },
     ],
     [request],
   );
@@ -267,17 +279,17 @@ export default function EisTestAccessPage() {
               <input className={block("input")} value={request.systemName} onChange={(e) => update("systemName", e.target.value)} />
             </label>
             <label className={block("field", ["wide"])}>
-              <span className={block("label")}>Цель обращения</span>
-              <input className={block("input")} value={request.purpose} onChange={(e) => update("purpose", e.target.value)} />
-            </label>
-            <label className={block("field", ["wide"])}>
-              <span className={block("label")}>Комментарий по настройке API-интеграции с ФНС</span>
+              <span className={block("label")}>Краткое описание системы</span>
               <textarea
                 className={block("textarea")}
-                value={request.fnsApiComment ?? ""}
-                onChange={(e) => update("fnsApiComment", e.target.value)}
-                placeholder="Например: проверена интеграция с ФНС/ЕРВЮЛ, доступ к API настроен, ИНН контрагента проверяется."
+                value={request.systemDescription ?? ""}
+                onChange={(e) => update("systemDescription", e.target.value)}
+                placeholder="Кратко опишите назначение CSMS, основные процессы и цель интеграции с ЕИС."
               />
+            </label>
+            <label className={block("field", ["wide"])}>
+              <span className={block("label")}>Цель обращения</span>
+              <input className={block("input")} value={request.purpose} onChange={(e) => update("purpose", e.target.value)} />
             </label>
           </div>
 
@@ -319,8 +331,8 @@ export default function EisTestAccessPage() {
                         ? "checkOrg"
                         : check.id === "certificate"
                           ? "checkCertificate"
-                          : check.id === "fns_api"
-                            ? "checkFnsApi"
+                          : check.id === "system_description"
+                            ? "checkSystemDescription"
                             : "checkEisRegistration",
                     e.target.checked,
                   )}

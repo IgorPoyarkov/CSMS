@@ -1,4 +1,6 @@
-# React + TypeScript + Vite
+# CSMS — Система управления контрактной службой заказчика
+
+Официальное название продукта: **Система управления контрактной службой заказчика** (CSMS).
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
