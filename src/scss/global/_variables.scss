@@ -61,6 +61,21 @@ $color-modern-magenta: #f472b6;
 $color-modern-paper: #e8f0ff;
 $color-modern-mist: #a8b8d0;
 
+// Палитра темы «Морозный неон»: ночная версия «Зимы». Схема остаётся зимней
+// (серо-голубые, ледяные и шалфейные оттенки), но фон глубокий, как у
+// «Современных закупок»: неон и комета по контуру читаются только на тёмном.
+// Акцент — ледяной голубой, второй и третий неон — морозный синий и шалфейный
+// из «Зимы», поэтому тема не выходит за исходный референс.
+$color-frost-void: #060f17;
+$color-frost-abyss: #0b1722;
+$color-frost-slate: #13273a;
+$color-frost-glass: #1b3a52;
+$color-frost-ice: #9fdbe9;
+$color-frost-blue: #5f93b4;
+$color-frost-sage: #8fada6;
+$color-frost-paper: #e8f2f8;
+$color-frost-mist: #a7c0d0;
+
 // Typography
 $ff-main: "Poppins", "Arial", sans-serif;
 $ff-accent: "Montserrat", "Arial", sans-serif;

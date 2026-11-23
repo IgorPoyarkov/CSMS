@@ -48,9 +48,11 @@ input[type="checkbox"]:checked {
 }
 
 // Тёмная галочка для тёмных тем, где accent-emphasis светлый:
-// в тёмной зелёной это мята, в «Грозе» — светлая лаванда
+// в тёмной зелёной это мята, в «Грозе» — светлая лаванда, в «Морозном неоне»
+// — ледяной голубой
 [data-theme="dark"] input[type="checkbox"]:checked,
-[data-theme="storm"] input[type="checkbox"]:checked {
+[data-theme="storm"] input[type="checkbox"]:checked,
+[data-theme="frost"] input[type="checkbox"]:checked {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='10' viewBox='0 0 12 10'%3E%3Cpath d='M1 5.2 4.2 8.4 11 1.6' fill='none' stroke='%23051f20' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 

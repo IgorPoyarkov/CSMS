@@ -1,11 +1,14 @@
 @import "variables";
 
-// Роли интерфейса для пяти тем. Светлая — основная: заказчик работает
+// Роли интерфейса для семи тем. Светлая — основная: заказчик работает
 // в ЕИС, где фон белый, поэтому зелёная схема сайта здесь лежит на бумаге.
 // Тёмная — та же схема на тёмно-зелёном. «Гроза» — отдельная холодная
 // сиренево-синяя палитра по референсу. «Зима» — светлая морозная
 // серо-голубая палитра по референсу. «Парящие 3D-элементы» — тёмный лес
-// с лаймовым акцентом и объёмными панелями. Тема включается атрибутом
+// с лаймовым акцентом и объёмными панелями. «Современные закупки» и её
+// зимняя версия «Морозный неон» — пара тёмных неоновых тем: геометрия
+// объёма, комета и магнит у них общие (_theme-modern.scss), различаются
+// только цвета ролей. Тема включается атрибутом
 // data-theme на <html> (переключатель в шапке) и запоминается в localStorage.
 //
 // Компилируется один раз: файл подключён только в global.scss, а не в каждый
@@ -247,8 +250,9 @@
 // «Современные закупки»: тёмная неоновая тема. Роли интерфейса — та же схема
 // сайта, но на ночном индиго-графите: панели выглядят стеклянными, ссылки и
 // фокус — циановые. Геометрия объёма, комета по контуру больших блоков и
-// магнитное расхождение коротких списков живут в _theme-modern.scss и
-// включаются только этим атрибутом; остальные темы файл не затрагивает.
+// магнитное расхождение коротких списков живут в _theme-modern.scss. Её зимняя
+// версия «Морозный неон» повторяет ту же геометрию в зимней палитре: оба
+// атрибута скоупят один файл, остальные темы он не затрагивает.
 [data-theme="modern"] {
   color-scheme: dark;
 
@@ -299,7 +303,7 @@
     inset 0 -26px 34px -32px #{rgba($color-modern-void, 0.75)};
 
   // Декор: скорость обхода кометой контура и три цвета неона
-  // (голова кометы — циан, хвост — магента).
+  // (голова кометы — --neon-a, хвост — --neon-c).
   --comet-duration: 8s;
   --neon-a: #{$color-modern-cyan};
   --neon-b: #{$color-modern-indigo};
@@ -311,4 +315,72 @@
   --state-danger-soft: rgba(251, 113, 133, 0.16);
   --state-warning: #fbbf24;
   --state-warning-soft: rgba(251, 191, 36, 0.16);
+}
+
+// «Морозный неон»: зимняя версия неоновой темы. Роли те же, что у
+// «Современных закупок», поэтому экраны не меняются; палитра взята из «Зимы»
+// (серо-голубой, ледяной и шалфейный ряды), но вывернута на ночной фон — неон
+// и комета читаются только на глубоком цвете, а светлая «Зима» остаётся
+// спокойной дневной темой. Контраст основного текста к панели ≈ 16:1,
+// вторичного — ≈ 9.5:1, ссылок на панели — ≈ 12:1 (у «Современных закупок»
+// ≈ 17:1, 9:1 и 12:1 — зимняя палитра чуть светлее, но с тем же запасом).
+[data-theme="frost"] {
+  color-scheme: dark;
+
+  --surface-page: #{$color-frost-void};
+  --surface-panel: #{$color-frost-abyss};
+  --surface-raised: #{$color-frost-slate};
+  --surface-accent: #{$color-frost-glass};
+  --surface-field: #{rgba($color-frost-paper, 0.05)};
+  --field-border: #{rgba($color-frost-ice, 0.3)};
+  --accent: #{$color-frost-ice};
+  --accent-hover: #c6ecf5;
+  --accent-emphasis: #{$color-frost-ice};
+  --accent-soft: #{rgba($color-frost-blue, 0.22)};
+  --text-primary: #{$color-frost-paper};
+  --text-secondary: #{$color-frost-mist};
+  --text-on-accent: #{$color-frost-void};
+  --placeholder: #{rgba($color-frost-mist, 0.6)};
+  --border: #{rgba($color-frost-ice, 0.2)};
+  --border-strong: #{rgba($color-frost-ice, 0.38)};
+  --stripe: #{rgba($color-frost-paper, 0.045)};
+  --overlay: #{rgba($color-frost-void, 0.84)};
+  --shadow: #{rgba($color-frost-void, 0.8)};
+  --glow: #{rgba($color-frost-ice, 0.45)};
+  --modal-border: #{rgba($color-frost-ice, 0.48)};
+  --modal-dot: #{$color-frost-ice};
+  --modal-dot-glow: #{rgba($color-frost-ice, 0.6)};
+
+  // Объём тот же, что у «Современных закупок»: блик по верхней грани и тень
+  // по нижней внутри рамки, без внешних размытых теней, которые затемняли
+  // соседние блоки.
+  --edge-highlight: #{rgba($color-frost-paper, 0.16)};
+  --shadow-3d:
+    inset 0 1px 0 var(--edge-highlight),
+    inset 0 -1px 0 #{rgba($color-frost-void, 0.6)},
+    inset 0 -26px 34px -32px #{rgba($color-frost-void, 0.75)};
+  --shadow-3d-hover:
+    inset 0 0 0 1px #{rgba($color-frost-ice, 0.55)},
+    0 -1px 0 #{rgba($color-frost-ice, 0.85)},
+    0 -6px 0 -2px #{rgba($color-frost-ice, 0.32)},
+    0 -14px 22px -12px #{rgba($color-frost-ice, 0.55)},
+    inset 0 -1px 0 #{rgba($color-frost-void, 0.6)},
+    inset 0 -26px 34px -32px #{rgba($color-frost-void, 0.75)};
+
+  // Декор: голова кометы — лёд, хвост — морозный синий, третий неон —
+  // шалфейный, как акцент светлой «Зимы». Набор остаётся холодным и не
+  // выходит за референс.
+  --comet-duration: 8s;
+  --neon-a: #{$color-frost-ice};
+  --neon-b: #{$color-frost-blue};
+  --neon-c: #{$color-frost-sage};
+
+  // Состояния светлее, чем в светлой «Зиме»: на ночном фоне тёмно-зелёный и
+  // кирпичный сливались бы с панелями. Оттенки взяты из той же зимней схемы.
+  --state-success: #8fcbb6;
+  --state-success-soft: rgba(143, 203, 182, 0.16);
+  --state-danger: #e79a95;
+  --state-danger-soft: rgba(231, 154, 149, 0.16);
+  --state-warning: #dcc48c;
+  --state-warning-soft: rgba(220, 196, 140, 0.16);
 }

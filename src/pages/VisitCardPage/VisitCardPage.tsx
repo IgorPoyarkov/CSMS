@@ -126,7 +126,7 @@ const METRICS = [
   { value: "6", label: "этапов сквозного контура" },
   { value: "17", label: "экранов и реестров" },
   { value: "183", label: "извещения в демо-базе" },
-  { value: "6", label: "тем оформления" },
+  { value: "7", label: "тем оформления" },
 ];
 
 const FEATURES = [

@@ -1,19 +1,27 @@
-// Тема «Современные закупки»: объём, неон и движение.
+// Неоновый слой тем «Современные закупки» и «Морозный неон»: объём, неон
+// и движение.
 //
-// Всё скоупится атрибутом [data-theme="modern"], поэтому светлая, тёмная,
-// «Гроза», «Зима» и «Парящие 3D» не меняются. Три приёма темы:
+// Файл скоупится двумя атрибутами — [data-theme="modern"] и
+// [data-theme="frost"], поэтому светлая, тёмная, «Гроза», «Зима» и «Парящие
+// 3D» не меняются. Геометрия, анимации и разметка декора у двух неоновых тем
+// общие, различаются только цвета: они берутся из ролей (--neon-a/b/c,
+// --accent, --surface-page, --text-primary) через color-mix, а не из
+// литералов. Поэтому «Морозный неон» — это та же тема в зимней палитре,
+// а правка эффекта не требует второй копии файла. Имена data-modern-* и
+// самого файла остались историческими: слой вырос из «Современных закупок».
+// Три приёма:
 //   • тени — панели получили блик по верхней грани и объёмную тень, но только
 //     внутри своей рамки (inset): внешние размытые тени выходили за родителя,
 //     затемняли соседей и читались как «непонятное затемнение»;
 //   • стационарные большие блоки — неоновая мерцающая подсветка по контуру,
-//     по нему бежит комета с хвостом (голова — циан, хвост — магента); сам блок
-//     стоит ровно, а на hover по краям загорается неон — тонкая кромка внутри по
-//     периметру и свет над верхней гранью снаружи (наружу — чтобы ореол не
-//     закрашивал заголовки и первые строки таблиц). Подсвечивается только
-//     ближайшая к курсору панель: :hover всплывает ко всем предкам, и без
-//     фильтра при наведении на вложенную карточку светилась вся цепочка
-//     секций. Никакого transform: панель не смещается под курсором и не
-//     дёргается на границе;
+//     по нему бежит комета с хвостом (голова — --neon-a, хвост — --neon-c);
+//     сам блок стоит ровно, а на hover по краям загорается неон — тонкая
+//     кромка внутри по периметру и свет над верхней гранью снаружи (наружу —
+//     чтобы ореол не закрашивал заголовки и первые строки таблиц).
+//     Подсвечивается только ближайшая к курсору панель: :hover всплывает ко
+//     всем предкам, и без фильтра при наведении на вложенную карточку
+//     светилась вся цепочка секций. Никакого transform: панель не смещается
+//     под курсором и не дёргается на границе;
 //   • короткие списки (чипы, пункты навигации, табы) — магнитное расхождение:
 //     элементы отходят на 12% своего размера перпендикулярно движению курсора.
 //
@@ -58,23 +66,33 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 }
 
-[data-theme="modern"] {
-  // Фон страницы: два неоновых пятна света и техно-сетка. Сетка держится на
-  // 3–4% яркости, чтобы не спорить с таблицами и не мешать читать цифры.
+[data-theme="modern"],
+[data-theme="frost"] {
+  // Фон страницы: два неоновых пятна света и техно-сетка. Цвета пятен —
+  // --neon-a и --neon-b, поэтому у «Морозного неона» они ледяные и синие.
+  // Сетка держится на 3–4% яркости, чтобы не спорить с таблицами и не мешать
+  // читать цифры.
   body {
     background-image:
       radial-gradient(
         1100px 520px at 16% -8%,
-        rgba(34, 211, 238, 0.13),
+        color-mix(in srgb, var(--neon-a) 13%, transparent),
         transparent 62%
       ),
       radial-gradient(
         900px 480px at 92% 6%,
-        rgba(124, 140, 255, 0.12),
+        color-mix(in srgb, var(--neon-b) 12%, transparent),
         transparent 60%
       ),
-      linear-gradient(rgba(124, 140, 255, 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(124, 140, 255, 0.045) 1px, transparent 1px);
+      linear-gradient(
+        color-mix(in srgb, var(--neon-b) 4.5%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--neon-b) 4.5%, transparent) 1px,
+        transparent 1px
+      );
     background-size:
       auto,
       auto,
@@ -93,8 +111,8 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   li[class*="card"] {
     background-image: linear-gradient(
       155deg,
-      rgba(232, 240, 255, 0.06),
-      rgba(232, 240, 255, 0) 52%
+      color-mix(in srgb, var(--text-primary) 6%, transparent),
+      transparent 52%
     );
     border-top-color: var(--edge-highlight);
     box-shadow: var(--shadow-3d);
@@ -138,7 +156,7 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   fieldset:has(> legend):hover > legend,
   fieldset:has(> legend):focus-within > legend {
     color: var(--accent);
-    text-shadow: 0 0 14px rgba(34, 211, 238, 0.45);
+    text-shadow: 0 0 14px color-mix(in srgb, var(--accent) 45%, transparent);
   }
 
   // Контур кометы. Псевдоэлемент залит коническим градиентом, а маска
@@ -158,8 +176,8 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
     background: conic-gradient(
       from var(--modern-comet-angle),
       transparent 0deg 286deg,
-      rgba(34, 211, 238, 0) 286deg,
-      rgba(34, 211, 238, 0.35) 326deg,
+      color-mix(in srgb, var(--neon-a) 0%, transparent) 286deg,
+      color-mix(in srgb, var(--neon-a) 35%, transparent) 326deg,
       var(--neon-a) 346deg,
       #ffffff 353deg,
       var(--neon-c) 358deg,
@@ -173,7 +191,9 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     mask-composite: exclude;
-    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.35));
+    filter: drop-shadow(
+      0 0 6px color-mix(in srgb, var(--neon-a) 35%, transparent)
+    );
     animation:
       modern-comet-run var(--comet-duration, 8s) linear infinite,
       modern-neon-breathe 3.6s ease-in-out infinite;
@@ -194,7 +214,7 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   }
 
   // Поля ввода: объём задаётся внутренней тенью (углубление), на фокусе —
-  // циановый ореол. Transform не трогаем, чтобы поле не прыгало.
+  // акцентный ореол. Transform не трогаем, чтобы поле не прыгало.
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
       [type="file"]
     ),
@@ -202,9 +222,9 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   select,
   [data-csms-select] {
     box-shadow:
-      inset 0 1px 2px rgba(7, 11, 20, 0.65),
-      inset 0 -1px 0 rgba(232, 240, 255, 0.06),
-      0 1px 0 rgba(232, 240, 255, 0.04);
+      inset 0 1px 2px color-mix(in srgb, var(--surface-page) 65%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent),
+      0 1px 0 color-mix(in srgb, var(--text-primary) 4%, transparent);
   }
 
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
@@ -214,9 +234,9 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   select:focus,
   [data-csms-select]:focus {
     box-shadow:
-      inset 0 1px 2px rgba(7, 11, 20, 0.6),
-      0 0 0 1px rgba(34, 211, 238, 0.45),
-      0 0 18px rgba(34, 211, 238, 0.18);
+      inset 0 1px 2px color-mix(in srgb, var(--surface-page) 60%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+      0 0 18px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   // Нативные контролы: тот же объём, что у панелей, но слабее — иначе
@@ -224,35 +244,37 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   input[type="checkbox"],
   input[type="radio"] {
     box-shadow:
-      inset 0 1px 0 rgba(232, 240, 255, 0.16),
-      inset 0 -1px 0 rgba(7, 11, 20, 0.5),
-      0 3px 8px rgba(7, 11, 20, 0.55);
+      inset 0 1px 0 color-mix(in srgb, var(--text-primary) 16%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--surface-page) 50%, transparent),
+      0 3px 8px color-mix(in srgb, var(--surface-page) 55%, transparent);
   }
 
   input[type="checkbox"]:hover,
   input[type="radio"]:hover {
     box-shadow:
-      inset 0 1px 0 rgba(34, 211, 238, 0.42),
-      0 6px 14px rgba(7, 11, 20, 0.6),
-      0 0 0 3px rgba(34, 211, 238, 0.16);
+      inset 0 1px 0 color-mix(in srgb, var(--accent) 42%, transparent),
+      0 6px 14px color-mix(in srgb, var(--surface-page) 60%, transparent),
+      0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
   }
 
   input[type="checkbox"]:checked,
   input[type="radio"]:checked {
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.32),
-      0 0 0 1px rgba(7, 11, 20, 0.5),
-      0 0 12px rgba(34, 211, 238, 0.45),
-      0 4px 10px rgba(7, 11, 20, 0.5);
+      0 0 0 1px color-mix(in srgb, var(--surface-page) 50%, transparent),
+      0 0 12px color-mix(in srgb, var(--accent) 45%, transparent),
+      0 4px 10px color-mix(in srgb, var(--surface-page) 50%, transparent);
   }
 
   input[type="range"] {
     accent-color: var(--accent);
-    filter: drop-shadow(0 2px 4px rgba(7, 11, 20, 0.6));
+    filter: drop-shadow(
+      0 2px 4px color-mix(in srgb, var(--surface-page) 60%, transparent)
+    );
   }
 
   // Фокус одинаковый у кнопок, полей, ссылок и нативных контролов:
-  // контрастная циановая обводка с отступом, видимая на любой панели темы.
+  // контрастная акцентная обводка с отступом, видимая на любой панели темы.
   a:focus-visible,
   button:focus-visible,
   select:focus-visible,
