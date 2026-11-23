@@ -44,8 +44,10 @@ export const KtruCharacteristicSchema = z.object({
   maxValue: z.string().optional(),
   /** Обязательная характеристика позиции КТРУ (нельзя исключить) */
   isMandatory: z.boolean().default(true),
-  /** Инструкция участнику по заполнению значения */
+  /** Инструкция участнику по заполнению значения (из выгрузки КТРУ) */
   instruction: z.string().optional(),
+  /** Ссылка на справочник ЕИС nsiCharacteristicsFillingInstructions */
+  characteristicsFillingInstructionCode: z.string().optional(),
 });
 
 export type KtruCharacteristic = z.infer<typeof KtruCharacteristicSchema>;

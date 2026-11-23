@@ -140,6 +140,8 @@ export const ObjectCharacteristicSchema = z.object({
   isAdditionalOverKtru: z.boolean().default(false),
   additionalJustification: optionalString(),
   instructionForParticipant: optionalString(),
+  /** Код инструкции из справочника ЕИС nsiCharacteristicsFillingInstructions */
+  instructionSourceCode: optionalString(),
 });
 
 export type ObjectCharacteristic = z.infer<typeof ObjectCharacteristicSchema>;
@@ -249,8 +251,11 @@ export interface ComplianceIssue {
  */
 export const validateObjectDescriptionCompliance = (
   desc: ObjectDescription,
+  options: { hasKtruForOkpd2?: boolean } = {},
 ): ComplianceIssue[] => {
   const issues: ComplianceIssue[] = [];
+  // Флаг «Применение КТРУ» не имеет смысла, когда по коду ОКПД2 позиций нет.
+  const useKtru = options.hasKtruForOkpd2 === false ? false : desc.useKtru;
 
   if (desc.kind === "object_description" && desc.characteristics.length === 0) {
     issues.push({
@@ -261,7 +266,7 @@ export const validateObjectDescriptionCompliance = (
     });
   }
 
-  if (desc.useKtru) {
+  if (useKtru) {
     if (!desc.ktruCode?.trim()) {
       issues.push({
         level: "error",
@@ -504,6 +509,7 @@ export const emptyCharacteristic = (
   isAdditionalOverKtru: false,
   additionalJustification: "",
   instructionForParticipant: "",
+  instructionSourceCode: "",
 });
 
 export const emptyObjectDescription = (

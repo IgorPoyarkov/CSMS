@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import { formatMoney } from "../PurchasePlan/purchasePlan.config";
+import { usePurchasePlan } from "../../services/PurchasePlan/purchasePlan.api";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
@@ -25,14 +26,14 @@ import {
   type ObjectStandardRef,
 } from "../../services/ObjectDescription/objectDescription.schema";
 import {
-  buildParticipantInstructionTemplate,
   isGoodsObjectDescription,
   mergeKtruCharacteristics,
   ktruToObjectCharacteristics,
-  PARTICIPANT_INSTRUCTION_HINT,
 } from "../../services/ObjectDescription/descriptionTemplates";
 import {
   findKtruByCode,
+  findKtruByOkpd2,
+  useCharacteristicsFillingInstructions,
   useKtruDictionary,
 } from "../../services/KtruRef/ktruRef.api";
 import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
@@ -47,6 +48,8 @@ import Select from "../UI/Select";
 
 interface ObjectDescriptionEditorProps {
   initialValue: ObjectDescription;
+  /** Организация заказчика — нужна, чтобы прочитать исходный план-график */
+  organizationId?: string | number;
   templatesByCode: Record<string, ObjectDescription>;
   contractService?: ContractService | null;
   educations?: EmployeeEducation[];
@@ -64,6 +67,7 @@ interface ObjectDescriptionEditorProps {
  */
 export default function ObjectDescriptionEditor({
   initialValue,
+  organizationId,
   templatesByCode,
   contractService,
   educations = [],
@@ -95,7 +99,27 @@ export default function ObjectDescriptionEditor({
 
   // Выбранная позиция КТРУ: единица измерения и характеристики берутся из неё,
   // поэтому справочник нужен даже если селект уже вернул код при выборе
-  const { data: ktruDictionary = [] } = useKtruDictionary();
+  const {
+    data: ktruDictionary = [],
+    isLoading: ktruDictionaryLoading,
+  } = useKtruDictionary();
+  const { data: fillingInstructions = {} } =
+    useCharacteristicsFillingInstructions();
+  const instructionOptions = useMemo(
+    () => Object.entries(fillingInstructions),
+    [fillingInstructions],
+  );
+  const ktruForOkpd2 = useMemo(
+    () => findKtruByOkpd2(ktruDictionary, draft.okpd2Code),
+    [ktruDictionary, draft.okpd2Code],
+  );
+  const hasKtruForOkpd2 = ktruForOkpd2.length > 0;
+  // Пока справочник грузится (или недоступен), флаг не прячем: иначе он
+  // «мигнёт» на время загрузки или исчезнет при сбое НСИ.
+  const ktruDictionaryUnavailable =
+    !ktruDictionaryLoading && ktruDictionary.length === 0;
+  const hideKtruFlag =
+    Boolean(draft.okpd2Code) && !ktruDictionaryUnavailable && !hasKtruForOkpd2;
   const selectedKtru = useMemo(
     () => findKtruByCode(ktruDictionary, draft.ktruCode),
     [ktruDictionary, draft.ktruCode],
@@ -105,14 +129,58 @@ export default function ObjectDescriptionEditor({
   // Пока КТРУ не выбран, единицу не трогаем: она придёт из каталога
   const unitWaitingForKtru = draft.useKtru && !selectedKtru;
   const showNewGoodsRequirement = isGoodsObjectDescription(draft);
-  const instructionTemplate = useMemo(
-    () => buildParticipantInstructionTemplate(draft),
-    [draft],
+
+  // ОКПД2 обязан быть общим с позицией плана-графика: иначе закупка не связана
+  // с ПГ, и сохранение блокируется до внесения изменений в план-график.
+  const { data: purchasePlan, isLoading: purchasePlanLoading } = usePurchasePlan(
+    draft.purchasePlanId,
+    organizationId ?? draft.organizationId ?? undefined,
   );
+  const planPosition = useMemo(
+    () =>
+      purchasePlan?.positions.find(
+        (item) => String(item.id) === String(draft.positionId),
+      ),
+    [purchasePlan, draft.positionId],
+  );
+  const planOkpd2Codes = useMemo(() => {
+    if (!planPosition) return [];
+    return [
+      planPosition.okpd2Code,
+      ...(planPosition.okpd2Items ?? []).map((item) => item.okpd2Code),
+    ]
+      .filter((code): code is string => Boolean(code?.trim()))
+      .map((code) => code.trim().toLowerCase());
+  }, [planPosition]);
+  const planContextExpected = Boolean(draft.purchasePlanId || draft.positionId);
+  const planPositionMissing =
+    planContextExpected && !purchasePlanLoading && !planPosition;
+  const planOkpd2Mismatch =
+    (Boolean(planPosition) || planPositionMissing) &&
+    !planOkpd2Codes.some(
+      (code) => code === draft.okpd2Code.trim().toLowerCase(),
+    );
+  const planCheckPending =
+    Boolean(draft.purchasePlanId) &&
+    (purchasePlanLoading || (!purchasePlan && Boolean(organizationId)));
+  const planBlocked =
+    planOkpd2Mismatch || planPositionMissing || planCheckPending;
+
+  // Инструкция участнику — текст из ЕИС. Если справочник подгрузился позже
+  // позиции КТРУ, формулировку по сохранённому коду берём при показе и сохранении.
+  const instructionText = (item: ObjectCharacteristic) =>
+    (item.instructionSourceCode &&
+      fillingInstructions[item.instructionSourceCode]) ||
+    item.instructionForParticipant;
 
   const complianceIssues = useMemo(
-    () => validateObjectDescriptionCompliance(draft),
-    [draft],
+    () =>
+      validateObjectDescriptionCompliance(draft, {
+        hasKtruForOkpd2: ktruDictionaryUnavailable
+          ? undefined
+          : hasKtruForOkpd2,
+      }),
+    [draft, hasKtruForOkpd2, ktruDictionaryUnavailable],
   );
   const blockingErrors = complianceIssues.filter((i) => i.level === "error");
 
@@ -167,10 +235,6 @@ export default function ObjectDescriptionEditor({
         ktruToObjectCharacteristics(selectedKtru),
       ),
     );
-  };
-
-  const handleApplyInstructionTemplate = () => {
-    patch("participantInstruction", instructionTemplate);
   };
 
   const handleApplyNormingTemplate = () => {
@@ -264,6 +328,21 @@ export default function ObjectDescriptionEditor({
     const status =
       requestedStatus === "approved" && !isHead ? "ready" : requestedStatus;
 
+    // Общий код ОКПД2 с позицией ПГ — обязательное условие связки закупки.
+    // Пока расхождение не устранено, любые действия с ООЗ недоступны.
+    if (planCheckPending) {
+      setSubmitError(
+        "Дождитесь проверки ОКПД2 по позиции плана-графика.",
+      );
+      return;
+    }
+    if (planOkpd2Mismatch || planPositionMissing) {
+      setSubmitError(
+        "ОКПД2 ООЗ не совпадает с ОКПД2 позиции плана-графика. Внесите изменения в ПГ (добавьте общий код ОКПД2) или выберите код из позиции ПГ.",
+      );
+      return;
+    }
+
     if (!draft.title.trim()) {
       setSubmitError("Укажите наименование объекта закупки.");
       return;
@@ -300,6 +379,11 @@ export default function ObjectDescriptionEditor({
     const nextToSave: ObjectDescription = {
       ...draft,
       status,
+      // Текст инструкции показателя фиксируем из ЕИС на момент сохранения
+      characteristics: draft.characteristics.map((item) => ({
+        ...item,
+        instructionForParticipant: instructionText(item),
+      })),
       // При неопределённом объёме в ООЗ фиксируем 1 — ЕИС требует числовое значение
       quantity: draft.isIndeterminateVolume ? "1" : draft.quantity,
       approvedByName:
@@ -375,7 +459,7 @@ export default function ObjectDescriptionEditor({
         </legend>
 
         <div className={block("grid")}>
-          <div className={block("field", ["wide"])}>
+          <div className={block("field", ["full"])}>
             <label className={block("label")} htmlFor="ooz-title">
               Наименование объекта закупки *
             </label>
@@ -396,16 +480,46 @@ export default function ObjectDescriptionEditor({
               name={draft.okpd2Name}
               multilineLabel
               onSelect={(item) => {
+                const nextCode = item?.code ?? "";
+                // Позиций КТРУ по коду нет — флаг применения каталога
+                // показывать и сохранять нельзя.
+                const ktruAvailable =
+                  !nextCode ||
+                  ktruDictionaryLoading ||
+                  ktruDictionary.length === 0 ||
+                  findKtruByOkpd2(ktruDictionary, nextCode).length > 0;
                 setDraft((prev) => ({
                   ...prev,
-                  okpd2Code: item?.code ?? "",
+                  okpd2Code: nextCode,
                   okpd2Name: item?.name ?? "",
                   title:
                     prev.title.trim() || !item?.name ? prev.title : item.name,
+                  useKtru: ktruAvailable ? prev.useKtru : false,
+                  ktruCode: ktruAvailable ? prev.ktruCode : "",
+                  ktruName: ktruAvailable ? prev.ktruName : "",
+                  characteristics: ktruAvailable
+                    ? prev.characteristics
+                    : prev.characteristics.map((c) => ({
+                        ...c,
+                        isMandatoryFromKtru: false,
+                      })),
                 }));
                 setSubmitError("");
               }}
             />
+            {(planOkpd2Mismatch || planPositionMissing) && (
+              <p className={block("error-msg")}>
+                Код ОКПД2 не совпадает ни с одним кодом ОКПД2 позиции
+                плана-графика (или позиция не найдена). Внесите изменения в ПГ
+                — добавьте общий код ОКПД2 в позицию, — либо выберите код из
+                позиции ПГ. Действия с ООЗ заблокированы.
+              </p>
+            )}
+            {planCheckPending && (
+              <p className={block("field-hint")}>
+                Проверяем код ОКПД2 по позиции плана-графика…
+              </p>
+            )}
             {matchedOkpd2?.isNormed && (
               <div className={block("norming-banner")}>
                 <span>
@@ -457,18 +571,6 @@ export default function ObjectDescriptionEditor({
           </div>
 
           <div className={block("field")}>
-            <label className={block("label")} htmlFor="ooz-qty">
-              Количество (объём)
-            </label>
-            <input
-              id="ooz-qty"
-              className={block("input")}
-              type="text"
-              disabled={draft.isIndeterminateVolume}
-              placeholder="1"
-              value={draft.isIndeterminateVolume ? "1" : draft.quantity}
-              onChange={(e) => patch("quantity", e.target.value)}
-            />
             <label className={block("checkbox-label")}>
               <input
                 type="checkbox"
@@ -487,49 +589,63 @@ export default function ObjectDescriptionEditor({
               />
               <span>Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)</span>
             </label>
+            <label className={block("label")} htmlFor="ooz-qty">
+              Количество (объём)
+            </label>
+            <input
+              id="ooz-qty"
+              className={block("input")}
+              type="text"
+              disabled={draft.isIndeterminateVolume}
+              placeholder="1"
+              value={draft.isIndeterminateVolume ? "1" : draft.quantity}
+              onChange={(e) => patch("quantity", e.target.value)}
+            />
           </div>
 
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="ooz-ktru">
-              Применение КТРУ (ПП РФ № 145)
-            </label>
-            <label className={block("checkbox-label")}>
-              <input
-                type="checkbox"
-                checked={draft.useKtru}
-                onChange={(e) => patch("useKtru", e.target.checked)}
-              />
-              <span>Включать позицию каталога товаров, работ, услуг</span>
-            </label>
-            {draft.useKtru && (
-              <>
-                <KtruSelect
-                  className={block("ktru-select")}
-                  okpd2Code={draft.okpd2Code}
-                  ktruCode={draft.ktruCode}
-                  onSelect={handleSelectKtru}
-                  disabled={!draft.okpd2Code}
-                  showCharacteristicFilter
+          {!hideKtruFlag && (
+            <div className={block("field")}>
+              <label className={block("label")} htmlFor="ooz-ktru">
+                Применение КТРУ (ПП РФ № 145)
+              </label>
+              <label className={block("checkbox-label")}>
+                <input
+                  type="checkbox"
+                  checked={draft.useKtru}
+                  onChange={(e) => patch("useKtru", e.target.checked)}
                 />
-                {selectedKtru?.characteristics.length ? (
-                  <button
-                    type="button"
-                    className={block("inline-btn")}
-                    onClick={handleApplyKtruCharacteristics}
-                  >
-                    + Подставить характеристики КТРУ (
-                    {selectedKtru.characteristics.length})
-                  </button>
-                ) : null}
-              </>
-            )}
-            {draft.useKtru && !draft.ktruRefusalReason && !draft.ktruCode && (
-              <span className={block("field-hint")}>
-                Если позиция КТРУ не подходит, укажите обоснование отказа — оно
-                сохранится в ООЗ.
-              </span>
-            )}
-          </div>
+                <span>Включать позицию каталога товаров, работ, услуг</span>
+              </label>
+              {draft.useKtru && (
+                <>
+                  <KtruSelect
+                    className={block("ktru-select")}
+                    okpd2Code={draft.okpd2Code}
+                    ktruCode={draft.ktruCode}
+                    onSelect={handleSelectKtru}
+                    disabled={!draft.okpd2Code}
+                    showCharacteristicFilter
+                  />
+                  {selectedKtru?.characteristics.length ? (
+                    <button
+                      type="button"
+                      className={block("inline-btn")}
+                      onClick={handleApplyKtruCharacteristics}
+                    >
+                      + Подставить характеристики КТРУ (
+                      {selectedKtru.characteristics.length})
+                    </button>
+                  ) : null}
+                </>
+              )}
+              {draft.useKtru && !draft.ktruRefusalReason && !draft.ktruCode && (
+                <span className={block("field-hint")}>
+                  Если позиция КТРУ не подходит, укажите обоснование отказа —
+                  оно сохранится в ООЗ.
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </fieldset>
 
@@ -749,17 +865,44 @@ export default function ObjectDescriptionEditor({
                     <label className={block("label")}>
                       Инструкция участнику по показателю (п. 2 ч. 1 ст. 33)
                     </label>
-                    <input
+                    {/* Текст берётся из справочника ЕИС: пользователь выбирает
+                        формулировку, но не пишет её от руки. */}
+                    <select
                       className={block("input")}
-                      type="text"
-                      placeholder="Как участнику указать значение в заявке (неизменяемое / конкретное)"
-                      value={item.instructionForParticipant}
-                      onChange={(e) =>
+                      value={item.instructionSourceCode}
+                      disabled={instructionOptions.length === 0}
+                      onChange={(e) => {
+                        const code = e.target.value;
                         updateCharacteristic(idx, {
-                          instructionForParticipant: e.target.value,
-                        })
-                      }
-                    />
+                          instructionSourceCode: code,
+                          instructionForParticipant:
+                            fillingInstructions[code] ?? "",
+                        });
+                      }}
+                    >
+                      <option value="">Не выбрана</option>
+                      {instructionOptions.map(([code, text]) => (
+                        <option key={code} value={code} title={text}>
+                          {text}
+                        </option>
+                      ))}
+                    </select>
+                    {instructionText(item) && (
+                      <input
+                        className={block("input")}
+                        type="text"
+                        readOnly
+                        title={instructionText(item)}
+                        value={instructionText(item)}
+                      />
+                    )}
+                    {instructionOptions.length === 0 && (
+                      <span className={block("field-hint")}>
+                        Справочник ЕИС «Инструкции по заполнению характеристик
+                        в заявке» не загружен. Загрузите его в разделе
+                        справочников НСИ и повторите.
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1024,32 +1167,18 @@ export default function ObjectDescriptionEditor({
             <label className={block("label")} htmlFor="ooz-instruction">
               Инструкция по объекту закупки для участника (п. 2 ч. 1 ст. 33)
             </label>
-            <p className={block("field-hint")}>{PARTICIPANT_INSTRUCTION_HINT}</p>
-            <div className={block("instruction-toolbar")}>
-              <button
-                type="button"
-                className={block("inline-btn")}
-                onClick={handleApplyInstructionTemplate}
-              >
-                Подставить готовый шаблон по характеристикам
-              </button>
-              <span className={block("field-hint")}>
-                Шаблон учитывает диапазоны, «не менее» / «не более» и перечни
-                значений — текст можно отредактировать.
-              </span>
-            </div>
+            <p className={block("field-hint")}>
+              Инструкция по отдельному показателю заполняется из справочника
+              ЕИС и редактируется в карточке показателя.
+            </p>
             <textarea
               id="ooz-instruction"
               className={block("textarea", ["instruction"])}
-              rows={5}
-              placeholder="Инструкция формируется из структурированных характеристик КТРУ / ООЗ…"
+              rows={3}
+              placeholder="Дополнительные пояснения к объекту закупки, если они нужны…"
               value={draft.participantInstruction}
               onChange={(e) => patch("participantInstruction", e.target.value)}
             />
-            <details className={block("instruction-preview")}>
-              <summary>Что получится по текущим характеристикам</summary>
-              <pre>{instructionTemplate}</pre>
-            </details>
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -1167,7 +1296,8 @@ export default function ObjectDescriptionEditor({
           type="button"
           className={block("secondary-btn")}
           onClick={() => saveWithStatus("draft")}
-          disabled={isSaving}
+          disabled={isSaving || planBlocked}
+          title={planBlocked ? "Сначала устраните расхождение ОКПД2 с ПГ" : undefined}
         >
           Сохранить как черновик
         </button>
@@ -1175,7 +1305,8 @@ export default function ObjectDescriptionEditor({
           type="button"
           className={block("primary-btn")}
           onClick={() => saveWithStatus("ready")}
-          disabled={isSaving}
+          disabled={isSaving || planBlocked}
+          title={planBlocked ? "Сначала устраните расхождение ОКПД2 с ПГ" : undefined}
         >
           {isSaving ? "Сохранение…" : "Сохранить и направить в КС"}
         </button>
@@ -1186,11 +1317,13 @@ export default function ObjectDescriptionEditor({
           type="button"
           className={block("approve-btn")}
           onClick={() => saveWithStatus("approved")}
-          disabled={isSaving || !isHead}
+          disabled={isSaving || planBlocked || !isHead}
           title={
-            isHead
-              ? "Утвердить ООЗ и открыть следующие этапы закупки"
-              : "Утверждает руководитель контрактной службы"
+            planBlocked
+              ? "Сначала устраните расхождение ОКПД2 с ПГ"
+              : isHead
+                ? "Утвердить ООЗ и открыть следующие этапы закупки"
+                : "Утверждает руководитель контрактной службы"
           }
         >
           Утвердить

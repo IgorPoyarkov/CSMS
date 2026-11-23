@@ -345,6 +345,7 @@ export default function NormingRequirementsPage() {
         <ObjectDescriptionEditor
           key={String(editingItem.id ?? "new")}
           initialValue={editingItem}
+          organizationId={organization?.id}
           templatesByCode={templatesByCode}
           contractService={contractService}
           educations={educations}

@@ -17,9 +17,6 @@ import type {
  * полная инструкция формируется на этапе извещения (там есть не только ООЗ).
  */
 
-export const PARTICIPANT_INSTRUCTION_HINT =
-  "Здесь формируется часть инструкции по объекту закупки. Полная инструкция по заполнению заявки собирается на этапе извещения.";
-
 /**
  * Признак товарной позиции: п. 7 ч. 1 ст. 33 применяется к товару, в том числе
  * поставляемому в ходе работ/услуг. Неизвестный код ОКПД2 оставляем видимым —
@@ -59,7 +56,10 @@ export const ktruToObjectCharacteristics = (
     isMandatoryFromKtru: characteristic.isMandatory,
     isAdditionalOverKtru: false,
     additionalJustification: "",
+    // Текст инструкции и код берём из ЕИС: локальную формулировку не изобретаем.
     instructionForParticipant: characteristic.instruction ?? "",
+    instructionSourceCode:
+      characteristic.characteristicsFillingInstructionCode ?? "",
   }));
 
 /**
@@ -98,6 +98,8 @@ export const mergeKtruCharacteristics = (
       instructionForParticipant:
         characteristic.instructionForParticipant ||
         existing.instructionForParticipant,
+      instructionSourceCode:
+        characteristic.instructionSourceCode || existing.instructionSourceCode,
       isMandatoryFromKtru: true,
       isAdditionalOverKtru: false,
     };
@@ -106,76 +108,4 @@ export const mergeKtruCharacteristics = (
   return merged;
 };
 
-const unitSuffix = (unit: string) => (unit ? ` ${unit}` : "");
 
-/**
- * Готовый шаблон инструкции участнику по п. 2 ч. 1 ст. 33 44-ФЗ.
- * Текст собирается только из структурированных показателей ООЗ: для
- * диапазонов, ограничений и перечней формулировки отличаются.
- */
-export const buildParticipantInstructionTemplate = (
-  description: ObjectDescription,
-): string => {
-  const lines = [
-    "Инструкция по заполнению первой части заявки (часть описания объекта закупки, п. 2 ч. 1 ст. 33 44-ФЗ):",
-    "Участник закупки указывает конкретные показатели, соответствующие требованиям описания объекта закупки и единицам измерения, в них указанным.",
-  ];
-
-  for (const characteristic of description.characteristics) {
-    if (!characteristic.name.trim()) continue;
-    const name = `«${characteristic.name.trim()}»`;
-    const unit = unitSuffix(characteristic.unit.trim());
-
-    switch (characteristic.valueType) {
-      case "range":
-        lines.push(
-          `По показателю ${name} участник указывает значение в диапазоне от ${
-            characteristic.minValue.trim() || "—"
-          } до ${characteristic.maxValue.trim() || "—"}${unit}, включая границы диапазона.`,
-        );
-        break;
-      case "min":
-        lines.push(
-          `По показателю ${name} участник указывает конкретное значение не менее ${
-            characteristic.minValue.trim() || "—"
-          }${unit}.`,
-        );
-        break;
-      case "max":
-        lines.push(
-          `По показателю ${name} участник указывает конкретное значение не более ${
-            characteristic.maxValue.trim() || "—"
-          }${unit}.`,
-        );
-        break;
-      case "enum":
-        lines.push(
-          `По показателю ${name} участник указывает одно значение из перечня: ${
-            characteristic.valueText.trim() || "—"
-          }${unit}.`,
-        );
-        break;
-      case "exact":
-        lines.push(
-          `По показателю ${name} участник указывает конкретное значение ${
-            characteristic.valueText.trim() || "—"
-          }${unit}.`,
-        );
-        break;
-      default:
-        break;
-    }
-  }
-
-  if (description.characteristics.length === 0) {
-    lines.push(
-      "Характеристики с диапазонами, ограничениями и перечнями значений в описании не установлены.",
-    );
-  }
-
-  lines.push(
-    "Для показателей с диапазоном участник вправе указать любое значение в пределах диапазона; для показателей «не менее» / «не более» — конкретное значение, удовлетворяющее ограничению; для перечня — одно значение из перечня.",
-  );
-
-  return lines.join("\n");
-};

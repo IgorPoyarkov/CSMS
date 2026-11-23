@@ -47,6 +47,15 @@ const ktruCharacteristicFromRaw = (
     // характеристики позиции считаем обязательными по умолчанию.
     isMandatory: typeof row.isMandatory === "boolean" ? row.isMandatory : true,
     instruction: text("instruction"),
+    characteristicsFillingInstructionCode: (() => {
+      const ref = row.characteristicsFillingInstruction;
+      if (typeof ref === "string") return ref;
+      if (ref && typeof ref === "object") {
+        const code = (ref as Record<string, unknown>).code;
+        return typeof code === "string" && code.trim() ? code : undefined;
+      }
+      return undefined;
+    })(),
   };
 };
 
@@ -88,6 +97,42 @@ export const ktruFromReferenceItem = (
         : undefined,
   };
 };
+
+/**
+ * Справочник ЕИС «Инструкции по заполнению характеристик в заявке»
+ * (nsiCharacteristicsFillingInstructions). Код берётся из характеристики
+ * КТРУ, текст — из активной версии справочника, а не генерируется локально.
+ */
+export const useCharacteristicsFillingInstructions = () =>
+  useQuery<Record<string, string>>({
+    queryKey: ["characteristicsFillingInstructions"],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      const byCode: Record<string, string> = {};
+      try {
+        const { data } = await referenceApi.get(
+          "/api/references/nsiCharacteristicsFillingInstructions/items",
+          { params: { take: 500 } },
+        );
+        for (const item of readReferenceItems(data)) {
+          let name = item.name ?? "";
+          try {
+            const payload = item.payloadJson ? JSON.parse(item.payloadJson) : {};
+            if (typeof payload.name === "string" && payload.name.trim()) {
+              name = payload.name;
+            }
+          } catch {
+            // Оставляем имя из самой записи справочника.
+          }
+          if (name) byCode[item.code] = name;
+        }
+      } catch {
+        // Справочник не импортирован — поле останется без текста из ЕИС.
+      }
+      return byCode;
+    },
+  });
 
 /**
  * Справочник КТРУ: основной источник — активный снимок НСИ в PostgreSQL,
