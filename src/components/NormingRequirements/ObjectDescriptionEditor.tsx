@@ -543,6 +543,29 @@ export default function ObjectDescriptionEditor({
             )}
           </div>
 
+          {/* Флаг объёма — отдельная строка: иначе его длинная подпись
+              сдвигает «Количество» относительно поля «Единица измерения». */}
+          <div className={block("field", ["full"])}>
+            <label className={block("checkbox-label")}>
+              <input
+                type="checkbox"
+                checked={draft.isIndeterminateVolume}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setDraft((prev) => ({
+                    ...prev,
+                    isIndeterminateVolume: checked,
+                    // ЕИС всё равно требует число: при неопределённом объёме
+                    // фиксируем 1 и блокируем редактирование поля
+                    quantity: checked ? "1" : prev.quantity,
+                  }));
+                  setSubmitError("");
+                }}
+              />
+              <span>Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)</span>
+            </label>
+          </div>
+
           <div className={block("field")}>
             <label className={block("label")} htmlFor="ooz-unit">
               Единица измерения (ОКЕИ)
@@ -571,24 +594,6 @@ export default function ObjectDescriptionEditor({
           </div>
 
           <div className={block("field")}>
-            <label className={block("checkbox-label")}>
-              <input
-                type="checkbox"
-                checked={draft.isIndeterminateVolume}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setDraft((prev) => ({
-                    ...prev,
-                    isIndeterminateVolume: checked,
-                    // ЕИС всё равно требует число: при неопределённом объёме
-                    // фиксируем 1 и блокируем редактирование поля
-                    quantity: checked ? "1" : prev.quantity,
-                  }));
-                  setSubmitError("");
-                }}
-              />
-              <span>Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)</span>
-            </label>
             <label className={block("label")} htmlFor="ooz-qty">
               Количество (объём)
             </label>
@@ -604,7 +609,7 @@ export default function ObjectDescriptionEditor({
           </div>
 
           {!hideKtruFlag && (
-            <div className={block("field")}>
+            <div className={block("field", ["full"])}>
               <label className={block("label")} htmlFor="ooz-ktru">
                 Применение КТРУ (ПП РФ № 145)
               </label>

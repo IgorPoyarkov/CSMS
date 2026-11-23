@@ -457,8 +457,18 @@
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    // Фиксированные две колонки: autofit подстраивал число колонок под
+    // ширину, из-за чего при скрытом флаге КТРУ поле объёма уезжало в
+    // первую колонку, а длинная ошибка ОКПД2 растягивала соседнюю колонку.
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    // Каждое поле занимает только свою высоту: подсказки и ошибка не
+    // должны растягивать соседние поля и сдвигать их содержимое вниз.
+    align-items: start;
     gap: 12px;
+
+    @media (max-width: 640px) {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
 
   &__field {
@@ -468,11 +478,9 @@
     min-width: 0;
 
     &--wide {
-      grid-column: span 2;
-
-      @media (max-width: 640px) {
-        grid-column: span 1;
-      }
+      // Ошибка сверки с ПГ и подсказки занимают всю строку,
+      // чтобы не съезжала соседняя колонка.
+      grid-column: 1 / -1;
     }
 
     // Наименование объекта закупки занимает всю строку сетки.
@@ -682,7 +690,7 @@
   }
 
   &__primary-btn {
-    padding: 7px 14px;
+    padding: 6px 14px;
     border: 1px solid var(--accent);
     border-radius: 6px;
     background: var(--accent);
@@ -703,7 +711,7 @@
   }
 
   &__approve-btn {
-    padding: 7px 14px;
+    padding: 6px 14px;
     border: 1px solid var(--state-success);
     border-radius: 6px;
     background: var(--state-success-soft);
