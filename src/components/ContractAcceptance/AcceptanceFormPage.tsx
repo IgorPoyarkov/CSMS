@@ -17,6 +17,7 @@ import type {
   AcceptanceKind,
 } from "../../services/Acceptance/acceptance.types";
 import { readApiError } from "../../services/csmsApi";
+import { acceptanceInputEisReadiness } from "../../services/Eis/eisExecutionReadiness";
 import {
   acceptanceActor,
   acceptanceFormFrom,
@@ -122,6 +123,15 @@ export default function AcceptanceFormPage() {
       ? addWorkingDaysIso(form.documentDate, term)
       : "";
   }, [form.documentDate, form.acceptanceTermDays]);
+
+  // Готовность к XML ЕИС (Альбом 17.0) по текущим значениям формы: реестровый
+  // номер контракта и номер документа проверяются до сохранения, а не после
+  // отказа шлюза на сборке пакета. Позиции добавляются в карточке, поэтому
+  // здесь только шапка документа — полная проверка ждёт там. useMemo не нужен:
+  // проверка дешёвая, а `form` — новый объект на каждый рендер.
+  const eisReadiness = acceptanceInputEisReadiness(
+    buildAcceptanceInput(form, orgId, actor),
+  );
 
   const setField = <K extends keyof AcceptanceFormState>(
     key: K,
@@ -263,6 +273,47 @@ export default function AcceptanceFormPage() {
       <section className={block("section")}>
         <h2 className={block("section-title")}>Контракт</h2>
 
+        {/* Проверка показывается только по выбранному контракту: на пустой форме
+            она ругалась бы на поля, которых ещё нет */}
+        {form.contractId && (
+          <>
+            <p className={block("section-note")}>
+              Готовность к XML ЕИС (Альбом 17.0): {eisReadiness.summary}.
+              Проверка идёт по текущим значениям формы — реестровый номер
+              контракта и номер документа ЕИС требует у каждого документа о
+              приёмке.
+            </p>
+
+            {eisReadiness.blocking.length > 0 && (
+              <ul className={block("issues")}>
+                {eisReadiness.blocking.map((issue, index) => (
+                  <li
+                    key={`eis-${issue.path}-${index}`}
+                    className={block("issue", ["error"])}
+                  >
+                    <span className={block("issue-field")}>{issue.path}</span>
+                    <span>{issue.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {eisReadiness.warnings.length > 0 && (
+              <ul className={block("issues")}>
+                {eisReadiness.warnings.map((issue, index) => (
+                  <li
+                    key={`eis-warn-${issue.path}-${index}`}
+                    className={block("issue")}
+                  >
+                    <span className={block("issue-field")}>{issue.path}</span>
+                    <span>{issue.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+
         <div className={block("grid")}>
           <label className={block("field", ["wide"])}>
             <span className={block("field-label")}>Контракт из реестра</span>
@@ -359,6 +410,9 @@ export default function AcceptanceFormPage() {
                 setField("documentNumber", event.target.value)
               }
             />
+            {errors.documentNumber && (
+              <span className={block("field-error")}>{errors.documentNumber}</span>
+            )}
           </label>
 
           <label className={block("field")}>

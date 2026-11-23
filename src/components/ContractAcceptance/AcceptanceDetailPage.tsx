@@ -21,6 +21,10 @@ import type {
 } from "../../services/Acceptance/acceptance.types";
 import { readApiError } from "../../services/csmsApi";
 import {
+  acceptanceEisReadiness,
+  okeiCodeFromUnit,
+} from "../../services/Eis/eisExecutionReadiness";
+import {
   acceptanceActor,
   acceptanceActions,
   acceptanceKindLabels,
@@ -354,6 +358,9 @@ export default function AcceptanceDetailPage() {
   const positionsEditable = canEditAcceptancePositions(acceptance.status);
   const defectsEditable = canManageAcceptanceDefects(acceptance.status);
   const actions = acceptanceActions(acceptance.status);
+  // Готовность к XML ЕИС: считается по сохранённому документу, чтобы человек
+  // видел, что именно не примет шлюз, не дожидаясь отказа на сборке пакета
+  const eisReadiness = acceptanceEisReadiness(acceptance);
 
   return (
     <main className={block()}>
@@ -610,7 +617,17 @@ export default function AcceptanceDetailPage() {
                 className={block("input")}
                 value={positionUnit}
                 onChange={(event) => setPositionUnit(event.target.value)}
+                placeholder="шт / 796"
               />
+              {/* ЕИС ждёт код ОКЕИ: подсказываем распознанный код, но текст
+                  не переписываем — человек сам решает, как хранить единицу */}
+              {positionUnit.trim() && (
+                <span className={block("field-hint")}>
+                  {okeiCodeFromUnit(positionUnit)
+                    ? `ОКЕИ: ${okeiCodeFromUnit(positionUnit)}`
+                    : "код ОКЕИ не распознан — укажите код из справочника"}
+                </span>
+              )}
             </label>
 
             <label className={block("field")}>
@@ -826,6 +843,57 @@ export default function AcceptanceDetailPage() {
             </strong>
           </div>
         </div>
+      </section>
+
+      <section className={block("section")}>
+        <h2 className={block("section-title")}>
+          Готовность к передаче в ЕИС (XML 17.0)
+        </h2>
+
+        <p className={block("section-note")}>
+          Проверка по схеме `contractExecutionDocAcceptanceType`:{" "}
+          {eisReadiness.summary}. Пакет собирает шлюз csms-api из этого
+          документа — если замечания останутся, он откажет до подписания.
+        </p>
+
+        {eisReadiness.blocking.length > 0 && (
+          <ul className={block("issues")}>
+            {eisReadiness.blocking.map((issue, index) => (
+              <li
+                key={`xml-error-${issue.path}-${index}`}
+                className={block("issue", ["error"])}
+              >
+                <span className={block("issue-field")}>{issue.path}</span>
+                <span>
+                  {issue.message}
+                  {issue.hint ? ` — ${issue.hint}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {eisReadiness.warnings.length > 0 && (
+          <ul className={block("issues")}>
+            {eisReadiness.warnings.map((issue, index) => (
+              <li key={`xml-warn-${issue.path}-${index}`} className={block("issue")}>
+                <span className={block("issue-field")}>{issue.path}</span>
+                <span>
+                  {issue.message}
+                  {issue.hint ? ` — ${issue.hint}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {eisReadiness.ok && (
+          <p className={block("section-note")}>
+            Блокирующих замечаний нет: документ можно передавать в ЕИС. Код вида
+            документа (nsiContractExecutionDoc) и идентификатор заказчика
+            указываются при сборке пакета на шлюзе.
+          </p>
+        )}
       </section>
 
       <section className={block("section")}>

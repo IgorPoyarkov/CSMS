@@ -6,8 +6,18 @@ import {
   isIkz,
 } from "../Eis/eisIdentifiers";
 import {
+  EIS_BASE_DOCUMENT_TYPES,
+  EIS_DEFAULT_PAY_DOCUMENT_TYPE,
+  EIS_PAY_DOCUMENT_TYPE_CODES,
+  EIS_PAY_DOCUMENT_TYPE_LABELS,
+  EIS_RUBLE_CURRENCY_CODE,
+  type EisBaseDocumentType,
+  type EisPayDocumentTypeCode,
+} from "../Eis/eisExecutionReadiness";
+import {
   optionalDate,
   optionalMoney,
+  optionalPattern,
   optionalText,
   requiredMoney,
   requiredText,
@@ -75,35 +85,27 @@ export const ContractStageListSchema = z.array(ContractStageSchema);
 // ─── Платёж по контракту (ст. 34 ч. 12, 13.1) ─────────────────────────────
 
 /**
- * Коды вида платежа в XSD ЕИС (payDocumentInfo/payDocumentType):
- * PC — авансовый платёж, PN — промежуточный, RC — окончательный расчёт,
- * RE — возврат. Наши типы advance/intermediate/final переводятся в них
- * при маппинге, но код можно задать и явно.
+ * Коды вида платежа в XSD ЕИС (`payDocumentInfo/payDocumentType`) и подписи.
+ *
+ * Значения — из Альбома 17.0 (`oosbaseX1_payDocumentType`): поле описывает
+ * природу платежа (оплата контрагенту, налоги, неустойка, возврат), а не этап
+ * расчёта. Наши «аванс / промежуточный / окончательный» этим полем не
+ * различаются: все три — оплата контрагенту (PC). Неустойку и возврат
+ * выбирают вручную, иначе ЕИС прочитает обычный платёж как возврат.
  */
-export const CONTRACT_PAYMENT_XSD_CODES = ["PC", "PN", "RC", "RE"] as const;
+export const CONTRACT_PAYMENT_XSD_CODES = EIS_PAY_DOCUMENT_TYPE_CODES;
 
-export type ContractPaymentXsdCode =
-  (typeof CONTRACT_PAYMENT_XSD_CODES)[number];
+export type ContractPaymentXsdCode = EisPayDocumentTypeCode;
 
-export const CONTRACT_PAYMENT_XSD_LABELS: Record<
-  ContractPaymentXsdCode,
-  string
-> = {
-  PC: "PC — авансовый платёж",
-  PN: "PN — промежуточный платёж",
-  RC: "RC — окончательный расчёт",
-  RE: "RE — возврат",
-};
+export const CONTRACT_PAYMENT_XSD_LABELS = EIS_PAY_DOCUMENT_TYPE_LABELS;
 
-/** Код XSD по нашему типу платежа. */
+/**
+ * Код XSD по нашему типу платежа. Этап расчёта в `payDocumentType` не
+ * участвует, поэтому по умолчанию всегда «оплата контрагенту».
+ */
 export const paymentXsdCodeFor = (
-  paymentType: ContractPayment["paymentType"],
-): ContractPaymentXsdCode =>
-  paymentType === "advance"
-    ? "PC"
-    : paymentType === "intermediate"
-      ? "PN"
-      : "RC";
+  _paymentType: ContractPayment["paymentType"],
+): ContractPaymentXsdCode => EIS_DEFAULT_PAY_DOCUMENT_TYPE;
 
 /** Срок оплаты по ч. 13.1 ст. 34: 7 рабочих дней, при казначейском — 10. */
 export const paymentDeadlineDays = (treasuryExecution: boolean): number =>
@@ -150,6 +152,21 @@ export const ContractPaymentSchema = z.object({
   ),
   // Казначейское исполнение
   treasuryExecution: z.boolean().default(false),
+  // КБК платежа: при казначейском исполнении обязателен — ЕИС раскладывает
+  // сумму по бюджетной классификации (paymentsSumInfo/budgetFinancingsInfo)
+  kbk: optionalPattern(/^\d{20}$/, "КБК — 20 цифр"),
+  // Документ-основание платежа (baseDocumentInfo/baseDocumentType):
+  // C — контракт (аванс), A — документ о приёмке, N/U — неустойка
+  baseDocumentType: z.enum(EIS_BASE_DOCUMENT_TYPES).default("C"),
+  // Номер и дата документа-основания
+  baseDocumentNumber: optionalText(1, "Укажите номер документа-основания"),
+  baseDocumentDate: optionalDate(),
+  // Идентификатор документа о приёмке в ЕИС (docAcceptance/RDICSid):
+  // без него основание «документ о приёмке» ЕИС не примет
+  baseDocumentSid: optionalText(
+    1,
+    "Укажите идентификатор документа о приёмке в ЕИС",
+  ),
   // Комментарий
   comment: z.string().optional(),
 });
@@ -430,12 +447,22 @@ export const paymentDeadlineDate = (
 /**
  * Полный набор полей payDocumentInfo для маппера в XML ЕИС.
  * Собирается из карточки платежа, чтобы бэк не додумывал коды и сроки.
+ * Пути соответствуют `contractExecutionPaymentType` Альбома 17.0.
  */
 export interface PayDocumentInfo {
   payDocumentNum: string;
   payDocumentDate: string;
   paid: string;
   payDocumentType: ContractPaymentXsdCode;
+  /** Валюта платежа: в CSMS только рубли (643). */
+  currency: string;
+  baseDocumentType: EisBaseDocumentType;
+  baseDocumentNumber: string;
+  baseDocumentDate: string;
+  /** Идентификатор документа о приёмке в ЕИС (docAcceptance/RDICSid). */
+  baseDocumentSid: string;
+  /** КБК: обязателен при казначейском исполнении. */
+  kbk: string;
   bankDocumentNumber: string;
   regNumberExecution: string;
   paymentDeadlineDate: string;
@@ -449,6 +476,12 @@ export const buildPayDocumentInfo = (
   paid: payment.amount,
   payDocumentType:
     payment.paymentTypeCode ?? paymentXsdCodeFor(payment.paymentType),
+  currency: EIS_RUBLE_CURRENCY_CODE,
+  baseDocumentType: payment.baseDocumentType ?? "C",
+  baseDocumentNumber: payment.baseDocumentNumber ?? "",
+  baseDocumentDate: payment.baseDocumentDate ?? "",
+  baseDocumentSid: payment.baseDocumentSid ?? "",
+  kbk: payment.kbk ?? "",
   bankDocumentNumber: payment.bankDocumentNumber ?? "",
   regNumberExecution: payment.regNumberExecution ?? "",
   paymentDeadlineDate: paymentDeadlineDate(payment),

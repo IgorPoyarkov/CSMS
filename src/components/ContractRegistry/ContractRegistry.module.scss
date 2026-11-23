@@ -3423,3 +3423,54 @@
   font-size: 12px;
   color: var(--state-danger);
 }
+
+/* ===== Готовность к XML ЕИС (платежи и приёмка) ===== */
+
+.xmlBadge,
+.xmlBadge_ok,
+.xmlBadge_error {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.xmlBadge_ok {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.xmlBadge_error {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+/* Плашка под формой платежа: видно, что именно не примет ЕИС */
+.xmlNotice {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.xmlNotice_ok {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.xmlNotice_error {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.xmlNoticeItem {
+  font-size: 11px;
+  opacity: 0.85;
+}

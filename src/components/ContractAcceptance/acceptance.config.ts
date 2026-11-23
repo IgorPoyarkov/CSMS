@@ -388,6 +388,20 @@ export const validateAcceptanceForm = (
     errors.contractId = "Выберите контракт из реестра.";
   }
 
+  // Номер и дата документа — обязательные поля XSD
+  // (docAcceptanceInfo/documentNum, documentDate): без них пакет не собрать,
+  // поэтому проверяем на входе, а не на отправке в ЕИС
+  if (!form.documentNumber.trim()) {
+    errors.documentNumber =
+      "Укажите номер документа: без него сведения о приёмке ЕИС не примет.";
+  } else if (form.documentNumber.trim().length > 100) {
+    errors.documentNumber = "Номер документа о приёмке — не более 100 знаков.";
+  }
+
+  if (!form.documentDate) {
+    errors.documentDate = "Укажите дату документа о приёмке.";
+  }
+
   const price = parseNumber(form.contractPrice);
 
   if (price === null || price <= 0) {

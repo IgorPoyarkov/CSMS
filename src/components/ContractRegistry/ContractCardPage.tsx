@@ -231,7 +231,16 @@ export default function ContractCardPage() {
           />
         </div>
         <div id="contract-payments">
-          <ContractPaymentsSection contractId={contractId} />
+          {/* Реквизиты контракта передаются для проверки XML ЕИС: реестровый
+              номер адресует сведения об исполнении, ИНН — получателя платежа */}
+          <ContractPaymentsSection
+            contractId={contractId}
+            contract={{
+              eisRegistryNumber: contract.eisRegistryNumber,
+              contractNumber: contract.contractNumber,
+              supplierInn,
+            }}
+          />
         </div>
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
             контрактов его может не быть — тогда блока нет совсем, чтобы не

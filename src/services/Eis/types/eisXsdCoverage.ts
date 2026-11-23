@@ -231,7 +231,37 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         field: "paymentType / paymentTypeCode",
         xsd: "payDocumentInfo/payDocumentType",
         status: "mapped",
-        note: "У нас advance/intermediate/final, в XSD PC/PN/RC/RE; соответствие задаёт paymentXsdCodeFor, код можно переопределить полем paymentTypeCode.",
+        note: "payDocumentType — природа платежа, а не этап расчёта: PC — оплата контрагенту (аванс, промежуточный и окончательный), PN — неустойка, RC/RE/RN — возвраты. По умолчанию всегда PC; код можно переопределить полем paymentTypeCode.",
+      },
+      {
+        field: "currency",
+        xsd: "payDocumentInfo/currency",
+        status: "mapped",
+        note: "Всегда 643 (рубли): других валют в CSMS нет, поле не редактируется.",
+      },
+      {
+        field: "baseDocumentType",
+        xsd: "payDocumentInfo/baseDocumentInfo/baseDocumentType",
+        status: "mapped",
+        note: "C — контракт (аванс), A — документ о приёмке, N/U — неустойка. Значение по умолчанию — C.",
+      },
+      {
+        field: "baseDocumentSid",
+        xsd: "payDocumentInfo/baseDocumentInfo/docAcceptance/RDICSid",
+        status: "mapped",
+        note: "Идентификатор документа о приёмке в ЕИС; без него основание A не принять. Приходит после регистрации акта в ЕИС.",
+      },
+      {
+        field: "baseDocumentNumber / baseDocumentDate",
+        xsd: "payDocumentInfo/baseDocumentInfo/docAcceptance",
+        status: "partial",
+        note: "Номер и дата нашего документа-основания; XSD ждёт их в блоке docAcceptance только вместе с RDICSid.",
+      },
+      {
+        field: "kbk",
+        xsd: "payDocumentInfo/paymentsSumInfo/budgetFinancingsInfo/KBK",
+        status: "mapped",
+        note: "Обязателен при казначейском исполнении: ЕИС сверяет КБК с контрактом (20 разрядов).",
       },
       {
         field: "invoiceNumber",
@@ -277,6 +307,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
     notes: [
       "Оплата — отдельный документ исполнения контракта.",
       "ЕИС присваивает реестровый номер сведений (regNumberExecution) — его надо сохранять у нас.",
+      "Готовность к XML проверяется до отправки: paymentEisReadiness в src/services/Eis/eisExecutionReadiness.ts (форма платежа, таблица платежей и сумма замечаний в карточке).",
     ],
   },
   {
@@ -318,6 +349,7 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       "Тип приёмки детально не сверялся: статусы partial означают «поле есть в XSD, путь уточнить при маппинге».",
       "Приёмка — документ исполнения, а не часть карточки контракта.",
       "Маппер приёмки реализован в шлюзе (`csms-api/Csms.Infrastructure/AcceptanceXmlMapper.cs`, задача Б7): XML собирается из доменного документа, а не из карточки поставки. Строки этой карты относятся к домену `contractDeliveries`; пути в маппере надо сверять отдельной задачей.",
+      "Готовность к XML проверяется до сборки пакета: acceptanceEisReadiness в src/services/Eis/eisExecutionReadiness.ts — она же блокирует создание пакета в /eis/packages и показывается в карточке приёмки.",
       "Проверки вложений (имя файла, размер, отпечаток, код вида документа) общие для всех документов — `src/services/Eis/eisAttachments.ts`.",
     ],
   },

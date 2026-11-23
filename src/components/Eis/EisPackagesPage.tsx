@@ -27,6 +27,11 @@ import {
 } from "../../services/Eis/eisPackages.schema";
 import { useAcceptances } from "../../services/Acceptance/acceptance.api";
 import {
+  acceptanceEisReadiness,
+  eisXmlIssuesText,
+  eisXmlReadinessText,
+} from "../../services/Eis/eisExecutionReadiness";
+import {
   acceptanceStatusLabels,
   acceptedAcceptanceStatuses,
 } from "../ContractAcceptance/acceptance.config";
@@ -208,6 +213,11 @@ export default function EisPackagesPage() {
   }, [acceptances, focusContract]);
   const pickedAcceptance =
     exportableAcceptances.find((item) => item.id === pickedAcceptanceId) ?? null;
+  // Готовность приёмки к XML ЕИС: шлюз собирает документ из неё и валидирует
+  // по XSD, поэтому замечания показываем до запроса, а не после 409
+  const pickedAcceptanceReadiness = pickedAcceptance
+    ? acceptanceEisReadiness(pickedAcceptance)
+    : null;
 
   const pickContract = (contractId: string) => {
     const contract = contracts.find(
@@ -266,6 +276,16 @@ export default function EisPackagesPage() {
             "XSD 17.0 требует его в документе о приёмке, а сам код берётся из справочника — подставлять его наугад нельзя.",
         );
 
+        return;
+      }
+
+      // Проверка готовности доменного документа до запроса к шлюзу: он соберёт
+      // XML из сохранённого акта и вернёт 409 на тех же полях, но человеку
+      // полезнее увидеть, что именно исправить в карточке приёмки
+      const readiness = acceptanceEisReadiness(pickedAcceptance);
+
+      if (!readiness.ok) {
+        setFormError(eisXmlReadinessText(readiness));
         return;
       }
 
@@ -615,6 +635,44 @@ export default function EisPackagesPage() {
             ) : null}
           </div>
         )}
+
+        {/* Готовность документа о приёмке к XML ЕИС: шлюз соберёт
+            contractExecutionDocAcceptanceType из этого документа, поэтому
+            замечания видны до сборки, а не в тексте отказа 409 */}
+        {pickedAcceptanceReadiness && (
+          <div
+            className={block(pickedAcceptanceReadiness.ok ? "source" : "error")}
+            title={eisXmlIssuesText(pickedAcceptanceReadiness)}
+          >
+            {pickedAcceptanceReadiness.ok ? (
+              <>
+                Приёмка проверена по XSD 17.0:{" "}
+                {pickedAcceptanceReadiness.summary}.
+                {pickedAcceptanceReadiness.warnings.length > 0 && (
+                  <>
+                    {" "}
+                    Предупреждения не блокируют передачу — ЕИС отклоняет
+                    документ только по ошибкам:{" "}
+                    {pickedAcceptanceReadiness.warnings
+                      .map((issue) => issue.message)
+                      .join(" ")}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <b>Документ о приёмке не готов к передаче в ЕИС.</b> Блокирующих
+                замечаний {pickedAcceptanceReadiness.blocking.length}:
+                {pickedAcceptanceReadiness.blocking.map((issue) => (
+                  <div key={`${issue.path}-${issue.message}`}>
+                    {issue.path}: {issue.message}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
 
         {domainBuild ? (
           <div className={block("form-row")}>
