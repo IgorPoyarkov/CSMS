@@ -6498,8 +6498,9 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 - **Что уже было.** В схемах СЗ и извещения хранились
   `additionalRequirementsPart2Art31`, `pp2571Positions` (5 текстовых меток),
   `pp2571Point4Requirement` и `sanctionsRnpRequirement`; выгрузка в ЕИС
-  передавала позиции как `addRequirements`. Связи «объект → позиция → НМЦК»
-  не проверялись, порогов и подтверждающих документов в коде не было.
+  передавала позиции как `addRequirements`, подставляя в `shortName` всю
+  текстовую метку. Связи «объект → позиция → НМЦК» не проверялись, порогов
+  и подтверждающих документов в коде не было.
 - **Каталог и правила.** `src/services/Pp2571/pp2571.schema.ts`: 6 позиций
   (1, 6, 10, 17, 18, 34) с разделом, порогом по п. 3 «а», опытом (3 года,
   50/40/30 % НМЦК), документами и лицензиями; сопоставление объекта по
@@ -6519,9 +6520,26 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   форме. В извещении (`NoticeInfoSchema.superRefine`) — `strict: false`:
   пороги и объекты не блокируют документ, блокируются только структурные
   противоречия.
+- **XML ЕИС 17.0 (связи).** `addRequirement` в XSD — это три поля:
+  `shortName` (`prefsReqsShortNameType`, 1–20 символов, бизнес-код записи
+  nsiPurchasePreferences), `name` (`text2000Type`) и `content`
+  (`text4000Type`). Раньше в `shortName` уходила метка позиции длиной 80+
+  символов — это нарушение схемы. Теперь у позиции каталога есть `eisCode`
+  (`PP2571-1…PP2571-34`), `buildPp2571EisRequirements` собирает
+  `{ shortName, name, content }`, где `content` содержит текст требования и
+  перечень ОКПД2 объектов этой позиции (`pp2571ObjectsForPosition`).
+  В `eis17Types.ts` XML вынесен в `buildEis17RequirementsXml`,
+  `validateNoticeInfoEis17` проверяет лимиты полей (ошибка) и пустой
+  `addRequirements` при коде `TU44` (предупреждение). В docx СЗ
+  (`purchaseNoteExport.ts`) печатается тот же перечень ОКПД2 по позициям,
+  что и в `content`, — документ и XML не расходятся. Новое правило
+  валидатора `pp2571-eis-code` ловит код позиции, не влезающий в 20 символов.
 - **Проверки.** `npm run check:pp2571` — пороги, резолв старых меток,
-  сопоставление объектов, ступени опыта, все правила валидатора и кейсы
-  `PurchaseNoteSchema.safeParse` (approved/draft, старые метки) — зелёные.
+  сопоставление объектов, ступени опыта, все правила валидатора, кейсы
+  `PurchaseNoteSchema.safeParse` (approved/draft, старые метки), а также
+  XML-связи: длина и уникальность `eisCode`, состав `addRequirements`,
+  попадание ОКПД2 в `content` только своей позиции, наличие `shortName`/
+  `name`/`content` в `buildEis17RequirementsXml` — зелёные.
   `npx tsc -b` чисто; `npx oxlint src` — 0 ошибок (78 предупреждений, как до
   правки); `npx vite build` — 7,93 с. Браузерный смоук: реестр
   `/purchase-notes` грузит 144 СЗ, модалка СЗ № 1 показывает панель

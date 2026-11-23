@@ -134,6 +134,7 @@ export default function Pp2571RequirementsPanel({
           const meta = [
             `порог НМЦК: более ${formatPp2571Money(item.threshold)}`,
             share !== undefined ? `опыт: не менее ${share} % НМЦК` : "",
+            `код ЕИС: ${item.position.eisCode}`,
             item.matchedItems.length > 0
               ? "объект закупки соответствует позиции"
               : "объект по ОКПД2/наименованию не найден",
@@ -181,8 +182,13 @@ export default function Pp2571RequirementsPanel({
       )}
 
       <p className={styles["purchase-note-modal__hint"]}>
-        В справочнике проекта {PP2571_POSITIONS.length} позиции приложения.
-        Полный перечень дополняется в{" "}
+        В извещение выбранные позиции уходят блоком{" "}
+        <code>addRequirements</code>: <code>shortName</code> — код записи
+        справочника ЕИС (до 20 символов), <code>name</code> — наименование
+        позиции, <code>content</code> — текст требования и перечень ОКПД2
+        объектов закупки по этой позиции. В справочнике проекта{" "}
+        {PP2571_POSITIONS.length} позиции приложения; полный перечень
+        дополняется в{" "}
         <code>src/services/Pp2571/pp2571.schema.ts</code>.
       </p>
     </div>

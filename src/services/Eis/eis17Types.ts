@@ -11,9 +11,10 @@ import type {
 } from "../Procurements/noticeInfo.schema";
 import { objectCategoryLimits } from "../BidEvaluation/bidEvaluation.schema";
 import {
-  normalizePp2571Positions,
-  pp2571PositionLabel,
+  PP2571_EIS_LIMITS,
+  buildPp2571EisRequirements,
 } from "../Pp2571/pp2571.schema";
+import type { Pp2571EisRequirement } from "../Pp2571/pp2571.schema";
 import type { ContractProject } from "../ContractProject/contractProject.schema";
 import {
   EIS_PACKET_DESCRIPTORS,
@@ -566,7 +567,12 @@ export interface EisNotification2020 {
       code: string;
       name?: string;
       content?: string;
-      addRequirements?: string[];
+      /**
+       * Дополнительные требования по ч. 2 ст. 31: `shortName` — код записи
+       * nsiPurchasePreferences, `name` — наименование позиции приложения,
+       * `content` — текст требования с перечнем ОКПД2 объектов закупки.
+       */
+      addRequirements?: Pp2571EisRequirement[];
     }>;
     // restrictionsInfo — ограничения национального режима (ст. 14 44-ФЗ)
     restrictionsInfo: Array<{
@@ -1047,19 +1053,25 @@ const mapNoticePreferences = (
     });
   }
   if (requirements.additionalRequirementsPart2Art31) {
+    // В ЕИС уходит не текст метки, а набор полей addRequirement: код записи
+    // nsiPurchasePreferences (shortName ≤ 20 символов), наименование позиции
+    // приложения (name) и текст требования с ОКПД2 объектов закупки (content).
+    const addRequirements = buildPp2571EisRequirements(
+      requirements.pp2571Positions,
+      notice.purchaseObjects.items.map((item) => ({
+        name: item.name,
+        okpd2Code: item.okpd2Code || item.okpd2OrKtruCode,
+        ktruCode: item.ktruCode,
+        ktruName: item.ktruName,
+      })),
+      notice.generalInfo.nmck,
+    );
+
     requirementsInfo.push({
       code: "TU44",
       name: "Дополнительные требования к участникам закупок (ч. 2 ст. 31)",
       content: requirements.additionalRequirementsPart2Art31Text || undefined,
-      // В ЕИС уходит текст требований, а не внутренние идентификаторы:
-      // позиции приложения разворачиваем в человекочитаемые метки.
-      addRequirements:
-        requirements.pp2571Positions &&
-        requirements.pp2571Positions.length > 0
-          ? normalizePp2571Positions(requirements.pp2571Positions).map(
-              pp2571PositionLabel,
-            )
-          : undefined,
+      addRequirements: addRequirements.length > 0 ? addRequirements : undefined,
     });
   }
   if (requirements.requirementsPart1_1Art31) {
@@ -2127,6 +2139,51 @@ export const validateNoticeInfoEis17 = (
     });
   }
 
+  // Связь «позиция приложения → addRequirement» в XML извещения.
+  // shortName — код записи nsiPurchasePreferences (1..20 символов по
+  // prefsReqsShortNameType), name и content — текстовые поля text2000Type
+  // и text4000Type. Наименование позиции в shortName не помещается, и такая
+  // выгрузка будет отклонена бизнес-контролем ЕИС — поэтому это ошибка.
+  dto.notificationInfo.requirementsInfo.forEach((requirement) => {
+    if (requirement.code === "TU44" && !requirement.addRequirements?.length) {
+      issues.push({
+        severity: "warning",
+        field: "participantsRequirements.pp2571Positions",
+        message:
+          "Включены дополнительные требования по ч. 2 ст. 31, но в addRequirements нет ни одной позиции приложения ПП РФ № 2571: бизнес-контроль ЕИС требует заполнить блок при коде TU44.",
+      });
+    }
+
+    requirement.addRequirements?.forEach((add) => {
+      if (
+        add.shortName.length < 1 ||
+        add.shortName.length > PP2571_EIS_LIMITS.shortName
+      ) {
+        issues.push({
+          severity: "error",
+          field: "participantsRequirements.pp2571Positions",
+          message: `Код дополнительного требования «${add.shortName}» должен содержать от 1 до ${PP2571_EIS_LIMITS.shortName} символов (prefsReqsShortNameType XSD 17.0): в shortName передаётся код справочника nsiPurchasePreferences, а не наименование позиции.`,
+        });
+      }
+
+      if (add.name.length > PP2571_EIS_LIMITS.name) {
+        issues.push({
+          severity: "error",
+          field: "participantsRequirements.pp2571Positions",
+          message: `Наименование дополнительного требования длиннее ${PP2571_EIS_LIMITS.name} символов (text2000Type XSD 17.0) — сократите наименование позиции приложения.`,
+        });
+      }
+
+      if (add.content.length > PP2571_EIS_LIMITS.content) {
+        issues.push({
+          severity: "error",
+          field: "participantsRequirements.pp2571Positions",
+          message: `Содержание дополнительного требования длиннее ${PP2571_EIS_LIMITS.content} символов (text4000Type XSD 17.0) — сократите текст требования или перечень объектов.`,
+        });
+      }
+    });
+  });
+
   if (
     !dto.notificationInfo.customerRequirementInfo.tenderPlan2020Info
       .plan2020Number &&
@@ -2910,6 +2967,43 @@ export const parseEis17Criteria = (xml: string): Eis17EvaluationCriterion[] => {
   return criteria;
 };
 
+/**
+ * XML-фрагмент `notificationInfo/requirementsInfo` (XSD 17.0).
+ *
+ * Вынесен отдельно, чтобы связь «позиция приложения → addRequirement»
+ * проверялась тестом без сборки всего извещения: в `addRequirement`
+ * `shortName` — код записи nsiPurchasePreferences (≤ 20 символов), а `name`
+ * и `content` переносят наименование позиции и перечень ОКПД2 объектов.
+ */
+export const buildEis17RequirementsXml = (
+  requirementsInfo: EisNotification2020["notificationInfo"]["requirementsInfo"],
+): string =>
+  requirementsInfo.length
+    ? `    <requirementsInfo>
+${requirementsInfo
+  .map(
+    (req) => `      <requirementInfo>
+        <preferenseRequirementInfo><code>${escapeXml(req.code)}</code>${req.name ? `<name>${escapeXml(req.name)}</name>` : ""}</preferenseRequirementInfo>
+        ${req.content ? `<content>${escapeXml(req.content)}</content>` : ""}
+        ${
+          req.addRequirements?.length
+            ? `<addRequirements>${req.addRequirements
+                .map(
+                  (item) => `<addRequirement>
+            <shortName>${escapeXml(item.shortName)}</shortName>
+            <name>${escapeXml(item.name)}</name>
+            <content>${escapeXml(item.content)}</content>
+          </addRequirement>`,
+                )
+                .join("")}</addRequirements>`
+            : ""
+        }
+      </requirementInfo>`,
+  )
+  .join("\n")}
+    </requirementsInfo>`
+    : "";
+
 export const buildNotification2020XmlPreview = (
   notice: NoticeInfoFormValues,
 ): string => {
@@ -3075,28 +3169,9 @@ ${dto.notificationInfo.preferensesInfo
     : "";
 
   // Требования к участникам (ст. 31) — notificationInfo/requirementsInfo
-  const requirementsXml = dto.notificationInfo.requirementsInfo.length
-    ? `    <requirementsInfo>
-${dto.notificationInfo.requirementsInfo
-  .map(
-    (req) => `      <requirementInfo>
-        <preferenseRequirementInfo><code>${escapeXml(req.code)}</code>${req.name ? `<name>${escapeXml(req.name)}</name>` : ""}</preferenseRequirementInfo>
-        ${req.content ? `<content>${escapeXml(req.content)}</content>` : ""}
-        ${
-          req.addRequirements?.length
-            ? `<addRequirements>${req.addRequirements
-                .map(
-                  (item) =>
-                    `<addRequirement><shortName>${escapeXml(item)}</shortName></addRequirement>`,
-                )
-                .join("")}</addRequirements>`
-            : ""
-        }
-      </requirementInfo>`,
-  )
-  .join("\n")}
-    </requirementsInfo>`
-    : "";
+  const requirementsXml = buildEis17RequirementsXml(
+    dto.notificationInfo.requirementsInfo,
+  );
 
   // Национальный режим (ст. 14) — notificationInfo/restrictionsInfo
   const restrictionsXml = dto.notificationInfo.restrictionsInfo.length

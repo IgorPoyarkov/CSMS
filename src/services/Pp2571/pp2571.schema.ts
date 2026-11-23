@@ -65,6 +65,15 @@ export interface Pp2571Position {
   objectName: string;
   /** Человекочитаемая метка позиции (совместима со старыми записями). */
   label: string;
+  /**
+   * Код дополнительного требования для XML ЕИС (`addRequirement/shortName`).
+   *
+   * XSD ограничивает `shortName` двадцатью символами — это бизнес-код записи
+   * справочника nsiPurchasePreferences, а не текст требования. Код задаётся
+   * один раз на позицию и сверяется со справочником при обновлении НСИ, чтобы
+   * выгрузка не подменяла код наименованием.
+   */
+  eisCode: string;
   /** Порог НМЦК. */
   threshold: Pp2571Threshold;
   /** Требование к опыту. */
@@ -120,6 +129,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
     objectName: "Работы по сохранению объектов культурного наследия",
     label:
       "Позиция 1 разд. I ПП РФ № 2571 (работы по сохранению объектов культурного наследия)",
+    eisCode: "PP2571-1",
     threshold: { federal: 500_000, regional: 500_000 },
     experience: { required: true, termYears: 3 },
     documents: [
@@ -145,6 +155,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
       "Работы по строительству, реконструкции, капитальному ремонту автомобильной дороги",
     label:
       "Позиция 17 разд. III ПП РФ № 2571 (работы по строительству, реконструкции, капитальному ремонту автомобильной дороги)",
+    eisCode: "PP2571-17",
     threshold: { federal: 10_000_000, regional: 5_000_000 },
     experience: {
       required: true,
@@ -175,6 +186,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
     objectName: "Работы по ремонту, содержанию автомобильной дороги",
     label:
       "Позиция 18 разд. III ПП РФ № 2571 (работы по ремонту, содержанию автомобильной дороги)",
+    eisCode: "PP2571-18",
     threshold: { federal: 10_000_000, regional: 5_000_000 },
     experience: {
       required: true,
@@ -204,6 +216,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
       "Работы по капитальному ремонту объекта капитального строительства",
     label:
       "Позиция 10 разд. II ПП РФ № 2571 (работы по капитальному ремонту объекта капитального строительства)",
+    eisCode: "PP2571-10",
     threshold: { federal: 10_000_000, regional: 5_000_000 },
     experience: {
       required: true,
@@ -234,6 +247,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
       "Работы по строительству, реконструкции объекта капитального строительства",
     label:
       "Позиция 6 разд. II ПП РФ № 2571 (работы по строительству, реконструкции объекта капитального строительства)",
+    eisCode: "PP2571-6",
     threshold: { federal: 10_000_000, regional: 5_000_000 },
     experience: {
       required: true,
@@ -263,6 +277,7 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
     objectName: "Услуги по обеспечению охраны объектов (территорий)",
     label:
       "Позиция 34 разд. VI ПП РФ № 2571 (услуги по обеспечению охраны объектов)",
+    eisCode: "PP2571-34",
     threshold: {
       federal: 500_000,
       regional: 500_000,
@@ -365,6 +380,27 @@ export const normalizePp2571Positions = (values?: string[]): string[] => {
 /** Подпись позиции по любому сохранённому значению. */
 export const pp2571PositionLabel = (value?: string): string =>
   resolvePp2571Position(value)?.label ?? (value ?? "");
+
+/**
+ * Код позиции для XML ЕИС (`addRequirement/shortName`).
+ *
+ * Это не подпись: в XSD `shortName` — бизнес-код записи справочника
+ * nsiPurchasePreferences длиной до 20 символов. Для неизвестного значения
+ * возвращается пустая строка, чтобы вызывающий код не подставлял текст
+ * требования в поле кода.
+ */
+export const pp2571EisCode = (value?: string): string =>
+  resolvePp2571Position(value)?.eisCode ?? "";
+
+/**
+ * Ограничения полей `addRequirement` из XSD ЕИС 17.0
+ * (`prefsReqsShortNameType`, `text2000Type`, `text4000Type`).
+ */
+export const PP2571_EIS_LIMITS = {
+  shortName: 20,
+  name: 2_000,
+  content: 4_000,
+} as const;
 
 /**
  * ПП РФ № 2571 применяется только при конкурентных способах (п. 3 «а»).
@@ -579,6 +615,85 @@ export const buildPp2571RequirementText = (
       return parts.join(" ");
     })
     .join("\n\n");
+};
+
+/**
+ * Дополнительное требование в объёме `addRequirement` XSD ЕИС 17.0.
+ *
+ * В XML связи три поля: `shortName` — код записи nsiPurchasePreferences
+ * (до 20 символов), `name` — наименование позиции приложения, `content` —
+ * текст требования вместе с перечнем объектов закупки, к которым позиция
+ * относится. Именно `content` связывает позицию приложения с ОКПД2
+ * конкретного извещения, поэтому объекты перечисляются явно.
+ */
+export interface Pp2571EisRequirement {
+  shortName: string;
+  name: string;
+  content: string;
+}
+
+/** Объект закупки в тексте требования: код ОКПД2 и наименование. */
+const describePp2571Object = (item: Pp2571ObjectInput): string => {
+  const code = normalizeOkpd2Code(item.okpd2Code);
+  const name = (item.name || item.okpd2Name || "").trim();
+
+  if (code && name) return `ОКПД2 ${code} — ${name}`;
+  if (code) return `ОКПД2 ${code}`;
+
+  return name;
+};
+
+/**
+ * Объекты закупки, относящиеся к позиции приложения.
+ *
+ * Одна и та же связь нужна и в XML ЕИС (`addRequirement/content`), и в
+ * документе СЗ, поэтому сопоставление не дублируется у вызывающих модулей.
+ */
+export const pp2571ObjectsForPosition = (
+  positionValue: string,
+  items: Pp2571ObjectInput[] = [],
+): string[] => {
+  const position = resolvePp2571Position(positionValue);
+  if (!position) return [];
+
+  return items
+    .filter((item) => matchPp2571Position(item)?.position.id === position.id)
+    .map(describePp2571Object)
+    .filter((text) => text !== "");
+};
+
+/**
+ * Сборка `addRequirements` для XML извещения по выбранным позициям.
+ *
+ * Позиция без объектов в закупке остаётся в выгрузке (её выбрал заказчик),
+ * но в `content` прямо сказано, что объекты не указаны: так расхождение
+ * «позиция ↔ объект» видно и в XML, и в предпросмотре, а не теряется молча.
+ */
+export const buildPp2571EisRequirements = (
+  positionValues: string[] | undefined,
+  items: Pp2571ObjectInput[] = [],
+  nmck = 0,
+): Pp2571EisRequirement[] => {
+  const positions = normalizePp2571Positions(positionValues)
+    .map((id) => resolvePp2571Position(id))
+    .filter((position): position is Pp2571Position => Boolean(position));
+
+  return positions.map((position) => {
+    const objects = pp2571ObjectsForPosition(position.id, items);
+
+    const objectsText =
+      objects.length > 0
+        ? `Объекты закупки по позиции: ${objects.join("; ")}.`
+        : "Объекты закупки по позиции в извещении не указаны.";
+
+    return {
+      shortName: position.eisCode,
+      name: position.label,
+      content: [buildPp2571RequirementText([position.id], nmck), objectsText]
+        .filter(Boolean)
+        .join(" "),
+    };
+  });
 };
 
 /** Уровень замечания: ошибка блокирует сохранение, предупреждение — нет. */
@@ -842,6 +957,27 @@ export const validatePp2571Requirements = (
       message: `Требования ч. 2.1 ст. 31 устанавливаются при НМЦК 20 млн руб. и более. Текущая НМЦК — ${formatPp2571Money(nmck)}.`,
     });
   }
+
+  // 9. Выгрузка в ЕИС: каждая выбранная позиция уходит как addRequirement,
+  // поэтому её код должен помещаться в shortName (prefsReqsShortNameType).
+  selected.forEach((id) => {
+    const position = resolvePp2571Position(id);
+    if (!position) return;
+
+    if (
+      position.eisCode.length < 1 ||
+      position.eisCode.length > PP2571_EIS_LIMITS.shortName
+    ) {
+      issues.push({
+        code: "pp2571-eis-code",
+        level: "error",
+        path: ["pp2571Positions"],
+        legalRef:
+          "раздел addRequirements XSD ЕИС 17.0 (prefsReqsShortNameType)",
+        message: `Код позиции ${position.number} для выгрузки в ЕИС («${position.eisCode}») должен содержать от 1 до ${PP2571_EIS_LIMITS.shortName} символов: в shortName передаётся код справочника nsiPurchasePreferences.`,
+      });
+    }
+  });
 
   return issues;
 };

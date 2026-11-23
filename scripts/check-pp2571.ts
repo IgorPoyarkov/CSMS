@@ -1,17 +1,22 @@
 import assert from "node:assert/strict";
 import {
+  PP2571_EIS_LIMITS,
   PP2571_POSITIONS,
   PP2571_SOURCE,
+  buildPp2571EisRequirements,
   buildPp2571RequirementText,
   getPp2571Applicability,
   isCompetitivePlacingWay,
   matchPp2571Position,
   normalizePp2571Positions,
+  pp2571EisCode,
   pp2571ExperienceShare,
+  pp2571ObjectsForPosition,
   resolvePp2571Position,
   validatePp2571Requirements,
   type Pp2571Issue,
 } from "../src/services/Pp2571/pp2571.schema";
+import { buildEis17RequirementsXml } from "../src/services/Eis/eis17Types";
 import {
   PurchaseNoteSchema,
   emptyPurchaseNote,
@@ -386,6 +391,97 @@ assert.equal(
     ? ""
     : JSON.stringify(legacyLabelResult.error.issues),
 );
+
+// 9. Выгрузка в ЕИС: связь «позиция приложения → addRequirement».
+// В XML `shortName` — код записи nsiPurchasePreferences (до 20 символов),
+// `name` — наименование позиции, `content` — текст требования с ОКПД2
+// объектов закупки. Метка позиции в shortName не помещается, поэтому код
+// хранится отдельно от подписи.
+assert.equal(pp2571EisCode("pp2571-6"), "PP2571-6");
+assert.equal(pp2571EisCode("Позиция 17 разд. III"), "PP2571-17");
+assert.equal(pp2571EisCode("неизвестно"), "");
+
+PP2571_POSITIONS.forEach((item) => {
+  assert.ok(
+    item.eisCode.length > 0 &&
+      item.eisCode.length <= PP2571_EIS_LIMITS.shortName,
+    `код ЕИС позиции ${item.number} должен укладываться в shortName (${PP2571_EIS_LIMITS.shortName})`,
+  );
+  assert.ok(
+    item.label.length <= PP2571_EIS_LIMITS.name,
+    `наименование позиции ${item.number} должно укладываться в text2000Type`,
+  );
+});
+assert.equal(
+  new Set(PP2571_POSITIONS.map((item) => item.eisCode)).size,
+  PP2571_POSITIONS.length,
+);
+
+const eisItems = [
+  { name: "Строительство школы на 500 мест", okpd2Code: "41.20.40" },
+  {
+    name: "Работы по строительству автомобильной дороги",
+    okpd2Code: "42.11.20",
+  },
+  { name: "Поставка бумаги", okpd2Code: "17.12.14" },
+];
+
+assert.deepEqual(pp2571ObjectsForPosition("pp2571-17", eisItems), [
+  "ОКПД2 42.11.20 — Работы по строительству автомобильной дороги",
+]);
+
+const eisRequirements = buildPp2571EisRequirements(
+  ["pp2571-6", "pp2571-17"],
+  eisItems,
+  20_000_000,
+);
+assert.equal(eisRequirements.length, 2);
+
+const [schoolRequirement, roadRequirement] = eisRequirements;
+assert.equal(schoolRequirement.shortName, "PP2571-6");
+assert.equal(schoolRequirement.name, position(6).label);
+assert.ok(schoolRequirement.content.includes("ОКПД2 41.20.40"));
+assert.ok(!schoolRequirement.content.includes("42.11.20"));
+assert.ok(!schoolRequirement.content.includes("17.12.14"));
+// 20 млн ≤ 100 млн — первая ступень приложения: не менее 50 % НМЦК.
+assert.ok(schoolRequirement.content.includes("не менее 50 %"));
+assert.ok(roadRequirement.content.includes("ОКПД2 42.11.20"));
+eisRequirements.forEach((requirement) => {
+  assert.ok(requirement.content.length <= PP2571_EIS_LIMITS.content);
+});
+
+const requirementWithoutObjects = buildPp2571EisRequirements(
+  ["pp2571-34"],
+  eisItems,
+  1_000_000,
+);
+assert.equal(requirementWithoutObjects.length, 1);
+assert.ok(requirementWithoutObjects[0].content.includes("не указаны"));
+
+// XML-фрагмент requirementsInfo: все три поля addRequirement на месте.
+const requirementsXml = buildEis17RequirementsXml([
+  {
+    code: "TU44",
+    name: "Дополнительные требования к участникам закупок (ч. 2 ст. 31)",
+    addRequirements: eisRequirements,
+  },
+]);
+assert.ok(requirementsXml.includes("<shortName>PP2571-6</shortName>"));
+assert.ok(requirementsXml.includes("<shortName>PP2571-17</shortName>"));
+assert.ok(requirementsXml.includes("<name>Позиция 6 разд. II"));
+assert.ok(requirementsXml.includes("ОКПД2 41.20.40"));
+assert.equal(requirementsXml.includes("<addRequirement></addRequirement>"), false);
+
+// Код ЕИС в каталоге не нарушает ограничение shortName — правило молчит.
+const eisCodeIssues = validatePp2571Requirements({
+  nmck: 20_000_000,
+  placingWayCode: "EA20",
+  items: eisItems,
+  selectedPositions: ["pp2571-6"],
+  additionalRequirementsPart2Art31: true,
+  additionalRequirementsPart2Art31Text: "Документы по графе приложения",
+});
+assert.equal(codes(eisCodeIssues).includes("pp2571-eis-code"), false);
 
 console.log("check:pp2571 — все проверки пройдены");
 

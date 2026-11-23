@@ -948,6 +948,12 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "Требования ст. 31 выгружаются в requirementsInfo кодами ET44, TU44, TR442, ETP44312, TOVNPIVR.",
       },
       {
+        field: "participantsRequirements.pp2571Positions",
+        xsd: "notificationInfo/requirementsInfo/requirementInfo/addRequirements",
+        status: "mapped",
+        note: "Позиции приложения ПП РФ № 2571 выгружаются в addRequirement: shortName — код записи nsiPurchasePreferences (1–20 символов, prefsReqsShortNameType), name — наименование позиции (text2000Type), content — текст требования и перечень ОКПД2 объектов закупки (text4000Type).",
+      },
+      {
         field: "purchaseObjects.items.nationalRegimeType",
         xsd: "notificationInfo/restrictionsInfo",
         status: "mapped",

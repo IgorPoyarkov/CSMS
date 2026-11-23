@@ -21,7 +21,9 @@ import {
 } from "../../services/Procurements/noticeInfo.config";
 import {
   normalizePp2571Positions,
+  pp2571ObjectsForPosition,
   pp2571PositionLabel,
+  resolvePp2571Position,
 } from "../Pp2571/pp2571.schema";
 import {
   COST_ITEM_CATEGORY_LABELS,
@@ -458,6 +460,21 @@ export const buildPurchaseNoteExportModel = ({
         note.additionalRequirementsPart2Art31Text,
       ),
     );
+
+    // Связь «позиция приложения ↔ объекты закупки» в документе повторяет
+    // XML ЕИС: в addRequirement уходит код позиции (shortName) и перечень
+    // ОКПД2 объектов (content), поэтому печатаем тот же перечень.
+    normalizePp2571Positions(note.pp2571Positions).forEach((positionId) => {
+      const position = resolvePp2571Position(positionId);
+      if (!position) return;
+
+      const objects = pp2571ObjectsForPosition(positionId, items);
+      if (objects.length === 0) return;
+
+      requirementBullets.push(
+        `Объекты закупки по позиции ${position.number} приложения (код ЕИС ${position.eisCode}): ${objects.join("; ")}.`,
+      );
+    });
   }
   if (note.requirementsPart2_1Art31) {
     requirementBullets.push(
