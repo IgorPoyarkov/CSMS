@@ -21,15 +21,12 @@ import {
   type PurchasePlanPosition,
   type PurchasePlanSpecialPurchase,
 } from "../../services/PurchasePlan/purchasePlan.schema";
-import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
-import { purchaseNotesForPosition } from "../../services/PurchaseNote/purchaseNote.schema";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import LegalActRefs from "../LegalAct/LegalActRefs";
-import PurchaseNoteStatusBadge from "../PurchaseNote/PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import PurchasePlanVersionsModal from "./PurchasePlanVersionsModal";
 import PurchasePlanKbkBreakdown, {
@@ -116,7 +113,6 @@ export default function PurchasePlanCard() {
   const { mutate: updatePlan, isPending: isUpdatingPlan } =
     useUpdatePurchasePlan();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
-  const { data: purchaseNotes = [] } = usePurchaseNotes(organizationId);
   const { data: planVersions = [] } = usePurchasePlanVersions(
     id,
     organizationId,
@@ -472,8 +468,10 @@ export default function PurchasePlanCard() {
           </span>
         );
       case "status": {
+        // Графа ЕИС «Статус» — только статус записи и дата её размещения
+        // (план-график прошёл контроль). Номера служебных записок и статусы
+        // согласования СЗ сюда не выводятся: это не сведения плана-графика.
         const status = position.status ?? "planned";
-        const posNotes = purchaseNotesForPosition(purchaseNotes, position.id);
 
         return (
           <div className={block("status-stack")}>
@@ -485,17 +483,6 @@ export default function PurchasePlanCard() {
                 {formatDate(position.statusDate)}
               </span>
             )}
-            {posNotes.map((note) => (
-              <div
-                key={String(note.id ?? note.noteNumber)}
-                className={block("note-status-line")}
-              >
-                <span className={block("sub", ["compact"])}>
-                  СЗ №{note.noteNumber}:
-                </span>
-                <PurchaseNoteStatusBadge status={note.status} compact />
-              </div>
-            ))}
           </div>
         );
       }
