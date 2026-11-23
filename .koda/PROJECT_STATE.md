@@ -6206,3 +6206,13 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   (SourceCraft Code Assistant) — это ассистент в IDE, а не пакетный API для
   пилота; он даёт подсказки по коду, но не заменяет Ollama/Yandex AI Studio API
   в скрипте. Контракты в облако без решения пользователя не отправляем.
+- **Kilo Code подключён к локальному Ollama (2026-11-23).** В
+  `C:\Users\liven\.config\kilo\kilo.jsonc` прописаны `model:
+  ollama/qwen2.5-coder:7b`, `provider.ollama.options.baseURL:
+  http://localhost:11434`, зарегистрированные модели `qwen2.5-coder:7b` и
+  `qwen2.5:14b-instruct-q4_K_M` (`tool_call: true`, `limit.context: 32768`) и
+  локальный `agent.compaction.model`. Бэкап прежнего конфига —
+  `kilo.jsonc.bak-20261123`. `kilo.exe models` подтверждает наличие
+  `ollama/...`. Облачная часть Kilo остаётся неавторизованной (403 из
+  `api.kilo.ai`), но для работы с локальной моделью она не нужна. DeepSeek
+  присутствует только в каталоге SourceCraft, в Cline/Kilo его нет.
