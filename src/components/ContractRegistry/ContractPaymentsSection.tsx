@@ -20,6 +20,11 @@ interface ContractPaymentsSectionProps {
 /**
  * Платежи ручного учёта (ст. 34 ч. 12, 13.1).
  *
+ * Направление сообщения — исходящее: платёжные документы формирует и
+ * направляет заказчик, в отличие от входящих документов о приёмке. Секция
+ * показывает это прямо в заголовке, чтобы две соседние секции не читались как
+ * одно и то же.
+ *
  * Живёт в карточке контракта: реестр показывает только процент оплаты,
  * полный список платёжных документов грузится при открытии карточки.
  */
@@ -37,7 +42,7 @@ export default function ContractPaymentsSection({
     <section className={styles.subSection}>
       <div className={styles.subHeader}>
         <h4 className={styles.subTitle}>
-          Платежи (ручной учёт, ст. 34 ч. 12, 13.1)
+          Платежи — исходящие сообщения в ЕИС (ручной учёт, ст. 34 ч. 12, 13.1)
         </h4>
         {!formOpen && (
           <button
@@ -50,6 +55,12 @@ export default function ContractPaymentsSection({
         )}
       </div>
 
+      <p className={styles.projectionEmpty}>
+        Исходящее сообщение: платёжный документ формирует заказчик и направляет
+        его в ЕИС. Входящие документы поставщика — приёмка — в соседней секции
+        выше.
+      </p>
+
       {formOpen && (
         <ContractPaymentForm
           contractId={contractId}
@@ -59,8 +70,8 @@ export default function ContractPaymentsSection({
 
       {list.length === 0 ? (
         <p className={styles.projectionEmpty}>
-          Ручных платежей нет. Фактическая оплата из выгрузки ЕИС — в секции
-          «Приёмка и оплата по данным карточки ЕИС».
+          Ручных платежей нет. Фактическая оплата из выгрузки ЕИС — в хронологии
+          «Исполнение контракта».
         </p>
       ) : (
         <table className={styles.table}>

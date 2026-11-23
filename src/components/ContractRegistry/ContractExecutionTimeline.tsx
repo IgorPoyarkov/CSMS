@@ -547,10 +547,15 @@ export default function ContractExecutionTimeline({
         <span className={styles.projectionChip}>
           Цена: {formatMoney(contract.contractPrice)} ₽
         </span>
-        <span id="contract-acceptance" className={styles.projectionChip}>
+        {/* Идентификаторы чипов не повторяют якоря рабочих секций ниже:
+            сводка карточки ведёт в рабочую приёмку и платежи, а не сюда */}
+        <span
+          id="contract-acceptance-facts"
+          className={styles.projectionChip}
+        >
           Принято: {timeline.acceptedCount} на {money(timeline.acceptedTotal)} ₽
         </span>
-        <span id="contract-payments" className={styles.projectionChip}>
+        <span id="contract-payments-facts" className={styles.projectionChip}>
           Оплачено: {timeline.paymentCount} на {money(timeline.paidTotal)} ₽
         </span>
         {timeline.smpTotal > 0 && (

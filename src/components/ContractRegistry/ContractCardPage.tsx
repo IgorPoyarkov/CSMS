@@ -223,7 +223,12 @@ export default function ContractCardPage() {
             документы и отправляют их в ЕИС дистанционного актирования.
             Хронология выше остаётся справкой по уже опубликованным фактам */}
         <div id="contract-acceptance">
-          <ContractAcceptanceSection contractId={contractId} />
+          <ContractAcceptanceSection
+            contractId={contractId}
+            contractNumber={contractNumberLabel}
+            contractSubject={subject}
+            ikz={contract.ikz}
+          />
         </div>
         <div id="contract-payments">
           <ContractPaymentsSection contractId={contractId} />
@@ -238,6 +243,9 @@ export default function ContractCardPage() {
               contractPrice={contract.contractPrice}
               smpRequiredPercent={contract.smpRequiredPercent}
               subcontractingSmpNoteNumber={contract.subcontractingSmpNoteNumber}
+              contractNumber={contractNumberLabel}
+              contractSubject={subject}
+              ikz={contract.ikz}
             />
           </div>
         )}

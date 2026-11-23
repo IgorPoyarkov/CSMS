@@ -56,6 +56,7 @@ import type {
   SignatureEvent,
 } from "../../services/Eds/eds.schema";
 import Select from "../UI/Select";
+import ContractViolationNotice from "./ContractViolationNotice";
 
 /**
  * Секция «Привлечение СМП» в карточке контракта (Tasks 9, п. 7, п/п 7).
@@ -84,6 +85,10 @@ interface SmpSectionProps {
   contractPrice: string | number | undefined;
   smpRequiredPercent: string | number | undefined;
   subcontractingSmpNoteNumber: string | undefined;
+  /** Номер контракта, предмет и ИКЗ — для текста КС-уведомления. */
+  contractNumber?: string;
+  contractSubject?: string;
+  ikz?: string;
 }
 
 export default function SmpSection({
@@ -91,6 +96,9 @@ export default function SmpSection({
   contractPrice,
   smpRequiredPercent,
   subcontractingSmpNoteNumber,
+  contractNumber,
+  contractSubject,
+  ikz,
 }: SmpSectionProps) {
   const { bem, fullName, formatDate } = useUtils();
   const block = bem(styles, "smp-section");
@@ -202,6 +210,42 @@ export default function SmpSection({
     () => computeSmpPenalty(volume.shortfall, maxOverdueDays),
     [volume.shortfall, maxOverdueDays],
   );
+
+  // КС-уведомление: сотрудник, вносящий сведения о СМП, видит нарушение
+  // первым — предмет и существо подставляются из посчитанного объёма и
+  // просрочки, чтобы не перепечатывать цифры руками
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const noticeDefaults = useMemo(() => {
+    const money = (value: number) => value.toLocaleString("ru-RU");
+    const amount =
+      penaltyResult && penaltyResult.amount > 0
+        ? String(penaltyResult.amount)
+        : "";
+
+    if (volume.shortfall > 0) {
+      return {
+        subject: "smpVolume" as const,
+        essence: `Требуемый объём привлечения СМП/СОНКО — ${money(
+          volume.required,
+        )} ₽, подтверждённый объём — ${money(
+          volume.actual,
+        )} ₽; недобрано ${money(volume.shortfall)} ₽ (исполнение ${
+          volume.progress
+        }%).`,
+        amount,
+      };
+    }
+
+    if (maxOverdueDays > 0) {
+      return {
+        subject: "smpLate" as const,
+        essence: `Сведения о привлечении СМП/СОНКО представлены с просрочкой: максимальная просрочка по сведениям контракта — ${maxOverdueDays} раб. дн.`,
+        amount,
+      };
+    }
+
+    return { subject: "smpVolume" as const, essence: "", amount: "" };
+  }, [volume, maxOverdueDays, penaltyResult]);
 
   // ─── Действия ────────────────────────────────────────────────────────────
 
@@ -1064,6 +1108,16 @@ export default function SmpSection({
         <button className={styles.btnPrimary} onClick={handleCreate}>
           + Загрузить сведения
         </button>
+        {/* Нарушение по СМП видит тот, кто вносит сведения: уведомление
+            собирает предмет нарушения и уходит ответственному в КС */}
+        <button
+          type="button"
+          className={styles.btnSmall}
+          onClick={() => setNoticeOpen(true)}
+          title="Сформировать КС-уведомление о ненадлежащем исполнении по СМП: предмет нарушения и суммы подставятся из расчёта, задача уйдёт ответственному в контрактной службе"
+        >
+          КС-уведомление о нарушении
+        </button>
         {records.length > 0 && (
           <span className={block("hint")}>
             Требуемый объём привлечённых СМП:{" "}
@@ -1116,6 +1170,21 @@ export default function SmpSection({
           entityId={signing.record.id!}
           onClose={() => setSigning(null)}
           onSigned={handleSigned}
+        />
+      )}
+
+      {/* КС-уведомление о ненадлежащем исполнении по сведениям о СМП */}
+      {noticeOpen && (
+        <ContractViolationNotice
+          contractId={contractId}
+          contractNumber={contractNumber || eisContractNumber}
+          contractSubject={contractSubject}
+          ikz={ikz || eisIkz}
+          source="smp"
+          defaultSubject={noticeDefaults.subject}
+          defaultEssence={noticeDefaults.essence}
+          defaultAmount={noticeDefaults.amount}
+          onClose={() => setNoticeOpen(false)}
         />
       )}
     </section>

@@ -1505,6 +1505,169 @@
     }
   }
 }
+/* ===== КС-уведомление о ненадлежащем исполнении ===== */
+
+.notice-form {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 16px;
+}
+
+.notice-form__window {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+
+.notice-form__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notice-form__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notice-form__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0 4px;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+}
+
+.notice-form__form,
+.notice-form__success {
+  padding: 16px 20px 20px;
+}
+
+.notice-form__source {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.notice-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 16px;
+}
+
+.notice-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.notice-form__label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.notice-form__input,
+.notice-form__select,
+.notice-form__textarea {
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-field);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+
+  &:focus-visible {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+.notice-form__textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.notice-form__hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.notice-form__error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--state-danger);
+}
+
+.notice-form__route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.notice-form__routeLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.notice-form__routeWarning {
+  font-size: 12px;
+  color: var(--state-warning);
+}
+
+.notice-form__successTitle {
+  margin: 8px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--state-success);
+}
+
+.notice-form__successText {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.notice-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+
 
 /* ===== Чекпоинты процесса по контракту (Tasks 8, п. 2 б) ===== */
 
