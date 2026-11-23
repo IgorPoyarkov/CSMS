@@ -32,6 +32,10 @@ import { applyEisChain, buildNoticeTasks } from "./link-eis-chain.mjs";
 import { buildImportPurchaseNotes } from "./lib/import-eis-notes.mjs";
 import { readDb, writeDb } from "./lib/db-write.mjs";
 import {
+  noticeStatusField,
+  procedureDateFields,
+} from "./lib/notice-procedure-dates.mjs";
+import {
   datasetCursor,
   lastEisNumber,
   loadImportState,
@@ -76,7 +80,10 @@ const CSV_FIELDS = [
 const ETP_FALLBACK = { name: 'АО "РАД"', url: "https://lot-online.ru" };
 const ETP_BY_NAME = [
   [/сбербанк/i, { name: 'АО "Сбербанк-АСТ"', url: "https://sberbank-ast.ru" }],
-  [/еэтп|роселтOrg|roseltorg/i, { name: 'АО "ЕЭТП"', url: "https://roseltorg.ru" }],
+  [
+    /еэтп|роселтOrg|roseltorg/i,
+    { name: 'АО "ЕЭТП"', url: "https://roseltorg.ru" },
+  ],
   [/ртс-тендер/i, { name: "РТС-тендер", url: "https://rts-tender.ru" }],
   [/гпб/i, { name: "ЭТП ГПБ", url: "https://etpgpb.ru" }],
   [/тэк-торг/i, { name: "ТЭК-Торг", url: "https://tektorg.ru" }],
@@ -174,7 +181,12 @@ function fetchRaw(url) {
       // байтового, поэтому срез по строке обрезал конец страницы.
       const marker = Buffer.from("\nHTTP_CODE:");
       const cut = buffer.lastIndexOf(marker);
-      const status = Number(buffer.subarray(cut + marker.length).toString("utf8").trim() || 0);
+      const status = Number(
+        buffer
+          .subarray(cut + marker.length)
+          .toString("utf8")
+          .trim() || 0,
+      );
       if (status === 200) return buffer.subarray(0, cut);
       lastError = new Error(`ЕИС вернул HTTP ${status}: ${url}`);
       sleep(status === 403 ? attempt * 5000 : attempt * 1200);
@@ -204,10 +216,7 @@ function decodeEntities(value) {
 }
 
 function clean(value) {
-  return decodeEntities(
-    String(value ?? "")
-      .replace(/<[^>]+>/g, " "),
-  )
+  return decodeEntities(String(value ?? "").replace(/<[^>]+>/g, " "))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -272,7 +281,9 @@ function findOrganizationNumber(inn) {
     if (values.get("ИНН") === inn) numbers.push(number);
   }
   if (!numbers.length) {
-    throw new Error(`В публичном реестре ЕИС не найдена организация с ИНН ${inn}`);
+    throw new Error(
+      `В публичном реестре ЕИС не найдена организация с ИНН ${inn}`,
+    );
   }
   return numbers[0];
 }
@@ -283,7 +294,10 @@ function fetchOrganization(inn) {
     readOrganizationHtml(`${ORG_INFO_URL}${reestrNumber}`, "EIS_ORG_INFO_HTML"),
   );
   const other = parseOrganizationValues(
-    readOrganizationHtml(`${ORG_OTHER_URL}${reestrNumber}`, "EIS_ORG_OTHER_HTML"),
+    readOrganizationHtml(
+      `${ORG_OTHER_URL}${reestrNumber}`,
+      "EIS_ORG_OTHER_HTML",
+    ),
   );
   const value = (key, values = info) => values.get(key) || "";
   const fullName = value("Полное наименование");
@@ -394,7 +408,9 @@ function parseCsv(buffer) {
   }
   const headers = rows.shift() ?? [];
   return rows.map((cells) =>
-    Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""])),
+    Object.fromEntries(
+      headers.map((header, index) => [header, cells[index] ?? ""]),
+    ),
   );
 }
 
@@ -447,7 +463,9 @@ function parseTotalCount(html) {
 
 async function findPlanNumbers(inn, from, to, limit) {
   const html = fetchText(buildPlanSearchUrl(inn, from, to));
-  const numbers = unique([...html.matchAll(/plan-number=(\d+)/g)].map((m) => m[1]));
+  const numbers = unique(
+    [...html.matchAll(/plan-number=(\d+)/g)].map((m) => m[1]),
+  );
   const result = numbers.slice(0, limit);
   sleep(600);
   return { numbers: result, total: parseTotalCount(html) };
@@ -470,8 +488,11 @@ async function fetchPlan(planNumber) {
     const html = fetchText(
       `${base}/plan-position-search.html?plan-number=${planNumber}&itemIndex=${(page - 1) * 50}&pageSize=50`,
     );
-    const count = [...html.matchAll(/position\/general-info\.html[^>]*>\s*(\d{36})/g)].length;
-    if (process.env.EIS_IMPORT_DEBUG) console.error(`positions page ${page}: ${count}`);
+    const count = [
+      ...html.matchAll(/position\/general-info\.html[^>]*>\s*(\d{36})/g),
+    ].length;
+    if (process.env.EIS_IMPORT_DEBUG)
+      console.error(`positions page ${page}: ${count}`);
     positionPages.push(html);
     sleep(300);
     if (count < 50) break;
@@ -508,20 +529,35 @@ async function fetchPlan(planNumber) {
     /<div class="row bt-4 pb-4 pt-4 text-base-mid b-bottom">([\s\S]*?)(?=<div class="row bt-4 pb-4 pt-4 text-base-mid b-bottom">|$)/g;
   for (const match of positionsHtml.matchAll(rowPattern)) {
     const row = match[1];
-    const ikz = clean((row.match(/position\/general-info\.html[^>]*>\s*(\d{36})/) || [])[1]);
+    const ikz = clean(
+      (row.match(/position\/general-info\.html[^>]*>\s*(\d{36})/) || [])[1],
+    );
     if (!ikz) continue;
-    const cols = [...row.matchAll(/<div class="col-2(?: text-break)?">([\s\S]*?)<\/div>/g)]
-      .map((m) => clean(m[1]));
+    const cols = [
+      ...row.matchAll(/<div class="col-2(?: text-break)?">([\s\S]*?)<\/div>/g),
+    ].map((m) => clean(m[1]));
     const objectOfPurchase = cols[0] ?? "";
     const classification = cols[1] ?? "";
     const amount = cols[2] ?? "";
     const statusBlock = clean(
       [...row.matchAll(/<div class="col-1">([\s\S]*?)<\/div>/g)].at(-1)?.[1],
     );
-    const uniqueNumber = clean((row.match(/Уникальный номер позиции в плане-графике закупок<\/div>\s*<div class="common-text__value">([\s\S]*?)<\/div>/) || [])[1]);
-    const planYear = clean((row.match(/Планируемый год размещения извещения[\s\S]*?<div class="common-text__value">\s*(\d{4})/) || [])[1]);
+    const uniqueNumber = clean(
+      (row.match(
+        /Уникальный номер позиции в плане-графике закупок<\/div>\s*<div class="common-text__value">([\s\S]*?)<\/div>/,
+      ) || [])[1],
+    );
+    const planYear = clean(
+      (row.match(
+        /Планируемый год размещения извещения[\s\S]*?<div class="common-text__value">\s*(\d{4})/,
+      ) || [])[1],
+    );
     const publicDiscussion = /Проводится|Завершено/.test(
-      clean((row.match(/Обязательное общественное обсуждение<\/div>\s*<div class="common-text__value">([\s\S]*?)<\/div>/) || [])[1]),
+      clean(
+        (row.match(
+          /Обязательное общественное обсуждение<\/div>\s*<div class="common-text__value">([\s\S]*?)<\/div>/,
+        ) || [])[1],
+      ),
     );
     const [codePart, ...nameParts] = classification.split(":");
     positions.push({
@@ -731,7 +767,9 @@ function parsePlanXml(xml) {
   // Итог плана в XML включает особые закупки; HTML-карточка показывает только
   // сумму обычных позиций, поэтому берём общую сумму из totalsInfo.
   const totals = xmlInner(xml, "outcomeIndicators");
-  const totalAmount = money(xmlValue(xmlInner(totals, "totalsInfo"), "total")).toFixed(2);
+  const totalAmount = money(
+    xmlValue(xmlInner(totals, "totalsInfo"), "total"),
+  ).toFixed(2);
 
   // Реквизиты заказчика и роль владельца версии есть только в XML; в HTML
   // карточка показывает их в свободной форме, без кодов ОКОПФ/ОКФС.
@@ -758,9 +796,13 @@ function fetchPlanXml(planNumber, generalHtml) {
   if (fs.existsSync(cacheFile)) {
     return fs.readFileSync(cacheFile, "utf8");
   }
-  const match = String(generalHtml).match(/printForm\/view\.html\?printFormId=(\d+)/);
+  const match = String(generalHtml).match(
+    /printForm\/view\.html\?printFormId=(\d+)/,
+  );
   if (!match) {
-    console.error(`План ${planNumber}: в карточке нет ссылки на печатную форму`);
+    console.error(
+      `План ${planNumber}: в карточке нет ссылки на печатную форму`,
+    );
     return null;
   }
   const xml = fetchText(
@@ -831,7 +873,9 @@ export async function fetchNoticesCsv(inn, from, to, limit) {
   sleep(500);
   const rows = [];
   for (let start = 1; start <= Math.min(total, 5000); start += 500) {
-    const buffer = fetchRaw(buildNoticeCsvUrl(inn, from, to, start, start + 499));
+    const buffer = fetchRaw(
+      buildNoticeCsvUrl(inn, from, to, start, start + 499),
+    );
     rows.push(...parseCsv(buffer));
     sleep(700);
     if (rows.length >= limit * 8) break;
@@ -875,9 +919,11 @@ function parsePhone(phone) {
 
 function detectPlacingWay(method) {
   const value = clean(method);
-  if (/электронный аукцион/i.test(value)) return { code: "EA20", type: "EF2020" };
+  if (/электронный аукцион/i.test(value))
+    return { code: "EA20", type: "EF2020" };
   if (/запрос котировок/i.test(value)) return { code: "ZK20", type: "EZK2020" };
-  if (/электронный запрос предложений/i.test(value)) return { code: "EZT20", type: "EZT2020" };
+  if (/электронный запрос предложений/i.test(value))
+    return { code: "EZT20", type: "EZT2020" };
   if (/конкурс/i.test(value)) return { code: "OKP20", type: "EOK2020" };
   return { code: "EP93", type: "EMZ2025" };
 }
@@ -891,7 +937,13 @@ function detectEtp(name, url) {
   const source = `${etp.name} ${etp.url}`;
   for (const [pattern, known] of ETP_BY_NAME) {
     if (pattern.test(source)) {
-      return { name: etp.name, url: etp.url === ETP_FALLBACK.url && /lot-online/.test(known.url) ? etp.url : etp.url || known.url };
+      return {
+        name: etp.name,
+        url:
+          etp.url === ETP_FALLBACK.url && /lot-online/.test(known.url)
+            ? etp.url
+            : etp.url || known.url,
+      };
     }
   }
   return etp;
@@ -927,10 +979,14 @@ export async function fetchNoticeDetail(number) {
   sleep(900);
   const text = textOnly(html);
   const kbk = clean(
-    (text.match(/Код бюджетной классификации Российской Федерации\s+Сумма контракта[\s\S]*?\b(\d{20})\b/) || [])[1],
+    (text.match(
+      /Код бюджетной классификации Российской Федерации\s+Сумма контракта[\s\S]*?\b(\d{20})\b/,
+    ) || [])[1],
   );
   const classification = clean(
-    (text.match(/Наименование товара, работы, услуги Код позиции[\s\S]*?Идентификатор:\s*\d+\s+([^\s]+)/) || [])[1],
+    (text.match(
+      /Наименование товара, работы, услуги Код позиции[\s\S]*?Идентификатор:\s*\d+\s+([^\s]+)/,
+    ) || [])[1],
   );
   const characteristics = text
     .split("Наименование характеристики Значение характеристики")
@@ -943,14 +999,29 @@ export async function fetchNoticeDetail(number) {
     etpUrl: paramValue(html, "Адрес электронной площадки"),
     kbk,
     classification,
-    responsible: paramValue(html, "Ответственное должностное лицо").slice(0, 120),
+    responsible: paramValue(html, "Ответственное должностное лицо").slice(
+      0,
+      120,
+    ),
     email: paramValue(html, "Адрес электронной почты").slice(0, 120),
     phone: paramValue(html, "Номер контактного телефона").slice(0, 40),
     address: paramValue(html, "Почтовый адрес").slice(0, 250),
-    place: paramValue(html, "Место поставки товара, выполнения работы или оказания услуги").slice(0, 250),
-    submissionEnd: paramValue(html, "Дата и время окончания срока подачи заявок"),
-    auctionDate: paramValue(html, "Дата проведения процедуры подачи предложений"),
-    summingDate: paramValue(html, "Дата подведения итогов определения поставщика"),
+    place: paramValue(
+      html,
+      "Место поставки товара, выполнения работы или оказания услуги",
+    ).slice(0, 250),
+    submissionEnd: paramValue(
+      html,
+      "Дата и время окончания срока подачи заявок",
+    ),
+    auctionDate: paramValue(
+      html,
+      "Дата проведения процедуры подачи предложений",
+    ),
+    summingDate: paramValue(
+      html,
+      "Дата подведения итогов определения поставщика",
+    ),
     contractStart: paramValue(html, "Дата начала исполнения контракта"),
     contractEnd: paramValue(html, "Срок исполнения контракта"),
     characteristics,
@@ -1034,7 +1105,10 @@ export function mapNotice(item, detail, template, org, plans, importInfo) {
   const row = item.row;
   const ikz = clean(row["Идентификационный код закупки"]).replace(/^'/, "");
   const regNumber = item.number;
-  const method = row["Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)"];
+  const method =
+    row[
+      "Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)"
+    ];
   const placing = detectPlacingWay(method);
   const etp = detectEtp(detail.etpName, detail.etpUrl);
   const publishDate = dateFromDots(row["Дата размещения"]);
@@ -1043,11 +1117,16 @@ export function mapNotice(item, detail, template, org, plans, importInfo) {
   const orderName = clean(row["Наименование закупки"]);
   const classification = detail.classification || clean(row["Код позиции"]);
   const [codePart, ...nameParts] = classification.split(":");
-  const ktruMatch = clean(codePart).match(/^(\d{2}\.\d{2}\.\d{2}\.\d{3}-\d{8})$/);
+  const ktruMatch = clean(codePart).match(
+    /^(\d{2}\.\d{2}\.\d{2}\.\d{3}-\d{8})$/,
+  );
   const okpd2 = clean(row["Классификация по ОКПД2"]).split(":")[0];
   const code = ktruMatch ? "" : okpd2 || clean(codePart);
   const allPositions = plans.flatMap((plan) =>
-    plan.positions.map((position) => ({ ...position, planNumber: plan.planNumber })),
+    plan.positions.map((position) => ({
+      ...position,
+      planNumber: plan.planNumber,
+    })),
   );
   // ИКЗ извещения и позиции плана отличаются в разрядах номера позиции
   // (например ...011400149... и ...011400049...), поэтому сначала ищем
@@ -1107,10 +1186,14 @@ export function mapNotice(item, detail, template, org, plans, importInfo) {
   };
   notice.procedureInfo = {
     ...notice.procedureInfo,
-    collectingStartDT: dateFromDots(row["Дата начала подачи заявок"]) || publishDate,
+    collectingStartDT:
+      dateFromDots(row["Дата начала подачи заявок"]) || publishDate,
     plannedPublishDate: publishDate,
-    submissionEndDate: dateFromDots(detail.submissionEnd || row["Дата окончания подачи заявок"]),
-    submissionEndTime: (clean(detail.submissionEnd).match(/(\d{2}:\d{2})/) || [])[1] ?? "09:00",
+    submissionEndDate: dateFromDots(
+      detail.submissionEnd || row["Дата окончания подачи заявок"],
+    ),
+    submissionEndTime:
+      (clean(detail.submissionEnd).match(/(\d{2}:\d{2})/) || [])[1] ?? "09:00",
     firstPartsDate: dateFromDots(detail.auctionDate),
     summingUpDate: dateFromDots(detail.summingDate),
   };
@@ -1173,8 +1256,14 @@ export function mapProcurement(notice) {
     "Номер извещения": notice.generalInfo.noticeNumber,
     "Начальная (максимальная) цена контракта, руб": notice.generalInfo.nmck,
     "Тип закупки": clean(
-      notice.eisImport?.method ??
-        notice.generalInfo.placingWayCode,
+      notice.eisImport?.method ?? notice.generalInfo.placingWayCode,
+    ),
+    // Сроки процедуры: без них реестр извещений показывает «—», хотя данные
+    // есть в карточке ЕИС (поле `procedureInfo` извещения)
+    ...procedureDateFields(notice.procedureInfo),
+    "Статус извещения": noticeStatusField(
+      undefined,
+      Boolean(notice.generalInfo.noticeNumber),
     ),
     eisSourceUrl: notice.generalInfo.href,
   };
@@ -1196,11 +1285,13 @@ function mergeUnique(existing, incoming, keyOf) {
 
 function pruneDb(db, org, employee, importedProcurementIds) {
   const keep = {
-    users: (item) => item.email === employee.email || item.id === employee.userId,
+    users: (item) =>
+      item.email === employee.email || item.id === employee.userId,
     employees: (item) => item.id === employee.id,
     organizations: (item) => item.id === org.id,
     contractServices: (item) => item.organizationId === org.id,
-    structuralUnits: (item) => String(item.id) === String(employee.structuralUnitId),
+    structuralUnits: (item) =>
+      String(item.id) === String(employee.structuralUnitId),
     contractRegistry: () => true,
   };
   for (const key of Object.keys(db)) {
@@ -1228,12 +1319,15 @@ function pruneDb(db, org, employee, importedProcurementIds) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = await readDb(args.db);
-  const org = db.organizations.find((item) => item.inn === args.inn)
-    ?? db.organizations.find((item) => item.id === 6);
+  const org =
+    db.organizations.find((item) => item.inn === args.inn) ??
+    db.organizations.find((item) => item.id === 6);
   if (!org) throw new Error(`В данных нет организации с ИНН ${args.inn}`);
-  const employee = db.employees.find((item) => item.userId === 7)
-    ?? db.employees.find((item) => item.email === "poyarkova_nyu@mail.ru");
-  if (!employee) throw new Error("В данных нет связанного работника пользователя");
+  const employee =
+    db.employees.find((item) => item.userId === 7) ??
+    db.employees.find((item) => item.email === "poyarkova_nyu@mail.ru");
+  if (!employee)
+    throw new Error("В данных нет связанного работника пользователя");
 
   if (args.enrichPlans) {
     const stats = enrichPlansFromXml(db);
@@ -1280,7 +1374,9 @@ async function main() {
     (args.year ? `01.01.${args.year}` : formatDots(shiftDate(now, args.years)));
   const noticeFromDots =
     args.noticeFrom ||
-    (args.year ? `01.01.${args.year}` : formatDots(shiftDate(now, args.noticeYears)));
+    (args.year
+      ? `01.01.${args.year}`
+      : formatDots(shiftDate(now, args.noticeYears)));
   const toDots =
     args.to || (args.year ? `31.12.${args.year}` : formatDots(now));
   const importInfo = {
@@ -1290,7 +1386,12 @@ async function main() {
     planFrom: planFromDots,
     noticeFrom: noticeFromDots,
     to: toDots,
-    mode: manualPlan || manualNotice ? "manual" : args.incremental ? "incremental" : "full",
+    mode:
+      manualPlan || manualNotice
+        ? "manual"
+        : args.incremental
+          ? "incremental"
+          : "full",
   };
 
   console.log(
@@ -1301,7 +1402,9 @@ async function main() {
   // Для ручного запроса берём широкий лимит: конкретный номер должен найтись
   // в выгрузке за период, даже если он не в первых трёх строках.
   const planLimit = manualPlan ? Math.max(args.plans, 1000) : args.plans;
-  const noticeLimit = manualNotice ? Math.max(args.notices, 1000) : args.notices;
+  const noticeLimit = manualNotice
+    ? Math.max(args.notices, 1000)
+    : args.notices;
 
   let foundPlans = { numbers: [], total: 0 };
   let foundNotices = { notices: [], total: 0 };
@@ -1309,14 +1412,21 @@ async function main() {
     foundPlans = await findPlanNumbers(inn, planFromDots, toDots, planLimit);
   }
   if (!manualPlan) {
-    foundNotices = await fetchNoticesCsv(inn, noticeFromDots, toDots, noticeLimit);
+    foundNotices = await fetchNoticesCsv(
+      inn,
+      noticeFromDots,
+      toDots,
+      noticeLimit,
+    );
   }
 
   let planNumbers = foundPlans.numbers;
   let noticeItems = foundNotices.notices;
   if (manualPlan) planNumbers = [manualPlan];
   if (manualNotice) {
-    noticeItems = noticeItems.filter((item) => String(item.number) === manualNotice);
+    noticeItems = noticeItems.filter(
+      (item) => String(item.number) === manualNotice,
+    );
     if (!noticeItems.length) {
       throw new Error(
         `Извещение ${manualNotice} не найдено в выгрузке за ${noticeFromDots}—${toDots}`,
@@ -1327,25 +1437,34 @@ async function main() {
   // Явно запрошенный номер парсим независимо от курсора: пользователь знает,
   // что запись уже зарегистрирована в ЕИС, и ждёт её в системе прямо сейчас.
   if (args.incremental && !manualPlan && !manualNotice) {
-    planNumbers = newSinceCursor(planNumbers, datasetCursor(state, "purchasePlans"));
+    planNumbers = newSinceCursor(
+      planNumbers,
+      datasetCursor(state, "purchasePlans"),
+    );
     const allowed = new Set(
       newSinceCursor(
         noticeItems.map((item) => item.number),
         datasetCursor(state, "notices"),
       ),
     );
-    noticeItems = noticeItems.filter((item) => allowed.has(String(item.number)));
+    noticeItems = noticeItems.filter((item) =>
+      allowed.has(String(item.number)),
+    );
     if (!planNumbers.length && !noticeItems.length) {
       markChecked(state, "purchasePlans");
       markChecked(state, "notices");
       saveImportState(state, args.state || undefined);
       console.log(
-        JSON.stringify({
-          mode: "incremental",
-          newPlans: 0,
-          newNotices: 0,
-          lastCheckedAt: new Date().toISOString(),
-        }, null, 2),
+        JSON.stringify(
+          {
+            mode: "incremental",
+            newPlans: 0,
+            newNotices: 0,
+            lastCheckedAt: new Date().toISOString(),
+          },
+          null,
+          2,
+        ),
       );
       return;
     }
@@ -1375,19 +1494,35 @@ async function main() {
   // поля схем ЕИС 17.0, которые не заполняются из публичной карточки.
   const planTemplate = db.purchasePlans[0]?.positions?.[0] ?? {};
   const noticeTemplate = db.notices[0] ?? {};
-  const plans = planSources.map((source) => mapPlan(source, planTemplate, org, importInfo));
+  const plans = planSources.map((source) =>
+    mapPlan(source, planTemplate, org, importInfo),
+  );
   const notices = noticeRows.map(({ item, detail }) =>
-    mapNotice(item, detail, noticeTemplate, org, plans, { ...importInfo, method: item.row["Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)"] }),
+    mapNotice(item, detail, noticeTemplate, org, plans, {
+      ...importInfo,
+      method:
+        item.row[
+          "Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)"
+        ],
+    }),
   );
   const procurements = notices.map(mapProcurement);
 
   // При инкременте/ручном запросе сохраняем уже импортированные записи: новая
   // карточка перекрывает старую по номеру, остальные остаются на месте.
   const finalPlans = merge
-    ? mergeUnique(db.purchasePlans ?? [], plans, (item) => item.planNumber ?? item.id)
+    ? mergeUnique(
+        db.purchasePlans ?? [],
+        plans,
+        (item) => item.planNumber ?? item.id,
+      )
     : plans;
   const finalNotices = merge
-    ? mergeUnique(db.notices ?? [], notices, (item) => item.generalInfo?.noticeNumber ?? item.externalId ?? item.id)
+    ? mergeUnique(
+        db.notices ?? [],
+        notices,
+        (item) => item.generalInfo?.noticeNumber ?? item.externalId ?? item.id,
+      )
     : notices;
   const finalProcurements = merge
     ? mergeUnique(db.procurements ?? [], procurements, (item) => item.id)
@@ -1414,17 +1549,27 @@ async function main() {
 
   if (args.dryRun) {
     console.log(JSON.stringify(summary, null, 2));
-    console.log("Первый план:", JSON.stringify(plans[0] && {
-      id: plans[0].id,
-      positions: plans[0].positions.length,
-      totalAmount: plans[0].totalAmount,
-    }));
-    console.log("Первое извещение:", JSON.stringify(notices[0] && {
-      id: notices[0].id,
-      ikz: notices[0].ikz,
-      nmck: notices[0].generalInfo.nmck,
-      etp: notices[0].generalInfo.etpName,
-    }));
+    console.log(
+      "Первый план:",
+      JSON.stringify(
+        plans[0] && {
+          id: plans[0].id,
+          positions: plans[0].positions.length,
+          totalAmount: plans[0].totalAmount,
+        },
+      ),
+    );
+    console.log(
+      "Первое извещение:",
+      JSON.stringify(
+        notices[0] && {
+          id: notices[0].id,
+          ikz: notices[0].ikz,
+          nmck: notices[0].generalInfo.nmck,
+          etp: notices[0].generalInfo.etpName,
+        },
+      ),
+    );
     return;
   }
 
@@ -1435,7 +1580,12 @@ async function main() {
     db.procurements = finalProcurements;
     db.notices = finalNotices;
   } else {
-    pruneDb(db, org, employee, procurements.map((item) => item.id));
+    pruneDb(
+      db,
+      org,
+      employee,
+      procurements.map((item) => item.id),
+    );
     db.purchasePlans = plans;
     db.procurements = procurements;
     db.notices = notices;
@@ -1479,24 +1629,46 @@ async function main() {
   // Полный проход пересоздаёт задачи, инкремент перекрывает одноимённые id:
   // buildNoticeTasks нумерует задачи с 1001, поэтому простое сложение дало бы
   // дубликаты при каждой ежедневной проверке.
-  db.tasks = merge ? mergeUnique(db.tasks ?? [], tasks, (item) => item.id) : tasks;
+  db.tasks = merge
+    ? mergeUnique(db.tasks ?? [], tasks, (item) => item.id)
+    : tasks;
 
   if (process.env.EIS_IMPORT_SAMPLE) {
     fs.writeFileSync(
       path.join(process.env.TEMP || ".", "eis-import-sample.json"),
-      JSON.stringify({ plan: plans[0], notice: notices[0], task: tasks[0] }, null, 2),
+      JSON.stringify(
+        { plan: plans[0], notice: notices[0], task: tasks[0] },
+        null,
+        2,
+      ),
       "utf8",
     );
   }
 
   // Курсор двигаем только после успешной разметки/записи: упавший номер
   // останется в поиске и будет повторён при следующей ежедневной проверке.
-  markChecked(state, "purchasePlans", plans.length
-    ? { imported: plans.length, cursor: lastEisNumber(plans.map((item) => item.planNumber)) }
-    : {});
-  markChecked(state, "notices", notices.length
-    ? { imported: notices.length, cursor: lastEisNumber(notices.map((item) => item.generalInfo?.noticeNumber)) }
-    : {});
+  markChecked(
+    state,
+    "purchasePlans",
+    plans.length
+      ? {
+          imported: plans.length,
+          cursor: lastEisNumber(plans.map((item) => item.planNumber)),
+        }
+      : {},
+  );
+  markChecked(
+    state,
+    "notices",
+    notices.length
+      ? {
+          imported: notices.length,
+          cursor: lastEisNumber(
+            notices.map((item) => item.generalInfo?.noticeNumber),
+          ),
+        }
+      : {},
+  );
   saveImportState(state, args.state || undefined);
 
   const report = {

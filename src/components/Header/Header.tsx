@@ -90,6 +90,7 @@ const MORE_GROUPS: NavGroup[] = [
       { to: "/reports/order-158n", label: "Отчёты 158н" },
       { to: "/liability-mapping", label: "Ответственность КС" },
       { to: "/ui-solutions", label: "UI-решения" },
+      { to: "/brand", label: "Фирменный знак" },
       { to: "/visit-card", label: "Визитка проекта" },
       { to: "/okpd2", label: "Справочник ОКПД2" },
     ],
