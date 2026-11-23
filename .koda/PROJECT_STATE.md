@@ -180,6 +180,19 @@
   API парсит каждого работника, поэтому падает весь ЛК. Моки — только латиница
   (`.tmp/fix-employee-emails.mjs` транслитерировал 22 адреса).
 
+- ⚠️ **`npm start` падает после прошлой сессии — обычно виноваты залипшие
+  процессы, код тут не при чём:**
+  1. `EADDRINUSE 0.0.0.0:5176` — порт держит старый `node scripts/serve-dist.mjs`
+     (`Get-NetTCPConnection -LocalPort 5176` → `Stop-Process -Id <pid> -Force`);
+  2. `csms-api`: `MSB3021/MSB3027` — живой `Csms.Api.exe` блокирует собственные
+     `EisDocGenerator.Core.dll`/`Csms.Domain.dll`
+     (`Get-CimInstance Win32_Process -Filter "Name='Csms.Api.exe'"`). Признак
+     зомби: процесс есть, но 5099 не слушает и `GET /openapi/v1.json` = 404.
+  Бывает и два `concurrently`-дерева сразу (`npm start` + `npm run start:fast`) —
+  перед запуском оставить одно. Проверка живого стека:
+  `http://localhost:3002/__pg/health` (PG-адаптер), `http://localhost:5173/`
+  (vite) и `http://localhost:5173/openapi/v1.json` (API через прокси, 200).
+
 ## 2. Стек и соглашения
 
 - React 19 + TypeScript 7 + Vite 8, `react-router-dom` 7 (`createBrowserRouter`),
