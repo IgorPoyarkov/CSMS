@@ -136,8 +136,7 @@ export default function PurchaseNotePage() {
       responsibleFio: note.initiatorName,
       smpRequiredPercent:
         (note.requiresSmpSubcontracting ??
-        (note.smpRequiredPercent !== undefined &&
-          note.smpRequiredPercent > 0))
+        (note.smpRequiredPercent !== undefined && note.smpRequiredPercent > 0))
           ? note.smpRequiredPercent
           : undefined,
       purchaseNoteId: note.id,
@@ -175,7 +174,11 @@ export default function PurchaseNotePage() {
         note.authorizedBodyName || position.authorizedBodyName || "",
       "Организатор совместной закупки":
         note.jointOrganizerName || position.jointOrganizerName || "",
-      "КБК": note.kbk || position.kbk || "",
+      КБК: note.kbk || position.kbk || "",
+      // Служебная записка не содержит сроков процедуры — они появятся в
+      // извещении и синхронизируются в запись закупки при его сохранении.
+      // Статус фиксируем сразу: фильтры реестра считаются на сервере
+      "Статус извещения": "preparing",
     };
 
     createProcurement(raw, {
@@ -192,7 +195,8 @@ export default function PurchaseNotePage() {
 
   const visiblePurchaseNotes = filterVisiblePurchaseNotes(purchaseNotes);
   const selectedNote =
-    (noteIdParam && isVisiblePurchaseNote(
+    (noteIdParam &&
+    isVisiblePurchaseNote(
       purchaseNotes.find((n) => String(n.id) === noteIdParam),
     )
       ? purchaseNotes.find((n) => String(n.id) === noteIdParam)

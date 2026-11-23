@@ -78,17 +78,17 @@
     justify-content: center;
     min-height: 148px;
     padding: 22px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(5, 31, 32, 0.14);
     border-radius: 16px;
-    background: var(--surface-panel);
+    // Витрина показывает реальные фоны бренда, поэтому светлая карточка
+    // остаётся светлой и в тёмной теме интерфейса.
+    background: #f6faf7;
+    color: #051f20;
 
     &--dark {
       border-color: #235347;
       background: #051f20;
-
-      .brand-page__caption {
-        color: #8eb69b;
-      }
+      color: #daf1de;
     }
 
     &--center {
@@ -101,7 +101,11 @@
     font-size: 10px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--text-secondary);
+    color: #235347;
+
+    .brand-page__card--dark & {
+      color: #8eb69b;
+    }
   }
 
   &__logo {

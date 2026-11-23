@@ -76,12 +76,14 @@ export default function ContractStagesSection({
     const end =
       formatDate(contract.executionEndDate) ||
       formatDate(projection?.General?.ExecutionEndDate ?? undefined);
-    const period = start && end ? `${start} — ${end}` : "срок не указан";
+    const period =
+      start || end ? `${start || "…"} — ${end || "…"}` : "срок не указан";
     // Контракт не разбит на этапы: акты и платёжки относятся к нему целиком
     const acceptedCount = projection?.Acts.length ?? 0;
-    const paidTotal =
-      projection?.Payments.reduce((sum, payment) => sum + (payment.Sum ?? 0), 0) ??
-      0;
+    const paidTotal = (projection?.Payments ?? []).reduce(
+      (sum, payment) => sum + (payment.Sum ?? 0),
+      0,
+    );
 
     return (
       <section className={styles.subSection}>
