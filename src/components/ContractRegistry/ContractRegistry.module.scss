@@ -102,6 +102,82 @@
   border: 1px solid var(--accent);
 }
 
+// ─── Исполнение в строке реестра ────────────────────────────────────────────
+// Полосы оплаты и приёмки видны без раскрытия строки: по ним читается, идёт
+// исполнение или нет. Суммы и документы — в раскрытии и в карточке контракта.
+
+.contractTitleCell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 20px;
+  flex-wrap: wrap;
+}
+
+.contractTitleName {
+  min-width: 0;
+}
+
+.executionStrip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px 14px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  font-weight: 400;
+  cursor: default;
+}
+
+// Пометка СМП в строке компактнее, чем в шапке карточки: тот же признак,
+// но он не отъедает место у наименования контракта
+.executionSmp {
+  padding: 1px 7px;
+  font-size: 10px;
+}
+
+.executionBar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.executionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-secondary);
+}
+
+.executionTrack {
+  display: block;
+  width: 72px;
+  height: 6px;
+  background: var(--surface-field);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.executionFill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.executionFillOk {
+  background: var(--state-success);
+}
+
+.executionPercent {
+  min-width: 30px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+
 /* ===== Тело карточки ===== */
 
 .cardBody {

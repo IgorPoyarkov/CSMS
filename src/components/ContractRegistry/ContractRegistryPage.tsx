@@ -29,6 +29,11 @@ import { ikzPositionKey } from "../../services/Eis/eisIdentifiers";
 import useUtils from "../../hooks/useUtils";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import ContractCardSummary from "./ContractCardSummary";
+import ContractExecutionStrip from "./ContractExecutionStrip";
+import {
+  useContractExecutionIndex,
+  type ContractExecutionEntry,
+} from "./useContractExecution";
 import { CONTRACT_STATUS_LABELS, formatMoney } from "./contractRegistryFormat";
 import styles from "./ContractRegistry.module.scss";
 import Select from "../UI/Select";
@@ -245,6 +250,11 @@ export default function ContractRegistryPage() {
     loadUntil,
   } = useContractRegistryRows(orgId);
   const { mutate: deleteContract } = useDeleteContract();
+
+  // Исполнение для строк списка: бейдж СМП и полосы оплаты/приёмки видны без
+  // раскрытия. Данные собираются один раз на весь список (четыре org-запроса),
+  // а не по запросу на каждую строку
+  const executionIndex = useContractExecutionIndex();
 
   // Параметры адреса: ?group=competitive | ?group=single — группа из подменю
   // шапки, ?folder=2026 | ?folder=__all__ — раскрытая папка реестра.
@@ -1325,6 +1335,10 @@ export default function ContractRegistryPage() {
                           index={rowIndex}
                           expanded={expandedId === contract.id}
                           onToggle={() => toggleExpand(contract.id)}
+                          execution={executionIndex.byContract.get(
+                            String(contract.id ?? ""),
+                          )}
+                          executionLoading={executionIndex.loading}
                           onSupplierClick={toggleSupplierFilter}
                           activeSupplier={supplierFilter}
                           onDelete={() => {
@@ -1408,6 +1422,10 @@ interface ContractRowProps {
   onSupplierClick: (supplier: string | undefined) => void;
   activeSupplier: string | null;
   formatDate: (date?: string) => string;
+  /** Агрегаты исполнения для полос в строке (`useContractExecutionIndex`). */
+  execution?: ContractExecutionEntry;
+  /** Данные ещё грузятся: вместо «0 %» в полосах прочерк. */
+  executionLoading: boolean;
 }
 
 /**
@@ -1425,6 +1443,8 @@ function ContractRow({
   onSupplierClick,
   activeSupplier,
   formatDate,
+  execution,
+  executionLoading,
 }: ContractRowProps) {
   const overdue = isContractOverdue(contract);
   const queryClient = useQueryClient();
@@ -1449,7 +1469,21 @@ function ContractRow({
         onClick={onToggle}
         onMouseEnter={prefetchCard}
       >
-        <td colSpan={8}>{contract.contractName}</td>
+        <td colSpan={8}>
+          {/* Наименование и рядом — исполнение: плашка СМП и полосы оплаты и
+              приёмки. Строку не нужно раскрывать, чтобы понять, идёт ли
+              исполнение; подробные суммы — в раскрытии и в карточке */}
+          <div className={styles.contractTitleCell}>
+            <span className={styles.contractTitleName}>
+              {contract.contractName}
+            </span>
+            <ContractExecutionStrip
+              contract={contract}
+              execution={execution}
+              loading={executionLoading && !execution}
+            />
+          </div>
+        </td>
       </tr>
 
       <tr

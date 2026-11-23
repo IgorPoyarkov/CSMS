@@ -36,6 +36,27 @@ const fetchProjectionByContract = async (
 };
 
 /**
+ * Все проекции одной выборкой — для индикаторов исполнения в списке реестра.
+ *
+ * Строк на странице до 25, но проекция нужна каждой из них (оплата и приёмка у
+ * контрактов из ЕИС есть только здесь), поэтому 25 адресных запросов заменены
+ * одним: адаптер отдаёт колонку целиком, а индекс по `contractId` строится на
+ * клиенте. Выборка читается раз в 5 минут и переиспользуется при перелистывании
+ * страниц — новый запрос на каждую строку списка не нужен.
+ */
+export const useAllContractCardProjections = (enabled = true) =>
+  useQuery({
+    queryKey: ["contractCardProjections", "all"],
+    queryFn: async (): Promise<ContractCardProjection[]> => {
+      const response = await api.get(PROJECTIONS_ENDPOINT);
+      return ContractCardProjectionListSchema.parse(response.data ?? []);
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+/**
  * Снимок карточки ЕИС по контракту реестра. Ошибка (коллекции нет, адаптер не
  * перезапущен) и отсутствие выгрузки различаются на уровне секции: ошибка —
  * повод не рисовать блок вовсе, отсутствие выгрузки — показать пояснение.
