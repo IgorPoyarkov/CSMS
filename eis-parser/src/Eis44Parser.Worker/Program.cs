@@ -28,6 +28,10 @@ using Microsoft.Extensions.Options;
 //   (с 2026 года субподрядчики публикуются на сайте, а не в XML),
 // --smp-html-only — обновить только подтаблицу СМП из HTML по списку номеров
 //   (--contract-card / --numbers-file / --inn, --year, --limit, --out) — XML не скачивается,
+// --card-fields — дополнительно разобрать реквизиты карточки (поставщик, аванс,
+//   срок исполнения, ИКЗ, обеспечение, счета сторон) при полном импорте,
+// --card-fields-only — обновить только реквизиты карточки в готовых JSON
+//   (те же --contract-card / --numbers-file / --inn, --year, --limit, --out),
 // --reparse-card-dir <папка> — переразобрать уже скачанные XML карточек без сети
 //   (после изменения парсера; JSON-проекции перезаписываются),
 // --numbers-file <путь> — то же для явного списка реестровых номеров (по одному в строке);
@@ -48,6 +52,9 @@ var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
 var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
 var enrichContractors = args.Contains("--enrich-contractors", StringComparer.OrdinalIgnoreCase);
 var smpHtml = args.Contains("--smp-html", StringComparer.OrdinalIgnoreCase);
+// Реквизиты карточки (поставщик, аванс, срок исполнения) — из HTML ЕИС:
+// в XML вложений их нет, поэтому реестр без этого блока остаётся пустым.
+var cardFields = args.Contains("--card-fields", StringComparer.OrdinalIgnoreCase);
 
 // ContentRoot привязан к каталогу исполняемого файла: туда копируется
 // appsettings.json. Иначе при запуске из корня репозитория (dotnet run
@@ -370,8 +377,13 @@ if (smpHtmlOnly)
     {
         try
         {
-            var html = await htmlClient.GetPrintFormHtmlAsync(regNumber);
-            var smp = htmlParser.Parse(html, regNumber);
+            var commonInfo = await htmlClient.GetCommonInfoHtmlAsync(regNumber);
+            var contractInfoId = ContractSmpHtmlParser.ContractInfoIdOf(commonInfo);
+            var subcontractorsHtml = contractInfoId is null
+                ? null
+                : await htmlClient.GetSubcontractorsHtmlAsync(contractInfoId);
+            var smp = htmlParser.ParseCommonInfoCard(
+                commonInfo, subcontractorsHtml, regNumber);
             if (smp is null)
             {
                 withoutSmp++;
@@ -427,6 +439,138 @@ if (smpHtmlOnly)
     }, htmlJsonOptions));
     return 0;
 }
+// Обновление только реквизитов контракта (поставщик, аванс, срок, ИКЗ,
+// обеспечение, счета) из HTML-карточки. XML не скачивается: режим нужен,
+// чтобы заполнить реестр по уже выгруженным проекциям.
+var cardFieldsOnly = args.Contains("--card-fields-only", StringComparer.OrdinalIgnoreCase);
+if (cardFieldsOnly)
+{
+    var outputDirectory = GetArgumentValue(args, "--out");
+    if (outputDirectory is null)
+    {
+        Console.Error.WriteLine("--card-fields-only требует --out <папка с проекциями>");
+        return 1;
+    }
+
+    var singleNumber = GetArgumentValue(args, "--contract-card");
+    var numbersFile = GetArgumentValue(args, "--numbers-file");
+    var onlyCustomerInn = GetArgumentValue(args, "--inn");
+    var onlyYear = int.TryParse(GetArgumentValue(args, "--year"), out var parsedOnlyYear)
+        ? parsedOnlyYear
+        : 2026;
+    var onlyLimit = int.TryParse(GetArgumentValue(args, "--limit"), out var parsedOnlyLimit)
+        ? parsedOnlyLimit
+        : int.MaxValue;
+
+    var fieldsClient = new PublicContractCardClient();
+    var fieldsParser = new ContractGeneralHtmlParser();
+    var fieldsNumbers = new List<string>();
+    if (singleNumber is not null)
+    {
+        fieldsNumbers.Add(singleNumber);
+    }
+    else if (numbersFile is not null)
+    {
+        if (!File.Exists(numbersFile))
+        {
+            Console.Error.WriteLine($"Файл номеров не найден: {numbersFile}");
+            return 1;
+        }
+
+        fieldsNumbers.AddRange(File.ReadLines(numbersFile)
+            .Select(line => line.Trim())
+            .Where(line => line.Length == 19 && line.All(char.IsDigit)));
+    }
+    else if (onlyCustomerInn is not null)
+    {
+        fieldsNumbers.AddRange((await fieldsClient.EnumerateContractsByInnAsync(onlyCustomerInn))
+            .Where(number => PublicContractCardClient.YearFromRegNumber(number) == onlyYear));
+    }
+    else
+    {
+        Console.Error.WriteLine(
+            "--card-fields-only требует --contract-card, --numbers-file или --inn");
+        return 1;
+    }
+
+    fieldsNumbers = fieldsNumbers
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(number => number, StringComparer.Ordinal)
+        .Take(onlyLimit)
+        .ToList();
+
+    Directory.CreateDirectory(outputDirectory);
+    var fieldsJsonOptions = new JsonSerializerOptions
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    var fieldsUpdated = 0;
+    var fieldsFailed = 0;
+    foreach (var regNumber in fieldsNumbers)
+    {
+        try
+        {
+            var commonInfo = await fieldsClient.GetCommonInfoHtmlAsync(regNumber);
+            var printForm = await fieldsClient.GetPrintFormHtmlAsync(regNumber);
+            var general = fieldsParser.Parse(commonInfo, printForm, regNumber);
+            if (general is null)
+            {
+                fieldsFailed++;
+                Console.Error.WriteLine($"{regNumber}: реквизиты карточки не разобрались");
+                continue;
+            }
+
+            var path = Path.Combine(outputDirectory, $"{regNumber}.json");
+            JsonObject projection;
+            if (File.Exists(path))
+            {
+                projection = JsonNode.Parse(await File.ReadAllTextAsync(path))?.AsObject()
+                    ?? new JsonObject();
+            }
+            else
+            {
+                projection = new JsonObject
+                {
+                    ["RegNumber"] = regNumber,
+                    ["regNumber"] = regNumber,
+                    ["Acts"] = new JsonArray(),
+                    ["Decisions"] = new JsonArray(),
+                    ["Payments"] = new JsonArray(),
+                    ["Messages"] = new JsonArray(),
+                    ["Executions"] = new JsonArray(),
+                    ["SkippedFiles"] = new JsonArray(),
+                };
+            }
+
+            projection["RegNumber"] = regNumber;
+            projection["regNumber"] = regNumber;
+            projection["General"] = JsonSerializer.SerializeToNode(general, fieldsJsonOptions);
+            await File.WriteAllTextAsync(path, projection.ToJsonString(fieldsJsonOptions));
+
+            fieldsUpdated++;
+            Console.Error.WriteLine(
+                $"{regNumber}: поставщик «{general.SupplierName ?? "—"}» " +
+                $"(ИНН {general.SupplierInn ?? "—"}), аванс {general.AdvanceAmount?.ToString() ?? "—"}");
+        }
+        catch (Exception exception)
+        {
+            fieldsFailed++;
+            Console.Error.WriteLine($"{regNumber}: ОШИБКА {exception.Message}");
+        }
+    }
+
+    Console.WriteLine(JsonSerializer.Serialize(new
+    {
+        total = fieldsNumbers.Count,
+        updated = fieldsUpdated,
+        failed = fieldsFailed,
+    }, fieldsJsonOptions));
+    return 0;
+}
+
+
 
 // Скачивание и полный разбор публичной карточки контракта: только общий доступ,
 // токен ЕИС не нужен. Результат — projecting со всеми полями для фронта.
@@ -594,13 +738,16 @@ if (cardRegNumber is not null || customerInn is not null || numbersFilePath is n
                     ? null
                     : Path.Combine(outputDirectory, regNumber);
                 var view = await importer.ImportAsync(
-                    regNumber, year, saveDirectory, includeHtmlSmp: smpHtml);
+                    regNumber, year, saveDirectory,
+                    includeHtmlSmp: smpHtml,
+                    includeHtmlGeneral: cardFields);
                 all.Add(view);
                 Console.Error.WriteLine(
                     $"{regNumber}: актов {view.Acts.Count}, решений {view.Decisions.Count}, " +
                     $"платежей {view.Payments.Count}, ЭДО {view.Messages.Count}, " +
                     $"исполнений {view.Executions.Count}, " +
-                    $"субподрядчиков {view.Smp.Sum(item => item.Subcontractors.Count)}");
+                    $"субподрядчиков {view.Smp.Sum(item => item.Subcontractors.Count)}, " +
+                    $"подрядчик «{view.General?.SupplierName ?? "—"}»");
 
                 if (outputDirectory is not null)
                 {

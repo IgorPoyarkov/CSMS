@@ -19,18 +19,25 @@ public sealed class ContractCardImportService(
     ContractSmpParser smpParser)
 {
     private readonly ContractSmpHtmlParser _smpHtmlParser = new();
+    private readonly ContractGeneralHtmlParser _generalParser = new();
 
     /// <summary>Импортировать один контракт; year — фильтр по году (null = все).</summary>
     /// <param name="includeHtmlSmp">
     /// Дополнительно разобрать подтаблицу СМП из HTML-карточки: с 2026 года
     /// заказчик не публикует субподрядчиков в XML, но на сайте они есть.
     /// </param>
+    /// <param name="includeHtmlGeneral">
+    /// Дополнительно разобрать реквизиты карточки (поставщик, аванс, срок
+    /// исполнения, ИКЗ, обеспечение, счета сторон): в XML вложений их нет,
+    /// поэтому без этого блока реестр остаётся с пустым подрядчиком.
+    /// </param>
     public async Task<ContractCardViewDto> ImportAsync(
         string regNumber,
         int? year,
         string? saveDirectory = null,
         CancellationToken cancellationToken = default,
-        bool includeHtmlSmp = false)
+        bool includeHtmlSmp = false,
+        bool includeHtmlGeneral = false)
     {
         var acts = new List<AcceptanceActViewDto>();
         var decisions = new List<AcceptanceDecisionDto>();
@@ -40,6 +47,10 @@ public sealed class ContractCardImportService(
         // Сведения о привлечении СМП/СОНО — подтаблица контракта из XML ЕИС
         var smp = new List<ContractSmpViewDto>();
         var skipped = new List<string>();
+
+        // Реквизиты карточки: блок нужен и для СМП (общая информация), и для
+        // полей реестра (поставщик, аванс). Скачиваем один раз.
+        ContractGeneralViewDto? general = null;
 
 
         var files = await client.GetDocumentFilesAsync(regNumber, cancellationToken);
@@ -98,25 +109,46 @@ public sealed class ContractCardImportService(
             }
         }
 
-        // XML 2026 года часто содержит только условие привлечения, без
-        // субподрядчиков. Добираем таблицу с сайта: она публикуется отдельно
-        // от XML и приходит только в HTML вкладки «Общая информация».
-        if (includeHtmlSmp)
+        // HTML карточки: подтаблица СМП и реквизиты контракта (поставщик,
+        // аванс, срок исполнения). Обе части берут общую информацию, поэтому
+        // скачиваем её один раз; печатная форма нужна только реквизитам.
+        if (includeHtmlSmp || includeHtmlGeneral)
         {
             try
             {
-                var html = await client.GetPrintFormHtmlAsync(regNumber, cancellationToken);
-                smp = MergeSmp(smp, _smpHtmlParser.Parse(html, regNumber));
+                var commonInfo = await client.GetCommonInfoHtmlAsync(regNumber, cancellationToken);
+
+                if (includeHtmlSmp)
+                {
+                    // Карточка даёт требование, AJAX-фрагмент — весь список
+                    // субподрядчиков со статусом и ОКПД2 (вкладка режет до 10 строк)
+                    var contractInfoId = ContractSmpHtmlParser.ContractInfoIdOf(commonInfo);
+                    var subcontractorsHtml = contractInfoId is null
+                        ? null
+                        : await client.GetSubcontractorsHtmlAsync(
+                            contractInfoId,
+                            cancellationToken: cancellationToken);
+                    smp = MergeSmp(
+                        smp,
+                        _smpHtmlParser.ParseCommonInfoCard(commonInfo, subcontractorsHtml, regNumber));
+                }
+
+                if (includeHtmlGeneral)
+                {
+                    var printForm = await client.GetPrintFormHtmlAsync(regNumber, cancellationToken);
+                    general = _generalParser.Parse(commonInfo, printForm, regNumber);
+                }
             }
             catch (Exception exception)
             {
                 // Сеть или 429 не должны ронять уже собранную XML-проекцию:
                 // фиксируем пропуск, следующий прогон повторит запрос.
-                skipped.Add($"html-smp: {exception.Message}");
+                skipped.Add($"html-card: {exception.Message}");
             }
         }
 
-        return BuildView(regNumber, acts, decisions, payments, messages, executions, smp, skipped);
+        return BuildView(
+            regNumber, acts, decisions, payments, messages, executions, smp, skipped, general);
     }
 
     /// <summary>
@@ -202,7 +234,8 @@ public sealed class ContractCardImportService(
         List<EdoMessageDto> messages,
         List<ContractExecutionViewDto> executions,
         List<ContractSmpViewDto> smp,
-        List<string> skipped)
+        List<string> skipped,
+        ContractGeneralViewDto? general = null)
     {
         // В некоторых формах реестровый номер есть только в ссылке на контракт;
         // подставляем номер карточки, чтобы связка была всегда заполнена.
@@ -230,7 +263,8 @@ public sealed class ContractCardImportService(
                     item.Responsibility,
                     item.Subcontractors.Count))
                 .OrderBy(item => item.SourceFile, StringComparer.Ordinal)
-                .ToList());
+                .ToList(),
+            general);
     }
 
     private void Classify(

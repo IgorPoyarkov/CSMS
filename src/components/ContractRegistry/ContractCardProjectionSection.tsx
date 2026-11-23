@@ -9,6 +9,12 @@ import {
   type ContractCardDecision,
   type ContractCardPayment,
 } from "../../services/ContractRegistry/contractCardProjection.schema";
+import {
+  buildAcceptanceActDocument,
+  buildPaymentOrderDocument,
+  printDocument,
+  type ContractDocumentContext,
+} from "../../services/ContractRegistry/contractExecutionDocument";
 import styles from "./ContractRegistry.module.scss";
 
 /** Сумма как в остальной карточке: два знака и пробелы между разрядами. */
@@ -83,6 +89,34 @@ export default function ContractCardProjectionSection({
   const paidTotal = contractCardPaymentsTotal(payments);
   const unpaidTotal = Math.max(0, acceptedTotal - paidTotal);
 
+  // Реквизиты контракта для печатных форм: блок General (HTML-карточка ЕИС),
+  // а если его ещё нет — номер из импорта. Подрядчика добирает сам документ
+  // из сторон акта или строки платежа.
+  const documentContext: ContractDocumentContext = {
+    contractNumber: projection.General?.ContractNumber ?? projection.contractNumber,
+    contractDate: projection.General?.ContractDate,
+    contractName: projection.General?.ContractName,
+    customerName: projection.General?.CustomerName,
+    customerInn: projection.General?.CustomerInn,
+    customerKpp: projection.General?.CustomerKpp,
+    supplierName: projection.General?.SupplierName,
+    supplierInn: projection.General?.SupplierInn,
+    supplierKpp: projection.General?.SupplierKpp,
+    source: projection.importedAt
+      ? `от ${shortDate(projection.importedAt)}`
+      : null,
+  };
+
+  const openDocument = (build: () => ReturnType<typeof buildAcceptanceActDocument>) => {
+    const document = build();
+    if (!printDocument(document)) {
+      // Попап заблокирован браузером — молчание выглядело бы как «кнопка не работает»
+      alert(
+        "Браузер заблокировал окно печати. Разрешите всплывающие окна для этой страницы и повторите.",
+      );
+    }
+  };
+
   return (
     <section id="contract-execution" className={styles.subSection}>
       <h4 className={styles.subTitle}>
@@ -127,6 +161,7 @@ export default function ContractCardProjectionSection({
                 <th>Сумма с НДС, ₽</th>
                 <th>Решение заказчика</th>
                 <th>Оплачено, ₽</th>
+                <th>Документ</th>
               </tr>
             </thead>
             <tbody>
@@ -136,6 +171,11 @@ export default function ContractCardProjectionSection({
                   act={act}
                   payments={payments}
                   decisions={decisions}
+                  onPrint={() =>
+                    openDocument(() =>
+                      buildAcceptanceActDocument(act, documentContext),
+                    )
+                  }
                 />
               ))}
             </tbody>
@@ -151,8 +191,10 @@ export default function ContractCardProjectionSection({
                 <th>Платёжное поручение</th>
                 <th>Дата</th>
                 <th>Сумма, ₽</th>
+                <th>Получатель (подрядчик)</th>
                 <th>Акт приёмки</th>
                 <th>Назначение платежа</th>
+                <th>Документ</th>
               </tr>
             </thead>
             <tbody>
@@ -169,6 +211,14 @@ export default function ContractCardProjectionSection({
                   <td>{shortDate(payment.DocumentDate)}</td>
                   <td className={styles.moneyCell}>{money(payment.Sum)}</td>
                   <td>
+                    {clamp(payment.RecipientName, 60)}
+                    {payment.RecipientInn && (
+                      <span className={styles.projectionNote}>
+                        ИНН {payment.RecipientInn}
+                      </span>
+                    )}
+                  </td>
+                  <td>
                     {payment.AcceptanceDocumentNumber
                       ? `№ ${payment.AcceptanceDocumentNumber} от ${shortDate(
                           payment.AcceptanceDocumentDate,
@@ -182,6 +232,20 @@ export default function ContractCardProjectionSection({
                     >
                       {clamp(payment.Purpose)}
                     </span>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className={styles.projectionDocButton}
+                      onClick={() =>
+                        openDocument(() =>
+                          buildPaymentOrderDocument(payment, documentContext),
+                        )
+                      }
+                      title="Печатная форма по реквизитам платёжного поручения"
+                    >
+                      Платёжка
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -215,10 +279,12 @@ function ProjectionActRow({
   act,
   payments,
   decisions,
+  onPrint,
 }: {
   act: ContractCardAct;
   payments: ContractCardPayment[];
   decisions: ContractCardDecision[];
+  onPrint: () => void;
 }) {
   const decision = contractCardActDecision(act, decisions);
   const paid = contractCardActPaidTotal(act, payments);
@@ -249,6 +315,16 @@ function ProjectionActRow({
         )}
       </td>
       <td className={styles.moneyCell}>{paid > 0 ? money(paid) : "—"}</td>
+      <td>
+        <button
+          type="button"
+          className={styles.projectionDocButton}
+          onClick={onPrint}
+          title="Печатная форма по реквизитам акта приёмки"
+        >
+          Акт
+        </button>
+      </td>
     </tr>
   );
 }

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import type { ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
@@ -74,6 +75,41 @@ export default function ContractEisSection({
           примет — его надо взять из карточки закупки или из плана-графика.
         </p>
       )}
+
+      {/* Обмен с ЕИС: пакет собирается по этой карточке, подписывается ЭП и
+          уходит на портал. Ссылки ведут на страницу пакетов с уже выбранным
+          контрактом — номера и ИКЗ там подставятся из карточки */}
+      <div className={styles.footerActions}>
+        {storedNumber && isIkz(storedIkz) ? (
+          <>
+            <Link
+              className={styles.btnSecondary}
+              to={`/eis/packages?contractId=${String(contract.id)}&documentType=ContractExecution`}
+            >
+              Отправить сведения об исполнении
+            </Link>
+            {Number(contract.smpRequiredPercent ?? 0) > 0 && (
+              <Link
+                className={styles.btnSecondary}
+                to={`/eis/packages?contractId=${String(contract.id)}&documentType=SmpAttraction`}
+              >
+                Отправить сведения СМП
+              </Link>
+            )}
+            <Link
+              className={styles.btnSecondary}
+              to={`/eis/packages?contractId=${String(contract.id)}`}
+            >
+              Пакеты по контракту
+            </Link>
+          </>
+        ) : (
+          <span className={styles.projectionMissing}>
+            Пакет сведений появится, когда в карточке будут реестровый номер
+            ЕИС и ИКЗ из 36 разрядов.
+          </span>
+        )}
+      </div>
     </section>
   );
 }

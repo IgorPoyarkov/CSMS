@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
@@ -65,8 +66,23 @@ export default function EisPackagesPage() {
   const embeddedBrowser = isEmbeddedBrowser();
   const currentUrl = typeof window === "undefined" ? "" : window.location.href;
 
-  const [documentType, setDocumentType] =
-    useState<EisDocumentType>("Notification");
+  // Карточка контракта может прислать сюда с уже выбранным контрактом и видом
+  // сведений: «Отправить сведения об исполнении» из карточки не должна
+  // заставлять человека искать тот же контракт в списке заново
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlContractId = searchParams.get("contractId") ?? "";
+  const urlDocumentType = searchParams.get("documentType") ?? "";
+
+  // Вид сведений: из адреса (переход из карточки контракта) либо выбранный
+  // человеком. Отдельное «переопределение» вместо состояния позволяет
+  // подхватить новую ссылку без setState в эффекте
+  const [documentTypeOverride, setDocumentTypeOverride] =
+    useState<EisDocumentType | null>(null);
+  const documentType =
+    documentTypeOverride ??
+    ((EIS_DOCUMENT_TYPES as readonly string[]).includes(urlDocumentType)
+      ? (urlDocumentType as EisDocumentType)
+      : "Notification");
   const [contractEisNumber, setContractEisNumber] = useState("");
   const [ikz, setIkz] = useState("");
   // Документ-источник для типов с готовым XML
@@ -93,11 +109,39 @@ export default function EisPackagesPage() {
     return { accepted, rejected, inWork };
   }, [packages]);
 
-  const pickedContract =
-    contracts.find((item) => String(item.id) === pickedContractId) ?? null;
+  // Контракт, выбранный вручную или пришедший из карточки: без этого
+  // переход «Отправить сведения об исполнении» открывал форму с пустыми полями
+  const focusContract =
+    contracts.find(
+      (item) => String(item.id) === (pickedContractId || urlContractId),
+    ) ?? null;
+  // Реестровый номер ЕИС: у импортированных из ЕИС карточек `eisRegistryNumber`
+  // пуст, а 19-значный `contractNumber` — это и есть реестровый номер. Без
+  // подстановки форма открывалась с пустым номером и требовала ввода вручную
+  const focusContractNumber = (() => {
+    if (!focusContract) return "";
+    const direct = focusContract.eisRegistryNumber ?? "";
+    if (direct) return direct;
+    const imported = focusContract.contractNumber ?? "";
+    return isEisContractNumber(imported) ? imported : "";
+  })();
+  // Пакеты по контракту, из карточки которого пришли: остальные не прячем
+  // навсегда — рядом есть кнопка «Показать все пакеты»
+  const focusNumber = focusContractNumber;
+  const visiblePackages = focusNumber
+    ? packages.filter((item) => item.contractEisNumber === focusNumber)
+    : packages;
   // Пока номера взяты из карточки, поля только для чтения: править их надо
   // там, где они живут, иначе по системе разъедутся две версии одного номера
-  const numbersFromContract = pickedContract !== null && !manualInput;
+  const numbersFromContract = focusContract !== null && !manualInput;
+  // Эффективные значения: из карточки (выбранной или пришедшей по ссылке) либо
+  // введённые руками. Так переход со страницы контракта сразу даёт готовую форму
+  const effectiveNumber = numbersFromContract
+    ? focusContractNumber
+    : contractEisNumber;
+  const effectiveIkz = numbersFromContract
+    ? (focusContract?.ikz ?? "")
+    : ikz;
 
   // Извещение и проект контракта — источники готового XML. Реестрового
   // номера контракта у них ещё нет, поэтому он не требуется.
@@ -141,6 +185,9 @@ export default function EisPackagesPage() {
     setIkz(project?.ikz ?? "");
   };
 
+  // Предзаполнение из адреса уже учтено в effectiveNumber/effectiveIkz:
+  // setState в эффекте здесь не нужен и вызывал бы лишний рендер
+
   async function create() {
     setFormError("");
 
@@ -153,12 +200,12 @@ export default function EisPackagesPage() {
       return;
     }
 
-    if (!withPayload && !isEisContractNumber(contractEisNumber)) {
+    if (!withPayload && !isEisContractNumber(effectiveNumber)) {
       setFormError(
         `Реестровый номер контракта в ЕИС — ${EIS_CONTRACT_NUMBER_LENGTH} цифр ` +
-          `(например, 0373100000123000001). Сейчас введено «${contractEisNumber}». ` +
+          `(например, 0373100000123000001). Сейчас введено «${effectiveNumber}». ` +
           "Без него ЕИС не поймёт, к какому контракту относятся сведения. " +
-          (pickedContract
+          (focusContract
             ? "Заполните его в карточке контракта, блок «Реквизиты для ЕИС»."
             : ""),
       );
@@ -166,12 +213,12 @@ export default function EisPackagesPage() {
       return;
     }
 
-    if (!isIkz(ikz)) {
+    if (!isIkz(effectiveIkz)) {
       setFormError(
-        `ИКЗ — ${IKZ_LENGTH} разрядов, сейчас ${ikz.trim().length}. ` +
+        `ИКЗ — ${IKZ_LENGTH} разрядов, сейчас ${effectiveIkz.trim().length}. ` +
           "Код берут из карточки закупки; в ЕИС без него не поймут, к какой " +
           "закупке относятся сведения." +
-          (pickedContract
+          (focusContract
             ? " Исправьте ИКЗ в карточке контракта, блок «Реквизиты для ЕИС»."
             : ""),
       );
@@ -253,8 +300,8 @@ export default function EisPackagesPage() {
 
       await createPackage.mutateAsync({
         documentType,
-        contractEisNumber: contractEisNumber.trim(),
-        ikz: ikz.trim(),
+        contractEisNumber: effectiveNumber.trim(),
+        ikz: effectiveIkz.trim(),
         payloadXml,
         source,
         customer,
@@ -317,7 +364,7 @@ export default function EisPackagesPage() {
               className={block("select")}
               value={documentType}
               onChange={(event) =>
-                setDocumentType(event.target.value as EisDocumentType)
+                setDocumentTypeOverride(event.target.value as EisDocumentType)
               }
             >
               {EIS_DOCUMENT_TYPES.map((type) => (
@@ -366,7 +413,10 @@ export default function EisPackagesPage() {
             ) : (
               <select
                 className={block("select")}
-                value={pickedContractId}
+                value={
+                  pickedContractId ||
+                  (focusContract ? String(focusContract.id) : "")
+                }
                 onChange={(event) => pickContract(event.target.value)}
               >
                 <option value="">— не выбран —</option>
@@ -394,7 +444,7 @@ export default function EisPackagesPage() {
                   "input",
                   numbersFromContract ? ["readonly"] : [],
                 )}
-                value={contractEisNumber}
+                value={numbersFromContract ? effectiveNumber : contractEisNumber}
                 onChange={(event) =>
                   setContractEisNumber(
                     digitsOnly(event.target.value).slice(
@@ -418,7 +468,7 @@ export default function EisPackagesPage() {
                 "input",
                 numbersFromContract ? ["readonly"] : [],
               )}
-              value={ikz}
+              value={numbersFromContract ? effectiveIkz : ikz}
               onChange={(event) =>
                 setIkz(digitsOnly(event.target.value).slice(0, IKZ_LENGTH))
               }
@@ -490,8 +540,32 @@ export default function EisPackagesPage() {
             {summary.rejected} · в работе: {summary.inWork}
           </div>
 
+          {focusNumber && (
+            <div className={block("summary")}>
+              Пакеты по контракту {focusNumber}: {visiblePackages.length}{" "}
+              <button
+                type="button"
+                className={block("link-button")}
+                onClick={() => {
+                  setSearchParams({});
+                  setPickedContractId("");
+                  setManualInput(false);
+                }}
+              >
+                Показать все пакеты
+              </button>
+            </div>
+          )}
+
+          {focusNumber && visiblePackages.length === 0 && (
+            <div className={block("empty")}>
+              По этому контракту пакетов ещё нет. Создайте первый — номер ЕИС и
+              ИКЗ уже подставлены из карточки.
+            </div>
+          )}
+
           <div className={block("list")}>
-            {packages.map((item) => (
+            {visiblePackages.map((item) => (
               <EisPackageCard key={item.id} item={item} />
             ))}
           </div>

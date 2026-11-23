@@ -200,7 +200,7 @@ export default function ContractCardPage() {
         <ContractAcceptanceSection contractId={contract.id} />
         <ContractStagesSection contractId={contract.id} contract={contract} />
         <ContractPenaltiesSection contractId={contract.id} />
-        <ContractEventsSection contractId={contractId} />
+          <ContractEventsSection contractId={contractId} contract={contract} />
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
             контрактов его нет, но объём и загруженные сведения показываем */}
         <div id="contract-smp">

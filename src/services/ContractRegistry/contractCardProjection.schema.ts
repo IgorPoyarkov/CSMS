@@ -41,12 +41,75 @@ export const ContractCardActWorkItemSchema = z.object({
   LineNumber: text,
   Name: text,
   Okpd2Code: text,
+  Okpd2Name: text,
   KtruCode: text,
+  // Идентификаторы КТРУ в ЕИС: ИдКТРУ, технический и ЕА-идентификатор
+  KtruId: text,
+  TechnicalKtruId: text,
+  EaKtruId: text,
   Quantity: text,
   UnitName: text,
   Price: amount,
+  SumWithoutVat: amount,
   SumWithVat: amount,
+  VatRate: text,
+  VatSum: amount,
 });
+
+/** Банковские реквизиты стороны акта: нужны для платёжного документа. */
+export const ContractCardBankRequisitesSchema = z.object({
+  PersonalAccount: text,
+  BankBik: text,
+  BankName: text,
+  CorrespondentAccount: text,
+  TreasuryAccount: text,
+  CounterpartyName: text,
+  RequisitesId: text,
+});
+
+/** Сторона договора в акте приёмки: заказчик или подрядчик. */
+export const ContractCardPartySchema = z.object({
+  Role: text,
+  Name: text,
+  ShortName: text,
+  Inn: text,
+  Kpp: text,
+  ParticipantId: text,
+  Address: text,
+  Phone: text,
+  Email: text,
+  BankRequisites: ContractCardBankRequisitesSchema.nullish(),
+});
+
+/** Вложение акта приёмки (КС-2, ЖПР, исполнительная документация). */
+export const ContractCardAttachmentSchema = z.object({
+  ContentId: text,
+  FileName: text,
+  Hash: text,
+  Extension: text,
+  AttachedAt: text,
+  DocumentKindName: text,
+});
+
+/** Подписант акта приёмки. */
+export const ContractCardSignatorySchema = z.object({
+  Position: text,
+  LastName: text,
+  FirstName: text,
+  MiddleName: text,
+  AuthorityBasis: text,
+});
+
+export type ContractCardBankRequisites = z.infer<
+  typeof ContractCardBankRequisitesSchema
+>;
+export type ContractCardParty = z.infer<typeof ContractCardPartySchema>;
+export type ContractCardAttachment = z.infer<
+  typeof ContractCardAttachmentSchema
+>;
+export type ContractCardSignatory = z.infer<
+  typeof ContractCardSignatorySchema
+>;
 
 /** Итоги акта: без НДС, с НДС и сумма налога. */
 export const ContractCardActTotalsSchema = z.object({
@@ -61,9 +124,23 @@ export const ContractCardActSchema = z.object({
   RegNumber: text,
   Knd: text,
   FileName: text,
+  // Идентификаторы выгрузки: нужны, чтобы ссылаться на исходный XML карточки
+  FileId: text,
+  SourceArchive: text,
+  FormVersion: text,
+  InfoDate: text,
+  InfoTime: text,
+  CurrencyCode: text,
   ObjectName: text,
   // Ссылка на контракт из блока ИдДог: в проекции не всегда заполнена
-  Contract: z.object({ Number: text, Date: text }).nullish(),
+  Contract: z
+    .object({
+      Number: text,
+      Date: text,
+      GovernmentContractId: text,
+      ContractVersionId: text,
+    })
+    .nullish(),
   // Этап исполнения: ИдЭтапКонт — GUID, ТехИдЭтапКонт — номер в ЕИС
   Stage: z.object({ Sid: text, TechnicalSid: text, Ikz: text }).nullish(),
   // Период выполнения работ и дата предъявления
@@ -77,6 +154,12 @@ export const ContractCardActSchema = z.object({
     .nullish(),
   Totals: ContractCardActTotalsSchema.nullish(),
   WorkItems: z.array(ContractCardActWorkItemSchema).default([]),
+  // Стороны договора с реквизитами: из них собирается печатная форма акта
+  Parties: z.array(ContractCardPartySchema).default([]),
+  // Вложения акта (КС-2, исполнительная документация)
+  Attachments: z.array(ContractCardAttachmentSchema).default([]),
+  // Подписанты: должность, ФИО, основание полномочий
+  Signatories: z.array(ContractCardSignatorySchema).default([]),
 });
 
 export type ContractCardAct = z.infer<typeof ContractCardActSchema>;
@@ -99,7 +182,9 @@ export type ContractCardDecision = z.infer<typeof ContractCardDecisionSchema>;
 export const ContractCardPaymentSchema = z.object({
   DocumentNumber: text,
   DocumentDate: text,
+  // Дата списания и дата исполнения: нужны для отметки оплаты в чекпоинтах
   ChargeOffDate: text,
+  ExecutionDate: text,
   Sum: amount,
   RegNumber: text,
   Purpose: text,
@@ -110,14 +195,31 @@ export const ContractCardPaymentSchema = z.object({
   // сопоставляется с документом о приёмке
   AcceptanceDocumentNumber: text,
   AcceptanceDocumentDate: text,
+  // Плательщик: заказчик (казначейство) с ИНН, КПП, счётом и банком
   PayerName: text,
+  PayerInn: text,
+  PayerKpp: text,
+  PayerBik: text,
+  PayerAccount: text,
+  PayerBankName: text,
   // Получатель платежа — это и есть подрядчик (поставщик, исполнитель):
   // реестр контрактов его не отдаёт, а платёжное поручение содержит
   RecipientName: text,
   RecipientInn: text,
+  RecipientKpp: text,
+  RecipBik: text,
+  RecipAccount: text,
+  RecipBankName: text,
+  // Идентификатор государственного контракта (ИГК) и КБК
+  Igk: text,
   Kbk: text,
+  // Сумма прописью из платёжного поручения
+  SumInWords: text,
   DocumentId: text,
   FileName: text,
+  // Номера электронного документа (ЭД) в казначействе
+  EdNo: text,
+  EdDate: text,
 });
 
 export type ContractCardPayment = z.infer<typeof ContractCardPaymentSchema>;
@@ -168,6 +270,45 @@ export type ContractCardSmpSubcontractor = z.infer<
 >;
 export type ContractCardSmp = z.infer<typeof ContractCardSmpSchema>;
 
+// ─── Реквизиты контракта из HTML-карточки ЕИС ──────────────────────────────
+
+/**
+ * Блок `General`: то, чего нет в XML вложений — поставщик с ИНН/КПП, аванс,
+ * срок исполнения, ИКЗ, обеспечение и счета сторон. Разбирается воркером из
+ * вкладки «Общая информация» и печатной формы карточки, после чего импорт
+ * переносит заполненные значения в запись реестра контрактов.
+ */
+export const ContractCardGeneralSchema = z.object({
+  ContractNumber: text,
+  ContractDate: text,
+  ContractName: text,
+  ContractPrice: amount,
+  CurrencyName: text,
+  Ikz: text,
+  CustomerName: text,
+  CustomerInn: text,
+  CustomerKpp: text,
+  SupplierName: text,
+  SupplierInn: text,
+  SupplierKpp: text,
+  AdvancePercent: amount,
+  AdvanceAmount: amount,
+  PerformanceSecurityAmount: amount,
+  ExecutionStartDate: text,
+  ExecutionEndDate: text,
+  SupplierPersonalAccount: text,
+  SupplierAccount: text,
+  SupplierBankName: text,
+  SupplierBik: text,
+  SupplierCorrespondentAccount: text,
+  CustomerAccount: text,
+  CustomerBankName: text,
+  CustomerBik: text,
+  SourceFile: text,
+});
+
+export type ContractCardGeneral = z.infer<typeof ContractCardGeneralSchema>;
+
 // ─── Документ коллекции `contractCardProjections` ──────────────────────────
 
 /**
@@ -190,6 +331,9 @@ export const ContractCardProjectionSchema = z.object({
   // Подтаблица контракта «Информация о привлечении СМП, СОНО»: у старых
   // выгрузок поля нет вовсе, поэтому default([]) — это «сведений не выгружали»
   Smp: z.array(ContractCardSmpSchema).default([]),
+  // Реквизиты контракта из HTML-карточки: у выгрузок до появления блока его
+  // нет — тогда null, и карточка добирает подрядчика из платежей и актов.
+  General: ContractCardGeneralSchema.nullish(),
 });
 
 export type ContractCardProjection = z.infer<

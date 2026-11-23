@@ -176,6 +176,60 @@ public sealed record ContractSmpViewDto(
     IReadOnlyList<SubcontractorDto> Subcontractors,
     string SourceFile);
 
+/// <summary>
+/// Реквизиты контракта из HTML-карточки ЕИС: то, чего нет в XML вложений —
+/// поставщик с ИНН/КПП, аванс, срок исполнения, ИКЗ, обеспечение, банковские
+/// счета сторон. Источник — вкладка «Общая информация» (секции
+/// <c>blockInfo__section</c>) и печатная форма карточки, где опубликован
+/// поставщик и его банковские реквизиты.
+///
+/// Это не сущность БД: блок кладётся в проекцию карточки, а импорт
+/// <c>scripts/import-contract-card-projections.mjs</c> переносит значения в
+/// запись своего реестра контрактов.
+/// </summary>
+public sealed record ContractGeneralViewDto(
+    /// <summary>Номер контракта по данным ЕИС («14Р_26»).</summary>
+    string? ContractNumber,
+    /// <summary>Дата заключения контракта (ISO).</summary>
+    string? ContractDate,
+    /// <summary>Предмет контракта из карточки.</summary>
+    string? ContractName,
+    /// <summary>Цена контракта по данным ЕИС.</summary>
+    decimal? ContractPrice,
+    /// <summary>Валюта контракта («Российский рубль»).</summary>
+    string? CurrencyName,
+    /// <summary>ИКЗ (36 цифр).</summary>
+    string? Ikz,
+    /// <summary>Полное наименование заказчика.</summary>
+    string? CustomerName,
+    string? CustomerInn,
+    string? CustomerKpp,
+    /// <summary>Поставщик (подрядчик, исполнитель) из печатной формы.</summary>
+    string? SupplierName,
+    string? SupplierInn,
+    string? SupplierKpp,
+    /// <summary>Аванс: процент из карточки и сумма в рублях.</summary>
+    decimal? AdvancePercent,
+    decimal? AdvanceAmount,
+    /// <summary>Размер обеспечения исполнения контракта, ₽.</summary>
+    decimal? PerformanceSecurityAmount,
+    /// <summary>Срок исполнения (ISO).</summary>
+    string? ExecutionStartDate,
+    string? ExecutionEndDate,
+    /// <summary>Лицевой счёт поставщика в казначействе (для платёжки).</summary>
+    string? SupplierPersonalAccount,
+    /// <summary>Банковский (казначейский) счёт поставщика.</summary>
+    string? SupplierAccount,
+    string? SupplierBankName,
+    string? SupplierBik,
+    string? SupplierCorrespondentAccount,
+    /// <summary>Счёт заказчика — плательщика в платёжном поручении.</summary>
+    string? CustomerAccount,
+    string? CustomerBankName,
+    string? CustomerBik,
+    /// <summary>Откуда взяты реквизиты: common-info / print-form.</summary>
+    string? SourceFile);
+
 /// <summary>Всё, что скачано по одному контракту, в одном DTO для фронта.</summary>
 public sealed record ContractCardViewDto(
     string RegNumber,
@@ -186,4 +240,9 @@ public sealed record ContractCardViewDto(
     IReadOnlyList<ContractExecutionViewDto> Executions,
     IReadOnlyList<string> SkippedFiles,
     /// <summary>Сведения о привлечении СМП/СОНО (подтаблица контракта).</summary>
-    IReadOnlyList<ContractSmpViewDto> Smp);
+    IReadOnlyList<ContractSmpViewDto> Smp,
+    /// <summary>
+    /// Реквизиты контракта из HTML-карточки. Null — HTML не скачивали
+    /// (переразбор сохранённых XML без сети).
+    /// </summary>
+    ContractGeneralViewDto? General = null);
