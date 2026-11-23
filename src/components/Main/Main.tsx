@@ -220,8 +220,8 @@ const Main = () => {
     },
     {
       title: "Реестр контрактов",
-      hint: "Реестр (ст. 82, 103)",
-      count: (registryContracts ?? []).length,
+      hint: `Реестр ${currentContractYear} (ст. 82, 103)`,
+      count: yearContracts.length,
       to: "/contract-registry",
     },
   ];
@@ -229,8 +229,8 @@ const Main = () => {
   const stats: StatItem[] = [
     {
       label: "Контракты",
-      hint: "в реестре заказчика",
-      value: (registryContracts ?? []).length,
+      hint: `в реестре за ${currentContractYear} год`,
+      value: yearContracts.length,
       to: "/contract-registry",
     },
     {
@@ -549,7 +549,7 @@ const Main = () => {
             <p className={main("muted")}>
               Планирование → план-график → СЗ на закупку → извещение → контракт
               → реестр контрактов. Количество документов считается по данным
-              организации.
+              организации; контракты — за {currentContractYear} год.
             </p>
           </div>
           <span className={main("section-note")}>6 этапов</span>
