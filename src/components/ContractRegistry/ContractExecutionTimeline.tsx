@@ -196,8 +196,11 @@ export default function ContractExecutionTimeline({
 
   // Реквизиты для печатных форм: акт и платёжка печатаются по данным карточки
   // ЕИС, а подрядчика документ добирает из сторон акта или строки платежа
-  const documentContext = useMemo<ContractDocumentContext>(
-    () => ({
+  const documentContext = useMemo<ContractDocumentContext>(() => {
+    // Срок исполнения контракта: запасной источник периода для акта, когда в
+    // самом акте блок `СвПродПер` не выгружен
+    const period = contractCardExecutionPeriod(projection);
+    return {
       contractNumber:
         contractCardContractNumber(projection) || projection?.contractNumber,
       contractDate: projection?.General?.ContractDate,
@@ -208,12 +211,16 @@ export default function ContractExecutionTimeline({
       supplierName: projection?.General?.SupplierName,
       supplierInn: projection?.General?.SupplierInn,
       supplierKpp: projection?.General?.SupplierKpp,
+      // Реестровый номер контракта и ИКЗ: обязательные строки печатной формы
+      regNumber: projection?.regNumber ?? projection?.RegNumber,
+      ikz: projection?.General?.Ikz,
+      periodStart: period.start,
+      periodEnd: period.end,
       source: projection?.importedAt
         ? `от ${showDate(projection.importedAt)}`
         : null,
-    }),
-    [projection],
-  );
+    };
+  }, [projection]);
 
   const timeline = useMemo(() => {
     const acts: ContractCardAct[] = projection?.Acts ?? [];
@@ -664,12 +671,11 @@ export default function ContractExecutionTimeline({
         </div>
       )}
 
-      <div className={styles.projectionMeta}>
-        <span>
-          Выгрузка ЕИС: {showDate(projection?.importedAt) || "нет"} · сообщений
-          ЭДО: {projection?.Messages.length ?? 0}
-        </span>
-        {projection?.eisUrl && (
+      {/* Подвал хронологии: только ссылка на карточку ЕИС. Счётчики
+          «выгрузка от … · сообщений ЭДО» убраны: дата выгрузки ничего не
+          решает для работы, а число сообщений ЭДО в проекции всегда 0 */}
+      {projection?.eisUrl && (
+        <div className={styles.projectionMeta}>
           <a
             className={styles.projectionLink}
             href={projection.eisUrl}
@@ -678,8 +684,8 @@ export default function ContractExecutionTimeline({
           >
             Карточка контракта в ЕИС
           </a>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

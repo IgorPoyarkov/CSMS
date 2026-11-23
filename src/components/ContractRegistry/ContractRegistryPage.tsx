@@ -1527,8 +1527,13 @@ const ContractRow = memo(function ContractRow({
         </td>
         <td colSpan={2} className={styles.contractTitleSide}>
           {showCardNumber && (
-            <span className={styles.contractTitleNumber}>
-              Контракт № {cardNumber}
+            // Только сам номер: подпись «Контракт №» съедала ширину и рвала
+            // строку на две. Полный номер — в подсказке, на экране — многоточие
+            <span
+              className={styles.contractTitleNumber}
+              title={`Номер контракта: ${cardNumber}`}
+            >
+              {cardNumber}
             </span>
           )}
         </td>

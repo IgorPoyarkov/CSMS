@@ -122,6 +122,14 @@ export default function ContractCardProjectionSection({
     supplierName: projection.General?.SupplierName,
     supplierInn: projection.General?.SupplierInn,
     supplierKpp: projection.General?.SupplierKpp,
+    // Реестровый номер и ИКЗ печатаются в акте отдельными строками: по ним
+    // документ находят в ЕИС, и без них форма не считается полной
+    regNumber: projection.regNumber ?? projection.RegNumber,
+    ikz: projection.General?.Ikz,
+    // Период исполнения контракта — запасной источник периода для акта,
+    // если в самом акте блок `СвПродПер` не выгружен
+    periodStart: execution.start,
+    periodEnd: execution.end,
     source: projection.importedAt
       ? `от ${shortDate(projection.importedAt)}`
       : null,

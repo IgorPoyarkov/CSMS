@@ -21,6 +21,8 @@ import { useContractSmpRecords } from "../../services/ContractSmp/contractSmp.ap
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import ContractEisSection from "./ContractEisSection";
+import ContractAcceptanceSection from "./ContractAcceptanceSection";
+import ContractPaymentsSection from "./ContractPaymentsSection";
 import ContractCardSummary from "./ContractCardSummary";
 import ContractExecutionTimeline from "./ContractExecutionTimeline";
 import SmpSection from "./ContractSmpSection";
@@ -172,10 +174,11 @@ export default function ContractCardPage() {
       </div>
 
       <header className={styles.cardPageHeader}>
-        <h2 className={styles.cardPageTitle}>
-          {contractNumberLabel} — {subject}
-        </h2>
+        {/* Заголовок — только предмет контракта: номер и реквизиты читаются
+            строкой меты под ним, а в заголовке они отвлекали от сути */}
+        <h2 className={styles.cardPageTitle}>{subject}</h2>
         <div className={styles.cardPageMeta}>
+          <span>Контракт № {contractNumberLabel}</span>
           <span className={styles.statusCell}>
             <span
               className={`${styles.statusBadge} ${styles[`status_${contract.status}`]}`}
@@ -216,6 +219,15 @@ export default function ContractCardPage() {
             (приёмка, оплата, СМП, неустойки) в порядке календаря. Раньше это
             были четыре независимые таблицы, и порядок событий в них терялся */}
         <ContractExecutionTimeline contract={contract} />
+        {/* Приёмка и оплата — рабочие секции, а не хронология: здесь заводят
+            документы и отправляют их в ЕИС дистанционного актирования.
+            Хронология выше остаётся справкой по уже опубликованным фактам */}
+        <div id="contract-acceptance">
+          <ContractAcceptanceSection contractId={contractId} />
+        </div>
+        <div id="contract-payments">
+          <ContractPaymentsSection contractId={contractId} />
+        </div>
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
             контрактов его может не быть — тогда блока нет совсем, чтобы не
             показывать пустую оболочку с редактором, который нечего настраивать */}

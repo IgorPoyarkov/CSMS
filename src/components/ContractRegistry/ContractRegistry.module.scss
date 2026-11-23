@@ -566,14 +566,23 @@
 .contractTitleSide {
   text-align: right;
   vertical-align: top;
+  // Номер не должен раздвигать строку названия: колонка статуса узкая
+  max-width: 0;
 }
 
+// Номер контракта оформлен как реестровый номер в колонке «Номер» (тот же
+// моноширинный шрифт и цвет), но всегда в одну строку: длинный номер
+// обрезается многоточием, полное значение — в подсказке `title`
 .contractTitleNumber {
-  font-size: 12px;
-  font-weight: 500;
+  display: block;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
+  color: var(--accent);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 
@@ -1209,6 +1218,16 @@
 
 .smp-section__rowDanger {
   background: var(--state-danger-soft);
+}
+
+/* Строка подтаблицы ЕИС кликабельна: из неё заводят сведения о привлечении,
+   поэтому курсор и подсветка должны говорить об этом до наведения на кнопку */
+.smp-section__eis-row {
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-raised);
+  }
 }
 
 /* Подтверждения достоверности в таблице записей (п. 6 ПП РФ N 1466) */

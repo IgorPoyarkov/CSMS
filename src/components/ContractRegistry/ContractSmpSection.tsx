@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -37,7 +38,14 @@ import {
   contractCardSmpRequirement,
   contractCardSmpRows,
   contractCardSmpTotal,
+  type ContractCardSmpSubcontractor,
 } from "../../services/ContractRegistry/contractCardProjection.schema";
+import {
+  describeEisError,
+  useCreateEisPackage,
+} from "../../services/Eis/eisPackages.api";
+import { eisPackageStatusLabels } from "../../services/Eis/eisPackages.schema";
+import { isEisContractNumber, isIkz } from "../../services/Eis/eisIdentifiers";
 import styles from "./ContractRegistry.module.scss";
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
@@ -58,6 +66,18 @@ import Select from "../UI/Select";
  * 3) Таблицу всех записей с подтверждением достоверности
  * 4) Кнопку создания новой записи и кнопку начисления неустойки
  */
+
+/**
+ * Дата в ГГГГ-ММ-ДД. В карточке ЕИС даты субдоговоров приходят и ISO с
+ * временем, и ДД.ММ.ГГГГ: форма хранит только ГГГГ-ММ-ДД, поэтому приводим
+ * значение к нему — иначе черновик не пройдёт проверку даты.
+ */
+const isoDate = (value?: string | null): string => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const dotted = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+  return dotted ? `${dotted[3]}-${dotted[2]}-${dotted[1]}` : raw.slice(0, 10);
+};
 
 interface SmpSectionProps {
   contractId: string | number;
@@ -83,6 +103,17 @@ export default function SmpSection({
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ContractSmpRecord | null>(null);
+  // Черновик из подтаблицы ЕИС: субподрядчик уже опубликован заказчиком в
+  // карточке контракта, но записи в нашем реестре СМП нет. Клик по строке
+  // открывает форму с подставленными реквизитами — их проверяют, а не
+  // перепечатывают из XML
+  const [eisDraft, setEisDraft] = useState<ContractSmpRecord | null>(null);
+  // Результат постановки в очередь ЕИС: строка под таблицей вместо alert —
+  // отказ шлюза надо прочитать, а не закрыть по привычке
+  const [eisQueued, setEisQueued] = useState<{ text: string; ok: boolean } | null>(
+    null,
+  );
+  const createEisPackage = useCreateEisPackage();
 
   // Требование о привлечении СМП живёт в самом контракте: у контрактов,
   // импортированных из ЕИС, процента и номера служебки нет — их можно задать
@@ -96,6 +127,12 @@ export default function SmpSection({
   // Подтаблица «Информация о привлечении СМП, СОНО» из выгрузки карточки ЕИС:
   // сведения лежат в XML контракта, поэтому приходят вместе с проекцией
   const { data: projection } = useContractCardProjection(contractId);
+  // Адрес записи в реестре ЕИС: сведения о СМП шлюз привязывает к реестровому
+  // номеру контракта и ИКЗ. Без них пакет собирать не из чего — предупреждаем
+  // об этом в карточке, а не после отказа шлюза
+  const eisContractNumber = projection?.regNumber || projection?.RegNumber || "";
+  const eisIkz = projection?.General?.Ikz ?? "";
+  const canQueueEis = isEisContractNumber(eisContractNumber) && isIkz(eisIkz);
   const eisSmpRows = useMemo(
     () => contractCardSmpRows(projection?.Smp ?? []),
     [projection],
@@ -107,6 +144,17 @@ export default function SmpSection({
   const eisTotal = useMemo(
     () => contractCardSmpTotal(eisSmpRows),
     [eisSmpRows],
+  );
+  // Ключи уже заведённых записей: ИНН + номер субдоговора. По ним видно, что
+  // строка ЕИС не «новая» — второй раз её заводить не нужно
+  const registeredEisKeys = useMemo(
+    () =>
+      new Set(
+        records.map(
+          (record) => `${record.supplierInn ?? ""}|${record.documentNumber ?? ""}`,
+        ),
+      ),
+    [records],
   );
 
   // Условие привлечения СМП (процент и ответственность) публикуется в ЕИС у всех
@@ -159,21 +207,100 @@ export default function SmpSection({
 
   function handleCreate() {
     setShowForm(true);
+    setEisDraft(null);
+    setEisQueued(null);
   }
 
   function handleCancel() {
     setShowForm(false);
     setEditing(null);
+    setEisDraft(null);
   }
 
   function handleSave(data: ContractSmpRecord) {
     if (editing && editing.id != null) {
       updateRecord.mutate({ id: editing.id, ...data });
     } else {
-      createRecord.mutate(data);
+      // Запись, заведённая из строки ЕИС, сразу становится пакетом сведений:
+      // реквизиты человек уже подтвердил в форме, второй кнопки «выгрузить»
+      // не нужно
+      const fromEis = eisDraft !== null;
+      createRecord.mutate(data, {
+        onSuccess: (created) => {
+          if (fromEis) queueEisPackage(created);
+        },
+      });
     }
     setShowForm(false);
     setEditing(null);
+    setEisDraft(null);
+  }
+
+  /**
+   * Черновик записи из строки ЕИС.
+   *
+   * Реквизиты субдоговора переносим один к одному: номер, дата, сумма, ОКПД2,
+   * предмет и субподрядчик. Признак субъекта МСП берём из кода статуса ЕИС
+   * (30 — СМП, 40 — СОНО), а не «по умолчанию»: от него зависит, закроет ли
+   * договор требуемый объём привлечения.
+   */
+  function openEisDraft(row: ContractCardSmpSubcontractor) {
+    const draft = emptyContractSmpRecord("", contractId);
+    draft.documentType = "subContract";
+    draft.documentNumber = row.ContractNumber ?? "";
+    draft.documentDate = isoDate(row.ContractDate) || draft.documentDate;
+    draft.amount = row.ContractSum !== null ? String(row.ContractSum) : "";
+    draft.okpd2Code = row.Okpd2Code ?? "";
+    draft.subject = row.ContractSubject ?? "";
+    draft.supplierName = row.Name ?? "";
+    draft.supplierInn = row.Inn ?? "";
+    draft.supplierKpp = row.Kpp ?? "";
+    draft.isSmpSubject = row.StatusCode === "30" || row.StatusCode === "40";
+    draft.comment =
+      "Реквизиты подставлены из карточки ЕИС. Проверьте состав сведений перед выгрузкой в ЕИС.";
+    setEisDraft(draft);
+    setEditing(null);
+    setShowForm(false);
+    setEisQueued(null);
+  }
+
+  /**
+   * Постановка сведений в очередь ЕИС — пакет `SmpAttraction` со ссылкой на
+   * запись реестра СМП (`SmpReport`). XML собирает шлюз: фронт передаёт только
+   * адрес записи, так же как для актов приёмки и расторжений.
+   */
+  function queueEisPackage(record: ContractSmpRecord) {
+    if (record.id == null) return;
+
+    if (!canQueueEis) {
+      setEisQueued({
+        ok: false,
+        text: "Запись сохранена, но пакет в ЕИС не создан: в карточке нет реестрового номера контракта и ИКЗ из 36 разрядов. Их присваивает портал — без них шлюз не поймёт, к какой записи реестра относятся сведения.",
+      });
+      return;
+    }
+
+    createEisPackage.mutate(
+      {
+        documentType: "SmpAttraction",
+        contractEisNumber: eisContractNumber,
+        ikz: eisIkz,
+        source: {
+          documentKind: "SmpReport",
+          documentId: String(record.id),
+          documentNumber: record.documentNumber || undefined,
+        },
+      },
+      {
+        onSuccess: (pkg) =>
+          setEisQueued({
+            ok: true,
+            text: `Пакет «Привлечение СМП» создан: ${eisPackageStatusLabels[pkg.status]}. Подпишите и отправьте его в разделе «Пакеты сведений» — до отправки сведения в ЕИС не считаются опубликованными.`,
+          }),
+        onError: (error) =>
+          setEisQueued({ ok: false, text: describeEisError(error) }),
+      },
+    );
   }
 
   function handleDelete(id: string | number) {
@@ -674,66 +801,90 @@ export default function SmpSection({
           )}
           {eisSmpRows.length > 0 && (
             <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Субподрядчик</th>
-                <th>Статус</th>
-                <th>Субдоговор</th>
-                <th>Сумма, ₽</th>
-                <th>ОКПД2</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eisSmpRows.map((row) => (
-                <tr key={`${row.Inn}|${row.ContractNumber ?? ""}`}>
-                  <td>
-                    {row.Name ?? "—"}
-                    <br />
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      ИНН {row.Inn}
-                      {row.Kpp ? ` / КПП ${row.Kpp}` : ""}
-                    </span>
-                  </td>
-                  <td>
-                    {row.StatusCode === "30"
-                      ? "СМП"
-                      : row.StatusCode === "40"
-                        ? "СОНО"
-                        : (row.StatusName ?? "—")}
-                  </td>
-                  <td>
-                    {row.ContractNumber ? `№ ${row.ContractNumber}` : "—"}
-                    {row.ContractDate
-                      ? ` от ${formatDate(row.ContractDate)}`
-                      : ""}
-                    {row.ContractSubject && (
-                      <>
-                        <br />
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          {row.ContractSubject}
-                        </span>
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    {row.ContractSum !== null
-                      ? row.ContractSum.toLocaleString("ru-RU")
-                      : "—"}
-                  </td>
-                  <td>{row.Okpd2Code ?? "—"}</td>
+              <thead>
+                <tr>
+                  <th>Субподрядчик</th>
+                  <th>Статус</th>
+                  <th>Субдоговор</th>
+                  <th>Сумма, ₽</th>
+                  <th>ОКПД2</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {eisSmpRows.map((row) => (
+                  <tr
+                    key={`${row.Inn}|${row.ContractNumber ?? ""}`}
+                    className={block("eis-row")}
+                    onClick={() => openEisDraft(row)}
+                    title="Завести сведения о привлечении по этому субподрядчику: реквизиты подставятся в форму"
+                  >
+                    <td>
+                      {row.Name ?? "—"}
+                      <br />
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        ИНН {row.Inn}
+                        {row.Kpp ? ` / КПП ${row.Kpp}` : ""}
+                      </span>
+                    </td>
+                    <td>
+                      {row.StatusCode === "30"
+                        ? "СМП"
+                        : row.StatusCode === "40"
+                          ? "СОНО"
+                          : (row.StatusName ?? "—")}
+                    </td>
+                    <td>
+                      {row.ContractNumber ? `№ ${row.ContractNumber}` : "—"}
+                      {row.ContractDate
+                        ? ` от ${formatDate(row.ContractDate)}`
+                        : ""}
+                      {row.ContractSubject && (
+                        <>
+                          <br />
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            {row.ContractSubject}
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {row.ContractSum !== null
+                        ? row.ContractSum.toLocaleString("ru-RU")
+                        : "—"}
+                    </td>
+                    <td>{row.Okpd2Code ?? "—"}</td>
+                    <td>
+                      {registeredEisKeys.has(
+                        `${row.Inn ?? ""}|${row.ContractNumber ?? ""}`,
+                      ) ? (
+                        <span className={block("hint")}>заведено</span>
+                      ) : (
+                        <button
+                          className={styles.btnSmall}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEisDraft(row);
+                          }}
+                          title="Открыть форму с реквизитами из карточки ЕИС: после сохранения сведения встанут в очередь на отправку в ЕИС"
+                        >
+                          Завести
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           )}
         </div>
@@ -920,11 +1071,32 @@ export default function SmpSection({
         )}
       </div>
 
-      {/* Форма создания / редактирования */}
-      {showForm && (
+      {/* Итог постановки в очередь ЕИС: отказ шлюза надо прочитать, поэтому
+          строка под таблицей, а не модальное окно */}
+      {eisQueued && (
+        <p
+          className={block("hint")}
+          style={{ color: eisQueued.ok ? "var(--state-success)" : "var(--state-danger)" }}
+        >
+          {eisQueued.text}{" "}
+          {eisQueued.ok && (
+            <Link
+              className={styles.projectionLink}
+              to={`/eis/packages?contractId=${String(contractId)}&documentType=SmpAttraction`}
+            >
+              Открыть пакеты СМП
+            </Link>
+          )}
+        </p>
+      )}
+
+      {/* Форма создания / редактирования. Черновик из строки ЕИС открывается
+          тем же окном: это создание записи, а не правка существующей */}
+      {(showForm || eisDraft) && (
         <ContractSmpRecordForm
           contractId={contractId}
           record={editing ?? null}
+          draft={eisDraft}
           onClose={handleCancel}
           onSave={handleSave}
         />
@@ -950,6 +1122,12 @@ export default function SmpSection({
 interface FormProps {
   contractId: string | number;
   record: ContractSmpRecord | null;
+  /**
+   * Черновик из строки ЕИС: реквизиты уже подставлены, но записи в реестре
+   * СМП ещё нет. От `record` отличается тем, что сохранение создаёт запись, а
+   * не правит существующую.
+   */
+  draft?: ContractSmpRecord | null;
   onClose: () => void;
   onSave: (data: ContractSmpRecord) => void;
 }
@@ -957,6 +1135,7 @@ interface FormProps {
 function ContractSmpRecordForm({
   contractId,
   record,
+  draft = null,
   onClose,
   onSave,
 }: FormProps) {
@@ -966,7 +1145,7 @@ function ContractSmpRecordForm({
 
   const methods = useForm<ContractSmpRecord>({
     resolver: zodResolver(ContractSmpRecordSchema) as any,
-    defaultValues: record ?? emptyContractSmpRecord("", contractId),
+    defaultValues: record ?? draft ?? emptyContractSmpRecord("", contractId),
   });
 
   const {
@@ -1028,7 +1207,11 @@ function ContractSmpRecordForm({
       <div className={block("window")} onClick={(e) => e.stopPropagation()}>
         <div className={block("head")}>
           <h3 className={block("title")}>
-            {isEditing ? "Редактировать сведения" : "Новые сведения о СМП"}
+            {isEditing
+              ? "Редактировать сведения"
+              : draft
+                ? "Сведения из карточки ЕИС"
+                : "Новые сведения о СМП"}
           </h3>
           <button
             type="button"
@@ -1466,7 +1649,11 @@ function ContractSmpRecordForm({
                 Отмена
               </button>
               <button type="submit">
-                {isEditing ? "Сохранить" : "Создать"}
+                {isEditing
+                  ? "Сохранить"
+                  : draft
+                    ? "Создать и отправить в ЕИС"
+                    : "Создать"}
               </button>
             </div>
           </footer>
