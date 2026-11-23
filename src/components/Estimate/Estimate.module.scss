@@ -448,6 +448,12 @@
       font-size: 11px;
       color: var(--text-secondary);
     }
+
+    // График СМР и оплаты (336/пр): этап, начало, окончание, сумма
+    &--schedule {
+      grid-template-columns: 2.6fr 1fr 1fr 1fr 32px;
+      min-width: 640px;
+    }
   }
 
   &__cell {

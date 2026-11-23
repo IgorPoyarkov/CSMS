@@ -12,10 +12,15 @@ import {
   canViewEstimate,
   createEstimateFromDefect,
   estimateNmckDelta,
+  estimateScheduleDelta,
+  estimateScheduleTotal,
   estimateTotals,
   findEstimateForDefect,
   isEstimateEditable,
+  isEstimateScheduleEmpty,
+  rebuildEstimateSchedule,
   syncEstimateItemsFromDefect,
+  syncScheduleFromDefect,
   type ContractEstimateDocument,
   type EstimateActor,
 } from "../src/services/Estimate/estimate.schema";
@@ -305,6 +310,144 @@ assert.equal(canEditEstimate(approvedDocument, authorActor), false);
 // 12. Поиск сметы по дефектовке.
 assert.equal(findEstimateForDefect([validDocument], 101)?.id, 501);
 assert.equal(findEstimateForDefect([validDocument], 999), undefined);
+
+// 13. График СМР и оплаты (приказ № 336/пр): перенос, пересборка, сверка.
+const defectWithSchedule: DefectList = {
+  ...defect,
+  schedule: {
+    ...defect.schedule,
+    plannedStart: "2026-12-01",
+    plannedEnd: "2026-12-31",
+    legalActId: "minstroy-336pr",
+    stages: [
+      {
+        id: "s1",
+        name: "Кровля",
+        startDate: "2026-12-01",
+        endDate: "2026-12-31",
+        amount: "145599.30",
+      },
+    ],
+  },
+};
+
+// Перенос графика из дефектовки при создании сметы.
+const scheduleDocument = createEstimateFromDefect(defectWithSchedule);
+assert.equal(scheduleDocument.schedule.legalActId, "minstroy-336pr");
+assert.equal(scheduleDocument.schedule.stages.length, 1);
+assert.equal(estimateScheduleTotal(scheduleDocument), 145_599.3);
+assert.equal(estimateScheduleDelta(scheduleDocument), 0);
+assert.equal(isEstimateScheduleEmpty(scheduleDocument), false);
+
+// Пересборка из сметы: этапы по разделам, НМЦК и смета не теряются.
+const withNmck: ContractEstimateDocument = {
+  ...validDocument,
+  schedule: { ...scheduleDocument.schedule, stages: [] },
+};
+const rebuiltSchedule = rebuildEstimateSchedule(withNmck);
+assert.equal(rebuiltSchedule.schedule.stages.length, 1);
+assert.equal(estimateScheduleTotal(rebuiltSchedule), 145_599.3);
+assert.equal(estimateScheduleDelta(rebuiltSchedule), 0);
+assert.equal(rebuiltSchedule.nmck?.record?.nmckTotal, 145_599.3);
+
+// В дефектовке этапов нет — они собираются по смете на её периоде.
+const emptyDefectSchedule: DefectList = {
+  ...defectWithSchedule,
+  schedule: { ...defectWithSchedule.schedule, stages: [] },
+};
+const syncedSchedule = syncScheduleFromDefect(
+  { ...withNmck, schedule: { ...withNmck.schedule, stages: [] } },
+  emptyDefectSchedule,
+);
+assert.equal(syncedSchedule.schedule.plannedStart, "2026-12-01");
+assert.equal(syncedSchedule.schedule.stages.length, 1);
+assert.equal(estimateScheduleTotal(syncedSchedule), 145_599.3);
+
+// Расхождение графика со сметой — предупреждение, не ошибка.
+const brokenSchedule: ContractEstimateDocument = {
+  ...rebuiltSchedule,
+  schedule: {
+    ...rebuiltSchedule.schedule,
+    stages: rebuiltSchedule.schedule.stages.map((stage) => ({
+      ...stage,
+      amount: "100000.00",
+    })),
+  },
+};
+const scheduleIssues = validateEstimateDocument(brokenSchedule, {
+  defect: defectWithSchedule,
+});
+assert.ok(
+  scheduleIssues.some(
+    (issue) => issue.code === "schedule-mismatch" && issue.level === "warning",
+  ),
+);
+assert.equal(estimateValidationSummary(scheduleIssues).canSubmit, true);
+
+// Нет акта 336/пр — предупреждение.
+const scheduleWithoutAct: ContractEstimateDocument = {
+  ...rebuiltSchedule,
+  schedule: { ...rebuiltSchedule.schedule, legalActId: undefined },
+};
+assert.ok(
+  validateEstimateDocument(scheduleWithoutAct, {
+    defect: defectWithSchedule,
+  }).some((issue) => issue.code === "schedule-legal-act"),
+);
+
+// Этап вне общего периода — предупреждение.
+const stageOutside: ContractEstimateDocument = {
+  ...rebuiltSchedule,
+  schedule: {
+    ...rebuiltSchedule.schedule,
+    stages: [
+      {
+        id: "s-out",
+        name: "Кровля",
+        startDate: "2026-11-01",
+        endDate: "2026-12-10",
+        amount: "145599.30",
+      },
+    ],
+  },
+};
+assert.ok(
+  validateEstimateDocument(stageOutside, { defect: defectWithSchedule }).some(
+    (issue) => issue.code === "schedule-stage-outside",
+  ),
+);
+
+// Дата окончания этапа раньше начала — ошибка.
+const stageBrokenPeriod: ContractEstimateDocument = {
+  ...rebuiltSchedule,
+  schedule: {
+    ...rebuiltSchedule.schedule,
+    stages: [
+      {
+        id: "s-broken",
+        name: "Кровля",
+        startDate: "2026-12-10",
+        endDate: "2026-12-01",
+        amount: "145599.30",
+      },
+    ],
+  },
+};
+assert.ok(
+  validateEstimateDocument(stageBrokenPeriod, {
+    defect: defectWithSchedule,
+  }).some(
+    (issue) => issue.code === "schedule-stage-period" && issue.level === "error",
+  ),
+);
+
+// Обратная совместимость: документ без блока schedule получает пустой график.
+const legacyDocument = ContractEstimateDocumentSchema.parse({
+  ...createEstimateFromDefect(defect),
+  id: 502,
+});
+assert.equal(legacyDocument.schedule.stages.length, 0);
+assert.equal(estimateScheduleDelta(legacyDocument), 145_599.3);
 
 console.log(
   "Проверка сквозного процесса пройдена: дефектовка → смета → НМЦК, " +

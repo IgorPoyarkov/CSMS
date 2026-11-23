@@ -6,7 +6,10 @@ import {
 import {
   estimateNmckDelta,
   estimateNmckTotal,
+  estimateScheduleDelta,
+  estimateScheduleTotal,
   estimateTotals,
+  isEstimateScheduleEmpty,
   isEstimateStale,
   type ContractEstimateDocument,
 } from "./estimate.schema";
@@ -187,6 +190,109 @@ export const validateEstimateDocument = (
           field: "nmck.record.okpd2Code",
         });
       }
+    }
+  }
+
+  // === График выполнения СМР и график оплаты (приказ Минстроя № 336/пр) ===
+  const schedule = document.schedule;
+
+  if (isEstimateScheduleEmpty(document)) {
+    issues.push({
+      level: "warning",
+      code: "schedule-empty",
+      message:
+        "График выполнения СМР и оплаты (336/пр) не составлен. Для строительных закупок он обязателен: соберите этапы из сметы.",
+      field: "schedule.stages",
+    });
+  } else {
+    if (!schedule.legalActId) {
+      issues.push({
+        level: "warning",
+        code: "schedule-legal-act",
+        message:
+          "Не указан акт-основание графика: выберите приказ Минстроя России № 336/пр.",
+        field: "schedule.legalActId",
+      });
+    }
+
+    if (
+      schedule.plannedStart &&
+      schedule.plannedEnd &&
+      schedule.plannedEnd < schedule.plannedStart
+    ) {
+      issues.push({
+        level: "error",
+        code: "schedule-period",
+        message: "Срок окончания работ раньше срока начала.",
+        field: "schedule.plannedEnd",
+      });
+    }
+
+    schedule.stages.forEach((stage, index) => {
+      const prefix = `schedule.stages.${index}`;
+
+      if (!stage.name?.trim()) {
+        issues.push({
+          level: "error",
+          code: "schedule-stage-name",
+          message: `Этап ${index + 1}: не указано наименование.`,
+          field: `${prefix}.name`,
+        });
+      }
+
+      if (!stage.startDate || !stage.endDate) {
+        issues.push({
+          level: "warning",
+          code: "schedule-stage-dates",
+          message: `Этап ${index + 1}: не указаны даты начала и окончания.`,
+          field: `${prefix}.startDate`,
+        });
+      } else if (stage.endDate < stage.startDate) {
+        issues.push({
+          level: "error",
+          code: "schedule-stage-period",
+          message: `Этап ${index + 1}: дата окончания раньше даты начала.`,
+          field: `${prefix}.endDate`,
+        });
+      } else {
+        if (schedule.plannedStart && stage.startDate < schedule.plannedStart) {
+          issues.push({
+            level: "warning",
+            code: "schedule-stage-outside",
+            message: `Этап ${index + 1}: начало раньше общего срока выполнения работ.`,
+            field: `${prefix}.startDate`,
+          });
+        }
+        if (schedule.plannedEnd && stage.endDate > schedule.plannedEnd) {
+          issues.push({
+            level: "warning",
+            code: "schedule-stage-outside",
+            message: `Этап ${index + 1}: окончание позже общего срока выполнения работ.`,
+            field: `${prefix}.endDate`,
+          });
+        }
+      }
+
+      if (parseAmount(stage.amount) <= 0) {
+        issues.push({
+          level: "error",
+          code: "schedule-stage-amount",
+          message: `Этап ${index + 1}: сумма должна быть больше нуля.`,
+          field: `${prefix}.amount`,
+        });
+      }
+    });
+
+    const scheduleSum = estimateScheduleTotal(document);
+    const scheduleDelta = estimateScheduleDelta(document);
+
+    if (scheduleSum > 0 && Math.abs(scheduleDelta) > 0.01) {
+      issues.push({
+        level: "warning",
+        code: "schedule-mismatch",
+        message: `Сумма этапов графика ${round2(scheduleSum).toLocaleString("ru-RU")} ₽ не совпадает с итогом сметы ${round2(totals.total).toLocaleString("ru-RU")} ₽ (расхождение ${round2(Math.abs(scheduleDelta)).toLocaleString("ru-RU")} ₽).`,
+        field: "schedule.stages",
+      });
     }
   }
 

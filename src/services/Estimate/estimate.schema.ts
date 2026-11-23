@@ -1,10 +1,16 @@
 import { z } from "zod";
 import {
   ContractEstimateSchema,
+  ContractScheduleSchema,
   DefectItemSchema,
+  buildScheduleStages,
   computeEstimateTotals,
   emptyContractEstimate,
+  emptyContractSchedule,
   normalizeEstimate,
+  normalizeSchedule,
+  scheduleDifference,
+  scheduleTotal,
   type DefectItem,
   type DefectList,
   type EstimateTotals,
@@ -13,14 +19,16 @@ import { NMCK_METHODS, NmckCalculationRecordSchema } from "../Nmck/nmck.schema";
 import type { ContractServiceFunction } from "../ContractService/contractService.schema";
 
 /**
- * Отдельный документ «смета контракта + обоснование НМЦК».
+ * Отдельный документ «смета контракта + график СМР + обоснование НМЦК».
  *
  * Зачем отдельно от дефектовки:
  * - дефектовка описывает объёмы работ и остаётся входом процесса;
- * - смета и обоснование НМЦК живут дольше дефектовки, версионируются,
- *   согласуются контрактной службой и передаются в план-график/извещение;
- * - расчёты не дублируются: итоги сметы считает `computeEstimateTotals`
- *   из `defectList.schema`, обоснование НМЦК — существующий модуль `Nmck`.
+ * - смета, график и обоснование НМЦК живут дольше дефектовки,
+ *   версионируются, согласуются контрактной службой и передаются
+ *   в план-график/извещение;
+ * - расчёты не дублируются: итоги сметы считает `computeEstimateTotals`,
+ *   этапы графика — `buildScheduleStages` (приказ Минстроя № 336/пр),
+ *   обоснование НМЦК — существующий модуль `Nmck`.
  *
  * Документ хранится в коллекции `contractEstimates`, связан с дефектовкой
  * (`defectListId`) и с цепочкой закупки (`purchasePlanId`, `positionId`,
@@ -114,6 +122,10 @@ export const ContractEstimateDocumentSchema = z.object({
   items: z.array(DefectItemSchema).default([]),
   estimate: ContractEstimateSchema.default(emptyContractEstimate()),
 
+  // График выполнения СМР и график оплаты (приказ Минстроя России № 336/пр).
+  // Строится по разделам сметы; суммы этапов должны сходиться с её итогом.
+  schedule: ContractScheduleSchema.default(emptyContractSchedule()),
+
   // Обоснование НМЦК (ст. 22 Закона № 44-ФЗ, приказ МЭР № 567).
   nmck: EstimateNmckSchema.optional(),
 
@@ -160,6 +172,7 @@ export const emptyEstimateDocument = (
   structuralUnitName: author.structuralUnitName ?? "",
   items: [],
   estimate: emptyContractEstimate(),
+  schedule: emptyContractSchedule(),
   status: "draft",
   sourceUpdatedAt: "",
   reviewComment: "",
@@ -194,6 +207,7 @@ export const createEstimateFromDefect = (
     defect.structuralUnitName || author.structuralUnitName || "",
   items: cloneItems(defect.items),
   estimate: normalizeEstimate(defect.estimate),
+  schedule: normalizeSchedule(defect.schedule),
   status: "draft",
   sourceUpdatedAt: defect.updatedAt ?? todayIso(),
   reviewComment: "",
@@ -251,6 +265,72 @@ export const estimateNmckDelta = (
   if (nmck === null) return null;
 
   return Math.round((estimateTotals(document).total - nmck) * 100) / 100;
+};
+
+// === График выполнения СМР и график оплаты (приказ № 336/пр) ===
+
+/** Сумма этапов графика — тот же движок, что и в дефектовке. */
+export const estimateScheduleTotal = (
+  document: Pick<ContractEstimateDocument, "schedule">,
+): number => scheduleTotal(document.schedule.stages);
+
+/**
+ * Расхождение «итог сметы − сумма этапов графика». 0 — суммы сходятся.
+ * Считает `scheduleDifference` из дефектовки, чтобы правило было единым.
+ */
+export const estimateScheduleDelta = (
+  document: Pick<ContractEstimateDocument, "items" | "estimate" | "schedule">,
+): number => scheduleDifference(document);
+
+export const isEstimateScheduleEmpty = (
+  document: Pick<ContractEstimateDocument, "schedule">,
+): boolean => document.schedule.stages.length === 0;
+
+/**
+ * Пересобрать этапы графика из сметы по методике 336/пр: этапы = разделы
+ * работ, суммы пропорциональны прямым затратам, остаток забирает последний
+ * этап. Период, акт и статус графика сохраняются — их задаёт человек.
+ */
+export const rebuildEstimateSchedule = (
+  document: ContractEstimateDocument,
+): ContractEstimateDocument => ({
+  ...document,
+  schedule: {
+    ...document.schedule,
+    stages: buildScheduleStages(document),
+  },
+  updatedAt: todayIso(),
+});
+
+/**
+ * Перенос графика из дефектовки. Если в дефектовке этапы уже составлены,
+ * они копируются как есть; иначе этапы собираются по смете на периоде
+ * дефектовки. Смета и обоснование НМЦК не меняются.
+ */
+export const syncScheduleFromDefect = (
+  document: ContractEstimateDocument,
+  defect: DefectList,
+): ContractEstimateDocument => {
+  const base: ContractEstimateDocument = {
+    ...document,
+    schedule: {
+      ...document.schedule,
+      plannedStart:
+        defect.schedule.plannedStart || document.schedule.plannedStart,
+      plannedEnd: defect.schedule.plannedEnd || document.schedule.plannedEnd,
+      legalActId: defect.schedule.legalActId ?? document.schedule.legalActId,
+    },
+  };
+
+  const stages = defect.schedule.stages.length
+    ? defect.schedule.stages.map((stage) => ({ ...stage }))
+    : buildScheduleStages(base);
+
+  return {
+    ...base,
+    schedule: { ...base.schedule, stages },
+    updatedAt: todayIso(),
+  };
 };
 
 export const findEstimateForDefect = (

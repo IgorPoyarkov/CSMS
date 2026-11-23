@@ -13,7 +13,10 @@ import {
   estimateDocumentStatusLabels,
   estimateNmckDelta,
   estimateNmckTotal,
+  estimateScheduleDelta,
+  estimateScheduleTotal,
   estimateTotals,
+  isEstimateScheduleEmpty,
   type ContractEstimateDocument,
   type EstimateActor,
   type EstimateDocumentStatus,
@@ -27,9 +30,10 @@ import styles from "./Estimate.module.scss";
 /**
  * Реестр смет и обоснований НМЦК — отдельный модуль сквозного процесса.
  *
- * Вход: дефектовка (объёмы работ). Внутри: проект сметы (421/пр) и
- * обоснование НМЦК (ст. 22 44-ФЗ, приказ МЭР № 567). Выход: утверждённый
- * документ, связанный с дефектовкой и доступный из неё.
+ * Вход: дефектовка (объёмы работ). Внутри: проект сметы (421/пр), график
+ * выполнения СМР и оплаты (336/пр) и обоснование НМЦК (ст. 22 44-ФЗ,
+ * приказ МЭР № 567). Выход: утверждённый документ, связанный с дефектовкой
+ * и доступный из неё.
  */
 
 type StatusFilter = EstimateDocumentStatus | "all";
@@ -149,9 +153,10 @@ export default function EstimatesPage() {
           <h1 className={block("title")}>Сметы и обоснования НМЦК</h1>
           <p className={block("subtitle")}>
             Сквозной процесс: дефектовка даёт объёмы работ, модуль собирает
-            проект сметы контракта (приказ Минстроя России № 421/пр) и
-            обоснование НМЦК (ст. 22 Закона № 44-ФЗ, приказ МЭР № 567).
-            Утверждённый документ возвращается в дефектовку и доступен из неё.
+            проект сметы контракта (приказ Минстроя России № 421/пр), график
+            выполнения СМР и оплаты (№ 336/пр) и обоснование НМЦК (ст. 22 Закона
+            № 44-ФЗ, приказ МЭР № 567). Утверждённый документ возвращается в
+            дефектовку и доступен из неё.
           </p>
         </div>
 
@@ -244,6 +249,9 @@ export default function EstimatesPage() {
             const estimateTotal = estimateTotals(estimate);
             const nmck = estimateNmckTotal(estimate);
             const delta = estimateNmckDelta(estimate);
+            const scheduleSum = estimateScheduleTotal(estimate);
+            const scheduleDelta = estimateScheduleDelta(estimate);
+            const scheduleEmpty = isEstimateScheduleEmpty(estimate);
             const editable = canEditEstimate(estimate, actor);
             const isBusy =
               deleteEstimate.isPending &&
@@ -292,6 +300,18 @@ export default function EstimatesPage() {
                         : `${money(nmck)} ₽${
                             delta !== null && Math.abs(delta) > 0.01
                               ? ` · расхождение ${money(Math.abs(delta))} ₽`
+                              : " · сходится со сметой"
+                          }`}
+                    </dd>
+                  </div>
+                  <div className={block("meta-row")}>
+                    <dt>График 336/пр</dt>
+                    <dd>
+                      {scheduleEmpty
+                        ? "не составлен"
+                        : `${money(scheduleSum)} ₽${
+                            Math.abs(scheduleDelta) > 0.01
+                              ? ` · расхождение ${money(Math.abs(scheduleDelta))} ₽`
                               : " · сходится со сметой"
                           }`}
                     </dd>

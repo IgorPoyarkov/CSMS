@@ -34,10 +34,15 @@ import {
   estimateDocumentStatusLabels,
   estimateNmckDelta,
   estimateNmckTotal,
+  estimateScheduleDelta,
+  estimateScheduleTotal,
   estimateTotals,
   findEstimateForDefect,
+  isEstimateScheduleEmpty,
   isEstimateStale,
+  rebuildEstimateSchedule,
   syncEstimateItemsFromDefect,
+  syncScheduleFromDefect,
   todayIso,
   type ContractEstimateDocument,
   type EstimateActor,
@@ -58,13 +63,14 @@ import styles from "./Estimate.module.scss";
 /**
  * Редактор сквозного документа «смета + обоснование НМЦК».
  *
- * Три вкладки повторяют путь процесса:
+ * Вкладки повторяют путь процесса:
  * 1) смета — позиции из дефектовки, накладные/прибыль/НДС (421/пр);
- * 2) обоснование НМЦК — встроенный калькулятор (ст. 22 44-ФЗ, приказ № 567);
- * 3) проверка — расхождения, связь с дефектовкой и утверждение в КС.
+ * 2) график СМР и оплаты — этапы по разделам сметы (336/пр);
+ * 3) обоснование НМЦК — встроенный калькулятор (ст. 22 44-ФЗ, приказ № 567);
+ * 4) проверка — расхождения, связь с дефектовкой и утверждение в КС.
  */
 
-type Tab = "estimate" | "nmck" | "checks";
+type Tab = "estimate" | "schedule" | "nmck" | "checks";
 
 const money = (value: number): string =>
   value.toLocaleString("ru-RU", {
@@ -137,6 +143,7 @@ export default function EstimateEditorPage() {
   } = methods;
 
   const itemsArray = useFieldArray({ control, name: "items" });
+  const stagesArray = useFieldArray({ control, name: "schedule.stages" });
   const watched = useWatch({ control }) as Partial<ContractEstimateDocument>;
 
   const document = useMemo(
@@ -191,6 +198,8 @@ export default function EstimateEditorPage() {
   const totals = estimateTotals(document);
   const nmckTotal = estimateNmckTotal(document);
   const nmckDelta = estimateNmckDelta(document);
+  const scheduleSum = estimateScheduleTotal(document);
+  const scheduleDelta = estimateScheduleDelta(document);
   const issues = validateEstimateDocument(document, {
     defect: selectedDefect,
     checkDefect: Boolean(selectedDefect || document.defectListId),
@@ -311,6 +320,29 @@ export default function EstimateEditorPage() {
     );
     setMessage(
       "Позиции обновлены из дефектовки. Настройки сметы и обоснование НМЦК сохранены.",
+    );
+  };
+
+  const handleRebuildSchedule = () => {
+    if (isReadOnly) return;
+
+    reset(rebuildEstimateSchedule(getValues() as ContractEstimateDocument));
+    setMessage(
+      "Этапы графика сформированы из сметы: разделы стали этапами, сумма этапов равна итогу сметы (336/пр).",
+    );
+  };
+
+  const handleScheduleFromDefect = () => {
+    if (!selectedDefect || isReadOnly) return;
+
+    reset(
+      syncScheduleFromDefect(
+        getValues() as ContractEstimateDocument,
+        selectedDefect,
+      ),
+    );
+    setMessage(
+      "График перенесён из дефектовки. Суммы этапов сверены со сметой.",
     );
   };
 
@@ -495,17 +527,26 @@ export default function EstimateEditorPage() {
             </button>
             <button
               type="button"
+              className={block("tab", [
+                activeTab === "schedule" ? "active" : "",
+              ])}
+              onClick={() => setActiveTab("schedule")}
+            >
+              2. График СМР (336/пр)
+            </button>
+            <button
+              type="button"
               className={block("tab", [activeTab === "nmck" ? "active" : ""])}
               onClick={() => setActiveTab("nmck")}
             >
-              2. Обоснование НМЦК
+              3. Обоснование НМЦК
             </button>
             <button
               type="button"
               className={block("tab", [activeTab === "checks" ? "active" : ""])}
               onClick={() => setActiveTab("checks")}
             >
-              3. Проверка и утверждение
+              4. Проверка и утверждение
             </button>
           </nav>
 
@@ -783,6 +824,207 @@ export default function EstimateEditorPage() {
               </>
             )}
 
+            {activeTab === "schedule" && (
+              <>
+                <fieldset className={block("section")} disabled={isReadOnly}>
+                  <legend>Период выполнения работ и основание</legend>
+
+                  <div className={block("grid")}>
+                    <div className={block("field")}>
+                      <label
+                        className={block("label")}
+                        htmlFor="schedule-start"
+                      >
+                        Начало работ
+                      </label>
+                      <input
+                        id="schedule-start"
+                        type="date"
+                        className={block("input")}
+                        {...register("schedule.plannedStart")}
+                      />
+                    </div>
+
+                    <div className={block("field")}>
+                      <label className={block("label")} htmlFor="schedule-end">
+                        Окончание работ
+                      </label>
+                      <input
+                        id="schedule-end"
+                        type="date"
+                        className={block("input")}
+                        {...register("schedule.plannedEnd")}
+                      />
+                    </div>
+
+                    <div className={block("field", ["wide"])}>
+                      <label className={block("label")} htmlFor="schedule-act">
+                        Норма — методика графика СМР и оплаты
+                      </label>
+                      <select
+                        id="schedule-act"
+                        className={block("input")}
+                        {...register("schedule.legalActId")}
+                      >
+                        <option value="">Не указана</option>
+                        {ministryOrders.map((act) => (
+                          <option key={String(act.id)} value={String(act.id)}>
+                            {formatLegalAct(act)}
+                          </option>
+                        ))}
+                      </select>
+                      <span className={block("hint")}>
+                        График составляется по методике Минстроя России № 336/пр
+                        от 05.06.2018: этапы — разделы сметы, сумма этапов равна
+                        итогу сметы.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className={block("actions")}>
+                    <button
+                      type="button"
+                      className={block("secondary")}
+                      onClick={handleRebuildSchedule}
+                      disabled={isReadOnly || document.items.length === 0}
+                      title={
+                        document.items.length === 0
+                          ? "Сначала добавьте позиции в смету"
+                          : undefined
+                      }
+                    >
+                      Сформировать этапы из сметы
+                    </button>
+
+                    {selectedDefect && (
+                      <button
+                        type="button"
+                        className={block("secondary")}
+                        onClick={handleScheduleFromDefect}
+                        disabled={isReadOnly}
+                      >
+                        Перенести из дефектовки
+                      </button>
+                    )}
+
+                    <span className={block("hint")}>
+                      Этапы собираются из разделов сметы; остаток округления
+                      забирает последний этап.
+                    </span>
+                  </div>
+                </fieldset>
+
+                <fieldset className={block("section")} disabled={isReadOnly}>
+                  <legend>Этапы графика</legend>
+
+                  <div className={block("table")}>
+                    <div className={block("row", ["head", "schedule"])}>
+                      <span>Этап</span>
+                      <span>Начало</span>
+                      <span>Окончание</span>
+                      <span>Сумма, ₽</span>
+                      <span />
+                    </div>
+
+                    {stagesArray.fields.length === 0 && (
+                      <p className={block("hint")}>
+                        Этапов нет. Сформируйте их из сметы или добавьте вручную
+                        — суммы должны сойтись с итогом сметы.
+                      </p>
+                    )}
+
+                    {stagesArray.fields.map((field, index) => (
+                      <div
+                        key={field.id}
+                        className={block("row", ["schedule"])}
+                      >
+                        <input
+                          className={block("input")}
+                          placeholder="Наименование этапа"
+                          {...register(`schedule.stages.${index}.name`)}
+                        />
+                        <input
+                          className={block("input")}
+                          type="date"
+                          {...register(`schedule.stages.${index}.startDate`)}
+                        />
+                        <input
+                          className={block("input")}
+                          type="date"
+                          {...register(`schedule.stages.${index}.endDate`)}
+                        />
+                        <input
+                          className={block("input")}
+                          placeholder="0.00"
+                          inputMode="decimal"
+                          {...register(`schedule.stages.${index}.amount`)}
+                        />
+                        <button
+                          type="button"
+                          className={block("remove")}
+                          aria-label="Удалить этап"
+                          title="Удалить этап"
+                          onClick={() => stagesArray.remove(index)}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={block("row-footer")}>
+                    <div className={block("actions")}>
+                      <button
+                        type="button"
+                        className={block("secondary")}
+                        onClick={() =>
+                          stagesArray.append({
+                            name: "",
+                            startDate: document.schedule.plannedStart ?? "",
+                            endDate: document.schedule.plannedEnd ?? "",
+                            amount: "",
+                          })
+                        }
+                      >
+                        + Добавить этап
+                      </button>
+                    </div>
+
+                    <span className={block("hint")}>
+                      Сумма этапов: {money(scheduleSum)} ₽
+                    </span>
+                  </div>
+
+                  <dl className={block("totals")}>
+                    <div>
+                      <dt>Итог сметы</dt>
+                      <dd>{money(totals.total)} ₽</dd>
+                    </div>
+                    <div>
+                      <dt>Сумма этапов</dt>
+                      <dd>{money(scheduleSum)} ₽</dd>
+                    </div>
+                    <div
+                      className={block("totals-row", [
+                        Math.abs(scheduleDelta) > 0.01 ? "warning" : "total",
+                      ])}
+                    >
+                      <dt>Расхождение</dt>
+                      <dd>{money(Math.abs(scheduleDelta))} ₽</dd>
+                    </div>
+                  </dl>
+
+                  <p className={block("hint")}>
+                    {isEstimateScheduleEmpty(document)
+                      ? "График не составлен: для строительных закупок он обязателен по 336/пр."
+                      : Math.abs(scheduleDelta) > 0.01
+                        ? "Сумма этапов не сходится со сметой — устраните расхождение до утверждения."
+                        : "Суммы сходятся: график соответствует смете (336/пр)."}
+                  </p>
+                </fieldset>
+              </>
+            )}
+
             {activeTab === "nmck" && (
               <fieldset className={block("section")}>
                 <legend>Обоснование НМЦК</legend>
@@ -879,6 +1121,14 @@ export default function EstimateEditorPage() {
                             {isEstimateStale(document, selectedDefect)
                               ? "дефектовка изменена"
                               : "актуально"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>График 336/пр</dt>
+                          <dd>
+                            {isEstimateScheduleEmpty(document)
+                              ? "не составлен"
+                              : `${document.schedule.stages.length} эт. · ${money(scheduleSum)} ₽`}
                           </dd>
                         </div>
                       </dl>

@@ -46,12 +46,14 @@ const cleanIds = <T extends Record<string, unknown>>(data: T): T =>
 const prepareForSave = <T extends Record<string, unknown>>(data: T): T => {
   const cleaned = cleanIds(data);
   const estimate = cleaned.estimate as Record<string, unknown> | undefined;
+  const schedule = cleaned.schedule as Record<string, unknown> | undefined;
   const nmck = cleaned.nmck as Record<string, unknown> | undefined;
   const record = nmck?.record as Record<string, unknown> | undefined;
 
   return {
     ...cleaned,
     ...(estimate ? { estimate: cleanIds(estimate) } : {}),
+    ...(schedule ? { schedule: cleanIds(schedule) } : {}),
     ...(nmck
       ? {
           nmck: {
