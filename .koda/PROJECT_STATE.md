@@ -7714,7 +7714,14 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   закупки и задачи КС оставлены — они не привязаны к заключённому контракту.
 - **Область.** Только главная: страница `/notifications`
   (`DeadlineNotificationsPage`) по-прежнему строит полный список.
+- **Ссылка «Перейти к объекту».** В `deadlineNotifications.ts` добавлен
+  хелпер `contractLink`: уведомления по контракту, этапу и платежу теперь
+  ведут в карточку `/contract-registry/<id>` (маршрут `ContractCardPage`),
+  а не в общий реестр. Если у записи нет `id`, остаётся `/contract-registry`.
+  Уведомления по проектам контрактов, закупкам и задачам сохранили прежние
+  адреса — у них свой объект.
 - **Проверки.** `npx.cmd tsc -b --pretty false` — 0; `npx.cmd oxlint
-  src/components/Main` — 0; `npx.cmd vite build` — зелёный. Смоук главной
-  под авторизацией не выполнялся: без токена корень уводит на визитку.
+  src/components/Main src/services/Notifications src/components/Notifications`
+  — 0; `npx.cmd vite build` — зелёный. Смоук под авторизацией не выполнялся:
+  без токена корень уводит на визитку.
 

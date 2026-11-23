@@ -88,6 +88,15 @@ const severityRank: Record<NotificationSeverity, number> = {
   info: 2,
 };
 
+// Уведомление по контракту ведёт в его карточку, а не в общий реестр:
+// пользователю нужно сразу увидеть этапы, платежи и приёмки. Если запись
+// пришла без id (например, из выгрузки), остаётся список реестра.
+const contractLink = (contract: ContractRegistryItem): string => {
+  const id = contract.id === undefined ? "" : String(contract.id).trim();
+
+  return id ? `/contract-registry/${id}` : "/contract-registry";
+};
+
 export interface BuildNotificationsInput {
   todayIso: string;
   contracts: ContractRegistryItem[];
@@ -141,7 +150,7 @@ export const buildProcurementNotifications = ({
             "ч. 6–8 ст. 34 44-ФЗ, ПП РФ № 1042: заказчик обязан направить требование об уплате пени (≥ 1/300 ставки ЦБ РФ) либо штрафа",
           recommendation:
             "Проверьте акты приёмки, направьте претензию подрядчику или оформите допсоглашение/расторжение по ст. 95.",
-          linkTo: "/contract-registry",
+          linkTo: contractLink(contract),
         });
       }
     }
@@ -168,7 +177,7 @@ export const buildProcurementNotifications = ({
             "ч. 3 ст. 103 44-ФЗ, ст. 7.31 КоАП РФ: штраф на должностное лицо до 20 000 ₽ за нарушение 3-дневного срока",
           recommendation:
             "Передайте сведения о заключённом контракте в реестр контрактов ЕИС через Казначейство.",
-          linkTo: "/contract-registry",
+          linkTo: contractLink(contract),
         });
       }
     }
@@ -215,7 +224,7 @@ export const buildProcurementNotifications = ({
             "ч. 7 ст. 34 44-ФЗ: начисление пеней за нарушение промежуточных сроков исполнения этапов контракта",
           recommendation:
             "Инициируйте приёмку по ст. 94 44-ФЗ либо зафиксируйте просрочку в журнале неустоек.",
-          linkTo: "/contract-registry",
+          linkTo: contractLink(parentContract),
         });
       }
     }
@@ -246,7 +255,7 @@ export const buildProcurementNotifications = ({
             "ч. 13.1 ст. 34 44-ФЗ, ст. 7.32.5 КоАП РФ: нарушение 7-дневного срока оплаты грозит штрафом 30 000–50 000 ₽ на должностное лицо",
           recommendation:
             "Направьте платёжное поручение в Федеральное казначейство для своевременной оплаты.",
-          linkTo: "/contract-registry",
+          linkTo: contractLink(parentContract),
         });
       }
     }
@@ -274,7 +283,7 @@ export const buildProcurementNotifications = ({
           "ч. 5 ст. 34 44-ФЗ, ст. 7.32.5 КоАП РФ: задержка оплаты влечёт пени 1/300 ключевой ставки ЦБ РФ на заказчика и штраф по КоАП",
         recommendation:
           "Устраните замечания Казначейства/бухгалтерии и повторно проведите платёж.",
-        linkTo: "/contract-registry",
+        linkTo: contractLink(parentContract),
       });
       continue;
     }
@@ -302,7 +311,7 @@ export const buildProcurementNotifications = ({
             "ч. 13.1 ст. 34 44-ФЗ: несоблюдение сроков оплаты контракта (7 / 10 рабочих дней)",
           recommendation:
             "Проконтролируйте прохождение платежа и обновите статус оплаты в реестре контрактов.",
-          linkTo: "/contract-registry",
+          linkTo: contractLink(parentContract),
         });
       }
     }
