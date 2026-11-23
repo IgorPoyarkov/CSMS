@@ -6,6 +6,7 @@
  *
  * Ограниченная выборка (не прогон всех 112 контрактов):
  *   node scripts/civil-law-llm-pilot.mjs --contract ... --contract ... --max-minutes 110
+ *   --request-timeout-minutes 35 поднимает лимит одного ответа Ollama.
  *
  * В контекст модели попадают только объект закупки, код ОКПД2 как косвенный
  * сигнал и дословные абзацы снимка. Содержимое проекта контракта не
@@ -106,6 +107,9 @@ const snapshotSha256 = createHash("sha256")
 const model = arg("model", DEFAULT_CIVIL_MODEL);
 const maxCandidates = Number(arg("max-candidates", "120"));
 const maxMinutes = Number(arg("max-minutes", "110"));
+// Один ответ 14B-модели на длинном промпте может идти дольше 20 минут.
+// Таймаут вынесен в аргумент, чтобы не падал весь пакет на последнем контракте.
+const requestTimeoutMinutes = Number(arg("request-timeout-minutes", "20"));
 const outdir = arg("outdir", path.join(os.tmpdir(), "opencode"));
 const generate = async ({ model: modelName, prompt }) => {
   const body = await postJson(
@@ -117,7 +121,7 @@ const generate = async ({ model: modelName, prompt }) => {
       format: "json",
       options: { temperature: 0, num_ctx: 32768 },
     },
-    20 * 60 * 1000,
+    requestTimeoutMinutes * 60 * 1000,
   );
   return body.response;
 };
@@ -175,6 +179,10 @@ for (const item of items) {
 
 writeFileSync(
   path.join(outdir, "gk-llm-batch-summary.json"),
-  JSON.stringify({ model, maxCandidates, maxMinutes, summary }, null, 2),
+  JSON.stringify(
+    { model, maxCandidates, maxMinutes, requestTimeoutMinutes, summary },
+    null,
+    2,
+  ),
   "utf8",
 );

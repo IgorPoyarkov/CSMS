@@ -37,6 +37,7 @@ test("промпт требует дословные цитаты, оговор�
   assert.match(prompt, /дословная подстрока/);
   assert.match(prompt, /Не используй другие нормы/);
   assert.match(prompt, /qualifierQuote/);
+  assert.match(prompt, /связанное с цитатой/);
   assert.match(prompt, /recommended/);
   assert.ok(!prompt.includes("Уже заполненные поля"));
   assert.ok(
@@ -49,7 +50,8 @@ test("промпт требует дословные цитаты, оговор�
 });
 
 test("дословная цитата из снимка подтверждается", () => {
-  const candidate = candidates.find((item) => item.ref === "gk2:702");
+  // Заголовок статьи не несёт нормы: тест обязан брать абзац с текстом правила.
+  const candidate = candidates.find((item) => item.ref === "gk2:702" && item.paragraph > 1);
   const quote = candidate.text.slice(0, 80);
   const result = validateCivilLlmResponse(
     {
@@ -208,6 +210,31 @@ test("подсказка модели об оговорке принимаетс
     { candidates, snapshot },
   );
   assert.notEqual(rejectedHint.findings[0].qualifier.source, "model");
+});
+
+test("условие без связи с процитированным абзацем не считается нарушением", () => {
+  const candidate = candidates.find((item) => item.ref === "gk2:702" && item.paragraph > 1);
+  const result = validateCivilLlmResponse(
+    {
+      subject: { kind: "works", consistency: "match", reason: "" },
+      findings: [
+        {
+          mode: "required",
+          ref: candidate.ref,
+          paragraph: candidate.paragraph,
+          quote: candidate.text.slice(0, 80),
+          // Цитата подлинная, но про страхование в ней нет ни слова.
+          condition: "Застраховать гражданскую ответственность подрядчика",
+        },
+      ],
+    },
+    { candidates, snapshot },
+  );
+  assert.equal(result.findings[0].conditionSupported, false);
+  assert.equal(result.findings[0].originalMode, "required");
+  assert.equal(result.findings[0].mode, "recommended");
+  assert.equal(result.hasImperativeFindings, false);
+  assert.match(result.diagnostics.join(" "), /связь условия/);
 });
 
 test("режим recommended от модели не считается нарушением", () => {

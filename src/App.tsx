@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, redirect, RouterProvider } from "react-router-dom";
 import HomePage from "./pages/HomePage/HomePage";
 import AppLayout from "./components/AppLayout/AppLayout";
 import AccountPage from "./pages/AccountPage/AccountPage";
@@ -86,12 +86,29 @@ const lazySection = (node: React.ReactNode) => (
   </Suspense>
 );
 
+// Визитка открывается первой только в новой вкладке: после входа на сайт
+// корень снова ведёт на рабочий стол, а не обратно на визитку.
+const VISIT_CARD_SEEN_KEY = "csms.visitCardSeen";
+
+const visitCardSeen = () => {
+  try {
+    return sessionStorage.getItem(VISIT_CARD_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
 const router = createBrowserRouter([
   {
     path: "/",
     element: <AppLayout />,
     children: [
-      { path: "/", element: <HomePage /> },
+      {
+        path: "/",
+        element: <HomePage />,
+        loader: () =>
+          visitCardSeen() ? null : redirect("/visit-card"),
+      },
       {
         // Тяжёлые графики вынесены с главной: маршрут подгружается по требованию
         path: "/analytics",
@@ -326,8 +343,19 @@ const router = createBrowserRouter([
     ],
   },
   {
-    // Одностраничная визитка проекта: вне AppLayout, со своей тёмной палитрой
+    // Одностраничная визитка проекта: вне AppLayout, со своей тёмной палитрой.
+    // Отметка выставляется при открытии, чтобы кнопки «Войти в систему»
+    // вернули на сайт, а не зациклились на той же визитке.
     path: "/visit-card",
+    loader: () => {
+      try {
+        sessionStorage.setItem(VISIT_CARD_SEEN_KEY, "1");
+      } catch {
+        // Приватный режим с запретом хранилища: визитка просто не зациклится,
+        // если пользователь перейдёт на сайт через прямой адрес.
+      }
+      return null;
+    },
     element: (
       <Suspense
         fallback={

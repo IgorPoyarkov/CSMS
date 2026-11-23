@@ -19,6 +19,49 @@ const norm = (value) =>
     .replace(/\s+/g, " ")
     .trim();
 
+// Для связи условия с цитатой важны смысловые слова. Общие слова юридического
+// текста есть почти в каждой норме 44-ФЗ и ГК, поэтому они не доказывают связь.
+const GENERIC_STEMS = new Set([
+  "контракт", "договор", "услов", "сторон", "заказчик", "поставщик", "подрядчик",
+  "исполнитель", "предмет", "объект", "должен", "должн", "быть", "указа", "содержа",
+  "включа", "настоящ", "этот", "который", "такой", "срок", "сроков", "сроки",
+]);
+
+const STOP_WORDS = new Set([
+  "этот", "этой", "эти", "такой", "такая", "такое", "которые", "который", "которая",
+  "быть", "была", "было", "были", "если", "иное", "иных", "иная", "иной", "должен",
+  "должна", "должно", "должны", "может", "могут", "субъект", "объект",
+]);
+
+const stem = (word) =>
+  word
+    .replace(/ё/g, "е")
+    .replace(/(ами|ями|ая|яя|ые|ие|ой|ый|ий|ем|им|ом|ах|ях|ам|ям|а|я|ы|и|е|й|ь|ъ)$/, "");
+
+const contentStems = (text) =>
+  new Set(
+    norm(text)
+      .toLowerCase()
+      .match(/[а-яё]{4,}/g)
+      ?.map(stem)
+      .filter(
+        (item) =>
+          item.length >= 3 && !STOP_WORDS.has(item) && !GENERIC_STEMS.has(item),
+      ) ?? [],
+  );
+
+/**
+ * Дешёвая детерминированная проверка: у условия и процитированного абзаца
+ * должна быть хотя бы одна общая смысловая основа. Это не доказательство
+ * юридической связи, но это отсекает случайные попадания, когда модель
+ * прицепила Condition к абзацу про другую тему.
+ */
+export function isConditionSupported(condition, quote) {
+  const conditionStems = contentStems(condition);
+  const quoteStems = contentStems(quote);
+  return [...conditionStems].some((item) => quoteStems.has(item));
+}
+
 /** Статьи, без которых нельзя судить о предмете договора и госнуждах. */
 const CORE_REFERENCES = Object.freeze([
   "fz44:34",
@@ -124,7 +167,7 @@ export function buildCivilLlmPrompt({
     "- ref и paragraph бери только из списка фрагментов;",
     "- смотри все пункты статьи, а не только выбранный абзац: оговорка может быть в соседнем пункте;",
     "- quote — необязательная подсказка: краткая дословная подстрока. Если не уверен в дословности, оставь quote пустым: система сама подставит текст абзаца из снимка;",
-    "- condition — коротко, какое условие контракта следует из нормы;",
+    "- condition — коротко, какое условие контракта следует из нормы; используй смысловые слова из того же абзаца: условие, не связанное с цитатой, будет понижено до recommended и не станет нарушением;",
     "- не используй содержимое проекта контракта как доказательство: формулировки там могут быть непроверенными. Норма проверяется только по снимку;",
     "- не изобретай статьи и не пересказывай норму вместо цитаты;",
     "- ответ строго в JSON, без пояснений вне JSON.",
@@ -256,6 +299,23 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
   // Оговорка в статье («если иное не предусмотрено договором…») снимает
   // императивность: такой вывод не нарушение, а максимум рекомендация.
   // Фраза оговорки принимается только если она дословно есть в снимке.
+  // Отдельная проверка: цитата подлинная, но условие может быть к ней
+  // приклеено случайно. Такие выводы не должны считаться нарушениями.
+  let unsupported = 0;
+  for (const finding of grounded) {
+    // Проверяем связь с полным абзацем снимка, а не только с обрезком цитаты:
+    // модель может процитировать первую фразу, а условие взять из конца нормы.
+    const paragraphText =
+      byRefParagraph.get(`${finding.ref}#${finding.paragraph}`)?.text ?? finding.quote;
+    const supported = isConditionSupported(finding.condition, paragraphText);
+    finding.conditionSupported = supported;
+    if (!supported && IMPERATIVE_MODES.includes(finding.mode)) {
+      finding.originalMode = finding.mode;
+      finding.mode = "recommended";
+      unsupported += 1;
+    }
+  }
+
   const articleCache = new Map();
   let downgraded = 0;
   for (const finding of grounded) {
@@ -302,6 +362,11 @@ export function validateCivilLlmResponse(raw, { candidates, snapshot, snapshotSh
   if (adjustedQuotes > 0) {
     diagnostics.push(
       `Для ${adjustedQuotes} выводов модель пересказала цитату: использован дословный абзац снимка`,
+    );
+  }
+  if (unsupported > 0) {
+    diagnostics.push(
+      `Для ${unsupported} выводов связь условия с процитированным абзацем не подтвердилась: режим понижен до recommended, это не нарушение`,
     );
   }
   if (downgraded > 0) {
