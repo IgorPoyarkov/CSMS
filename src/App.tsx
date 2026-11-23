@@ -10,47 +10,108 @@ import PersonalAccount from "./components/Account/PersonalAccount/PersonalAccoun
 import TasksPage from "./components/Tasks/TasksPage";
 import CustomModal from "./components/UI/CustomModal";
 import PurchasePlanList from "./components/PurchasePlan/PurchasePlanList";
-import PurchasePlanCard from "./components/PurchasePlan/PurchasePlanCard";
-import PurchasePlanForm from "./components/PurchasePlan/PurchasePlanForm";
-import PurchasePlanPositionEditPage from "./components/PurchasePlan/PurchasePlanPositionEditPage";
-import PurchaseNotePage from "./components/PurchaseNote/PurchaseNotePage";
-import PurchaseNotesRegistryPage from "./components/PurchaseNote/PurchaseNotesRegistryPage";
 import ProcurementProcessing from "./components/ProcurementProcessing/ProcurementProcessing";
-import NoticeInfoForm from "./components/NoticeInfoForm/NoticeInfoForm";
-import ContractServicePage from "./components/ContractService/ContractServicePage";
-import ContractProjectForm from "./components/ContractProject/ContractProjectForm";
 import ContractProjectsPage from "./components/ContractProject/ContractProjectsPage";
-import SmnpSonekPage from "./components/Reports/SmnpSonekPage";
-import Order158nReportsPage from "./components/Reports/Order158nReportsPage";
 import ContractRegistryPage from "./components/ContractRegistry/ContractRegistryPage";
-import ContractCardPage from "./components/ContractRegistry/ContractCardPage";
-import ContractChangeRegistryPage from "./components/ContractChange/ContractChangeRegistryPage";
-import ContractChangeFormPage from "./components/ContractChange/ContractChangeFormPage";
-import ContractChangeDetailPage from "./components/ContractChange/ContractChangeDetailPage";
-import AcceptanceRegistryPage from "./components/ContractAcceptance/AcceptanceRegistryPage";
-import AcceptanceFormPage from "./components/ContractAcceptance/AcceptanceFormPage";
-import AcceptanceDetailPage from "./components/ContractAcceptance/AcceptanceDetailPage";
-import Okpd2Dictionary from "./components/Okpd2Ref/Okpd2Dictionary";
-import LegalActsRegistry from "./components/LegalAct/LegalActsRegistry";
-import LiabilityMappingPage from "./components/LiabilityMapping/LiabilityMappingPage";
-import TaskDetailPage from "./components/Tasks/TaskDetailPage";
-import EisSmpExportPage from "./components/Eis/EisSmpExportPage";
-import EisPackagesPage from "./components/Eis/EisPackagesPage";
-import EisSchemaExplorerPage from "./components/Eis/EisSchemaExplorerPage";
-import EisChainPage from "./components/Eis/EisChainPage";
-import EisTestAccessPage from "./components/Eis/EisTestAccessPage";
-import BrandPage from "./components/Brand/BrandPage";
-import NormingRequirementsPage from "./components/NormingRequirements/NormingRequirementsPage";
-import EdsJournalPage from "./components/Eds/EdsJournalPage";
-import NmckCalculatorPage from "./components/Nmck/NmckCalculatorPage";
-import DefectListsPage from "./components/DefectList/DefectListsPage";
-import EstimatesPage from "./components/Estimate/EstimatesPage";
-import EstimateEditorPage from "./components/Estimate/EstimateEditorPage";
-import BidEvaluationsPage from "./components/BidEvaluation/BidEvaluationsPage";
-import VacationSchedulePage from "./components/VacationSchedule/VacationSchedulePage";
-import DeadlineNotificationsPage from "./components/Notifications/DeadlineNotificationsPage";
-import ProcurementDocumentsPage from "./components/ProcurementDocuments/ProcurementDocumentsPage";
-import UiSolutionsPage from "./components/UiSolutions/UiSolutionsPage";
+
+// Редкие и тяжёлые экраны грузятся по требованию: стартовый бандл держит только
+// рабочий стол, первые формы и реестр. Аналитика и визитка уже были ленивыми.
+const TaskDetailPage = lazy(() => import("./components/Tasks/TaskDetailPage"));
+const PurchasePlanCard = lazy(
+  () => import("./components/PurchasePlan/PurchasePlanCard"),
+);
+const PurchasePlanForm = lazy(
+  () => import("./components/PurchasePlan/PurchasePlanForm"),
+);
+const PurchasePlanPositionEditPage = lazy(
+  () => import("./components/PurchasePlan/PurchasePlanPositionEditPage"),
+);
+const PurchaseNotePage = lazy(
+  () => import("./components/PurchaseNote/PurchaseNotePage"),
+);
+const PurchaseNotesRegistryPage = lazy(
+  () => import("./components/PurchaseNote/PurchaseNotesRegistryPage"),
+);
+const NoticeInfoForm = lazy(
+  () => import("./components/NoticeInfoForm/NoticeInfoForm"),
+);
+const ContractProjectForm = lazy(
+  () => import("./components/ContractProject/ContractProjectForm"),
+);
+const ContractServicePage = lazy(
+  () => import("./components/ContractService/ContractServicePage"),
+);
+const SmnpSonekPage = lazy(() => import("./components/Reports/SmnpSonekPage"));
+const Order158nReportsPage = lazy(
+  () => import("./components/Reports/Order158nReportsPage"),
+);
+const ContractCardPage = lazy(
+  () => import("./components/ContractRegistry/ContractCardPage"),
+);
+const ContractChangeRegistryPage = lazy(
+  () => import("./components/ContractChange/ContractChangeRegistryPage"),
+);
+const ContractChangeFormPage = lazy(
+  () => import("./components/ContractChange/ContractChangeFormPage"),
+);
+const ContractChangeDetailPage = lazy(
+  () => import("./components/ContractChange/ContractChangeDetailPage"),
+);
+const AcceptanceRegistryPage = lazy(
+  () => import("./components/ContractAcceptance/AcceptanceRegistryPage"),
+);
+const AcceptanceFormPage = lazy(
+  () => import("./components/ContractAcceptance/AcceptanceFormPage"),
+);
+const AcceptanceDetailPage = lazy(
+  () => import("./components/ContractAcceptance/AcceptanceDetailPage"),
+);
+const Okpd2Dictionary = lazy(
+  () => import("./components/Okpd2Ref/Okpd2Dictionary"),
+);
+const LegalActsRegistry = lazy(
+  () => import("./components/LegalAct/LegalActsRegistry"),
+);
+const LiabilityMappingPage = lazy(
+  () => import("./components/LiabilityMapping/LiabilityMappingPage"),
+);
+const EisSmpExportPage = lazy(() => import("./components/Eis/EisSmpExportPage"));
+const EisPackagesPage = lazy(() => import("./components/Eis/EisPackagesPage"));
+const EisSchemaExplorerPage = lazy(
+  () => import("./components/Eis/EisSchemaExplorerPage"),
+);
+const EisChainPage = lazy(() => import("./components/Eis/EisChainPage"));
+const EisTestAccessPage = lazy(() => import("./components/Eis/EisTestAccessPage"));
+const BrandPage = lazy(() => import("./components/Brand/BrandPage"));
+const NormingRequirementsPage = lazy(
+  () => import("./components/NormingRequirements/NormingRequirementsPage"),
+);
+const EdsJournalPage = lazy(() => import("./components/Eds/EdsJournalPage"));
+const NmckCalculatorPage = lazy(
+  () => import("./components/Nmck/NmckCalculatorPage"),
+);
+const DefectListsPage = lazy(
+  () => import("./components/DefectList/DefectListsPage"),
+);
+const EstimatesPage = lazy(() => import("./components/Estimate/EstimatesPage"));
+const EstimateEditorPage = lazy(
+  () => import("./components/Estimate/EstimateEditorPage"),
+);
+const BidEvaluationsPage = lazy(
+  () => import("./components/BidEvaluation/BidEvaluationsPage"),
+);
+const VacationSchedulePage = lazy(
+  () => import("./components/VacationSchedule/VacationSchedulePage"),
+);
+const DeadlineNotificationsPage = lazy(
+  () => import("./components/Notifications/DeadlineNotificationsPage"),
+);
+const ProcurementDocumentsPage = lazy(
+  () => import("./components/ProcurementDocuments/ProcurementDocumentsPage"),
+);
+const UiSolutionsPage = lazy(
+  () => import("./components/UiSolutions/UiSolutionsPage"),
+);
 
 // Аналитика тянет Recharts и D3 — самый тяжёлый код интерфейса. Отдельный
 // ленивый чанк держит главную лёгкой: графики загружаются только при переходе
@@ -138,10 +199,21 @@ const router = createBrowserRouter([
         path: "/account",
         element: <AccountPage />,
         children: [
-          { path: "login", element: <CustomModal children={<LoginForm />} /> },
+          {
+            path: "login",
+            element: (
+              <CustomModal>
+                <LoginForm />
+              </CustomModal>
+            ),
+          },
           {
             path: "register",
-            element: <CustomModal children={<RegisterForm />} />,
+            element: (
+              <CustomModal>
+                <RegisterForm />
+              </CustomModal>
+            ),
           },
           { path: "profile", element: <PersonalAccount /> },
         ],
@@ -152,36 +224,36 @@ const router = createBrowserRouter([
       },
       {
         path: "/tasks/:id",
-        element: <TaskDetailPage />,
+        element: lazySection(<TaskDetailPage />),
       },
       {
         path: "/purchase-plans",
         children: [
           { index: true, element: <PurchasePlanList /> },
-          { path: "new", element: <PurchasePlanForm /> },
-          { path: ":id", element: <PurchasePlanCard /> },
-          { path: ":id/edit", element: <PurchasePlanForm /> },
+          { path: "new", element: lazySection(<PurchasePlanForm />) },
+          { path: ":id", element: lazySection(<PurchasePlanCard />) },
+          { path: ":id/edit", element: lazySection(<PurchasePlanForm />) },
           {
             path: ":id/positions/new",
-            element: <PurchasePlanPositionEditPage />,
+            element: lazySection(<PurchasePlanPositionEditPage />),
           },
           {
             path: ":id/positions/:positionId/edit",
-            element: <PurchasePlanPositionEditPage />,
+            element: lazySection(<PurchasePlanPositionEditPage />),
           },
           {
             path: ":id/positions/:positionId/requirement",
-            element: <PurchaseNotePage />,
+            element: lazySection(<PurchaseNotePage />),
           },
         ],
       },
       {
         path: "/purchase-notes",
-        element: <PurchaseNotesRegistryPage />,
+        element: lazySection(<PurchaseNotesRegistryPage />),
       },
       {
         path: "/contract-service",
-        element: <ContractServicePage />,
+        element: lazySection(<ContractServicePage />),
       },
       {
         path: "/procurement-processing",
@@ -189,11 +261,11 @@ const router = createBrowserRouter([
           { index: true, element: <ProcurementProcessing /> },
           {
             path: ":id/notice-info",
-            element: <NoticeInfoForm />,
+            element: lazySection(<NoticeInfoForm />),
           },
           {
             path: ":id/contract-project",
-            element: <ContractProjectForm />,
+            element: lazySection(<ContractProjectForm />),
           },
         ],
       },
@@ -204,12 +276,12 @@ const router = createBrowserRouter([
       },
       {
         path: "/reports/smnp",
-        element: <SmnpSonekPage />,
+        element: lazySection(<SmnpSonekPage />),
       },
       {
         // Автоматическая отчётность по Приказу Минфина России № 158н
         path: "/reports/order-158n",
-        element: <Order158nReportsPage />,
+        element: lazySection(<Order158nReportsPage />),
       },
       {
         path: "/contract-registry",
@@ -219,7 +291,7 @@ const router = createBrowserRouter([
         // Карточка контракта: реестр показывает только сводку с прогрессбарами,
         // детали (этапы, платежи, приёмки, поставки, СМП) — на этом роуте
         path: "/contract-registry/:id",
-        element: <ContractCardPage />,
+        element: lazySection(<ContractCardPage />),
       },
       {
         // Личный кабинет подрядчика: вход по ИНН поставщика (Tasks 9 п. 6 —
@@ -237,10 +309,16 @@ const router = createBrowserRouter([
         // форма со снимком контракта и карточка с согласованием и ЕИС
         path: "/contract-changes",
         children: [
-          { index: true, element: <ContractChangeRegistryPage /> },
-          { path: "new", element: <ContractChangeFormPage /> },
-          { path: ":id", element: <ContractChangeDetailPage /> },
-          { path: ":id/edit", element: <ContractChangeFormPage /> },
+          {
+            index: true,
+            element: lazySection(<ContractChangeRegistryPage />),
+          },
+          { path: "new", element: lazySection(<ContractChangeFormPage />) },
+          { path: ":id", element: lazySection(<ContractChangeDetailPage />) },
+          {
+            path: ":id/edit",
+            element: lazySection(<ContractChangeFormPage />),
+          },
         ],
       },
       {
@@ -248,111 +326,111 @@ const router = createBrowserRouter([
         // мотивированный отказ и регистрация документа в ЕИС
         path: "/acceptances",
         children: [
-          { index: true, element: <AcceptanceRegistryPage /> },
-          { path: "new", element: <AcceptanceFormPage /> },
-          { path: ":id", element: <AcceptanceDetailPage /> },
-          { path: ":id/edit", element: <AcceptanceFormPage /> },
+          { index: true, element: lazySection(<AcceptanceRegistryPage />) },
+          { path: "new", element: lazySection(<AcceptanceFormPage />) },
+          { path: ":id", element: lazySection(<AcceptanceDetailPage />) },
+          { path: ":id/edit", element: lazySection(<AcceptanceFormPage />) },
         ],
       },
       {
         path: "/eis/smp-export",
-        element: <EisSmpExportPage />,
+        element: lazySection(<EisSmpExportPage />),
       },
       {
         // Исходящие пакеты в ЕИС: подпись, статусы и ошибки ФЛК
         path: "/eis/packages",
-        element: <EisPackagesPage />,
+        element: lazySection(<EisPackagesPage />),
       },
       {
         // Обозреватель XSD Альбома ЕИС: версии, пространства имён, типы и поля
         path: "/eis/schemas",
-        element: <EisSchemaExplorerPage />,
+        element: lazySection(<EisSchemaExplorerPage />),
       },
       {
         // Сквозная цепочка: план-график → СЗ → извещение → контракт → СМП
         path: "/eis/chains",
-        element: <EisChainPage />,
+        element: lazySection(<EisChainPage />),
       },
       {
         // Обращение в ЕИС на получение тестового доступа
         path: "/eis/test-access",
-        element: <EisTestAccessPage />,
+        element: lazySection(<EisTestAccessPage />),
       },
       {
         // Справочник ОКПД2: поиск по коду/наименованию, признак нормирования
         path: "/okpd2",
-        element: <Okpd2Dictionary />,
+        element: lazySection(<Okpd2Dictionary />),
       },
       {
         // Типовые требования по п. 7 ПП РФ N 926 для нормируемых кодов ОКПД2
         path: "/norming-requirements",
-        element: <NormingRequirementsPage />,
+        element: lazySection(<NormingRequirementsPage />),
       },
       {
         // Реестр законодательных актов и связей норм с компонентами системы
         path: "/legal-acts",
-        element: <LegalActsRegistry />,
+        element: lazySection(<LegalActsRegistry />),
       },
       {
         // Compliance & Liability Mapping: обязанности 158н → нормы КоАП
         path: "/liability-mapping",
-        element: <LiabilityMappingPage />,
+        element: lazySection(<LiabilityMappingPage />),
       },
       {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал
         path: "/eds/journal",
-        element: <EdsJournalPage />,
+        element: lazySection(<EdsJournalPage />),
       },
       {
         // Модуль расчёта НМЦК методом сопоставимых рыночных цен (анализ рынка)
         path: "/nmck-calculator",
-        element: <NmckCalculatorPage />,
+        element: lazySection(<NmckCalculatorPage />),
       },
       {
         // Дефектовки: роль «инициатор закупки» — объёмы работ, проект сметы
         // контракта (421/пр) и проект календарного графика (336/пр)
         path: "/defect-lists",
-        element: <DefectListsPage />,
+        element: lazySection(<DefectListsPage />),
       },
       {
         // Отдельный модуль «смета + обоснование НМЦК»: вход — дефектовка,
         // выход — утверждённый документ, доступный из дефектовки
         path: "/estimates",
-        element: <EstimatesPage />,
+        element: lazySection(<EstimatesPage />),
       },
       {
         path: "/estimates/:id",
-        element: <EstimateEditorPage />,
+        element: lazySection(<EstimateEditorPage />),
       },
       {
         // Оценка заявок: критерии, значимость и баллы по ПП РФ N 2604
         path: "/bid-evaluations",
-        element: <BidEvaluationsPage />,
+        element: lazySection(<BidEvaluationsPage />),
       },
       {
         // График отпусков (форма Т-2): планирование, проверки ТК РФ, выгрузки
         path: "/vacation-schedule",
-        element: <VacationSchedulePage />,
+        element: lazySection(<VacationSchedulePage />),
       },
       {
         // Система уведомлений о приближении сроков исполнения контрактов и этапов 44-ФЗ
         path: "/notifications",
-        element: <DeadlineNotificationsPage />,
+        element: lazySection(<DeadlineNotificationsPage />),
       },
       {
         // Генерация типовых форм документов по карточкам закупок и Document Checker по реестру НПА
         path: "/documents",
-        element: <ProcurementDocumentsPage />,
+        element: lazySection(<ProcurementDocumentsPage />),
       },
       {
         // Полный структурированный перечень UI-решений: назначение, место применения и реализация
         path: "/ui-solutions",
-        element: <UiSolutionsPage />,
+        element: lazySection(<UiSolutionsPage />),
       },
       {
         // Фирменный знак: варианты, палитра, правила и файлы для скачивания
         path: "/brand",
-        element: <BrandPage />,
+        element: lazySection(<BrandPage />),
       },
     ],
   },
