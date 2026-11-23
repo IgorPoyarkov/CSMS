@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
   useCurrentOrganization,
@@ -13,8 +13,9 @@ import {
   buildEisTestAccessRequestText,
   createEmptyEisTestAccessRequest,
   EIS_TEST_ACCESS_CHANNELS,
-  eisTestAccessStatusLabels,
   EIS_TEST_ACCESS_CHECKS,
+  EIS_TEST_ACCESS_VERIFY_ITEMS,
+  eisTestAccessStatusLabels,
   type EisTestAccessRequest,
   type EisTestAccessStatus,
 } from "../../services/Eis/eisTestAccess.schema";
@@ -26,10 +27,13 @@ import styles from "./EisTestAccessPage.module.scss";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
+// Значения по умолчанию для описания системы и цели обращения: они же
+// используются, когда черновик подмешивается к данным организации.
+const EMPTY_REQUEST = createEmptyEisTestAccessRequest();
+
 // Статус отображается текстом; цветовую тональность определяем по готовности чеклиста.
 
-function downloadRequest(request: EisTestAccessRequest) {
-  const text = buildEisTestAccessRequestText(request);
+function downloadRequest(request: EisTestAccessRequest, text: string) {
   const safeName = (request.contractorInn || "eis-test-access").replace(/[^\dA-Za-z_-]/g, "_");
   downloadText(text, `obraschenie-eis-test-dostup-${safeName}.txt`, "text/plain;charset=utf-8");
 }
@@ -56,7 +60,6 @@ export default function EisTestAccessPage() {
   const [request, setRequest] = useState<EisTestAccessRequest>(() =>
     createEmptyEisTestAccessRequest(),
   );
-  const [loadedRequestId, setLoadedRequestId] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
 
   const activeCertificates = useMemo(
@@ -68,80 +71,117 @@ export default function EisTestAccessPage() {
     [certificates],
   );
 
-  useEffect(() => {
-    // Подгружаем последний сохранённый черновик один раз, но не блокируем
-    // предзаполнение данными организации.
-    const latest = savedRequests[0];
-    if (!latest || loadedRequestId === latest.id) return;
-    setLoadedRequestId(latest.id);
-    const defaultDescription = createEmptyEisTestAccessRequest().systemDescription;
-    setRequest((current) => ({
-      ...current,
-      ...latest,
-      contractorInn: latest.contractorInn || current.contractorInn || organization?.inn || "",
-      systemDescription:
-        latest.systemDescription || current.systemDescription || defaultDescription,
-      checkSystemDescription: Boolean(
-        latest.checkSystemDescription ??
-          current.checkSystemDescription ??
-          (latest.systemDescription || current.systemDescription || defaultDescription),
+  const latestSaved = savedRequests[0];
+
+  // Черновик, организация и сертификаты приходят асинхронно и в разном порядке.
+  // Ключ источника позволяет один раз подмешать их во время рендера — вместо
+  // эффектов с setState и гонки между тремя запросами.
+  const sourceKey = [
+    latestSaved?.id ?? "",
+    organization?.id ?? "",
+    activeCertificates.length,
+  ].join("|");
+  const [appliedSourceKey, setAppliedSourceKey] = useState<string | null>(null);
+
+  if (sourceKey !== appliedSourceKey && (latestSaved || organization)) {
+    setAppliedSourceKey(sourceKey);
+
+    const contractorInn =
+      request.contractorInn || latestSaved?.contractorInn || organization?.inn || "";
+    const systemDescription =
+      latestSaved?.systemDescription?.trim() ||
+      request.systemDescription?.trim() ||
+      EMPTY_REQUEST.systemDescription;
+
+    setRequest({
+      ...request,
+      ...(latestSaved ?? {}),
+      contractorInn,
+      contractorName:
+        request.contractorName ||
+        latestSaved?.contractorName ||
+        organization?.fullName ||
+        organization?.shortName ||
+        "",
+      contractorShortName:
+        request.contractorShortName ||
+        latestSaved?.contractorShortName ||
+        organization?.shortName ||
+        "",
+      contractorKpp:
+        request.contractorKpp || latestSaved?.contractorKpp || organization?.kpp || "",
+      contractorOgrn:
+        request.contractorOgrn || latestSaved?.contractorOgrn || organization?.ogrn || "",
+      contractorAddress:
+        request.contractorAddress ||
+        latestSaved?.contractorAddress ||
+        organization?.legalAddress ||
+        organization?.postalAddress ||
+        "",
+      contractorEmail:
+        request.contractorEmail || latestSaved?.contractorEmail || organization?.email || "",
+      contractorPhone:
+        request.contractorPhone || latestSaved?.contractorPhone || organization?.phone || "",
+      eisRegistryNumber:
+        request.eisRegistryNumber ||
+        latestSaved?.eisRegistryNumber ||
+        organization?.registryNumber ||
+        organization?.regNum ||
+        "",
+      contactName:
+        request.contactName || latestSaved?.contactName || organization?.responsiblePerson || "",
+      contactPhone:
+        request.contactPhone ||
+        latestSaved?.contactPhone ||
+        organization?.responsiblePhone ||
+        organization?.phone ||
+        "",
+      contactEmail:
+        request.contactEmail || latestSaved?.contactEmail || organization?.email || "",
+      systemName: request.systemName || latestSaved?.systemName || EMPTY_REQUEST.systemName,
+      systemDescription,
+      purpose: request.purpose || latestSaved?.purpose || EMPTY_REQUEST.purpose,
+      checkInn: Boolean(request.checkInn || latestSaved?.checkInn || contractorInn),
+      checkOrg: Boolean(
+        request.checkOrg ||
+          latestSaved?.checkOrg ||
+          organization?.fullName ||
+          organization?.shortName,
       ),
-    }));
-  }, [savedRequests, loadedRequestId, organization?.inn]);
-
-  useEffect(() => {
-    if (!organization) return;
-
-    setRequest((current) => {
-      const contractorInn = current.contractorInn || organization.inn || "";
-      const next: EisTestAccessRequest = {
-        ...current,
-        contractorName:
-          current.contractorName || organization.fullName || organization.shortName || "",
-        contractorShortName: current.contractorShortName || organization.shortName || "",
-        contractorInn,
-        contractorKpp: current.contractorKpp || organization.kpp || "",
-        contractorOgrn: current.contractorOgrn || organization.ogrn || "",
-        contractorAddress:
-          current.contractorAddress ||
-          organization.legalAddress ||
-          organization.postalAddress ||
-          "",
-        contractorEmail: current.contractorEmail || organization.email || "",
-        contractorPhone: current.contractorPhone || organization.phone || "",
-        eisRegistryNumber:
-          current.eisRegistryNumber ||
-          organization.registryNumber ||
-          organization.regNum ||
-          "",
-        contactName: current.contactName || organization.responsiblePerson || "",
-        contactPhone:
-          current.contactPhone || organization.responsiblePhone || organization.phone || "",
-        contactEmail: current.contactEmail || organization.email || "",
-        checkInn: Boolean(current.checkInn || contractorInn),
-        checkOrg: Boolean(current.checkOrg || organization.fullName || organization.shortName),
-        checkCertificate: Boolean(current.checkCertificate || activeCertificates.length > 0),
-        checkEisRegistration: Boolean(
-          current.checkEisRegistration ||
-            organization.registryNumber ||
-            organization.regNum,
-        ),
-      };
-
-      const changed = (Object.keys(next) as Array<keyof EisTestAccessRequest>).some(
-        (key) => next[key] !== current[key],
-      );
-      return changed ? next : current;
+      checkCertificate: Boolean(
+        request.checkCertificate || latestSaved?.checkCertificate || activeCertificates.length,
+      ),
+      checkSystemDescription: Boolean(
+        request.checkSystemDescription ||
+          latestSaved?.checkSystemDescription ||
+          systemDescription,
+      ),
+      checkEisRegistration: Boolean(
+        request.checkEisRegistration ||
+          latestSaved?.checkEisRegistration ||
+          organization?.registryNumber ||
+          organization?.regNum,
+      ),
     });
-  }, [organization, activeCertificates.length]);
+  }
 
-  useEffect(() => {
-    setRequest((current) => {
-      const text = buildEisTestAccessRequestText(current);
-      if (current.requestText === text) return current;
-      return { ...current, requestText: text };
-    });
-  }, [request.contractorName, request.contractorShortName, request.contractorInn, request.contractorKpp, request.contractorOgrn, request.contractorAddress, request.contractorEmail, request.contractorPhone, request.contactName, request.contactPosition, request.contactEmail, request.contactPhone, request.eisRegistryNumber, request.eisSection, request.systemName, request.systemDescription, request.purpose]);
+  // Текст обращения выводится из полей формы. Ручная правка живёт в textState,
+  // а смена любого поля заново генерирует текст — без эффекта с setState.
+  const generatedRequestText = buildEisTestAccessRequestText(request);
+  const [textState, setTextState] = useState(() => ({
+    source: generatedRequestText,
+    value: generatedRequestText,
+  }));
+
+  if (textState.source !== generatedRequestText) {
+    setTextState({ source: generatedRequestText, value: generatedRequestText });
+  }
+  const requestText = textState.value;
+
+  function editRequestText(value: string) {
+    setSaveMessage("");
+    setTextState({ source: generatedRequestText, value });
+  }
 
   function update<K extends keyof EisTestAccessRequest>(key: K, value: EisTestAccessRequest[K]) {
     setSaveMessage("");
@@ -161,9 +201,11 @@ export default function EisTestAccessPage() {
 
   const missingChecks = checks.filter((check) => !check.value);
 
-  async function save(status?: EisTestAccessStatus) {
+  async function save(status?: EisTestAccessStatus, patch: Partial<EisTestAccessRequest> = {}) {
     const next: EisTestAccessRequest = {
       ...request,
+      ...patch,
+      requestText,
       status: status ?? request.status,
       updatedAt: new Date().toISOString(),
       checkCertificate: request.checkCertificate || activeCertificates.length > 0,
@@ -176,7 +218,9 @@ export default function EisTestAccessPage() {
           ? "Обращение подготовлено и сохранено."
           : status === "signed"
             ? "Статус подписанного обращения сохранён."
-            : "Черновик сохранён.",
+            : status === "sent"
+              ? "Отметка об отправке обращения сохранена."
+              : "Черновик сохранён.",
       );
     } catch (error) {
       setSaveMessage(
@@ -190,8 +234,14 @@ export default function EisTestAccessPage() {
   }
 
   function markSigned() {
-    update("signedAt", new Date().toISOString());
-    void save("signed");
+    void save("signed", {
+      signedAt: new Date().toISOString(),
+      signedBy: request.contactName,
+    });
+  }
+
+  function markSent() {
+    void save("sent");
   }
 
   const readinessTone = missingChecks.length === 0 ? "ok" : "warn";
@@ -293,6 +343,13 @@ export default function EisTestAccessPage() {
             </label>
           </div>
 
+          <h3 className={block("card-title")}>Что проверяем на тестовом контуре</h3>
+          <ul className={block("channels")}>
+            {EIS_TEST_ACCESS_VERIFY_ITEMS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+
           <div className={block("actions")}>
             <button type="button" className={block("btn")} onClick={() => void save()}>
               Сохранить черновик
@@ -300,7 +357,7 @@ export default function EisTestAccessPage() {
             <button type="button" className={block("btn", ["primary"])} onClick={markPrepared}>
               Подготовить обращение
             </button>
-            <button type="button" className={block("btn")} onClick={() => downloadRequest(request)}>
+            <button type="button" className={block("btn")} onClick={() => downloadRequest(request, requestText)}>
               Скачать текст обращения
             </button>
             <span className={block("small")}>
@@ -381,15 +438,23 @@ export default function EisTestAccessPage() {
         <h3 className={block("card-title")}>Текст обращения</h3>
         <textarea
           className={block("textarea", ["large"])}
-          value={request.requestText}
-          onChange={(e) => update("requestText", e.target.value)}
+          value={requestText}
+          onChange={(e) => editRequestText(e.target.value)}
         />
         <div className={block("sign-actions")}>
-          <button type="button" className={block("btn")} onClick={() => downloadRequest(request)}>
+          <button type="button" className={block("btn")} onClick={() => downloadRequest(request, requestText)}>
             Скачать файл обращения
           </button>
           <button type="button" className={block("btn", ["primary"])} onClick={markSigned}>
             Отметить как подписанное ЭП
+          </button>
+          <button
+            type="button"
+            className={block("btn")}
+            onClick={markSent}
+            disabled={request.status === "sent"}
+          >
+            Отметить отправленным
           </button>
           {request.signedAt && (
             <span className={block("small")}>
