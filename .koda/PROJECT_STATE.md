@@ -40,17 +40,17 @@
 > Также 2026-11-22: hero-кнопка главной открывает действующий план-график
 > текущего года вместо формы создания — §128.
 > Также 2026-11-22: публичная карточка контракта ЕИС разбирается по реестровому
-> номеру без токена: акты приёмки (ОН_АКТРЕЗРАБП и ОН_НСЧФДОПPR), решения
-> заказчика (ОН_АКТРЕЗРАБЗ и ОН_НСЧФДОППОК), сообщения ЭДО (DP_*) и платёжные
+> номеру без токена: акты приёмки (ОН*АКТРЕЗРАБП и ОН*НСЧФДОПPR), решения
+> заказчика (ОН*АКТРЕЗРАБЗ и ОН*НСЧФДОППОК), сообщения ЭДО (DP*\*) и платёжные
 > поручения (MSC_TransfOrderAcc и FAM_PaymOrderCr) собираются в read-side DTO
 > для фронта; сущности БД и кириллические поля в entity не добавлялись — §129.
-> Там же: в строках акта ОКПД2 и КТРУ разделены. В ОН_НСЧФДОПPR атрибут
+> Там же: в строках акта ОКПД2 и КТРУ разделены. В ОН*НСЧФДОПPR атрибут
 > `КодТов` — это код КТРУ (`01.13.43.110-00000002`), ОКПД2 берётся как его
-> префикс до дефиса (`01.13.43.110`); в ОН_АКТРЕЗРАБП из `СведТРУКонт`
+> префикс до дефиса (`01.13.43.110`); в ОН*АКТРЕЗРАБП из `СведТРУКонт`
 > дополнительно берутся `ИдТРУ`, `ТехИдТРУ`, `ЭАИдТРУ`. Платежи и ЭДО кодов
 > объектов закупки не содержат.
 > Также 2026-11-22: согласована стратегия парсинга `snapshot-first /
-> offline-by-default` — старт без ЕИС, помощь в документах из открытых данных,
+offline-by-default` — старт без ЕИС, помощь в документах из открытых данных,
 > интеграция/сервер только по спросу. Фаза 0 сделана: `npm start` не поднимает
 > фоновых агентов НПА/XSD/КоАП, снимки и версии зафиксированы в
 > `docs/snapshots/manifest.json`, план — в `docs/tasks/snapshot-first-offline.md`,
@@ -97,22 +97,21 @@
 > первыми; таблицы схемы `legal`, endpoint `/api/liability-mapping/map`,
 > 103 passed / 3 skipped, JSON-контракт зафиксирован тестом — §§48–50, бриф
 > `csms-api/docs/tasks/compliance-liability-mapping.md`).
-> Также 2026-11-20: каталог ПП РФ N 2604 загружен в `legal.pp2604_*` и отдаётся
-> через `/api/pp2604/*`; фронт читает активную версию API, офлайн-снимок остался
-> fallback (§55).
-> Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
-> в `csms-api`: модель `qwen2.5:14b-instruct-q4_K_M`, вызов только по спорным
-> строкам, все предложения идут в `needs_review`; endpoint
-> `POST /api/npa/documents/{code}/analyze` и сравнение 7B/14B — §43, бриф
-> `csms-api/docs/tasks/npa-llm-agent.md`).
-> Предыдущее обновление 2026-11-20 (агент разметки правил НПА по ОКПД2:
-> 471-р опубликован версией `r5`, 17 215 правил, 99 прямых, 88 неразобранных;
-> API `/api/npa/*`, история версий и ручная проверка через `/verify` — §38,
-> бриф `csms-api/docs/tasks/npa-rules.md`).
-> Предыдущее обновление 2026-11-19 (справочники НСИ на бэке: версионируемое
-> хранилище `ref.*`, `/api/references/*` и SSE — §32, Tasks 16; доменные типы
-> сквозной цепочки ПГ → извещение → контракт → СМП и карта соответствия XSD ЕИС,
-> §31; парсер ЕИС 44-FZ `getDocsIP` — отдельное решение .NET 9 в `eis-parser/`,
+> Также 2026-11-20: каталог ПП РФ N 2604 загружен в `legal.pp2604*_`и отдаётся
+через`/api/pp2604/_`; фронт читает активную версию API, офлайн-снимок остался
+fallback (§55).
+Предыдущее обновление 2026-11-20 (второй агент НПА на локальном Ollama
+в `csms-api`: модель `qwen2.5:14b-instruct-q4*K_M`, вызов только по спорным
+строкам, все предложения идут в `needs_review`; endpoint
+`POST /api/npa/documents/{code}/analyze`и сравнение 7B/14B — §43, бриф`csms-api/docs/tasks/npa-llm-agent.md`).
+Предыдущее обновление 2026-11-20 (агент разметки правил НПА по ОКПД2:
+471-р опубликован версией `r5`, 17 215 правил, 99 прямых, 88 неразобранных;
+API `/api/npa/*`, история версий и ручная проверка через `/verify`— §38,
+бриф`csms-api/docs/tasks/npa-rules.md`).
+Предыдущее обновление 2026-11-19 (справочники НСИ на бэке: версионируемое
+хранилище `ref.\_`, `/api/references/\*`и SSE — §32, Tasks 16; доменные типы
+сквозной цепочки ПГ → извещение → контракт → СМП и карта соответствия XSD ЕИС,
+§31; парсер ЕИС 44-FZ`getDocsIP`— отдельное решение .NET 9 в`eis-parser/`,
 > Tasks 14; исходящий шлюз ЕИС — Tasks 12, §27). Предыдущее обновление
 > 2026-11-18: КТРУ, сводная таблица объектов закупки, единый набор характеристик,
 > автонацрежим в СЗ, файл ООЗ в извещении, кастомные чекбоксы/радио).
@@ -201,10 +200,10 @@
      `EisDocGenerator.Core.dll`/`Csms.Domain.dll`
      (`Get-CimInstance Win32_Process -Filter "Name='Csms.Api.exe'"`). Признак
      зомби: процесс есть, но 5099 не слушает и `GET /openapi/v1.json` = 404.
-  Бывает и два `concurrently`-дерева сразу (`npm start` + `npm run start:fast`) —
-  перед запуском оставить одно. Проверка живого стека:
-  `http://localhost:3002/__pg/health` (PG-адаптер), `http://localhost:5173/`
-  (vite) и `http://localhost:5173/openapi/v1.json` (API через прокси, 200).
+     Бывает и два `concurrently`-дерева сразу (`npm start` + `npm run start:fast`) —
+     перед запуском оставить одно. Проверка живого стека:
+     `http://localhost:3002/__pg/health` (PG-адаптер), `http://localhost:5173/`
+     (vite) и `http://localhost:5173/openapi/v1.json` (API через прокси, 200).
 
 ## 2. Стек и соглашения
 
@@ -479,7 +478,7 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
 - **Модалки**: `--modal-border` / `--modal-dot` / `--modal-dot-glow` + миксин
   `modal-frame` (`src/scss/global/_modal-frame.scss`) — рамка инвертирована к
   фону окна, по периметру бежит точка. Точка едет по `offset-path:
-  rect(0 100% 100% 0 round 10px)` (анимация `offset-distance`), а не по
+rect(0 100% 100% 0 round 10px)` (анимация `offset-distance`), а не по
   `top`/`left`: layout-анимация перерисовывала окно с тенью и оставляла
   «хвост кометы», а прямоугольный путь срезал скругления. Для браузеров без
   `rect()` в `offset-path` есть fallback `@supports not`, `prefers-reduced-motion`
@@ -498,7 +497,7 @@ contract3: id13–14 (org2, 2 записи, недобор 3 062 500 / 39,51 %, 
   (`AppLayout/ModernMotionLayer.tsx`), потому что пороги «большого блока» и
   занятость псевдоэлемента в CSS не выражаются: комета по контуру
   (`data-modern-comet="after|before"`, `conic-gradient` + `mask-composite:
-  exclude`, угол через `@property` + JS-фолбэк), неоновая подсветка на hover
+exclude`, угол через `@property` + JS-фолбэк), неоновая подсветка на hover
   (`data-modern-lift`: кромка 1 px внутри + свет над верхней гранью снаружи,
   без `transform`, горит только ближайшая панель через
   `:not(:has(...:hover))`) и магнитное расхождение коротких списков
@@ -2207,7 +2206,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   Пакеты разделены по исполнителям: 16 фронтовых задач `Ф1–Ф16` (56 %) и
   12 бэк-задач `Б1–Б12` (44 %); идентификаторы `Ф*`/`Б*` сведены в таблицы §7.
 - **Три потока (2 фронта + 1 бэк):** Фронт-1 — цепочка и реестр, `Ф4/Ф5/Ф6/Ф7/
-  Ф12/Ф15/Ф16` (29 %), единственный владелец `eisXsdCoverage.ts`; Фронт-2 —
+Ф12/Ф15/Ф16` (29 %), единственный владелец `eisXsdCoverage.ts`; Фронт-2 —
   XML/ЭП/справочники/исполнение, `Ф1/Ф2/Ф3/Ф8/Ф9/Ф10/Ф11/Ф13/Ф14` (27 %);
   Бэк — весь `csms-api/**` и `eis-parser/**`, `Б1–Б12` (44 %). Зоны не
   пересекаются по файлам; интерфейсы между потоками и порядок запуска — §§7, 8.
@@ -2507,8 +2506,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   но сам SOAP-обмен с токеном не проверен. Коды справочников не выдумываются.
   `db.json` и `SidePolarCurves.tsx` — чужая WIP, не тронуты.
 
-
-
 ## 65. Новые публичные источники и форматы eis-parser (2026-11-21, ночь)
 
 - **Правила нормирования без токена.** Найдена открытая точка
@@ -2612,8 +2609,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 
 ### Данные клиента
 
-- По ссылке реестра контрактов ЕИС (`customerIdOrg=01442000018…`, ИНН
-  4629040439) распарсено **517 контрактов**, добавлены в `contractRegistry`
+- По ссылке реестра контрактов ЕИС (`customerIdOrg=01442000018…`, ИНН 4629040439) распарсено **517 контрактов**, добавлены в `contractRegistry`
   (всего 523). Это самый дешёвый способ онбординга: публичный поиск без ЭЦП и
   токена, но только реестр контрактов — закрытые документы/подписи так не получить.
 - Создан пользователь `poyarkova_nyu@mail.ru` / `qwerty12` (user id7, employee
@@ -2787,8 +2783,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   лишь 2 контракта. В `scripts/link-eis-chain.mjs` добавлен
   `assignCustomerOrganization`: он переносит `customerOrganizationId` в
   `organizationId` (прогнал — 517 обновлений). После этого json-server
-  `/contractRegistry?organizationId=6` отдаёт **519** контрактов, извещений —
-  3. Причина отображалась как «пусто», хотя парсинг был сделан.
+  `/contractRegistry?organizationId=6` отдаёт **519** контрактов, извещений — 3. Причина отображалась как «пусто», хотя парсинг был сделан.
 - **Парсинг организации ЕИС:** в `scripts/import-eis-client.mjs` добавлены
   `findOrganizationNumber` (поиск по ИНН → `reestrNumber`), `fetchOrganization`
   (`info.html` — реквизиты, `other.html` — контакты) и
@@ -2919,7 +2914,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `KBKsInfo/KBKInfo`, ни блок `specialPurchasePositions` в карточке не
   отдаются — они есть только в публичной печатной форме XML. В `mapPlan()`
   КБК/КВР и `specialPurchases` явно записывались пустыми. ИКЗ в базе уже был
-  36-значным и корректным, но ИКЗ-*разряды* КВР (34–36) в карточке позиции
+  36-значным и корректным, но ИКЗ-_разряды_ КВР (34–36) в карточке позиции
   считались из пустого `kbk.slice(-3)`, поэтому «отрубались» по КБК.
 - **Источник без токена:** карточка плана → ссылка
   `/epz/orderplan/os/printForm/view.html?printFormId=…` → тот же `printFormId`
@@ -3122,7 +3117,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `Container.module.scss` страницы — flex-элементы с `margin: 0 auto`.
   Auto-margin по поперечной оси отключает stretch, ширина считалась по
   содержимому, и любая длинная строка (`<option>` у select, ИКЗ, `width:
-  max-content` у кнопки) выносила страницу за вьюпорт — симптомом были
+max-content` у кнопки) выносила страницу за вьюпорт — симптомом были
   «разные» страницы (`/documents`, `/legal-acts`, `/contract-registry`), но
   причина одна. Лечение: `> * { width: 100%; min-width: 0 }`.
 - **Оболочка:** `body`/`html` — `100dvh` вместо `100vh` (адресная строка
@@ -3141,14 +3136,14 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `overscroll-behavior: contain`), десктопные `min-width: 420–1100px` у форм
   перебиваются.
 - **Тач-цели:** в `_controls.scss` — `@media (max-width: 900px)
-  :where(button, select, textarea, input:not(checkbox/radio/hidden)) {
-  min-height: 44px }`. Специфичность нулевая, поэтому компонент может задать
+:where(button, select, textarea, input:not(checkbox/radio/hidden)) {
+min-height: 44px }`. Специфичность нулевая, поэтому компонент может задать
   свой размер; чекбоксы/радио не трогаем — они всегда в паре с label.
   Точечно 44px добавлены: `.brand`, pager-кнопки `LegalActsRegistry`,
   `.toggle-label`/`.ack-btn` в уведомлениях, `.number` в `ProcurementRow`
   (через padding + отрицательный margin — вид не меняется).
 - **Страницы:** `ProcurementDocumentsPage` (`.paper` 16/14, `overflow-wrap:
-  anywhere` для ИКЗ), `LegalActsRegistry` (полный блок ≤600px: подпись над
+anywhere` для ИКЗ), `LegalActsRegistry` (полный блок ≤600px: подпись над
   select, поиск на всю ширину, обёртка таблицы со скроллом
   `overscroll-behavior-x: contain`, мелкий шрифт/паддинги ячеек, `.code` и
   `.npa-time` переносятся), `Main` (отступы 16/12), `ProcurementRow`,
@@ -3189,7 +3184,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   занимает свою строку (`flex: 1 1 100%`), даты делят ширину поровну
   (`flex: 1 1 0`), select сортировки растягивается, кнопка направления
   фиксирована. Проверка: `npm run check:mobile -- --widths=375
-  --routes=/contract-registry` → `scroll=375 offenders=0 small-targets=0`,
+--routes=/contract-registry` → `scroll=375 offenders=0 small-targets=0`,
   переполнений 0; `tsc -b`, `oxlint`, `vite build` — зелёные.
 
 ## 80. Карточка позиции ПГ: раскладка по замечаниям пользователя (2026-11-21)
@@ -3387,7 +3382,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Стили (`PurchasePlanCard.module.scss`):** `__okpd2` → `max-width: 240px`
   (как `--wide` у графы «Наименование объекта закупки»), `__okpd2-line` → flex
   без сжатия значков, `__okpd2-name` → `overflow: hidden; text-overflow:
-  ellipsis; white-space: nowrap; min-width: 0; cursor: help`.
+ellipsis; white-space: nowrap; min-width: 0; cursor: help`.
 - **Проверки:** `tsc -b` — без ошибок, `oxlint src/components/PurchasePlan` —
   0/0, `vite build` — зелёный. Живая проверка через CDP (1440×900, вкладка
   «Позиции»): графа ОКПД2 261px против 248px у графы объекта, текст обрезан
@@ -3417,7 +3412,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Проверки:** `tsc -b` без ошибок, `oxlint` по файлу — 0/0, `vite build` —
   зелёный (в собранном CSS есть `.sortHeader`/`.sortIconActive`). Мобильный
   аудит `/contract-registry` на 375px: `scroll=375 offenders=0
-  small-targets=0`.
+small-targets=0`.
 
 ## 90. Особые закупки: КБК как в позиции, ИКЗ у года, изменения и XML (2026-11-21)
 
@@ -3464,7 +3459,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   корректные годовые суммы внутри `KBKYearsInfo`. Сохранение не выполнялось,
   `db.json` не менялся. Чужие WIP-файлы (`scripts/mobile-audit.mjs`,
   `PurchasePlanCard*`, `Лес 3D.jpg`) не трогались.
-
 
 ## 89. Таблица позиций ПГ: перенос ОКПД2, ширины граф и статус без обводки (2026-11-21)
 
@@ -3553,6 +3547,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `PurchasePlanCard*`, `PurchasePlanSpecialPurchases*`, `eis17Types.ts`,
   `purchasePlan.schema.ts`, `src/services/SpecialPurchaseType/`, `Лес 3D.jpg`)
   не трогались.
+
 ## 92. Таблица позиций ПГ: наименование объекта на уровне наименования по ОКПД2 (2026-11-21)
 
 - В строке позиции графа «Наименование объекта (объектов) закупки» начиналась
@@ -3567,7 +3562,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   по ОКПД2 — 0px в трёх первых строках; таблица 1126 = контейнер 1126,
   скролла нет; высота таблицы выросла с 2221 до 2299px (3 строки × 26px).
 - Проверки: `tsc -b` без ошибок, `oxlint` по файлу 0/0, `vite build` зелёный.
-
 
 ## 93. Таблица позиций ПГ: сумма по центру ячейки (2026-11-21)
 
@@ -3755,7 +3749,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Новые файлы:** `src/components/PurchasePlan/PurchasePlanKbkBreakdown.tsx`
   и `.module.scss`. Блок стоит на вкладке «Итоговые показатели» под сводной
   таблицей плана (`PurchasePlanCard.tsx` → `<PurchasePlanKbkBreakdown
-  plan={plan} baseYear={baseYear} />`).
+plan={plan} baseYear={baseYear} />`).
 - **Агрегация:** группировка по КБК идёт по `positions` + `specialPurchases`
   (разбор через `positionKbkEntries`), поэтому итог разбивки совпадает с
   «Итого по плану-графику»: 15 290 787 502,36 / 5 384 368 376,58 /
@@ -3934,7 +3928,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   наезда на соседнюю графу таблица уезжает вбок внутри `overflow-x: auto`.
 - На `max-width: 700px` (в сводке скрыты «Записей» и годы) фиксированная
   раскладка и проценты снимаются (`table-layout: auto`, `th:nth-child(n)
-  { width: auto }`), мобильный вид не изменился.
+{ width: auto }`), мобильный вид не изменился.
 - **Проверки:** замер `.tmp/probe-kbk-align.mjs` (CDP, headless) на 1440,
   1024, 900, 390 px — на 1440/1024 `delta = 0` по всем пяти суммам,
   правые края чисел совпадают (447/581/716/851/986), `scrollWidth = clientWidth`
@@ -3994,12 +3988,12 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Шапка «тянулась»:** `th` уже был `position: sticky`, но фон брался из
   `--surface-raised`, а в светлой теме это `rgba(snowy-mint, 0.75)` — сквозь
   шапку просвечивали прокручиваемые строки. Теперь `background-color:
-  var(--surface-panel)` (непрозрачная панель) + `background-image:
-  linear-gradient(var(--surface-raised), var(--surface-raised))` — оттенок
+var(--surface-panel)` (непрозрачная панель) + `background-image:
+linear-gradient(var(--surface-raised), var(--surface-raised))` — оттенок
   сохранился, просвечивания нет; в тёмных темах `--surface-raised` непрозрачен,
   вид не изменился. Нижнюю границу у прилипшей ячейки при `border-collapse:
-  collapse` Chrome не прокручивает — она заменена `box-shadow: inset 0 -1px 0
-  var(--border)`.
+collapse` Chrome не прокручивает — она заменена `box-shadow: inset 0 -1px 0
+var(--border)`.
 - **Полоса над шапкой:** верхний отступ был `padding-top` у `.modal-body`, а
   padding скролл-контейнера остаётся на месте — в 18 px над шапкой были видны
   строки. Отступ перенесён на таблицу (`.records-table { margin-top: 18px }`,
@@ -4022,7 +4016,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Клики:** строка записи по-прежнему открывает позицию/вкладку особых
   закупок, а ссылки внутри неё — документ: `stopPropagation` на клик и
   `onKeyDown` у `tr` срабатывает только при `event.target ===
-  event.currentTarget`. На `max-width: 700px` графа документов скрыта, те же
+event.currentTarget`. На `max-width: 700px` графа документов скрыта, те же
   ссылки показываются под наименованием (`doc-links-under-title`).
 - **Проверки:** `.tmp/probe-kbk-modal.mjs` (CDP, headless; `TAG`, `WIDTH`,
   `SCROLL`) — 1440/1024/390 px: `th` после скролла на `top = 0`, шапка
@@ -4196,6 +4190,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Отдельно (не сделано):** «Направить на контроль» в списке ПГ; дубли ключей
   `purchase:XXXX` в `chainKey()` (`eisChainBuilder.ts`) — 126 разных
   `purchaseNumber` на 232 позиции, до 3 повторов.
+
 ## 114. Реестр контрактов: папки по годам заключения (2026-11-22)
 
 - **Запрос пользователя.** Ранее отложенный этап из §112: реестр контрактов
@@ -4225,7 +4220,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   1440 px: папки 2026/109, 2025/71, 2024/44, 2023/48, 2022/59, 2021/97, «Все»/428;
   по умолчанию открыта 2026 («1–10 из 109»), клик 2025 → «1–10 из 71», «Вперёд»
   → «11–20 из 71», повторный клик → 2026, «Все» → «1–10 из 428»; `grid
-  208px 916px`, `overflowX = 0/0`, консоль чистая. 390 px: `flexDirection: row`,
+208px 916px`, `overflowX = 0/0`, консоль чистая. 390 px: `flexDirection: row`,
   `grid: 366px`, `overflowX = 0/0`. Тема `modern` — скриншот читаемый.
   `prettier --check`, `tsc -b`, `oxlint src` (0 ошибок, 80 warning — прежние),
   `vite build` — exit 0.
@@ -4249,7 +4244,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   Сверху накладываются только реально найденные в извещении блоки. Структура и
   XML не менялись: все новые поля уже есть в `PurchaseNoteSchema`.
 - **Результат на рабочей БД.** `node scripts/repair-eis-notes.mjs --db db.json
-  --replace --year 2026`: удалено 4, создано 3 (id 1/2/3 по позициям -106/-117/
+--replace --year 2026`: удалено 4, создано 3 (id 1/2/3 по позициям -106/-117/
   -59), пропущено извещений 0; связи извещений → 1, 2, 3. Все 3 СЗ проходят
   `PurchaseNoteSchema` (rolldown + safeParse, 3/3 VALID). В браузере
   `/eis/chains`: закупка 0114 → СЗ 1 + извещение …0201, 0126 → СЗ 2 + …0194,
@@ -4278,7 +4273,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Раскрытие.** `folderStage` — grid-слои в одной ячейке (`grid-area: 1 / 1`)
   с `overflow: clip`: `folderGrid` уезжает `translateX(calc(100% + 48px))` и
   гаснет, `folderPanel` появляется keyframe `folderReveal` (`clip-path:
-  inset(50% 0 50% 0)` → `inset(0)`), задержка 0.16 s, ширина 1140 px = вся
+inset(50% 0 50% 0)` → `inset(0)`), задержка 0.16 s, ширина 1140 px = вся
   ширина реестра. Панель рендерится только при открытой папке; `key` по
   параметру заставляет переключение папки проигрывать раскрытие заново,
   `inert` на сетке, пока лист открыт.
@@ -4314,7 +4309,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   `--notice-from`, `--to` (ДД.ММ.ГГГГ; без них поведение прежнее — от `--years` /
   `--notice-years` назад от текущей даты). Запуск:
   `node scripts/import-eis-client.mjs --inn 4629040439 --plan-from 01.01.2025
-  --notice-from 01.01.2025 --to 22.11.2026 --plans 7 --notices 500 --tasks 12`.
+--notice-from 01.01.2025 --to 22.11.2026 --plans 7 --notices 500 --tasks 12`.
   Найдено 183 извещения, 2 плана (2025/2026). Генератор СЗ получил параметр
   `years[]` и строит СЗ только по годам из запрошенного диапазона.
 - **Антибот ЕИС.** Первый проход импортировал 144 из 183 карточки: 39 запросов
@@ -4461,7 +4456,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   коллекции, которых нет в источнике.
 - **Проверка dual-write.** `repair-eis-notes.mjs --db <копия>` без `--replace`
   (created: 0) оставил хэш файла прежним и записал `[pg] синхронизировано 1035
-  записей`; `.tmp/pg-full-diff.mjs` подтвердил побайтовое совпадение всех 1035
+записей`; `.tmp/pg-full-diff.mjs` подтвердил побайтовое совпадение всех 1035
   документов с `db.json`. `PG_SYNC=0` и `PGPORT=5999` отработали без падения
   импорта. Удаление одной записи в источнике уменьшает счётчик СЗ 144 → 143 и
   возвращается к 144 после ROLLBACK. Важно: `link-eis-chain.mjs` при прямом
@@ -4496,7 +4491,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Проверки.** `tsc -b --pretty false` — 0 ошибок, `vite build` — зелёный,
   `sass` по `src/scss/global.scss` — SASS_OK, мобильный аудит
   `/contract-registry` на 375px — `ok 375x812 scroll=375 offenders=0
-  small-targets=0`.
+small-targets=0`.
 
 ## 121. Фавикон CSMS (2026-11-22)
 
@@ -4506,7 +4501,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   светлой темы `#235347`. Палитра взята из `_variables.scss`, поэтому иконка
   совпадает с интерфейсом.
 - **Подключение:** ссылка `<link rel="icon" type="image/svg+xml"
-  href="/favicon.svg" sizes="any" />` в `index.html`; самого файла в `public/`
+href="/favicon.svg" sizes="any" />` в `index.html`; самого файла в `public/`
   раньше не было — теперь браузер получает иконку вместо 404. `sizes="any"`
   явно разрешает SVG на любом размере вкладки.
 - **Проверки:** `vite build` — зелёный, `dist/favicon.svg` собран (1345 байт);
@@ -4634,7 +4629,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   угла. Поэтому старт — `dx + halfW / dy + halfH` (смещение до центра сетки
   плюс полуразмер), финиш — ровно `halfW / halfH`. Иначе плитка встаёт мимо
   своего места на полкорпуса. Команда: `M startX startY Q controlX controlY
-  halfW halfH`.
+halfW halfH`.
 - **Форма дуги.** `controlY = startY/2 + halfH/2 - max(60, |dx| * 0.26)`:
   контрольная точка выше середины хорды, подъём растёт с размахом, поэтому
   парабола читается и у боковых плиток, и у средних. В `folderTileFly`
@@ -4666,12 +4661,12 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (`currentTime 67`), затем `idle` — все 7 плиток в своих слотах сетки
   (275×148, gap 14px). Раскрытие: `contractDetailsIn`, `0.42s`,
   `clip-path: inset(0 0 11.7%)` через 110 мс. `REDUCED=1`: `animation-name:
-  none`, `offset-path: none`, плитки сразу на местах (`[150,400]`), раскрытие
+none`, `offset-path: none`, плитки сразу на местах (`[150,400]`), раскрытие
   мгновенное.
 - **Ловушка проверки.** Headless Chrome по умолчанию отдаёт
   `prefers-reduced-motion: reduce`, поэтому без
   `Emulation.setEmulatedMedia({ features: [{ name: "prefers-reduced-motion",
-  value: "no-preference" }] })` любая проба видит «анимации нет» и делает
+value: "no-preference" }] })` любая проба видит «анимации нет» и делает
   ложный вывод. В `probe-folders.mjs` режим переключается `REDUCED=1`.
   Второй раз ловушка — логин: проба подставляла старый
   `poyarkova_nyy@mail.ru`, пользователь не находился, страница показывала
@@ -4688,7 +4683,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Шапка (`Header.tsx` + `Header.module.scss`, `AppLayout.tsx`).** Была
   колонкой из 18 чипов, которые на десктопе переносились на 2–3 ряда. Теперь
   `position: sticky; top: 0` на всю ширину, внутренняя строка `max-width:
-  1120px` выровнена с `Main`; фон панели полупрозрачный (`color-mix` 88 %) с
+1120px` выровнена с `Main`; фон панели полупрозрачный (`color-mix` 88 %) с
   `backdrop-filter: blur(16px)`, поэтому контент виден под шапкой, но не
   читается поверх меню. Слева — знак «Ц» + «ЦСМС / Контрактная служба», затем
   шесть пунктов контура (Главная, План-график, Потребность, Извещения,
@@ -4906,7 +4901,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   для каждого роута печатает `doc=<scrollWidth>`, `outside=<n>`, `tables=<n>`,
   `clipped=<n>`, `small=<n>` и сохраняет JSON в `.tmp/shots-390-*.json`.
   Запуск: `$env:ROUTES='/a,/b'; $env:WIDTH='390'; $env:SHOTS='0';
-  $env:OUT='final.json'; $env:WAIT='3000'; node .tmp/scan-adaptive.mjs`.
+$env:OUT='final.json'; $env:WAIT='3000'; node .tmp/scan-adaptive.mjs`.
   Ловушки: `Emulation.setDeviceMetricsOverride.mobile` должен быть `false`
   (иначе `innerWidth` не равен заданной ширине); авторизация — только через
   `Page.addScriptToEvaluateOnNewDocument` с `localStorage.user_email`, без неё
@@ -5025,7 +5020,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Проверки.** `npx.cmd tsc -b --pretty false` — exit 0; `npx.cmd oxlint` по
   новым файлам — 0 ошибок; `npx.cmd vite build` — exit 0, чанк визитки
   отдельный. `node scripts/mobile-audit.mjs --routes=/visit-card
-  --widths=320,375,430,1440` — `scrollWidth = width`, горизонтальной прокрутки
+--widths=320,375,430,1440` — `scrollWidth = width`, горизонтальной прокрутки
   нет, тач-цели 0 нарушений (два «offender» — декоративные свечения hero,
   обрезаны `overflow-x: clip`). В браузере проверены 1440 и 390 px, sticky-
   шапка, появление секций и переходы по якорям.
@@ -5080,7 +5075,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   вложенной карточке — подсвечена только она, `box-shadow` содержит
   `0px -14px 22px -12px` без `inset`. 390 px — `docWidth = scrollWidth = 375`,
   горизонтальной прокрутки нет. Собранный CSS содержит `@property …
-  inherits:true`, `:has` и `calc(var(--comet-duration,8s) * 4.5)`.
+inherits:true`, `:has` и `calc(var(--comet-duration,8s) * 4.5)`.
   `npx tsc -b` — exit 0, `npx oxlint src` — 0 ошибок (78 прежних warning),
   `npx vite build` — exit 0.
 - **Не регрессия, но в очередь.** Порог кометы (ширина ≥ 560 px, на узком
@@ -5088,10 +5083,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   шириной ≈343 px, поэтому на телефоне контур не появляется — так было и
   раньше; если понадобится неон на мобильном, порог надо пересматривать
   отдельно.
-
-
-
-
 
 ## 132. Тема «Современные закупки»: декор по скруглённым панелям, а не по прямоугольной обёртке (2026-11-22)
 
@@ -5265,7 +5256,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 
 - **Парсинг карточек по реестровым номерам закончен.** Повторный прогон
   `eis-parser --numbers-file our-contract-numbers-2026.txt --year 2026
-  --incremental` + `scripts/import-contract-card-projections.mjs` дал
+--incremental` + `scripts/import-contract-card-projections.mjs` дал
   `files=112, imported=112, skippedUnmatched=0`; в PG `contractCardProjections`
   теперь 112 документов. Это все известные свои номера за 2026 год (ранее было
   2). Старые 186 проекций чужой выдачи по-прежнему не импортируются.
@@ -5394,7 +5385,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   выбирает провайдера по `Fns:Provider` и пробует второй при неудаче.
   `ContractorEnrichmentService` обновляет карточки старше `Fns:CacheDays`.
 - **CLI.** `dotnet run --project eis-parser/src/Eis44Parser.Worker --
-  --enrich-contractors --limit 100 [--inn 4632306640]`.
+--enrich-contractors --limit 100 [--inn 4632306640]`.
   `--parse-file` теперь печатает и субподрядчиков.
 - **Проверки.** `dotnet build eis-parser/Eis44Parser.sln` — 0 ошибок;
   `dotnet test --no-build` — 72/72; разбор фикстуры: 25 субподрядчиков, ИП
@@ -5450,11 +5441,11 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Стили.** `ContractRegistry.module.scss`: `.accBadge` с тонами
   `acc_draft/progress/success/danger/muted`, `.subHeader` (шапка подсекции с
   действием справа), `.inlineForm/.inlineField/.inlineFormActions/
-  .inlineCheckbox/.inlineError`. Использованы только существующие токены
+.inlineCheckbox/.inlineError`. Использованы только существующие токены
   темы (`--surface-panel`, `--surface-raised`, `--accent`, `--state-*`);
   `--text-muted` и `--surface` в проекте нет.
 - **Проверки.** `npx tsc -b` — exit 0; `npx oxlint src/components/ContractRegistry
-  src/components/Header` — 0 ошибок, 1 pre-existing warning
+src/components/Header` — 0 ошибок, 1 pre-existing warning
   (`set-state-in-effect` в `Header.tsx:168`, чужой); `npx vite build` — успешно
   за 33.21 с (только обычное предупреждение про >500 kB чанки);
   `npm run test:scripts` — 12/12.
@@ -5464,7 +5455,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   время прогона; через минуту проверка снова зелёная. Чужое не чинить,
   перепроверять. К моменту коммита `src/services/Contractor/` (untracked)
   снова в работе: `contractor.schema.ts(417,1)` — `TS1128: Declaration or
-  statement expected`, полная проверка `tsc -b` из-за этого падает. Свои
+statement expected`, полная проверка `tsc -b` из-за этого падает. Свои
   четыре файла проверены точечно:
   `npx tsc --ignoreConfig --noEmit … src/components/ContractRegistry/*.tsx` —
   exit 0; `oxlint` по трём новым компонентам — 0 warnings.
@@ -5519,11 +5510,11 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   «принято» считалось одинаково.
 - **Стили.** `ContractRegistry.module.scss`: блок «Сводка исполнения»
   (`.summarySection/.summaryGrid/.summaryCard/.summaryLabel/.summaryValue/
-  .summaryHint/.summaryTrack/.summaryFill/.summaryFillOk/.summaryPercent/
-  .summaryFooter`), `.btnPrimary`, `.btnSmall` (раньше `styles.btnSmall`
+.summaryHint/.summaryTrack/.summaryFill/.summaryFillOk/.summaryPercent/
+.summaryFooter`), `.btnPrimary`, `.btnSmall` (раньше `styles.btnSmall`
   использовался, но класса не было — кнопки «+ Платёж»/«+ Акт» были без
   стилей), страница карточки (`.cardPage/.cardPageTop/.cardPageHeader/
-  .cardPageTitle/.cardPageMeta`). Только существующие токены темы.
+.cardPageTitle/.cardPageMeta`). Только существующие токены темы.
 - **Проверки.** `npx tsc -p tsconfig.cardcheck.json --noEmit` (временный
   конфиг: `extends tsconfig.app.json`, include — `src/components/ContractRegistry`
   и `acceptance.config.ts`) — 0 ошибок; `npx oxlint` по восьми затронутым
@@ -5613,8 +5604,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - В логе с 16:00 UTC нет `ERROR`, `FATAL`, `ECONNRESET`, `timeout`, `ABORT`,
   `WARN`; срывов сети и тихой смерти процесса во втором запуске не было.
 
- 
-
 ## 142. Реестр контрактов: прогрессивная загрузка порциями (2026-11-22)
 
 - Реестр больше не читает все 519 контрактов организации (id 6) при открытии.
@@ -5628,7 +5617,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   — порция считается последней. 25 кратно всем масштабам `PageSizePicker`
   (5/10/25), поэтому первая страница никогда не требует перезапроса.
 - Хук отдаёт `contracts / total / loaded / hasMore / loadMore / loadAll /
-  loadUntil(rows)`. `loadAll` и `loadUntil` идут циклами с ограничением 500
+loadUntil(rows)`. `loadAll` и `loadUntil` идут циклами с ограничением 500
   шагов от бесконечного цикла.
 - `ContractRegistryPage.tsx`: старт — 4 порции (`AUTOLOAD_ROWS = PAGE_SIZE * 4`
   в фоне, чтобы папки, плитки и счётчики были осмысленными), полная загрузка —
@@ -5647,7 +5636,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   карточка `id=5` — один запрос `/contractRegistry/5`, чужой `id=1` — один
   запрос и «Контракт не найден» без ретраев.
 - Проверки: `npx tsc -b` — 0 ошибок, `npx oxlint
-  src/components/ContractRegistry src/services/ContractRegistry` — 0/0
+src/components/ContractRegistry src/services/ContractRegistry` — 0/0
   (общий `oxlint src` даёт 78 предупреждений в чужих файлах — не трогали),
   `npx vite build` — ok.
 
@@ -5657,7 +5646,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   организация 6, ОКУ «Курскавтодор», ИНН 4629040439.
 - **Backup до изменений:** `%TEMP%\opencode\csms_eis-before-cleanup-20261122.dump`
   (`pg_dump -Fc`, 26,8 МБ, 21:18 +03). Восстановление: `pg_restore --clean --if-exists
-  -h localhost -p 5433 -U postgres -d csms_eis <файл>`.
+-h localhost -p 5433 -U postgres -d csms_eis <файл>`.
 - **Удалено в одной транзакции:** `access.organizations` 1–5; `access.users`
   `test1..test4@test.test` и `belov@belgorod.test` (5), 1 `user_roles`, 5
   `sessions`, 39 `employees`, 4 `contract_services`, 2 `requests`;
@@ -5861,7 +5850,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   (`/contractor`); при этом удалена ссылка «Электронное актирование» —
   актирование остаётся доступным из карточки контракта и реестра.
 - **Проверки:** `npx tsc -b` — 0; `oxlint src/components/Contractor
-  src/services/Contractor` — 0/0; `npx vite build` — ok. В браузере
+src/services/Contractor` — 0/0; `npx vite build` — ok. В браузере
   `/contractor` рендерится (форма входа по ИНН, подсказка подрядчиков,
   переход в кабинет заказчика).
 - **Остаток.** `useContractorSmpRecords` читает `/contractSmpRecords` целиком
@@ -5886,7 +5875,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   - `IsSmpDocument` — `subContractorsSum`, `subcontractorsAttractionConditionsInfo`
     или `subContractors` с дочерними `subContractor`;
   - `Parse` → `ContractSmpViewDto(RequirementPercent, RequirementSum,
-    Responsibility, Subcontractors, SourceFile)`. Процент: `sumInPercents`,
+Responsibility, Subcontractors, SourceFile)`. Процент: `sumInPercents`,
     иначе `subcontractorsAttractionVolume`. Субподрядчики — те же правила, что
     в `EisDocumentParser.ParseSubcontractors`: ИНН — ключ, дедуп по
     «ИНН + номер субдоговора», ИП собирается из ФИО.
@@ -5902,7 +5891,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - **Как проверить.** `dotnet test eis-parser/tests/Eis44Parser.Tests` (тесты
   `ContractSmpParserTests`, XML-срез `test-data/contract-with-smp-subcontractors.xml`);
   прогон `dotnet run --project eis-parser/src/Eis44Parser.Worker -- --numbers-file
-  <номера> --year 2026 --out <папка> --incremental`; импорт
+<номера> --year 2026 --out <папка> --incremental`; импорт
   `node scripts/import-contract-card-projections.mjs --dir <папка>`.
 - **Повторный разбор без сети.** Добавлен режим
   `--reparse-card-dir <папка> --year 2026`: воркер читает уже скачанные XML из
@@ -6038,7 +6027,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   требованием/субподрядчиками); `--all-year` — все номера года. Факт:
   **52 номера** за 2026 из 111 проекций.
 - **Запись в PG без откатов.** `scripts/merge-contract-smp.mjs --dir <папка>
-  --numbers-file <файл>` меняет в `contractCardProjections` только поле `Smp`
+--numbers-file <файл>` меняет в `contractCardProjections` только поле `Smp`
   (`jsonb_set`), не трогая `Acts`/`Payments`. Полный импорт здесь опасен:
   в каталоге выгрузки актов/платежей меньше, чем уже в PG.
 - **Результат прогона 22.11.2026.** Обновлены 52 карточки: **173 строки**
@@ -6096,7 +6085,6 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
   автоматическая подстановка текста в контракт: вставки остаются в P2 через
   «Вставить» из реестра утверждённых формулировок.
 
-
 ## 152. Плитки сводки контракта: СМП только по требованию, переходы, ручные секции убраны (2026-11-23)
 
 **Причина.** Сводка рисовала три плитки всегда: у контракта без обязанности
@@ -6109,7 +6097,7 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 **Что сделано (UI-пакет).**
 
 - `ContractCardSummary`: плитка СМП условная — `showSmpTile = percentSource ||
-  required > 0 || actual > 0`. В углу плитки бейдж «СМП», в шапке карточки —
+required > 0 || actual > 0`. В углу плитки бейдж «СМП», в шапке карточки —
   `smpBadge` (по проекции: `contractCardSmpRequirement`). У контракта без
   условия СМП в сводке две плитки, у СМП-контракта — три.
 - Плитка стала переходом: `<Link to=".../card#contract-payments">` в реестре,
@@ -6145,8 +6133,8 @@ cancel`. Отдельного `PUT /status` нет: статус меняет т
 - `contractRegistry` (519 записей): `supplierName` пуст у 517, `advanceAmount`
   пуст у всех 519, `smpRequiredPercent` — у 517. Импортированные записи имеют
   только `id, ikz, eisUrl, source, status, customerInn, contractDate,
-  contractName, customerName, contractPrice, contractNumber, eisPublishDate,
-  organizationId, executionEndDate, contractShortNumber, customerOrganizationId`.
+contractName, customerName, contractPrice, contractNumber, eisPublishDate,
+organizationId, executionEndDate, contractShortNumber, customerOrganizationId`.
   Поэтому колонки «Поставщик» и «Аванс» в списке пустые, а фильтр «есть аванс»
   даёт 0 — это не UI, а импорт: `ContractCardImportService` не мапит поставщика,
   аванс и дату начала исполнения. Файл правит другой агент (СМП из HTML) —
@@ -6245,7 +6233,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   сторона акта. Реестр пишется в той же транзакции, что и проекция.
 - **Сохранение фактов.** Перед upsert импорт читает прежние проекции
   (`ANY($2)`) и `preserveFacts()` возвращает `Acts/Decisions/Payments/Messages/
-  Executions/Smp/SkippedFiles`, если пришёл документ только с `General`. В лог
+Executions/Smp/SkippedFiles`, если пришёл документ только с `General`. В лог
   пишется, что восстановлено, в сводке — `factsRestored`. Без этого выгрузка
   реквизитов затирала акты и платежи.
 - **Печать.** `contractExecutionDocument.ts` собирает A4-документы
@@ -6283,7 +6271,6 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   всем 112 карточкам (по 2 проверено) и последующий импорт — на машине
   пользователя; UI-колонки «Подрядчик»/«Аванс» и фильтр «есть аванс» начнут
   показывать значения по мере заполнения.
-
 
 ## 155. Приказ 841/пр: приложения оцифрованы (2026-11-23)
 
@@ -6339,8 +6326,8 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   в скрипте. Контракты в облако без решения пользователя не отправляем.
 - **Kilo Code подключён к локальному Ollama (2026-11-23).** В
   `C:\Users\liven\.config\kilo\kilo.jsonc` прописаны `model:
-  ollama/qwen2.5-coder:7b`, `provider.ollama.options.baseURL:
-  http://localhost:11434`, зарегистрированные модели `qwen2.5-coder:7b` и
+ollama/qwen2.5-coder:7b`, `provider.ollama.options.baseURL:
+http://localhost:11434`, зарегистрированные модели `qwen2.5-coder:7b` и
   `qwen2.5:14b-instruct-q4_K_M` (`tool_call: true`, `limit.context: 32768`) и
   локальный `agent.compaction.model`. Бэкап прежнего конфига —
   `kilo.jsonc.bak-20261123`. `kilo.exe models` подтверждает наличие
@@ -6444,7 +6431,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 - **Причина.** Жалоба: «медленный и несёт ерунду, хеллоу ворд сам быстрее
   напишу». В корне проекта лежит `opencode.json` (в `.gitignore`), созданный
   22.11: `"model": "ollama/qwen2.5-coder-cline"` (Qwen2.5 Coder 7B, `num_ctx
-  16384`, ~4,7 ГБ) при VRAM RTX 3060 ~4 ГБ — часть слоёв считается на CPU,
+16384`, ~4,7 ГБ) при VRAM RTX 3060 ~4 ГБ — часть слоёв считается на CPU,
   плюс `ollama ps` пустой, то есть холодный старт на каждый запрос. Контекст
   16k не вмещает такой репозиторий (один `PROJECT_STATE.md` — 6300+ строк),
   отсюда и бессмысленные ответы.
@@ -6489,7 +6476,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 - **Проверки.** `npx tsc -b` — чисто; `npx oxlint src` — 0 ошибок (78
   предупреждений, из них в `Header.tsx` одно старое
   `react(set-state-in-effect)` на сбросе панелей при смене роута); `npx vite
-  build` — успешно. Playwright-смоук: 13 ширин × 2 состояния авторизации —
+build` — успешно. Playwright-смоук: 13 ширин × 2 состояния авторизации —
   `elementFromPoint` в центре кнопки темы всегда возвращает саму кнопку,
   кнопка не выходит за край экрана; ФИО видно в открытом меню на
   1440/1280/1152px; мобильная панель (1100/390px) показывает имя на кнопке
@@ -6649,8 +6636,8 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   открывают список; поиск и пагинация работают по уже отсортированному
   массиву.
 - **Проверки.** `npx tsc -b` — чисто; `npx oxlint
-  src/components/PurchasePlan/PurchasePlanCard.tsx` — 0 ошибок; `npx vite
-  build` — успешно.
+src/components/PurchasePlan/PurchasePlanCard.tsx` — 0 ошибок; `npx vite
+build` — успешно.
 
 ## 164. Графа «Статус» в карточке плана-графика — только статус и дата размещения (2026-11-23)
 
@@ -6704,8 +6691,6 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   (кроме отсутствующих шрифтов); `npx tsc -b` — чисто; `npx oxlint src` —
   0 ошибок; `npx vite build` — успешно.
 
-
-
 ## 166. Тема «Современные закупки»: неон больше не перечёркивает legend у fieldset (2026-11-23)
 
 - **Проблема.** Формы собирают разделы через `<fieldset><legend>…</legend>`, и в
@@ -6716,20 +6701,20 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   `/contract-service` (кнопка «Изменить сведения»): «РУКОВОДИТЕЛЬ КОНТРАКТНОЙ
   СЛУЖБЫ» перечёркивался.
 - **Решение.** Три правки, разметка компонентов не менялась:
-  1) `ModernMotionLayer` больше не помечает `fieldset` с прямым `legend`
-  (`hasFieldsetLegend`) — ни `data-modern-lift`, ни `data-modern-comet`;
-  2) там же добавлен `hasOwnBorder`: блок без собственной рамки (все
-  `border-*-width` = 0) неон не получает вовсе. Кромку рисует inset-слой
-  `--shadow-3d-hover`, комету — псевдоэлемент по периметру; без рамки линия
-  возникает из пустоты и читается как «непонятно откуда взявшаяся граница».
-  Так вела себя форма контрактной службы (`<form>` без границ): при наведении
-  вокруг неё загорался обведённый контур. Проверка стоит в `decorate`, поэтому
-  скруглённые дети безрамочной обёртки декор сохраняют, а сама обёртка — нет;
-  3) в `_theme-modern.scss` вместо подсветки рамки (первый вариант — рамка
-  «включалась» на hover, что и вызвало замечание) теперь горит сам заголовок:
-  `fieldset:has(> legend):hover > legend { color: var(--accent); text-shadow: … }`.
-  Рамка блока не меняется, прорезь под легендой остаётся чистой, обратная связь
-  привязана к названию раздела.
+  1. `ModernMotionLayer` больше не помечает `fieldset` с прямым `legend`
+     (`hasFieldsetLegend`) — ни `data-modern-lift`, ни `data-modern-comet`;
+  2. там же добавлен `hasOwnBorder`: блок без собственной рамки (все
+     `border-*-width` = 0) неон не получает вовсе. Кромку рисует inset-слой
+     `--shadow-3d-hover`, комету — псевдоэлемент по периметру; без рамки линия
+     возникает из пустоты и читается как «непонятно откуда взявшаяся граница».
+     Так вела себя форма контрактной службы (`<form>` без границ): при наведении
+     вокруг неё загорался обведённый контур. Проверка стоит в `decorate`, поэтому
+     скруглённые дети безрамочной обёртки декор сохраняют, а сама обёртка — нет;
+  3. в `_theme-modern.scss` вместо подсветки рамки (первый вариант — рамка
+     «включалась» на hover, что и вызвало замечание) теперь горит сам заголовок:
+     `fieldset:has(> legend):hover > legend { color: var(--accent); text-shadow: … }`.
+     Рамка блока не меняется, прорезь под легендой остаётся чистой, обратная связь
+     привязана к названию раздела.
 - **Не тронуто.** Разметка компонентов (`ContractServiceForm`,
   `BidEvaluationModal`, `DefectListModal`, `ContractSmpSection`, `EdsLoginForm`)
   и fieldset'ы без legend — они по-прежнему получают комету и подсветку (если у
@@ -6865,7 +6850,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   `buildObjectDescriptionAttachment` (ООЗ) и `buildNmckJustificationAttachment`
   (НМЦК) собирают вложение из доменного документа: `status: approved` —
   только если документ/СЗ утверждён, иначе `draft`; `isRequiredForPublish:
-  true`; `sourceKind` — `object_description`/`nmck`. `NormingRequirementsPage`
+true`; `sourceKind` — `object_description`/`nmck`. `NormingRequirementsPage`
   прикладывает ООЗ в `onSuccess` create/update, `PurchaseNoteModal` — НМЦК в
   `handleAfterSave`; извещение ищется по `procurementId` или `purchaseNoteId`.
   Если извещения ещё нет, вложение не создаётся: оно появится при создании
@@ -6919,7 +6904,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 - **Ключевая правка.** Второй копии `_theme-modern.scss` нет: из файла убраны
   литеральные цвета (было `rgba(34, 211, 238, …)`, `rgba(7, 11, 20, …)`,
   `rgba(232, 240, 255, …)`), вместо них — `color-mix(in srgb, var(--neon-a) …,
-  transparent)`, `var(--accent)`, `var(--surface-page)`, `var(--text-primary)`.
+transparent)`, `var(--accent)`, `var(--surface-page)`, `var(--text-primary)`.
   Поэтому «Современные закупки» выглядят как раньше (те же роли дают те же
   цвета), а frost получает зимние автоматически. Sass-переменные в `rgba()`
   не подставляются, поэтому роли объявляются через интерполяцию
@@ -6951,7 +6936,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 
 - **Причина.** `npm start` засыпал консоль предупреждениями Dart Sass
   (`Deprecation Warning [import]: Sass @import rules are deprecated and will be
-  removed in Dart Sass 3.0.0`) — по одному на каждый файл, ~90 штук, плюс
+removed in Dart Sass 3.0.0`) — по одному на каждый файл, ~90 штук, плюс
   каскад из `_modal-frame.scss`. Шум мешал замечать настоящие ошибки сборки.
 - **Что сделано.** 103 правила `@import` в 84 файлах:
   - 78 компонентных `*.module.scss`: `@import "variables"` →
@@ -7049,7 +7034,7 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   `partial` (нет `choice`) + строка по `fileFingerPrint`; в заметках зафиксированы
   choice `isGOZ`/`notPublishedOnEIS` и маппер приёмки Б7 в csms-api.
 - **Проверки.** `npx tsc -b` — 0; `npx oxlint src/services/Eis src/components/Eis
-  scripts/check-eis-packages.ts` — 0/0; `npx vite build` — exit 0; новый
+scripts/check-eis-packages.ts` — 0/0; `npx vite build` — exit 0; новый
   `npm run check:eis-packages` (`scripts/check-eis-packages.ts`, rolldown) —
   проверки вложений, порядок элементов XML и звенья исполнения. Живая проверка
   на 183 извещениях базы: `attachmentsInfo` между `commonInfo` и `notificationInfo`,
@@ -7192,18 +7177,17 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   служебки, иначе из карточки ЕИС (`smpRequiredAmount` + `smpVolumeProgress`).
 - **UI.** `ContractExecutionStrip.tsx` + стили `.contractTitleCell`,
   `.executionStrip/.executionBar/.executionLabel/.executionTrack/.executionFill/
-  .executionFillOk/.executionPercent/.executionSmp`. Полоса 72×6, заливка
+.executionFillOk/.executionPercent/.executionSmp`. Полоса 72×6, заливка
   `--accent`, 100 % — `--state-success`, свойства `role="progressbar"` с
   `aria-valuenow`. Пока источники грузятся — прочерк вместо «0 %», чтобы нули не
   читались как факт.
 - **Проверки.** `npx tsc -b` — 0; `npx oxlint src/components/ContractRegistry
-  src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок.
+src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок.
   Браузерный смоук (CDP + headless Chrome, учётка `poyarkova_nyu@mail.ru`,
   1600×1400, `/contract-registry?folder=__all__`): 10 полос на 10 строках,
   заливка 70 px при 100 %, 59 px при 84 %, 21 px при 30 %, плашка СМП у двух
   контрактов из десяти. Сверка с проекциями: у `2462904043926000060` оплата
   100 %, актов 0 — на полосе приёмки честный 0 %, данные совпадают.
-
 
 ## 173. Фирменный знак CSMS (2026-11-23, Агент 2)
 
@@ -7275,14 +7259,12 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
 - **Проверки.** `npx.cmd tsc -b --pretty false` — 0 ошибок в файлах бренда
   (в рабочей копии падает чужой WIP `EisTestAccessPage.tsx`: нет
   `FNS_INTEGRATION_CHECKS`); `npx.cmd oxlint src/components/Brand
-  src/components/Header` — 0 ошибок (одно старое предупреждение
+src/components/Header` — 0 ошибок (одно старое предупреждение
   `set-state-in-effect` в `Header.tsx`); `npx.cmd vite build` — успешно
   (2688 модулей). Смоук `/brand`: 3D-знак наклоняется за курсором, в шапке
   неоновый знак и «КСЗ»; `/brand/preview.html` — неоновая секция, монохром и
   палитра. PNG проверены: 32-bit ARGB, размеры 962×176 / 962×208 / 570×432 /
-  512×512. Владелец указан в `csms-logo-owner*.svg` и README: ИП, ИНН
-  462302564694.
-
+  512×512. Владелец указан в `csms-logo-owner*.svg` и README: ИП, ИНН 462302564694.
 
 ## 174. Карточка контракта: предмет, подрядчик, сроки и приёмка из выгрузки ЕИС (2026-11-23, Cline)
 
@@ -7320,7 +7302,6 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   вместе с серверной пагинацией реестра (`_page`/`_limit` +
   `placeholderData: keepPreviousData`).
 
-
 ## 175. Реестр контрактов: срок оплаты без сдвига UTC, период «до <дата>», смоук карточек (2026-11-23, Cline)
 
 - **Баг сроков (важно).** `contractCardPaymentDeadline` и
@@ -7352,10 +7333,146 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   тексте нет, `undefined`/`NaN`/`Invalid Date` — 0, консольных ошибок нет.
   Скриншоты: `.tmp/card-0004.png`, `.tmp/card-0027.png`, `.tmp/card-0092.png`.
 - **Проверки.** `npx tsc -b` — 0; `npx oxlint src/components/ContractRegistry
-  src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок;
+src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок;
   `npm run check:contract-deadlines` — OK.
 - **Очередь.** Поставщика для `2462904043926000092` в выгрузке нет (`General`
   в проекции отсутствует, парсер взял только СМП) — нужен доимпорт карточки, UI
   тут не виноват. Просрочка приёмки по-прежнему считается от срока исполнения
   контракта, а не от плана-графика.
+
+> Также 2026-11-23: реестр извещений `/procurement-processing` переведён на
+> серверную пагинацию: данные читаются через `useGetProcurementPage` с параметрами
+> `_page`/`_limit`, `X-Total-Count` от PG-адаптера; поиск по двум полям
+> (`_search`+`_searchFields` с OR) и фильтрация по статусу (`_ne` для исключения
+> cancelled) — всё на сервере; счётчики по статусам — отдельный facet-эндпоинт
+> (`__pg/facets`) с одним `GROUP BY` вместо сканирования коллекции на клиенте;
+> сроки процедуры (4 поля) и статус извещения материализованы в записи закупки:
+> backfill 183 записей, `mapProcurement` в импорте ЕИС, статус `preparing` при
+> создании из СЗ, синхронизация при сохранении извещения (PATCH с
+> `procedureDatesPatch`+`procurementStatusPatch`); строка реестра мемоизирована
+> (`React.memo`), `handleAction` в `useCallback` — при листании/поиске
+> перерисовываются только строки с изменившимися реквизитами (на практике — ни
+> одна, т.к. реквизиты стабильны). §176.
+
+## 176. Реестр извещений: сроки в записи закупки и серверная пагинация (2026-11-23)
+
+- **Почему поля сроков были пустые.** `ProcurementRow` читает
+  `applicationStartDate` / `applicationEndDate` / `reviewDate` / `summingUpDate`,
+  схема `RawProcurementSchema` их парсит, но в коллекции `procurements` этих
+  ключей не было вовсе: `mapProcurement` в `scripts/import-eis-client.mjs` клал
+  только ИКЗ, наименование, номер, НМЦК, тип и `eisSourceUrl`. Сроки лежали в
+  `notices[].procedureInfo` (все 183 извещения — с заполненными датами). То есть
+  парсинг был в порядке, данных не было.
+- **Материализация сроков и статуса.** Новый общий маппинг:
+  `procedureDatesPatch` + `procurementStatusPatch` в
+  `src/services/Procurements/procurement.schema.ts` и их же JS-двойники
+  `procedureDateFields` / `noticeStatusField` в
+  `scripts/lib/notice-procedure-dates.mjs` (скрипты — .mjs, импорт TS невозможен;
+  правила зафиксированы в обоих местах и прокомментированы парами).
+  Соответствие полей: `collectingStartDT` → «Дата начала подачи заявок»,
+  `submissionEndDate` → «Дата окончания подачи заявок»,
+  `firstPartsDate || secondPartsReviewEndDate || biddingDate` → «Дата рассмотрения
+  заявок», `summingUpDate` → «Дата подведения итогов». В запись пишется только
+  день (`toDateOnly`), пустые поля не отдаются — PATCH не стирает заполненное.
+- **Статус стал материальным.** Раньше `Статус извещения` мог отсутствовать, а
+  «Размещено»/«На подготовке» выводил `normalizeNoticeStatus` на клиенте. Серверный
+  фильтр — обычный `=` по полю, поэтому значение нужно держать в данных:
+  импорт ЕИС пишет `published` при наличии номера, создание закупки из СЗ —
+  `preparing`, сохранение извещения перекладывает статус только для пары
+  `preparing`/`published` (рабочие и финальные статусы — `control`, `summing_up`,
+  `completed`, `failed`, `cancelled` — пересохранение извещения не трогает).
+- **Синхронизация при сохранении извещения.** `useCreateNotice` после
+  `POST /notices` читает запись закупки и патчит её сроками и статусом
+  (`syncProcurementFromNotice` в `noticeInfo.api.ts`), затем инвалидирует
+  `["procurements"]`. `procurementId === "new"` и ошибка сети не ломают
+  сохранение: извещение записано, сбой синхронизации — только `console.warn`.
+- **Backfill.** `scripts/backfill-procurement-dates.mjs` (есть `--dry-run`)
+  раскладывает `notices.procedureInfo` по записям `procurements` и проставляет
+  статус; `upsertDocument` вызывается с `buildSeedContext(db)`, иначе
+  `organization_id` перетёрся бы NULL'ом. Прогнано: обновлено 183, без изменений 0.
+- **Расширение PG-адаптера** (`scripts/pg-json-server.mjs`), контракт json-server
+  сохранён:
+  - `<поле>_ne` → `IS DISTINCT FROM` (отсутствующее поле считается не равным —
+    как `undefined !== value` в json-server);
+  - `_search` + `_searchFields=a,b` → OR по `ILIKE` (json-server умеет только
+    AND, а поиск «по названию или номеру» требует OR); спецсимволы `%\_`
+    экранируются;
+  - `GET /__pg/facets/:collection?field=<поле>&<фильтры>` → `{значение: число}`
+    одним `GROUP BY`. `field` исключается из фильтров.
+- **API-слой.** `useGetProcurementPage({page, pageSize, status, search})` →
+  `{items, total}` из `_page/_limit` + `X-Total-Count`
+  (`placeholderData: keepPreviousData`), `useNoticeStatusFacets({status, search})`
+  → счётчики чипов. `useGetProcurements` (полный массив) оставлен: его читают
+  дашборд, отчёты 158н, реестр контрактов, предзаполнение проекта контракта и
+  уведомления о сроках — им нужны все записи.
+- **Реестр.** Фильтрация/поиск/счётчики ушли на сервер, `pageSize === "all"`
+  отключает `_page/_limit` (тогда total = длина ответа). Поиск через
+  `useDebouncedValue(query, 250)`. `ProcurementRow` обёрнут в `memo`, `handleAction`
+  — в `useCallback` (без стабильной ссылки мемо бесполезен).
+- **Проверки.** `npx tsc -b` — по моим файлам 0 ошибок (падают только
+  `src/components/Eis/EisTestAccessPage.tsx`: неиспользуемый импорт
+  `EIS_TEST_ACCESS_CHECKS` и 5 ссылок на несуществующий `FNS_INTEGRATION_CHECKS`
+  — чужая незавершённая работа в рабочем дереве, не трогал);
+  `npx oxlint src/components/ProcurementProcessing
+src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук на живом
+  адаптере и через прокси Vite (`:5173/pg-api`): `_page=1&_limit=10` →
+  `X-Total-Count: 183`; `Статус извещения_ne=cancelled` → 183;
+  `_search=маршрут&_searchFields=Наименование закупки,Номер извещения` → 1 запись
+  и `X-Total-Count: 1`; `__pg/facets/procurements?field=Статус извещения` →
+  `{"published":183}`; в первой записи все четыре даты + `published`.
+  ⚠️ Правки адаптера не подхватываются на лету — `scripts/pg-json-server.mjs`
+  без `--watch`, нужен перезапуск.
+- **Очередь.** `useGetProcurements` всё ещё тянет коллекцию целиком в 7 местах —
+  там, где нужна именно полная выборка; при росте коллекции их стоит переводить
+  на серверные счётчики/селекторы. Сортировка реестра не серверная (`ORDER BY seq`).
+
+## ⏱ 2026-11-23 — реестр контрактов и карточка: номер контракта + единая хронология
+
+- **Поиск и строка реестра.** Поиск ищет и номер контракта из карточки ЕИС:
+  `ContractExecutionEntry.contractNumber` (`projection.General.ContractNumber`,
+  например «17АН_26»), потому что в `contractRegistry.contractNumber`
+  у импортированных записей лежит 19-значный реестровый номер. Строка списка
+  разбита на две ячейки: предмет + полосы исполнения — `colSpan={6}`, справа
+  (`colSpan={2}`, класс `.contractTitleSide`) номер контракта отдельной строкой
+  над колонкой статуса. Номер показывается только если он есть и не совпадает
+  с номером записи (иначе строка дублировала бы себя).
+- **Реквизиты ЕИС** (`ContractEisSection`): блок переименован в «Реквизиты ЕИС»,
+  добавлен «Номер контракта», реестровый номер стал ссылкой на карточку портала
+  (`eisContractCardUrl` в `src/services/Eis/eisIdentifiers.ts`; сначала
+  `contract.eisUrl`, потом сборка по `reestrNumber`), ссылка на извещение
+  (`/procurement-processing/:procurementId/notice-info`) показывается только
+  если извещение найдено в `notices` (хук `useNotices`, поиск по `procurementId`).
+  Убрана кнопка-дубль «Отправить сведения об исполнении»: остались «Пакеты
+  сведений в ЕИС» и (при требовании СМП) «Сведения СМП в ЕИС».
+- **Шапка карточки** больше не показывает реестровый номер — он в блоке ЕИС
+  ссылкой.
+- **Хронология исполнения** — новый `ContractExecutionTimeline.tsx`: контракт
+  (период, цена, заключён) → этапы ЕИС (если есть, сортировка по номеру) →
+  факты в порядке календаря: приёмка, оплата, СМП, неустойка. Этап факта
+  определяется по `act.Stage.Sid` / `TechnicalSid` (сверяется с `sid` и номером
+  этапа), иначе — по попаданию даты в период этапа; не попавшее никуда уходит
+  в блок «Вне этапов». Без этапов факты стоят прямо в теле контракта.
+  Источники приоритетны как в сводке: свои документы (электронное актирование,
+  `contractPayments`, `contractSmpRecords`) раньше выгрузки ЕИС; неустойки —
+  `contractPenalties`. Печатные формы акта и платёжки сохранены (кнопки «Акт» /
+  «Платёжка»). Якоря `#contract-acceptance` / `#contract-payments` перенесены на
+  чипы сводки — плитки `ContractCardSummary` не ведут в пустоту.
+- **Убрано из карточки:** «Приёмка и оплата по данным карточки ЕИС»
+  (`ContractCardProjectionSection`), «Документы о приёмке»
+  (`ContractAcceptanceSection`), «Этапы исполнения» (`ContractStagesSection`),
+  «Неустойки» (`ContractPenaltiesSection`), «Чекпоинты исполнения»
+  (`ContractEventsSection`). Файлы остались в дереве, но не используются.
+  ⚠️ Вместе с блоком чекпоинтов пропал ручной ввод отметок (`contractEvents`):
+  данные в коллекции остались, UI создания/правки — нет. Решить отдельно:
+  вернуть отметки элементом хронологии или оставить только факты.
+- **Проверки.** `npx tsc -b` — по моим файлам 0 ошибок; падают только
+  `src/components/Eis/EisTestAccessPage.tsx` (см. выше — чужая незавершённая
+  работа). `npx oxlint src` — 0 errors (82 warning по репозиторию, ни одного в
+  правленых файлах). `npx vite build` — ок. `git pull` из этой среды невозможен
+  (нет доступа к github-креденшелам), синхронизацию делает пользователь.
+- **Очередь.** В БД `contractStages` пуст (0 документов), поэтому ветка «с
+  этапами» проверена только типами и логикой: нужен контракт с этапами, чтобы
+  посмотреть раскладку фактов по этапам вживую. `useNotices()` в карточке тянет
+  всю коллекцию извещений — при росте стоит перейти на выборку по
+  `procurementId` (адаптер уже умеет фильтр по полю).
 

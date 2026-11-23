@@ -560,6 +560,23 @@
   }
 }
 
+/* Правая часть строки названия: номер контракта из карточки ЕИС. Стоит над
+   колонкой статуса — у импортированных записей в колонке «Номер» реестровый
+   номер, а сам номер контракта («17АН_26») виден только здесь */
+.contractTitleSide {
+  text-align: right;
+  vertical-align: top;
+}
+
+.contractTitleNumber {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+
 .contractRow {
   cursor: pointer;
   transition: background 0.2s;
@@ -2907,6 +2924,218 @@
   &:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 1px;
+  }
+}
+
+/* ===== Хронология исполнения контракта ===== */
+
+/* Линия времени: контракт — его период, этапы, факты исполнения. Вертикальная
+   линия идёт слева от событий и связывает их в один ряд по календарю */
+.timeline {
+  padding: 12px 16px 16px;
+}
+
+.timelineNode {
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--border-strong);
+  }
+}
+
+.timelineHead {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Точка на линии: обозначает начало периода контракта */
+.timelineBullet {
+  position: absolute;
+  left: -20px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface-panel);
+}
+
+.timelineHeadBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.timelineTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timelineNote {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.timelineSum {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timelineBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Этап — рамка вокруг своих фактов: видно, что события относятся к нему */
+.timelineStage {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.timelineStageHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.timelineStageIndex {
+  min-width: 18px;
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.timelineStageName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timelineEvents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Строка факта: дата, вид, описание, сумма, печатная форма */
+.timelineEvent {
+  display: grid;
+  grid-template-columns: 88px 92px minmax(0, 1fr) 132px 92px;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.timelineEventDate {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timelineEventKind {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.timeline_acceptance {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.timeline_payment {
+  background: var(--state-success-soft);
+  color: var(--state-success);
+}
+
+.timeline_smp {
+  background: var(--state-warning-soft);
+  color: var(--state-warning);
+}
+
+.timeline_penalty {
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+}
+
+.timelineEventBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.timelineEventTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.timelineEventAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.timelineEventAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.timelineEmpty {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  /* На узком экране строка факта идёт в две колонки: дата и вид сверху,
+     описание и сумма ниже — иначе текст сжимается до нечитаемого */
+  .timelineEvent {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .timelineEventAmount,
+  .timelineEventAction {
+    grid-column: 2;
+    justify-content: flex-start;
+    text-align: left;
   }
 }
 

@@ -537,6 +537,35 @@ export const contractCardExecutionPeriod = (
 });
 
 /**
+ * Номер контракта из выгрузки ЕИС («14Р_26», «17АН_26»).
+ *
+ * У импортированных записей реестра в `contractNumber` лежит 19-значный
+ * реестровый номер: настоящий номер контракта приходит только с выгрузкой.
+ * Источники по порядку: блок `General` (вкладка «Общая информация»), блок
+ * `ИдДог` акта приёмки, номер контракта в платёжном поручении. Второй и третий
+ * варианты нужны потому, что `General` разобран лишь у части выгрузок, а акты и
+ * платёжки есть почти у всех.
+ */
+export const contractCardContractNumber = (
+  projection?: ContractCardProjection | null,
+): string => {
+  const general = tidy(projection?.General?.ContractNumber);
+  if (general) return general;
+
+  for (const act of projection?.Acts ?? []) {
+    const number = tidy(act.Contract?.Number);
+    if (number) return number;
+  }
+
+  for (const payment of projection?.Payments ?? []) {
+    const number = tidy(payment.ContractNumber);
+    if (number) return number;
+  }
+
+  return "";
+};
+
+/**
  * Вид документа о приёмке. КНД 1115131 — универсальный передаточный документ
  * (УПД); остальные документы ЕИС — документы о приёмке (работ, услуг,
  * товаров). Код КНД показываем рядом: по нему документ ищется в ЕИС и в ЭДО.

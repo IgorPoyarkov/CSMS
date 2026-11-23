@@ -8,6 +8,7 @@ import {
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
   contractCardActsTotal,
+  contractCardContractNumber,
   contractCardExecutionPeriod,
   contractCardPaymentsTotal,
   contractCardSmpRequirement,
@@ -58,6 +59,13 @@ export interface ContractExecutionEntry {
    */
   supplierName: string;
   supplierInn: string;
+  /**
+   * Номер контракта из карточки ЕИС (например «14Р_26»), а не реестровый: у
+   * импортированных записей в `contractNumber` реестра лежит 19-значный
+   * реестровый номер, поэтому настоящий номер контракта есть только в выгрузке
+   * (`contractCardContractNumber`). Его и показывает строка списка над статусом.
+   */
+  contractNumber: string;
   /**
    * Предмет контракта из карточки ЕИС. В поле реестра `contractName` лежит
    * наименование объекта закупки — это не предмет (`General.ContractName` или
@@ -212,6 +220,7 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
         smpEisPercent: contractCardSmpRequirement(projection?.Smp ?? []).percent,
         supplierName: supplier.name,
         supplierInn: supplier.inn,
+        contractNumber: contractCardContractNumber(projection),
         subject: contractCardSubject(projection),
         executionStartDate: period.start,
         executionEndDate: period.end,

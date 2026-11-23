@@ -442,13 +442,18 @@ export default function ContractRegistryPage() {
     }
 
     // ─── Поиск: реестровый номер, номер контракта, подрядчик, ИНН ──────────
-    // «ё» и регистр не различаем: номер вводят и копированием, и руками
+    // «ё» и регистр не различаем: номер вводят и копированием, и руками. Номер
+    // контракта («17АН_26») есть только в карточке ЕИС, поэтому он берётся из
+    // индекса исполнения — без него поиск по номеру находил пустой список
     const needle = query.trim().toLowerCase().replace(/ё/g, "е");
     if (needle) {
-      result = result.filter((c) =>
-        [
+      result = result.filter((c) => {
+        const cardNumber =
+          executionIndex.byContract.get(String(c.id ?? ""))?.contractNumber ?? "";
+        return [
           c.contractNumber,
           c.eisRegistryNumber,
+          cardNumber,
           c.supplierName,
           c.supplierInn,
           c.contractName,
@@ -456,8 +461,8 @@ export default function ContractRegistryPage() {
           .join(" ")
           .toLowerCase()
           .replace(/ё/g, "е")
-          .includes(needle),
-      );
+          .includes(needle);
+      });
     }
 
     // ─── Наличие аванса ────────────────────────────────────────────────────
@@ -1511,6 +1516,13 @@ const ContractRow = memo(function ContractRow({
     contract.executionEndDate || execution?.executionEndDate || "";
   const supplierInn =
     (contract.supplierInn ?? "").trim() || execution?.supplierInn || "";
+  // Номер контракта из карточки ЕИС: в колонке «Номер» у импортированных
+  // записей стоит реестровый номер (19 цифр), а сам номер контракта — только в
+  // карточке. Если номера нет или он совпадает с номером записи, второй раз не
+  // показываем: строка не должна дублировать сама себя
+  const cardNumber = (execution?.contractNumber ?? "").trim();
+  const showCardNumber =
+    cardNumber !== "" && cardNumber !== (contract.contractNumber ?? "").trim();
 
   return (
     <>
@@ -1522,7 +1534,9 @@ const ContractRow = memo(function ContractRow({
         onClick={() => onToggle(contract.id)}
         onMouseEnter={prefetchCard}
       >
-        <td colSpan={8}>
+        {/* Предмет контракта и исполнение — на шесть колонок: справа остаётся
+            место под номер контракта, статус которого строка ниже */}
+        <td colSpan={6}>
           {/* Предмет контракта, а под ним — исполнение: полосы оплаты и
               приёмки. Строку не нужно раскрывать, чтобы понять, идёт ли
               исполнение; подробные суммы — в раскрытии и в карточке */}
@@ -1534,6 +1548,13 @@ const ContractRow = memo(function ContractRow({
               loading={executionLoading && !execution}
             />
           </div>
+        </td>
+        <td colSpan={2} className={styles.contractTitleSide}>
+          {showCardNumber && (
+            <span className={styles.contractTitleNumber}>
+              Контракт № {cardNumber}
+            </span>
+          )}
         </td>
       </tr>
 
@@ -1678,8 +1699,9 @@ const ContractRow = memo(function ContractRow({
 });
 
 /**
- * Секции карточки контракта вынесены в отдельные файлы:
- * `ContractStagesSection`, `ContractPaymentsSection`, `ContractPenaltiesSection`,
- * `ContractDeliveriesSection`. Реестр грузит только сводку
- * (`ContractCardSummary`) — детали открываются на `/contract-registry/:id`.
+ * Секции карточки контракта вынесены в отдельные файлы: исполнение показывает
+ * единая хронология (`ContractExecutionTimeline`), реквизиты ЕИС —
+ * `ContractEisSection`, привлечение СМП — `ContractSmpSection`. Реестр грузит
+ * только сводку (`ContractCardSummary`) — детали открываются на
+ * `/contract-registry/:id`.
  */

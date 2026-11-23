@@ -19,6 +19,17 @@ const digitsOnlyPattern = (length: number): RegExp =>
 export const isEisContractNumber = (value: string): boolean =>
   digitsOnlyPattern(EIS_CONTRACT_NUMBER_LENGTH).test(value.trim());
 
+/**
+ * Карточка контракта на портале ЕИС: портал открывает её по реестровому номеру
+ * (19 цифр), другого адреса у публичной карточки нет. Если номера нет —
+ * возвращаем пустую строку: ссылка без адреса выглядела бы рабочей, но вела в
+ * поиск портала.
+ */
+export const eisContractCardUrl = (registryNumber: string): string =>
+  isEisContractNumber(registryNumber)
+    ? `https://zakupki.gov.ru/epz/contract/contractCard/common-info.html?reestrNumber=${registryNumber.trim()}`
+    : "";
+
 export const isIkz = (value: string): boolean =>
   digitsOnlyPattern(IKZ_LENGTH).test(value.trim());
 

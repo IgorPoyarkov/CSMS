@@ -10,6 +10,7 @@ import {
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
 import {
+  contractCardContractNumber,
   contractCardExecutionPeriod,
   contractCardSmpRequirement,
   contractCardSmpRows,
@@ -20,12 +21,8 @@ import { useContractSmpRecords } from "../../services/ContractSmp/contractSmp.ap
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import ContractEisSection from "./ContractEisSection";
-import ContractCardProjectionSection from "./ContractCardProjectionSection";
-import ContractAcceptanceSection from "./ContractAcceptanceSection";
 import ContractCardSummary from "./ContractCardSummary";
-import ContractStagesSection from "./ContractStagesSection";
-import ContractPenaltiesSection from "./ContractPenaltiesSection";
-import ContractEventsSection from "./ContractEventsSection";
+import ContractExecutionTimeline from "./ContractExecutionTimeline";
 import SmpSection from "./ContractSmpSection";
 import { CONTRACT_STATUS_LABELS, formatMoney } from "./contractRegistryFormat";
 import styles from "./ContractRegistry.module.scss";
@@ -106,6 +103,11 @@ export default function ContractCardPage() {
   const supplierName = contract.supplierName || eisSupplier.name;
   const supplierInn = contract.supplierInn || eisSupplier.inn;
   const subject = contractCardSubject(projection) || contract.contractName;
+  // Номер контракта, а не реестровый номер: у импортированных записей в
+  // `contractNumber` лежит 19-значный номер реестра, а сам номер контракта
+  // («14Р_26») приходит с выгрузкой ЕИС
+  const contractNumberLabel =
+    contractCardContractNumber(projection) || contract.contractNumber;
   const eisExecution = contractCardExecutionPeriod(projection);
   const executionStart = contract.executionStartDate || eisExecution.start;
   const executionEnd = contract.executionEndDate || eisExecution.end;
@@ -171,7 +173,7 @@ export default function ContractCardPage() {
 
       <header className={styles.cardPageHeader}>
         <h2 className={styles.cardPageTitle}>
-          {contract.contractNumber} — {subject}
+          {contractNumberLabel} — {subject}
         </h2>
         <div className={styles.cardPageMeta}>
           <span className={styles.statusCell}>
@@ -201,9 +203,6 @@ export default function ContractCardPage() {
             {executionStart ? `${formatDate(executionStart)} — ` : "до "}
             {formatDate(executionEnd) || "не указан"}
           </span>
-          {contract.eisRegistryNumber && (
-            <span>Реестровый номер ЕИС: {contract.eisRegistryNumber}</span>
-          )}
           {ikzError && <span className={styles.cellDanger}>{ikzError}</span>}
         </div>
       </header>
@@ -213,14 +212,10 @@ export default function ContractCardPage() {
 
       <div className={styles.cardBody}>
         <ContractEisSection contract={contract} />
-        {/* Факт исполнения — из выгрузки ЕИС: акты приёмки и платёжные
-            поручения. Ручных платежей и поставок в карточке нет: это
-            документы реестра контрактов, а не наши учётные записи */}
-        <ContractCardProjectionSection contractId={contract.id} />
-        <ContractAcceptanceSection contractId={contract.id} />
-        <ContractStagesSection contractId={contract.id} contract={contract} />
-        <ContractPenaltiesSection contractId={contract.id} />
-        <ContractEventsSection contractId={contractId} contract={contract} />
+        {/* Исполнение — одной хронологией: период контракта, этапы ЕИС и факты
+            (приёмка, оплата, СМП, неустойки) в порядке календаря. Раньше это
+            были четыре независимые таблицы, и порядок событий в них терялся */}
+        <ContractExecutionTimeline contract={contract} />
         {/* Требование СМП наследуется из служебки; у импортированных из ЕИС
             контрактов его может не быть — тогда блока нет совсем, чтобы не
             показывать пустую оболочку с редактором, который нечего настраивать */}
