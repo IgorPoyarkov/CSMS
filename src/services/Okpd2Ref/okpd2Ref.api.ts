@@ -149,6 +149,30 @@ const normalize = (value: string) =>
     .trim();
 
 /**
+ * Индекс справочника по нормализованному коду. react-query отдаёт один и тот
+ * же массив, поэтому 21 066 кодов нормализуются один раз на версию данных, а
+ * не на каждую проверку каждой строки формы. WeakMap не удерживает старые
+ * версии справочника после обновления кэша.
+ */
+const okpd2IndexCache = new WeakMap<Okpd2Ref[], Map<string, Okpd2Ref>>();
+
+export const getOkpd2Index = (
+  dictionary: Okpd2Ref[],
+): Map<string, Okpd2Ref> => {
+  const cached = okpd2IndexCache.get(dictionary);
+  if (cached) return cached;
+
+  const index = new Map<string, Okpd2Ref>();
+  for (const item of dictionary) {
+    const key = normalize(item.code);
+    // Первая запись выигрывает: это тот же порядок, что давал линейный find
+    if (key && !index.has(key)) index.set(key, item);
+  }
+  okpd2IndexCache.set(dictionary, index);
+  return index;
+};
+
+/**
  * Поиск по справочнику: подстрока ищется и в коде, и в наименовании.
  * Код приводится к «разделённому точкам» виду, чтобы запрос вида «32 50 13»
  * находил код 32.50.13.190. Пустой запрос возвращает начало справочника.
@@ -198,7 +222,21 @@ export const findOkpd2ByCode = (
     return undefined;
   }
 
-  const needle = normalize(code);
+  return getOkpd2Index(dictionary).get(normalize(code));
+};
 
-  return dictionary.find((item) => normalize(item.code) === needle);
+/**
+ * Срез из одной записи для проверок ПП РФ № 1875 и 471-р.
+ *
+ * `checkOkpd2NationalRegime` и `checkOkpd2AuctionList` ищут код линейным
+ * `.find` по переданному массиву. Их сигнатуры публичны и менять их нельзя,
+ * поэтому в местах массовых проверок передаём уже найденную по индексу запись:
+ * результат тот же, а перебор 21 066 кодов на строку исчезает.
+ */
+export const okpd2RefForChecks = (
+  dictionary: Okpd2Ref[],
+  code: string | undefined,
+): Okpd2Ref[] | undefined => {
+  const ref = findOkpd2ByCode(dictionary, code);
+  return ref ? [ref] : undefined;
 };

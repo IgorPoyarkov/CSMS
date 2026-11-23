@@ -5,6 +5,13 @@ import {
   isEisContractNumber,
   isIkz,
 } from "../Eis/eisIdentifiers";
+import {
+  optionalDate,
+  optionalMoney,
+  optionalText,
+  requiredMoney,
+  requiredText,
+} from "../shared/validation";
 
 /**
  * Реестр контрактов (ст. 82, 83, 94, 103 ФЗ-44).
@@ -18,43 +25,8 @@ import {
  * — публикация в реестре (ЕИС, Казначейство)
  */
 
-const optionalText = (min: number, message: string) =>
-  z
-    .string()
-    .refine((v) => v === "" || v.length >= min, message)
-    .optional();
-
-const requiredText = (min: number, message: string) =>
-  z.string().min(min, message);
-
-const optionalDate = () =>
-  z
-    .string()
-    .refine(
-      (v) =>
-        v === "" || /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v),
-      "Неверный формат даты (ГГГГ-ММ-ДД)",
-    )
-    .optional();
-
-const optionalMoney = () =>
-  z
-    .string()
-    .refine(
-      (v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v),
-      "Укажите сумму числом с точностью до копеек",
-    )
-    .optional();
-
-// Обязательная сумма: пустая строка недопустима
-const requiredMoney = (message: string) =>
-  z
-    .string()
-    .min(1, message)
-    .refine(
-      (v) => /^\d+(\.\d{1,2})?$/.test(v),
-      "Укажите сумму числом с точностью до копеек",
-    );
+// Хелперы полей вынесены в services/shared/validation: поведение "" и undefined
+// сохранено, обязательная сумма по-прежнему отвергает пустую строку.
 
 // ─── Этап исполнения контракта (ст. 33 ч. 1 п. 1.1) ───────────────────────
 

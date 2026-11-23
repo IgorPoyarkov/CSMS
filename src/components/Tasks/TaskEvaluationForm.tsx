@@ -11,6 +11,7 @@ import { useFetchEmployeeByUserId } from "../../services/StaffingTable/StaffingT
 import { useFetchCurrentUser } from "../../services/Users/user.api";
 import styles from "./TaskEvaluationForm.module.scss";
 import Select from "../UI/Select";
+import { currentIsoDate } from "../../shared/format";
 
 const evaluationFormSchema = TaskEvaluationSchema.omit({
   id: true,
@@ -55,7 +56,7 @@ export default function TaskEvaluationForm({
       evaluatedByName: "",
       score: "satisfactory" as TaskEvaluationScore,
       comment: "",
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: currentIsoDate(),
     },
   });
 

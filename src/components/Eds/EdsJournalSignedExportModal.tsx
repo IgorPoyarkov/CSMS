@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { currentIsoDate } from "../../shared/format";
 import type { BaseOrganization } from "../../services/Organization/organization.schema";
 import {
   certificateBelongsToOrganization,
@@ -46,7 +47,8 @@ export default function EdsJournalSignedExportModal({
   filters,
   onClose,
 }: EdsJournalSignedExportModalProps) {
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Дата берётся один раз при открытии модалки, а не на каждой перерисовке.
+  const [todayIso] = useState(currentIsoDate);
   const { data: currentUser } = useFetchCurrentUser();
   const { mutateAsync: logEvent } = useLogSignatureEvent();
 

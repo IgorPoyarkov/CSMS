@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
@@ -65,6 +65,16 @@ const Main = () => {
 
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
+
+  // Полный реестр и сводки этапов/платежей нужны только счётчикам и уведомлениям
+  // главной — они не участвуют в первом кадре, поэтому запускаем их после
+  // отрисовки. Если данные уже в кэше, useQuery вернёт их сразу, без мигания
+  const [countersReady, setCountersReady] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCountersReady(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // П. 2.1 приказа Минфина России от 31.07.2020 N 158н: способ создания
   // контрактной службы указывается при первом входе и обязателен для заказчика
   const { data: contractService, isLoading: isContractServiceLoading } =
@@ -75,10 +85,14 @@ const Main = () => {
   const { data: plans } = usePurchasePlans(orgId);
   const { data: procurements } = useGetProcurements();
   const { data: contractProjects } = useOrganizationContractProjects(orgId);
-  const { data: registryContracts } = useContractRegistry(orgId);
+  const { data: registryContracts } = useContractRegistry(orgId, countersReady);
   const { data: purchaseNotes } = usePurchaseNotes(orgId);
-  const { data: allStages = [] } = useAllContractStages(Boolean(orgId));
-  const { data: allPayments = [] } = useAllContractPayments(Boolean(orgId));
+  const { data: allStages = [] } = useAllContractStages(
+    Boolean(orgId) && countersReady,
+  );
+  const { data: allPayments = [] } = useAllContractPayments(
+    Boolean(orgId) && countersReady,
+  );
   const { data: orgTasks = [] } = useOrganizationTasks(orgId);
   const { data: ackStates = [] } = useNotificationStates(orgId);
 

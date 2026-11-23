@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
@@ -9,6 +9,7 @@ import MoneyInput from "../../UI/MoneyInput/MoneyInput";
 import CustomCheckbox from "../../UI/CustomCheckbox";
 import {
   findOkpd2ByCode,
+  okpd2RefForChecks,
   useOkpd2Dictionary,
 } from "../../../services/Okpd2Ref/okpd2Ref.api";
 import {
@@ -126,13 +127,20 @@ const PurchaseObjectsSection = ({
 
   // Национальный режим (ПП РФ N 1875): ожидаемый режим по ОКПД2 сверяется
   // с выбранным в каждой позиции
-  const nationalRegimeValidation = validateNationalRegime(
-    items.map((item) => ({
-      code: item.okpd2OrKtruCode,
-      name: item.name,
-      declaredMode: item.nationalRegimeType,
-    })),
-    okpd2Refs,
+  // Валидация просматривает справочник по каждой позиции, поэтому считаем её
+  // только при изменении самих позиций или справочника, а не на каждый ввод
+  const nationalRegimeValidation = useMemo(
+    () =>
+      validateNationalRegime(
+        items.map((item) => ({
+          code: item.okpd2OrKtruCode,
+          name: item.name,
+          declaredMode: item.nationalRegimeType,
+        })),
+        okpd2Refs,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, okpd2Refs],
   );
 
   const totalSum = items.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
@@ -183,7 +191,10 @@ const PurchaseObjectsSection = ({
       setValue(`purchaseObjects.items.${index}.name`, item.name);
     }
 
-    const expected = checkOkpd2NationalRegime(code, okpd2Refs);
+    const expected = checkOkpd2NationalRegime(
+      code,
+      okpd2RefForChecks(okpd2Refs, code),
+    );
     setValue(
       `purchaseObjects.items.${index}.nationalRegimeType`,
       expected.regime ?? "none",
@@ -296,13 +307,19 @@ const PurchaseObjectsSection = ({
                       },
                       okpd2Refs,
                     );
+                    // Проверки ПП 1875 и 471-р ищут код линейно по всему
+                    // справочнику — подставляем одну уже найденную запись
+                    const currentOkpd2Refs = okpd2RefForChecks(
+                      okpd2Refs,
+                      currentItem?.okpd2OrKtruCode,
+                    );
                     const auctionCheck = checkOkpd2AuctionList(
                       currentItem?.okpd2OrKtruCode,
-                      okpd2Refs,
+                      currentOkpd2Refs,
                     );
                     const regimeCheck = checkOkpd2NationalRegime(
                       currentItem?.okpd2OrKtruCode,
-                      okpd2Refs,
+                      currentOkpd2Refs,
                     );
                     // «Преимущество» — право заказчика и только по товарам,
                     // когда запрет/ограничение по коду не обязательны
@@ -994,7 +1011,7 @@ const PurchaseObjectsSection = ({
                   {items.map((item, index) => {
                     const regime = checkOkpd2NationalRegime(
                       item.okpd2OrKtruCode,
-                      okpd2Refs,
+                      okpd2RefForChecks(okpd2Refs, item.okpd2OrKtruCode),
                     );
                     const ktru = findKtruByCode(ktruRefs, item.ktruCode);
                     const fieldId = item.id || fields[index]?.id;

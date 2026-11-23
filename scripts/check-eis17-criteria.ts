@@ -9,6 +9,10 @@ import {
 } from "../src/services/Eis/eis17Types";
 import { CRITERION_EIS_CODES } from "../src/services/Procurements/noticeInfo.config";
 import {
+  EIS_NATIONAL_REGIME_NPA_CODE,
+  EIS_NATIONAL_REGIME_RESTRICTION_CODE,
+} from "../src/services/NationalRegime/pp1875";
+import {
   NoticeInfoSchema,
   type NoticeInfoFormValues,
 } from "../src/services/Procurements/noticeInfo.schema";
@@ -79,6 +83,9 @@ assert.equal(CRITERION_EIS_CODES.exploitation_expenses, "MC");
 assert.equal(CRITERION_EIS_CODES.lifecycle_cost, "TC");
 assert.equal(CRITERION_EIS_CODES.qualitative_characteristics, "QF");
 assert.equal(CRITERION_EIS_CODES.qualification, "QO");
+// Коды нацрежима тоже берём из одного места — правил ПП РФ № 1875.
+assert.equal(EIS_NATIONAL_REGIME_RESTRICTION_CODE, "JB2149");
+assert.equal(EIS_NATIONAL_REGIME_NPA_CODE, "PP1875");
 
 // 2. Маппинг критериев и показателей из СЗ в структуру извещения.
 const mappedCriteria = mapNoticeCriteriaToEis17(

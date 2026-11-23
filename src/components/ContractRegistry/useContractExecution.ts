@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAcceptances } from "../../services/Acceptance/acceptance.api";
+import type { AcceptanceResponse } from "../../services/Acceptance/acceptance.types";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useAllContractPayments } from "../../services/ContractRegistry/contractRegistry.api";
 import {
@@ -84,6 +85,31 @@ export interface ContractExecutionIndex {
   loading: boolean;
 }
 
+/**
+ * Проекции org-уровневых выборок: индексу нужны только эти поля, остальные
+ * поля платежей и актов в строке реестра не используются. Селекторы объявлены
+ * вне хука, чтобы react-query не пересчитывал их на каждый рендер.
+ */
+type ExecutionPayment = Pick<ContractPayment, "contractId" | "status" | "amount">;
+type ExecutionAcceptance = Pick<
+  AcceptanceResponse,
+  "input" | "status" | "totalWithVat"
+>;
+
+const selectExecutionPayments = (
+  payments: ContractPayment[],
+): ExecutionPayment[] =>
+  payments.map(({ contractId, status, amount }) => ({ contractId, status, amount }));
+
+const selectExecutionAcceptances = (
+  acceptances: AcceptanceResponse[],
+): ExecutionAcceptance[] =>
+  acceptances.map(({ input, status, totalWithVat }) => ({
+    input,
+    status,
+    totalWithVat,
+  }));
+
 /** Группировка плоского списка по контракту: пустые ссылки пропускаем. */
 const groupByContract = <T>(
   rows: T[],
@@ -136,20 +162,36 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
   const { data: organization } = useCurrentOrganization();
   const organizationId = organization ? String(organization.id) : undefined;
 
-  const { data: payments, isLoading: paymentsLoading } =
-    useAllContractPayments(Boolean(organizationId));
+  // Две тяжёлые выгрузки (карточки ЕИС со вложенными актами и платежами и
+  // сведения СМП) не нужны для первого кадра реестра: запускаем их после
+  // отрисовки строк. Платежи и приёмка читаются сразу, но только нужными полями
+  const [heavySourcesReady, setHeavySourcesReady] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setHeavySourcesReady(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const { data: payments, isLoading: paymentsLoading } = useAllContractPayments(
+    Boolean(organizationId),
+    selectExecutionPayments,
+  );
   const { data: acceptances, isLoading: acceptancesLoading } = useAcceptances(
     organizationId,
+    undefined,
+    undefined,
+    selectExecutionAcceptances,
   );
   const { data: smpRecords, isLoading: smpLoading } =
-    useAllContractSmpRecords(Boolean(organizationId));
+    useAllContractSmpRecords(Boolean(organizationId) && heavySourcesReady);
   const { data: projections, isLoading: projectionsLoading } =
-    useAllContractCardProjections(Boolean(organizationId));
+    useAllContractCardProjections(
+      Boolean(organizationId) && heavySourcesReady,
+    );
 
   const byContract = useMemo(() => {
     const paymentBuckets = groupByContract(
       payments ?? [],
-      (payment: ContractPayment) => payment.contractId,
+      (payment: ExecutionPayment) => payment.contractId,
     );
     const acceptanceBuckets = groupByContract(
       acceptances ?? [],
@@ -179,7 +221,10 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
         manualPayments.length === 0 && eisPayments.length > 0;
       const paid = usesEisPayments
         ? contractCardPaymentsTotal(eisPayments)
-        : Number(totalPaid(manualPayments));
+        : Number(
+            // Селектор оставляет только поля, которые читает totalPaid
+            totalPaid(manualPayments as ContractPayment[]),
+          );
       const paymentCount = usesEisPayments
         ? eisPayments.length
         : manualPayments.length;
@@ -232,7 +277,12 @@ export const useContractExecutionIndex = (): ContractExecutionIndex => {
 
   return {
     byContract,
+    // Пока тяжёлые выгрузки не стартовали, строки показывают прочерк, а не нули
     loading:
-      paymentsLoading || acceptancesLoading || smpLoading || projectionsLoading,
+      !heavySourcesReady ||
+      paymentsLoading ||
+      acceptancesLoading ||
+      smpLoading ||
+      projectionsLoading,
   };
 };

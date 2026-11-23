@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
@@ -62,10 +62,53 @@ export default function AcceptanceFormPage() {
   const updateMutation = useUpdateAcceptance();
   const validateMutation = useValidateAcceptance();
 
-  const [form, setForm] = useState<AcceptanceFormState>(emptyAcceptanceForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverIssues, setServerIssues] = useState<AcceptanceIssue[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Значение формы выводится из загруженного снимка, значения из URL и правок
+  // пользователя. Смена источника сбрасывает правки во время рендера — это
+  // заменяет два эффекта с синхронным setState.
+  const presetContractId = isEdit ? null : searchParams.get("contractId");
+  const presetContract = useMemo(
+    () =>
+      presetContractId
+        ? (contracts.find((item) => String(item.id) === presetContractId) ?? null)
+        : null,
+    [contracts, presetContractId],
+  );
+  const initialForm = useMemo(
+    () =>
+      existing
+        ? acceptanceFormFrom(existing.input)
+        : presetContract
+          ? { ...emptyAcceptanceForm(), ...snapshotOf(presetContract) }
+          : emptyAcceptanceForm(),
+    [existing, presetContract],
+  );
+  const [formState, setFormState] = useState<{
+    source: AcceptanceFormState;
+    edits: Partial<AcceptanceFormState>;
+  }>(() => ({ source: initialForm, edits: {} }));
+
+  if (formState.source !== initialForm) {
+    setFormState({ source: initialForm, edits: {} });
+  }
+
+  const form = { ...formState.source, ...formState.edits };
+  const setForm = (
+    next:
+      | AcceptanceFormState
+      | ((prev: AcceptanceFormState) => AcceptanceFormState),
+  ) => {
+    setFormState((current) => {
+      const currentForm = { ...current.source, ...current.edits };
+      return {
+        source: current.source,
+        edits: typeof next === "function" ? next(currentForm) : next,
+      };
+    });
+  };
 
   const contract = useMemo(
     () => contracts.find((item) => String(item.id) === form.contractId),
@@ -79,24 +122,6 @@ export default function AcceptanceFormPage() {
       ? addWorkingDaysIso(form.documentDate, term)
       : "";
   }, [form.documentDate, form.acceptanceTermDays]);
-
-  useEffect(() => {
-    if (existing) {
-      setForm(acceptanceFormFrom(existing.input));
-    }
-  }, [existing]);
-
-  useEffect(() => {
-    if (isEdit || !contracts.length) return;
-
-    const preset = searchParams.get("contractId");
-    if (!preset) return;
-
-    const found = contracts.find((item) => String(item.id) === preset);
-    if (found) {
-      setForm((current) => ({ ...current, ...snapshotOf(found) }));
-    }
-  }, [contracts, isEdit, searchParams]);
 
   const setField = <K extends keyof AcceptanceFormState>(
     key: K,

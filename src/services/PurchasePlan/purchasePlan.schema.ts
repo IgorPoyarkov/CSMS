@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { OrganizationCustomerSchema } from "../Organization/organization.schema";
+import {
+  optionalDate,
+  optionalPattern,
+  optionalText,
+} from "../shared/validation";
 
 /**
  * План-график закупок по 44-ФЗ.
@@ -45,22 +50,8 @@ const moneySchema = (message = "Укажите сумму числом, напр
     .refine((value) => toNumber(value) === null || Number(value) >= 0, message)
     .optional();
 
-// Пустая строка из формы приравнивается к «не заполнено», поэтому поля,
-// необязательные по 44-ФЗ, проходят валидацию и с "" и с undefined.
-const optionalText = (minLength: number, message: string) =>
-  z
-    .string()
-    .refine((value) => value === "" || value.length >= minLength, message)
-    .optional();
-
-const optionalPattern = (pattern: RegExp, message: string) =>
-  z
-    .string()
-    .refine((value) => value === "" || pattern.test(value), message)
-    .optional();
-
-const optionalDate = (message: string) =>
-  optionalPattern(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, message);
+// Пустая строка из формы приравнивается к «не заполнено»: хелперы теперь
+// живут в services/shared/validation и принимают и "", и undefined.
 
 // Статусы плана-графика в ЕИС: проект -> размещен -> изменен/удален
 export const PurchasePlanStatusSchema = z.enum([

@@ -7,6 +7,7 @@ import useMyContractRole from "../../../hooks/useMyContractRole";
 import { useFetchStructuralUnits } from "../../../services/StaffingTable/StaffingTable.api";
 import type { BaseStructuralUnit } from "../../../services/StaffingTable/StaffingTable.schema";
 import { useCreateAccessRequest } from "../../../services/AccessRequest/accessRequest.api";
+import { currentIsoTimestamp } from "../../../shared/format";
 import styles from "./AccessRequestModal.module.scss";
 import Select from "../../UI/Select";
 
@@ -97,7 +98,7 @@ export default function AccessRequestModal({
         recipientStructuralUnitId: values.recipientUnitId,
         recipientStructuralUnitName: values.recipientUnitName,
         status: "new",
-        createdAt: new Date().toISOString(),
+        createdAt: currentIsoTimestamp(),
       },
       {
         onSuccess: () => {

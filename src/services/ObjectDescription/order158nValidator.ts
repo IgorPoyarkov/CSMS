@@ -1,7 +1,8 @@
 import {
   contractServiceRoster,
   type ContractServiceRosterRow,
-} from "../../components/ContractService/contractService.config";
+} from "../ContractService/contractService.config";
+import { formatMoneyRu } from "../../shared/format";
 import {
   contractServiceSizeWarning,
   type ContractService,
@@ -51,12 +52,6 @@ export interface Order158nValidationContext {
   educations?: EmployeeEducation[];
   okpd2Dictionary?: Okpd2Ref[];
 }
-
-const formatMoneyRu = (value: number): string =>
-  `${new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ₽`;
 
 const findDescriptionAssignees = (
   service: ContractService,

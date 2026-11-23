@@ -34,12 +34,14 @@ import {
   onTimeCompletionRate,
 } from "../../../services/Tasks/taskEvaluation.api";
 import { type Task as TaskType } from "../../../services/Tasks/tasks.schema";
+import { currentIsoDate } from "../../../shared/format";
 import styles from "./PersonalAccount.module.scss";
 
-interface PersonalAccountProps {}
-
-export default function PersonalAccount({}: PersonalAccountProps) {
+export default function PersonalAccount() {
   const navigate = useNavigate();
+  // Дата фиксируется на момент открытия страницы: вызов new Date() в рендере
+  // делал бы результат календаря нестабильным между перерисовками.
+  const [todayIso] = useState(currentIsoDate);
   const { formatDate, fullName } = useUtils();
   const { mutate: updateTask } = useUpdateTaskProgress();
   const { user, organization, employee, myRole, isHead } = useMyContractRole();
@@ -380,7 +382,7 @@ export default function PersonalAccount({}: PersonalAccountProps) {
           <div className={styles["leave-list"]}>
             {myLeaves.data.map((leave: Leave) => {
               const days = businessDaysBetween(leave.startDate, leave.endDate);
-              const now = new Date().toISOString().slice(0, 10);
+              const now = todayIso;
               const isActive =
                 leave.status === "ongoing" ||
                 (leave.status === "approved" &&

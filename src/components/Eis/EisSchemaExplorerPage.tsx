@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  getEisCatalogIndex,
   KIND_LABELS,
   useEisSchemaCatalog,
   type EisSchemaType,
@@ -26,36 +27,31 @@ export default function EisSchemaExplorerPage() {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
+  // Каталог читается один раз и не меняется в течение сессии: индексы строятся
+  // на первую отрисовку, а не на каждый символ поискового запроса
+  const catalogIndex = useMemo(
+    () => (catalog ? getEisCatalogIndex(catalog) : null),
+    [catalog],
+  );
+
   const filtered = useMemo(() => {
-    if (!catalog) return [];
+    if (!catalogIndex) return [];
 
     const needle = query.trim().toLocaleLowerCase();
 
-    return catalog.types.filter((type) => {
-      if (namespace && type.namespace !== namespace) return false;
-      if (kind && type.kind !== kind) return false;
-      if (!needle) return true;
-
-      if (
-        type.name.toLocaleLowerCase().includes(needle) ||
-        type.namespace.toLocaleLowerCase().includes(needle) ||
-        (type.base ?? "").toLocaleLowerCase().includes(needle) ||
-        (type.documentation ?? "").toLocaleLowerCase().includes(needle)
-      ) {
-        return true;
-      }
-
-      return type.fields.some(
-        (field) =>
-          field.name.toLocaleLowerCase().includes(needle) ||
-          field.type.toLocaleLowerCase().includes(needle),
-      );
-    });
-  }, [catalog, query, namespace, kind]);
+    return catalogIndex.searchRows
+      .filter(({ type, haystack }) => {
+        if (namespace && type.namespace !== namespace) return false;
+        if (kind && type.kind !== kind) return false;
+        return !needle || haystack.includes(needle);
+      })
+      .map(({ type }) => type);
+  }, [catalogIndex, query, namespace, kind]);
 
   const selected = useMemo(
-    () => catalog?.types.find((type) => type.name === selectedName) ?? null,
-    [catalog, selectedName],
+    () =>
+      selectedName ? (catalogIndex?.typesByName.get(selectedName) ?? null) : null,
+    [catalogIndex, selectedName],
   );
 
   const changeFilter = (setter: (value: string) => void, value: string) => {
@@ -172,8 +168,8 @@ export default function EisSchemaExplorerPage() {
                 </span>
                 <span className={styles.itemName}>{type.name}</span>
                 <span className={styles.itemMeta}>
-                  {catalog.namespaces.find((info) => info.uri === type.namespace)
-                    ?.alias ?? type.namespace}
+                  {catalogIndex?.namespaceAliases.get(type.namespace) ??
+                    type.namespace}
                   {type.fields.length > 0 ? ` · ${type.fields.length} полей` : ""}
                 </span>
               </button>

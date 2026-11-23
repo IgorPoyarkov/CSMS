@@ -46,6 +46,53 @@ export const EIS_SCHEMA_CATALOG_URL = `${import.meta.env.BASE_URL}eis-schemas/ca
 
 export const eisSchemaCatalogQueryKey = ["eisSchemaCatalog"];
 
+/**
+ * Предвычисленные индексы каталога (8,7 МБ, около 20 тысяч типов).
+ * Без них фильтр переводил в нижний регистр имя, пространство имён, описание
+ * и все поля каждого типа при каждом нажатии в строке поиска, а каждая строка
+ * списка искала пространство имён линейным find.
+ */
+export interface EisCatalogIndex {
+  /** Псевдоним пространства имён по URI — для подписи в строке списка. */
+  namespaceAliases: Map<string, string>;
+  /** Тип по имени — вместо линейного поиска выбранного определения. */
+  typesByName: Map<string, EisSchemaType>;
+  /** Нижний регистр всех полей поиска, собранный один раз на каталог. */
+  searchRows: { type: EisSchemaType; haystack: string }[];
+}
+
+const catalogIndexCache = new WeakMap<EisSchemaCatalog, EisCatalogIndex>();
+
+export const getEisCatalogIndex = (
+  catalog: EisSchemaCatalog,
+): EisCatalogIndex => {
+  const cached = catalogIndexCache.get(catalog);
+  if (cached) return cached;
+
+  const namespaceAliases = new Map<string, string>(
+    catalog.namespaces.map((info) => [info.uri, info.alias] as const),
+  );
+  const typesByName = new Map<string, EisSchemaType>(
+    catalog.types.map((type) => [type.name, type] as const),
+  );
+  const searchRows = catalog.types.map((type) => ({
+    type,
+    haystack: [
+      type.name,
+      type.namespace,
+      type.base ?? "",
+      type.documentation ?? "",
+      ...type.fields.flatMap((field) => [field.name, field.type]),
+    ]
+      .join("\n")
+      .toLocaleLowerCase(),
+  }));
+
+  const index = { namespaceAliases, typesByName, searchRows };
+  catalogIndexCache.set(catalog, index);
+  return index;
+};
+
 export const useEisSchemaCatalog = () =>
   useQuery({
     queryKey: eisSchemaCatalogQueryKey,

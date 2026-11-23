@@ -74,6 +74,19 @@ const fetchContractsByOrg = async (
  */
 export const CONTRACT_REGISTRY_PAGE_SIZE = 25;
 
+/**
+ * Поля, по которым адаптер ищет подстроку (`_search` / `_searchFields`).
+ * Это те же поля, что раньше перебирались на клиенте; поиск на сервере не
+ * требует держать весь реестр в браузере.
+ */
+const CONTRACT_SEARCH_FIELDS = [
+  "contractNumber",
+  "eisRegistryNumber",
+  "supplierName",
+  "supplierInn",
+  "contractName",
+].join(",");
+
 /** Одна порция реестра: строки страницы и всего контрактов у организации. */
 export interface ContractRegistryPortion {
   items: ContractRegistryItem[];
@@ -89,9 +102,16 @@ const fetchContractsPortion = async (
   organizationId: string | number,
   page: number,
   limit: number,
+  search?: string,
 ): Promise<ContractRegistryPortion> => {
+  const needle = search?.trim();
   const response = await api.get(CONTRACTS_ENDPOINT, {
-    params: { organizationId, _page: page, _limit: limit },
+    params: {
+      organizationId,
+      _page: page,
+      _limit: limit,
+      ...(needle ? { _search: needle, _searchFields: CONTRACT_SEARCH_FIELDS } : {}),
+    },
   });
   const items = ContractRegistryItemListSchema.parse(response.data);
   const header = response.headers["x-total-count"];
@@ -444,6 +464,10 @@ export const contractRegistryQueryKey = ["contractRegistry"];
 
 const contractsKey = [...contractRegistryQueryKey, "contracts"] as const;
 
+// Страничный реестр живёт под отдельным префиксом: инвалидация полного списка
+// (отчёты, дашборд) не должна перезагружать уже прочитанные порции таблицы
+const contractRowsKey = [...contractRegistryQueryKey, "contractRows"] as const;
+
 const contractKey = (contractId: string | number) =>
   [...contractRegistryQueryKey, "contract", String(contractId)] as const;
 
@@ -484,6 +508,7 @@ export const prefetchContract = (
 // Контракты
 export const useContractRegistry = (
   organizationId: string | number | undefined,
+  enabled = true,
 ) =>
   useQuery({
     queryKey: [
@@ -492,7 +517,7 @@ export const useContractRegistry = (
       String(organizationId),
     ],
     queryFn: () => fetchContractsByOrg(organizationId as string | number),
-    enabled: Boolean(organizationId),
+    enabled: Boolean(organizationId) && enabled,
   });
 
 /**
@@ -501,23 +526,20 @@ export const useContractRegistry = (
  *
  * Полный список по-прежнему отдаёт `useContractRegistry`: он нужен отчётам,
  * дашборду и формам, где реестр читается целиком. Здесь же ключ кэша другой
- * (`…/rows`), поэтому два режима не мешают друг другу.
+ * (`…/contractRows`), поэтому два режима не мешают друг другу.
  */
 export const useContractRegistryRows = (
   organizationId: string | number | undefined,
+  search?: string,
 ) => {
   const query = useInfiniteQuery({
-    queryKey: [
-      ...contractRegistryQueryKey,
-      "contracts",
-      String(organizationId),
-      "rows",
-    ],
+    queryKey: [...contractRowsKey, String(organizationId), search ?? ""],
     queryFn: ({ pageParam }) =>
       fetchContractsPortion(
         organizationId as string | number,
         pageParam,
         CONTRACT_REGISTRY_PAGE_SIZE,
+        search,
       ),
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {
@@ -530,6 +552,9 @@ export const useContractRegistryRows = (
     // старые строки остаются на месте, пока не пришла первая порция новой.
     placeholderData: keepPreviousData,
     enabled: Boolean(organizationId),
+    // Порции меняются только мутациями контрактов — они инвалидируют ключ
+    // явно, повторный запрос при каждом возврате на страницу не нужен
+    staleTime: 60_000,
   });
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } = query;
@@ -634,6 +659,7 @@ export const useCreateContract = () => {
     mutationFn: createContract,
     onSuccess: (contract) => {
       void qc.invalidateQueries({ queryKey: contractsKey });
+      void qc.invalidateQueries({ queryKey: contractRowsKey });
       if (contract.id !== undefined && contract.id !== null) {
         void qc.invalidateQueries({ queryKey: contractKey(contract.id) });
       }
@@ -647,6 +673,7 @@ export const useUpdateContract = () => {
     mutationFn: updateContract,
     onSuccess: (contract) => {
       void qc.invalidateQueries({ queryKey: contractsKey });
+      void qc.invalidateQueries({ queryKey: contractRowsKey });
       if (contract.id !== undefined && contract.id !== null) {
         void qc.invalidateQueries({ queryKey: contractKey(contract.id) });
       }
@@ -660,6 +687,7 @@ export const useDeleteContract = () => {
     mutationFn: deleteContract,
     onSuccess: (id) => {
       void qc.invalidateQueries({ queryKey: contractsKey });
+      void qc.invalidateQueries({ queryKey: contractRowsKey });
       void qc.invalidateQueries({ queryKey: contractKey(id) });
     },
   });
@@ -876,7 +904,10 @@ export const useAllContractStages = (enabled = true) =>
     enabled,
   });
 
-export const useAllContractPayments = (enabled = true) =>
+export const useAllContractPayments = <T = ContractPayment[]>(
+  enabled = true,
+  select?: (payments: ContractPayment[]) => T,
+) =>
   useQuery({
     queryKey: [...contractRegistryQueryKey, "payments", "all"],
     queryFn: async (): Promise<ContractPayment[]> => {
@@ -884,6 +915,7 @@ export const useAllContractPayments = (enabled = true) =>
       return ContractPaymentListSchema.parse(response.data ?? []);
     },
     enabled,
+    select,
   });
 
 export const useAllContractPenalties = (enabled = true) =>

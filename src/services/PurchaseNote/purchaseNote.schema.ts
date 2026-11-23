@@ -16,6 +16,13 @@ import {
   PROCEDURE_KINDS,
 } from "../BidEvaluation/bidEvaluation.schema";
 import { validatePp2571Requirements } from "../Pp2571/pp2571.schema";
+import {
+  optionalDate as isoDate,
+  optionalMoney,
+  optionalNonNegativeInt,
+  optionalPercent,
+  optionalSmpPercent,
+} from "../shared/validation";
 
 
 /**
@@ -33,55 +40,8 @@ import { validatePp2571Requirements } from "../Pp2571/pp2571.schema";
  * контракта и далее карточку контракта в реестре.
  */
 
-const isoDate = () =>
-  z
-    .string()
-    .refine(
-      (v) =>
-        v === "" || /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v),
-      "Неверный формат даты (ГГГГ-ММ-ДД)",
-    )
-    .optional();
-
-const optionalMoney = () =>
-  z
-    .string()
-    .refine(
-      (v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v),
-      "Укажите сумму числом с точностью до копеек",
-    )
-    .optional();
-
-const optionalPercent = () =>
-  z
-    .string()
-    .refine(
-      (v) =>
-        v === "" ||
-        (/^\d{1,3}(\.\d{1,2})?$/.test(v) && Number(v) >= 0 && Number(v) <= 100),
-      "Укажите значение от 0 до 100",
-    )
-    .optional();
-
-const optionalNonNegativeInt = () =>
-  z
-    .union([z.number(), z.string(), z.undefined()])
-    .transform((v) => {
-      if (v === "" || v === null || v === undefined) return undefined;
-      const n = Number(v);
-      return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : undefined;
-    })
-    .optional();
-
-const optionalSmpPercent = () =>
-  z
-    .union([z.number(), z.string(), z.undefined()])
-    .transform((v) => {
-      if (v === "" || v === null || v === undefined) return undefined;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : Number.NaN;
-    })
-    .optional();
+// Хелперы полей вынесены в services/shared/validation: "" и undefined по-прежнему
+// означают «не заполнено», правила refine не изменены.
 
 export const PurchaseNoteObjectItemSchema = z.object({
   id: z.string(),

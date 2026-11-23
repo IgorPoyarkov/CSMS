@@ -175,12 +175,16 @@ const Header = () => {
   const [isNavOpen, setIsNavOpen] = useState(false);
 
   // Перешли на другой раздел — панели надо закрыть, иначе они висят поверх
-  // новой страницы
-  useEffect(() => {
+  // новой страницы. Сброс при смене адреса делаем во время рендера: эффект
+  // с синхронным setState вызывал бы лишнюю перерисовку шапки.
+  const currentLocation = `${location.pathname}${location.search}`;
+  const [closedOnLocation, setClosedOnLocation] = useState(currentLocation);
+  if (closedOnLocation !== currentLocation) {
+    setClosedOnLocation(currentLocation);
     setIsNavOpen(false);
     setIsMoreOpen(false);
     setIsRegistryOpen(false);
-  }, [location.pathname, location.search]);
+  }
 
   // Открытая панель на мобильном — это модальное состояние: страница под ней
   // не прокручивается, Escape закрывает

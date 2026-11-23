@@ -15,8 +15,9 @@ import {
 } from "../services/Access/access.api";
 import {
   contractServiceRoster,
+  isContractServiceLeader,
   type ContractServiceRosterRow,
-} from "../components/ContractService/contractService.config";
+} from "../services/ContractService/contractService.config";
 
 // Функции раздела III приказа Минфина РФ № 158н, дающие право формировать
 // и изменять потребность (служебную записку по позиции плана-графика).
@@ -139,11 +140,10 @@ const useMyContractRole = () => {
   const myFunctions: ContractServiceFunction[] = myRole?.functions ?? [];
 
   // Назначать задачи и оценивать их может руководитель службы или контрактный
-  // управляющий (Раздел III приказа Минфина России N 158н)
-  const isHead = Boolean(
-    myRole?.role.includes("Руководитель") ||
-      myRole?.role.includes("Контрактный управляющий"),
-  );
+  // управляющий (Раздел III приказа Минфина России N 158н). Права определяем
+  // по идентификатору работника в снимке КС, а не по русской подписи роли:
+  // подпись меняется при редактировании приказа, employeeId — нет.
+  const isHead = isContractServiceLeader(contractService, employee?.id);
 
   // Редактировать поля СЗ (потребности) вправе руководитель КС, контрактный
   // управляющий, работник структурного подразделения КС либо член КС с

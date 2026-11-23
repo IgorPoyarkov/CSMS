@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useGetProcurements } from "../../services/Procurements/procurement.api";
@@ -76,7 +76,6 @@ export default function ProcurementDocumentsPage() {
   const [docType, setDocType] = useState<ProcurementDocumentType>(
     DOC_TYPES.includes(initialDocType) ? initialDocType : "commission_order",
   );
-  const [draft, setDraft] = useState<DocumentGeneratorDraftInput | null>(null);
   const [checkerMode, setCheckerMode] = useState<"generated" | "custom">(
     "generated",
   );
@@ -115,10 +114,47 @@ export default function ProcurementDocumentsPage() {
     employees,
   ]);
 
-  useEffect(() => {
-    if (!contextBundle) return;
-    setDraft(buildInitialGeneratorDraft(contextBundle, docType));
-  }, [contextBundle, docType]);
+  // Черновик генератора: исходный снимок пересчитывается при смене контекста,
+  // правки пользователя хранятся отдельно. Сброс при смене контекста делаем
+  // во время рендера (рекомендованный React-паттерн) вместо setState в эффекте.
+  const initialDraft = useMemo(
+    () =>
+      contextBundle ? buildInitialGeneratorDraft(contextBundle, docType) : null,
+    [contextBundle, docType],
+  );
+  const [draftState, setDraftState] = useState<{
+    source: DocumentGeneratorDraftInput | null;
+    edits: Partial<DocumentGeneratorDraftInput>;
+  }>(() => ({ source: initialDraft, edits: {} }));
+
+  if (draftState.source !== initialDraft) {
+    setDraftState({ source: initialDraft, edits: {} });
+  }
+
+  const draft = useMemo(
+    () =>
+      draftState.source
+        ? { ...draftState.source, ...draftState.edits }
+        : null,
+    [draftState.source, draftState.edits],
+  );
+  const setDraft = (
+    next:
+      | DocumentGeneratorDraftInput
+      | null
+      | ((
+          prev: DocumentGeneratorDraftInput | null,
+        ) => DocumentGeneratorDraftInput | null),
+  ) => {
+    setDraftState((current) => {
+      const currentDraft = current.source
+        ? { ...current.source, ...current.edits }
+        : null;
+      const value = typeof next === "function" ? next(currentDraft) : next;
+
+      return { source: current.source, edits: value ?? {} };
+    });
+  };
 
   const generatedDoc = useMemo(() => {
     if (!contextBundle || !draft) return null;

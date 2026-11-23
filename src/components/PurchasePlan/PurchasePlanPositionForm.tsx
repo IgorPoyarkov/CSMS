@@ -20,6 +20,7 @@ import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
+  okpd2RefForChecks,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
@@ -391,7 +392,12 @@ export default function PurchasePlanPositionForm({
 
   // Предельная цена единицы по ПП РФ N 926: предупреждаем прямо в записи ПГ
   const normedRef = findOkpd2ByCode(okpd2Refs, okpd2Code);
-  const auctionCheck = checkOkpd2AuctionList(okpd2Code, okpd2Refs);
+  // Проверка 471-р ищет код линейно по всему справочнику — передаём уже
+  // найденную запись, результат совпадает с полным словарём
+  const auctionCheck = checkOkpd2AuctionList(
+    okpd2Code,
+    okpd2RefForChecks(okpd2Refs, okpd2Code),
+  );
 
   // Фильтрованные организаторы по выбранному уполномоченному органу
   const organizers = getOrganizersByAuthorizedBody(authorizedBodyName);

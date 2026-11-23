@@ -1,4 +1,12 @@
 import z from "zod";
+import {
+  optionalDate,
+  optionalMoney,
+  optionalPercent,
+  optionalText,
+  optionalUnitPrice,
+  requiredText,
+} from "../shared/validation";
 
 /**
  * Проект контракта по 44-ФЗ.
@@ -60,56 +68,8 @@ export const ContractKindSchema = z.enum(CONTRACT_KINDS).default("goods");
 
 // ─── Хелперы полей ─────────────────────────────────────────────────────────
 
-const optionalText = (min: number, message: string) =>
-  z
-    .string()
-    .refine((v) => v === "" || v.length >= min, message)
-    .optional();
-
-const requiredText = (min: number, message: string) =>
-  z.string().min(min, message);
-
-const optionalDate = () =>
-  z
-    .string()
-    .refine(
-      (v) =>
-        v === "" || /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v),
-      "Неверный формат даты (ГГГГ-ММ-ДД)",
-    )
-    .optional();
-
-const optionalMoney = () =>
-  z
-    .string()
-    .refine(
-      (v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v),
-      "Укажите сумму числом с точностью до копеек",
-    )
-    .optional();
-
-const optionalPercent = () =>
-  z
-    .string()
-    .refine(
-      (v) =>
-        v === "" ||
-        (/^\d{1,3}(\.\d{1,2})?$/.test(v) && Number(v) >= 0 && Number(v) <= 100),
-      "Укажите значение от 0 до 100",
-    )
-    .optional();
-
-// П. 11 Положения (ПП РФ от 27.01.2022 N 60): цена единицы товара, работы,
-// услуги округляется до 11 цифр после запятой. В форме хранится строкой,
-// чтобы не потерять знаки при сериализации.
-const optionalUnitPrice = () =>
-  z
-    .string()
-    .refine(
-      (v) => v === "" || /^\d+(\.\d{1,11})?$/.test(v),
-      "Цена единицы указывается с точностью до 11 знаков после запятой",
-    )
-    .optional();
+// Хелперы полей вынесены в services/shared/validation, включая цену единицы
+// с точностью до 11 знаков (п. 11 Положения, утв. ПП РФ от 27.01.2022 N 60).
 
 export const roundUnitPrice = (value: number | string): string => {
   const num =

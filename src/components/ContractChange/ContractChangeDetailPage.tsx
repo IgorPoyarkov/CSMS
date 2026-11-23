@@ -36,6 +36,25 @@ import {
 import styles from "./ContractChange.module.scss";
 import Select from "../UI/Select";
 
+type BlockClassName = (element?: string, modifiers?: string[]) => string;
+
+// Строка метаданных вынесена из рендера: локальный компонент создавался бы
+// заново при каждой перерисовке и терял бы своё состояние.
+const MetaRow = ({
+  block,
+  label,
+  value,
+}: {
+  block: BlockClassName;
+  label: string;
+  value: string;
+}) => (
+  <div className={block("meta-row")}>
+    <dt>{label}</dt>
+    <dd>{value}</dd>
+  </div>
+);
+
 /**
  * Карточка документа об изменении или расторжении.
  *
@@ -265,15 +284,6 @@ export default function ContractChangeDetailPage() {
   const actions = contractChangeActions(change.status);
   const needsRegistration = basis?.requiresEisRegistration ?? true;
 
-  // Строка метаданных объявлена внутри карточки: ей нужен тот же bem-класс,
-  // что и остальным элементам, а выносить функцию с замыканием незачем.
-  const MetaRow = ({ label, value }: { label: string; value: string }) => (
-    <div className={block("meta-row")}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-
   return (
     <main className={block()}>
       <header className={block("header")}>
@@ -362,30 +372,30 @@ export default function ContractChangeDetailPage() {
         <h2 className={block("section-title")}>Снимок контракта</h2>
 
         <dl className={block("meta")}>
-          <MetaRow label="Номер" value={input.contractNumber || "—"} />
-          <MetaRow label="Наименование" value={input.contractName || "—"} />
-          <MetaRow
+          <MetaRow block={block} label="Номер" value={input.contractNumber || "—"} />
+          <MetaRow block={block} label="Наименование" value={input.contractName || "—"} />
+          <MetaRow block={block}
             label="Цена контракта"
             value={`${formatMoney(input.contractPrice)} ₽`}
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Статус"
             value={
               contractStatusLabels[input.contractStatus] ?? input.contractStatus
             }
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Дата заключения"
             value={formatDate(input.contractDate ?? undefined) || "—"}
           />
-          <MetaRow label="Заказчик" value={input.customerName || "—"} />
-          <MetaRow label="Поставщик" value={input.supplierName || "—"} />
-          <MetaRow label="ИКЗ" value={input.ikz || "—"} />
-          <MetaRow
+          <MetaRow block={block} label="Заказчик" value={input.customerName || "—"} />
+          <MetaRow block={block} label="Поставщик" value={input.supplierName || "—"} />
+          <MetaRow block={block} label="ИКЗ" value={input.ikz || "—"} />
+          <MetaRow block={block}
             label="Реестровый номер ЕИС"
             value={input.eisRegistryNumber || "—"}
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Срок исполнения"
             value={
               formatDate(input.contractExecutionEndDate ?? undefined) || "—"
@@ -398,7 +408,7 @@ export default function ContractChangeDetailPage() {
         <h2 className={block("section-title")}>Основание</h2>
 
         <dl className={block("meta")}>
-          <MetaRow
+          <MetaRow block={block}
             label="Правовое основание"
             value={
               basis
@@ -406,18 +416,18 @@ export default function ContractChangeDetailPage() {
                 : input.basisCode || "не указано"
             }
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Дата документа"
             value={formatDate(input.changeDate) || "—"}
           />
           {input.terminationDate && (
-            <MetaRow
+            <MetaRow block={block}
               label="Дата расторжения"
               value={formatDate(input.terminationDate)}
             />
           )}
           {input.noticeNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Уведомление"
               value={`№ ${input.noticeNumber} от ${
                 formatDate(input.noticeDate ?? undefined) || "—"
@@ -425,7 +435,7 @@ export default function ContractChangeDetailPage() {
             />
           )}
           {input.courtDecisionNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Судебный акт"
               value={`№ ${input.courtDecisionNumber} от ${
                 formatDate(input.courtDecisionDate ?? undefined) || "—"
@@ -433,7 +443,7 @@ export default function ContractChangeDetailPage() {
             />
           )}
           {input.governmentActNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Акт органа власти"
               value={`№ ${input.governmentActNumber} от ${
                 formatDate(input.governmentActDate ?? undefined) || "—"
@@ -458,7 +468,7 @@ export default function ContractChangeDetailPage() {
           </p>
         ) : (
           <dl className={block("meta")}>
-            <MetaRow
+            <MetaRow block={block}
               label="Новая цена"
               value={
                 input.newPrice === null
@@ -466,7 +476,7 @@ export default function ContractChangeDetailPage() {
                   : `${formatMoney(input.newPrice)} ₽`
               }
             />
-            <MetaRow
+            <MetaRow block={block}
               label="Новое количество"
               value={
                 input.newQuantity === null
@@ -476,14 +486,14 @@ export default function ContractChangeDetailPage() {
                     }`
               }
             />
-            <MetaRow label="Новый предмет" value={input.newSubject || "—"} />
-            <MetaRow label="Новый поставщик" value={input.newSupplier || "—"} />
-            <MetaRow
+            <MetaRow block={block} label="Новый предмет" value={input.newSubject || "—"} />
+            <MetaRow block={block} label="Новый поставщик" value={input.newSupplier || "—"} />
+            <MetaRow block={block}
               label="Новый срок исполнения"
               value={formatDate(input.newExecutionEndDate ?? undefined) || "—"}
             />
-            <MetaRow label="Формула" value={input.formulaText || "—"} />
-            <MetaRow
+            <MetaRow block={block} label="Формула" value={input.formulaText || "—"} />
+            <MetaRow block={block}
               label="Цена единицы"
               value={
                 input.unitPrice === null
@@ -765,31 +775,31 @@ export default function ContractChangeDetailPage() {
         </ul>
 
         <dl className={block("meta")}>
-          <MetaRow
+          <MetaRow block={block}
             label="Создан"
             value={`${formatDate(change.createdAt)} · ${input.createdBy}`}
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Обновлён"
             value={formatDate(change.updatedAt) || "—"}
           />
           {change.submittedAt && (
-            <MetaRow
+            <MetaRow block={block}
               label="На согласовании с"
               value={formatDate(change.submittedAt)}
             />
           )}
           {change.approvedAt && (
-            <MetaRow label="Согласован" value={formatDate(change.approvedAt)} />
+            <MetaRow block={block} label="Согласован" value={formatDate(change.approvedAt)} />
           )}
           {change.signedAt && (
-            <MetaRow
+            <MetaRow block={block}
               label="Подписан"
               value={`${formatDate(change.signedAt)} · ${change.signedBy ?? "—"}`}
             />
           )}
           {change.registeredAt && (
-            <MetaRow
+            <MetaRow block={block}
               label="Зарегистрирован"
               value={`${formatDate(change.registeredAt)} · ${
                 change.registeredBy ?? "—"
@@ -797,7 +807,7 @@ export default function ContractChangeDetailPage() {
             />
           )}
           {change.eisRegistrationNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Номер в ЕИС"
               value={`${change.eisRegistrationNumber} от ${
                 formatDate(change.eisRegistrationDate ?? undefined) || "—"

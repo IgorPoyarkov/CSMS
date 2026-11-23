@@ -24,6 +24,7 @@ import {
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
+  okpd2RefForChecks,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import LegalActRefs from "../LegalAct/LegalActRefs";
@@ -461,7 +462,7 @@ export default function PurchasePlanCard() {
         const normedRef = findOkpd2ByCode(okpd2Refs, position.okpd2Code);
         const auctionCheck = checkOkpd2AuctionList(
           position.okpd2Code,
-          okpd2Refs,
+          okpd2RefForChecks(okpd2Refs, position.okpd2Code),
         );
         const okpd2Name = position.okpd2Name || normedRef?.name;
         const normTip = normedRef?.isNormed

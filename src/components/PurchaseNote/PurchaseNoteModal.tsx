@@ -127,7 +127,10 @@ import {
   type Criterion,
 } from "../../services/BidEvaluation/bidEvaluation.schema";
 import { usePp2604MappingOrDefault } from "../../services/Pp2604/pp2604.api";
-import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
+import {
+  okpd2RefForChecks,
+  useOkpd2Dictionary,
+} from "../../services/Okpd2Ref/okpd2Ref.api";
 import { useKtruDictionary } from "../../services/KtruRef/ktruRef.api";
 import { checkKtruUsage } from "../../services/KtruRef/ktruControl";
 import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
@@ -710,24 +713,37 @@ export default function PurchaseNoteModal({
   const watchedOozSetComplete = watch("oozSetComplete") ?? true;
   const watchedPositionProcurementsComplete =
     watch("positionProcurementsComplete") ?? true;
-  const auctionValidation = validatePlacingWayAgainstAuctionList(
-    watchedPlacingWay,
-    watchedItems.map((item) => ({
-      code: item.okpd2Code,
-      name: item.name,
-    })),
-    okpd2Refs,
+  // Проверки сканируют справочник на каждую позицию: без мемоизации они
+  // повторялись бы при каждом нажатии в любой поле формы (watch подписывает
+  // всю модалку), а строк в служебке бывает больше десятка.
+  const auctionValidation = useMemo(
+    () =>
+      validatePlacingWayAgainstAuctionList(
+        watchedPlacingWay,
+        watchedItems.map((item) => ({
+          code: item.okpd2Code,
+          name: item.name,
+        })),
+        okpd2Refs,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [watchedPlacingWay, watchedItems, okpd2Refs],
   );
 
   // Национальный режим (ПП РФ N 1875): объявленный по каждой позиции режим
   // сверяется с перечнями запрета (приложение N 1) и ограничения (приложение N 2)
-  const nationalRegimeValidation = validateNationalRegime(
-    watchedItems.map((item) => ({
-      code: item.okpd2Code,
-      name: item.name,
-      declaredMode: item.nationalRegimeType,
-    })),
-    okpd2Refs,
+  const nationalRegimeValidation = useMemo(
+    () =>
+      validateNationalRegime(
+        watchedItems.map((item) => ({
+          code: item.okpd2Code,
+          name: item.name,
+          declaredMode: item.nationalRegimeType,
+        })),
+        okpd2Refs,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [watchedItems, okpd2Refs],
   );
 
   // Критерии оценки по ПП РФ N 2604: вид процедуры берём из выбранного
@@ -1148,7 +1164,10 @@ export default function PurchaseNoteModal({
       // Национальный режим по умолчанию — по ПП РФ № 1875
       setValue(
         "items.0.nationalRegimeType",
-        checkOkpd2NationalRegime(found.okpd2Code, okpd2Refs).regime ?? "none",
+        checkOkpd2NationalRegime(
+          found.okpd2Code,
+          okpd2RefForChecks(okpd2Refs, found.okpd2Code),
+        ).regime ?? "none",
         { shouldDirty: true },
       );
     }
@@ -1177,7 +1196,10 @@ export default function PurchaseNoteModal({
     setValue(`items.${index}.okpd2Name`, selected?.name ?? "");
     setValue(
       `items.${index}.nationalRegimeType`,
-      checkOkpd2NationalRegime(code, okpd2Refs).regime ?? "none",
+      checkOkpd2NationalRegime(
+        code,
+        okpd2RefForChecks(okpd2Refs, code),
+      ).regime ?? "none",
       { shouldDirty: true },
     );
 
@@ -1225,7 +1247,10 @@ export default function PurchaseNoteModal({
       setValue(`items.${index}.okpd2Name`, found.okpd2Name ?? "");
       setValue(
         `items.${index}.nationalRegimeType`,
-        checkOkpd2NationalRegime(found.okpd2Code, okpd2Refs).regime ?? "none",
+        checkOkpd2NationalRegime(
+          found.okpd2Code,
+          okpd2RefForChecks(okpd2Refs, found.okpd2Code),
+        ).regime ?? "none",
         { shouldDirty: true },
       );
     }
@@ -2172,9 +2197,15 @@ export default function PurchaseNoteModal({
                     const itemDesc = objectDescriptions.find(
                       (desc) => String(desc.id) === String(itemOozId),
                     );
+                    // Оба контроля ищут код в справочнике линейно — передаём
+                    // уже найденную по индексу запись вместо всех 21 066 кодов
+                    const itemOkpd2Refs = okpd2RefForChecks(
+                      okpd2Refs,
+                      itemOkpd2,
+                    );
                     const itemRegime = checkOkpd2NationalRegime(
                       itemOkpd2,
-                      okpd2Refs,
+                      itemOkpd2Refs,
                     );
                     // «Преимущество» — право заказчика и только по товарам,
                     // когда запрет/ограничение по коду не обязательны
@@ -2193,7 +2224,7 @@ export default function PurchaseNoteModal({
                     );
                     const auctionCheck = checkOkpd2AuctionList(
                       itemOkpd2,
-                      okpd2Refs,
+                      itemOkpd2Refs,
                     );
                     // Ключ раскрытия — собственный id объекта: useFieldArray
                     // подменяет поле id своим ключом

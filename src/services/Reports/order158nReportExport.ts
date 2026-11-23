@@ -2,7 +2,8 @@ import type {
   BaseOrganization,
   OrganizationCustomer,
 } from "../Organization/organization.schema";
-import { contractServiceFunctionParagraph } from "../../components/ContractService/contractService.config";
+import { contractServiceFunctionParagraph } from "../ContractService/contractService.config";
+import { formatMoneyRu } from "../../shared/format";
 import {
   ORDER_158N_PERIOD_TYPE_LABELS,
   ORDER_158N_REPORT_STATUS_LABELS,
@@ -15,12 +16,6 @@ const formatIsoToRu = (iso?: string): string => {
   const match = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : iso;
 };
-
-const formatMoneyRu = (value: number): string =>
-  `${new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ₽`;
 
 const CHECK_STATUS_LABELS: Record<Order158nCheckStatus, string> = {
   pass: "Соответствует",

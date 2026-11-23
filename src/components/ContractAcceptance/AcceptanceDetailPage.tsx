@@ -43,6 +43,25 @@ import {
 import styles from "./Acceptance.module.scss";
 import Select from "../UI/Select";
 
+type BlockClassName = (element?: string, modifiers?: string[]) => string;
+
+// Строка метаданных объявлена вне страницы: компонент внутри рендера создавал
+// бы заново экземпляр с тем же именем и сбрасывал бы своё состояние.
+const MetaRow = ({
+  block,
+  label,
+  value,
+}: {
+  block: BlockClassName;
+  label: string;
+  value: string;
+}) => (
+  <div className={block("meta-row")}>
+    <dt>{label}</dt>
+    <dd>{value}</dd>
+  </div>
+);
+
 /**
  * Карточка документа о приёмке.
  *
@@ -336,13 +355,6 @@ export default function AcceptanceDetailPage() {
   const defectsEditable = canManageAcceptanceDefects(acceptance.status);
   const actions = acceptanceActions(acceptance.status);
 
-  const MetaRow = ({ label, value }: { label: string; value: string }) => (
-    <div className={block("meta-row")}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-
   return (
     <main className={block()}>
       <header className={block("header")}>
@@ -444,20 +456,20 @@ export default function AcceptanceDetailPage() {
         <h2 className={block("section-title")}>Снимок контракта</h2>
 
         <dl className={block("meta")}>
-          <MetaRow label="Номер" value={input.contractNumber || "—"} />
-          <MetaRow label="Наименование" value={input.contractName || "—"} />
-          <MetaRow
+          <MetaRow block={block} label="Номер" value={input.contractNumber || "—"} />
+          <MetaRow block={block} label="Наименование" value={input.contractName || "—"} />
+          <MetaRow block={block}
             label="Цена контракта"
             value={`${formatMoney(input.contractPrice)} ₽`}
           />
-          <MetaRow label="Дата заключения" value={formatDate(input.contractDate ?? undefined) || "—"} />
-          <MetaRow label="Заказчик" value={input.customerName || "—"} />
-          <MetaRow label="Поставщик" value={input.supplierName || "—"} />
-          <MetaRow label="ИНН поставщика" value={input.supplierInn || "—"} />
-          <MetaRow label="ИКЗ" value={input.ikz || "—"} />
-          <MetaRow label="Реестровый номер ЕИС" value={input.eisRegistryNumber || "—"} />
+          <MetaRow block={block} label="Дата заключения" value={formatDate(input.contractDate ?? undefined) || "—"} />
+          <MetaRow block={block} label="Заказчик" value={input.customerName || "—"} />
+          <MetaRow block={block} label="Поставщик" value={input.supplierName || "—"} />
+          <MetaRow block={block} label="ИНН поставщика" value={input.supplierInn || "—"} />
+          <MetaRow block={block} label="ИКЗ" value={input.ikz || "—"} />
+          <MetaRow block={block} label="Реестровый номер ЕИС" value={input.eisRegistryNumber || "—"} />
           {input.stageNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Этап"
               value={`${input.stageNumber}${input.stageName ? ` — ${input.stageName}` : ""}`}
             />
@@ -469,7 +481,7 @@ export default function AcceptanceDetailPage() {
         <h2 className={block("section-title")}>Условия приёмки</h2>
 
         <dl className={block("meta")}>
-          <MetaRow
+          <MetaRow block={block}
             label="Срок рассмотрения"
             value={`${input.acceptanceTermDays} раб. дней${
               acceptance.reviewDeadline
@@ -477,7 +489,7 @@ export default function AcceptanceDetailPage() {
                 : ""
             }`}
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Экспертиза"
             value={
               input.expertiseRequired
@@ -489,7 +501,7 @@ export default function AcceptanceDetailPage() {
                 : "не предусмотрена"
             }
           />
-          <MetaRow
+          <MetaRow block={block}
             label="Приёмочная комиссия"
             value={
               input.commissionRequired
@@ -499,8 +511,8 @@ export default function AcceptanceDetailPage() {
                 : "не требуется"
             }
           />
-          <MetaRow label="Место приёмки" value={input.deliveryPlace || "—"} />
-          {input.notes && <MetaRow label="Примечания" value={input.notes} />}
+          <MetaRow block={block} label="Место приёмки" value={input.deliveryPlace || "—"} />
+          {input.notes && <MetaRow block={block} label="Примечания" value={input.notes} />}
         </dl>
 
         {input.kind === "Correction" && (
@@ -1012,19 +1024,19 @@ export default function AcceptanceDetailPage() {
         </ul>
 
         <dl className={block("meta")}>
-          <MetaRow
+          <MetaRow block={block}
             label="Создан"
             value={`${formatDate(acceptance.createdAt)} · ${input.createdBy}`}
           />
-          <MetaRow label="Обновлён" value={formatDate(acceptance.updatedAt) || "—"} />
+          <MetaRow block={block} label="Обновлён" value={formatDate(acceptance.updatedAt) || "—"} />
           {acceptance.submittedAt && (
-            <MetaRow label="Направлен" value={formatDate(acceptance.submittedAt)} />
+            <MetaRow block={block} label="Направлен" value={formatDate(acceptance.submittedAt)} />
           )}
           {acceptance.reviewedAt && (
-            <MetaRow label="Рассмотрен" value={formatDate(acceptance.reviewedAt)} />
+            <MetaRow block={block} label="Рассмотрен" value={formatDate(acceptance.reviewedAt)} />
           )}
           {acceptance.signedAt && (
-            <MetaRow
+            <MetaRow block={block}
               label="Подписан"
               value={`${formatDate(acceptance.signedAt)} · ${
                 acceptance.signedBy ?? "—"
@@ -1032,7 +1044,7 @@ export default function AcceptanceDetailPage() {
             />
           )}
           {acceptance.registeredAt && (
-            <MetaRow
+            <MetaRow block={block}
               label="Зарегистрирован"
               value={`${formatDate(acceptance.registeredAt)} · ${
                 acceptance.registeredBy ?? "—"
@@ -1040,7 +1052,7 @@ export default function AcceptanceDetailPage() {
             />
           )}
           {acceptance.eisRegistrationNumber && (
-            <MetaRow
+            <MetaRow block={block}
               label="Номер в ЕИС"
               value={`${acceptance.eisRegistrationNumber} от ${
                 formatDate(acceptance.eisRegistrationDate ?? undefined) || "—"

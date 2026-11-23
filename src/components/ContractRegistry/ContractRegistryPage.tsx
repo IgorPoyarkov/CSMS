@@ -16,7 +16,6 @@ import {
   type ContractRegistryItem,
 } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
-  CONTRACT_REGISTRY_PAGE_SIZE,
   prefetchContract,
   useContractRegistryRows,
   useDeleteContract,
@@ -30,6 +29,7 @@ import { ikzPositionKey } from "../../services/Eis/eisIdentifiers";
 // Даты форматирует строка (`ContractRow`), поэтому хук подключается здесь, а не
 // в странице: пропсом функция не передаётся и мемоизация строки не ломается
 import useUtils from "../../hooks/useUtils";
+import useDebouncedValue from "../../hooks/useDebouncedValue";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import ContractCardSummary from "./ContractCardSummary";
 import ContractExecutionStrip from "./ContractExecutionStrip";
@@ -141,15 +141,6 @@ const matchesKbkFilter = (
 // Сколько контрактов показывать на странице
 const PAGE_SIZES = [5, 10, 25, "all"] as const;
 
-/**
- * До скольких строк реестр добирается сам после первой отрисовки. Первая
- * порция — пагинальные строки (её видно сразу), дальше четыре порции фоном:
- * счётчики папок, суммы и пул КБК считаются по загруженной части, и на пустом
- * месте они были бы заведомо неполными. Всё, что выше, — только по явному
- * действию пользователя (пейджер, «Все», кнопка «Загрузить остальные»).
- */
-const AUTOLOAD_ROWS = CONTRACT_REGISTRY_PAGE_SIZE * 4;
-
 /** Сортировка таблицы контрактов: колонка и направление. */
 type SortDirection = "asc" | "desc";
 
@@ -237,11 +228,16 @@ function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
+  // Поиск по реестровому номеру, номеру контракта, подрядчику и его ИНН: по
+  // этим полям ищут конкретную запись, а не листают папки по годам. Запрос
+  // уходит на сервер, поэтому читаем устоявшееся значение, а не каждый символ
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query, 250);
   // Даты форматируются внутри строки (`ContractRow`), а не в странице: иначе
   // функция передавалась бы пропсом и ломала мемоизацию строк
 
   // Реестр приходит порциями: сначала только строки первой страницы, остальные
-  // догружаются по мере необходимости — см. эффект ниже и кнопки пейджера.
+  // догружаются явным действием (пейджер, «Все», «Загрузить остальные»).
   const {
     contracts,
     total: contractsTotal,
@@ -252,7 +248,7 @@ export default function ContractRegistryPage() {
     loadMore,
     loadAll,
     loadUntil,
-  } = useContractRegistryRows(orgId);
+  } = useContractRegistryRows(orgId, debouncedQuery);
   const { mutate: deleteContract } = useDeleteContract();
 
   // Исполнение для строк списка: бейдж СМП и полосы оплаты/приёмки видны без
@@ -362,40 +358,20 @@ export default function ContractRegistryPage() {
   const [dateTo, setDateTo] = useState("");
   // Поставщик выбирается кликом по его названию в строке контракта
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
-  // Поиск по реестровому номеру, номеру контракта, подрядчику и его ИНН: по
-  // этим полям ищут конкретную запись, а не листают папки по годам
-  const [query, setQuery] = useState("");
   // Наличие аванса: в реестре есть и контракты без аванса, и с частичной
   // предоплатой — фильтр отделяет одни от других
   const [advanceFilter, setAdvanceFilter] = useState<"all" | "with" | "without">(
     "all",
   );
 
-  // ─── Порционная догрузка реестра ──────────────────────────────────────────
-  // Первая порция (пагинальные строки) уже на экране — её отдал react-query.
-  // Дальше добираем до AUTOLOAD_ROWS в фоне, не блокируя список: папки, суммы
-  // и пул КБК считаются по загруженной части. Масштаб «Все» — явная просьба
-  // показать весь реестр, поэтому догружаем до конца. Пока порция в пути,
-  // новый запрос не отправляем (иначе они пойдут пачкой).
-  // Поиск по номеру тоже читает реестр целиком: искать запись за пределами
-  // первых ста строк — обычное дело, и пустой ответ по неполным данным врал бы
+  // Масштаб «Все» — явная просьба показать весь реестр, поэтому догружаем его
+  // до конца. Обычный режим начинается с одной порции: раньше реестр сам
+  // читался почти целиком (в том числе ради клиентского поиска), из-за чего
+  // первая отрисовка ждала нескольких запросов. Поиск теперь идёт на сервере.
   useEffect(() => {
-    if (!contractsHasMore || isFetchingNextPage) return;
-    if (
-      pageSize === "all" ||
-      contractsLoaded < AUTOLOAD_ROWS ||
-      query.trim() !== ""
-    ) {
-      void loadMore();
-    }
-  }, [
-    contractsHasMore,
-    isFetchingNextPage,
-    contractsLoaded,
-    pageSize,
-    query,
-    loadMore,
-  ]);
+    if (pageSize !== "all" || !contractsHasMore || isFetchingNextPage) return;
+    void loadAll();
+  }, [pageSize, contractsHasMore, isFetchingNextPage, loadAll]);
 
   // Выборка до фильтра по КБК: по ней же строим список доступных КБК,
   // чтобы в подсказках не оставался единственный уже выбранный код
@@ -445,7 +421,7 @@ export default function ContractRegistryPage() {
     // «ё» и регистр не различаем: номер вводят и копированием, и руками. Номер
     // контракта («17АН_26») есть только в карточке ЕИС, поэтому он берётся из
     // индекса исполнения — без него поиск по номеру находил пустой список
-    const needle = query.trim().toLowerCase().replace(/ё/g, "е");
+    const needle = debouncedQuery.trim().toLowerCase().replace(/ё/g, "е");
     if (needle) {
       result = result.filter((c) => {
         const cardNumber =
@@ -482,7 +458,7 @@ export default function ContractRegistryPage() {
     dateFrom,
     dateTo,
     supplierFilter,
-    query,
+    debouncedQuery,
     advanceFilter,
     // Поставщик может подставляться из карточки, поэтому фильтр зависит и от
     // индекса исполнения: без него клик по поставщику из ЕИС давал пусто
@@ -806,7 +782,7 @@ export default function ContractRegistryPage() {
     Boolean(dateTo) ||
     Boolean(supplierFilter) ||
     selectedKbks.length > 0 ||
-    Boolean(query.trim()) ||
+    Boolean(debouncedQuery.trim()) ||
     advanceFilter !== "all";
   const pagerRows =
     showAllFolders && !hasFilters

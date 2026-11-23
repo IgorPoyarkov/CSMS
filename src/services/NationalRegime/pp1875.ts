@@ -31,6 +31,14 @@ export const PP_1875_ACT_TITLE =
   "Постановление Правительства РФ от 23.12.2024 № 1875 (ред. от 17.10.2026)";
 export const PP_1875_EFFECTIVE_DATE = "2025-01-01";
 
+// Коды для выгрузки ограничений ст. 14 в ЕИС 17.0. Хранятся рядом с правилами
+// ПП РФ № 1875: `pp-1875` — внутренний идентификатор акта, `PP1875` и `JB2149`
+// — значения справочников nsiPurchasePreferences / IntegrationEPTypes.xsd.
+export const EIS_NATIONAL_REGIME_NPA_CODE = "PP1875";
+export const EIS_NATIONAL_REGIME_RESTRICTION_CODE = "JB2149";
+export const EIS_NATIONAL_REGIME_NPA_NAME =
+  "Постановление Правительства РФ от 23.12.2024 № 1875 «О мерах по предоставлению национального режима...»";
+
 export type NationalRegimeMode = "none" | "ban" | "restriction" | "advantage";
 export type NationalRegimeExpected = "ban" | "restriction" | null;
 

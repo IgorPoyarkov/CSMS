@@ -17,7 +17,8 @@ import {
   educationWarning,
   employeeFullName,
   getEducationStatus,
-} from "../../components/ContractService/contractService.config";
+} from "../ContractService/contractService.config";
+import { formatMoneyRu as formatMoneyText } from "../../shared/format";
 import type { OrganizationCustomer } from "../Organization/organization.schema";
 import type { BaseEmployee } from "../StaffingTable/StaffingTable.schema";
 import type { EmployeeEducation } from "../ContractService/education.schema";
@@ -290,12 +291,6 @@ export interface Order158nPeriodConfig {
   reportNumber?: string;
   reportDate?: string;
 }
-
-const formatMoneyText = (value: number): string =>
-  `${new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ₽`;
 
 const safeMoney = (value: string | number | undefined | null): number => {
   if (value === undefined || value === null || value === "") return 0;

@@ -15,7 +15,8 @@
 | `npm run dev`       | только фронтенд                                                   |
 | `npm run pg:server` | только PG-адаптер (:3002)                                         |
 | `npm run api`       | только csms-api (:5099, PostgreSQL, `EIS_STORE=postgres`)         |
-| `npm run build`     | `tsc -b`, проверка данных в PostgreSQL схемами и сборка в `dist/` |
+| `npm run build`     | `tsc -b` и сборка в `dist/` (без обращения к БД)                  |
+| `npm test`          | тесты скриптов и все проверки доменных правил (ПП, ЕИС, сроки)    |
 | `npm run check:db`  | smoke-проверка `contractRegistry` из PostgreSQL через zod         |
 | `npm run lint`      | линтер oxlint (в проекте используется он, не eslint)              |
 

@@ -15,6 +15,12 @@ import {
   buildPp2571EisRequirements,
 } from "../Pp2571/pp2571.schema";
 import type { Pp2571EisRequirement } from "../Pp2571/pp2571.schema";
+import { CRITERION_EIS_CODES } from "../Procurements/noticeInfo.config";
+import {
+  EIS_NATIONAL_REGIME_NPA_CODE,
+  EIS_NATIONAL_REGIME_NPA_NAME,
+  EIS_NATIONAL_REGIME_RESTRICTION_CODE,
+} from "../NationalRegime/pp1875";
 import type { ContractProject } from "../ContractProject/contractProject.schema";
 import {
   EIS_PACKET_DESCRIPTORS,
@@ -110,10 +116,20 @@ export const EIS_RESPONSIBLE_ROLE_LABELS: Record<EisResponsibleRole, string> = {
   CU5CH26: "CU5CH26 — Заказчик по п. 5 ч. 26 ст. 112 Закона № 44-ФЗ",
 };
 
-export const EIS_COST_CRITERION_CODES = ["CP", "MC", "TC", "EN"] as const;
+// Коды criteriaInfo (IntegrationEPTypes.xsd) задаются в конфиге извещения —
+// здесь только типизированные кортежи для XSD-перечислений.
+export const EIS_COST_CRITERION_CODES = [
+  CRITERION_EIS_CODES.price as "CP",
+  CRITERION_EIS_CODES.exploitation_expenses as "MC",
+  CRITERION_EIS_CODES.lifecycle_cost as "TC",
+  CRITERION_EIS_CODES.energy_service_expenses as "EN",
+] as const;
 export type EisCostCriterionCode = (typeof EIS_COST_CRITERION_CODES)[number];
 
-export const EIS_QUALITATIVE_CRITERION_CODES = ["QF", "QO"] as const;
+export const EIS_QUALITATIVE_CRITERION_CODES = [
+  CRITERION_EIS_CODES.qualitative_characteristics as "QF",
+  CRITERION_EIS_CODES.qualification as "QO",
+] as const;
 export type EisQualitativeCriterionCode =
   (typeof EIS_QUALITATIVE_CRITERION_CODES)[number];
 
@@ -681,18 +697,37 @@ export const mapCriterionTypeToEis17 = (
 } => {
   switch (type) {
     case "price":
-      return { group: "cost", code: "CP" };
+      return {
+        group: "cost",
+        code: CRITERION_EIS_CODES.price as EisCostCriterionCode,
+      };
     case "exploitation_expenses":
-      return { group: "cost", code: "MC" };
+      return {
+        group: "cost",
+        code: CRITERION_EIS_CODES.exploitation_expenses as EisCostCriterionCode,
+      };
     case "lifecycle_cost":
-      return { group: "cost", code: "TC" };
+      return {
+        group: "cost",
+        code: CRITERION_EIS_CODES.lifecycle_cost as EisCostCriterionCode,
+      };
     case "energy_service_expenses":
-      return { group: "cost", code: "EN" };
+      return {
+        group: "cost",
+        code: CRITERION_EIS_CODES.energy_service_expenses as EisCostCriterionCode,
+      };
     case "qualification":
-      return { group: "qualitative", code: "QO" };
+      return {
+        group: "qualitative",
+        code: CRITERION_EIS_CODES.qualification as EisQualitativeCriterionCode,
+      };
     case "qualitative_characteristics":
     default:
-      return { group: "qualitative", code: "QF" };
+      return {
+        group: "qualitative",
+        code: CRITERION_EIS_CODES
+          .qualitative_characteristics as EisQualitativeCriterionCode,
+      };
   }
 };
 
@@ -1018,8 +1053,8 @@ export const mapPurchasePlanToEis17 = (
 const EIS_PREFERENCE_SMP = "P3";
 const EIS_PREFERENCE_PENAL = "P1";
 const EIS_PREFERENCE_DISABLED = "P2";
-// Ограничение национального режима: запрет/ограничение допуска (ст. 14)
-const EIS_RESTRICTION_ST14 = "JB2149";
+// Ограничение национального режима (ст. 14) задаётся в правилах ПП РФ № 1875,
+// чтобы код выгрузки не расходился с проверкой ОКПД2.
 
 interface NoticePreferencesMapping {
   preferensesInfo: EisNotification2020["notificationInfo"]["preferensesInfo"];
@@ -1123,16 +1158,15 @@ const mapNoticePreferences = (
     notice.purchaseObjects.items.map((item) => item.nationalRegimeType),
   );
   const npa = {
-    npaCode: "PP1875",
-    npaName:
-      "Постановление Правительства РФ от 23.12.2024 № 1875 «О мерах по предоставлению национального режима...»",
+    npaCode: EIS_NATIONAL_REGIME_NPA_CODE,
+    npaName: EIS_NATIONAL_REGIME_NPA_NAME,
   };
   if (modes.has("ban")) {
     const banItem = notice.purchaseObjects.items.find(
       (item) => item.nationalRegimeType === "ban",
     );
     restrictionsInfo.push({
-      code: EIS_RESTRICTION_ST14,
+      code: EIS_NATIONAL_REGIME_RESTRICTION_CODE,
       name: "Запрет на допуск товаров, работ, услуг (ст. 14)",
       content:
         banItem?.imposibilityBanReason ||
@@ -1149,7 +1183,7 @@ const mapNoticePreferences = (
   }
   if (modes.has("restriction")) {
     restrictionsInfo.push({
-      code: EIS_RESTRICTION_ST14,
+      code: EIS_NATIONAL_REGIME_RESTRICTION_CODE,
       name: "Ограничение допуска товаров, работ, услуг (ст. 14)",
       content:
         "Ограничение допуска товаров, работ, услуг при осуществлении закупок",

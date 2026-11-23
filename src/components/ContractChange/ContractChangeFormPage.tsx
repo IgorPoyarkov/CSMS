@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
@@ -61,12 +61,53 @@ export default function ContractChangeFormPage() {
   const updateMutation = useUpdateContractChange();
   const validateMutation = useValidateContractChange();
 
-  const [form, setForm] = useState<ContractChangeFormState>(
-    emptyContractChangeForm,
-  );
   const [errors, setErrors] = useState<FormErrors>({});
   const [serverIssues, setServerIssues] = useState<ContractChangeIssue[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Как и в форме приёмки: снимок из API или контракт из параметра URL —
+  // источник, правки пользователя — слой сверху. Смена источника сбрасывает
+  // правки во время рендера, без эффекта с setState.
+  const presetContractId = isEdit ? null : searchParams.get("contractId");
+  const presetContract = useMemo(
+    () =>
+      presetContractId
+        ? (contracts.find((item) => String(item.id) === presetContractId) ?? null)
+        : null,
+    [contracts, presetContractId],
+  );
+  const initialForm = useMemo(
+    () =>
+      existing
+        ? contractChangeFormFrom(existing.input)
+        : presetContract
+          ? { ...emptyContractChangeForm(), ...snapshotOf(presetContract) }
+          : emptyContractChangeForm(),
+    [existing, presetContract],
+  );
+  const [formState, setFormState] = useState<{
+    source: ContractChangeFormState;
+    edits: Partial<ContractChangeFormState>;
+  }>(() => ({ source: initialForm, edits: {} }));
+
+  if (formState.source !== initialForm) {
+    setFormState({ source: initialForm, edits: {} });
+  }
+
+  const form = { ...formState.source, ...formState.edits };
+  const setForm = (
+    next:
+      | ContractChangeFormState
+      | ((prev: ContractChangeFormState) => ContractChangeFormState),
+  ) => {
+    setFormState((current) => {
+      const currentForm = { ...current.source, ...current.edits };
+      return {
+        source: current.source,
+        edits: typeof next === "function" ? next(currentForm) : next,
+      };
+    });
+  };
 
   const basisOptions = useMemo(
     () => bases.filter((basis) => basis.kind === form.kind),
@@ -82,27 +123,6 @@ export default function ContractChangeFormPage() {
     () => contracts.find((item) => String(item.id) === form.contractId),
     [contracts, form.contractId],
   );
-
-  // Редактирование: форма заполняется уже сохранённым снимком, а не текущей
-  // карточкой реестра — иначе правка молча переписала бы историю.
-  useEffect(() => {
-    if (existing) {
-      setForm(contractChangeFormFrom(existing.input));
-    }
-  }, [existing]);
-
-  // Создание из карточки контракта: /contract-changes/new?contractId=...
-  useEffect(() => {
-    if (isEdit || !contracts.length) return;
-
-    const preset = searchParams.get("contractId");
-    if (!preset) return;
-
-    const found = contracts.find((item) => String(item.id) === preset);
-    if (found) {
-      setForm((current) => ({ ...current, ...snapshotOf(found) }));
-    }
-  }, [contracts, isEdit, searchParams]);
 
   const setField = <K extends keyof ContractChangeFormState>(
     key: K,
