@@ -6282,4 +6282,39 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   `kilo.jsonc.bak-20261123`. `kilo.exe models` подтверждает наличие
   `ollama/...`. Облачная часть Kilo остаётся неавторизованной (403 из
   `api.kilo.ai`), но для работы с локальной моделью она не нужна. DeepSeek
-  присутствует только в каталоге SourceCraft, в Cline/Kilo его нет.
+  реально используется в **Cline**, а не только в каталоге SourceCraft (§157).
+
+## 157. Cline/DeepSeek: разбор списаний и локальная модель (2026-11-23)
+
+- **Источник списаний.** Фактические plan/act-провайдер Cline живут не в
+  `settings.json` VS Code, а в `C:\Users\liven\.cline\data\globalState.json`:
+  `planModeApiProvider = actModeApiProvider = deepseek`,
+  `…ModelId = deepseek-v4-flash`. Переключение 20.11 в 19:59. Сессия с
+  `cwd = d:\Свои проекты\CSMS\csms` висела в `status: "running"` до удаления
+  пользователем; это была обычная активная работа, а не «зависший» агент —
+  неверную формулировку исправили.
+- **Ключи.** В отчёте `amount-2026-10-25_2026-11-23.csv` два ключа, оба
+  пользовательские: `PoyarkovIgor / sk-438d7…55a3` (4000 запросов, $3,454818)
+  и `Поярков Игорь Николаевич / sk-5d2e2…4368` (1 запрос, $0,001235). Кражи
+  нет. `secrets.json` Cline не светить: там же лежит GitHub PAT.
+- **Куда ушли деньги.** За 20–23.11: 4001 запрос, $3,456053. Разбивка по
+  токенам: cache hit 326 548 608 × $0,000000003 = $0,98; cache miss 7 775 979
+  × $0,00000015 = $1,17; output 2 181 292 × $0,0000006 = $1,31. Кэш работает
+  (в 42 раза дешевле miss), душить его не надо. Основной рычаг — число шагов:
+  `autoApprovalSettings.enabled = true`, `maxRequests = 20`, включены
+  `executeAllCommands`, `readFilesExternally`, `editFilesExternally`, `useBrowser`,
+  `useMcp`, `enableNotifications = false`. Рекомендация: maxRequests 5–10,
+  оставить только безопасные команды и только рабочую папку, включить
+  уведомления; при необходимости разделить Plan (локальная Ollama) и Act
+  (DeepSeek). Лимит расходов в кабинете DeepSeek — единственная надёжная
+  страховка.
+- **Ollama: обход недоступного registry.** `registry.ollama.ai` не отвечает
+  (`TLS handshake timeout`): не помогли ни `GODEBUG=tlsmlkem=0` (ни в CLI, ни
+  при перезапуске сервиса), ни `--resolve` на чужие IP. Зато доступен
+  `huggingface.co`. Модель скачана оттуда
+  (`bartowski/Qwen2.5-7B-Instruct-GGUF`, файл
+  `Qwen2.5-7B-Instruct-Q4_K_M.gguf`, ~4,7 ГБ) и импортирована через
+  `Modelfile` с `PARAMETER num_ctx 32768` под точным именем
+  `qwen2.5:7b-instruct-q4_K_M`. `ollama list` подтверждает. Временные файлы —
+  в `%TEMP%\opencode`, удалять после успешного импорта.
+
