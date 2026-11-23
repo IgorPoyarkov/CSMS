@@ -175,3 +175,25 @@ test("ручное переопределение раздела учитыва�
   const requirement = result.requirements.find((item) => item.id === "subject-essential");
   assert.equal(requirement.status, "overridden");
 });
+
+test("оговорка в норме помечает условие как рекомендацию, а не жёсткое требование", () => {
+  const result = buildContractRequirements(
+    projectWith({
+      subject: { objectName: "Ремонт помещения", description: "Капитальный ремонт" },
+    }),
+    snapshot,
+  );
+  const worksResult = result.requirements.find((item) => item.id === "works-result");
+  assert.equal(worksResult.normKind, "mixed");
+  const qualifier = worksResult.qualifierNotes.find((note) => note.reference === "gk2:703");
+  assert.ok(qualifier, "в ст. 703 ГК должна быть найдена оговорка");
+  assert.match(qualifier.quote, /если иное не предусмотрено/i);
+
+  const subjectEssential = result.requirements.find((item) => item.id === "subject-essential");
+  assert.equal(subjectEssential.normKind, "imperative");
+  assert.deepEqual(subjectEssential.qualifierNotes, []);
+  assert.ok(
+    result.requirements.some((item) => item.normKind === "dispositive"),
+    "условие только из диспозитивной нормы должно быть помечено",
+  );
+});

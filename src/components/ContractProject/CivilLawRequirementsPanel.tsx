@@ -166,6 +166,16 @@ export default function CivilLawRequirementsPanel({
                   >
                     {CIVIL_STATUS_LABELS[item.status] ?? item.status}
                   </span>
+                  {(item.normKind === "dispositive" || item.normKind === "mixed") && (
+                    <span
+                      className={`${styles.badge} ${styles.badgeRecommendation}`}
+                      title={item.qualifierNotes
+                        .map((note) => `${note.reference}: ${note.quote}`)
+                        .join("\n")}
+                    >
+                      рекомендация{item.normKind === "mixed" ? " (часть)" : ""}
+                    </span>
+                  )}
                   <button
                     type="button"
                     className={styles.link}

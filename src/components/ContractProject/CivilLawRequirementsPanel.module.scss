@@ -179,6 +179,11 @@
     color: var(--accent);
   }
 
+  &.badgeRecommendation {
+    border-color: var(--state-warning);
+    color: var(--state-warning);
+  }
+
   &.status-filled {
     background: var(--state-success-soft);
     border-color: var(--state-success);

@@ -827,14 +827,27 @@ export function buildContractRequirements(project, snapshot) {
       .map((quote) => {
         const meta = articleMeta(snapshot, quote.reference);
         if (!meta?.text) return null;
+        // Оговорка в статье делает условие рекомендацией, а не жёстким требованием.
+        const qualifiers = findNormQualifiers(meta.text);
         return {
           reference: quote.reference,
           quote: paragraphByNumber(meta.text, quote.paragraph),
           sourceUrl: meta.url,
           textSha256: meta.textSha256,
+          normKind: qualifiers.length ? "dispositive" : "imperative",
+          qualifiers,
         };
       })
       .filter(Boolean);
+    const dispositiveQuotes = quotes.filter((quote) => quote.qualifiers.length);
+    const normKind =
+      quotes.length === 0
+        ? "unknown"
+        : dispositiveQuotes.length === quotes.length
+          ? "dispositive"
+          : dispositiveQuotes.length > 0
+            ? "mixed"
+            : "imperative";
     return {
       id: item.id,
       title: item.title,
@@ -846,6 +859,11 @@ export function buildContractRequirements(project, snapshot) {
       missingPaths: item.paths.filter((path) => !filled.includes(path)),
       status,
       quotes,
+      normKind,
+      qualifierNotes: dispositiveQuotes.map((quote) => ({
+        reference: quote.reference,
+        quote: quote.qualifiers[0],
+      })),
       articleRefs: item.quotes.map((quote) => quote.reference),
     };
   });

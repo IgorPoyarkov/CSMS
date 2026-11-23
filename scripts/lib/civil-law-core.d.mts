@@ -61,6 +61,8 @@ export interface CivilRequirementQuote {
   quote: string;
   sourceUrl: string;
   textSha256: string;
+  normKind: "imperative" | "dispositive";
+  qualifiers: string[];
 }
 
 export interface CivilRequirement {
@@ -74,6 +76,9 @@ export interface CivilRequirement {
   missingPaths: string[];
   status: "filled" | "partial" | "missing" | "overridden";
   quotes: CivilRequirementQuote[];
+  /** imperative — жёсткое требование; dispositive/mixed — есть оговорка «иное по договорённости». */
+  normKind: "imperative" | "dispositive" | "mixed" | "unknown";
+  qualifierNotes: Array<{ reference: string; quote: string }>;
   articleRefs: string[];
 }
 
@@ -128,6 +133,7 @@ export const CIVIL_CONTRACT_REQUIREMENTS: ReadonlyArray<{
 
 export function articleText(snapshot: CivilSnapshot, reference: string): string | null;
 export function classifyNormKind(text: string): string;
+export function findNormQualifiers(text: string): string[];
 export function okpd2Signal(code: string | number | null | undefined): {
   kind: string;
   confidence: number;
