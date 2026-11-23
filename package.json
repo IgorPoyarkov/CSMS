@@ -13,6 +13,7 @@
     "check:pp2604": "rolldown scripts/check-pp2604-rules.ts --format esm --platform node --file .tmpcheck/check-pp2604-rules.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-pp2604-rules.mjs",
     "check:pp2571": "rolldown scripts/check-pp2571.ts --format esm --platform node --file .tmpcheck/check-pp2571.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-pp2571.mjs",
     "check:eis17-criteria": "rolldown scripts/check-eis17-criteria.ts --format esm --platform node --file .tmpcheck/check-eis17-criteria.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-eis17-criteria.mjs",
+    "check:eis-packages": "rolldown scripts/check-eis-packages.ts --format esm --platform node --file .tmpcheck/check-eis-packages.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-eis-packages.mjs",
     "check:841": "node scripts/check-order-841.mjs",
     "check:estimates": "rolldown scripts/check-estimate-chain.ts --format esm --platform node --file .tmpcheck/check-estimate-chain.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/check-estimate-chain.mjs",
     "export:pp2604-seed": "rolldown scripts/export-pp2604-seed.ts --format esm --platform node --file .tmpcheck/export-pp2604-seed.mjs --logLevel silent --transform.define \"import.meta.env:{}\" && node .tmpcheck/export-pp2604-seed.mjs",

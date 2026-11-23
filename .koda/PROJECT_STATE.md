@@ -17,6 +17,14 @@
 > Также 2026-11-23: в «пилюле» профиля в шапке остался только аватар — ФИО и
 > должность переехали шапкой открытого меню, порог компактной шапки поднят до
 > 1120px, чтобы профиль не перекрывал переключатель темы — §159.
+> Также 2026-11-23: вложения извещения и проекта контракта выгружаются в XML по
+> Альбому 17.0 (`attachmentsInfo`/`attachmentWithKindType`,
+> `contractProjectFilesInfo`/`contractProjectFileType`) с общими проверками
+> `src/services/Eis/eisAttachments.ts`; в `commonInfo` исправлены порядок
+> элементов и choice `isGOZ`/`notPublishedOnEIS`; пакеты несут `attachments`,
+> `validationErrors`, `regNumberExecution`; `ContractExecution` собирает шлюз из
+> принятой приёмки (`POST /api/acceptances/{id}/eis-package`), в цепочке
+> появились звенья приёмки и оплаты и сводка сведения исполнения — §170.
 > Также 2026-11-23: визитка по-прежнему открывается первой в новой вкладке, но
 > метка в sessionStorage разрешает переход на сайт без зацикливания — §160;
 > LLM-валидатор различает подлинную цитату и связь условия с ней — §161.
@@ -6936,3 +6944,73 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   в `src` — это слова в комментариях, правил не осталось (проверяется
   `Select-String -Pattern '^\s*@import'`).
 
+## 170. Вложения ЕИС и звенья исполнения в цепочке (2026-11-23, Агент 3)
+
+Задача: сквозная передача XML/пакетов ЕИС фронт → бэк → ЕИС, включая вложения
+извещения и контур исполнения. Зона: `src/services/Eis/**`, `src/components/Eis/**`.
+
+- **Общая модель вложений — `src/services/Eis/eisAttachments.ts` (новый).**
+  Модель `EisAttachment`, проверки `eisAttachmentIssues`, XML-сборщики
+  `buildEisAttachmentsInfoXml` / `buildEisContractProjectFilesXml`. Уровни
+  проверок: ошибка — нет имени файла, дубликаты имён (ЕИС сверяет по имени),
+  нет содержимого (`content`/`contentId`/`url`), файл только в нашем хранилище
+  (`storageRef`), превышены пределы `base:fileNameType`/`text4000Type`;
+  предупреждение — нет размера/отпечатка (ЕИС считает сама), нет кода вида
+  документа (`docKindInfo` — поля в модели извещения пока нет), файл уже
+  опубликован, но `contentId` не сохранён.
+- **Структура взята из `csms-api/schemas/17.0`, а не по памяти:**
+  `attachmentWithKindType` (`CommonTypes.xsd`: publishedContentId?, fileName,
+  fileSize?, docDescription?, docDate?, choice(url|contentId|content),
+  **docKindInfo**, cryptoSigns?) и `contractProjectFileType`
+  (`IntegrationCPTypes.xsd`: fileName, docDescription?, choice, fileSize?,
+  fileFingerPrint?). Отпечатка в извещении нет — только у файлов контракта;
+  `docDescription`, а не `description`.
+- **Извещение.** `EisNotification2020.attachments` (блок уровня документа:
+  после `extPrintFormInfo`, до `notificationInfo`) + `noticeAttachmentsOf`
+  читает `fileName/description/fileSize/sha256|fingerprint/storageRef/url/status`
+  модели Агента 2 «мягко» (когда появится `docKindCode` — попадёт в XML без правок).
+  Исправлены нарушения XSD в `buildNotification2020XmlPreview`: `commonInfo`
+  выводится в порядке `notification2020CommonInfoType`, `isGOZ` и
+  `notPublishedOnEIS` — **choice**, только один; `purchaseObjectInfo` перенесён
+  после `ETP` (расширение `notification2020Type`); `article15FeaturesInfo` вместо
+  несуществующего `article15Features`; `responsibleOrgInfo` вместо
+  `responsibleOrg` и перед `responsibleRole`; добавлены `publishDTInEIS`/`href`.
+- **Проект контракта.** Файлы идут через общий сборщик (`contractProjectFilesInfo`),
+  `docDescription` вместо `description`, добавлен `choice` (content/contentId/url),
+  при `isStructuredForm = true` блок не выводится (ЕИС его игнорирует).
+- **Пакеты.** `eisPackageSchema` расширена `attachments`, `validationErrors`
+  (отказ шлюза до отправки — отдельно от `flkErrors`), `regNumberExecution`
+  (все — tolerant: `nullish().transform`). Появились
+  `EIS_DOCUMENT_TYPES_WITH_DOMAIN_BUILD` (`ContractExecution`) и
+  `EIS_DOCUMENT_TYPES_PLACEHOLDER_ONLY` (`SmpAttraction`). Новые хуки
+  `useCreateAcceptanceEisPackage` (`POST /api/acceptances/{id}/eis-package`) и
+  `useCreateContractCancelEisPackage` (`POST /api/contract-changes/{id}/eis-package`).
+- **UI.** `EisPackagesPage`: для `ContractExecution` выбирается принятая приёмка
+  (+ код вида документа `nsiEPDocTypes` — вводится человеком, не подставляется),
+  номера берутся из приёмки; для `SmpAttraction` — честное пояснение про
+  placeholder и CSV. `EisPackageCard`: вложения (размер/вид/отпечаток), ошибки
+  проверки шлюза, `regNumberExecution`, явное «файл обмена vs черновик».
+- **Цепочка.** `EIS_CHAIN_STAGES` = plan → notice → contract → **acceptance →
+  payment** → smp; `EisChain.execution` (`EisChainExecutionSummary`): принятые
+  приёмки и сумма, платежи, `withoutRegNumberExecution`, пакеты ФЛК/не принятые/
+  в работе, флаг `reconciled`. Разрывы: `acceptance.missing/not_accepted`,
+  `payment.missing/no_reg_number`, `execution.flk_rejected` (error),
+  `execution.validation_failed`, `execution.pending`. Источники
+  (`acceptances/payments/packages`) необязательны — без шлюза цепочка строится.
+- **Карта покрытия.** Убрана фиктивная строка `attachedDocs → attachments`
+  (`mapped` без маппинга): теперь `attachmentsInfo/attachmentInfo` + строки по
+  fileName/docDescription/fileSize, `missing` по `docKindInfo/code`, `partial`
+  по `url|contentId|content`; `eisInfo.contractProjectFiles` переведена в
+  `partial` (нет `choice`) + строка по `fileFingerPrint`; в заметках зафиксированы
+  choice `isGOZ`/`notPublishedOnEIS` и маппер приёмки Б7 в csms-api.
+- **Проверки.** `npx tsc -b` — 0; `npx oxlint src/services/Eis src/components/Eis
+  scripts/check-eis-packages.ts` — 0/0; `npx vite build` — exit 0; новый
+  `npm run check:eis-packages` (`scripts/check-eis-packages.ts`, rolldown) —
+  проверки вложений, порядок элементов XML и звенья исполнения. Живая проверка
+  на 183 извещениях базы: `attachmentsInfo` между `commonInfo` и `notificationInfo`,
+  `docDescription`/`url`/`docKindInfo` на месте, оба флага `isGOZ`/
+  `notPublishedOnEIS` больше не выводятся одновременно.
+- **Открытый вопрос (Агент 2):** в модели `NoticeAttachment` нет кода вида
+  документа (`nsiEPDocTypes`), поэтому вложение извещения пока не может пройти
+  ФЛК ЕИС; сейчас это предупреждение, а не блокировка. Нужен либо код в модели,
+  либо согласованное соответствие категория → код.

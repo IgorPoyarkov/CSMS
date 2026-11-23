@@ -64,9 +64,10 @@ export const describeEisError = (error: unknown): string => {
   return String(error);
 };
 
-export const useEisPackages = () =>
+export const useEisPackages = (options: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: eisPackagesQueryKey,
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const { data } = await eisApi.get("/api/eis/packages");
 
@@ -106,6 +107,106 @@ export const useCreateEisPackage = () => {
       // ссылка на источник должны падать здесь, с понятным текстом
       const body = createEisPackageInputSchema.parse(input);
       const { data } = await eisApi.post("/api/eis/packages", body);
+
+      return eisPackageSchema.parse(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eisPackagesQueryKey });
+    },
+  });
+};
+
+/**
+ * Пакет по принятому документу о приёмке (электронное актирование).
+ *
+ * Фронт не собирает XML: шлюз берёт документ из своей базы по id, проверяет
+ * статус (`accepted` / `acceptedWithDiscrepancies` / `registeredInEis`),
+ * маппит в `contractExecutionDocAcceptanceType` и валидирует по XSD 17.0.
+ * Поэтому здесь только ссылка на документ и справочные коды, которых в домене
+ * актирования нет.
+ */
+export interface CreateAcceptancePackageInput {
+  acceptanceId: string;
+  /**
+   * Код вида документа из справочника ЕИС (`nsiEPDocTypes`).
+   *
+   * Не подставляем константой: выдуманный код ЕИС отклонит. Значение берётся
+   * из справочника и передаётся человеком или интеграцией.
+   */
+  documentTypeCode: string;
+  mode?: "PROD" | "TEST";
+  sender?: string;
+  receiver?: string;
+  /** Код СПЗ заказчика для organizationType/regNum. */
+  customerSpzRegNum?: string;
+  /** Дата приёмки, если она отличается от даты документа. */
+  deliveryAcceptDate?: string;
+  /** Ставки НДС домена → коды nsiVAT. */
+  vatCodes?: Array<{ rate: number; code: string }>;
+}
+
+export const useCreateAcceptanceEisPackage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      acceptanceId,
+      documentTypeCode,
+      mode,
+      sender,
+      receiver,
+      customerSpzRegNum,
+      deliveryAcceptDate,
+      vatCodes,
+    }: CreateAcceptancePackageInput) => {
+      const { data } = await eisApi.post(
+        `/api/acceptances/${acceptanceId}/eis-package`,
+        {
+          documentTypeCode,
+          mode,
+          sender,
+          receiver,
+          customerSpzRegNum,
+          deliveryAcceptDate,
+          vatCodes,
+        },
+      );
+
+      return eisPackageSchema.parse(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: eisPackagesQueryKey });
+    },
+  });
+};
+
+/**
+ * Пакет `contractCancel` по расторжению контракта.
+ *
+ * Домен изменения/расторжения готов (`contract_changes`), XML собирает шлюз:
+ * здесь передаём только идентификатор записи и реквизиты обмена.
+ */
+export interface CreateContractCancelPackageInput {
+  contractChangeId: string;
+  mode?: "PROD" | "TEST";
+  sender?: string;
+  receiver?: string;
+}
+
+export const useCreateContractCancelEisPackage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      contractChangeId,
+      mode,
+      sender,
+      receiver,
+    }: CreateContractCancelPackageInput) => {
+      const { data } = await eisApi.post(
+        `/api/contract-changes/${contractChangeId}/eis-package`,
+        { mode, sender, receiver },
+      );
 
       return eisPackageSchema.parse(data);
     },

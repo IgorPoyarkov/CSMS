@@ -21,6 +21,14 @@ import {
   buildEisPacket,
   escapeXml,
 } from "./eisPacket";
+import {
+  buildEisAttachmentsInfoXml,
+  buildEisContractProjectFilesXml,
+  eisAttachmentIssues,
+  hasEisAttachmentContent,
+  normalizeEisAttachments,
+  type EisAttachment,
+} from "./eisAttachments";
 
 /**
  * Контракты ЕИС 17.0 (из XSD-схем CSMS-API: schemas/17.0).
@@ -604,6 +612,15 @@ export interface EisNotification2020 {
     reasonName?: string;
     addInfo?: string;
   };
+  /**
+   * `attachmentsInfo` — вложения извещения.
+   *
+   * В XSD 17.0 блок стоит на уровне документа: в `notification2020Type` он идёт
+   * после `extPrintFormInfo` и до `notificationInfo`, а не внутри
+   * `notificationInfo`. Каждое вложение — `attachmentWithKindType`, поэтому у
+   * него обязателен `docKindInfo/code` из справочника `nsiEPDocTypes`.
+   */
+  attachments: EisAttachment[];
   serviceSigns: {
     isIncludeKOKS: boolean;
     isControlP1Ch5St99: boolean;
@@ -1194,6 +1211,52 @@ export const mapNoticeCriteriaToEis17 = (
 };
 
 /**
+ * Вложения извещения → модель пакета.
+ *
+ * Модель извещения (зона документов) после §«вложения извещения» хранит
+ * `fileSize`, `sha256`/`fingerprint`, `storageRef`, `url` и статус. Код вида
+ * документа (`docKindCode`) и содержимое в base64 читаем «мягко»: когда они
+ * появятся в модели, они попадут в XML без правок здесь.
+ *
+ * Код вида документа по категории не подставляем: ЕИС сверяет его со
+ * справочником `nsiEPDocTypes`, и выдуманное значение она отклонит. Пока кода
+ * нет — проверка говорит об этом прямо, а не отправляет вложение «наугад».
+ */
+const noticeAttachmentsOf = (notice: NoticeInfoFormValues): EisAttachment[] => {
+  const source = (notice.attachedDocs ??
+    []) as ReadonlyArray<
+    NoticeInfoFormValues["attachedDocs"][number] & {
+      fileSize?: number;
+      fingerprint?: string;
+      sha256?: string;
+      storageRef?: string;
+      url?: string;
+      contentId?: string;
+      docKindCode?: string;
+      docKindName?: string;
+      status?: string;
+    }
+  >;
+
+  return normalizeEisAttachments(
+    source.map((doc) => ({
+      id: doc.id,
+      fileName: doc.fileName,
+      description: doc.description,
+      fileSize: doc.fileSize,
+      // sha256 — старший признак контроля версии, fingerprint — облегчённый
+      fileFingerPrint: doc.sha256 || doc.fingerprint,
+      storageRef: doc.storageRef,
+      url: doc.url,
+      contentId: doc.contentId,
+      docKindCode: doc.docKindCode,
+      docKindName: doc.docKindName,
+      publishedInEis: doc.status === "published",
+    })),
+  );
+};
+
+/**
  * Преобразует извещение фронтенда в структуру notification2020Type (ЕИС 17.0).
  */
 export const mapNoticeInfoToEis17 = (
@@ -1510,6 +1573,7 @@ export const mapNoticeInfoToEis17 = (
             addInfo: notice.cancelReasonInfo?.addInfo,
           }
         : undefined,
+    attachments: noticeAttachmentsOf(notice),
     serviceSigns: {
       isIncludeKOKS: Boolean(notice.serviceSigns?.isIncludeKOKS),
       isControlP1Ch5St99: Boolean(notice.serviceSigns?.isControlP1Ch5St99),
@@ -2405,6 +2469,19 @@ export const validateNoticeInfoEis17 = (
     });
   }
 
+  // Состав вложений важнее категории: файл без имени, без кода вида документа
+  // и без самого файла ЕИС отклонит, даже если раздел 2 заполнен.
+  eisAttachmentIssues(dto.attachments, {
+    requireDocKind: true,
+    requireContent: true,
+  }).forEach((item) => {
+    issues.push({
+      severity: item.severity,
+      field: item.field ?? "attachedDocs",
+      message: `${item.fileName}: ${item.message}`,
+    });
+  });
+
   // ПП РФ № 2604: критерии оценки, пределы значимости приложения № 2
   issues.push(
     ...validateNoticeCriteria2604(dto.notificationInfo.criteriaInfo, {
@@ -3206,28 +3283,49 @@ ${dto.notificationInfo.restrictionsInfo
     : "";
 
   // Тело документа без корня: имя пакета, namespace и schemeVersion добавляет
-  // оболочка (eisPacket.ts), иначе XML не пройдёт XSD-проверку
+  // оболочка (eisPacket.ts), иначе XML не пройдёт XSD-проверку.
+  //
+  // Порядок детей commonInfo — по `notification2020CommonInfoType`: реквизиты
+  // публикации, затем choice(isGOZ | notPublishedOnEIS), затем placingWay и ETP,
+  // и только после них purchaseObjectInfo из расширения notification2020Type.
+  // Оба флага одновременно XSD не допускает: закупка либо идёт по гособоронзаказу,
+  // либо не публикуется на портале.
+  const publicationFlagXml = dto.commonInfo.notPublishedOnEIS
+    ? "<notPublishedOnEIS>true</notPublishedOnEIS>"
+    : dto.commonInfo.isGOZ
+      ? "<isGOZ>true</isGOZ>"
+      : "";
+  const article15XmlValue =
+    dto.commonInfo.article15Features ?? dto.commonInfo.article15Part;
+  // Вложения извещения: блок уровня документа, после печатных форм и до
+  // notificationInfo. Пустой блок не выводим — его ЕИС тоже отклонит.
+  const attachmentsXml = buildEisAttachmentsInfoXml(dto.attachments, "  ");
+
   const bodyXml = `
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
   <versionNumber>${dto.versionNumber}</versionNumber>
   <commonInfo>
     ${dto.commonInfo.purchaseNumber ? `<purchaseNumber>${escapeXml(dto.commonInfo.purchaseNumber)}</purchaseNumber>` : ""}
+    ${dto.commonInfo.directDT ? `<directDT>${escapeXml(dto.commonInfo.directDT)}</directDT>` : ""}
     <plannedPublishDate>${escapeXml(dto.commonInfo.plannedPublishDate)}</plannedPublishDate>
-    <purchaseObjectInfo>${escapeXml(dto.commonInfo.purchaseObjectInfo)}</purchaseObjectInfo>
+    ${dto.commonInfo.publishDTInEIS ? `<publishDTInEIS>${escapeXml(dto.commonInfo.publishDTInEIS)}</publishDTInEIS>` : ""}
+    ${dto.commonInfo.href ? `<href>${escapeXml(dto.commonInfo.href)}</href>` : ""}
+    ${publicationFlagXml}
     <placingWay><code>${escapeXml(dto.commonInfo.placingWayCode)}</code></placingWay>
     <ETP><name>${escapeXml(dto.commonInfo.etpName)}</name><url>${escapeXml(dto.commonInfo.etpUrl)}</url></ETP>
-    ${dto.commonInfo.article15Features ? `<article15Features>${dto.commonInfo.article15Features}</article15Features>` : ""}
-    <isGOZ>${dto.commonInfo.isGOZ}</isGOZ>
-    <notPublishedOnEIS>${dto.commonInfo.notPublishedOnEIS}</notPublishedOnEIS>
+    ${article15XmlValue ? `<article15FeaturesInfo>${escapeXml(article15XmlValue)}</article15FeaturesInfo>` : ""}
+    ${dto.commonInfo.isBudgetUnionState ? "<isBudgetUnionState>true</isBudgetUnionState>" : ""}
+    <purchaseObjectInfo>${escapeXml(dto.commonInfo.purchaseObjectInfo)}</purchaseObjectInfo>
   </commonInfo>
   <purchaseResponsibleInfo>
+    <responsibleOrgInfo><fullName>${escapeXml(dto.purchaseResponsibleInfo.responsibleOrgName)}</fullName></responsibleOrgInfo>
     <responsibleRole>${dto.purchaseResponsibleInfo.responsibleRole}</responsibleRole>
-    <responsibleOrg><fullName>${escapeXml(dto.purchaseResponsibleInfo.responsibleOrgName)}</fullName></responsibleOrg>
     <responsibleInfo>
       <contactEMail>${escapeXml(dto.purchaseResponsibleInfo.contactEmail)}</contactEMail>
       <contactPhone>${escapeXml(dto.purchaseResponsibleInfo.contactPhone)}</contactPhone>
     </responsibleInfo>
   </purchaseResponsibleInfo>
+${attachmentsXml}
   <notificationInfo>
     <customerRequirementsInfo>
       <customerRequirementInfo>
@@ -3356,18 +3454,53 @@ export interface EisContractProject2020 {
   conclusionContractSt95Ch17_1: boolean;
   isContractPriceFormula: boolean;
   appNumber?: string;
-  files: Array<{
-    fileName: string;
-    description?: string;
-    fileSize?: number;
-    fileFingerPrint?: string;
-  }>;
+  /**
+   * Файлы проекта контракта (`contractProjectFilesInfo`).
+   *
+   * Тип — общая модель вложений (`contractProjectFileType` = `fileType` +
+   * `fileSize?` + `fileFingerPrint?`). Содержимое файла приходит из файлового
+   * хранилища шлюза: во фронтовой модели контракта байтов нет.
+   */
+  files: EisAttachment[];
 }
 
 const positiveNumber = (value?: string): number | undefined => {
   const parsed = Number.parseFloat(value ?? "");
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
+
+/**
+ * Файлы проекта контракта → общая модель вложений.
+ *
+ * `contentId`/`url`/`content` в модели контракта пока нет: содержимое файла
+ * живёт в хранилище шлюза. Читаем их «мягко», чтобы после появления поля
+ * верное содержимое `choice` в XML получилось без правок здесь.
+ */
+const contractProjectAttachmentsOf = (
+  files:
+    | ReadonlyArray<{
+        fileName: string;
+        description?: string;
+        fileSize?: number;
+        fileFingerPrint?: string;
+        contentId?: string;
+        url?: string;
+        contentBase64?: string;
+      }>
+    | null
+    | undefined,
+): EisAttachment[] =>
+  normalizeEisAttachments(
+    (files ?? []).map((file) => ({
+      fileName: file.fileName,
+      description: file.description,
+      fileSize: file.fileSize,
+      fileFingerPrint: file.fileFingerPrint,
+      contentId: file.contentId,
+      url: file.url,
+      contentBase64: file.contentBase64,
+    })),
+  );
 
 /**
  * Проект контракта → DTO contractProjectType (ЕИС 17.0).
@@ -3435,12 +3568,7 @@ export const mapContractProjectToEis17 = (
     conclusionContractSt95Ch17_1: Boolean(info.conclusionContractSt95Ch17_1),
     isContractPriceFormula: Boolean(info.isContractPriceFormula),
     appNumber: info.appNumber || undefined,
-    files: (info.contractProjectFiles ?? []).map((file) => ({
-      fileName: file.fileName,
-      description: file.description || undefined,
-      fileSize: file.fileSize,
-      fileFingerPrint: file.fileFingerPrint || undefined,
-    })),
+    files: contractProjectAttachmentsOf(info.contractProjectFiles),
   };
 };
 
@@ -3496,6 +3624,32 @@ export const validateContractProjectEis17 = (
       "error",
       "eisInfo.contractProjectFiles",
       "Проект не в структурированной форме: приложите файл проекта контракта, иначе ЕИС отклонит документ.",
+    );
+  }
+
+  // Состав файлов: имя, дубликаты, пределы XSD. Содержимое файла (content,
+  // contentId, url) приходит из хранилища шлюза — на фронте байтов нет,
+  // поэтому его отсутствие предупреждение, а не фронтовая ошибка.
+  eisAttachmentIssues(dto.files, {
+    requireContent: false,
+    checkFingerprint: true,
+  }).forEach((item) => {
+    issues.push({
+      severity: item.severity,
+      field: item.field ?? "eisInfo.contractProjectFiles",
+      message: `${item.fileName}: ${item.message}`,
+    });
+  });
+
+  if (
+    !dto.isStructuredForm &&
+    dto.files.length > 0 &&
+    !dto.files.some(hasEisAttachmentContent)
+  ) {
+    pushIssue(
+      "warning",
+      "eisInfo.contractProjectFiles",
+      "Ни у одного файла проекта нет содержимого (content, contentId или url): шлюз должен приложить файл из хранилища, иначе ФЛК ЕИС отклонит вложение.",
     );
   }
   if (!dto.protocol) {
@@ -3588,20 +3742,13 @@ export const buildContractProjectXmlPreview = (
       </changePriceInfo>`
       : "";
 
-  const filesXml = dto.files.length
-    ? `  <contractProjectFilesInfo>
-${dto.files
-  .map(
-    (file) => `    <contractProjectFileInfo>
-      <fileName>${escapeXml(file.fileName)}</fileName>
-      ${file.description ? `<description>${escapeXml(file.description)}</description>` : ""}
-      ${file.fileSize !== undefined ? `<fileSize>${file.fileSize}</fileSize>` : ""}
-      ${file.fileFingerPrint ? `<fileFingerPrint>${escapeXml(file.fileFingerPrint)}</fileFingerPrint>` : ""}
-    </contractProjectFileInfo>`,
-  )
-  .join("\n")}
-  </contractProjectFilesInfo>`
-    : "";
+  // Файлы проекта контракта: блок обязателен при неструктурированной форме.
+  // Порядок и имена детей — по `contractProjectFileType`: fileName,
+  // docDescription, choice(url|contentId|content), fileSize, fileFingerPrint.
+  // При структурированной форме ЕИС блок игнорирует, поэтому не выводим.
+  const filesXml = dto.isStructuredForm
+    ? ""
+    : buildEisContractProjectFilesXml(dto.files, "  ");
 
   // Тело документа без корня: cpContractProject, namespace CPtypes и
   // обязательный schemeVersion добавляет оболочка пакета

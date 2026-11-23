@@ -1,4 +1,7 @@
-import type { ContractRegistryItem } from "../../ContractRegistry/contractRegistry.schema";
+import type {
+  ContractPayment,
+  ContractRegistryItem,
+} from "../../ContractRegistry/contractRegistry.schema";
 import {
   computeSmpVolume,
   type ContractSmpRecord,
@@ -9,14 +12,21 @@ import type {
   PurchasePlan,
   PurchasePlanPosition,
 } from "../../PurchasePlan/purchasePlan.schema";
+import type {
+  AcceptanceResponse,
+  AcceptanceStatus,
+} from "../../Acceptance/acceptance.types";
+import type { EisPackage } from "../eisPackages.schema";
 import { digitsOnly, ikzPositionKey, isIkz } from "../eisIdentifiers";
 import {
   eisChainStageLabels,
   emptyEisChainProgress,
   emptyEisChainRefs,
+  emptyEisExecution,
   emptyEisIdentifiers,
   emptyEisSmpSummary,
   type EisChain,
+  type EisChainExecutionSummary,
   type EisChainIdentifiers,
   type EisChainIssue,
   type EisChainLink,
@@ -47,7 +57,29 @@ export interface EisChainSource {
   notices: NoticeInfoFormValues[];
   contracts: ContractRegistryItem[];
   smpRecords: ContractSmpRecord[];
+  /**
+   * Документы о приёмке (csms-api). Исполнение контракта начинается с них:
+   * без принятой приёмки выгружать сведения об исполнении нечего.
+   * Необязательны, чтобы цепочка строилась и без запущенного шлюза.
+   */
+  acceptances?: AcceptanceResponse[];
+  /** Платежи по контрактам (json-server `contractPayments`). */
+  payments?: ContractPayment[];
+  /** Пакеты ЕИС: по ним видно, что отклонено ФЛК или не принято шлюзом. */
+  packages?: EisPackage[];
 }
+
+/**
+ * Статусы приёмки, при которых документ считается принятым (ст. 94 44-ФЗ).
+ *
+ * Тот же набор проверяет шлюз перед сборкой пакета `ContractExecution`; здесь
+ * он нужен, чтобы цепочка не показывала прогресс по непринятому документу.
+ */
+const ACCEPTED_ACCEPTANCE_STATUSES: readonly AcceptanceStatus[] = [
+  "Accepted",
+  "AcceptedWithDiscrepancies",
+  "RegisteredInEis",
+];
 
 interface PlanPositionEntry {
   plan: PurchasePlan;
@@ -368,6 +400,236 @@ const smpLinkOf = (
   };
 };
 
+// ─── Исполнение контракта: приёмка, оплата, сведение ───────────────────────
+
+interface ExecutionContext {
+  contractId: string | null;
+  ikz: string | null;
+  contractRegistryNumber: string | null;
+  purchaseNumber: string | null;
+}
+
+const acceptancesOf = (
+  context: ExecutionContext,
+  source: EisChainSource,
+): AcceptanceResponse[] =>
+  context.contractId
+    ? (source.acceptances ?? []).filter((item) =>
+        sameId(item.input.contractId, context.contractId),
+      )
+    : [];
+
+const paymentsOf = (
+  context: ExecutionContext,
+  source: EisChainSource,
+): ContractPayment[] =>
+  context.contractId
+    ? (source.payments ?? []).filter((item) =>
+        sameId(item.contractId, context.contractId),
+      )
+    : [];
+
+/**
+ * Пакеты по контракту.
+ *
+ * В пакете нет нашего `contractId` — связываем по тем же ключам, что и
+ * остальную цепочку: ИКЗ и реестровый номер контракта.
+ */
+const packagesOf = (context: ExecutionContext, source: EisChainSource): EisPackage[] =>
+  (source.packages ?? []).filter((pkg) => {
+    const pkgIkz = nullableText(pkg.ikz);
+
+    if (context.ikz && pkgIkz && pkgIkz === context.ikz) {
+      return true;
+    }
+
+    const pkgNumber = nullableText(pkg.contractEisNumber);
+
+    return Boolean(
+      context.contractRegistryNumber &&
+        pkgNumber &&
+        pkgNumber === context.contractRegistryNumber,
+    );
+  });
+
+const isAcceptedAcceptance = (item: AcceptanceResponse): boolean =>
+  ACCEPTED_ACCEPTANCE_STATUSES.includes(item.status);
+
+const acceptanceLinkOf = (
+  acceptances: AcceptanceResponse[],
+  context: ExecutionContext,
+): EisChainLink => {
+  const accepted = acceptances.filter(isAcceptedAcceptance);
+  const amount = accepted.reduce((sum, item) => sum + item.totalWithVat, 0);
+  const dates = acceptances
+    .map(
+      (item) =>
+        nullableText(item.registeredAt) ??
+        nullableText(item.submittedAt) ??
+        nullableText(item.updatedAt),
+    )
+    .filter((value): value is string => value !== null)
+    .sort();
+
+  return {
+    stage: "acceptance",
+    label: `Приёмка (${acceptances.length}, принято ${accepted.length})`,
+    present: acceptances.length > 0,
+    identifiers: {
+      ...emptyEisIdentifiers(),
+      localId: acceptances.length === 1 ? localId(acceptances[0].id) : null,
+      purchaseNumber: context.purchaseNumber,
+      ikz: context.ikz,
+      contractRegistryNumber: context.contractRegistryNumber,
+    },
+    refs: {
+      ...emptyEisChainRefs(),
+      contractId: context.contractId,
+      acceptanceIds: acceptances.map((item) => item.id),
+    },
+    amount: amount > 0 ? amount.toFixed(2) : null,
+    status:
+      acceptances.length === 0
+        ? null
+        : accepted.length === acceptances.length
+          ? "все документы приняты"
+          : `принято ${accepted.length} из ${acceptances.length}`,
+    publishedAt: dates.length > 0 ? dates[dates.length - 1] : null,
+  };
+};
+
+const executionSummaryOf = (
+  context: ExecutionContext,
+  source: EisChainSource,
+): EisChainExecutionSummary => {
+  const acceptances = acceptancesOf(context, source);
+  const payments = paymentsOf(context, source);
+  const packages = packagesOf(context, source);
+  const accepted = acceptances.filter(isAcceptedAcceptance);
+  const paid = payments.filter((item) => item.status === "paid");
+  const withoutRegNumberExecution = payments.filter(
+    (item) => nullableText(item.regNumberExecution) === null,
+  ).length;
+
+  return {
+    acceptanceCount: acceptances.length,
+    acceptedCount: accepted.length,
+    acceptedAmount: accepted.reduce((sum, item) => sum + item.totalWithVat, 0),
+    paymentCount: payments.length,
+    paidAmount: paid.reduce((sum, item) => sum + moneyNumber(item.amount), 0),
+    withoutRegNumberExecution,
+    flkRejectedPackages: packages.filter(
+      (item) => item.status === "RejectedByFlk",
+    ).length,
+    validationFailedPackages: packages.filter(
+      (item) => item.status === "SendFailed",
+    ).length,
+    pendingPackages: packages.filter(
+      (item) =>
+        item.status === "SentToEis" ||
+        item.status === "FlkChecking" ||
+        item.status === "Signing",
+    ).length,
+    // Сведение — не «есть документы», а «принято и передано»: без реестрового
+    // номера сведений об исполнении ЕИС платежа не видит.
+    reconciled:
+      accepted.length > 0 &&
+      payments.length > 0 &&
+      withoutRegNumberExecution === 0,
+  };
+};
+
+const paymentLinkOf = (
+  payments: ContractPayment[],
+  context: ExecutionContext,
+): EisChainLink => {
+  const total = payments.reduce((sum, item) => sum + moneyNumber(item.amount), 0);
+  const paid = payments.filter((item) => item.status === "paid");
+  const regNumbers = [
+    ...new Set(
+      payments
+        .map((item) => nullableText(item.regNumberExecution))
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+  const dates = payments
+    .map((item) => nullableText(item.paymentDate))
+    .filter((value): value is string => value !== null)
+    .sort();
+  const withoutRegNumber = payments.length - regNumbers.length;
+
+  return {
+    stage: "payment",
+    label: `Оплата (${payments.length})`,
+    present: payments.length > 0,
+    identifiers: {
+      ...emptyEisIdentifiers(),
+      localId: payments.length === 1 ? localId(payments[0].id) : null,
+      purchaseNumber: context.purchaseNumber,
+      ikz: context.ikz,
+      contractRegistryNumber: context.contractRegistryNumber,
+      // Один реестровый номер на контракт — обычный случай: ЕИС присваивает
+      // его сведениям об исполнении, а не каждому платёжному поручению.
+      regNumberExecution: regNumbers.length === 1 ? regNumbers[0] : null,
+    },
+    refs: {
+      ...emptyEisChainRefs(),
+      contractId: context.contractId,
+      paymentIds: payments
+        .map((item) => localId(item.id))
+        .filter((value): value is string => value !== null),
+    },
+    amount: payments.length > 0 ? total.toFixed(2) : null,
+    status:
+      payments.length === 0
+        ? null
+        : `оплачено ${paid.length} из ${payments.length}` +
+          (withoutRegNumber > 0
+            ? ` · без реестрового номера исполнения: ${withoutRegNumber}`
+            : ""),
+    publishedAt: dates.length > 0 ? dates[dates.length - 1] : null,
+  };
+};
+
+interface ExecutionData {
+  /** Звенья «Приёмка» и «Оплата» в порядке движения документов. */
+  links: EisChainLink[];
+  summary: EisChainExecutionSummary;
+  acceptances: AcceptanceResponse[];
+  payments: ContractPayment[];
+}
+
+/**
+ * Исполнение по контракту: звенья, сводка и исходные записи.
+ *
+ * Одна точка входа для всех сборщиков цепочки: иначе «сиротская» цепочка
+ * контракта и цепочка по позиции ПГ считали бы приёмку и оплату по-разному.
+ */
+const executionDataOf = (
+  contract: ContractRegistryItem | null,
+  source: EisChainSource,
+  fallback: { purchaseNumber: string | null; ikz: string | null },
+): ExecutionData => {
+  const context: ExecutionContext = {
+    contractId: localId(contract?.id),
+    ikz: nullableText(contract?.ikz) ?? fallback.ikz,
+    contractRegistryNumber: nullableText(contract?.eisRegistryNumber),
+    purchaseNumber: fallback.purchaseNumber,
+  };
+  const acceptances = acceptancesOf(context, source);
+  const payments = paymentsOf(context, source);
+
+  return {
+    links: [
+      acceptanceLinkOf(acceptances, context),
+      paymentLinkOf(payments, context),
+    ],
+    summary: executionSummaryOf(context, source),
+    acceptances,
+    payments,
+  };
+};
+
 // ─── Сводка СМП ────────────────────────────────────────────────────────────
 
 const smpSummaryOf = (
@@ -640,6 +902,94 @@ export const eisChainIssues = (chain: EisChain): EisChainIssue[] => {
     );
   }
 
+  // ─── Исполнение: приёмка, оплата, ответ ЕИС ─────────────────────────────
+  const execution = chain.execution;
+
+  if (contract?.present) {
+    if (execution.acceptanceCount === 0) {
+      issues.push(
+        issue(
+          "acceptance",
+          "acceptance.missing",
+          "По контракту нет документов о приёмке: сведения об исполнении в ЕИС выгружать нечего.",
+          "warning",
+        ),
+      );
+    } else if (execution.acceptedCount === 0) {
+      issues.push(
+        issue(
+          "acceptance",
+          "acceptance.not_accepted",
+          `Документов о приёмке ${execution.acceptanceCount}, но ни один не принят: в ЕИС уходит только принятая приёмка.`,
+          "warning",
+        ),
+      );
+    } else if (execution.acceptedCount < execution.acceptanceCount) {
+      issues.push(
+        issue(
+          "acceptance",
+          "acceptance.partially_accepted",
+          `Принято ${execution.acceptedCount} из ${execution.acceptanceCount} документов о приёмке: остальные ещё в работе.`,
+          "warning",
+        ),
+      );
+    }
+
+    if (execution.paymentCount === 0) {
+      issues.push(
+        issue(
+          "payment",
+          "payment.missing",
+          "Платежей по контракту нет: сведения об исполнении уйдут без оплаты.",
+          "warning",
+        ),
+      );
+    } else if (execution.withoutRegNumberExecution > 0) {
+      issues.push(
+        issue(
+          "payment",
+          "payment.no_reg_number",
+          `У ${execution.withoutRegNumberExecution} платежей нет реестрового номера сведений об исполнении: его присваивает ЕИС после приёма, без него исполнение не сведено.`,
+          "warning",
+          "regNumberExecution",
+        ),
+      );
+    }
+
+    if (execution.flkRejectedPackages > 0) {
+      issues.push(
+        issue(
+          "contract",
+          "execution.flk_rejected",
+          `Пакетов по контракту отклонено ФЛК ЕИС: ${execution.flkRejectedPackages}. Исправьте документ и отправьте заново.`,
+          "error",
+        ),
+      );
+    }
+
+    if (execution.validationFailedPackages > 0) {
+      issues.push(
+        issue(
+          "contract",
+          "execution.validation_failed",
+          `Шлюз не принял пакетов: ${execution.validationFailedPackages} — документ не прошёл проверку до отправки.`,
+          "warning",
+        ),
+      );
+    }
+
+    if (execution.pendingPackages > 0) {
+      issues.push(
+        issue(
+          "contract",
+          "execution.pending",
+          `Пакетов в работе: ${execution.pendingPackages} — дождитесь ответа ЕИС, иначе исполнение будет сведено дважды.`,
+          "warning",
+        ),
+      );
+    }
+  }
+
   return issues;
 };
 
@@ -661,7 +1011,15 @@ export const eisChainProgress = (chain: EisChain): EisChainProgress => {
     chain.smp.requiredPercent && Number(chain.smp.requiredPercent) > 0,
   );
   const smp = !smpRequired || chain.smp.recordsCount > 0;
-  const flags = [plan, notice, contract, smp];
+  // Приёмка шаг пройден, когда есть хотя бы один принятый документ: черновик
+  // и документ, отправленный заказчику, — ещё не исполнение.
+  const acceptance = chain.execution.acceptedCount > 0;
+  // Оплата — когда платежи есть и у каждого есть реестровый номер сведений об
+  // исполнении: без него ЕИС платежа не видит, сведение не состоялось.
+  const payment =
+    chain.execution.paymentCount > 0 &&
+    chain.execution.withoutRegNumberExecution === 0;
+  const flags = [plan, notice, contract, acceptance, payment, smp];
   const completed = flags.filter(Boolean).length;
   const total = flags.length;
 
@@ -669,6 +1027,8 @@ export const eisChainProgress = (chain: EisChain): EisChainProgress => {
     plan,
     notice,
     contract,
+    acceptance,
+    payment,
     smp,
     completed,
     total,
@@ -723,12 +1083,14 @@ const buildChainsForPosition = (
   const positionId = localId(position.id);
 
   const note =
-    source.notes.find((item) =>
-      matchesNote(item, {
-        ikz,
-        planPositionNumber,
-        positionId,
-      }),
+    source.notes.find(
+      (item) =>
+        item.isExternalEis !== true &&
+        matchesNote(item, {
+          ikz,
+          planPositionNumber,
+          positionId,
+        }),
     ) ?? null;
   const notices = source.notices.filter((item) =>
     matchesNotice(item, { ikz, planPositionNumber }),
@@ -767,6 +1129,10 @@ const buildChainsForPosition = (
       const suffix = multiple
         ? `:n:${localId(notice?.id) ?? "none"}:c:${localId(contract?.id) ?? "none"}`
         : "";
+      const execution = executionDataOf(contract, source, {
+        purchaseNumber,
+        ikz,
+      });
       chains.push(
         finalizeChain({
           organizationId: localId(plan.organizationId),
@@ -781,6 +1147,7 @@ const buildChainsForPosition = (
             contract
               ? contractLinkOf(contract, { purchaseNumber, ikz })
               : absentLink("contract"),
+            ...execution.links,
             smpLinkOf(smpRecords, {
               purchaseNumber,
               ikz: nullableText(contract?.ikz) ?? ikz,
@@ -789,6 +1156,7 @@ const buildChainsForPosition = (
             }),
           ],
           smp: smpSummaryOf(smpRecords, contract, notice),
+          execution: execution.summary,
         }),
       );
     }
@@ -833,6 +1201,10 @@ const buildChainForNotice = (
         (nullableText(item.ikz) !== null && nullableText(item.ikz) === ikz),
     ) ?? null;
 
+  const execution = executionDataOf(contract, source, {
+    purchaseNumber: null,
+    ikz,
+  });
   const links: EisChainLink[] = [
     absentLink("plan"),
     noticeLinkOf(
@@ -849,6 +1221,7 @@ const buildChainForNotice = (
     contract
       ? contractLinkOf(contract, { purchaseNumber: null, ikz })
       : absentLink("contract"),
+    ...execution.links,
     smpLinkOf(smpRecords, {
       purchaseNumber: null,
       ikz: nullableText(contract?.ikz) ?? ikz,
@@ -871,6 +1244,7 @@ const buildChainForNotice = (
     ikz,
     links,
     smp: smpSummaryOf(smpRecords, contract, notice),
+    execution: execution.summary,
   });
 };
 
@@ -886,10 +1260,15 @@ const buildChainForContract = (
       sameId(record.contractId, contract.id),
   );
 
+  const execution = executionDataOf(contract, source, {
+    purchaseNumber: null,
+    ikz,
+  });
   const links: EisChainLink[] = [
     absentLink("plan"),
     absentLink("notice"),
     contractLinkOf(contract, { purchaseNumber: null, ikz }),
+    ...execution.links,
     smpLinkOf(smpRecords, {
       purchaseNumber: null,
       ikz,
@@ -909,6 +1288,7 @@ const buildChainForContract = (
     ikz,
     links,
     smp: smpSummaryOf(smpRecords, contract, null),
+    execution: execution.summary,
   });
 };
 
@@ -948,6 +1328,10 @@ const buildChainForNote = (
       )
     : [];
 
+  const execution = executionDataOf(contract, source, {
+    purchaseNumber: null,
+    ikz,
+  });
   const links: EisChainLink[] = [
     absentLink("plan"),
     notice
@@ -964,6 +1348,7 @@ const buildChainForNote = (
     contract
       ? contractLinkOf(contract, { purchaseNumber: null, ikz })
       : absentLink("contract"),
+    ...execution.links,
     smpLinkOf(smpRecords, {
       purchaseNumber: null,
       ikz: nullableText(contract?.ikz) ?? ikz,
@@ -982,6 +1367,7 @@ const buildChainForNote = (
     ikz,
     links,
     smp: smpSummaryOf(smpRecords, contract, notice),
+    execution: execution.summary,
   });
 };
 
@@ -990,6 +1376,8 @@ const buildChainForSmp = (record: ContractSmpRecord): EisChain => {
     absentLink("plan"),
     absentLink("notice"),
     absentLink("contract"),
+    absentLink("acceptance"),
+    absentLink("payment"),
     smpLinkOf([record], {
       purchaseNumber: null,
       ikz: null,
@@ -1005,6 +1393,7 @@ const buildChainForSmp = (record: ContractSmpRecord): EisChain => {
     ikz: null,
     links,
     smp: smpSummaryOf([record], null, null),
+    execution: emptyEisExecution(),
   });
 };
 
@@ -1059,7 +1448,7 @@ export const buildEisChains = (source: EisChainSource): EisChain[] => {
     }
   }
 
-  for (const note of source.notes) {
+  for (const note of source.notes.filter((item) => item.isExternalEis !== true)) {
     const id = localId(note.id);
 
     if (id && usedNoteIds.has(id)) {

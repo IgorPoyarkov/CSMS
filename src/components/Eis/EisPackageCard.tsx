@@ -57,6 +57,14 @@ const formatMoment = (iso: string | null): string => {
 const certKeyOf = (certificate: PluginCertificateInfo, index: number): string =>
   certificate.fingerprint || certificate.serialNumber || `cert-${index}`;
 
+/** Размер файла для человека: байты в мегабайтах читаются плохо. */
+const formatBytes = (bytes: number): string =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+    : bytes >= 1024
+      ? `${Math.round(bytes / 1024)} КБ`
+      : `${bytes} Б`;
+
 const describeCertificate = (certificate: PluginCertificateInfo): string => {
   const owner = certificate.subject || "Владелец не определён";
   const inn = certificate.inn ? ` · ИНН ${certificate.inn}` : "";
@@ -222,11 +230,16 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
         </span>
       </header>
 
-      {item.isPlaceholderFormat && (
+      {item.isPlaceholderFormat ? (
         <div className={block("notice")}>
           Документ собран черновой заглушкой, а не по XSD из Альбома форматов
           ЕИС. Пакет нельзя считать файлом обмена: настоящая ФЛК его отклонит.
           Подпись, статусы и журнал при этом работают по-настоящему.
+        </div>
+      ) : (
+        <div className={block("signed")}>
+          Документ собран по XSD ЕИС {item.payloadSchemaVersion} из данных
+          системы — это файл обмена, а не заготовка.
         </div>
       )}
 
@@ -234,6 +247,57 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
         <div className={block("error")}>
           До ЕИС не дошли: {item.lastError}
         </div>
+      )}
+
+      {item.validationErrors.length > 0 && (
+        <div className={block("flk")}>
+          <div className={block("flk-title")}>
+            Шлюз не принял документ — исправьте данные и создайте пакет заново:
+          </div>
+          <ul className={block("flk-list")}>
+            {item.validationErrors.map((issue) => (
+              <li
+                key={`${issue.code}-${issue.field ?? ""}`}
+                className={block("flk-row")}
+              >
+                <span className={block("flk-code")}>{issue.code}</span>
+                <span className={block("flk-text")}>
+                  {issue.message}
+                  {issue.hint ? ` ${issue.hint}` : ""}
+                </span>
+                {issue.field && (
+                  <span className={block("flk-field")}>поле: {issue.field}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {item.attachments.length > 0 && (
+        <details className={block("details")} open>
+          <summary className={block("summary")}>
+            Вложения · {item.attachments.length}
+          </summary>
+          <ul className={block("history")}>
+            {item.attachments.map((file, index) => (
+              <li
+                key={`${file.fileName}-${index}`}
+                className={block("history-row")}
+              >
+                <span className={block("history-text")}>
+                  {file.fileName}
+                  {file.description ? ` — ${file.description}` : ""}
+                  {file.docKindCode ? ` · вид ${file.docKindCode}` : ""}
+                  {file.fileSize ? ` · ${formatBytes(file.fileSize)}` : ""}
+                  {file.fileFingerPrint
+                    ? ` · отпечаток ${file.fileFingerPrint.slice(0, 16)}…`
+                    : " · без отпечатка"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {item.flkErrors.length > 0 && (
@@ -268,6 +332,12 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
 
       {item.eisGuid && (
         <div className={block("signed")}>Идентификатор в ЕИС: {item.eisGuid}</div>
+      )}
+
+      {item.regNumberExecution && (
+        <div className={block("signed")}>
+          Реестровый номер сведений об исполнении в ЕИС: {item.regNumberExecution}
+        </div>
       )}
 
       {canSign && (

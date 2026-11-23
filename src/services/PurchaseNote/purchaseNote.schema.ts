@@ -379,6 +379,14 @@ const PurchaseNoteBaseSchema = z
     approvalComment: z.string().optional(),
     comment: z.string().optional(),
     createdAt: isoDate(),
+    /**
+     * Признак внешней синтетической СЗ, созданной при импорте из ЕИС.
+     *
+     * Такие записи не являются полноценными служебными записками: в ЕИС их нет,
+     * пользователь их не создавал, по ним нельзя проверять 158н/СЗ-функционал.
+     * Они должны быть полностью невидимы в UI, статистике и отчётах.
+     */
+    isExternalEis: z.boolean().optional().default(false),
   });
 
 /**
@@ -540,6 +548,18 @@ export const getPurchaseNoteStatusMeta = (
       : "draft"
   ];
 
+/**
+ * Внешняя синтетическая СЗ из ЕИС не участвует в работе пользователя: её нельзя
+ * показывать, учитывать в статистике, использовать в 158н или подставлять в формы.
+ */
+export const isVisiblePurchaseNote = (
+  note: Pick<PurchaseNote, "isExternalEis"> | undefined | null,
+): boolean => !note?.isExternalEis;
+
+export const filterVisiblePurchaseNotes = <T extends Pick<PurchaseNote, "isExternalEis">>(
+  notes: T[] | undefined | null,
+): T[] => (notes ?? []).filter(isVisiblePurchaseNote);
+
 // Служебки позиции: по ним наследуем требование по СМП и исходные условия вниз по цепочке
 export const purchaseNotesForPosition = (
   notes: PurchaseNote[],
@@ -547,7 +567,11 @@ export const purchaseNotesForPosition = (
 ): PurchaseNote[] =>
   positionId === undefined || positionId === ""
     ? []
-    : notes.filter((note) => String(note.positionId) === String(positionId));
+    : notes.filter(
+        (note) =>
+          isVisiblePurchaseNote(note) &&
+          String(note.positionId) === String(positionId),
+      );
 
 // Последняя по номеру служебка позиции — её требования и наследуем
 export const latestPurchaseNoteForPosition = (
@@ -723,4 +747,5 @@ export const emptyPurchaseNote = (
   approvalComment: "",
   comment: "",
   createdAt: new Date().toISOString().slice(0, 10),
+  isExternalEis: false,
 });

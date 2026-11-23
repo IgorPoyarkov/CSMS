@@ -6,6 +6,7 @@ import { useContractRegistry } from "../../services/ContractRegistry/contractReg
 import {
   describeEisError,
   EIS_GATEWAY_URL,
+  useCreateAcceptanceEisPackage,
   useCreateEisPackage,
   useEisPackages,
 } from "../../services/Eis/eisPackages.api";
@@ -17,11 +18,18 @@ import {
   eisDocumentTypeLabels,
   isEisContractNumber,
   isEisDocumentTypeWithPayload,
+  isEisDomainBuildType,
+  isEisPlaceholderOnlyType,
   isIkz,
   type EisDocumentType,
   type EisPackageCustomerSnapshot,
   type EisPackageSource,
 } from "../../services/Eis/eisPackages.schema";
+import { useAcceptances } from "../../services/Acceptance/acceptance.api";
+import {
+  acceptanceStatusLabels,
+  acceptedAcceptanceStatuses,
+} from "../ContractAcceptance/acceptance.config";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
 import {
@@ -55,6 +63,12 @@ export default function EisPackagesPage() {
   const { data: contracts = [] } = useContractRegistry(organization?.id);
   const { data: packages = [], isPending, isError, error } = useEisPackages();
   const createPackage = useCreateEisPackage();
+  const createAcceptancePackage = useCreateAcceptanceEisPackage();
+  // Приёмки берём из csms-api: ContractExecution собирается из доменного
+  // документа, а не из XML, нарисованного в браузере
+  const { data: acceptances = [] } = useAcceptances(
+    organization ? String(organization.id) : undefined,
+  );
   // Документы CSMS, из которых собирается готовый XML пакета
   const { data: notices = [] } = useNotices();
   const { data: contractProjects = [] } = useOrganizationContractProjects(
@@ -86,6 +100,12 @@ export default function EisPackagesPage() {
       : "Notification");
   const [contractEisNumber, setContractEisNumber] = useState("");
   const [ikz, setIkz] = useState("");
+  // Доменная сборка ContractExecution: приёмка и код вида документа ЕИС.
+  // Код не подставляем константой — выдуманное значение ЕИС отклонит.
+  const [pickedAcceptanceId, setPickedAcceptanceId] = useState("");
+  const [acceptanceDocTypeCode, setAcceptanceDocTypeCode] = useState("");
+  const domainBuild = isEisDomainBuildType(documentType);
+  const placeholderOnly = isEisPlaceholderOnlyType(documentType);
   // Документ-источник для типов с готовым XML
   const [pickedNoticeId, setPickedNoticeId] = useState("");
   const [pickedProjectId, setPickedProjectId] = useState("");
@@ -153,6 +173,27 @@ export default function EisPackagesPage() {
     null;
   const withPayload = isEisDocumentTypeWithPayload(documentType);
 
+  // Приёмки, из которых шлюз соберёт сведения об исполнении. Только принятые:
+  // на остальных он сам вернёт 409, и показывать их как выбор нечестно.
+  // Если в форму пришли из карточки контракта, его приёмки — первыми.
+  const exportableAcceptances = useMemo(() => {
+    const allowed = acceptances.filter((item) =>
+      acceptedAcceptanceStatuses.includes(item.status),
+    );
+    const contractId = focusContract ? String(focusContract.id) : "";
+
+    if (!contractId) {
+      return allowed;
+    }
+
+    return [
+      ...allowed.filter((item) => String(item.input.contractId) === contractId),
+      ...allowed.filter((item) => String(item.input.contractId) !== contractId),
+    ];
+  }, [acceptances, focusContract]);
+  const pickedAcceptance =
+    exportableAcceptances.find((item) => item.id === pickedAcceptanceId) ?? null;
+
   const pickContract = (contractId: string) => {
     const contract = contracts.find(
       (item) => String(item.id) === String(contractId),
@@ -191,6 +232,46 @@ export default function EisPackagesPage() {
 
   async function create() {
     setFormError("");
+
+    // ContractExecution: пакет собирает шлюз из доменного документа приёмки.
+    // Фронт не рисует XML — иначе получилось бы второе, «браузерное»,
+    // представление принятого документа, расходящееся с подтверждённым.
+    if (domainBuild) {
+      if (!pickedAcceptance) {
+        setFormError(
+          "Выберите принятый документ о приёмке: сведения об исполнении шлюз собирает из него, а не из введённых вручную номеров.",
+        );
+
+        return;
+      }
+
+      if (!acceptanceDocTypeCode.trim()) {
+        setFormError(
+          "Укажите код вида документа из справочника ЕИС (nsiEPDocTypes). " +
+            "XSD 17.0 требует его в документе о приёмке, а сам код берётся из справочника — подставлять его наугад нельзя.",
+        );
+
+        return;
+      }
+
+      try {
+        await createAcceptancePackage.mutateAsync({
+          acceptanceId: pickedAcceptance.id,
+          documentTypeCode: acceptanceDocTypeCode.trim(),
+          customerSpzRegNum: organization?.consRegistryNum || undefined,
+          deliveryAcceptDate: pickedAcceptance.input.documentDate ?? undefined,
+        });
+
+        setPickedAcceptanceId("");
+        setAcceptanceDocTypeCode("");
+        setPickedContractId("");
+        setManualInput(false);
+      } catch (caught) {
+        setFormError(describeEisError(caught));
+      }
+
+      return;
+    }
 
     if (documentType === "Notification" && !pickedNotice) {
       setFormError("Выберите сохранённое извещение — из него собирается XML.");
@@ -332,10 +413,13 @@ export default function EisPackagesPage() {
 
       <div className={block("notice")}>
         <b>Извещение и проект контракта собираются из документов CSMS</b> по
-        схемам ЕИС 17.0. Для сведений СМП и исполнения контракта содержимое пока
-        собирается черновым форматом (placeholder) — это честно помечено в
-        карточке. Ответы ЕИС имитируются, подпись, статусы, ошибки ФЛК и журнал
-        работают по-настоящему.
+        схемам ЕИС 17.0: в пакет попадают и вложения (файлы, описания, размеры,
+        отпечатки, коды видов документов).{" "}
+        <b>Сведения об исполнении</b> собирает шлюз из принятого документа о
+        приёмке — фронт передаёт только ссылку на него. Для сведений СМП
+        доменного маппера пока нет: содержимое собирается черновым форматом
+        (placeholder), и это помечено в карточке. Ответы ЕИС имитируются, подпись,
+        статусы, ошибки ФЛК и журнал работают по-настоящему.
       </div>
 
       {/* Встроенный браузер приложения: подписи здесь не будет ни при каком
@@ -380,7 +464,9 @@ export default function EisPackagesPage() {
             <span className={block("label")}>
               {withPayload
                 ? "Документ CSMS — источник XML"
-                : "Контракт (номер ЕИС и ИКЗ подставятся из карточки)"}
+                : domainBuild
+                  ? "Принятый документ о приёмке"
+                  : "Контракт (номер ЕИС и ИКЗ подставятся из карточки)"}
             </span>
             {withPayload ? (
               <Select
@@ -411,6 +497,25 @@ export default function EisPackagesPage() {
                       </option>
                     ))}
               </Select>
+            ) : domainBuild ? (
+              <Select
+                className={block("select")}
+                value={pickedAcceptanceId}
+                onChange={(event) => {
+                  setPickedAcceptanceId(event.target.value);
+                  setFormError("");
+                }}
+              >
+                <option value="">— не выбран —</option>
+                {exportableAcceptances.map((acceptance) => (
+                  <option key={acceptance.id} value={acceptance.id}>
+                    № {acceptance.input.documentNumber ?? "б/н"} ·{" "}
+                    {acceptance.input.contractNumber} ·{" "}
+                    {acceptanceStatusLabels[acceptance.status]} ·{" "}
+                    {acceptance.totalWithVat.toLocaleString("ru-RU")} ₽
+                  </option>
+                ))}
+              </Select>
             ) : (
               <Select
                 className={block("select")}
@@ -434,6 +539,31 @@ export default function EisPackagesPage() {
           </label>
         </div>
 
+        {domainBuild ? (
+          <div className={block("form-row")}>
+            <label className={block("field")}>
+              <span className={block("label")}>
+                Код вида документа ЕИС (nsiEPDocTypes)
+              </span>
+              <input
+                className={block("input")}
+                value={acceptanceDocTypeCode}
+                onChange={(event) =>
+                  setAcceptanceDocTypeCode(event.target.value.slice(0, 10))
+                }
+                placeholder="код из справочника, до 10 символов"
+                maxLength={10}
+              />
+            </label>
+            <div className={block("source")}>
+              {pickedAcceptance
+                ? `Контракт ${pickedAcceptance.input.contractNumber} · реестровый номер ${
+                    pickedAcceptance.input.eisRegistryNumber ?? "не указан"
+                  } · ИКЗ ${pickedAcceptance.input.ikz ?? "не указан"} — эти значения шлюз берёт из приёмки.`
+                : "Номер контракта, ИКЗ и реестровый номер шлюз берёт из принятого документа — вручную их не вводим."}
+            </div>
+          </div>
+        ) : (
         <div className={block("form-row")}>
           {!withPayload && (
             <label className={block("field")}>
@@ -480,8 +610,9 @@ export default function EisPackagesPage() {
             />
           </label>
         </div>
+        )}
 
-        {numbersFromContract && (
+        {!domainBuild && numbersFromContract && (
           <div className={block("source")}>
             Номера взяты из карточки контракта — исправлять их надо там, чтобы в
             системе не появилось двух версий одного номера.{" "}
@@ -495,10 +626,26 @@ export default function EisPackagesPage() {
           </div>
         )}
 
-        {manualInput && (
+        {!domainBuild && manualInput && (
           <div className={block("source")}>
             Номера введены вручную и не связаны с карточкой контракта: если там
             их исправят, пакет об этом не узнает.
+          </div>
+        )}
+
+        {domainBuild && exportableAcceptances.length === 0 && (
+          <div className={block("source")}>
+            Принятых документов о приёмке нет. Сведения об исполнении можно
+            выгрузить только после того, как приёмка принята или принята с
+            расхождениями — черновик ЕИС не примет.
+          </div>
+        )}
+
+        {placeholderOnly && (
+          <div className={block("source")}>
+            Доменного маппера для сведений СМП в шлюзе пока нет: пакет соберётся
+            черновой заготовкой, и это будет помечено в карточке. Рабочий путь
+            сейчас — CSV-выгрузка на экране «ЕИС / СМП».
           </div>
         )}
 
@@ -508,9 +655,11 @@ export default function EisPackagesPage() {
           <button
             type="submit"
             className={block("btn", ["primary"])}
-            disabled={createPackage.isPending}
+            disabled={createPackage.isPending || createAcceptancePackage.isPending}
           >
-            {createPackage.isPending ? "Создаю пакет…" : "Создать пакет"}
+            {createPackage.isPending || createAcceptancePackage.isPending
+              ? "Создаю пакет…"
+              : "Создать пакет"}
           </button>
           <span className={block("hint")}>Шлюз: {EIS_GATEWAY_URL}</span>
         </div>

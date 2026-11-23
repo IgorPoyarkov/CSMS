@@ -5,17 +5,23 @@ import useUtils from "../../hooks/useUtils";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
-import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import {
+  useAllContractPayments,
+  useContractRegistry,
+} from "../../services/ContractRegistry/contractRegistry.api";
 import { useAllContractSmpRecords } from "../../services/ContractSmp/contractSmp.api";
+import { useAcceptances } from "../../services/Acceptance/acceptance.api";
+import { useEisPackages } from "../../services/Eis/eisPackages.api";
 import {
   applyEisIdentifiers,
   buildEisChains,
 } from "../../services/Eis/types/eisChainBuilder";
-import type {
-  EisChain,
-  EisChainLink,
-  EisChainStage,
+import {
+  eisChainStageLabels,
+  type EisChain,
+  type EisChainLink,
 } from "../../services/Eis/types/eisChain";
 import styles from "./EisChainPage.module.scss";
 
@@ -28,12 +34,7 @@ import styles from "./EisChainPage.module.scss";
  * сохраняются в те же записи, из которых цепочка построена.
  */
 
-const stageTitles: Record<EisChainStage, string> = {
-  plan: "План-график",
-  notice: "Извещение",
-  contract: "Контракт",
-  smp: "Сведения СМП",
-};
+const stageTitles = eisChainStageLabels;
 
 const formatMoney = (value: string | null): string => {
   if (!value) return "—";
@@ -54,6 +55,9 @@ const linkSummary = (link: EisChainLink): string => {
       : "",
     link.identifiers.contractRegistryNumber
       ? `Реестр ${link.identifiers.contractRegistryNumber}`
+      : "",
+    link.identifiers.regNumberExecution
+      ? `Исполнение ${link.identifiers.regNumberExecution}`
       : "",
     link.amount ? `${formatMoney(link.amount)} ₽` : "",
     link.status ?? "",
@@ -169,6 +173,33 @@ function ChainCard({ chain, block, onSave, saving }: ChainCardProps) {
         ))}
       </ol>
 
+      <p className={block("step-text")}>
+        <b>Исполнение.</b>{" "}
+        {preview.execution.acceptanceCount === 0
+          ? "приёмки нет"
+          : `приёмок ${preview.execution.acceptanceCount}, принято ${preview.execution.acceptedCount}` +
+            (preview.execution.acceptedAmount > 0
+              ? ` на ${formatMoney(String(preview.execution.acceptedAmount))} ₽`
+              : "")}
+        {" · "}
+        {preview.execution.paymentCount === 0
+          ? "платежей нет"
+          : `платежей ${preview.execution.paymentCount}` +
+            (preview.execution.withoutRegNumberExecution > 0
+              ? `, без реестрового номера исполнения: ${preview.execution.withoutRegNumberExecution}`
+              : "")}
+        {" · "}
+        {preview.execution.reconciled
+          ? "исполнение сведено"
+          : "исполнение не сведено"}
+        {preview.execution.flkRejectedPackages > 0
+          ? ` · ФЛК отклонил пакетов: ${preview.execution.flkRejectedPackages}`
+          : ""}
+        {preview.execution.pendingPackages > 0
+          ? ` · в работе пакетов: ${preview.execution.pendingPackages}`
+          : ""}
+      </p>
+
       {preview.issues.length > 0 && (
         <ul className={block("issues")}>
           {preview.issues.map((issue) => (
@@ -238,9 +269,18 @@ export default function EisChainPage() {
   const orgId = organization?.id;
   const { data: plans = [] } = usePurchasePlans(orgId);
   const { data: notes = [] } = usePurchaseNotes(orgId);
+  const visibleNotes = useMemo(() => filterVisiblePurchaseNotes(notes), [notes]);
   const { data: notices = [] } = useNotices();
   const { data: contracts = [] } = useContractRegistry(orgId);
   const { data: smpRecords = [] } = useAllContractSmpRecords();
+  // Исполнение: приёмки живут в csms-api, платежи — в реестре, пакеты — в шлюзе.
+  // Любой из источников может быть недоступен (шлюз не запущен) — цепочка
+  // тогда строится без этих звеньев, а не падает целиком.
+  const { data: acceptances = [] } = useAcceptances(
+    orgId ? String(orgId) : undefined,
+  );
+  const { data: payments = [] } = useAllContractPayments();
+  const { data: packages = [] } = useEisPackages();
   const [search, setSearch] = useState("");
   const [savingKey, setSavingKey] = useState("");
 
@@ -248,12 +288,24 @@ export default function EisChainPage() {
     () =>
       buildEisChains({
         plans,
-        notes,
+        notes: visibleNotes,
         notices,
         contracts,
         smpRecords,
+        acceptances,
+        payments,
+        packages,
       }),
-    [plans, notes, notices, contracts, smpRecords],
+    [
+      plans,
+      visibleNotes,
+      notices,
+      contracts,
+      smpRecords,
+      acceptances,
+      payments,
+      packages,
+    ],
   );
 
   const visibleChains = useMemo(() => {

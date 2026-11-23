@@ -42,7 +42,8 @@ export const eisDocumentTypeLabels: Record<EisDocumentType, string> = {
 /**
  * Типы, которые собираются из документов CSMS (извещение и проект контракта)
  * и потому могут передать в шлюз готовый XML (payloadXml). Остальные типы
- * шлюз собирает заглушкой.
+ * собирает шлюз: исполнение — из доменного документа (см.
+ * `EIS_DOCUMENT_TYPES_WITH_DOMAIN_BUILD`), СМП — пока черновой заглушкой.
  */
 export const EIS_DOCUMENT_TYPES_WITH_PAYLOAD: readonly EisDocumentType[] = [
   "Notification",
@@ -52,6 +53,33 @@ export const EIS_DOCUMENT_TYPES_WITH_PAYLOAD: readonly EisDocumentType[] = [
 export const isEisDocumentTypeWithPayload = (
   type: EisDocumentType,
 ): boolean => EIS_DOCUMENT_TYPES_WITH_PAYLOAD.includes(type);
+
+/**
+ * Типы, для которых шлюз собирает пакет сам — из доменного документа, по XSD.
+ *
+ * Это не «пустой payload»: фронт передаёт не XML, а ссылку на документ, а
+ * шлюз берёт его из своей базы (`POST /api/acceptances/{id}/eis-package`
+ * для приёмки). Так пакет собирается из тех же данных, что подтверждены в
+ * системе, и не зависит от того, что успел отрисовать браузер.
+ */
+export const EIS_DOCUMENT_TYPES_WITH_DOMAIN_BUILD: readonly EisDocumentType[] = [
+  "ContractExecution",
+];
+
+export const isEisDomainBuildType = (type: EisDocumentType): boolean =>
+  EIS_DOCUMENT_TYPES_WITH_DOMAIN_BUILD.includes(type);
+
+/**
+ * Типы без доменного маппера в шлюзе: содержимое собирается черновой
+ * заглушкой (`isPlaceholderFormat`). Интерфейс обязан это показывать — иначе
+ * человек считает, что отправил файл обмена, а отправил заготовку.
+ */
+export const EIS_DOCUMENT_TYPES_PLACEHOLDER_ONLY: readonly EisDocumentType[] = [
+  "SmpAttraction",
+];
+
+export const isEisPlaceholderOnlyType = (type: EisDocumentType): boolean =>
+  EIS_DOCUMENT_TYPES_PLACEHOLDER_ONLY.includes(type);
 
 export const eisPackageStatusLabels: Record<EisPackageStatus, string> = {
   Draft: "Черновик",
@@ -103,6 +131,26 @@ export const eisPackageEventSchema = z.object({
 
 export type EisPackageEvent = z.infer<typeof eisPackageEventSchema>;
 
+/**
+ * Вложение пакета так, как его вернул шлюз.
+ *
+ * Поля необязательные: шлюз заполняет их по мере появления (после Б4/Б7 —
+ * документ-источник и файлы). Схема не должна падать, если вложение пришло
+ * с сокращённым набором: пакет всё равно нужно показать человеку.
+ */
+export const eisPackageAttachmentSchema = z.object({
+  fileName: z.string(),
+  description: z.string().nullish().transform((value) => value ?? null),
+  fileSize: z.number().nullish().transform((value) => value ?? null),
+  fileFingerPrint: z.string().nullish().transform((value) => value ?? null),
+  /** Код вида документа из nsiEPDocTypes. */
+  docKindCode: z.string().nullish().transform((value) => value ?? null),
+  contentId: z.string().nullish().transform((value) => value ?? null),
+  url: z.string().nullish().transform((value) => value ?? null),
+});
+
+export type EisPackageAttachment = z.infer<typeof eisPackageAttachmentSchema>;
+
 export const eisPackageSchema = z.object({
   id: z.string(),
   documentType: z.enum(EIS_DOCUMENT_TYPES),
@@ -120,6 +168,25 @@ export const eisPackageSchema = z.object({
   eisGuid: z.string().nullable(),
   lastError: z.string().nullable(),
   flkErrors: z.array(flkErrorSchema),
+  /**
+   * Проверки шлюза до отправки: XSD, обязательные поля, справочники.
+   * От `flkErrors` отличаются источником: это не ответ ЕИС, а отказ шлюза
+   * принять документ — исправлять надо у нас, а не в портале.
+   */
+  validationErrors: z
+    .array(flkErrorSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  /** Вложения, которые ушли вместе с документом. */
+  attachments: z
+    .array(eisPackageAttachmentSchema)
+    .nullish()
+    .transform((value) => value ?? []),
+  /** Реестровый номер сведений об исполнении, который присвоил ЕИС. */
+  regNumberExecution: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
   history: z.array(eisPackageEventSchema),
   createdAt: z.string(),
   updatedAt: z.string(),

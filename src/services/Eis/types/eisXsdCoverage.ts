@@ -317,6 +317,8 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
     notes: [
       "Тип приёмки детально не сверялся: статусы partial означают «поле есть в XSD, путь уточнить при маппинге».",
       "Приёмка — документ исполнения, а не часть карточки контракта.",
+      "Маппер приёмки реализован в шлюзе (`csms-api/Csms.Infrastructure/AcceptanceXmlMapper.cs`, задача Б7): XML собирается из доменного документа, а не из карточки поставки. Строки этой карты относятся к домену `contractDeliveries`; пути в маппере надо сверять отдельной задачей.",
+      "Проверки вложений (имя файла, размер, отпечаток, код вида документа) общие для всех документов — `src/services/Eis/eisAttachments.ts`.",
     ],
   },
   {
@@ -961,8 +963,44 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       },
       {
         field: "attachedDocs",
-        xsd: "attachments",
+        xsd: "notification2020Type/attachmentsInfo/attachmentInfo",
+        status: "partial",
+        note:
+          "Блок уровня документа (`attachmentListWithKindType`): в XSD он идёт после extPrintFormInfo и до notificationInfo, а не внутри notificationInfo. Превью извещения выводит его именно там.",
+      },
+      {
+        field: "attachedDocs[].fileName",
+        xsd: "attachmentsInfo/attachmentInfo/fileName",
         status: "mapped",
+        required: true,
+        note: "base:fileNameType — до 1024 символов; дубликаты имён ЕИС не различает.",
+      },
+      {
+        field: "attachedDocs[].description",
+        xsd: "attachmentsInfo/attachmentInfo/docDescription",
+        status: "mapped",
+        note: "В XSD элемент называется docDescription (base:text4000Type), а не description.",
+      },
+      {
+        field: "attachedDocs[].fileSize",
+        xsd: "attachmentsInfo/attachmentInfo/fileSize",
+        status: "mapped",
+        note: "ЕИС при приёме игнорирует и заполняет при передаче; у нас хранится для сверки.",
+      },
+      {
+        field: "attachedDocs[].category",
+        xsd: "attachmentsInfo/attachmentInfo/docKindInfo/code",
+        status: "missing",
+        required: true,
+        note:
+          "XSD требует код вида документа из справочника nsiEPDocTypes для каждого вложения. Модель извещения хранит категорию (описание объекта, обоснование НМЦК…), а не код справочника: соответствие надо согласовать с владельцем модели, подставлять коды по догадке нельзя — ЕИС их сверит.",
+      },
+      {
+        field: "attachedDocs[].url / storageRef",
+        xsd: "attachmentsInfo/attachmentInfo/(url | contentId | content)",
+        status: "partial",
+        note:
+          "XSD требует ровно одно из url/contentId/content. storageRef — наше хранилище, ЕИС его не прочитает: файл нужно отдать через url/contentId или вложить content.",
       },
       {
         field: "noticeState",
@@ -975,6 +1013,8 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       "Базовый контур извещения совпадает: предмет, НМЦК, способ, ЭТП, контакты, сроки подачи, валюта, аванс, обеспечения, документы.",
       "Этапы, требования ст. 31, преимущества ст. 28–30 и ограничения нацрежима выгружаются отдельными блоками notificationInfo.",
       "Остаётся различие purchaseNumber/docNumber и технические поля (docPublishDate, href, printForm, extPrintForm, isGOZ), которые заполняет ЕИС.",
+      "В commonInfo isGOZ и notPublishedOnEIS — взаимоисключающие (choice XSD): превью выводит только один из них, оба одновременно документ не пройдёт.",
+      "Вложения извещения выгружаются блоком attachmentsInfo уровня документа; каждому нужен код вида документа из nsiEPDocTypes (см. строки attachedDocs[].*).",
     ],
   },
   {
@@ -1159,9 +1199,18 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
       {
         field: "eisInfo.contractProjectFiles",
         xsd: "contractProjectFilesInfo/contractProjectFileInfo",
+        status: "partial",
+        required: false,
+        note:
+          "Файлы выгружаются (fileName, docDescription, fileSize, fileFingerPrint), но XSD требует ещё choice(url|contentId|content): содержимое приходит из хранилища шлюза, в модели контракта байтов нет. При isStructuredForm = true блок ЕИС игнорирует.",
+      },
+      {
+        field: "eisInfo.contractProjectFiles[].fileFingerPrint",
+        xsd: "contractProjectFilesInfo/contractProjectFileInfo/fileFingerPrint",
         status: "mapped",
         required: false,
-        note: "Файлы проекта контракта ведутся в форме и выгружаются в contractProjectFilesInfo; обязательны при isStructuredForm = false.",
+        note:
+          "base:fileHashType; ЕИС при приёме игнорирует и заполняет при передаче, но по отпечатку видно, что ушёл тот же файл.",
       },
       {
         field: "appendices",

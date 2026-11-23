@@ -21,7 +21,14 @@
  */
 
 /** Шаги цепочки в порядке движения документа. */
-export const EIS_CHAIN_STAGES = ["plan", "notice", "contract", "smp"] as const;
+export const EIS_CHAIN_STAGES = [
+  "plan",
+  "notice",
+  "contract",
+  "acceptance",
+  "payment",
+  "smp",
+] as const;
 
 export type EisChainStage = (typeof EIS_CHAIN_STAGES)[number];
 
@@ -29,6 +36,8 @@ export const eisChainStageLabels: Record<EisChainStage, string> = {
   plan: "План-график",
   notice: "Извещение",
   contract: "Контракт",
+  acceptance: "Приёмка",
+  payment: "Оплата",
   smp: "Сведения СМП",
 };
 
@@ -50,6 +59,11 @@ export interface EisChainIdentifiers {
   noticeNumber: string | null;
   /** Реестровый номер контракта в ЕИС — 19 цифр. */
   contractRegistryNumber: string | null;
+  /**
+   * Реестровый номер сведений об исполнении (`regNumberExecution`), который
+   * присвоил ЕИС. Заполняется у звена «Оплата», когда он один на контракт.
+   */
+  regNumberExecution: string | null;
 }
 
 export const emptyEisIdentifiers = (): EisChainIdentifiers => ({
@@ -59,6 +73,7 @@ export const emptyEisIdentifiers = (): EisChainIdentifiers => ({
   ikz: null,
   noticeNumber: null,
   contractRegistryNumber: null,
+  regNumberExecution: null,
 });
 
 /**
@@ -75,6 +90,10 @@ export interface EisChainRefs {
   contractId: string | null;
   contractProjectId: string | null;
   smpRecordIds: string[];
+  /** Документы о приёмке по контракту. */
+  acceptanceIds: string[];
+  /** Платежи по контракту. */
+  paymentIds: string[];
 }
 
 export const emptyEisChainRefs = (): EisChainRefs => ({
@@ -86,6 +105,8 @@ export const emptyEisChainRefs = (): EisChainRefs => ({
   contractId: null,
   contractProjectId: null,
   smpRecordIds: [],
+  acceptanceIds: [],
+  paymentIds: [],
 });
 
 /** Одно звено цепочки. */
@@ -154,11 +175,57 @@ export const emptyEisSmpSummary = (): EisChainSmpSummary => ({
   withoutOkpd2Count: 0,
 });
 
+/**
+ * Сведение исполнения контракта: приёмка, оплата и реестровые номера
+ * сведений об исполнении. Отдельная сводка, а не звено: «сведение» —
+ * это не документ, а факт, что исполнение подтверждено и передано в ЕИС.
+ */
+export interface EisChainExecutionSummary {
+  /** Документы о приёмке всего по контракту. */
+  acceptanceCount: number;
+  /** Из них принятые: acceptance идёт в исполнение. */
+  acceptedCount: number;
+  /** Принятая сумма по документам о приёмке. */
+  acceptedAmount: number;
+  /** Платежи по контракту. */
+  paymentCount: number;
+  /** Сумма платежей, которые уже проведены. */
+  paidAmount: number;
+  /** Платежи без реестрового номера сведений об исполнении (ЕИС его не вернула). */
+  withoutRegNumberExecution: number;
+  /** Пакеты по контракту, отклонённые ФЛК ЕИС. */
+  flkRejectedPackages: number;
+  /** Пакеты, которые шлюз не принял ещё до отправки. */
+  validationFailedPackages: number;
+  /** Пакеты в работе: подпись, отправка, проверка ФЛК. */
+  pendingPackages: number;
+  /**
+   * Исполнение сведено: есть принятая приёмка, есть платежи и у каждого есть
+   * реестровый номер сведений об исполнении.
+   */
+  reconciled: boolean;
+}
+
+export const emptyEisExecution = (): EisChainExecutionSummary => ({
+  acceptanceCount: 0,
+  acceptedCount: 0,
+  acceptedAmount: 0,
+  paymentCount: 0,
+  paidAmount: 0,
+  withoutRegNumberExecution: 0,
+  flkRejectedPackages: 0,
+  validationFailedPackages: 0,
+  pendingPackages: 0,
+  reconciled: false,
+});
+
 /** Прогресс цепочки: какие шаги пройдены. */
 export interface EisChainProgress {
   plan: boolean;
   notice: boolean;
   contract: boolean;
+  acceptance: boolean;
+  payment: boolean;
   smp: boolean;
   completed: number;
   total: number;
@@ -169,6 +236,8 @@ export const emptyEisChainProgress = (): EisChainProgress => ({
   plan: false,
   notice: false,
   contract: false,
+  acceptance: false,
+  payment: false,
   smp: false,
   completed: 0,
   total: EIS_CHAIN_STAGES.length,
@@ -187,6 +256,8 @@ export interface EisChain {
   ikz: string | null;
   links: EisChainLink[];
   smp: EisChainSmpSummary;
+  /** Приёмка, оплата и сведение исполнения по контракту цепочки. */
+  execution: EisChainExecutionSummary;
   issues: EisChainIssue[];
   progress: EisChainProgress;
 }
