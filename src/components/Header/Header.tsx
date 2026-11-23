@@ -134,6 +134,12 @@ const Header = () => {
 
   const toggleLabel = THEME_TITLES[theme];
 
+  // Подпись «Фамилия И.О.» в строке шапки не показываем: вместе с ней семь
+  // пунктов меню не помещались в 1120px и «пилюля» профиля выезжала из
+  // навигации, закрывая переключатель темы. Полное ФИО осталось в подсказке
+  // кнопки и шапкой в открытом меню профиля
+  const profileName = fullName(employee?.employee ?? {}) || "Профиль";
+
   // Ховер и клик ведут одно и то же состояние: раньше меню открывалось стилями
   // по :hover, поэтому клик по кнопке его не скрывал (курсор-то внутри) и
   // выглядело это как «не слушается». Теперь видно одно состояние, а флаг
@@ -159,7 +165,7 @@ const Header = () => {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Мобильная шапка: список пунктов занимал почти весь первый экран, поэтому
-  // ниже 1040px он прячется за бургер (Header.module.scss)
+  // ниже 1120px он прячется за бургер (Header.module.scss)
   const [isNavOpen, setIsNavOpen] = useState(false);
 
   // Перешли на другой раздел — панели надо закрыть, иначе они висят поверх
@@ -524,7 +530,12 @@ const Header = () => {
                     <button
                       type="button"
                       className={nav("profile", isProfileOpen ? ["open"] : [])}
-                      title={fullName(employee?.employee ?? {}) || "Профиль"}
+                      title={profileName}
+                      // Имени внутри кнопки больше нет, поэтому доступное имя
+                      // задаём явно — иначе остался бы только значок аватара
+                      aria-label={
+                        isLoading && !employee ? "Загрузка профиля" : profileName
+                      }
                       aria-haspopup="menu"
                       aria-expanded={isProfileOpen}
                       onClick={toggleProfile}
@@ -553,6 +564,18 @@ const Header = () => {
                     </button>
 
                     <ul className={nav("profile-menu")} role="menu">
+                      {/* В строке шапки остался только аватар, поэтому ФИО и
+                          должность показываем шапкой открытого меню */}
+                      <li role="none" className={nav("profile-menu-head")}>
+                        <span className={nav("profile-menu-name")}>
+                          {profileName}
+                        </span>
+                        {employee?.position && (
+                          <span className={nav("profile-menu-role")}>
+                            {employee.position}
+                          </span>
+                        )}
+                      </li>
                       <li role="none">
                         <NavLink
                           role="menuitem"
