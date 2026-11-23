@@ -7,6 +7,7 @@ import {
 } from "../../../services/Eis/eis17Types";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 const NoticeStateSection = () => {
   const { bem } = useUtils();
@@ -34,7 +35,7 @@ const NoticeStateSection = () => {
             Тип документа ЕИС 17.0 (IntegrationEPTypes.xsd)
           </span>
           <div className={block("sub-grid")}>
-            <select
+            <Select
               className={block("select")}
               {...register("notificationType")}
               value={explicitType ?? effectiveType}
@@ -44,7 +45,7 @@ const NoticeStateSection = () => {
                   {EIS_NOTIFICATION_TYPE_LABELS[type]}
                 </option>
               ))}
-            </select>
+            </Select>
             <input
               type="text"
               placeholder="Версия (по умолчанию 1)"

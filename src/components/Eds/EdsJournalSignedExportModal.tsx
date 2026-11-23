@@ -18,6 +18,7 @@ import {
 } from "../../services/Eds/edsJournalExport";
 import { useFetchCurrentUser } from "../../services/Users/user.api";
 import styles from "./EdsJournalSignedExportModal.module.scss";
+import Select from "../UI/Select";
 
 interface EdsJournalSignedExportModalProps {
   organization: BaseOrganization;
@@ -207,7 +208,7 @@ export default function EdsJournalSignedExportModal({
 
         <label className={styles.field}>
           <span className={styles.label}>Получатель отчёта (контролирующий орган)</span>
-          <select
+          <Select
             className={styles.select}
             value={oversightBody}
             onChange={(e) => setOversightBody(e.target.value)}
@@ -218,7 +219,7 @@ export default function EdsJournalSignedExportModal({
               </option>
             ))}
             <option value="__custom__">Иной контролирующий орган…</option>
-          </select>
+          </Select>
         </label>
 
         {oversightBody === "__custom__" && (
@@ -242,7 +243,7 @@ export default function EdsJournalSignedExportModal({
         ) : (
           <label className={styles.field}>
             <span className={styles.label}>Сертификат ЭП для подписания отчёта</span>
-            <select
+            <Select
               className={styles.select}
               value={selectedCertIdx}
               onChange={(e) => setSelectedCertIdx(Number(e.target.value))}
@@ -253,7 +254,7 @@ export default function EdsJournalSignedExportModal({
                   {c.validTo || "?"})
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         )}
 

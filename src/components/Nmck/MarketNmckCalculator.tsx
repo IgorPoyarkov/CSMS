@@ -71,6 +71,7 @@ import type { ContractRegistryItem } from "../../services/ContractRegistry/contr
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import styles from "./MarketNmckCalculator.module.scss";
+import Select from "../UI/Select";
 
 export interface MarketNmckCalculatorProps {
   /** Ранее сохранённый расчёт (при повторном редактировании в СЗ) */
@@ -825,7 +826,7 @@ export default function MarketNmckCalculator({
             <label className={block("label")} htmlFor="nmck-basis-mode">
               Основание итоговой НМЦК
             </label>
-            <select
+            <Select
               id="nmck-basis-mode"
               className={block("select")}
               disabled={disabled}
@@ -838,7 +839,7 @@ export default function MarketNmckCalculator({
                 Средняя приведённая цена (п. 3.21 МЭР № 567)
               </option>
               <option value="min">Минимальная цена по выборке</option>
-            </select>
+            </Select>
           </div>
         )}
 
@@ -1009,7 +1010,7 @@ export default function MarketNmckCalculator({
                       <td>{item.index + 1}</td>
                       <td>
                         <div className={block("source-stack")}>
-                          <select
+                          <Select
                             className={block("select")}
                             disabled={disabled}
                             value={item.offer.sourceType ?? "commercial_offer"}
@@ -1025,7 +1026,7 @@ export default function MarketNmckCalculator({
                                 {MARKET_PRICE_SOURCE_LABELS[t]}
                               </option>
                             ))}
-                          </select>
+                          </Select>
                           <input
                             className={block("input")}
                             disabled={disabled}
@@ -1193,7 +1194,7 @@ export default function MarketNmckCalculator({
               </button>
               {availableContracts.length > 0 && (
                 <>
-                  <select
+                  <Select
                     className={block("select")}
                     style={{ width: "auto", maxWidth: 280 }}
                     disabled={disabled}
@@ -1214,7 +1215,7 @@ export default function MarketNmckCalculator({
                         </option>
                       );
                     })}
-                  </select>
+                  </Select>
                   <button
                     type="button"
                     className={block("btn", ["compact"])}
@@ -1526,7 +1527,7 @@ export default function MarketNmckCalculator({
                 Выбор тарифа из официальных источников (ФАС России, ФГИС ЕИАС,
                 региональный тарифный орган)
               </label>
-              <select
+              <Select
                 id="nmck-official-tariff-select"
                 className={block("select")}
                 disabled={disabled}
@@ -1548,7 +1549,7 @@ export default function MarketNmckCalculator({
                     </option>
                   );
                 })}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field", ["wide"])}>
@@ -1786,7 +1787,7 @@ export default function MarketNmckCalculator({
                     <td>{row.index + 1}</td>
                     <td>
                       <div className={block("source-stack")}>
-                        <select
+                        <Select
                           className={block("select")}
                           disabled={disabled}
                           value={row.item.category ?? "other"}
@@ -1801,7 +1802,7 @@ export default function MarketNmckCalculator({
                               {COST_ITEM_CATEGORY_LABELS[cat]}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                         <input
                           className={block("input")}
                           disabled={disabled}

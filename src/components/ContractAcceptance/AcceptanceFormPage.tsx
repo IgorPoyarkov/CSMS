@@ -32,6 +32,7 @@ import {
   type FormErrors,
 } from "./acceptance.config";
 import styles from "./Acceptance.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Форма документа о приёмке.
@@ -240,7 +241,7 @@ export default function AcceptanceFormPage() {
         <div className={block("grid")}>
           <label className={block("field", ["wide"])}>
             <span className={block("field-label")}>Контракт из реестра</span>
-            <select
+            <Select
               className={block("select")}
               value={form.contractId}
               disabled={isEdit}
@@ -252,7 +253,7 @@ export default function AcceptanceFormPage() {
                   № {item.contractNumber} — {item.contractName}
                 </option>
               ))}
-            </select>
+            </Select>
             {errors.contractId && (
               <span className={block("field-error")}>{errors.contractId}</span>
             )}
@@ -306,7 +307,7 @@ export default function AcceptanceFormPage() {
         <div className={block("grid")}>
           <label className={block("field")}>
             <span className={block("field-label")}>Вид документа</span>
-            <select
+            <Select
               className={block("select")}
               value={form.kind}
               disabled={isEdit}
@@ -321,7 +322,7 @@ export default function AcceptanceFormPage() {
                   </option>
                 ),
               )}
-            </select>
+            </Select>
           </label>
 
           <label className={block("field")}>

@@ -5,6 +5,7 @@ import {
   type EisSchemaType,
 } from "../../services/Eis/eisSchemaCatalog";
 import styles from "./EisSchemaExplorerPage.module.scss";
+import Select from "../UI/Select";
 
 const PAGE_SIZE = 100;
 
@@ -117,7 +118,7 @@ export default function EisSchemaExplorerPage() {
         </label>
         <label className={styles.filter}>
           <span>Пространство имён</span>
-          <select
+          <Select
             value={namespace}
             onChange={(event) => changeFilter(setNamespace, event.target.value)}
           >
@@ -127,11 +128,11 @@ export default function EisSchemaExplorerPage() {
                 {info.alias} · {info.typeCount} ({info.uri})
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className={styles.filter}>
           <span>Вид определения</span>
-          <select
+          <Select
             value={kind}
             onChange={(event) => changeFilter(setKind, event.target.value)}
           >
@@ -144,7 +145,7 @@ export default function EisSchemaExplorerPage() {
                   {label}
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
       </div>
 

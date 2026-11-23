@@ -29,6 +29,7 @@ import {
   tpChangeReasonOptions,
 } from "./purchasePlan.config";
 import styles from "./PurchasePlanSpecialPurchases.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Особые закупки плана-графика (tenderPlan2020SpecialPurchasePositionType,
@@ -891,7 +892,7 @@ export default function PurchasePlanSpecialPurchases({
         </button>
         <label className={block("filter")}>
           <span>Планируемый год размещения извещения</span>
-          <select
+          <Select
             className={block("select", ["filter"])}
             aria-label="Фильтр по планируемому году размещения извещения"
             value={yearFilter}
@@ -906,7 +907,7 @@ export default function PurchasePlanSpecialPurchases({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <button
           type="button"
@@ -941,7 +942,7 @@ export default function PurchasePlanSpecialPurchases({
         </label>
         <label className={block("filter")}>
           <span>Вид закупки</span>
-          <select
+          <Select
             className={block("select", ["filter"])}
             aria-label="Фильтр по виду закупки"
             value={typeFilter}
@@ -956,7 +957,7 @@ export default function PurchasePlanSpecialPurchases({
                 {type.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {filtersActive && (
           <button
@@ -993,7 +994,7 @@ export default function PurchasePlanSpecialPurchases({
           </label>
           <label className={block("wizard-field", ["year"])}>
             <span>Планируемый год размещения извещения</span>
-            <select
+            <Select
               className={block("select")}
               aria-label="Планируемый год размещения извещения"
               value={draftYear}
@@ -1005,7 +1006,7 @@ export default function PurchasePlanSpecialPurchases({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <button
             type="button"
@@ -1227,7 +1228,7 @@ export default function PurchasePlanSpecialPurchases({
                                       >
                                         Планируемый год размещения извещения
                                       </label>
-                                      <select
+                                      <Select
                                         id={`special-year-${item.id}`}
                                         className={block("select", ["year"])}
                                         value={String(
@@ -1249,7 +1250,7 @@ export default function PurchasePlanSpecialPurchases({
                                             {option.label}
                                           </option>
                                         ))}
-                                      </select>
+                                      </Select>
                                     </div>
                                   </div>
 
@@ -1651,7 +1652,7 @@ export default function PurchasePlanSpecialPurchases({
                                               (changeReason)
                                             </th>
                                             <td>
-                                              <select
+                                              <Select
                                                 className={block("select")}
                                                 value={item.changeReasonCode ?? ""}
                                                 onChange={(event) => {
@@ -1682,7 +1683,7 @@ export default function PurchasePlanSpecialPurchases({
                                                     </option>
                                                   ),
                                                 )}
-                                              </select>
+                                              </Select>
                                             </td>
                                           </tr>
                                           <tr>

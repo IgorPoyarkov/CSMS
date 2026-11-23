@@ -13,6 +13,7 @@ import type {
 } from "../../services/StaffingTable/StaffingTable.schema";
 import { employeeFullName } from "./contractService.config";
 import styles from "./ContractServicePage.module.scss";
+import Select from "../UI/Select";
 
 // Пути полей одного «выбора работника из штатки». Состав службы, контрактный
 // управляющий и работник, указавший сведения, устроены одинаково: сначала
@@ -85,7 +86,7 @@ export default function StaffEmployeePicker({
         <label className={block("label")} htmlFor={`${idPrefix}-unit`}>
           {unitLabel}
         </label>
-        <select
+        <Select
           id={`${idPrefix}-unit`}
           className={block("select")}
           {...register(fields.unitId, {
@@ -114,7 +115,7 @@ export default function StaffEmployeePicker({
               {unit.conventionalSymbol ? ` (${unit.conventionalSymbol})` : ""}
             </option>
           ))}
-        </select>
+        </Select>
         {isUnitsLoading && (
           <span className={block("hint")}>Загрузка подразделений...</span>
         )}
@@ -127,7 +128,7 @@ export default function StaffEmployeePicker({
         <label className={block("label")} htmlFor={`${idPrefix}-employee`}>
           {employeeLabel}
         </label>
-        <select
+        <Select
           id={`${idPrefix}-employee`}
           className={block("select")}
           {...register(fields.employeeId, {
@@ -156,7 +157,7 @@ export default function StaffEmployeePicker({
                 : ""}
             </option>
           ))}
-        </select>
+        </Select>
 
         {!selectedUnitId && (
           <span className={block("hint")}>

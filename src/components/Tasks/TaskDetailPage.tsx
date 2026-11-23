@@ -34,6 +34,7 @@ import {
 } from "../../services/Tasks/order158nTaskPool";
 import TaskEvaluationForm from "./TaskEvaluationForm";
 import styles from "./TaskDetailPage.module.scss";
+import Select from "../UI/Select";
 
 const statusLabels: Record<Task["status"], string> = {
   pending: "Ожидается",
@@ -401,7 +402,7 @@ export default function TaskDetailPage() {
           <form className={block("form")} onSubmit={methods.handleSubmit(onSubmit)}>
             <div className={block("field")}>
               <label className={block("label")}>Исполнитель</label>
-              <select
+              <Select
                 className={styles.input}
                 {...methods.register("assigneeId")}
                 onChange={(e) => onAssigneeChange(e.target.value)}
@@ -412,13 +413,13 @@ export default function TaskDetailPage() {
                     {fullName(emp.employee ?? {})}
                   </option>
                 ))}
-              </select>
+              </Select>
               <input type="hidden" {...methods.register("assigneeName")} />
             </div>
 
             <div className={block("field")}>
               <label className={block("label")}>Функция (раздел III)</label>
-              <select
+              <Select
                 className={styles.input}
                 {...methods.register("functionCode")}
                 onChange={(e) => {
@@ -439,14 +440,14 @@ export default function TaskDetailPage() {
                     {functionLabels[code]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>
               <label className={block("label")}>
                 Подфункция Приказа № 158н
               </label>
-              <select
+              <Select
                 className={styles.input}
                 {...methods.register("order158nPoolCode")}
                 onChange={(e) => {
@@ -479,7 +480,7 @@ export default function TaskDetailPage() {
                     дн.)
                   </option>
                 ))}
-              </select>
+              </Select>
               {(() => {
                 const code = watchedFunctionCode;
 
@@ -518,13 +519,13 @@ export default function TaskDetailPage() {
 
             <div className={block("field")}>
               <label className={block("label")}>Статус</label>
-              <select className={styles.input} {...methods.register("status")}>
+              <Select className={styles.input} {...methods.register("status")}>
                 {Object.entries(statusLabels).map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>

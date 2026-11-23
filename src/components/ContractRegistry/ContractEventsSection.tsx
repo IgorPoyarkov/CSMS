@@ -28,6 +28,7 @@ import {
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import styles from "./ContractRegistry.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Чекпоинты исполнения контракта (Tasks 8 п. 2 б).
@@ -503,7 +504,7 @@ export default function ContractEventsSection({
             >
               Чекпоинт
             </label>
-            <select
+            <Select
               id={`event-checkpoint-${contractId}`}
               className={block("select")}
               value={checkpoint}
@@ -516,7 +517,7 @@ export default function ContractEventsSection({
                   {contractEventCheckpointLabels[value]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Этап выбирается только когда он есть в ЕИС: у контракта без
@@ -529,7 +530,7 @@ export default function ContractEventsSection({
               >
                 Этап
               </label>
-              <select
+              <Select
                 id={`event-stage-${contractId}`}
                 className={block("select")}
                 value={stageKey}
@@ -541,7 +542,7 @@ export default function ContractEventsSection({
                     {stage.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 

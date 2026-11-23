@@ -37,6 +37,7 @@ import {
 } from "../noticeInfo.config";
 import NormingRequirementsBlock from "./NormingRequirementsBlock";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 interface PurchaseObjectsSectionProps {
   /**
@@ -500,7 +501,7 @@ const PurchaseObjectsSection = ({
                             />
                           </td>
                           <td>
-                            <select
+                            <Select
                               className={block("select")}
                               {...register(
                                 `purchaseObjects.items.${index}.nationalRegimeType`,
@@ -516,7 +517,7 @@ const PurchaseObjectsSection = ({
                                   {opt.label}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                             {advantageAllowed && (
                               <span className={block("caption")}>
                                 «Преимущество» — право заказчика: можно
@@ -659,7 +660,7 @@ const PurchaseObjectsSection = ({
                                 <span className={block("caption")}>
                                   Тип объекта (productTypeEnumType)
                                 </span>
-                                <select
+                                <Select
                                   className={block("select")}
                                   {...register(
                                     `purchaseObjects.items.${index}.productType`,
@@ -670,7 +671,7 @@ const PurchaseObjectsSection = ({
                                       {opt.label}
                                     </option>
                                   ))}
-                                </select>
+                                </Select>
                               </div>
                               <div className={block("field-col")}>
                                 <span className={block("caption")}>
@@ -689,7 +690,7 @@ const PurchaseObjectsSection = ({
                                 <span className={block("caption")}>
                                   Способ указания объёма
                                 </span>
-                                <select
+                                <Select
                                   className={block("select")}
                                   {...register(
                                     `purchaseObjects.items.${index}.volumeSpecifyingMethod`,
@@ -700,7 +701,7 @@ const PurchaseObjectsSection = ({
                                       {opt.label}
                                     </option>
                                   ))}
-                                </select>
+                                </Select>
                               </div>
                             </div>
 

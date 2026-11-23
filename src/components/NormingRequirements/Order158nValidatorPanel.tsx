@@ -10,6 +10,7 @@ import {
 } from "../../services/ObjectDescription/order158nValidator";
 import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import styles from "./NormingRequirementsPage.module.scss";
+import Select from "../UI/Select";
 
 interface Order158nValidatorPanelProps {
   descriptions: ObjectDescription[];
@@ -93,7 +94,7 @@ export default function Order158nValidatorPanel({
 
         <div className={block("validator-controls")}>
           {!compact && descriptions.length > 1 && onSelectId && (
-            <select
+            <Select
               className={block("select")}
               aria-label="Выбор ООЗ для проверки"
               value={String(activeDescription.id ?? "")}
@@ -104,7 +105,7 @@ export default function Order158nValidatorPanel({
                   {d.title} (ОКПД2 {d.okpd2Code})
                 </option>
               ))}
-            </select>
+            </Select>
           )}
 
           <label className={block("checkbox-label")}>

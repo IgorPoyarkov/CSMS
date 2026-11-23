@@ -27,6 +27,7 @@ import {
   isEmbeddedBrowser,
 } from "../../services/Eds/edsEnvironment";
 import styles from "./EisPackageCard.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Карточка пакета ЕИС: где он сейчас, что с ним можно сделать и что ответила
@@ -288,7 +289,7 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
             <>
               <label className={block("field")}>
                 <span className={block("label")}>Сертификат подписанта</span>
-                <select
+                <Select
                   className={block("select")}
                   value={certKey}
                   onChange={(event) => setCertKey(event.target.value)}
@@ -302,7 +303,7 @@ export default function EisPackageCard({ item }: EisPackageCardProps) {
                       </option>
                     );
                   })}
-                </select>
+                </Select>
               </label>
 
               <button

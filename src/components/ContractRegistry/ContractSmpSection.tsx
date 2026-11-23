@@ -46,6 +46,7 @@ import type {
   SignatureEventAction,
   SignatureEvent,
 } from "../../services/Eds/eds.schema";
+import Select from "../UI/Select";
 
 /**
  * Секция «Привлечение СМП» в карточке контракта (Tasks 9, п. 7, п/п 7).
@@ -796,7 +797,7 @@ export default function SmpSection({
                   </td>
                   <td>{record.receivedAt?.slice(0, 10)}</td>
                   <td>
-                    <select
+                    <Select
                       className={block("statusSelect")}
                       value={record.status}
                       onChange={(event) =>
@@ -813,7 +814,7 @@ export default function SmpSection({
                           </option>
                         ),
                       )}
-                    </select>
+                    </Select>
                   </td>
                   <td className={block("confirm-cell")}>
                     <div className={block("confirm-row")}>
@@ -1043,7 +1044,7 @@ function ContractSmpRecordForm({
               <label className={block("label")} htmlFor="smp-doc-type">
                 Тип документа
               </label>
-              <select
+              <Select
                 id="smp-doc-type"
                 className={block("select")}
                 {...register("documentType")}
@@ -1055,7 +1056,7 @@ function ContractSmpRecordForm({
                     </option>
                   ),
                 )}
-              </select>
+              </Select>
             </div>
 
             {/* Номер / дата */}
@@ -1124,7 +1125,7 @@ function ContractSmpRecordForm({
               <label className={block("label")} htmlFor="smp-price-type">
                 Вид цены контракта
               </label>
-              <select
+              <Select
                 id="smp-price-type"
                 className={block("select")}
                 {...register("priceType")}
@@ -1136,7 +1137,7 @@ function ContractSmpRecordForm({
                     </option>
                   ),
                 )}
-              </select>
+              </Select>
             </div>
             {priceType === "unit" && (
               <div className={block("field")}>

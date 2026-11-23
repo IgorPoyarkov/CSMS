@@ -19,6 +19,7 @@ import { contractSmpStatusLabels } from "../../services/ContractSmp/contractSmp.
 import ContractorSmpSection from "./ContractorSmpSection";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Contractor.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Личный кабинет подрядчика: реестр контрактов по заказчикам и направление
@@ -230,7 +231,7 @@ const ContractorDashboardPage = () => {
       <div className={block("toolbar")}>
         <label className={block("filter")}>
           <span>Показывать</span>
-          <select
+          <Select
             className={block("filterSelect")}
             value={statusFilter}
             onChange={(event) =>
@@ -244,7 +245,7 @@ const ContractorDashboardPage = () => {
             <option value="completed">Исполненные</option>
             <option value="terminated">Расторгнутые</option>
             <option value="suspended">Приостановленные</option>
-          </select>
+          </Select>
         </label>
         <p className={block("hint")}>
           Нажмите на строку, чтобы раскрыть карточку контракта и направить

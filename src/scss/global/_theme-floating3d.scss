@@ -96,7 +96,8 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       [type="file"]
     ),
   textarea,
-  select {
+  select,
+  [data-csms-select] {
     box-shadow:
       inset 0 1px 2px rgba(3, 28, 4, 0.55),
       inset 0 -1px 0 rgba(233, 245, 228, 0.07),
@@ -110,7 +111,8 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       [type="file"]
     ):hover,
   textarea:hover,
-  select:hover {
+  select:hover,
+  [data-csms-select]:hover {
     border-color: var(--accent);
   }
 
@@ -123,7 +125,9 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   textarea:focus,
   textarea:focus-visible,
   select:focus,
-  select:focus-visible {
+  select:focus-visible,
+  [data-csms-select]:focus,
+  [data-csms-select]:focus-visible {
     box-shadow:
       inset 0 1px 2px rgba(3, 28, 4, 0.5),
       0 0 0 3px rgba(178, 227, 42, 0.18),
@@ -131,7 +135,7 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   }
 
   // Кнопки: объёмная тень, мягкий подъём на hover, «вдавливание» на нажатии.
-  button {
+  button:not([data-csms-select]) {
     box-shadow:
       inset 0 1px 0 rgba(233, 245, 228, 0.16),
       inset 0 -2px 0 rgba(3, 28, 4, 0.35),
@@ -144,8 +148,8 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       color 160ms $float-ease;
   }
 
-  button:not(:disabled):hover,
-  button:not(:disabled):focus-visible {
+  button:not([data-csms-select]):not(:disabled):hover,
+  button:not([data-csms-select]):not(:disabled):focus-visible {
     transform: translateY(-1px);
     box-shadow:
       inset 0 1px 0 rgba(178, 227, 42, 0.45),
@@ -154,7 +158,7 @@ $float-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
       0 0 18px rgba(178, 227, 42, 0.22);
   }
 
-  button:not(:disabled):active {
+  button:not([data-csms-select]):not(:disabled):active {
     transform: translateY(0);
     box-shadow:
       inset 0 2px 6px rgba(3, 28, 4, 0.6),

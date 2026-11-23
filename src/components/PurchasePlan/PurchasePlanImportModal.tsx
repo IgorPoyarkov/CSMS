@@ -20,6 +20,7 @@ import {
 import { useCreatePurchasePlanVersion } from "../../services/PurchasePlan/purchasePlanVersion.api";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import styles from "./PurchasePlanImportModal.module.scss";
+import Select from "../UI/Select";
 
 interface PurchasePlanImportModalProps {
   organization: BaseOrganization;
@@ -397,7 +398,7 @@ export default function PurchasePlanImportModal({
                     <span className={styles["mapping-sample"]}>
                       Пример: {parsed.rows[0]?.[col] || "—"}
                     </span>
-                    <select
+                    <Select
                       className={styles.select}
                       value={effectiveMapping[col] ?? "ignore"}
                       onChange={(e) =>
@@ -412,7 +413,7 @@ export default function PurchasePlanImportModal({
                           {opt.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 ))}
               </div>
@@ -554,7 +555,7 @@ export default function PurchasePlanImportModal({
                   <label className={styles.label}>
                     Выберите существующий черновик ПГ
                   </label>
-                  <select
+                  <Select
                     className={styles.select}
                     value={String(targetExistingDraft?.id ?? "")}
                     onChange={(e) => setSelectedDraftId(e.target.value)}
@@ -565,7 +566,7 @@ export default function PurchasePlanImportModal({
                         {p.positions.length})
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               )}
 

@@ -13,6 +13,7 @@ import { useKtruDictionary } from "../../../services/KtruRef/ktruRef.api";
 import { ktruRequirements } from "../../../services/KtruRef/ktruControl";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 const REQUIREMENT_TYPES: {
   id: "consumer" | "quality" | "functional" | "other";
@@ -149,7 +150,7 @@ const NormingRequirementsBlock = ({
         )}
         {fields.map((field, i) => (
           <div key={field.id} className={block("norming-req-item")}>
-            <select
+            <Select
               className={block("select")}
               {...register(
                 `${requirementsName}.${i}.requirementType` as Path<NoticeInfoFormValues>,
@@ -160,7 +161,7 @@ const NormingRequirementsBlock = ({
                   {t.label}
                 </option>
               ))}
-            </select>
+            </Select>
             <input
               type="text"
               className={block("input")}

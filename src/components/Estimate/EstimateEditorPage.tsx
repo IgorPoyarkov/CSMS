@@ -59,6 +59,7 @@ import {
 } from "../../services/Estimate/estimate.validation";
 import MarketNmckCalculator from "../Nmck/MarketNmckCalculator";
 import styles from "./Estimate.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Редактор сквозного документа «смета + обоснование НМЦК».
@@ -564,7 +565,7 @@ export default function EstimateEditorPage() {
                       >
                         Метод
                       </label>
-                      <select
+                      <Select
                         id="estimate-method"
                         className={block("input")}
                         {...register("estimate.method")}
@@ -574,14 +575,14 @@ export default function EstimateEditorPage() {
                             {estimateMethodLabels[method]}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className={block("field")}>
                       <label className={block("label")} htmlFor="estimate-base">
                         Нормативная база
                       </label>
-                      <select
+                      <Select
                         id="estimate-base"
                         className={block("input")}
                         {...register("estimate.normativeBase")}
@@ -591,7 +592,7 @@ export default function EstimateEditorPage() {
                             {estimateNormativeBaseLabels[base]}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className={block("field")}>
@@ -613,7 +614,7 @@ export default function EstimateEditorPage() {
                       <label className={block("label")} htmlFor="estimate-act">
                         Норма — методика определения сметной стоимости
                       </label>
-                      <select
+                      <Select
                         id="estimate-act"
                         className={block("input")}
                         {...register("estimate.legalActId")}
@@ -624,7 +625,7 @@ export default function EstimateEditorPage() {
                             {formatLegalAct(act)}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                       <span className={block("hint")}>
                         Смета контракта считается по методике Минстроя России №
                         421/пр от 04.08.2020; акт хранится в реестре
@@ -861,7 +862,7 @@ export default function EstimateEditorPage() {
                       <label className={block("label")} htmlFor="schedule-act">
                         Норма — методика графика СМР и оплаты
                       </label>
-                      <select
+                      <Select
                         id="schedule-act"
                         className={block("input")}
                         {...register("schedule.legalActId")}
@@ -872,7 +873,7 @@ export default function EstimateEditorPage() {
                             {formatLegalAct(act)}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                       <span className={block("hint")}>
                         График составляется по методике Минстроя России № 336/пр
                         от 05.06.2018: этапы — разделы сметы, сумма этапов равна

@@ -18,6 +18,7 @@ import { describeCryptoPro } from "../../services/Eds/cryptoPro";
 import useUtils from "../../hooks/useUtils";
 import EdsJournalSignedExportModal from "./EdsJournalSignedExportModal";
 import styles from "./EdsJournalPage.module.scss";
+import Select from "../UI/Select";
 
 // Дата оценки состояния сертификатов: считается один раз на загрузку модуля
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -242,7 +243,7 @@ export default function EdsJournalPage() {
         <div className={block("filters")}>
           <label className={block("filter-label")}>
             Действие
-            <select
+            <Select
               className={block("filter-select")}
               value={actionFilter}
               onChange={(event) =>
@@ -257,7 +258,7 @@ export default function EdsJournalPage() {
                   </option>
                 ),
               )}
-            </select>
+            </Select>
           </label>
           <label className={block("filter-label")}>
             С даты

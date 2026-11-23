@@ -6698,3 +6698,57 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   стало `total: 1`); на `/purchase-plans` и `/tasks` разметка не изменилась
   (2 и 12 панелей), безрамочных среди них нет.
 
+## 167. Единый выпадающий список `Select` вместо нативных `<select>` (2026-11-23)
+
+- **Проблема.** В нативном `<select>` выпадающий список рисует сам браузер, и
+  CSS темы на него не действует: в тёмных темах он оставался белым со светлым
+  текстом — пункты не читались. Всего в интерфейсе было **147** нативных
+  `<select>` в **63** файлах (только одиночные, без `multiple`, `size` и
+  `<optgroup>`).
+- **Компонент `src/components/UI/Select.tsx`.** Совместим с нативным select по
+  API: `value`/`defaultValue`/`onChange`/`onBlur`/`name`/`disabled`/`id`/
+  `placeholder`/`className`/`style` и любые `aria-*`. Внутри остаётся
+  **настоящий `<select>`**, визуально скрытый (`.select__native`), — он держит
+  `ref` (`forwardRef` + `useImperativeHandle`), `name` и нативную валидацию,
+  поэтому `{...register("field")}` из react-hook-form работает без переписывания
+  форм. Видимая часть — `<button role="combobox">` с подписью и стрелкой;
+  `className`/`style` применяются к ней, чтобы внешнее оформление сохранилось.
+- **Событие для RHF.** `commit()` обновляет state, DOM-значение скрытого select
+  и вызывает `onChange` с синтетическим `ChangeEvent<HTMLSelectElement>`
+  (`target.name/value/selectedIndex/options`). `reset()` из RHF меняет DOM-value
+  минуя onChange — значение читается из `ref.current.value` прямо в рендере,
+  поэтому подпись сразу показывает сброшенное значение (без `useEffect`).
+- **Выпадающий список.** Рендерится через `createPortal` в `document.body` с
+  `position: fixed`, координаты пересчитываются на `scroll`/`resize`, при
+  нехватке места список раскрывается вверх (`maxHeight` до 320 px). Поэтому он
+  не обрезается в модалках, таблицах и `overflow: hidden`.
+- **Клавиатура и ARIA.** `ArrowDown/ArrowUp`, `Home/End`, `Enter`/`Space`,
+  `Escape`, `Tab`, typeahead по первым буквам; пропуск `disabled`-пунктов;
+  `role="listbox"/"option"`, `aria-expanded`, `aria-controls`,
+  `aria-activedescendant`, `aria-selected`, `aria-disabled`. Закрытие по клику
+  вне и по `blur`.
+- **Темы.** Все цвета — переменные (`--surface-field`, `--surface-panel`,
+  `--field-border`, `--border-strong`, `--text-primary`, `--accent-soft` и т. д.),
+  поэтому список читается в светлой, тёмной и обеих «объёмных» темах. На
+  триггере стоит маркер `data-csms-select`, и глобальные правила, написанные
+  для `select`, распространены на него: `_theme-modern.scss` (внутренняя тень и
+  фокусный ореол), `_theme-floating3d.scss` (тень/`hover`/`focus` полей), при
+  этом триггер исключён из правил `button` (`:not([data-csms-select])`), иначе
+  в объёмных темах он выглядел бы кнопкой. Точечно добавлен маркер в
+  `ContractRegistry.module.scss` (`.inlineField`), `EisSchemaExplorerPage.module.scss`
+  (`.filter`) и `NormingRequirementsPage.module.scss` (`> select`).
+- **Замена.** `scripts/replace-native-selects.mjs` — codemod: меняет теги
+  `<select>` → `<Select>` и вставляет относительный импорт
+  `import Select from "…/UI/Select";`. Есть режим `--dry`. Выполнено:
+  «Заменено: 147 select в 63 файлах».
+- **Проверки.** `npx tsc -b` — чисто; `npx oxlint src` — 78 предупреждений,
+  0 ошибок (как до задачи); `npx vite build` — успешно. Браузерный смоук:
+  форма «Изменение плана-графика» (`/purchase-plans/:id/edit`) — открытие
+  кликом, выбор мышью, `ArrowDown`+`Enter`, `Escape`, возврат фокуса; список
+  читается в зелёной (floating3d), синей, светлой и modern темах; сохранение
+  формы прошло (`Версия 1 · Размещен в ЕИС`, снимок версии не создавался).
+- **Ограничения.** `multiple`/`size` не поддерживаются (в проекте не
+  используются); `autoFocus`/`onKeyDown` на `<Select>` попали бы на скрытый
+  select — сейчас таких мест нет (проверено поиском). `required` работает через
+  скрытый select, но в проекте валидация в основном zod-овская.
+

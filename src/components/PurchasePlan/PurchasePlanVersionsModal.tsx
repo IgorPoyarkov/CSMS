@@ -15,6 +15,7 @@ import {
 import { diffPurchasePlans } from "../../services/PurchasePlan/purchasePlanDiff";
 import { formatMoney, planTotalAmount } from "./purchasePlan.config";
 import styles from "./PurchasePlanVersionsModal.module.scss";
+import Select from "../UI/Select";
 
 interface PurchasePlanVersionsModalProps {
   plan: PurchasePlan;
@@ -197,7 +198,7 @@ export default function PurchasePlanVersionsModal({
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Тип редакции</label>
-                <select
+                <Select
                   className={styles.select}
                   value={newKind}
                   onChange={(e) =>
@@ -207,7 +208,7 @@ export default function PurchasePlanVersionsModal({
                   <option value="draft">Черновик</option>
                   <option value="approved">Утверждённая редакция</option>
                   <option value="published">Опубликована в ЕИС</option>
-                </select>
+                </Select>
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Комментарий к изменениям</label>
@@ -311,7 +312,7 @@ export default function PurchasePlanVersionsModal({
             <div className={styles["compare-bar"]}>
               <div className={styles.field}>
                 <label className={styles.label}>Базовая редакция (Было)</label>
-                <select
+                <Select
                   className={styles.select}
                   value={effectiveLeftKey}
                   onChange={(e) => setLeftVersionKey(e.target.value)}
@@ -324,11 +325,11 @@ export default function PurchasePlanVersionsModal({
                       v.{v.versionNumber} — {v.versionLabel} ({v.createdAt})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className={styles.field}>
                 <label className={styles.label}>Сравниваемая редакция (Стало)</label>
-                <select
+                <Select
                   className={styles.select}
                   value={rightVersionKey}
                   onChange={(e) => setRightVersionKey(e.target.value)}
@@ -341,7 +342,7 @@ export default function PurchasePlanVersionsModal({
                       v.{v.versionNumber} — {v.versionLabel} ({v.createdAt})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <label
                 style={{

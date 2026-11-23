@@ -10,6 +10,7 @@ import useUtils from "../../hooks/useUtils";
 import { useFetchEmployeeByUserId } from "../../services/StaffingTable/StaffingTable.api";
 import { useFetchCurrentUser } from "../../services/Users/user.api";
 import styles from "./TaskEvaluationForm.module.scss";
+import Select from "../UI/Select";
 
 const evaluationFormSchema = TaskEvaluationSchema.omit({
   id: true,
@@ -87,13 +88,13 @@ export default function TaskEvaluationForm({
 
         <div className={form("group")}>
           <label className={form("label")}>Оценка</label>
-          <select className={form("select")} {...methods.register("score")}>
+          <Select className={form("select")} {...methods.register("score")}>
             {Object.entries(scoreLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
           {methods.formState.errors.score && (
             <span className={form("error")}>
               {methods.formState.errors.score.message}

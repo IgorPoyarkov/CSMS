@@ -18,6 +18,7 @@ import {
   issueIsError,
 } from "./acceptance.config";
 import styles from "./Acceptance.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Реестр документов о приёмке (электронное актирование, ст. 94 44-ФЗ).
@@ -133,7 +134,7 @@ export default function AcceptanceRegistryPage() {
       <div className={block("toolbar")}>
         <label className={block("filter")}>
           <span>Контракт</span>
-          <select
+          <Select
             className={block("select")}
             value={contractFilter}
             onChange={(event) => setContractFilter(event.target.value)}
@@ -144,7 +145,7 @@ export default function AcceptanceRegistryPage() {
                 № {contract.contractNumber} — {contract.contractName}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <div

@@ -51,6 +51,7 @@ import {
 } from "../ContractService/contractService.config";
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import styles from "./Order158nReportsPage.module.scss";
+import Select from "../UI/Select";
 
 type ReportTab = "overview" | "functions" | "staff" | "archive";
 
@@ -410,7 +411,7 @@ export default function Order158nReportsPage() {
         <div className={block("controls-grid")}>
           <div className={block("field")}>
             <label htmlFor="r158-period-type">Тип отчётного периода</label>
-            <select
+            <Select
               id="r158-period-type"
               value={periodType}
               onChange={(e) => {
@@ -428,7 +429,7 @@ export default function Order158nReportsPage() {
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className={block("field")}>
@@ -449,7 +450,7 @@ export default function Order158nReportsPage() {
           {periodType === "quarterly" && (
             <div className={block("field")}>
               <label htmlFor="r158-quarter">Квартал</label>
-              <select
+              <Select
                 id="r158-quarter"
                 value={quarter}
                 onChange={(e) => {
@@ -467,7 +468,7 @@ export default function Order158nReportsPage() {
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           )}
 

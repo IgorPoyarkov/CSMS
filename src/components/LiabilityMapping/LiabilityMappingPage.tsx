@@ -13,6 +13,7 @@ import type {
   MatchedLiability,
 } from "../../services/LiabilityMapping/liabilityMapping.schema";
 import styles from "./LiabilityMappingPage.module.scss";
+import Select from "../UI/Select";
 
 const degreeLabels: Record<string, string> = {
   full: "полное",
@@ -236,7 +237,7 @@ const LiabilityMappingPage = () => {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
-            <select
+            <Select
               className={page("select")}
               value={section}
               onChange={(event) => setSection(event.target.value)}
@@ -247,7 +248,7 @@ const LiabilityMappingPage = () => {
                   {title}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <ul className={page("items")}>

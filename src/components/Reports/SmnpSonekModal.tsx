@@ -25,6 +25,7 @@ import type {
   PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import styles from "./SmnpSonek.module.scss";
+import Select from "../UI/Select";
 
 /** Тип записи, которую создаём/редактируем */
 export type SmnpRecordType = "plan" | "report" | "procurement";
@@ -174,7 +175,7 @@ export default function SmnpSonekModal({
                 <label className={block("label")} htmlFor="quarter">
                   Квартал
                 </label>
-                <select
+                <Select
                   id="quarter"
                   className={block("input")}
                   {...register("quarter")}
@@ -183,14 +184,14 @@ export default function SmnpSonekModal({
                   <option value="q2">Q2</option>
                   <option value="q3">Q3</option>
                   <option value="q4">Q4</option>
-                </select>
+                </Select>
               </div>
             )}
             <div className={block("field")}>
               <label className={block("label")} htmlFor="type">
                 Тип
               </label>
-              <select
+              <Select
                 id="type"
                 className={block("input")}
                 {...register("type")}
@@ -209,7 +210,7 @@ export default function SmnpSonekModal({
               >
                 <option value="annual">Годовой</option>
                 <option value="quarterly">Квартальный</option>
-              </select>
+              </Select>
             </div>
           </div>
         </fieldset>
@@ -373,7 +374,7 @@ export default function SmnpSonekModal({
                 <label className={block("label")} htmlFor="status">
                   Статус
                 </label>
-                <select
+                <Select
                   id="status"
                   className={block("input")}
                   {...register("status")}
@@ -382,7 +383,7 @@ export default function SmnpSonekModal({
                   <option value="review">На проверке</option>
                   <option value="published">Опубликован</option>
                   <option value="archived">Архив</option>
-                </select>
+                </Select>
               </div>
               <div className={block("field")}>
                 <label className={block("label")} htmlFor="eisPublishDate">
@@ -409,14 +410,14 @@ export default function SmnpSonekModal({
                   <label className={block("label")} htmlFor="supplierType">
                     Тип поставщика
                   </label>
-                  <select
+                  <Select
                     id="supplierType"
                     className={block("input")}
                     {...register("supplierType")}
                   >
                     <option value="smnp">СМП</option>
                     <option value="sonek">СОНКО</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className={block("field", ["wide"])}>
                   <label className={block("label")} htmlFor="procurementName">

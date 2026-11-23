@@ -37,6 +37,7 @@ import {
 } from "../../services/Contractor/contractor.schema";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Contractor.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Направление сведений о привлечении СМП со стороны подрядчика
@@ -544,7 +545,7 @@ const SmpDraftForm = ({
       <div className={block("grid")}>
         <label className={block("field")}>
           <span className={block("label")}>Тип документа</span>
-          <select className={block("input")} {...register("documentType")}>
+          <Select className={block("input")} {...register("documentType")}>
             {Object.entries(contractSmpDocumentTypeLabels).map(
               ([value, label]) => (
                 <option key={value} value={value}>
@@ -552,7 +553,7 @@ const SmpDraftForm = ({
                 </option>
               ),
             )}
-          </select>
+          </Select>
         </label>
 
         <label className={block("field")}>
@@ -667,7 +668,7 @@ const SmpDraftForm = ({
 
           <label className={block("field")}>
             <span className={block("label")}>Вид цены</span>
-            <select className={block("input")} {...register("priceType")}>
+            <Select className={block("input")} {...register("priceType")}>
               {Object.entries(contractSmpPriceTypeLabels).map(
                 ([value, label]) => (
                   <option key={value} value={value}>
@@ -675,7 +676,7 @@ const SmpDraftForm = ({
                   </option>
                 ),
               )}
-            </select>
+            </Select>
           </label>
 
           <label className={block("field")}>
@@ -751,7 +752,7 @@ const SmpDraftForm = ({
       {needsBasis && (
         <label className={block("field")}>
           <span className={block("label")}>Договор-основание</span>
-          <select
+          <Select
             className={block("input")}
             {...register("subContractRecordId")}
           >
@@ -762,7 +763,7 @@ const SmpDraftForm = ({
                 {item.supplierName}
               </option>
             ))}
-          </select>
+          </Select>
           <span className={block("basis")}>
             {subContracts.length === 0
               ? "Сначала направьте договор с субподрядчиком — без него акт и платёжка не привяжутся"

@@ -19,6 +19,7 @@ import {
 } from "../../../services/Pp2571/pp2571.schema";
 import SecurityRequisitesFields from "../../PurchaseNote/SecurityRequisitesFields";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 const ParticipantsRequirementsSection = () => {
   const { bem } = useUtils();
@@ -826,7 +827,7 @@ const ParticipantsRequirementsSection = () => {
               </label>
             </div>
             {reqs.requiresTreasurySupport && (
-              <select
+              <Select
                 className={block("select")}
                 {...register("participantsRequirements.treasurySupportType")}
               >
@@ -834,7 +835,7 @@ const ParticipantsRequirementsSection = () => {
                 <option value="advance_only">
                   Казначейское сопровождение только аванса
                 </option>
-              </select>
+              </Select>
             )}
             <label className={block("checkbox")}>
               <input

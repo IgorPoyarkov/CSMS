@@ -49,6 +49,7 @@ import {
 } from "../../services/VacationSchedule/vacationScheduleExport";
 import VacationRowModal from "./VacationRowModal";
 import styles from "./VacationSchedulePage.module.scss";
+import Select from "../UI/Select";
 
 /**
  * «График отпусков» — утилита планирования отсутствия работников.
@@ -509,7 +510,7 @@ export default function VacationSchedulePage() {
                 aria-label="Поиск по графику"
               />
 
-              <select
+              <Select
                 className={block("select")}
                 value={unitFilter}
                 onChange={(event) => setUnitFilter(event.target.value)}
@@ -521,7 +522,7 @@ export default function VacationSchedulePage() {
                     {name}
                   </option>
                 ))}
-              </select>
+              </Select>
 
               <div className={block("toolbar-actions")}>
                 {canEdit && editable && (

@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { DashboardAnalyticsData } from "../../services/Dashboard/dashboardAnalytics";
 import styles from "./ProcurementChartsDashboard.module.scss";
+import Select from "../UI/Select";
 
 interface ProcurementChartsDashboardProps {
   analytics: DashboardAnalyticsData;
@@ -107,7 +108,7 @@ export default function ProcurementChartsDashboard({
           <label htmlFor="dashboard-year-select" className={styles.subtitle}>
             Финансовый год:
           </label>
-          <select
+          <Select
             id="dashboard-year-select"
             className={styles["year-select"]}
             value={selectedYear}
@@ -118,7 +119,7 @@ export default function ProcurementChartsDashboard({
                 {y}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

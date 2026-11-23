@@ -68,7 +68,10 @@
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(220px, 1fr) minmax(160px, 1fr);
+  grid-template-columns: minmax(220px, 2fr) minmax(220px, 1fr) minmax(
+      160px,
+      1fr
+    );
   gap: 12px;
 
   @media (max-width: 900px) {
@@ -84,7 +87,8 @@
   color: var(--text-secondary);
 
   input,
-  select {
+  select,
+  [data-csms-select] {
     width: 100%;
     padding: 8px 10px;
     border: 1px solid var(--border);

@@ -20,6 +20,7 @@ import {
   issueIsError,
 } from "./contractChange.config";
 import styles from "./ContractChange.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Реестр документов об изменении и расторжении контрактов (ст. 95 44-ФЗ).
@@ -148,7 +149,7 @@ export default function ContractChangeRegistryPage() {
       <div className={block("toolbar")}>
         <label className={block("filter")}>
           <span>Контракт</span>
-          <select
+          <Select
             className={block("select")}
             value={contractFilter}
             onChange={(event) => setContractFilter(event.target.value)}
@@ -159,7 +160,7 @@ export default function ContractChangeRegistryPage() {
                 № {contract.contractNumber} — {contract.contractName}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <div

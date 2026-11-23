@@ -5,6 +5,7 @@ import { useGetProcurements } from "../../services/Procurements/procurement.api"
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useContractService } from "../../services/ContractService/contractService.api";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
 import { useOrganizationBidEvaluations } from "../../services/BidEvaluation/bidEvaluation.api";
@@ -27,6 +28,7 @@ import {
 import DocumentCheckerPanel from "./DocumentCheckerPanel";
 import Loader from "../UI/Loader";
 import styles from "./ProcurementDocumentsPage.module.scss";
+import Select from "../UI/Select";
 
 const DOC_TYPES: ProcurementDocumentType[] = [
   "commission_order",
@@ -47,6 +49,10 @@ export default function ProcurementDocumentsPage() {
     useGetProcurements();
   const { data: plans = [] } = usePurchasePlans(orgId);
   const { data: purchaseNotes = [] } = usePurchaseNotes(orgId);
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
   const { data: notices = [] } = useNotices();
   const { data: contractService } = useContractService(orgId);
   const { data: employees = [] } = useFetchOrganizationEmployees(orgId);
@@ -88,7 +94,7 @@ export default function ProcurementDocumentsPage() {
       procurement: activeProcurement,
       organization,
       plans,
-      purchaseNotes,
+      purchaseNotes: visiblePurchaseNotes,
       notices,
       bidEvaluations,
       contractService,
@@ -98,7 +104,7 @@ export default function ProcurementDocumentsPage() {
     activeProcurement,
     organization,
     plans,
-    purchaseNotes,
+    visiblePurchaseNotes,
     notices,
     bidEvaluations,
     contractService,
@@ -316,7 +322,7 @@ export default function ProcurementDocumentsPage() {
         <div className={styles["grid-2"]}>
           <label className={styles.field}>
             <span className={styles.label}>Карточка закупки (источник данных)</span>
-            <select
+            <Select
               className={styles.select}
               value={activeProcurement ? String(activeProcurement.id) : ""}
               onChange={(e) => handleSelectProcurement(e.target.value)}
@@ -326,7 +332,7 @@ export default function ProcurementDocumentsPage() {
                   {p.ikz.slice(0, 14)}… — {p.name} ({p.nmck.toLocaleString("ru-RU")} ₽)
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <div className={styles.field}>
@@ -568,7 +574,7 @@ export default function ProcurementDocumentsPage() {
                               />
                             </td>
                             <td>
-                              <select
+                              <Select
                                 className={styles.select}
                                 value={member.role}
                                 onChange={(e) =>
@@ -584,7 +590,7 @@ export default function ProcurementDocumentsPage() {
                                     </option>
                                   ),
                                 )}
-                              </select>
+                              </Select>
                             </td>
                             {docType === "bid_review_protocol" && (
                               <td>
@@ -687,7 +693,7 @@ export default function ProcurementDocumentsPage() {
                               />
                             </td>
                             <td>
-                              <select
+                              <Select
                                 className={styles.select}
                                 value={row.decision}
                                 onChange={(e) =>
@@ -700,7 +706,7 @@ export default function ProcurementDocumentsPage() {
                               >
                                 <option value="admitted">Допущена</option>
                                 <option value="rejected">Отклонена</option>
-                              </select>
+                              </Select>
                             </td>
                             <td>
                               {row.decision === "admitted" ? (

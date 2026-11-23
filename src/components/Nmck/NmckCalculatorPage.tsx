@@ -22,6 +22,7 @@ import {
 } from "../../services/PurchaseNote/purchaseNote.api";
 import {
   emptyPurchaseNote,
+  filterVisiblePurchaseNotes,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
   type PurchaseNote,
@@ -42,6 +43,7 @@ import {
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import MarketNmckCalculator from "./MarketNmckCalculator";
 import styles from "./NmckCalculatorPage.module.scss";
+import Select from "../UI/Select";
 
 const CREATE_NEW_NOTE_KEY = "__create_new__";
 
@@ -68,6 +70,10 @@ export default function NmckCalculatorPage() {
     usePurchasePlans(organizationId);
   const { data: purchaseNotes = [], isLoading: isNotesLoading } =
     usePurchaseNotes(organizationId);
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
   const { data: contractRegistryItems = [] } =
     useContractRegistry(organizationId);
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
@@ -115,8 +121,8 @@ export default function NmckCalculatorPage() {
   }, [planPositions, paramPositionId]);
 
   const positionNotes = useMemo(
-    () => purchaseNotesForPosition(purchaseNotes, selectedPosition?.id),
-    [purchaseNotes, selectedPosition?.id],
+    () => purchaseNotesForPosition(visiblePurchaseNotes, selectedPosition?.id),
+    [visiblePurchaseNotes, selectedPosition?.id],
   );
 
   const [manualNoteTarget, setManualNoteTarget] = useState<string>("");
@@ -299,7 +305,7 @@ export default function NmckCalculatorPage() {
 
     const newNote: PurchaseNote = {
       ...base,
-      noteNumber: nextPurchaseNoteNumber(purchaseNotes),
+      noteNumber: nextPurchaseNoteNumber(visiblePurchaseNotes),
       purchasePlanId: selectedPlan.id,
       purchasePlanNumber: selectedPlan.planNumber,
       positionId: selectedPosition.id,
@@ -447,7 +453,7 @@ export default function NmckCalculatorPage() {
                 <label className={block("label")} htmlFor="nmck-plan-select">
                   План-график закупок
                 </label>
-                <select
+                <Select
                   id="nmck-plan-select"
                   className={block("select")}
                   value={selectedPlan?.id ? String(selectedPlan.id) : ""}
@@ -459,14 +465,14 @@ export default function NmckCalculatorPage() {
                       {p.positions.length})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div className={block("field")}>
                 <label className={block("label")} htmlFor="nmck-pos-select">
                   Позиция плана-графика
                 </label>
-                <select
+                <Select
                   id="nmck-pos-select"
                   className={block("select")}
                   disabled={planPositions.length === 0}
@@ -491,14 +497,14 @@ export default function NmckCalculatorPage() {
                       </option>
                     ))
                   )}
-                </select>
+                </Select>
               </div>
 
               <div className={block("field")}>
                 <label className={block("label")} htmlFor="nmck-note-select">
                   Служебная записка (СЗ) для сохранения обоснования
                 </label>
-                <select
+                <Select
                   id="nmck-note-select"
                   className={block("select")}
                   disabled={!selectedPosition}
@@ -517,7 +523,7 @@ export default function NmckCalculatorPage() {
                   <option value={CREATE_NEW_NOTE_KEY}>
                     + Создать новую СЗ (черновик) с этим обоснованием
                   </option>
-                </select>
+                </Select>
               </div>
             </div>
 

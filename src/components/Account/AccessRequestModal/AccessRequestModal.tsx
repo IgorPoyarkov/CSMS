@@ -8,6 +8,7 @@ import { useFetchStructuralUnits } from "../../../services/StaffingTable/Staffin
 import type { BaseStructuralUnit } from "../../../services/StaffingTable/StaffingTable.schema";
 import { useCreateAccessRequest } from "../../../services/AccessRequest/accessRequest.api";
 import styles from "./AccessRequestModal.module.scss";
+import Select from "../../UI/Select";
 
 interface AccessRequestModalProps {
   employeeId: string | number;
@@ -137,7 +138,7 @@ export default function AccessRequestModal({
               <label className={block("label")} htmlFor="ar-recipient">
                 Подразделение-получатель
               </label>
-              <select
+              <Select
                 id="ar-recipient"
                 className={block("input")}
                 {...methods.register("recipientUnitId", {
@@ -158,7 +159,7 @@ export default function AccessRequestModal({
                     {unit.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>

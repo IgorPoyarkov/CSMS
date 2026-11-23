@@ -20,6 +20,7 @@ import {
   type VacationStaffMember,
 } from "../../services/VacationSchedule/vacationSchedule.schema";
 import styles from "./VacationRowModal.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Строка графика отпусков (графы 3-18 формы Т-2).
@@ -211,7 +212,7 @@ export default function VacationRowModal({
               <label className={block("label")} htmlFor="vrm-staff">
                 Работник штатного расписания
               </label>
-              <select
+              <Select
                 id="vrm-staff"
                 className={block("input")}
                 value={String(values.employeeId ?? "")}
@@ -227,7 +228,7 @@ export default function VacationRowModal({
                       : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("grid")}>
@@ -357,7 +358,7 @@ export default function VacationRowModal({
                   <li className={block("part")} key={field.id}>
                     <div className={block("part-field")}>
                       <span className={block("part-label")}>Вид отпуска</span>
-                      <select
+                      <Select
                         className={block("input")}
                         {...register(`parts.${index}.kind` as const)}
                       >
@@ -367,7 +368,7 @@ export default function VacationRowModal({
                             {vacationLeaveKindRules[kind]})
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className={block("part-field", ["short"])}>

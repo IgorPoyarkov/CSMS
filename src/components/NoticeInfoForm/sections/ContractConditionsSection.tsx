@@ -9,6 +9,7 @@ import {
   LIFECYCLE_CASES_PP1087,
 } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 const ContractConditionsSection = () => {
   const { bem } = useUtils();
@@ -203,7 +204,7 @@ const ContractConditionsSection = () => {
                     valueAsNumber: true,
                   })}
                 />
-                <select
+                <Select
                   className={block("select")}
                   aria-label="Тип дней начала исполнения"
                   {...register("contractConditions.startDayType")}
@@ -213,7 +214,7 @@ const ContractConditionsSection = () => {
                       {opt.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <span>Срок исполнения:</span>
                 <input
                   type="number"
@@ -222,7 +223,7 @@ const ContractConditionsSection = () => {
                     valueAsNumber: true,
                   })}
                 />
-                <select
+                <Select
                   className={block("select")}
                   aria-label="Тип дней срока исполнения"
                   {...register("contractConditions.termDayType")}
@@ -232,7 +233,7 @@ const ContractConditionsSection = () => {
                       {opt.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             ) : (
               <div className={block("sub-box")}>

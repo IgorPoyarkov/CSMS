@@ -31,6 +31,7 @@ import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import ContractCardSummary from "./ContractCardSummary";
 import { CONTRACT_STATUS_LABELS, formatMoney } from "./contractRegistryFormat";
 import styles from "./ContractRegistry.module.scss";
+import Select from "../UI/Select";
 
 /** Подписи статусов — общий модуль с карточкой контракта. */
 const STATUS_LABELS = CONTRACT_STATUS_LABELS;
@@ -887,7 +888,7 @@ export default function ContractRegistryPage() {
             <label className={styles.toolbarLabel} htmlFor="contract-advance">
               Аванс
             </label>
-            <select
+            <Select
               id="contract-advance"
               className={styles.toolbarSelect}
               value={advanceFilter}
@@ -901,13 +902,13 @@ export default function ContractRegistryPage() {
               <option value="all">все</option>
               <option value="with">есть аванс</option>
               <option value="without">без аванса</option>
-            </select>
+            </Select>
           </div>
 
           {/* Статус */}
           <div className={styles.toolbarFiltersGroup}>
             <label className={styles.toolbarLabel}>Статус</label>
-            <select
+            <Select
               className={styles.toolbarSelect}
               value={statusFilter}
               onChange={(e) => {
@@ -921,7 +922,7 @@ export default function ContractRegistryPage() {
               <option value="completed">Завершён</option>
               <option value="terminated">Расторгнут</option>
               <option value="suspended">Приостановлен</option>
-            </select>
+            </Select>
           </div>
 
           {/* КБК: комбинированное поле — поиск, выбор из пула и ручной ввод */}

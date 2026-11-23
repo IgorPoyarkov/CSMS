@@ -21,6 +21,7 @@ import {
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import styles from "./NormingRequirementsPage.module.scss";
+import Select from "../UI/Select";
 
 const LEGACY_STORAGE_KEY = "csms_norming_requirements";
 
@@ -271,7 +272,7 @@ export default function NormingTemplatesTab({
                   <div className={block("req-list")}>
                     {rows.map((req, i) => (
                       <div key={req.id} className={block("req-row")}>
-                        <select
+                        <Select
                           className={block("req-select")}
                           value={req.category}
                           onChange={(e) =>
@@ -286,7 +287,7 @@ export default function NormingTemplatesTab({
                               {characteristicCategoryLabels[cat]}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                         <input
                           className={block("req-input")}
                           type="text"

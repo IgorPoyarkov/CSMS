@@ -828,7 +828,8 @@
     gap: 10px;
     flex-wrap: wrap;
 
-    > select {
+    > select,
+    > [data-csms-select] {
       max-width: 320px;
     }
   }

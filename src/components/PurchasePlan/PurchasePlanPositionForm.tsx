@@ -53,6 +53,7 @@ import {
 import KoksPickerModal from "./KoksPickerModal";
 import type { KoksRef } from "../../services/KoksRef/koksRef.api";
 import styles from "./PurchasePlanPositionForm.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Карточка позиции плана-графика в стилистике ЕИС (pg2020):
@@ -877,7 +878,7 @@ export default function PurchasePlanPositionForm({
                   >
                     Планируемый год размещения извещения
                   </label>
-                  <select
+                  <Select
                     id="position-placement-year"
                     className={block("select", ["plain"])}
                     {...register("plannedPlacementYear", {
@@ -891,7 +892,7 @@ export default function PurchasePlanPositionForm({
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                   {errorText("plannedPlacementYear") && (
                     <span className={block("error")}>
                       {errorText("plannedPlacementYear")}
@@ -1553,7 +1554,7 @@ export default function PurchasePlanPositionForm({
                         Основание внесения изменений (changeReason)
                       </th>
                       <td>
-                        <select
+                        <Select
                           id="position-change-reason"
                           className={block("select")}
                           {...register("changeReasonCode", {
@@ -1571,7 +1572,7 @@ export default function PurchasePlanPositionForm({
                               {item.code}. {item.name}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </td>
                     </tr>
                     <tr>

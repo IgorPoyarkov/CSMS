@@ -39,6 +39,7 @@ import {
 } from "../../services/BidEvaluation/bidEvaluation.api";
 import { usePp2604MappingOrDefault } from "../../services/Pp2604/pp2604.api";
 import styles from "./BidEvaluationModal.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Оценка заявок по ПП РФ N 2604.
@@ -313,7 +314,7 @@ export default function BidEvaluationModal({
                   )}
                 </div>
 
-                <select
+                <Select
                   className={block("input")}
                   {...register(fieldPath(`${prefix}.kind`))}
                 >
@@ -322,7 +323,7 @@ export default function BidEvaluationModal({
                       {indicatorKindLabels[kind]}
                     </option>
                   ))}
-                </select>
+                </Select>
 
                 <input
                   className={block("input")}
@@ -339,7 +340,7 @@ export default function BidEvaluationModal({
                   placeholder="руб."
                 />
 
-                <select
+                <Select
                   className={block("input")}
                   {...register(fieldPath(`${prefix}.best`))}
                 >
@@ -348,9 +349,9 @@ export default function BidEvaluationModal({
                       {bestDirectionLabels[direction]}
                     </option>
                   ))}
-                </select>
+                </Select>
 
-                <select
+                <Select
                   className={block("input")}
                   {...register(fieldPath(`${prefix}.scoring`))}
                 >
@@ -359,7 +360,7 @@ export default function BidEvaluationModal({
                       {scoringModeLabels[mode]}
                     </option>
                   ))}
-                </select>
+                </Select>
 
                 <input
                   className={block("input")}
@@ -492,7 +493,7 @@ export default function BidEvaluationModal({
               <label className={block("label")} htmlFor="evaluation-category">
                 Категория объекта (приложение № 2)
               </label>
-              <select
+              <Select
                 id="evaluation-category"
                 className={block("input")}
                 {...register("objectCategory")}
@@ -502,7 +503,7 @@ export default function BidEvaluationModal({
                     {category.label}
                   </option>
                 ))}
-              </select>
+              </Select>
               <span className={block("hint")}>
                 Цена — не менее {limits.minPrice}%, расходы —{" "}
                 {limits.maxExpenses === null
@@ -546,7 +547,7 @@ export default function BidEvaluationModal({
               <label className={block("label")} htmlFor="evaluation-procedure">
                 Способ определения поставщика
               </label>
-              <select
+              <Select
                 id="evaluation-procedure"
                 className={block("input")}
                 {...register("procedureKind", {
@@ -572,7 +573,7 @@ export default function BidEvaluationModal({
                     {procedureKindLabels[kind]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>
@@ -594,7 +595,7 @@ export default function BidEvaluationModal({
               <label className={block("label")} htmlFor="evaluation-act">
                 Норма — оценка заявок
               </label>
-              <select
+              <Select
                 id="evaluation-act"
                 className={block("input")}
                 {...register("legalActId")}
@@ -605,7 +606,7 @@ export default function BidEvaluationModal({
                     {formatLegalAct(act)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </fieldset>
@@ -758,7 +759,7 @@ export default function BidEvaluationModal({
 
                     if (indicator.scoring === "scale") {
                       return (
-                        <select
+                        <Select
                           key={`${bidIndex}-${column.indicatorId}`}
                           className={block("input")}
                           {...register(fieldPath(`${valuePrefix}.optionId`))}
@@ -769,7 +770,7 @@ export default function BidEvaluationModal({
                               {step.label}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       );
                     }
 

@@ -4,6 +4,7 @@ import type { ContractService } from "../../services/ContractService/contractSer
 import type { BaseEmployee } from "../../services/StaffingTable/StaffingTable.schema";
 import { employeeFullName } from "./contractService.config";
 import styles from "./ContractServicePage.module.scss";
+import Select from "../UI/Select";
 
 // Один выбор работника без привязки к отделу — нужен там, где круг кандидатов
 // уже ограничен снаружи (например, лицо, издающее приказ о назначении
@@ -53,7 +54,7 @@ export default function StaffEmployeeSelect({
       <label className={block("label")} htmlFor={`${idPrefix}-employee`}>
         {label}
       </label>
-      <select
+      <Select
         id={`${idPrefix}-employee`}
         className={block("select")}
         {...register(fields.employeeId, {
@@ -74,7 +75,7 @@ export default function StaffEmployeeSelect({
             {employee.position ? ` — ${employee.position}` : ""}
           </option>
         ))}
-      </select>
+      </Select>
 
       {isLoading && <span className={block("hint")}>Загрузка штатного расписания...</span>}
       {!isLoading && hint && <span className={block("hint")}>{hint}</span>}

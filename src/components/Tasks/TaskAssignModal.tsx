@@ -33,6 +33,7 @@ import {
 } from "../../services/Tasks/order158nTaskPool";
 import { recommendedDueDate } from "./regulatoryDeadlines";
 import styles from "./TaskAssignModal.module.scss";
+import Select from "../UI/Select";
 
 interface TaskAssignModalProps {
   onClose: () => void;
@@ -408,7 +409,7 @@ export default function TaskAssignModal({
             <label className={block("label")} htmlFor="assign-category">
               Категория функции
             </label>
-            <select
+            <Select
               id="assign-category"
               className={block("input")}
               {...methods.register("categoryCode")}
@@ -433,7 +434,7 @@ export default function TaskAssignModal({
                   {cat.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Функция раздела III — определяет, кого можно назначать */}
@@ -441,7 +442,7 @@ export default function TaskAssignModal({
             <label className={block("label")} htmlFor="assign-function">
               Функция, которую назначаете
             </label>
-            <select
+            <Select
               id="assign-function"
               className={block("input")}
               disabled={!categoryCode}
@@ -487,7 +488,7 @@ export default function TaskAssignModal({
                     </option>
                   );
                 })}
-            </select>
+            </Select>
             {methods.formState.errors.functionCode && (
               <span className={block("error")}>
                 Укажите функцию, которую назначаете
@@ -500,7 +501,7 @@ export default function TaskAssignModal({
             <label className={block("label")} htmlFor="assign-pool-template">
               Подфункция и типовая задача по Приказу № 158н
             </label>
-            <select
+            <Select
               id="assign-pool-template"
               className={block("input")}
               disabled={!functionCode}
@@ -518,7 +519,7 @@ export default function TaskAssignModal({
                   дн.)
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {selectedTemplate && (
@@ -541,7 +542,7 @@ export default function TaskAssignModal({
             <label className={block("label")} htmlFor="assign-assignee">
               Исполнитель
             </label>
-            <select
+            <Select
               id="assign-assignee"
               className={block("input")}
               disabled={!functionCode}
@@ -583,7 +584,7 @@ export default function TaskAssignModal({
                   </option>
                 );
               })}
-            </select>
+            </Select>
 
             {functionCode && candidates.length === 0 && (
               <span className={block("hint")}>
@@ -657,7 +658,7 @@ export default function TaskAssignModal({
               <label className={block("label")} htmlFor="assign-origin">
                 Источник задачи
               </label>
-              <select
+              <Select
                 id="assign-origin"
                 className={block("input")}
                 {...methods.register("origin")}
@@ -667,7 +668,7 @@ export default function TaskAssignModal({
                     {label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 

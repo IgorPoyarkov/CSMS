@@ -47,6 +47,7 @@ import StaffEmployeeSelect, {
   type StaffEmployeeSelectFields,
 } from "./StaffEmployeeSelect";
 import styles from "./ContractServicePage.module.scss";
+import Select from "../UI/Select";
 
 interface ContractServiceFormProps {
   organizationId: string | number;
@@ -470,7 +471,7 @@ export default function ContractServiceForm({
                 >
                   Подразделение из штатного расписания
                 </label>
-                <select
+                <Select
                   id="contract-service-unit"
                   className={block("select")}
                   {...register("structuralUnitId", {
@@ -493,7 +494,7 @@ export default function ContractServiceForm({
                         : ""}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {isUnitsLoading && (
                   <span className={block("hint")}>
                     Загрузка подразделений...

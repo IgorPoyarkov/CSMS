@@ -2879,7 +2879,8 @@
   }
 
   input,
-  select {
+  select,
+  [data-csms-select] {
     padding: 6px 8px;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -2915,4 +2916,3 @@
   font-size: 12px;
   color: var(--state-danger);
 }
-

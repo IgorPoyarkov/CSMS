@@ -33,6 +33,7 @@ import {
   PurchaseNoteSchema,
   emptyDeliveryPlace,
   emptyPurchaseNote,
+  filterVisiblePurchaseNotes,
   hasSmpSubcontractingRequirement,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
@@ -148,6 +149,7 @@ import {
   type PurchasePlanPosition,
 } from "../../services/PurchasePlan/purchasePlan.schema";
 import styles from "./PurchaseNoteModal.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Полноэкранная форма «Сформировать потребность» (служебная записка по позиции ПГ).
@@ -270,6 +272,10 @@ export default function PurchaseNoteModal({
   const isReadOnly = !canEditPurchaseNote;
 
   const { data: existingNotes = [] } = usePurchaseNotes(organizationId);
+  const visibleExistingNotes = useMemo(
+    () => filterVisiblePurchaseNotes(existingNotes),
+    [existingNotes],
+  );
   const { mapping } = usePp2604MappingOrDefault();
   const { data: orgEmployees = [] } =
     useFetchOrganizationEmployees(organizationId);
@@ -289,8 +295,8 @@ export default function PurchaseNoteModal({
   );
 
   const positionNotes = useMemo(
-    () => purchaseNotesForPosition(existingNotes, position.id),
-    [existingNotes, position.id],
+    () => purchaseNotesForPosition(visibleExistingNotes, position.id),
+    [visibleExistingNotes, position.id],
   );
 
   const createNote = useCreatePurchaseNote();
@@ -505,7 +511,7 @@ export default function PurchaseNoteModal({
     return {
       ...base,
       evaluationCriteria: defaultCriteria(),
-      noteNumber: nextPurchaseNoteNumber(existingNotes),
+      noteNumber: nextPurchaseNoteNumber(visibleExistingNotes),
       purchasePlanId: plan.id,
       purchasePlanNumber: plan.planNumber,
       positionId: position.id,
@@ -1935,7 +1941,7 @@ export default function PurchaseNoteModal({
                 <label className={block("label")} htmlFor="note-initiator">
                   Инициатор закупки (из списка сотрудников организации) *
                 </label>
-                <select
+                <Select
                   id="note-initiator"
                   className={block("select")}
                   value={initiatorSelectValue}
@@ -1959,7 +1965,7 @@ export default function PurchaseNoteModal({
                       {watchedInitiatorName} (введено ранее)
                     </option>
                   )}
-                </select>
+                </Select>
                 {errorText("initiatorName") && (
                   <span className={block("error")}>
                     {errorText("initiatorName")}
@@ -2057,7 +2063,7 @@ export default function PurchaseNoteModal({
                 <ExternalLink size={12} aria-hidden="true" />
               </Link>
             </div>
-            <select
+            <Select
               id="note-ooz"
               className={block("select")}
               disabled={isReadOnly}
@@ -2077,7 +2083,7 @@ export default function PurchaseNoteModal({
                   {desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})
                 </option>
               ))}
-            </select>
+            </Select>
             {selectedOoz ? (
               <span className={block("hint")}>
                 Источник:{" "}
@@ -2374,7 +2380,7 @@ export default function PurchaseNoteModal({
                                   <span className={block("label")}>
                                     Национальный режим
                                   </span>
-                                  <select
+                                  <Select
                                     className={block("select")}
                                     {...register(
                                       `items.${idx}.nationalRegimeType`,
@@ -2390,7 +2396,7 @@ export default function PurchaseNoteModal({
                                         {opt.label}
                                       </option>
                                     ))}
-                                  </select>
+                                  </Select>
                                   {itemAdvantageApplicable && (
                                     <span className={block("hint")}>
                                       «Преимущество» — право заказчика: можно
@@ -2480,7 +2486,7 @@ export default function PurchaseNoteModal({
                                 >
                                   ООЗ объекта закупки
                                 </label>
-                                <select
+                                <Select
                                   id={`note-item-ooz-${idx}`}
                                   className={block("select")}
                                   disabled={isReadOnly}
@@ -2509,7 +2515,7 @@ export default function PurchaseNoteModal({
                                       )
                                     </option>
                                   ))}
-                                </select>
+                                </Select>
                               </div>
                               {itemDesc ? (
                                 itemDesc.characteristics.length > 0 ? (
@@ -2834,7 +2840,7 @@ export default function PurchaseNoteModal({
                     >
                       Категория объекта закупки (приложение N 2)
                     </label>
-                    <select
+                    <Select
                       id="note-eval-category"
                       className={block("select")}
                       {...register("evaluationObjectCategory")}
@@ -2844,7 +2850,7 @@ export default function PurchaseNoteModal({
                           {category.label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <span className={block("hint")}>
                       Цена — не менее {evaluationLimits.minPrice}%, расходы —{" "}
                       {evaluationLimits.maxExpenses === null
@@ -2953,7 +2959,7 @@ export default function PurchaseNoteModal({
                                       `evaluationCriteria.${index}.indicators.${indicatorIndex}.weightPercent`,
                                     )}
                                   />
-                                  <select
+                                  <Select
                                     className={block("select")}
                                     aria-label={`Направление оценки показателя ${indicatorIndex + 1}`}
                                     {...register(
@@ -2965,8 +2971,8 @@ export default function PurchaseNoteModal({
                                         {bestDirectionLabels[direction]}
                                       </option>
                                     ))}
-                                  </select>
-                                  <select
+                                  </Select>
+                                  <Select
                                     className={block("select")}
                                     aria-label={`Способ оценки показателя ${indicatorIndex + 1}`}
                                     {...register(
@@ -2978,7 +2984,7 @@ export default function PurchaseNoteModal({
                                         {scoringModeLabels[mode]}
                                       </option>
                                     ))}
-                                  </select>
+                                  </Select>
                                   <button
                                     type="button"
                                     className={block("danger-btn")}
@@ -3346,7 +3352,7 @@ export default function PurchaseNoteModal({
                 </label>
               </div>
               {watchedTreasury && (
-                <select
+                <Select
                   aria-label="Вид казначейского сопровождения"
                   className={block("select")}
                   {...register("treasurySupportType")}
@@ -3357,7 +3363,7 @@ export default function PurchaseNoteModal({
                   <option value="advance_only">
                     Казначейское сопровождение только аванса
                   </option>
-                </select>
+                </Select>
               )}
               <span className={block("hint")}>
                 Казначейское сопровождение расчётов по контракту ведётся
@@ -4214,7 +4220,7 @@ export default function PurchaseNoteModal({
                   >
                     Статус запроса на файл НМЦК
                   </label>
-                  <select
+                  <Select
                     id="note-nmck-req-status"
                     className={block("select")}
                     disabled={!nmckRequestAllowed}
@@ -4225,7 +4231,7 @@ export default function PurchaseNoteModal({
                       Направлен запрос на подготовку НМЦК
                     </option>
                     <option value="received">Файл НМЦК получен</option>
-                  </select>
+                  </Select>
                 </div>
 
                 {watchedNmckRequestStatus !== "none" && (
@@ -4237,7 +4243,7 @@ export default function PurchaseNoteModal({
                       >
                         Ответственный за подготовку НМЦК
                       </label>
-                      <select
+                      <Select
                         id="note-nmck-req-assignee"
                         className={block("select")}
                         {...register("nmckRequestAssignee")}
@@ -4251,7 +4257,7 @@ export default function PurchaseNoteModal({
                             </option>
                           );
                         })}
-                      </select>
+                      </Select>
                     </div>
 
                     <div className={block("field")}>

@@ -12,6 +12,7 @@ import {
 import {
   PURCHASE_NOTE_STATUS_META,
   PURCHASE_NOTE_STATUSES,
+  filterVisiblePurchaseNotes,
   getPurchaseNoteStatusMeta,
   hasSmpSubcontractingRequirement,
   type PurchaseNote,
@@ -24,6 +25,7 @@ import {
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import styles from "./PurchaseNotesRegistryPage.module.scss";
+import Select from "../UI/Select";
 
 type FilterStatus = "all" | PurchaseNoteStatus;
 
@@ -94,6 +96,11 @@ export default function PurchaseNotesRegistryPage() {
   const [exportingKey, setExportingKey] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
+  const visibleNotes = useMemo(
+    () => filterVisiblePurchaseNotes(notes),
+    [notes],
+  );
+
   const planById = useMemo(
     () => new Map(plans.map((plan) => [String(plan.id), plan])),
     [plans],
@@ -103,7 +110,7 @@ export default function PurchaseNotesRegistryPage() {
   // чипах, чтобы числа совпадали с тем, что реально попадёт в список.
   const scopedNotes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return [...notes]
+    return [...visibleNotes]
       .sort((a, b) =>
         String(b.noteDate || b.createdAt || "").localeCompare(
           String(a.noteDate || a.createdAt || ""),
@@ -131,7 +138,7 @@ export default function PurchaseNotesRegistryPage() {
           .toLowerCase();
         return haystack.includes(q);
       });
-  }, [notes, searchQuery, yearFilter]);
+  }, [visibleNotes, searchQuery, yearFilter]);
 
   // Счётчики статусов — по набору выше: при выбранном годе или поисковом
   // запросе чипы показывают реальные числа, а не общий итог по всем СЗ.
@@ -154,12 +161,12 @@ export default function PurchaseNotesRegistryPage() {
   // создания. Новые годы сверху, чтобы свежий период был первым.
   const yearOptions = useMemo(() => {
     const years = new Set<string>();
-    for (const note of notes) {
+    for (const note of visibleNotes) {
       const year = noteYear(note.noteDate || note.createdAt);
       if (year) years.add(year);
     }
     return [...years].sort((a, b) => b.localeCompare(a));
-  }, [notes]);
+  }, [visibleNotes]);
 
   // Статус — последнее условие: счётчики в чипах считаются до него.
   const filteredNotes = useMemo(
@@ -352,7 +359,7 @@ export default function PurchaseNotesRegistryPage() {
 
           <label className={block("year")}>
             <span className={block("year-caption")}>Год СЗ:</span>
-            <select
+            <Select
               className={block("select")}
               value={yearFilter}
               onChange={(e) => {
@@ -367,7 +374,7 @@ export default function PurchaseNotesRegistryPage() {
                   {year}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <PageSizePicker
@@ -503,7 +510,7 @@ export default function PurchaseNotesRegistryPage() {
                     >
                       Статус согласования:
                     </label>
-                    <select
+                    <Select
                       id={`sz-status-${noteKey}`}
                       className={block("select")}
                       value={note.status ?? "draft"}
@@ -522,7 +529,7 @@ export default function PurchaseNotesRegistryPage() {
                           {PURCHASE_NOTE_STATUS_META[st].label}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
 
                   <div className={block("buttons")}>

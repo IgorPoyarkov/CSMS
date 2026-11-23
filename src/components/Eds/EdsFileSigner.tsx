@@ -9,6 +9,7 @@ import {
   type PluginCertificateInfo,
 } from "../../services/Eds/pluginSign";
 import styles from "./EdsFileSigner.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Подпись произвольного файла документом заказчика.
@@ -164,7 +165,7 @@ export default function EdsFileSigner() {
       {certificates.length > 0 && (
         <label className={block("field")}>
           <span className={block("label")}>Сертификат</span>
-          <select
+          <Select
             className={block("select")}
             value={certKey}
             onChange={(event) => setCertKey(event.target.value)}
@@ -178,7 +179,7 @@ export default function EdsFileSigner() {
                 </option>
               );
             })}
-          </select>
+          </Select>
         </label>
       )}
 

@@ -41,6 +41,7 @@ import {
   todayIso,
 } from "./acceptance.config";
 import styles from "./Acceptance.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Карточка документа о приёмке.
@@ -620,7 +621,7 @@ export default function AcceptanceDetailPage() {
 
             <label className={block("field")}>
               <span className={block("field-label")}>НДС</span>
-              <select
+              <Select
                 className={block("select")}
                 value={positionVat}
                 onChange={(event) => setPositionVat(event.target.value)}
@@ -630,7 +631,7 @@ export default function AcceptanceDetailPage() {
                     {rate} %
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
 
             <label className={block("field")}>
@@ -723,7 +724,7 @@ export default function AcceptanceDetailPage() {
           <div className={block("inline-form")}>
             <label className={block("field")}>
               <span className={block("field-label")}>Позиция</span>
-              <select
+              <Select
                 className={block("select")}
                 value={defectPositionId}
                 onChange={(event) => setDefectPositionId(event.target.value)}
@@ -734,7 +735,7 @@ export default function AcceptanceDetailPage() {
                     {position.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
 
             <label className={block("field", ["wide"])}>
@@ -757,7 +758,7 @@ export default function AcceptanceDetailPage() {
 
             <label className={block("field")}>
               <span className={block("field-label")}>Требование</span>
-              <select
+              <Select
                 className={block("select")}
                 value={defectRequirement}
                 onChange={(event) =>
@@ -771,7 +772,7 @@ export default function AcceptanceDetailPage() {
                     {acceptanceRequirementLabels[requirement]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
 
             <div className={block("card-actions")}>
@@ -895,7 +896,7 @@ export default function AcceptanceDetailPage() {
           <div className={block("inline-form")}>
             <label className={block("field")}>
               <span className={block("field-label")}>Итог приёмки</span>
-              <select
+              <Select
                 className={block("select")}
                 value={acceptResult}
                 onChange={(event) =>
@@ -908,7 +909,7 @@ export default function AcceptanceDetailPage() {
                 <option value="AcceptedWithDiscrepancies">
                   {acceptanceResultLabels.AcceptedWithDiscrepancies}
                 </option>
-              </select>
+              </Select>
             </label>
 
             <label className={block("field", ["wide"])}>

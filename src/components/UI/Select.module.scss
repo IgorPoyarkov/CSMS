@@ -1,0 +1,148 @@
+@import "variables";
+@import "no-scrollbar";
+
+// Единый выпадающий список вместо нативного select. Все цвета — переменные
+// текущей темы, поэтому список читается и в светлой, и в тёмной, и в
+// «современной» теме. Сам список рендерится в портал (position: fixed),
+// чтобы не обрезаться в модалках и таблицах с overflow.
+.select {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
+  // Настоящий select скрыт визуально, но остаётся в DOM для react-hook-form
+  // и нативной проверки required. Кликов и фокуса не перехватывает.
+  &__native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.35;
+    text-align: left;
+    color: var(--text-primary);
+    background-color: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--accent);
+    }
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
+  &__value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &--placeholder {
+      color: var(--placeholder);
+    }
+  }
+
+  &__arrow {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: transform 0.15s ease;
+  }
+
+  &--open &__arrow {
+    transform: rotate(180deg);
+  }
+
+  &__dropdown {
+    z-index: 10000;
+    padding: 4px;
+    overflow-y: auto;
+    color: var(--text-primary);
+    background-color: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 12px 32px var(--shadow, rgba(0, 0, 0, 0.25));
+    @include no-scrollbar;
+  }
+
+  &__group {
+    padding: 6px 10px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+
+    &--active {
+      color: var(--accent-emphasis);
+      background-color: var(--accent-soft);
+    }
+
+    &--selected {
+      font-weight: 600;
+    }
+
+    &--disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__option-text {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__empty {
+    padding: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+}

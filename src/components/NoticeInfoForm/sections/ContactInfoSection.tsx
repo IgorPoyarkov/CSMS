@@ -7,6 +7,7 @@ import {
 } from "../../../services/Eis/eis17Types";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 const ContactInfoSection = () => {
   const { bem } = useUtils();
@@ -112,7 +113,7 @@ const ContactInfoSection = () => {
             Роль организации (responsibleRoleEPType)
           </span>
           <div className={block("field-col")}>
-            <select
+            <Select
               className={block("select")}
               {...register("contactInfo.responsibleRole")}
             >
@@ -121,7 +122,7 @@ const ContactInfoSection = () => {
                   {EIS_RESPONSIBLE_ROLE_LABELS[role]}
                 </option>
               ))}
-            </select>
+            </Select>
             {(contactInfo.responsibleRole === "CS" ||
               contactInfo.responsibleRole === "OCS" ||
               Boolean(contactInfo.specializedOrgName)) && (

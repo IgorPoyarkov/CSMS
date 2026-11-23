@@ -24,6 +24,7 @@ import {
   useRestoreNotification,
 } from "../../services/Notifications/notifications.api";
 import styles from "./DeadlineNotificationsPage.module.scss";
+import Select from "../UI/Select";
 
 const SEVERITY_LABELS: Record<NotificationSeverity, string> = {
   critical: "Критично / Просрочка",
@@ -213,7 +214,7 @@ export default function DeadlineNotificationsPage() {
         </div>
 
         <div className={styles["filter-group"]}>
-          <select
+          <Select
             className={styles["filter-btn"]}
             value={categoryFilter}
             onChange={(e) =>
@@ -229,7 +230,7 @@ export default function DeadlineNotificationsPage() {
                 </option>
               ),
             )}
-          </select>
+          </Select>
 
           <label className={styles["toggle-label"]}>
             <input

@@ -33,6 +33,7 @@ import {
 import { isEmbeddedBrowser } from "../../services/Eds/edsEnvironment";
 import EisPackageCard from "./EisPackageCard";
 import styles from "./EisPackagesPage.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Пакеты сведений для ЕИС.
@@ -360,7 +361,7 @@ export default function EisPackagesPage() {
         <div className={block("form-row")}>
           <label className={block("field")}>
             <span className={block("label")}>Что отправляем</span>
-            <select
+            <Select
               className={block("select")}
               value={documentType}
               onChange={(event) =>
@@ -372,7 +373,7 @@ export default function EisPackagesPage() {
                   {eisDocumentTypeLabels[type]}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className={block("field")}>
@@ -382,7 +383,7 @@ export default function EisPackagesPage() {
                 : "Контракт (номер ЕИС и ИКЗ подставятся из карточки)"}
             </span>
             {withPayload ? (
-              <select
+              <Select
                 className={block("select")}
                 value={
                   documentType === "Notification"
@@ -409,9 +410,9 @@ export default function EisPackagesPage() {
                         {project.ikz || "без ИКЗ"}
                       </option>
                     ))}
-              </select>
+              </Select>
             ) : (
-              <select
+              <Select
                 className={block("select")}
                 value={
                   pickedContractId ||
@@ -428,7 +429,7 @@ export default function EisPackagesPage() {
                       : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           </label>
         </div>

@@ -34,6 +34,7 @@ import {
   useSmnpReports238,
 } from "../../services/Reports/smnpReport238.api";
 import styles from "./SmnpReport238Form.module.scss";
+import Select from "../UI/Select";
 
 interface SmnpReport238FormProps {
   organization?: BaseOrganization | null;
@@ -617,7 +618,7 @@ export default function SmnpReport238Form({
         />
         <label className={styles.field}>
           <span className={styles.label}>Статус отчёта</span>
-          <select
+          <Select
             className={styles.input}
             value={draft.status}
             onChange={(event) =>
@@ -636,7 +637,7 @@ export default function SmnpReport238Form({
                 {SMNP_REPORT_238_STATUS_LABELS[status]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
 

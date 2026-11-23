@@ -31,6 +31,7 @@ import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
 import styles from "./NormingRequirementsPage.module.scss";
+import Select from "../UI/Select";
 
 interface ObjectDescriptionEditorProps {
   initialValue: ObjectDescription;
@@ -298,7 +299,7 @@ export default function ObjectDescriptionEditor({
             <label className={block("label")} htmlFor="ooz-status">
               Статус документа
             </label>
-            <select
+            <Select
               id="ooz-status"
               className={block("select")}
               value={draft.status}
@@ -321,7 +322,7 @@ export default function ObjectDescriptionEditor({
                     : ""}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -498,7 +499,7 @@ export default function ObjectDescriptionEditor({
                 <div className={block("char-row-main")}>
                   <div className={block("field")}>
                     <label className={block("label")}>Категория</label>
-                    <select
+                    <Select
                       className={block("select")}
                       value={item.category}
                       onChange={(e) =>
@@ -512,7 +513,7 @@ export default function ObjectDescriptionEditor({
                           {characteristicCategoryLabels[cat]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
 
                   <div className={block("field", ["grow"])}>
@@ -545,7 +546,7 @@ export default function ObjectDescriptionEditor({
 
                   <div className={block("field")}>
                     <label className={block("label")}>Вид значения</label>
-                    <select
+                    <Select
                       className={block("select")}
                       value={item.valueType}
                       onChange={(e) =>
@@ -560,7 +561,7 @@ export default function ObjectDescriptionEditor({
                           {characteristicValueTypeLabels[vt]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
 
                   <button
@@ -753,7 +754,7 @@ export default function ObjectDescriptionEditor({
             <label className={block("label")} htmlFor="ooz-trademark-rule">
               Указание товарного знака (п. 1 ч. 1 ст. 33)
             </label>
-            <select
+            <Select
               id="ooz-trademark-rule"
               className={block("select")}
               value={draft.trademarkRule}
@@ -769,7 +770,7 @@ export default function ObjectDescriptionEditor({
                   {trademarkRuleLabels[rule]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {draft.trademarkRule !== "none" && (
@@ -822,7 +823,7 @@ export default function ObjectDescriptionEditor({
 
           {draft.standards.map((std, idx) => (
             <div key={std.id} className={block("standard-row")}>
-              <select
+              <Select
                 className={block("select")}
                 value={std.standardType}
                 onChange={(e) =>
@@ -837,7 +838,7 @@ export default function ObjectDescriptionEditor({
                     {standardTypeLabels[st]}
                   </option>
                 ))}
-              </select>
+              </Select>
               <input
                 className={block("input")}
                 type="text"

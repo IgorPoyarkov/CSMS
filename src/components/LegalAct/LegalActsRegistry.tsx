@@ -24,6 +24,7 @@ import {
 } from "../../services/LegalAct/legalAct.schema";
 import PageSizePicker from "../UI/PageSizePicker";
 import styles from "./LegalActsRegistry.module.scss";
+import Select from "../UI/Select";
 
 const PAGE_SIZES = [10, 25, 50, "all"] as const;
 
@@ -155,7 +156,7 @@ export default function LegalActsRegistry() {
 
         <label className={block("control")}>
           <span className={block("control-caption")}>Вид акта</span>
-          <select
+          <Select
             className={block("select")}
             value={typeFilter}
             onChange={(event) => {
@@ -169,12 +170,12 @@ export default function LegalActsRegistry() {
                 {legalActTypeLabels[type]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className={block("control")}>
           <span className={block("control-caption")}>Статус</span>
-          <select
+          <Select
             className={block("select")}
             value={statusFilter}
             onChange={(event) => {
@@ -188,7 +189,7 @@ export default function LegalActsRegistry() {
                 {legalActStatusLabels[status]}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className={block("toggle")}>

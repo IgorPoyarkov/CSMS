@@ -57,6 +57,7 @@ import {
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
+import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
@@ -65,6 +66,7 @@ import { analyzeContractCivilBasis } from "../../services/ContractProject/civilL
 import ClauseSuggestionsPanel from "./ClauseSuggestionsPanel";
 import type { ClauseTemplate } from "../../services/ContractProject/clauseTemplates.api";
 import styles from "./ContractProject.module.scss";
+import Select from "../UI/Select";
 
 interface ContractLocationState {
   // Ссылка на закупку: проект не должен держаться только на ИКЗ
@@ -98,6 +100,10 @@ export default function ContractProjectForm() {
     useOrganizationContractProjects(orgId);
   const { data: notices = [] } = useNotices();
   const { data: purchaseNotes = [] } = usePurchaseNotes(orgId);
+  const visiblePurchaseNotes = useMemo(
+    () => filterVisiblePurchaseNotes(purchaseNotes),
+    [purchaseNotes],
+  );
   const { data: objectDescriptions = [] } =
     useOrganizationObjectDescriptions(orgId);
   const { data: registryContracts = [] } = useContractRegistry(orgId);
@@ -150,13 +156,13 @@ export default function ContractProjectForm() {
   const matchedNote = useMemo(() => {
     const noteId = matchedNotice?.purchaseNoteId;
     if (noteId !== undefined && noteId !== null && noteId !== "") {
-      const byId = purchaseNotes.find(
+      const byId = visiblePurchaseNotes.find(
         (note) => String(note.id) === String(noteId),
       );
       if (byId) return byId;
     }
     if (id) {
-      const byProc = purchaseNotes
+      const byProc = visiblePurchaseNotes
         .filter((note) => String(note.procurementId ?? "") === String(id))
         .slice(-1)[0];
       if (byProc) return byProc;
@@ -164,12 +170,12 @@ export default function ContractProjectForm() {
     const targetIkz =
       matchedNotice?.generalInfo?.ikz || stateData?.ikz || undefined;
     if (targetIkz) {
-      return purchaseNotes
+      return visiblePurchaseNotes
         .filter((note) => note.ikz === targetIkz)
         .slice(-1)[0];
     }
     return undefined;
-  }, [purchaseNotes, matchedNotice, id, stateData?.ikz]);
+  }, [visiblePurchaseNotes, matchedNotice, id, stateData?.ikz]);
 
   // Контракт в реестре по этой закупке: из него берём реквизиты поставщика,
   // если определение поставщика уже состоялось
@@ -651,7 +657,7 @@ export default function ContractProjectForm() {
             {...methods.register(path)}
           />
         ) : field.kind === "select" ? (
-          <select
+          <Select
             id={fieldId}
             className={`${styles.input} ${error ? styles.inputError : ""}`}
             {...methods.register(path)}
@@ -661,7 +667,7 @@ export default function ContractProjectForm() {
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         ) : (
           <input
             id={fieldId}
@@ -791,7 +797,7 @@ export default function ContractProjectForm() {
                 placeholder="Название приложения"
                 {...methods.register(`appendices.${index}.title`)}
               />
-              <select
+              <Select
                 className={styles.input}
                 {...methods.register(`appendices.${index}.kind`)}
               >
@@ -800,7 +806,7 @@ export default function ContractProjectForm() {
                     {CONTRACT_APPENDIX_LABELS[kind as ContractAppendixKind]}
                   </option>
                 ))}
-              </select>
+              </Select>
               <label className={styles.appendixCheck}>
                 <input
                   type="checkbox"
@@ -1242,7 +1248,7 @@ export default function ContractProjectForm() {
           <label className={styles.kindLabel} htmlFor="contract-kind">
             Вид контракта
           </label>
-          <select
+          <Select
             id="contract-kind"
             className={styles.kindSelect}
             value={project.kind}
@@ -1253,7 +1259,7 @@ export default function ContractProjectForm() {
                 {CONTRACT_KIND_LABELS[kind]}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             type="button"
             className={styles.btnGhost}

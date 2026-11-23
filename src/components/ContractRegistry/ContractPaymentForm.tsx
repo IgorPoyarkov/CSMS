@@ -3,6 +3,7 @@ import { useCreatePayment } from "../../services/ContractRegistry/contractRegist
 import type { ContractPayment } from "../../services/ContractRegistry/contractRegistry.schema";
 import { readApiError } from "../../services/csmsApi";
 import styles from "./ContractRegistry.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Ручной ввод платежа по контракту (ст. 34 ч. 12, 13.1 44-ФЗ).
@@ -126,7 +127,7 @@ export default function ContractPaymentForm({
 
       <label className={styles.inlineField}>
         <span>Тип платежа</span>
-        <select
+        <Select
           value={paymentType}
           onChange={(event) =>
             setPaymentType(event.target.value as ContractPayment["paymentType"])
@@ -137,12 +138,12 @@ export default function ContractPaymentForm({
               {paymentTypeLabels[type]}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className={styles.inlineField}>
         <span>Статус</span>
-        <select
+        <Select
           value={status}
           onChange={(event) =>
             setStatus(event.target.value as ContractPayment["status"])
@@ -153,7 +154,7 @@ export default function ContractPaymentForm({
               {paymentStatusLabels[value]}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className={styles.inlineField}>

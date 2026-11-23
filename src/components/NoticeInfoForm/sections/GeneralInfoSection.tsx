@@ -16,6 +16,7 @@ import {
   PLACING_WAYS_BY_FAMILY,
 } from "../noticeInfo.config";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 interface GeneralInfoSectionProps {
   /**
@@ -429,7 +430,7 @@ const GeneralInfoSection = ({
               Особенности commonInfo (ЕИС 17.0)
             </span>
             <div className={block("field-col")}>
-              <select
+              <Select
                 className={block("select")}
                 {...register("generalInfo.article15Features")}
               >
@@ -441,7 +442,7 @@ const GeneralInfoSection = ({
                     {EIS_ARTICLE15_PART_LABELS[code]}
                   </option>
                 ))}
-              </select>
+              </Select>
               <div className={block("inline-group")}>
                 <label className={block("checkbox")}>
                   <input type="checkbox" {...register("generalInfo.isGOZ")} />

@@ -23,6 +23,7 @@ import {
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
 import TaskAssignModal from "./TaskAssignModal";
 import styles from "./TasksPage.module.scss";
+import Select from "../UI/Select";
 
 // Категория задачи — функция контрактной службы из Раздела III приказа
 // Минфина России N 158н. Задачи без функции показываются отдельной группой
@@ -484,7 +485,7 @@ export default function TasksPage() {
               value={poolSearch}
               onChange={(e) => setPoolSearch(e.target.value)}
             />
-            <select
+            <Select
               className={styles["form-select"]}
               value={poolFnFilter}
               onChange={(e) =>
@@ -499,8 +500,8 @@ export default function TasksPage() {
                   {opt.paragraph} · {opt.shortLabel}
                 </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               className={styles["form-select"]}
               value={poolCoverageFilter}
               onChange={(e) =>
@@ -510,7 +511,7 @@ export default function TasksPage() {
               <option value="all">Все подфункции</option>
               <option value="covered">Есть задачи в организации</option>
               <option value="unassigned">Ещё не ставились точечно</option>
-            </select>
+            </Select>
           </div>
 
           {filteredPoolEntries.length === 0 ? (

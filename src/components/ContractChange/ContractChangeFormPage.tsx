@@ -31,6 +31,7 @@ import {
   type FormErrors,
 } from "./contractChange.config";
 import styles from "./ContractChange.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Форма изменения или расторжения контракта.
@@ -254,7 +255,7 @@ export default function ContractChangeFormPage() {
         <div className={block("grid")}>
           <label className={block("field", ["wide"])}>
             <span className={block("field-label")}>Контракт из реестра</span>
-            <select
+            <Select
               className={block("select")}
               value={form.contractId}
               disabled={isEdit}
@@ -266,7 +267,7 @@ export default function ContractChangeFormPage() {
                   № {item.contractNumber} — {item.contractName}
                 </option>
               ))}
-            </select>
+            </Select>
             {errors.contractId && (
               <span className={block("field-error")}>{errors.contractId}</span>
             )}
@@ -322,7 +323,7 @@ export default function ContractChangeFormPage() {
         <div className={block("grid")}>
           <label className={block("field")}>
             <span className={block("field-label")}>Вид документа</span>
-            <select
+            <Select
               className={block("select")}
               value={form.kind}
               disabled={isEdit}
@@ -337,12 +338,12 @@ export default function ContractChangeFormPage() {
                   </option>
                 ),
               )}
-            </select>
+            </Select>
           </label>
 
           <label className={block("field")}>
             <span className={block("field-label")}>Правовое основание</span>
-            <select
+            <Select
               className={block("select")}
               value={form.basisCode}
               onChange={(event) => setField("basisCode", event.target.value)}
@@ -353,7 +354,7 @@ export default function ContractChangeFormPage() {
                   {item.article} — {item.title}
                 </option>
               ))}
-            </select>
+            </Select>
             {errors.basisCode && (
               <span className={block("field-error")}>{errors.basisCode}</span>
             )}

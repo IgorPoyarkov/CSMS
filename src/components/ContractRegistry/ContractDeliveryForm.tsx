@@ -3,6 +3,7 @@ import { useCreateDelivery } from "../../services/ContractRegistry/contractRegis
 import type { ContractDelivery } from "../../services/ContractRegistry/contractRegistry.schema";
 import { readApiError } from "../../services/csmsApi";
 import styles from "./ContractRegistry.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Ручной ввод поставки и результата приёмки (ст. 94 44-ФЗ).
@@ -157,7 +158,7 @@ export default function ContractDeliveryForm({
 
       <label className={styles.inlineField}>
         <span>Результат приёмки</span>
-        <select
+        <Select
           value={result}
           onChange={(event) =>
             setResult(event.target.value as ContractDelivery["result"])
@@ -168,7 +169,7 @@ export default function ContractDeliveryForm({
               {deliveryResultLabels[value]}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className={styles.inlineField}>

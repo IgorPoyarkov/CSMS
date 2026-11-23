@@ -34,6 +34,7 @@ import {
   todayIso,
 } from "./contractChange.config";
 import styles from "./ContractChange.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Карточка документа об изменении или расторжении.
@@ -551,7 +552,7 @@ export default function ContractChangeDetailPage() {
           <div className={block("inline-form")}>
             <label className={block("field")}>
               <span className={block("field-label")}>Тип документа</span>
-              <select
+              <Select
                 className={block("select")}
                 value={docType}
                 onChange={(event) =>
@@ -565,7 +566,7 @@ export default function ContractChangeDetailPage() {
                     {contractChangeDocumentTypeLabels[type]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
 
             <label className={block("field", ["wide"])}>

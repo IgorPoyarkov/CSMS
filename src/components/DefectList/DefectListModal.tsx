@@ -31,6 +31,7 @@ import {
   useUpdateDefectList,
 } from "../../services/DefectList/defectList.api";
 import styles from "./DefectListModal.module.scss";
+import Select from "../UI/Select";
 
 /**
  * Дефектовка с проектом сметы контракта и проектом календарного графика
@@ -197,7 +198,7 @@ export default function DefectListModal({
               <label className={block("label")} htmlFor="defect-object">
                 Объект закупки (описание объекта закупки)
               </label>
-              <select
+              <Select
                 id="defect-object"
                 className={block("input")}
                 value={String(watchedObjectId ?? "")}
@@ -212,7 +213,7 @@ export default function DefectListModal({
                     {item.okpd2Code ? ` · ${item.okpd2Code}` : ""}
                   </option>
                 ))}
-              </select>
+              </Select>
               <p className={block("hint")}>
                 Наименование и ОКПД2 не дублируются: они берутся из описания
                 объекта закупки. Здесь фиксируются только объёмы работ.
@@ -376,7 +377,7 @@ export default function DefectListModal({
               <label className={block("label")} htmlFor="estimate-method">
                 Метод расчёта
               </label>
-              <select
+              <Select
                 id="estimate-method"
                 className={block("input")}
                 {...register("estimate.method")}
@@ -386,14 +387,14 @@ export default function DefectListModal({
                     {estimateMethodLabels[method]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>
               <label className={block("label")} htmlFor="estimate-base">
                 Нормативная база
               </label>
-              <select
+              <Select
                 id="estimate-base"
                 className={block("input")}
                 {...register("estimate.normativeBase")}
@@ -403,7 +404,7 @@ export default function DefectListModal({
                     {estimateNormativeBaseLabels[base]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className={block("field")}>
@@ -422,7 +423,7 @@ export default function DefectListModal({
               <label className={block("label")} htmlFor="estimate-act">
                 Норма — методика определения сметной стоимости
               </label>
-              <select
+              <Select
                 id="estimate-act"
                 className={block("input")}
                 {...register("estimate.legalActId")}
@@ -433,7 +434,7 @@ export default function DefectListModal({
                     {formatLegalAct(act)}
                   </option>
                 ))}
-              </select>
+              </Select>
               <p className={block("hint")}>
                 Смета контракта считается по методике Минстроя России
                 № 421/пр от 04.08.2020; акт хранится в реестре
@@ -542,7 +543,7 @@ export default function DefectListModal({
               <label className={block("label")} htmlFor="schedule-act">
                 Норма — методика составления графика
               </label>
-              <select
+              <Select
                 id="schedule-act"
                 className={block("input")}
                 {...register("schedule.legalActId")}
@@ -553,7 +554,7 @@ export default function DefectListModal({
                     {formatLegalAct(act)}
                   </option>
                 ))}
-              </select>
+              </Select>
               <p className={block("hint")}>
                 График выполнения СМР и график оплаты составляются по методике
                 Минстроя России № 336/пр от 05.06.2018.

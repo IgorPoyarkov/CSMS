@@ -11,6 +11,7 @@ import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
 import KtruSelect from "../../UI/KtruSelect/KtruSelect";
 import LegalActRefs from "../../LegalAct/LegalActRefs";
 import styles from "../NoticeInfoForm.module.scss";
+import Select from "../../UI/Select";
 
 type ObjectDescriptionFieldKey = keyof NonNullable<
   NoticeInfoFormValues["objectDescription"]
@@ -131,7 +132,7 @@ const ObjectDescriptionSection = () => {
           <label className={block("label")} htmlFor="ooz-preset-select">
             Подставить из конструктора ООЗ
           </label>
-          <select
+          <Select
             id="ooz-preset-select"
             className={block("select")}
             defaultValue=""
@@ -146,7 +147,7 @@ const ObjectDescriptionSection = () => {
                 {tpl.characteristics.length})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
       )}
 

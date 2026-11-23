@@ -29,6 +29,7 @@ import {
   purchasePlanStatusOptions,
 } from "./purchasePlan.config";
 import styles from "./PurchasePlanForm.module.scss";
+import Select from "../UI/Select";
 
 export default function PurchasePlanForm() {
   const { id } = useParams<{ id: string }>();
@@ -227,7 +228,7 @@ export default function PurchasePlanForm() {
                 >
                   Статус плана-графика
                 </label>
-                <select
+                <Select
                   id="purchase-plan-status"
                   className={block("select")}
                   {...register("status")}
@@ -237,7 +238,7 @@ export default function PurchasePlanForm() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {errorMessage("status") && (
                   <span className={block("error")}>
                     {errorMessage("status")}
@@ -259,7 +260,7 @@ export default function PurchasePlanForm() {
                 >
                   Роль владельца версии (ЕИС 17.0)
                 </label>
-                <select
+                <Select
                   id="purchase-plan-owner-role"
                   className={block("select")}
                   {...register("ownerRole")}
@@ -269,14 +270,14 @@ export default function PurchasePlanForm() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div className={block("field")}>
                 <label className={block("label")} htmlFor="purchase-plan-pfhd">
                   Вид ПФХД (tenderPlan2020)
                 </label>
-                <select
+                <Select
                   id="purchase-plan-pfhd"
                   className={block("select")}
                   {...register("pfhdType")}
@@ -286,7 +287,7 @@ export default function PurchasePlanForm() {
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <CustomInput

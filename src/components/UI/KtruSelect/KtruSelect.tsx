@@ -5,6 +5,7 @@ import {
   useKtruDictionary,
 } from "../../../services/KtruRef/ktruRef.api";
 import type { KtruRef } from "../../../services/KtruRef/ktruRef.schema";
+import Select from "../Select";
 
 interface KtruSelectProps {
   /** Код ОКПД2 позиции: выдача ограничивается позициями каталога этого кода */
@@ -82,7 +83,7 @@ export default function KtruSelect({
   }
 
   return (
-    <select
+    <Select
       className={className}
       value={ktruCode ?? ""}
       disabled={disabled}
@@ -98,6 +99,6 @@ export default function KtruSelect({
           {item.ktruCode} — {item.name}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }

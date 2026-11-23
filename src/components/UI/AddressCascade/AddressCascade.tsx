@@ -10,6 +10,7 @@ import {
   type DeliveryAddressParts,
 } from "../../../services/AddressRef/addressRef.schema";
 import styles from "./AddressCascade.module.scss";
+import Select from "../Select";
 
 /**
  * Каскад выбора места поставки (Tasks 7, п. 2): страна → субъект Российской
@@ -67,7 +68,7 @@ export default function AddressCascade({
           <label className={block("label")} htmlFor={`${idPrefix}-country`}>
             Страна
           </label>
-          <select
+          <Select
             id={`${idPrefix}-country`}
             className={block("control")}
             disabled={disabled}
@@ -80,7 +81,7 @@ export default function AddressCascade({
           >
             <option value={RUSSIA}>{RUSSIA}</option>
             <option value={MANUAL_OPTION}>Другая страна…</option>
-          </select>
+          </Select>
           {isAnotherCountry && (
             <input
               className={block("control")}
@@ -96,7 +97,7 @@ export default function AddressCascade({
           <label className={block("label")} htmlFor={`${idPrefix}-region`}>
             Субъект Российской Федерации
           </label>
-          <select
+          <Select
             id={`${idPrefix}-region`}
             className={block("control")}
             disabled={disabled}
@@ -113,7 +114,7 @@ export default function AddressCascade({
                 {item.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className={block("level")}>
@@ -124,7 +125,7 @@ export default function AddressCascade({
             Муниципальное образование
           </label>
           {municipalities.length > 0 ? (
-            <select
+            <Select
               id={`${idPrefix}-municipality`}
               className={block("control")}
               disabled={disabled || !region}
@@ -145,7 +146,7 @@ export default function AddressCascade({
                 </option>
               ))}
               <option value={MANUAL_OPTION}>Ввести вручную…</option>
-            </select>
+            </Select>
           ) : (
             <input
               id={`${idPrefix}-municipality`}

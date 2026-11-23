@@ -199,7 +199,8 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
       [type="file"]
     ),
   textarea,
-  select {
+  select,
+  [data-csms-select] {
     box-shadow:
       inset 0 1px 2px rgba(7, 11, 20, 0.65),
       inset 0 -1px 0 rgba(232, 240, 255, 0.06),
@@ -210,7 +211,8 @@ $modern-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
       [type="file"]
     ):focus,
   textarea:focus,
-  select:focus {
+  select:focus,
+  [data-csms-select]:focus {
     box-shadow:
       inset 0 1px 2px rgba(7, 11, 20, 0.6),
       0 0 0 1px rgba(34, 211, 238, 0.45),
