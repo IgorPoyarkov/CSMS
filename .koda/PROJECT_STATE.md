@@ -7235,6 +7235,14 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   скачивание SVG/README; PNG — в `public/brand/png`. Светлые карточки витрины
   имеют фиксированный светлый фон: иначе в тёмной теме цветной знак теряется
   на тёмной панели.
+- **Тема «Современные закупки» на витрине.** Блок с палитрой темы
+  (void/abyss/slate/glass, cyan/indigo/magenta, paper/mist) и демонстрацией
+  четырёх эффектов: неоновая кромка (`box-shadow` inset), комета по контуру
+  (`conic-gradient` + `@property --brand-comet-angle` + маска), стеклянная
+  панель (полупрозрачность + `backdrop-filter`) и магнитное расхождение
+  чипов (`transform` 240 ms). Фон блока повторяет `body` темы: два радиальных
+  пятна и техно-сетка 44 px. Анимации отключаются при
+  `prefers-reduced-motion`.
 - **Проверки.** `npx.cmd tsc -b --pretty false` — 0; `npx.cmd vite build` —
   успешно (2684 модуля). PNG проверены: 32-bit ARGB, размеры 962×176 /
   962×208 / 570×432 / 512×512. Владелец указан в `csms-logo-owner.svg` и

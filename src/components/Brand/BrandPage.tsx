@@ -20,6 +20,18 @@ const PALETTE = [
   { hex: "#FFFFFF", name: "Бумага", role: "светлый фон" },
 ];
 
+const MODERN_PALETTE = [
+  { hex: "#070B14", name: "Void", role: "фон страницы" },
+  { hex: "#0D1524", name: "Abyss", role: "панели" },
+  { hex: "#16233A", name: "Slate", role: "вложенные блоки" },
+  { hex: "#1D2D49", name: "Glass", role: "стекло" },
+  { hex: "#22D3EE", name: "Cyan", role: "акцент, голова кометы" },
+  { hex: "#7C8CFF", name: "Indigo", role: "неоновое пятно" },
+  { hex: "#F472B6", name: "Magenta", role: "хвост кометы" },
+  { hex: "#E8F0FF", name: "Paper", role: "основной текст" },
+  { hex: "#A8B8D0", name: "Mist", role: "вторичный текст" },
+];
+
 const MARKS = [
   { file: "csms-mark.svg", label: "Цветной", dark: false },
   { file: "csms-mark-dark.svg", label: "Для тёмного фона", dark: true },
@@ -30,7 +42,10 @@ const MARKS = [
 const DOWNLOADS = [
   { file: "csms-logo-horizontal.svg", label: "Логотип, светлый фон" },
   { file: "csms-logo-horizontal-inverse.svg", label: "Логотип, тёмный фон" },
-  { file: "csms-logo-horizontal-mono-black.svg", label: "Логотип, моно чёрный" },
+  {
+    file: "csms-logo-horizontal-mono-black.svg",
+    label: "Логотип, моно чёрный",
+  },
   { file: "csms-logo-horizontal-mono-white.svg", label: "Логотип, моно белый" },
   { file: "csms-logo-stacked.svg", label: "Вертикальная компоновка" },
   { file: "csms-logo-owner.svg", label: "Для документов, с реквизитами" },
@@ -48,14 +63,12 @@ export default function BrandPage() {
         <h1 className={block("title")}>Фирменный знак</h1>
         <p className={block("subtitle")}>
           Система управления контрактной службой заказчика. Аббревиатура{" "}
-          <strong>КСЗ</strong> — Контрактная Служба Заказчика. Знак: строгая
-          «К» в плитке — контракт; верхняя полка читается как лист документа и
+          <strong>КСЗ</strong> — Контрактная Служба Заказчика. Знак: строгая «К»
+          в плитке — контракт; верхняя полка читается как лист документа и
           строка регламента, нижняя ножка — как скрепление дела. Без мелких
           деталей: знак работает от 16 px.
         </p>
-        <p className={block("owner")}>
-          Владелец: ИП · ИНН 462302564694
-        </p>
+        <p className={block("owner")}>Владелец: ИП · ИНН 462302564694</p>
       </header>
 
       <section className={block("section")}>
@@ -89,7 +102,9 @@ export default function BrandPage() {
             />
           </article>
           <article className={block("card", ["dark"])}>
-            <span className={block("caption")}>Монохром белый · тёмный фон</span>
+            <span className={block("caption")}>
+              Монохром белый · тёмный фон
+            </span>
             <img
               className={block("logo")}
               src={asset("/brand/csms-logo-horizontal-mono-white.svg")}
@@ -101,7 +116,9 @@ export default function BrandPage() {
       </section>
 
       <section className={block("section")}>
-        <h2 className={block("section-title")}>Вертикальная компоновка и документы</h2>
+        <h2 className={block("section-title")}>
+          Вертикальная компоновка и документы
+        </h2>
         <div className={block("grid", ["two"])}>
           <article className={block("card", ["center"])}>
             <span className={block("caption")}>Знак сверху</span>
@@ -113,7 +130,9 @@ export default function BrandPage() {
             />
           </article>
           <article className={block("card")}>
-            <span className={block("caption")}>Для документов · с владельцем</span>
+            <span className={block("caption")}>
+              Для документов · с владельцем
+            </span>
             <img
               className={block("logo")}
               src={asset("/brand/csms-logo-owner.svg")}
@@ -162,8 +181,8 @@ export default function BrandPage() {
               ))}
             </div>
             <p className={block("hint")}>
-              Минимальный размер знака — 16 px, горизонтального логотипа —
-              120 px по ширине. Меньше — только знак.
+              Минимальный размер знака — 16 px, горизонтального логотипа — 120
+              px по ширине. Меньше — только знак.
             </p>
           </article>
         </div>
@@ -189,20 +208,100 @@ export default function BrandPage() {
       </section>
 
       <section className={block("section")}>
+        <h2 className={block("section-title")}>Тема «Современные закупки»</h2>
+        <div className={block("modern")}>
+          <div className={block("modern-head")}>
+            <span className={block("modern-badge")}>data-theme="modern"</span>
+            <p className={block("modern-lead")}>
+              Ночной индиго-графит, неоновый циан, индиго и магента. Панели
+              выглядят стеклянными: блик по верхней грани и тень внутри рамки;
+              по контуру больших блоков бежит комета, короткие списки слегка
+              расходятся за курсором. Всё движение отключается при
+              prefers-reduced-motion.
+            </p>
+          </div>
+
+          <div className={block("modern-palette")}>
+            {MODERN_PALETTE.map((color) => (
+              <div key={color.hex} className={block("modern-swatch")}>
+                <span
+                  className={block("modern-swatch-color")}
+                  style={{ background: color.hex }}
+                  aria-hidden="true"
+                />
+                <span className={block("modern-swatch-hex")}>{color.hex}</span>
+                <span className={block("modern-swatch-name")}>
+                  {color.name} · {color.role}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className={block("modern-effects")}>
+            <article className={block("fx", ["neon"])}>
+              <b>Неоновая кромка</b>
+              <p>
+                На наведении по краям загорается циан: тонкая линия внутри
+                периметра и ореол над верхней гранью. Блок при этом не
+                смещается.
+              </p>
+              <span className={block("fx-tag")}>box-shadow · inset</span>
+            </article>
+
+            <article className={block("fx", ["comet"])}>
+              <b>Комета по контуру</b>
+              <p>
+                По периметру больших блоков бежит искра с хвостом: голова —
+                циан, хвост — магента. Свечение дышит, но не гаснет полностью.
+              </p>
+              <span className={block("fx-tag")}>
+                conic-gradient · @property
+              </span>
+            </article>
+
+            <article className={block("fx", ["glass"])}>
+              <b>Стеклянная панель</b>
+              <p>
+                Полупрозрачная подложка с бликом по верхней грани: фон
+                просвечивает, но текст и цифры остаются читаемыми.
+              </p>
+              <span className={block("fx-tag")}>
+                linear-gradient · backdrop
+              </span>
+            </article>
+
+            <article className={block("fx", ["magnet"])}>
+              <b>Магнитное расхождение</b>
+              <p>
+                Короткие списки и чипы отходят за курсором на 12% своего размера
+                и плавно возвращаются на место.
+              </p>
+              <div className={block("magnet-chips")}>
+                <span className={block("chip")}>Чип</span>
+                <span className={block("chip")}>Таб</span>
+                <span className={block("chip")}>Пункт</span>
+              </div>
+              <span className={block("fx-tag")}>transform · 240 ms</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className={block("section")}>
         <h2 className={block("section-title")}>Правила</h2>
         <div className={block("grid", ["three"])}>
           <article className={block("rule")}>
             <b>Охранное поле</b>
             <p>
-              Свободное поле вокруг логотипа — не меньше высоты знака. Ничего
-              не размещаем ближе.
+              Свободное поле вокруг логотипа — не меньше высоты знака. Ничего не
+              размещаем ближе.
             </p>
           </article>
           <article className={block("rule")}>
             <b>Фон</b>
             <p>
-              На светлом — цветной или чёрный монохром, на тёмном — инверсия
-              или белый. На фотографиях — только монохром.
+              На светлом — цветной или чёрный монохром, на тёмном — инверсия или
+              белый. На фотографиях — только монохром.
             </p>
           </article>
           <article className={block("rule")}>
@@ -240,8 +339,8 @@ export default function BrandPage() {
           </a>
         </div>
         <p className={block("hint")}>
-          PNG с прозрачностью — в папке{" "}
-          <code>public/brand/png</code>: знаки 512×512 и логотипы в 2×.
+          PNG с прозрачностью — в папке <code>public/brand/png</code>: знаки
+          512×512 и логотипы в 2×.
         </p>
       </section>
     </main>

@@ -1,5 +1,30 @@
 @use "variables" as *;
 
+// Угол кометы регистрируем через @property: без этого браузер не
+// интерполирует кастомное свойство и искра стоит на месте.
+@property --brand-comet-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes brand-comet-run {
+  to {
+    --brand-comet-angle: 360deg;
+  }
+}
+
+@keyframes brand-comet-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
 // Витрина фирменного знака. Светлые карточки — на панели темы, тёмные —
 // фиксированный глубокий зелёный: инверсию нужно показывать независимо от
 // выбранной темы, иначе на светлой теме её просто не увидеть.
@@ -226,6 +251,232 @@
     color: var(--text-secondary);
   }
 
+  // ── Тема «Современные закупки» ──────────────────────────────────────────
+  // Повторяет фон и приёмы _theme-modern.scss: два неоновых пятна, техно-сетка
+  // и стеклянные панели. Цвета берём из палитры темы, а не из ролей текущей
+  // темы интерфейса: блок должен выглядеть одинаково при любой теме.
+  &__modern {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px;
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    border-radius: 20px;
+    overflow: hidden;
+    background-color: #070b14;
+    background-image:
+      radial-gradient(
+        680px 320px at 14% -10%,
+        rgba(34, 211, 238, 0.13),
+        transparent 62%
+      ),
+      radial-gradient(
+        560px 300px at 92% 4%,
+        rgba(124, 140, 255, 0.12),
+        transparent 60%
+      ),
+      linear-gradient(rgba(124, 140, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124, 140, 255, 0.045) 1px, transparent 1px);
+    background-size: auto, auto, 44px 44px, 44px 44px;
+    color: #e8f0ff;
+  }
+
+  &__modern-head {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__modern-badge {
+    align-self: flex-start;
+    padding: 3px 8px;
+    border: 1px solid rgba(34, 211, 238, 0.4);
+    border-radius: 6px;
+    background: rgba(34, 211, 238, 0.1);
+    font-family: monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: #67e8f9;
+  }
+
+  &__modern-lead {
+    margin: 0;
+    max-width: 780px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #a8b8d0;
+  }
+
+  &__modern-palette {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  &__modern-swatch {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px;
+    border: 1px solid rgba(34, 211, 238, 0.16);
+    border-radius: 10px;
+    background: rgba(13, 21, 36, 0.72);
+  }
+
+  &__modern-swatch-color {
+    height: 40px;
+    border-radius: 6px;
+    border: 1px solid rgba(232, 240, 255, 0.14);
+  }
+
+  &__modern-swatch-hex {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #e8f0ff;
+  }
+
+  &__modern-swatch-name {
+    font-size: 9px;
+    line-height: 1.35;
+    color: #a8b8d0;
+  }
+
+  &__modern-effects {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  &__fx {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 132px;
+    padding: 16px;
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    border-radius: 14px;
+    background-color: #0d1524;
+    background-image: linear-gradient(
+      155deg,
+      rgba(232, 240, 255, 0.06),
+      transparent 52%
+    );
+    box-shadow:
+      inset 0 1px 0 rgba(232, 240, 255, 0.16),
+      inset 0 -26px 34px -32px rgba(7, 11, 20, 0.75);
+    transition:
+      box-shadow 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+      border-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    b {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+    }
+
+    p {
+      margin: 0;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: #a8b8d0;
+    }
+
+    &:hover,
+    &:focus-within {
+      border-color: rgba(34, 211, 238, 0.38);
+      box-shadow:
+        inset 0 0 0 1px rgba(34, 211, 238, 0.55),
+        0 -6px 0 -2px rgba(34, 211, 238, 0.32),
+        0 -14px 22px -12px rgba(34, 211, 238, 0.55);
+    }
+
+    &--comet {
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    // Контур кометы: конический градиент + маска оставляют рамку в 1px,
+    // по ней бежит искра. inset: 0 держит рамку внутри блока.
+    &--comet::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      padding: 1px;
+      border-radius: inherit;
+      pointer-events: none;
+      background: conic-gradient(
+        from var(--brand-comet-angle),
+        transparent 0deg 286deg,
+        rgba(34, 211, 238, 0.35) 326deg,
+        #22d3ee 346deg,
+        #ffffff 353deg,
+        #f472b6 358deg,
+        transparent 360deg
+      );
+      -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.35));
+      animation:
+        brand-comet-run 8s linear infinite,
+        brand-comet-breathe 3.6s ease-in-out infinite;
+    }
+
+    &--glass {
+      background-color: rgba(29, 45, 73, 0.6);
+      backdrop-filter: blur(8px);
+    }
+
+    &--magnet:hover .brand-page__chip:nth-child(1) {
+      transform: translate(-3px, -2px);
+    }
+
+    &--magnet:hover .brand-page__chip:nth-child(2) {
+      transform: translate(0, -3px);
+    }
+
+    &--magnet:hover .brand-page__chip:nth-child(3) {
+      transform: translate(3px, -2px);
+    }
+  }
+
+  &__fx-tag {
+    margin-top: auto;
+    align-self: flex-start;
+    padding: 2px 7px;
+    border: 1px solid rgba(124, 140, 255, 0.3);
+    border-radius: 5px;
+    background: rgba(124, 140, 255, 0.12);
+    font-family: monospace;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    color: #7c8cff;
+  }
+
+  &__magnet-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  &__chip {
+    padding: 4px 10px;
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    border-radius: 999px;
+    background: rgba(34, 211, 238, 0.08);
+    font-size: 10px;
+    color: #e8f0ff;
+    transition: transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
   &__rule {
     padding: 18px;
     border: 1px solid var(--border);
@@ -265,7 +516,9 @@
     color: var(--text-primary);
     font-size: 12px;
     text-decoration: none;
-    transition: border-color 0.2s ease, color 0.2s ease;
+    transition:
+      border-color 0.2s ease,
+      color 0.2s ease;
 
     &:hover,
     &:focus-visible {
@@ -286,11 +539,13 @@
 
   @media (max-width: 900px) {
     &__grid--two,
-    &__grid--three {
+    &__grid--three,
+    &__modern-effects {
       grid-template-columns: 1fr;
     }
 
-    &__palette {
+    &__palette,
+    &__modern-palette {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
@@ -298,8 +553,25 @@
   @media (max-width: 520px) {
     padding: 20px 14px 40px;
 
-    &__palette {
+    &__palette,
+    &__modern-palette {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    &__modern {
+      padding: 16px;
+    }
+  }
+
+  // Движение темы отключается при reduced-motion: остаются цвет и объём.
+  @media (prefers-reduced-motion: reduce) {
+    &__fx--comet::before {
+      animation: none;
+      opacity: 1;
+    }
+
+    &__chip {
+      transition: none;
     }
   }
 }
