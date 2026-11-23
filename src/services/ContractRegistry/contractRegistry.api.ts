@@ -4,6 +4,7 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  keepPreviousData,
   type QueryClient,
 } from "@tanstack/react-query";
 import { api } from "../axios.instance";
@@ -525,6 +526,9 @@ export const useContractRegistryRows = (
         ? pages.length + 1
         : undefined;
     },
+    // Смена организации не должна схлопывать список в полноэкранный лоадер:
+    // старые строки остаются на месте, пока не пришла первая порция новой.
+    placeholderData: keepPreviousData,
     enabled: Boolean(organizationId),
   });
 

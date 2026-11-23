@@ -31,6 +31,7 @@ import {
   useCreatePenalty,
   useUpdateContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
+import { localIsoDate } from "../../services/ContractRegistry/contractRegistry.schema";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
 import {
   contractCardSmpRequirement,
@@ -71,7 +72,7 @@ export default function SmpSection({
   smpRequiredPercent,
   subcontractingSmpNoteNumber,
 }: SmpSectionProps) {
-  const { bem, fullName } = useUtils();
+  const { bem, fullName, formatDate } = useUtils();
   const block = bem(styles, "smp-section");
 
   const { data: records = [] } = useContractSmpRecords(contractId);
@@ -196,7 +197,7 @@ export default function SmpSection({
       type: "other",
       amount: penaltyResult.penalty.amount,
       status: "accrued",
-      detectedDate: new Date().toISOString().slice(0, 10),
+      detectedDate: localIsoDate(),
       description: penaltyResult.penalty.description,
       reference: penaltyResult.penalty.reference,
     });
@@ -707,7 +708,9 @@ export default function SmpSection({
                   </td>
                   <td>
                     {row.ContractNumber ? `№ ${row.ContractNumber}` : "—"}
-                    {row.ContractDate ? ` от ${row.ContractDate}` : ""}
+                    {row.ContractDate
+                      ? ` от ${formatDate(row.ContractDate)}`
+                      : ""}
                     {row.ContractSubject && (
                       <>
                         <br />

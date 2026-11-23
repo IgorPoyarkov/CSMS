@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paymentDeadlineDays } from "./contractRegistry.schema";
+import { paymentDeadlineDays, localIsoDate } from "./contractRegistry.schema";
 
 /**
  * Проекция публичной карточки контракта ЕИС (`ContractCardViewDto` воркера
@@ -672,7 +672,7 @@ export const contractCardPaymentDeadline = (
     const weekday = date.getDay();
     if (weekday !== 0 && weekday !== 6) added += 1;
   }
-  return date.toISOString().slice(0, 10);
+  return localIsoDate(date);
 };
 
 /** Первый платёж по акту — для колонки «Оплачен» в таблице актов. */

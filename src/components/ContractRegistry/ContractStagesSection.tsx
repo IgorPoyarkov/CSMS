@@ -3,6 +3,7 @@ import type {
   ContractRegistryItem,
   ContractStage,
 } from "../../services/ContractRegistry/contractRegistry.schema";
+import { localIsoDate } from "../../services/ContractRegistry/contractRegistry.schema";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
 import { contractCardPaymentsByYear } from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useContractStages } from "../../services/ContractRegistry/contractRegistry.api";
@@ -20,7 +21,7 @@ interface ContractStagesSectionProps {
 }
 
 /** Сегодня в формате ЕИС: по нему видно, истёк ли срок этапа. */
-const todayIso = (): string => new Date().toISOString().slice(0, 10);
+const todayIso = (): string => localIsoDate();
 
 /** Этапы в порядке исполнения: номер этапа главнее дат (в ЕИС бывают опечатки). */
 const sortStages = (stages: ContractStage[]): ContractStage[] =>
@@ -31,6 +32,20 @@ const sortStages = (stages: ContractStage[]): ContractStage[] =>
       String(right.startDate ?? ""),
     );
   });
+
+/** Период этапа строкой: одна граница читается как «до <дата>» / «с <дата>». */
+const stagePeriod = (
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  formatDate: (isoString: string | undefined) => string,
+): string => {
+  const start = formatDate(startDate ?? undefined);
+  const end = formatDate(endDate ?? undefined);
+  if (start && end) return `${start} — ${end}`;
+  if (end) return `до ${end}`;
+  if (start) return `с ${start}`;
+  return "срок не указан";
+};
 
 /**
  * Этапы исполнения контракта.
@@ -69,15 +84,19 @@ export default function ContractStagesSection({
   if (ordered.length === 0) {
     if (!contract) return null;
 
-    // Срок берём из записи реестра, а если он пуст — из карточки ЕИС
-    const start =
-      formatDate(contract.executionStartDate) ||
-      formatDate(projection?.General?.ExecutionStartDate ?? undefined);
-    const end =
-      formatDate(contract.executionEndDate) ||
-      formatDate(projection?.General?.ExecutionEndDate ?? undefined);
-    const period =
-      start || end ? `${start || "…"} — ${end || "…"}` : "срок не указан";
+    // Срок берём из записи реестра, а если он пуст — из карточки ЕИС.
+    // Импорт не всегда отдаёт дату начала: тогда срок читается «до <дата>»,
+    // как в шапке карточки, а не «… — дата»
+    const period = stagePeriod(
+      contract.executionStartDate ||
+        projection?.General?.ExecutionStartDate ||
+        undefined,
+      contract.executionEndDate ||
+        projection?.General?.ExecutionEndDate ||
+        undefined,
+      formatDate,
+    );
+
     // Контракт не разбит на этапы: акты и платёжки относятся к нему целиком
     const acceptedCount = projection?.Acts.length ?? 0;
     const paidTotal = (projection?.Payments ?? []).reduce(
@@ -182,8 +201,8 @@ export default function ContractStagesSection({
                 <td>{stage.sid || "—"}</td>
                 <td>{stage.name}</td>
                 <td>
-                  {formatDate(stage.startDate) || "…"} —{" "}
-                  {formatDate(stage.endDate) || "…"}
+                  {stagePeriod(stage.startDate, stage.endDate, formatDate)}
+
                   {lateDays > 0 && (
                     <span
                       className={`${styles.projectionNote} ${styles.projectionLate}`}

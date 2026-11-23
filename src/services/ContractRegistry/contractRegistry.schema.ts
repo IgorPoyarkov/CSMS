@@ -137,6 +137,17 @@ export const paymentXsdCodeFor = (
 export const paymentDeadlineDays = (treasuryExecution: boolean): number =>
   treasuryExecution ? 10 : 7;
 
+/**
+ * Локальная дата в формате ГГГГ-ММ-ДД. `toISOString()` переводит момент в UTC,
+ * и в UTC+3 локальная полночь уезжает на предыдущий день: срок оплаты и
+ * «сегодня» для просрочки считались на день раньше реальной даты.
+ */
+export const localIsoDate = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
+
+
 export const ContractPaymentSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   contractId: z.union([z.string(), z.number()]).optional(),
@@ -441,7 +452,7 @@ export const paymentDeadlineDate = (
     }
   }
 
-  return date.toISOString().slice(0, 10);
+  return localIsoDate(date);
 };
 
 /**

@@ -16,6 +16,7 @@ import {
   type ContractRegistryItem,
   type ContractStage,
 } from "../../services/ContractRegistry/contractRegistry.schema";
+import { localIsoDate } from "../../services/ContractRegistry/contractRegistry.schema";
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
 import {
   contractCardActDecision,
@@ -70,7 +71,7 @@ interface StageCheckpoints {
   paidTotal: number;
 }
 
-const today = (): string => new Date().toISOString().slice(0, 10);
+const today = (): string => localIsoDate();
 
 /** ISO → ДД.ММ.ГГГГ: в таблице чекпоинтов даты как в карточке. */
 const isoToDisplay = (value?: string | null): string => {
@@ -78,6 +79,18 @@ const isoToDisplay = (value?: string | null): string => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   return match ? `${match[3]}.${match[2]}.${match[1]}` : "";
 };
+
+/**
+ * Период строкой: начало и конец, либо одна граница. Пустая дата начала не
+ * должна превращаться в «… — дата» — так же читается срок в шапке карточки.
+ */
+const periodText = (start: string, end: string): string => {
+  if (start && end) return `${start} — ${end}`;
+  if (end) return `до ${end}`;
+  if (start) return `с ${start}`;
+  return "";
+};
+
 
 /** Акты, привязанные к этапу по sid; без sid — к контракту целиком. */
 const actsForStage = (
@@ -142,7 +155,8 @@ const buildStageCheckpoints = (
     return {
       key: stageSid ?? `stage-${stage.stageNumber}`,
       name: stage.name,
-      period: start || end ? `${start || "…"} — ${end || "…"}` : "",
+      period: periodText(start, end),
+
       stageSid,
       acts: facts,
       acceptedTotal: facts.reduce((sum, item) => sum + (item.total ?? 0), 0),
@@ -217,8 +231,8 @@ export default function ContractEventsSection({
     const eis = contractCardExecutionPeriod(projection);
     const start = isoToDisplay(contract?.executionStartDate || eis.start);
     const end = isoToDisplay(contract?.executionEndDate || eis.end);
-    if (!start && !end) return "";
-    return `${start || "…"} — ${end || "…"}`;
+    return periodText(start, end);
+
   }, [contract, projection]);
 
   // Факты по этапам: акты приёмки и оплаты из выгрузки ЕИС. Пустой список

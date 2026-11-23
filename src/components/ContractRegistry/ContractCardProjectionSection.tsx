@@ -1,4 +1,5 @@
 import { useContractCardProjection } from "../../services/ContractRegistry/contractCardProjection.api";
+import { localIsoDate } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
   contractCardActAcceptedAt,
   contractCardActDecision,
@@ -45,7 +46,7 @@ const shortDate = (value: string | null): string => {
 };
 
 /** Сегодня в формате проекции: по нему проверяем, истёк ли срок оплаты. */
-const todayIso = (): string => new Date().toISOString().slice(0, 10);
+const todayIso = (): string => localIsoDate();
 
 /** «просрочка 3 дн.» — единый текст для подсветки нарушенных сроков. */
 const daysLabel = (days: number): string =>

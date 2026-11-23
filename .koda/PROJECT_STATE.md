@@ -7288,3 +7288,42 @@ src/components/ContractRegistry src/services/ContractRegistry` — 0/0,
   вместе с серверной пагинацией реестра (`_page`/`_limit` +
   `placeholderData: keepPreviousData`).
 
+
+## 175. Реестр контрактов: срок оплаты без сдвига UTC, период «до <дата>», смоук карточек (2026-11-23, Cline)
+
+- **Баг сроков (важно).** `contractCardPaymentDeadline` и
+  `paymentDeadlineDate` форматировали результат через
+  `toISOString().slice(0, 10)`: в UTC+3 локальная полночь уходит на предыдущий
+  день, поэтому срок оплаты и «сегодня» для просрочки считались на день
+  раньше. Добавлен `localIsoDate(date)` в `contractRegistry.schema.ts` (локальные
+  геттеры), на него переведены обе функции и `todayIso`/`today` в
+  `ContractStagesSection`, `ContractCardProjectionSection`, `ContractEventsSection`,
+  `detectedDate` в `ContractSmpSection`. Проверка: `npm run check:contract-deadlines`
+  (`scripts/check-contract-deadlines.ts`, TZ=Europe/Moscow) — 05.05.2026 → 14.05,
+  10 раб. дней → 19.05, 07.04.2026 → 16.04. До фикса `node -e` на тех же датах
+  давал 13.05 / 18.05.
+- **Период без начала.** «… — 30.12.2026» заменено на «до 30.12.2026» в этапах
+  (`stagePeriod`) и чекпоинтах (`periodText`): так же читается шапка карточки.
+- **Даты субдоговоров СМП.** В таблице «По сведениям карточки ЕИС» дата
+  договора шла сырым ISO — теперь `formatDate` (ДД.ММ.ГГГГ).
+- **Порционная загрузка.** В `useContractRegistryRows` добавлен
+  `placeholderData: keepPreviousData`: смена организации не схлопывает список в
+  полноэкранный лоадер. Серверная пагинация уже была (`_page`/`_limit`,
+  `X-Total-Count` отдаёт `scripts/pg-json-server.mjs`, CORS-заголовок
+  экспонирован), пейджер считает страницы по `contractsTotal` и добирает порции
+  через `loadUntil`.
+- **Браузерный смоук** (`.tmp/probe-contract-card.mjs`, headless Chrome, 1440,
+  `user_email = poyarkova_nyu@mail.ru`) по `eis-2462904043926000004`,
+  `eis-2463205448826000027`, `eis-2462904043926000092`: предмет/подрядчик/ИНН/
+  срок из проекции, УПД по КНД 1115131, акт № 60523 сопоставлен с платёжкой
+  № 578336 («в срок»), остальные 7 актов — «срок истёк 14.05…13.08», ISO-дат в
+  тексте нет, `undefined`/`NaN`/`Invalid Date` — 0, консольных ошибок нет.
+  Скриншоты: `.tmp/card-0004.png`, `.tmp/card-0027.png`, `.tmp/card-0092.png`.
+- **Проверки.** `npx tsc -b` — 0; `npx oxlint src/components/ContractRegistry
+  src/services/ContractRegistry` — 0 warnings; `npx vite build` — ок;
+  `npm run check:contract-deadlines` — OK.
+- **Очередь.** Поставщика для `2462904043926000092` в выгрузке нет (`General`
+  в проекции отсутствует, парсер взял только СМП) — нужен доимпорт карточки, UI
+  тут не виноват. Просрочка приёмки по-прежнему считается от срока исполнения
+  контракта, а не от плана-графика.
+
