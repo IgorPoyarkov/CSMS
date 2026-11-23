@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 // Классы страницы собираются через bem(styles, "main") в Main.tsx, поэтому
 // ключи модуля должны быть БЭМ-именами main__card, main__flow-link и т. д.

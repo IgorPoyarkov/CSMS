@@ -1,9 +1,13 @@
-@import "variables";
-@import "themes";
-@import "fonts";
-@import "reboot";
-@import "controls";
-@import "theme-floating3d";
-@import "theme-modern";
-@import "visually-hidden";
-@import "globals";
+// Точка входа глобальных стилей. Партиалы подключаются через @use: Sass 3.0
+// убирает @import, а @use загружает модуль ровно один раз — переменные, миксины
+// и CSS-вывод. Порядок объявления задаёт порядок каскада, поэтому он прежний:
+// темы → шрифты → сброс → контролы → темы-эффекты → утилиты → кнопки.
+@use "variables" as *;
+@use "themes";
+@use "fonts";
+@use "reboot";
+@use "controls";
+@use "theme-floating3d";
+@use "theme-modern";
+@use "visually-hidden";
+@use "globals";

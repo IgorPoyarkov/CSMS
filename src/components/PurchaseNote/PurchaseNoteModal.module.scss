@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 .purchase-note-modal {
   display: flex;

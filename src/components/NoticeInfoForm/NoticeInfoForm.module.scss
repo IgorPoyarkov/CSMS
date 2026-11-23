@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 .notice-info-form {
   max-width: 1200px;

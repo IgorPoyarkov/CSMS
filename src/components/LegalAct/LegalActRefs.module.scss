@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 // Строка «Правовое основание: ...» под разделом формы
 .legal-act-refs {

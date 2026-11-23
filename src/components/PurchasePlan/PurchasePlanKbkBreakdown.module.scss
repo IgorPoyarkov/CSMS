@@ -1,5 +1,5 @@
-@import "variables";
-@import "modal-frame";
+@use "variables" as *;
+@use "modal-frame" as *;
 
 .breakdown {
   margin-top: 22px;

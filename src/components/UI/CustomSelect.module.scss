@@ -1,5 +1,5 @@
-@import "variables";
-@import "no-scrollbar";
+@use "variables" as *;
+@use "no-scrollbar" as *;
 
 .custom-select {
   position: relative;

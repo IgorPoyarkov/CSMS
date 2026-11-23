@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 // Карточка плана-графика закупок в стилистике ЕИС (pg2020/general-info.html)
 .purchase-plan-card {

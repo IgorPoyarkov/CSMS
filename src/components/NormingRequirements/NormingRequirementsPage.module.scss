@@ -1,4 +1,4 @@
-@import "../../scss/global/variables";
+@use "../../scss/global/variables" as *;
 
 .norming-requirements {
   display: flex;

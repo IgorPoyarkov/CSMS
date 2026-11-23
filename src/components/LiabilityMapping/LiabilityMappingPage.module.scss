@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 // Сопоставление обязанностей 158н с нормами КоАП: список слева, детали справа.
 .liability-mapping {

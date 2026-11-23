@@ -1,5 +1,5 @@
-@import "variables";
-@import "no-scrollbar";
+@use "variables" as *;
+@use "no-scrollbar" as *;
 
 // Единый выпадающий список вместо нативного select. Все цвета — переменные
 // текущей темы, поэтому список читается и в светлой, и в тёмной, и в

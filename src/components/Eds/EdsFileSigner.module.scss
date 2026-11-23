@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 .eds-file {
   border: 1px solid var(--border);
