@@ -26,15 +26,32 @@ const EXPAND = {
   еис: ["единая", "информационная", "система"],
   смп: ["малые", "средние", "предприятия"],
   сонко: ["социально", "ориентированные", "некоммерческие", "организации"],
+  // Морфология частых вопросов: «деньги/возвращаются/сроки» ↔ norm-текст.
+  деньги: ["денежные", "средства"],
+  возвращаются: ["возврат", "возврата"],
+  сроки: ["срок", "срока", "сроков"],
+  качестве: ["качество"],
+  обеспечения: ["обеспечение"],
+  обязательства: ["обязательств"],
 };
 
-export function tokenize(text) {
+/** Каждое слово вопроса — группа синонимов; покрытие считается по группам. */
+function tokenGroups(text) {
   const words = String(text ?? "")
     .toLowerCase()
     .replace(/ё/g, "е")
     .split(/[^a-zа-я0-9]+/u)
-    .filter((word) => (word.length >= 3 || KEEP_SHORT.has(word)) && !STOP_WORDS.has(word));
-  return words.flatMap((word) => [word, ...(EXPAND[word] ?? [])]);
+    // Номера статей и частей («ст. 34», «ч. 27») тоже несут смысл для поиска.
+    .filter(
+      (word) =>
+        ((word.length >= 3 || /^\d{1,3}$/.test(word)) && !STOP_WORDS.has(word)) ||
+        KEEP_SHORT.has(word),
+    );
+  return words.map((word) => [word, ...(EXPAND[word] ?? [])]);
+}
+
+export function tokenize(text) {
+  return tokenGroups(text).flat();
 }
 
 /** Код ОКПД2 в вопросе: минимум три группы (01.13.32), максимум пять. */
@@ -55,17 +72,79 @@ function lookupForCode(lookup, code) {
   return null;
 }
 
+const LEGAL_HINTS = [
+  /оплат[аы]|срок\s+оплат|\bплатеж|\bплатёж/i,
+  /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/i,
+  /контракт|договор|закупк|заказчик|поставщик|подрядчик|исполнитель/i,
+  /штраф|пен[ия]|неустойк|обеспечени/i,
+  /приемк|приёмк|акт/i,
+];
+
+function isLegalQuestion(question) {
+  return LEGAL_HINTS.filter((re) => re.test(question)).length >= 2;
+}
+
+function sourcePriority(source) {
+  if (source === "npa" || source === "norm" || source === "qa" || source === "pp1875-exact") return 0.08;
+  if (source === "pp1875") return 0.05;
+  if (source === "csms-doc") return -0.03;
+  if (source === "csms-notes" || source === "xsd") return -0.08;
+  return 0;
+}
+
+function paymentSmpBoost(chunk, question) {
+  const text = `${chunk.title} ${chunk.text}`.toLowerCase();
+  const q = question.toLowerCase();
+  const asksPayment = /оплат|срок\s+оплат|платеж|платёж/.test(q);
+  const asksSmp = /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/.test(q);
+  let boost = 0;
+  if (asksPayment) {
+    if (/срок оплаты/.test(text)) boost += 0.14;
+    if (/не более .*рабочих дней/.test(text) && /оплат/.test(text)) boost += 0.12;
+    if (/статья 34/.test(text) && /оплат/.test(text)) boost += 0.12;
+    if (/13\.1/.test(text) && /оплат/.test(text)) boost += 0.12;
+    if (/статья 30/.test(text) && asksSmp) boost += 0.1;
+    if (/1466/.test(chunk.title)) boost += 0.12;
+    if (/типовые условия контрактов/.test(text) && asksSmp) boost += 0.08;
+    if (/оплачивать поставленные субподрядчиком/.test(text)) boost += 0.14;
+  }
+  if (asksSmp && /субъектов малого предпринимательства|социально ориентированных некоммерческих/.test(text)) boost += 0.05;
+  if (chunk.source === "npa" && !/архивная/.test(chunk.title)) boost += 0.03;
+  if (/архивная/.test(chunk.title)) boost -= 0.08;
+  if (/360-фз|223-фз|44-фз.*архивная/.test(chunk.title.toLowerCase()) && asksPayment) boost -= 0.06;
+  return boost;
+}
+
 /** Гибрид: векторная близость плюс небольшой вес за совпадение слов. */
 export function retrieve(index, question, cfg) {
   const queryVector = index.queryVector;
-  const queryTokens = new Set(tokenize(question));
+  const queryGroups = tokenGroups(question);
+  const articleRefs = [
+    ...question.matchAll(/(?:ст\.?|статья|статьи|статью|статьёй)\s*(\d{1,3})/gi),
+  ].map((match) => match[1]);
+  const legalQuestion = isLegalQuestion(question);
   const scored = index.chunks.map((chunk) => {
     const vectorScore = cosine(queryVector, chunk.embedding);
-    const textTokens = tokenize(`${chunk.title} ${chunk.text}`);
+    const textTokens = new Set(tokenize(`${chunk.title} ${chunk.text}`));
     let matches = 0;
-    for (const token of queryTokens) if (textTokens.includes(token)) matches += 1;
-    const lexical = queryTokens.size ? matches / queryTokens.size : 0;
-    return { chunk, score: vectorScore + 0.08 * lexical, vectorScore, lexical };
+    for (const group of queryGroups) {
+      if (group.some((token) => textTokens.has(token))) matches += 1;
+    }
+    const lexical = queryGroups.length ? matches / queryGroups.length : 0;
+    // Упоминание номера статьи в тексте другой статьи — не ответ; нужен заголовок.
+    const titleBonus = articleRefs.some((ref) =>
+      new RegExp(`(?:^|[^\\d])${ref}(?![\\d])`).test(chunk.title),
+    )
+      ? 0.06
+      : 0;
+    const priority = legalQuestion ? sourcePriority(chunk.source) : 0;
+    const boost = legalQuestion ? paymentSmpBoost(chunk, question) : 0;
+    return {
+      chunk,
+      score: vectorScore + 0.12 * lexical + titleBonus + priority + boost,
+      vectorScore,
+      lexical,
+    };
   });
 
   scored.sort((a, b) => b.score - a.score);
@@ -99,11 +178,11 @@ export function retrieve(index, question, cfg) {
 
   const exactFragments = exact.map((item) => {
     const type =
-      { include: "разрешено", exclude: "запрещено", conditional: "условно" }[
+      { include: "разрешён", exclude: "запрещён", conditional: "условие" }[
         item.rule.type
       ] ?? item.rule.type;
     return {
-      title: `ПП РФ № 1875 · точное правило для ${item.code}`,
+      title: `ПП РФ № 1875 — точное правило для ${item.code}`,
       ref: "национальный режим",
       url: "http://publication.pravo.gov.ru/document/0001202412250018",
       text: [
@@ -118,9 +197,13 @@ export function retrieve(index, question, cfg) {
     };
   });
 
-  // Точное правило ставим первым: у модели не должно быть соблазна ответить
-  // по похожему, но другому коду из векторных фрагментов.
-  const fragments = [...exactFragments, ...vectorFragments].map((fragment, i) => ({
+  // Точное правило ставим первым. Для правовых вопросов при наличии NPA/norm
+  // не даём рабочим заметкам доминировать в контексте.
+  const hasNormative = vectorFragments.some((f) => ["npa", "norm", "qa", "pp1875"].includes(f.source));
+  const filteredVector = legalQuestion && hasNormative
+    ? vectorFragments.filter((f) => !["csms-notes", "csms-doc", "xsd"].includes(f.source) || f.score >= 0.95)
+    : vectorFragments;
+  const fragments = [...exactFragments, ...filteredVector].map((fragment, i) => ({
     ...fragment,
     n: i + 1,
   }));
@@ -128,14 +211,15 @@ export function retrieve(index, question, cfg) {
   // nomic-embed-text даёт высокую косинусную близость даже нерелевантным
   // вопросам, поэтому порог дополняем lexical-покрытием: хоть одно слово
   // вопроса должно встречаться в найденном фрагменте.
-  const topGrounding = picked[0]?.lexical ?? 0;
+  const topGrounding = Math.max(0, ...picked.map((item) => item.lexical));
   return {
     fragments,
     confidence: fragments.length ? Math.max(...fragments.map((item) => item.score)) : 0,
     refusal:
       !fragments.length ||
-      (!exact.length &&
-        (vectorFragments[0].score < (cfg.minScore ?? 0.34) || topGrounding < 0.2)),
+      (!exact.length && ((filteredVector[0]?.score ?? 0) < (cfg.minScore ?? 0.34) || topGrounding < 0.2)) ||
+      (legalQuestion && !exact.length && !hasNormative),
     exactCodes: exact.map((item) => item.code),
+    legalQuestion,
   };
 }

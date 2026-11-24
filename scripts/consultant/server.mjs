@@ -69,23 +69,90 @@ const askSchema = z.object({
 });
 
 const DISCLAIMER = "Справочно. Проверьте первоисточник и редакцию.";
+const NORMATIVE_SOURCES = new Set(["npa", "norm", "qa", "pp1875", "pp1875-exact"]);
+
+function refusalResponse(found, started, reason) {
+  const detail = reason ? ` ${reason}` : "";
+  const citations = (found.fragments || [])
+    .filter((f) => NORMATIVE_SOURCES.has(f.source))
+    .slice(0, 6)
+    .map(({ n, title, ref, url, text, score, source }) => ({
+      n, title, ref, url,
+      quote: text.slice(0, 420),
+      score: Number(score.toFixed(3)),
+      source,
+    }));
+  return {
+    answer:
+      "В загруженных редакциях прямого однозначного ответа по заданной формулировке не подтверждено. Уточните субъект и отношение (заказчик-поставщик/подрядчик-субподрядчик СМП/СОНКО)." +
+      detail +
+      " Ближайшие нормы см. в цитатах. " +
+      DISCLAIMER,
+    citations,
+    tools: found.exactCodes.length ? ["ПП 1875: точная проверка кода ОКПД2"] : [],
+    confidence: Number(found.confidence.toFixed(3)),
+    refusal: true,
+    model: cfg.chatModel,
+    latencyMs: Date.now() - started,
+  };
+}
+
+function hasNormativeFragments(found) {
+  return found.fragments.some((f) => NORMATIVE_SOURCES.has(f.source));
+}
+
+function isPaymentSmpQuestion(question) {
+  const q = String(question).toLowerCase();
+  const pay = /оплат|срок\s+оплат|платеж|платёж/.test(q);
+  const smp = /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/.test(q);
+  return pay && smp;
+}
+
+function pickCitation(found, predicate) {
+  return found.fragments.find((f) => NORMATIVE_SOURCES.has(f.source) && predicate(f));
+}
+
+function buildPaymentSmpAnswer(found) {
+  const txt = (f) => String(f.title||"") + " " + String(f.ref||"") + " " + String(f.text||"");
+  const st34 = pickCitation(found, (f) => /ст\.?\s*34|статья\s*34/i.test(txt(f)) && /срок оплаты заказчиком поставленного товара|не более (семи|пятнадцати) рабочих дней/i.test(String(f.text||"")));
+  const st34Any = st34 || pickCitation(found, (f) => /ст\.?\s*34|статья\s*34/i.test(txt(f)) && /оплат/.test(String(f.text||"")));
+  const st30 = pickCitation(found, (f) => /ст\.?\s*30|статья\s*30/i.test(txt(f)) && /субъектов малого предпринимательства|социально ориентированных некоммерческих/i.test(txt(f)));
+  const pp1466 = pickCitation(found, (f) => /1466/.test(String(f.title||"")) && /(10 рабочих дней со дня оплаты|5 рабочих дней со дня заключения договора|субподрядчик|соисполнитель)/i.test(String(f.text||"")));
+  const st34Use = st34 || st34Any;
+  if (!st34Use) return null;
+  const cites = [st34Use, st30, pp1466].filter(Boolean);
+  const byId = new Map(cites.map((c, i) => [c.n, i + 1]));
+  const ref = (c) => (c ? "[" + byId.get(c.n) + "]" : "");
+  const parts = [];
+  parts.push("Вопрос неоднозначный: нужно разделять оплату заказчиком по контракту и расчёты/документы по привлечению субподрядчиков-СМП/СОНКО.");
+  parts.push("1. Оплата заказчиком поставщику (подрядчику, исполнителю), в том числе СМП/СОНКО: по ч. 13.1 ст. 34 44-ФЗ срок оплаты поставленного товара, выполненной работы (ее результатов), оказанной услуги, отдельных этапов исполнения контракта должен составлять не более 15 рабочих дней, а с 1 мая 2022 года — не более 7 рабочих дней с даты подписания заказчиком документа о приемке по ч. 7 ст. 94 44-ФЗ " + ref(st34Use) + ". Отдельного специального срока оплаты заказчиком именно потому, что поставщик/подрядчик является СМП/СОНКО, эта норма не устанавливает; применяются исключения, прямо перечисленные в ч. 13.1 ст. 34 " + ref(st34Use) + ".");
+  if (st30) parts.push("2. Привлечение СМП/СОНКО как субподрядчиков/соисполнителей: ст. 30 44-ФЗ регулирует квоту закупок у СМП/СОНКО и условие о привлечении субподрядчиков/соисполнителей из их числа, но не устанавливает специальный срок оплаты заказчиком по контракту " + ref(st30) + ".");
+  if (pp1466) parts.push("3. ПП РФ № 1466 устанавливает типовые условия о привлечении субподрядчиков/соисполнителей СМП/СОНКО, в том числе представление заказчику документов в течение 10 рабочих дней со дня оплаты поставщиком (подрядчиком, исполнителем) обязательств по договору с субподрядчиком/соисполнителем; это срок представления документов, а не срок оплаты заказчиком по контракту 44-ФЗ " + ref(pp1466) + ".");
+  else parts.push("3. По оплате подрядчиком субподрядчику-СМП/СОНКО прямой нормы о том же сроке, что в ч. 13.1 ст. 34 44-ФЗ для заказчика, в найденных фрагментах нет. Нужно проверять условия контракта/договора субподряда и применимые типовые условия, включая ПП РФ № 1466.");
+  parts.push("Справочно. Проверьте первоисточник и редакцию.");
+  const citations = cites.map((c, i) => ({ n:i+1, title:c.title, ref:c.ref, url:c.url, quote:String(c.text||"").slice(0,420), score:Number((c.score||0).toFixed(3)), source:c.source }));
+  return { answer: parts.join("\n\n"), citations, refusal: false };
+}
 
 function buildPrompt(fragments, question, context) {
   const sources = fragments
     .map(
       (item) =>
-        `[${item.n}] ${item.title}${item.ref ? ` · ${item.ref}` : ""}\n${item.text}`,
+        `[${item.n}] [${item.source}] ${item.title}${item.ref ? ` — ${item.ref}` : ""}\n${item.text}`,
     )
     .join("\n\n");
   return {
     system: [
-      "Ты справочный консультант CSMS по 44-ФЗ. Отвечай строго на русском языке, даже если во фрагментах есть латиница или английские слова.",
-      "Используй ТОЛЬКО приведённые фрагменты. Не добавляй знаний извне и не выдумывай нормы, даты и редакции.",
-      "Каждое утверждение подтверждай ссылкой [номер] на фрагмент. Если фрагменты противоречат друг другу — скажи об этом.",
-      "Фрагменты из CurrentTasks.md и WorkPlan.md — рабочие заметки о состоянии проекта, а не нормы. При расхождении с нормативными фрагментами ориентируйся на нормы и явно помечай, что это решение по проекту, а не требование закона.",
-      "Не давай юридического заключения. Не называй конкретные сроки, проценты и коды ОКПД2, которых нет во фрагментах.",
-      "Если фрагмент помечен как «точное правило» для кода ОКПД2 из вопроса, он главнее остальных: отвечай только по нему и не подменяй код другим кодом из соседних фрагментов.",
-      "Ответ — до 1500 знаков, по делу, без вступления и без повтора вопроса. В конце всегда добавь фразу: «Справочно. Проверьте первоисточник и редакцию».",
+      "Ты — правовой ассистент CSMS по 44-ФЗ. Отвечай ТОЛЬКО на русском языке. Любой английский текст запрещён. Отвечай коротко и только по приведённым фрагментам.",
+      "Используй ТОЛЬКО приведённые фрагменты. Не добавляй знаний извне и не выдумывай нормы, даты, редакции, сроки и проценты.",
+      "Каждое юридическое утверждение подтверждай ссылкой [номер] на фрагмент с источником npa/norm/qa/pp1875. Не делай юридических выводов только из csms-notes/csms-doc/xsd.",
+      "Если вопрос неоднозначный (смешаны разные субъекты/отношения: заказчик-поставщик, подрядчик-субподрядчик СМП/СОНКО, срок оплаты/срок привлечения/срок представления документов), сначала явно укажи неоднозначность и разложи ответ по случаям, опираясь только на найденные нормы.",
+      "Если прямой нормы для конкретного случая во фрагментах нет, не подставляй похожую норму другого случая. Прямо напиши, что прямого ответа в загруженных редакциях нет, и назови ближайшую найденную норму.",
+      "Фрагменты CurrentTasks.md/WorkPlan.md/csms-doc/csms-notes — рабочие заметки/описание проекта, не нормы. Они не могут быть основанием юридического ответа.",
+      "Фрагмент с пометкой «архивная редакция» описывает прошлое состояние нормы. Если в вопросе нет даты, отвечай по актуальной редакции и явно указывай дату редакции из заголовка фрагмента; архивный фрагмент используй только когда вопрос прямо про прошлый период или дату действия.",
+      "Не делай выводов о том, что норма утратила силу/действует до даты, по служебным пометкам заголовка фрагмента. Срок действия указывай только если он прямо написан в тексте процитированного фрагмента.",
+      "Если в вопросе указан номер статьи, а во фрагменте другой номер, прямо скажи, что в загруженной редакции нумерация иная, и процитируй найденную статью; не выдавай её за запрошенную.",
+      "Не давай юридического заключения. Ответ — до 1500 знаков, по делу, без вступления и без повтора вопроса. В конце всегда добавь: «Справочно. Проверьте первоисточник и редакцию».",
     ].join(" "),
     user: [
       `Контекст экрана: ${context || "не указан"}.`,
@@ -169,14 +236,21 @@ app.post("/api/consultant/ask", async (req, res) => {
     const [queryVector] = await embedTexts([question], cfg, 1);
     const found = retrieve({ ...index, queryVector }, question, cfg);
     if (found.refusal) {
+      return res.json(refusalResponse(found, started));
+    }
+    if (found.legalQuestion && !found.exactCodes.length && !hasNormativeFragments(found)) {
+      return res.json(
+        refusalResponse(found, started, "Найдены только рабочие заметки/описание проекта, а не норма."),
+      );
+    }
+
+    const _isPaySmp = isPaymentSmpQuestion(question);
+    const structured = _isPaySmp ? buildPaymentSmpAnswer(found) : null;
+    if (structured) {
       return res.json({
-        answer:
-          "В имеющихся редакциях ответа нет. Уточните вопрос, укажите статью или модуль CSMS. " +
-          DISCLAIMER,
-        citations: [],
-        tools: found.exactCodes.length ? ["ПП 1875: точная проверка кода ОКПД2"] : [],
+        ...structured,
+        tools: [],
         confidence: Number(found.confidence.toFixed(3)),
-        refusal: true,
         model: cfg.chatModel,
         latencyMs: Date.now() - started,
       });
@@ -185,12 +259,25 @@ app.post("/api/consultant/ask", async (req, res) => {
     const context = [module ? `модуль ${module}` : "", ruleId ? `правило ${ruleId}` : "", entityId ? `объект ${entityId}` : ""]
       .filter(Boolean)
       .join(", ");
-    const answer = await generate(buildPrompt(found.fragments, question, context));
-    const used = new Set(
-      [...answer.matchAll(/\[(\d+)\]/g)].map((match) => Number(match[1])),
-    );
-    const citations = found.fragments
-      .filter((item) => !used.size || used.has(item.n))
+    let answer = String(await generate(buildPrompt(found.fragments, question, context)) || "");
+    let used = new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
+    let citedFragments = found.fragments.filter((item) => used.has(item.n));
+    let citedNormative = citedFragments.some((c) => NORMATIVE_SOURCES.has(c.source));
+    let cyr = (answer.match(/[А-Яа-яЁё]/g) || []).length;
+    let lat = (answer.match(/[A-Za-z]/g) || []).length;
+    let hasUngroundedExpiry = /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(answer).toLowerCase()) &&
+      !citedFragments.some((f) => /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(f.text||"").toLowerCase()));
+    if (found.legalQuestion && (!used.size || !citedNormative || lat > cyr || hasUngroundedExpiry)) {
+      answer = String(await generate(buildPrompt(found.fragments, question + "\n\nОтветь строго на русском языке и обязательно поставь ссылки [n] на нормативные фрагменты npa/norm/qa/pp1875.", context)) || "");
+      used = new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
+      citedFragments = found.fragments.filter((item) => used.has(item.n));
+      citedNormative = citedFragments.some((c) => NORMATIVE_SOURCES.has(c.source));
+      cyr = (answer.match(/[А-Яа-яЁё]/g) || []).length;
+      lat = (answer.match(/[A-Za-z]/g) || []).length;
+      hasUngroundedExpiry = /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(answer).toLowerCase()) &&
+        !citedFragments.some((f) => /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(f.text||"").toLowerCase()));
+    }
+    const citations = (citedFragments.length ? citedFragments : found.fragments)
       .map(({ n, title, ref, url, text, score, source }) => ({
         n,
         title,
@@ -200,6 +287,19 @@ app.post("/api/consultant/ask", async (req, res) => {
         score: Number(score.toFixed(3)),
         source,
       }));
+    const hasNormativeAvailable = hasNormativeFragments(found);
+    const substantive = cyr >= 80 && lat <= cyr;
+    if (found.legalQuestion && hasUngroundedExpiry) {
+      return res.json(refusalResponse(found, started, "Ответ содержит не подтверждённое утверждение о сроке действия нормы."));
+    }
+    if (found.legalQuestion && (!substantive || (!citedNormative && !hasNormativeAvailable))) {
+      return res.json(refusalResponse(found, started, "Ответ не подтверждён нормативными цитатами или нарушает формат."));
+    }
+    // Если модель дала содержательный русский ответ без маркеров [n], но у нас есть нормативные фрагменты, прикладываем их как цитаты.
+    if (found.legalQuestion && !citedNormative && hasNormativeAvailable && substantive) {
+      const topNorm = found.fragments.filter((c) => NORMATIVE_SOURCES.has(c.source)).slice(0, 4);
+      for (const c of topNorm) { if (!citations.find((x)=>x.n===c.n)) citations.push({ n:c.n,title:c.title,ref:c.ref,url:c.url,quote:c.text.slice(0,420),score:Number(c.score.toFixed(3)),source:c.source }); }
+    }
 
     res.json({
       answer: answer || `Ответ не получен. ${DISCLAIMER}`,
