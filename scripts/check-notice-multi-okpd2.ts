@@ -9,7 +9,10 @@ import {
   toNoticeObjectDescriptionFields,
 } from "../src/services/ObjectDescription/objectDescription.schema";
 import type { NoticeInfoFormValues } from "../src/services/Procurements/noticeInfo.schema";
-import { buildExtraPurchaseItems } from "../src/services/Procurements/noticePurchaseObjects";
+import {
+  buildExtraPurchaseItems,
+  buildNoticeItemsFromPurchaseObjects,
+} from "../src/services/Procurements/noticePurchaseObjects";
 
 /**
  * Smoke-проверка связи ООЗ с несколькими кодами ОКПД2 и извещением.
@@ -227,6 +230,109 @@ assert.equal(
   true,
   "порядковый номер закупки в ИКЗ",
 );
+// Вид предмета ООЗ — доменный источник правды. В ЕИС 17.0 допустимы только
+// PRODUCT/WORK/SERVICE; «товар при работе/услуге» — PRODUCT + родительский
+// объект, при этом XSD-значение PRODUCT_DURING_WORK/SERVICE не отправляется.
+const supplyDesc = {
+  id: 77,
+  kind: "object_description",
+  status: "approved" as const,
+  title: "Поставка расходных материалов при ремонте",
+  okpd2Code: "19.20.21",
+  okpd2Name: "Топливо моторное",
+  okpd2Items: [],
+  productType: "PRODUCT_DURING_WORK" as const,
+  isIndeterminateVolume: false,
+  characteristics: [],
+  standards: [],
+  organizationId: 1,
+  createdAt: "",
+  updatedAt: "",
+};
+const workObject = {
+  id: 88,
+  externalSid: "88",
+  organizationId: 1,
+  objectDescriptionId: 77,
+  okpd2Code: "42.11.20.200",
+  okpd2Name: "Работы по ремонту автомобильных дорог",
+  productType: "WORK" as const,
+  quantity: 1,
+  unit: "Условная единица",
+};
+const supplyObject = {
+  id: 89,
+  externalSid: "89",
+  organizationId: 1,
+  objectDescriptionId: 77,
+  okpd2Code: "19.20.21",
+  okpd2Name: "Топливо моторное",
+  productType: "PRODUCT_DURING_WORK" as const,
+  parentObjectId: workObject.id,
+  quantity: 1,
+  unit: "л",
+};
+const supplyBase = {
+  ...base,
+  id: "supply-base",
+  externalSid: "supply-base-sid",
+  productType: "PRODUCT" as const,
+  okpd2OrKtruCode: "",
+  okpd2Code: "",
+  name: supplyDesc.title,
+};
+const supplyItems = buildNoticeItemsFromPurchaseObjects(
+  [workObject, supplyObject],
+  supplyBase,
+  new Set<string>(),
+  "supply",
+);
+assert.equal(supplyItems.length, 2, "родительская работа и встроенная поставка");
+const embedded = supplyItems.find(
+  (item) => item.okpd2Code === supplyObject.okpd2Code,
+);
+const work = supplyItems.find(
+  (item) => item.okpd2Code === workObject.okpd2Code,
+);
+assert.equal(
+  embedded?.productType,
+  "PRODUCT",
+  "пятизначный тип не уходит в ЕИС",
+);
+assert.equal(
+  embedded?.isSupplyDuringWorks,
+  true,
+  "флаг isSupplyDuringWorks наследуется из типа ООЗ",
+);
+assert.equal(
+  embedded?.parentExternalSid,
+  "88",
+  "родительская карточка WORK связана через externalSid",
+);
+assert.equal(work?.productType, "WORK", "родитель остаётся WORK");
+assert.equal(
+  work?.isSupplyDuringWorks,
+  false,
+  "у родителя нет флага встроенной поставки",
+);
+const supplyNotice = {
+  ...notice,
+  purchaseObjects: { ...notice.purchaseObjects, items: supplyItems },
+  objectDescription: toNoticeObjectDescriptionFields(supplyDesc),
+} as NoticeInfoFormValues;
+const supplyDto = mapNoticeInfoToEis17(supplyNotice);
+const supplyObjects = supplyDto.notificationInfo.purchaseObjectsInfo.objects;
+assert.equal(
+  supplyObjects.every((item) => item.type === "PRODUCT" || item.type === "WORK"),
+  true,
+  "в DTO ЕИС 17.0 нет пятизначного типа",
+);
+assert.equal(
+  supplyObjects.find((item) => item.externalSid === "89")?.parentPurchaseObject
+    ?.externalSid,
+  "88",
+  "родитель WORK в DTO ЕИС (isSupplyDuringWorks в XML не отправляется)",
+);
 console.log(
-  "OK: ООЗ с 3 кодами → 3 позиции, SF → VTF, parentPurchaseObject + карточка родителя, ИКЗ 007",
+  "OK: ООЗ с 3 кодами → 3 позиции, SF → VTF, parentPurchaseObject + карточка родителя, ИКЗ 007; 5-й тип → PRODUCT + isSupplyDuringWorks",
 );
