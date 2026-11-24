@@ -233,6 +233,80 @@ async function collectDocs(cfg) {
   return chunks;
 }
 
+/** Убираем статусные эмодзи и технический мусор, оставляя слова пометок. */
+function cleanNotes(text) {
+  return String(text ?? "")
+    .replace(/\r/g, "")
+    .replace(/[\p{Extended_Pictographic}\uFE0F]/gu, "")
+    .replace(/<!--[^>]*-->/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** WorkPlan размечен комментариями <!-- N -->, CurrentTasks — заголовками. */
+function noteBlocks(text, file) {
+  const source = text.replace(/\r/g, "");
+  if (/WorkPlan\.md$/i.test(file)) {
+    const parts = source.split(/<!--\s*(\d+)\s*-->/);
+    const blocks = [];
+    for (let i = 1; i < parts.length; i += 2) {
+      blocks.push({ header: `блок ${parts[i]}`, body: parts[i + 1] ?? "" });
+    }
+    return blocks;
+  }
+
+  const blocks = [];
+  let header = "заметки";
+  let buffer = [];
+  const flush = () => {
+    if (buffer.join("\n").trim()) blocks.push({ header, body: buffer.join("\n") });
+    buffer = [];
+  };
+  for (const line of source.split("\n")) {
+    const match = line.match(/^\s*-?\s*#{1,4}\s+(.+?)\s*$/);
+    if (match) {
+      flush();
+      const title = cleanNotes(match[1]).replace(/\*/g, "");
+      header = title.length > 100 ? `${title.slice(0, 100).trimEnd()}…` : title;
+      continue;
+    }
+    buffer.push(line);
+  }
+  flush();
+  return blocks;
+}
+
+/** Рабочие заметки автора: не нормы, поэтому индексируются отдельным source. */
+async function collectWorkingNotes(cfg) {
+  const chunks = [];
+  for (const rel of cfg.noteFiles ?? []) {
+    const file = path.resolve(ROOT, rel);
+    let text;
+    try {
+      text = await fs.readFile(file, "utf8");
+    } catch {
+      continue;
+    }
+    for (const block of noteBlocks(text, rel)) {
+      const clean = cleanNotes(block.body);
+      if (clean.length < 40) continue;
+      for (const part of splitText(clean, cfg.maxChunkChars, cfg.chunkOverlap)) {
+        chunks.push(
+          makeChunk("csms-notes", {
+            title: `${rel} · ${block.header}`,
+            ref: block.header,
+            url: null,
+            text: part,
+            meta: { file: rel, kind: "working-notes" },
+          }),
+        );
+      }
+    }
+  }
+  return chunks;
+}
+
 /** Свои вопросы-ответы: формат [{ question, answer, module, norm, url }]. */
 async function collectQa(cfg) {
   if (!cfg.qaFile) return [];
@@ -256,15 +330,16 @@ async function collectQa(cfg) {
 }
 
 export async function collectSources(cfg) {
-  const [snapshot, pp1875, xsd, docs, qa] = await Promise.all([
+  const [snapshot, pp1875, xsd, docs, notes, qa] = await Promise.all([
     collectSnapshot(cfg),
     collectPp1875(cfg),
     collectXsd(cfg),
     collectDocs(cfg),
+    collectWorkingNotes(cfg),
     collectQa(cfg),
   ]);
   return {
-    chunks: [...snapshot, ...pp1875.chunks, ...xsd, ...docs, ...qa],
+    chunks: [...snapshot, ...pp1875.chunks, ...xsd, ...docs, ...notes, ...qa],
     lookup: pp1875.lookup,
   };
 }

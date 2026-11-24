@@ -8,6 +8,7 @@
   "chunkOverlap": 120,
   "maxXsdChunks": 250,
   "maxDocChars": 260000,
+  "noteFiles": ["CurrentTasks.md", "WorkPlan.md"],
   "docFiles": [
     "PROJECT.md",
     "docs/legal/ai-consultant-44fz.md",
