@@ -3,7 +3,7 @@ import {
   BudgetPart13Art44RequisitesSchema,
   OrganizationSecurityAccountSchema,
 } from "../Organization/organization.schema";
-import { DeliveryPlaceSchema } from "../Procurements/noticeInfo.schema";
+import { DeliveryPlaceSchema } from "../Procurements/deliveryPlace.schema";
 import { RUSSIA } from "../AddressRef/addressRef.schema";
 import {
   NMCK_METHODS,
@@ -46,6 +46,9 @@ import {
 export const PurchaseNoteObjectItemSchema = z.object({
   id: z.string(),
   objectDescriptionId: z.union([z.string(), z.number()]).nullable().optional(),
+  // Отдельный объект закупки из коллекции purchaseObjects: СЗ получает его
+  // вместе с характеристиками из ООЗ, а не просто строку с кодом ОКПД2.
+  purchaseObjectId: z.union([z.string(), z.number()]).optional(),
   name: z.string().trim().min(1, "Укажите наименование объекта закупки"),
   okpd2Code: z.string().optional(),
   okpd2Name: z.string().optional(),

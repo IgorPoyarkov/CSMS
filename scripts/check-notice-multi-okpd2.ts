@@ -45,10 +45,17 @@ assert.equal(
   false,
 );
 
+const ikz1 = "1".repeat(36);
+const ikz2 = "2".repeat(36);
+
 const base = {
   id: "sz-item-1",
   externalSid: "sz-item-1-sid",
-  productType: "PRODUCT",
+  ikz: ikz1,
+  positionUniqueNumber: "PG-1",
+  positionSerialNumber: "7",
+  // Родительская работа/услуга: дочерние OBJECT ссылаются на её externalSid.
+  productType: "SERVICE",
   okpd2OrKtruCode: "42.11.20.200",
   okpd2Code: "42.11.20.200",
   name: "Тестовый объект",
@@ -86,6 +93,18 @@ assert.deepEqual(
   ["42.11.20.200", "71.12.14"],
 );
 
+// Дочерний объект «входит в состав работы или услуги»: ссылка на родителя
+// и карточка родителя уходят в разные блоки XML ЕИС 17.0.
+(extras[0] as any).parentObjectId = base.id;
+(extras[0] as any).parentExternalSid = base.externalSid;
+(extras[0] as any).parentOkpd2Code = base.okpd2Code;
+(extras[0] as any).parentOkpd2Name = base.name;
+
+// Вторая позиция из другой ПГ: в XML должно быть два customerRequirementInfo.
+(extras[1] as any).ikz = ikz2;
+(extras[1] as any).positionUniqueNumber = "PG-2";
+(extras[1] as any).positionSerialNumber = "9";
+
 // SF остался только в старых извещениях: в ЕИС 17.0 допустимы QF и VTF
 (extras[0] as any).volumeSpecifyingMethod = "SF";
 
@@ -99,6 +118,9 @@ const notice = {
     initialUnitPriceSum: 100,
     maxContractPrice: 100,
     nmck: 100,
+    ikz: ikz1,
+    // 27–29 разряды ИКЗ: в XML это IKZInfo/purchaseOrderNumber.
+    positionSerialNumber: "7",
   },
   procedureInfo: {},
   contactInfo: { phoneNum: {}, faxNum: {} },
@@ -123,14 +145,88 @@ assert.deepEqual(
   ),
   ["QF", "VTF", "QF"],
 );
+assert.equal(
+  dto.notificationInfo.customerRequirementInfos?.length,
+  2,
+  "два объекта из разных позиций ПГ → два требования заказчика",
+);
+assert.equal(
+  dto.notificationInfo.purchaseObjectsInfo.parentObjects.length,
+  1,
+  "должна быть карточка родительского объекта",
+);
+assert.equal(
+  dto.notificationInfo.purchaseObjectsInfo.parentObjects[0]?.productType,
+  "SERVICE",
+);
+assert.equal(
+  dto.notificationInfo.purchaseObjectsInfo.objects[1]?.parentPurchaseObject
+    ?.externalSid,
+  "sz-item-1-sid",
+  "дочерняя позиция должна ссылаться на родителя",
+);
+
 const xml = buildNotification2020XmlPreview(notice);
-assert.equal((xml.match(/<OKPD2>/g) ?? []).length, 3);
+// 3 позиции + карточка родителя (у неё тоже обязателен OKPD2 по XSD).
+assert.equal(
+  (xml.match(/<OKPD2>/g) ?? []).length,
+  4,
+  "3 позиции + карточка родителя",
+);
 assert.equal(
   xml.includes("<volumeSpecifyingMethod>VTF</volumeSpecifyingMethod>"),
   true,
 );
 assert.equal(xml.includes("<volumeSpecifyingMethod>SF<"), false);
 assert.equal(xml.includes("<externalSid>sz-item-1-sid</externalSid>"), true);
+assert.equal(
+  xml.includes(
+    "<parentPurchaseObject><externalSid>sz-item-1-sid</externalSid></parentPurchaseObject>",
+  ),
+  true,
+  "parentPurchaseObject в позиции",
+);
+assert.equal(
+  (xml.match(/<customerRequirementInfo>/g) ?? []).length,
+  2,
+  "два блока customerRequirementInfo в XML",
+);
+assert.equal(
+  xml.includes("<purchaseOrderNumber>009</purchaseOrderNumber>"),
+  true,
+  "второй ИКЗ из другой позиции ПГ",
+);
+assert.equal(
+  xml.includes("<notDrugPurchaseParentObjectsInfo>"),
+  true,
+  "карточка родителя в XML",
+);
+const nonDrugObjectsBlock =
+  xml.match(/<notDrugPurchaseObjectsInfo>([\s\S]*?)<\/notDrugPurchaseObjectsInfo>/)?.[1] ??
+  "";
+assert.match(
+  nonDrugObjectsBlock,
+  /<quantityUndefined>false<\/quantityUndefined>/,
+  "quantityUndefined обязателен внутри нелекарственного блока",
+);
+assert.match(
+  nonDrugObjectsBlock,
+  /<isStructuredForm>true<\/isStructuredForm>/,
+  "isStructuredForm внутри нелекарственного блока",
+);
+assert.equal(
+  xml.indexOf("<notDrugPurchaseParentObjectsInfo>") >
+    xml.indexOf("</notDrugPurchaseObjectsInfo>"),
+  true,
+  "родительский блок — sibling после позиций",
+);
+assert.equal(
+  xml.includes(
+    "<IKZInfo><purchaseOrderNumber>007</purchaseOrderNumber></IKZInfo>",
+  ),
+  true,
+  "порядковый номер закупки в ИКЗ",
+);
 console.log(
-  "OK: ООЗ с 3 кодами → 3 позиции извещения → 3 блока OKPD2, SF → VTF, внешние SID сохранены",
+  "OK: ООЗ с 3 кодами → 3 позиции, SF → VTF, parentPurchaseObject + карточка родителя, ИКЗ 007",
 );

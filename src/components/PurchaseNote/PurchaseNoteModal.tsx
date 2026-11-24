@@ -75,6 +75,8 @@ import {
 } from "../../services/DefectList/defectList.schema";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import { usePurchaseObjects } from "../../services/PurchaseObject/purchaseObject.api";
+import type { PurchaseObject } from "../../services/PurchaseObject/purchaseObject.schema";
 import {
   ORGANIZATION_BUDGET_LEVEL_LABELS,
   type BudgetPart13Art44Requisites,
@@ -214,27 +216,30 @@ const formatRub = (value: string | number | undefined): string => {
 };
 
 /**
- * Объекты СЗ создаются только из ООЗ: по одной позиции на каждый код ОКПД2
- * описания. Ручного добавления/удаления объектов в служебной записке нет —
- * состав меняется в конструкторе ООЗ и подтягивается сюда целиком.
+ * Объекты СЗ создаются только из ООЗ. Источник состава — отдельная коллекция
+ * `purchaseObjects`: у каждого объекта свой код ОКПД2, КТРУ, единица,
+ * количество и характеристики. Для старых ООЗ без отдельных объектов
+ * сохраняется совместимость — позиции строятся по плоскому списку кодов.
+ * Ручного добавления/удаления объектов в служебной записке нет.
  */
 const buildNoteItemsFromOoz = (
   desc: ObjectDescription,
   position: PurchasePlanPosition,
   indeterminate: boolean,
+  objects: PurchaseObject[] = [],
 ): PurchaseNoteObjectItem[] => {
+  const descriptionObjects = objects.filter(
+    (item) =>
+      item.objectDescriptionId !== undefined &&
+      String(item.objectDescriptionId) === String(desc.id),
+  );
   const descriptionCodes = getObjectDescriptionOkpd2Codes(desc);
   // ООЗ без кода ОКПД2 всё равно должна дать одну позицию — иначе СЗ
   // останется без объектов и её нельзя будет сохранить.
   const codes = descriptionCodes.length
     ? descriptionCodes
     : [{ code: position.okpd2Code ?? "", name: position.okpd2Name }];
-  const total = String(position.amountTotal ?? "");
-  const totalNumber = toNumber(total) ?? 0;
-  const quantity =
-    indeterminate || desc.isIndeterminateVolume ? "1" : desc.quantity || "1";
-
-  return codes.map(({ code, name }, idx) => ({
+  const fallbackItems = codes.map(({ code, name }, idx) => ({
     id: `item-${idx + 1}`,
     objectDescriptionId: desc.id,
     name: desc.title,
@@ -243,13 +248,41 @@ const buildNoteItemsFromOoz = (
     ktruCode: desc.ktruCode ?? "",
     ktruName: desc.ktruName ?? "",
     unit: desc.unit ?? "",
-    quantity,
+    quantity:
+      indeterminate || desc.isIndeterminateVolume ? "1" : desc.quantity || "1",
     unitPrice: "",
-    totalPrice:
-      totalNumber > 0 ? (totalNumber / codes.length).toFixed(2) : total,
-    // Национальный режим задаёт позже закупщик/юрист КС (ПП РФ № 1875).
-    nationalRegimeType: "none",
+    totalPrice: "",
+    nationalRegimeType: "none" as const,
     isSupplyDuringWorks: false,
+  }));
+  const items = descriptionObjects.length
+    ? descriptionObjects.map((object, idx) => ({
+        id: `item-${idx + 1}`,
+        objectDescriptionId: desc.id,
+        purchaseObjectId: object.id,
+        name: object.name || desc.title,
+        okpd2Code: object.okpd2Code,
+        okpd2Name: object.okpd2Name ?? desc.okpd2Name ?? "",
+        ktruCode: object.ktruCode ?? "",
+        ktruName: object.ktruName ?? "",
+        unit: object.unit ?? desc.unit ?? "",
+        quantity:
+          indeterminate || object.isIndeterminateVolume
+            ? "1"
+            : object.quantity || desc.quantity || "1",
+        unitPrice: "",
+        totalPrice: "",
+        nationalRegimeType: "none" as const,
+        isSupplyDuringWorks: false,
+      }))
+    : fallbackItems;
+
+  const total = String(position.amountTotal ?? "");
+  const totalNumber = toNumber(total) ?? 0;
+  return items.map((item) => ({
+    ...item,
+    totalPrice:
+      totalNumber > 0 ? (totalNumber / items.length).toFixed(2) : total,
   }));
 };
 
@@ -353,6 +386,10 @@ export default function PurchaseNoteModal({
   const { data: ktruRefs = [] } = useKtruDictionary();
   const { data: allObjectDescriptions = [] } =
     useOrganizationObjectDescriptions(organizationId);
+  // Объекты закупки из ООЗ: СЗ получает их состав целиком, без ручного
+  // добавления позиций и без плоского списка кодов ОКПД2.
+  const { data: purchaseObjects = [], isLoading: purchaseObjectsLoading } =
+    usePurchaseObjects(organizationId);
   const { data: contractRegistryItems = [] } =
     useContractRegistry(organizationId);
   // Журнал ЭП: по нему находим уже подписанную НМЦК этой служебной записки
@@ -643,7 +680,12 @@ export default function PurchaseNoteModal({
       subject: position.objectOfPurchase || autoMatchedDesc?.title || "",
       isIndeterminateVolume: autoMatchedDesc?.isIndeterminateVolume ?? false,
       items: autoMatchedDesc
-        ? buildNoteItemsFromOoz(autoMatchedDesc, position, false)
+        ? buildNoteItemsFromOoz(
+            autoMatchedDesc,
+            position,
+            false,
+            purchaseObjects,
+          )
         : [
             {
               id: "item-1",
@@ -704,8 +746,13 @@ export default function PurchaseNoteModal({
     formState: { errors },
   } = methods;
 
+  const { fields: itemFields, replace } = useFieldArray({
+    control,
+    name: "items",
+  });
+
   // Возврат из конструктора ООЗ: описание приходит в query, объекты СЗ
-  // пересоздаются целиком по всем кодам ООЗ. Выборочное ручное добавление
+  // пересоздаются целиком по всем объектам ООЗ. Выборочное ручное добавление
   // здесь больше не нужно — ООЗ единственный источник состава объектов.
   // Один и тот же id применяем один раз, иначе перезагрузка справочника
   // затёр бы пользовательские правки реквизитов позиций.
@@ -723,6 +770,7 @@ export default function PurchaseNoteModal({
         desc,
         position,
         Boolean(getValues("isIndeterminateVolume")),
+        purchaseObjects,
       ),
       { shouldDirty: true },
     );
@@ -730,12 +778,45 @@ export default function PurchaseNoteModal({
     if (desc.otherRequirements && !getValues("otherRequirements")) {
       setValue("otherRequirements", desc.otherRequirements);
     }
-  }, [location.search, objectDescriptions, position, setValue, getValues, isReadOnly]);
+  }, [
+    location.search,
+    objectDescriptions,
+    position,
+    purchaseObjects,
+    setValue,
+    getValues,
+    isReadOnly,
+  ]);
 
-  const { fields: itemFields } = useFieldArray({
-    control,
-    name: "items",
-  });
+  // При первом открытии новой СЗ отдельные объекты могут прийти из запроса
+  // позже, чем форма получила значения по умолчанию. Пересобираем состав один
+  // раз, не затирая пользовательские правки.
+  const appliedAutoOozRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (initialNote || purchaseObjectsLoading || !autoMatchedDesc || isReadOnly) {
+      return;
+    }
+    const key = String(autoMatchedDesc.id);
+    if (appliedAutoOozRef.current === key) return;
+    appliedAutoOozRef.current = key;
+    replace(
+      buildNoteItemsFromOoz(
+        autoMatchedDesc,
+        position,
+        Boolean(getValues("isIndeterminateVolume")),
+        purchaseObjects,
+      ),
+    );
+  }, [
+    initialNote,
+    purchaseObjectsLoading,
+    autoMatchedDesc,
+    position,
+    purchaseObjects,
+    getValues,
+    replace,
+    isReadOnly,
+  ]);
 
   const {
     fields: placeFields,

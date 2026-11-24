@@ -405,6 +405,76 @@ export interface Eis17EvaluationCriterion {
   indicators: Eis17EvaluationIndicator[];
 }
 
+/**
+ * Требование заказчика в извещении 17.0. Один объект закупки может ссылаться
+ * на свою позицию ПГ, поэтому требований может быть несколько — по одному
+ * на каждую позицию. Первый элемент остаётся в `customerRequirementInfo` для
+ * совместимости со старыми потребителями DTO.
+ */
+export interface EisCustomerRequirementInfo {
+  tenderPlan2020Info: {
+    plan2020Number?: string;
+    position2020Number?: string;
+    position2020ExtNumber?: string;
+    positionSerialNumber?: string;
+  };
+  ikz: string;
+  contractGuarantee?: {
+    part: number;
+    procedureInfo?: string;
+    unableProvideReason?: string;
+  };
+  applicationGuarantee?: {
+    part: number;
+    procedureInfo?: string;
+  };
+  warrantyInfo?: {
+    warrantyServiceRequirement?: string;
+    manufacturersWarrantyRequirement?: string;
+    warrantyTerm?: string;
+  };
+  // provisionWarranty — обеспечение гарантийных обязательств
+  provisionWarranty?: {
+    amount?: number;
+    part?: number;
+    procedureInfo?: string;
+  };
+  // stagesInfo — этапы исполнения контракта
+  // (customerRequirementInfo/contractConditionsInfo/contractExecutionPaymentPlan)
+  stagesInfo?: Array<{
+    externalSid?: string;
+    start: number;
+    startDayType: "C" | "W";
+    term: number;
+    termDayType: "C" | "W";
+    amount?: number;
+  }>;
+  deliveryTerm: {
+    isRelative: boolean;
+    relativeTermsInfo?: {
+      start: number;
+      startDayType: "C" | "W";
+      term: number;
+      termDayType: "C" | "W";
+    };
+    notRelativeTermsInfo?: {
+      startDate?: string;
+      endDate?: string;
+      isFromConclusionDate?: boolean;
+      isNotEarlierConclusionDate?: boolean;
+    };
+  };
+  deliveryPlacesInfo: Array<{
+    countryCode: string;
+    countryFullName: string;
+    garGuid?: string;
+    deliveryPlace: string;
+  }>;
+  bankSupportContractRequired: boolean;
+  treasurySupportContractRequired: boolean;
+  treasurySupportContractType?: string;
+}
+
 export interface EisNotification2020 {
   schemaVersion: "17.0";
   notificationType: EisNotificationType;
@@ -484,69 +554,10 @@ export interface EisNotification2020 {
       oneSideRejectionSt95: boolean;
       oneSideRejectionSt95Text?: string;
     };
-    customerRequirementInfo: {
-      tenderPlan2020Info: {
-        plan2020Number?: string;
-        position2020Number?: string;
-        position2020ExtNumber?: string;
-        positionSerialNumber?: string;
-      };
-      ikz: string;
-      contractGuarantee?: {
-        part: number;
-        procedureInfo?: string;
-        unableProvideReason?: string;
-      };
-      applicationGuarantee?: {
-        part: number;
-        procedureInfo?: string;
-      };
-      warrantyInfo?: {
-        warrantyServiceRequirement?: string;
-        manufacturersWarrantyRequirement?: string;
-        warrantyTerm?: string;
-      };
-      // provisionWarranty — обеспечение гарантийных обязательств
-      provisionWarranty?: {
-        amount?: number;
-        part?: number;
-        procedureInfo?: string;
-      };
-      // stagesInfo — этапы исполнения контракта
-      // (customerRequirementInfo/contractConditionsInfo/contractExecutionPaymentPlan)
-      stagesInfo?: Array<{
-        externalSid?: string;
-        start: number;
-        startDayType: "C" | "W";
-        term: number;
-        termDayType: "C" | "W";
-        amount?: number;
-      }>;
-      deliveryTerm: {
-        isRelative: boolean;
-        relativeTermsInfo?: {
-          start: number;
-          startDayType: "C" | "W";
-          term: number;
-          termDayType: "C" | "W";
-        };
-        notRelativeTermsInfo?: {
-          startDate?: string;
-          endDate?: string;
-          isFromConclusionDate?: boolean;
-          isNotEarlierConclusionDate?: boolean;
-        };
-      };
-      deliveryPlacesInfo: Array<{
-        countryCode: string;
-        countryFullName: string;
-        garGuid?: string;
-        deliveryPlace: string;
-      }>;
-      bankSupportContractRequired: boolean;
-      treasurySupportContractRequired: boolean;
-      treasurySupportContractType?: string;
-    };
+    customerRequirementInfo: EisCustomerRequirementInfo;
+    // Если объекты закупки относятся к разным позициям ПГ, требования
+    // выгружаются по одному на каждую позицию (XSD maxOccurs="unbounded").
+    customerRequirementInfos?: EisCustomerRequirementInfo[];
     purchaseObjectsInfo: {
       isMedicines: boolean;
       isStructuredForm: boolean;
@@ -562,6 +573,9 @@ export interface EisNotification2020 {
         okpd2Code?: string;
         ktruCode?: string;
         name: string;
+        // parentPurchaseObject: связь с родительской работой/услугой.
+        // ЕИС сама проставляет hierarchyType=CH при наличии этого блока.
+        parentPurchaseObject?: { sid?: number; externalSid?: string };
         okeiCode?: string;
         okeiName: string;
         quantity: number;
@@ -577,6 +591,16 @@ export interface EisNotification2020 {
           imposibilityBan: boolean;
           imposibilityBanReason?: string;
         };
+      }>;
+      // notDrugPurchaseParentObjectsInfo: карточки родительских WORK/SERVICE.
+      // Один родитель может иметь несколько дочерних объектов. По XSD у такой
+      // карточки обязательны OKPD2 и sum, тип — только WORK или SERVICE.
+      parentObjects: Array<{
+        externalSid: string;
+        okpd2Code: string;
+        name: string;
+        sum: number;
+        productType?: "WORK" | "SERVICE";
       }>;
     };
     criteriaInfo: Eis17EvaluationCriterion[];
@@ -1309,6 +1333,210 @@ export const mapNoticeInfoToEis17 = (
 
   const firstPlace = notice.contractConditions.deliveryPlaces?.[0];
 
+  // Дочерние объекты («входит в состав работы или услуги») ссылаются на
+  // родителя внешним SID. Карточки родителей отдельно выгружаются в
+  // notDrugPurchaseParentObjectsInfo — по XSD Children не несут своих полей.
+  const parentObjects = new Map<
+    string,
+    {
+      externalSid: string;
+      okpd2Code: string;
+      name: string;
+      sum: number;
+      productType?: "WORK" | "SERVICE";
+    }
+  >();
+  notice.purchaseObjects.items.forEach((item) => {
+    const parentSid =
+      item.parentExternalSid ||
+      (item.parentObjectId !== undefined
+        ? String(item.parentObjectId)
+        : "");
+    if (!parentSid) return;
+    const parentItem = notice.purchaseObjects.items.find(
+      (candidate) =>
+        String(candidate.id) === String(item.parentObjectId) ||
+        candidate.externalSid === parentSid,
+    );
+    const productType =
+      parentItem?.productType === "WORK" || parentItem?.productType === "SERVICE"
+        ? parentItem.productType
+        : undefined;
+    parentObjects.set(parentSid, {
+      externalSid: parentSid,
+      okpd2Code:
+        parentItem?.okpd2Code ||
+        item.parentOkpd2Code ||
+        parentItem?.okpd2OrKtruCode ||
+        "",
+      name:
+        parentItem?.name ||
+        item.parentOkpd2Name ||
+        `Родительский объект ${parentSid}`,
+      sum: parentItem?.totalPrice ?? 0,
+      productType,
+    });
+  });
+
+  const customerRequirement: EisCustomerRequirementInfo = {
+    tenderPlan2020Info: {
+      plan2020Number: notice.generalInfo.plan2020Number || undefined,
+      position2020Number:
+        notice.generalInfo.positionUniqueNumber || undefined,
+      position2020ExtNumber:
+        notice.generalInfo.position2020ExtNumber || undefined,
+      positionSerialNumber:
+        notice.generalInfo.positionSerialNumber || undefined,
+    },
+    ikz: notice.generalInfo.ikz,
+    contractGuarantee: notice.participantsRequirements
+      .requiresContractSecurity
+      ? {
+          part: notice.participantsRequirements.contractSecurityPercent,
+          procedureInfo:
+            notice.participantsRequirements.contractSecurityOrder ||
+            undefined,
+        }
+      : notice.participantsRequirements.unableProvideContractGuaranteeReason
+        ? {
+            part: 0,
+            unableProvideReason:
+              notice.participantsRequirements
+                .unableProvideContractGuaranteeReason,
+          }
+        : undefined,
+    applicationGuarantee: notice.participantsRequirements
+      .requiresApplicationSecurity
+      ? {
+          part: notice.participantsRequirements.applicationSecurityPercent,
+          procedureInfo:
+            notice.participantsRequirements.applicationSecurityOrder ||
+            undefined,
+        }
+      : undefined,
+    warrantyInfo: notice.participantsRequirements.requiresQualityWarranty
+      ? {
+          warrantyServiceRequirement:
+            notice.participantsRequirements.warrantyMaintenanceInfo ||
+            undefined,
+          manufacturersWarrantyRequirement:
+            notice.participantsRequirements.manufacturerWarrantyInfo ||
+            undefined,
+          warrantyTerm:
+            notice.participantsRequirements.warrantyTermAndVolume ||
+            undefined,
+        }
+      : undefined,
+    // Обеспечение гарантийных обязательств (provisionWarranty)
+    provisionWarranty: notice.participantsRequirements
+      .requiresWarrantySecurity
+      ? {
+          part: notice.participantsRequirements.warrantySecurityPercent,
+          procedureInfo:
+            notice.participantsRequirements.warrantySecurityOrder ||
+            undefined,
+        }
+      : undefined,
+    // Этапы исполнения контракта: XSD ждёт их в плане оплаты, а не
+    // отдельным блоком извещения
+    stagesInfo: notice.contractConditions.hasMultipleStages
+      ? (notice.contractConditions.stages ?? []).map((stage) => ({
+          externalSid: `stage-${stage.stageNumber}`,
+          start: stage.startOffsetDays,
+          startDayType: notice.contractConditions.startDayType ?? "C",
+          term: stage.durationDays,
+          termDayType: notice.contractConditions.termDayType ?? "C",
+          amount:
+            stage.kbkRows.reduce((sum, row) => sum + row.total, 0) ||
+            undefined,
+        }))
+      : undefined,
+    deliveryTerm: notice.contractConditions.isRelativeTerms
+      ? {
+          isRelative: true,
+          relativeTermsInfo: {
+            start: notice.contractConditions.startOffsetDays,
+            startDayType: notice.contractConditions.startDayType ?? "C",
+            term: notice.contractConditions.durationDays,
+            termDayType: notice.contractConditions.termDayType ?? "C",
+          },
+        }
+      : {
+          isRelative: false,
+          notRelativeTermsInfo: {
+            startDate: notice.contractConditions.startDate || undefined,
+            endDate: notice.contractConditions.endDate || undefined,
+            isFromConclusionDate: Boolean(
+              notice.contractConditions.isFromConclusionDate,
+            ),
+            isNotEarlierConclusionDate: Boolean(
+              notice.contractConditions.isNotEarlierConclusionDate,
+            ),
+          },
+        },
+    deliveryPlacesInfo: (
+      notice.contractConditions.deliveryPlaces ??
+      (firstPlace ? [firstPlace] : [])
+    ).map((place) => ({
+      countryCode: place.oksmCode || "643",
+      countryFullName: place.country || "Российская Федерация",
+      garGuid: place.garGuid || undefined,
+      deliveryPlace: [
+        place.region,
+        place.municipality,
+        place.settlement,
+        place.address,
+        place.additionalInfo,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    })),
+    bankSupportContractRequired: Boolean(
+      notice.participantsRequirements.requiresBankSupport,
+    ),
+    treasurySupportContractRequired: Boolean(
+      notice.participantsRequirements.requiresTreasurySupport,
+    ),
+    treasurySupportContractType:
+      notice.participantsRequirements.treasurySupportType || undefined,
+  };
+
+  // Per-object ПГ: если объекты закупки связаны с разными позициями плана-
+  // графика, ЕИС ждёт отдельный customerRequirementInfo на каждую позицию.
+  // Старые извещения без реквизитов позиции в item продолжают использовать
+  // один общий блок.
+  const perObjectRequirements = new Map<string, EisCustomerRequirementInfo>();
+  notice.purchaseObjects.items.forEach((item) => {
+    const key =
+      item.ikz ||
+      item.positionUniqueNumber ||
+      (item.positionId !== undefined ? String(item.positionId) : "");
+    if (!key || perObjectRequirements.has(key)) return;
+    perObjectRequirements.set(key, {
+      ...customerRequirement,
+      ikz: item.ikz || notice.generalInfo.ikz,
+      tenderPlan2020Info: {
+        ...customerRequirement.tenderPlan2020Info,
+        plan2020Number:
+          item.plan2020Number ||
+          notice.generalInfo.plan2020Number ||
+          undefined,
+        position2020Number:
+          item.positionUniqueNumber ||
+          notice.generalInfo.positionUniqueNumber ||
+          undefined,
+        positionSerialNumber:
+          item.positionSerialNumber ||
+          notice.generalInfo.positionSerialNumber ||
+          undefined,
+      },
+    });
+  });
+  const customerRequirementInfos =
+    perObjectRequirements.size > 1
+      ? [...perObjectRequirements.values()]
+      : undefined;
+
   return {
     schemaVersion: "17.0",
     notificationType,
@@ -1404,128 +1632,8 @@ export const mapNoticeInfoToEis17 = (
         oneSideRejectionSt95Text:
           notice.contractConditions.oneSideRejectionSt95Text || undefined,
       },
-      customerRequirementInfo: {
-        tenderPlan2020Info: {
-          plan2020Number: notice.generalInfo.plan2020Number || undefined,
-          position2020Number:
-            notice.generalInfo.positionUniqueNumber || undefined,
-          position2020ExtNumber:
-            notice.generalInfo.position2020ExtNumber || undefined,
-          positionSerialNumber:
-            notice.generalInfo.positionSerialNumber || undefined,
-        },
-        ikz: notice.generalInfo.ikz,
-        contractGuarantee: notice.participantsRequirements
-          .requiresContractSecurity
-          ? {
-              part: notice.participantsRequirements.contractSecurityPercent,
-              procedureInfo:
-                notice.participantsRequirements.contractSecurityOrder ||
-                undefined,
-            }
-          : notice.participantsRequirements.unableProvideContractGuaranteeReason
-            ? {
-                part: 0,
-                unableProvideReason:
-                  notice.participantsRequirements
-                    .unableProvideContractGuaranteeReason,
-              }
-            : undefined,
-        applicationGuarantee: notice.participantsRequirements
-          .requiresApplicationSecurity
-          ? {
-              part: notice.participantsRequirements.applicationSecurityPercent,
-              procedureInfo:
-                notice.participantsRequirements.applicationSecurityOrder ||
-                undefined,
-            }
-          : undefined,
-        warrantyInfo: notice.participantsRequirements.requiresQualityWarranty
-          ? {
-              warrantyServiceRequirement:
-                notice.participantsRequirements.warrantyMaintenanceInfo ||
-                undefined,
-              manufacturersWarrantyRequirement:
-                notice.participantsRequirements.manufacturerWarrantyInfo ||
-                undefined,
-              warrantyTerm:
-                notice.participantsRequirements.warrantyTermAndVolume ||
-                undefined,
-            }
-          : undefined,
-        // Обеспечение гарантийных обязательств (provisionWarranty)
-        provisionWarranty: notice.participantsRequirements
-          .requiresWarrantySecurity
-          ? {
-              part: notice.participantsRequirements.warrantySecurityPercent,
-              procedureInfo:
-                notice.participantsRequirements.warrantySecurityOrder ||
-                undefined,
-            }
-          : undefined,
-        // Этапы исполнения контракта: XSD ждёт их в плане оплаты, а не
-        // отдельным блоком извещения
-        stagesInfo: notice.contractConditions.hasMultipleStages
-          ? (notice.contractConditions.stages ?? []).map((stage) => ({
-              externalSid: `stage-${stage.stageNumber}`,
-              start: stage.startOffsetDays,
-              startDayType: notice.contractConditions.startDayType ?? "C",
-              term: stage.durationDays,
-              termDayType: notice.contractConditions.termDayType ?? "C",
-              amount:
-                stage.kbkRows.reduce((sum, row) => sum + row.total, 0) ||
-                undefined,
-            }))
-          : undefined,
-        deliveryTerm: notice.contractConditions.isRelativeTerms
-          ? {
-              isRelative: true,
-              relativeTermsInfo: {
-                start: notice.contractConditions.startOffsetDays,
-                startDayType: notice.contractConditions.startDayType ?? "C",
-                term: notice.contractConditions.durationDays,
-                termDayType: notice.contractConditions.termDayType ?? "C",
-              },
-            }
-          : {
-              isRelative: false,
-              notRelativeTermsInfo: {
-                startDate: notice.contractConditions.startDate || undefined,
-                endDate: notice.contractConditions.endDate || undefined,
-                isFromConclusionDate: Boolean(
-                  notice.contractConditions.isFromConclusionDate,
-                ),
-                isNotEarlierConclusionDate: Boolean(
-                  notice.contractConditions.isNotEarlierConclusionDate,
-                ),
-              },
-            },
-        deliveryPlacesInfo: (
-          notice.contractConditions.deliveryPlaces ??
-          (firstPlace ? [firstPlace] : [])
-        ).map((place) => ({
-          countryCode: place.oksmCode || "643",
-          countryFullName: place.country || "Российская Федерация",
-          garGuid: place.garGuid || undefined,
-          deliveryPlace: [
-            place.region,
-            place.municipality,
-            place.settlement,
-            place.address,
-            place.additionalInfo,
-          ]
-            .filter(Boolean)
-            .join(", "),
-        })),
-        bankSupportContractRequired: Boolean(
-          notice.participantsRequirements.requiresBankSupport,
-        ),
-        treasurySupportContractRequired: Boolean(
-          notice.participantsRequirements.requiresTreasurySupport,
-        ),
-        treasurySupportContractType:
-          notice.participantsRequirements.treasurySupportType || undefined,
-      },
+      customerRequirementInfo: customerRequirement,
+      customerRequirementInfos,
       purchaseObjectsInfo: {
         isMedicines: Boolean(notice.purchaseObjects.isMedicines),
         isStructuredForm: notice.purchaseObjects.isStructuredForm ?? true,
@@ -1555,12 +1663,20 @@ export const mapNoticeInfoToEis17 = (
           const looksLikeKtru =
             Boolean(item.ktruCode) ||
             /^\d{2}\.\d{2}\.\d{2}\.\d{3}-\d{8}$/.test(code);
+          const parentSid =
+            item.parentExternalSid ||
+            (item.parentObjectId !== undefined
+              ? String(item.parentObjectId)
+              : "");
           return {
             externalSid: item.externalSid || item.id,
             type: item.productType ?? "PRODUCT",
             okpd2Code: item.okpd2Code || (!looksLikeKtru ? code : undefined),
             ktruCode: item.ktruCode || (looksLikeKtru ? code : undefined),
             name: item.name,
+            parentPurchaseObject: parentSid
+              ? { externalSid: parentSid }
+              : undefined,
             okeiCode: item.okeiCode || undefined,
             okeiName: item.unit,
             quantity: item.quantity,
@@ -1586,6 +1702,7 @@ export const mapNoticeInfoToEis17 = (
             },
           };
         }),
+        parentObjects: [...parentObjects.values()],
       },
       criteriaInfo: mapNoticeCriteriaToEis17(notice, notificationType),
       flags: {
@@ -3141,6 +3258,12 @@ export const buildNotification2020XmlPreview = (
         ? EIS_PACKET_DESCRIPTORS.notificationEF
         : null;
 
+  // Порядок элементов внутри purchaseObject жёстко задан XSD 17.0:
+  // externalSid → OKPD2/KTRU → name → OKEI → price → quantity → sum → type →
+  // parentPurchaseObject (после hierarchyType).
+  // Для дочерней работы/услуги ("входит в состав работы или услуги") ЕИС
+  // ждёт parentPurchaseObject с externalSid родителя, а сам родитель
+  // описывается отдельной карточкой в notDrugPurchaseParentObjectsInfo.
   const objectsXml = dto.notificationInfo.purchaseObjectsInfo.objects
     .map(
       (obj) => `        <purchaseObject>
@@ -3154,6 +3277,19 @@ export const buildNotification2020XmlPreview = (
           <sum>${obj.sum.toFixed(2)}</sum>
           <volumeSpecifyingMethod>${obj.volumeSpecifyingMethod}</volumeSpecifyingMethod>
           <type>${obj.type}</type>
+          ${obj.parentPurchaseObject ? `<parentPurchaseObject>${obj.parentPurchaseObject.externalSid ? `<externalSid>${escapeXml(obj.parentPurchaseObject.externalSid)}</externalSid>` : obj.parentPurchaseObject.sid !== undefined ? `<sid>${obj.parentPurchaseObject.sid}</sid>` : ""}</parentPurchaseObject>` : ""}
+        </purchaseObject>`,
+    )
+    .join("\n");
+
+  const parentObjectsXml = dto.notificationInfo.purchaseObjectsInfo.parentObjects
+    .map(
+      (parent) => `        <purchaseObject>
+          <externalSid>${escapeXml(parent.externalSid)}</externalSid>
+          <OKPD2><OKPDCode>${escapeXml(parent.okpd2Code)}</OKPDCode></OKPD2>
+          <name>${escapeXml(parent.name)}</name>
+          <sum>${parent.sum.toFixed(2)}</sum>
+          ${parent.productType ? `<type>${parent.productType}</type>` : ""}
         </purchaseObject>`,
     )
     .join("\n");
@@ -3205,6 +3341,21 @@ export const buildNotification2020XmlPreview = (
   const customerRequirement = dto.notificationInfo.customerRequirementInfo;
   const contractConditions = dto.notificationInfo.contractConditionsInfo;
 
+  // ИКЗ: 27–29 разряды — порядковый номер закупки из позиции ПГ. По XSD он
+  // лежит в IKZInfo/purchaseOrderNumber (ровно 3 цифры), а не в tenderPlan2020Info.
+  const ikzInfoXml = (
+    requirement: EisCustomerRequirementInfo,
+  ): string => {
+    const serialNumber =
+      requirement.tenderPlan2020Info.positionSerialNumber?.trim() ?? "";
+    const purchaseOrderNumber = /^\d{1,3}$/.test(serialNumber)
+      ? serialNumber.padStart(3, "0")
+      : "";
+    return purchaseOrderNumber
+      ? `<IKZInfo><purchaseOrderNumber>${purchaseOrderNumber}</purchaseOrderNumber></IKZInfo>`
+      : "";
+  };
+
   // Обеспечения: заявки, исполнения контракта и гарантийных обязательств.
   // Реквизиты счёта в превью не выводятся — их подставляет ЕИС из карточки
   // заказчика; здесь видны размер и порядок внесения.
@@ -3220,10 +3371,12 @@ export const buildNotification2020XmlPreview = (
       : "";
 
   // Этапы исполнения контракта — внутри плана оплаты
-  const stagesXml = customerRequirement.stagesInfo?.length
-    ? `      <contractExecutionPaymentPlan>
+  const stagesXml = (
+    requirement: EisCustomerRequirementInfo,
+  ): string => requirement.stagesInfo?.length
+      ? `      <contractExecutionPaymentPlan>
         <stagesInfo>
-${customerRequirement.stagesInfo
+${requirement.stagesInfo
   .map(
     (stage) => `          <stageInfo>
             ${stage.externalSid ? `<externalSid>${escapeXml(stage.externalSid)}</externalSid>` : ""}
@@ -3240,27 +3393,33 @@ ${customerRequirement.stagesInfo
   .join("\n")}
         </stagesInfo>
       </contractExecutionPaymentPlan>`
-    : "";
+      : "";
 
-  const deliveryTermXml = customerRequirement.deliveryTerm.isRelative
-    ? `      <deliveryTerm>
+  const deliveryTermXml = (
+    requirement: EisCustomerRequirementInfo,
+  ): string =>
+    requirement.deliveryTerm.isRelative
+      ? `      <deliveryTerm>
         <relativeTermsInfo>
-          <start>${customerRequirement.deliveryTerm.relativeTermsInfo?.start ?? 0}</start>
-          <startDayType>${dayType(customerRequirement.deliveryTerm.relativeTermsInfo?.startDayType ?? "C")}</startDayType>
-          <term>${customerRequirement.deliveryTerm.relativeTermsInfo?.term ?? 0}</term>
-          <termDayType>${dayType(customerRequirement.deliveryTerm.relativeTermsInfo?.termDayType ?? "C")}</termDayType>
+          <start>${requirement.deliveryTerm.relativeTermsInfo?.start ?? 0}</start>
+          <startDayType>${dayType(requirement.deliveryTerm.relativeTermsInfo?.startDayType ?? "C")}</startDayType>
+          <term>${requirement.deliveryTerm.relativeTermsInfo?.term ?? 0}</term>
+          <termDayType>${dayType(requirement.deliveryTerm.relativeTermsInfo?.termDayType ?? "C")}</termDayType>
         </relativeTermsInfo>
       </deliveryTerm>`
-    : `      <deliveryTerm>
+      : `      <deliveryTerm>
         <notRelativeTermsInfo>
-          ${customerRequirement.deliveryTerm.notRelativeTermsInfo?.startDate ? `<startDate>${escapeXml(customerRequirement.deliveryTerm.notRelativeTermsInfo.startDate)}</startDate>` : ""}
-          ${customerRequirement.deliveryTerm.notRelativeTermsInfo?.endDate ? `<endDate>${escapeXml(customerRequirement.deliveryTerm.notRelativeTermsInfo.endDate)}</endDate>` : ""}
+          ${requirement.deliveryTerm.notRelativeTermsInfo?.startDate ? `<startDate>${escapeXml(requirement.deliveryTerm.notRelativeTermsInfo.startDate)}</startDate>` : ""}
+          ${requirement.deliveryTerm.notRelativeTermsInfo?.endDate ? `<endDate>${escapeXml(requirement.deliveryTerm.notRelativeTermsInfo.endDate)}</endDate>` : ""}
         </notRelativeTermsInfo>
       </deliveryTerm>`;
 
-  const deliveryPlacesXml = customerRequirement.deliveryPlacesInfo.length
-    ? `      <deliveryPlacesInfo>
-${customerRequirement.deliveryPlacesInfo
+  const deliveryPlacesXml = (
+    requirement: EisCustomerRequirementInfo,
+  ): string =>
+    requirement.deliveryPlacesInfo.length
+      ? `      <deliveryPlacesInfo>
+${requirement.deliveryPlacesInfo
   .map(
     (place) => `        <deliveryPlaceInfo>
           <country><code>${escapeXml(place.countryCode)}</code><fullName>${escapeXml(place.countryFullName)}</fullName></country>
@@ -3270,7 +3429,44 @@ ${customerRequirement.deliveryPlacesInfo
   )
   .join("\n")}
       </deliveryPlacesInfo>`
-    : "";
+      : "";
+
+  // Один блок на каждую позицию ПГ. Старые DTO без массива получают
+  // прежний единственный customerRequirementInfo.
+  const customerRequirementXml = (
+    requirement: EisCustomerRequirementInfo,
+  ): string => `      <customerRequirementInfo>
+        ${guaranteeXml("applicationGuarantee", requirement.applicationGuarantee)}
+        ${guaranteeXml("contractGuarantee", requirement.contractGuarantee)}
+        ${guaranteeXml("provisionWarranty", requirement.provisionWarranty)}
+        <contractConditionsInfo>
+          <maxPriceInfo>
+            <maxPrice>${contractConditions.maxPrice.toFixed(2)}</maxPrice>
+            <currency><code>RUB</code><name>Российский рубль</name></currency>
+            ${contractConditions.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
+            ${contractConditions.contractPriceFormulaText ? `<contractPriceFormulaText>${escapeXml(contractConditions.contractPriceFormulaText)}</contractPriceFormulaText>` : ""}
+          </maxPriceInfo>
+          ${contractConditions.maxPriceCurrency !== undefined ? `<maxPriceCurrency>${contractConditions.maxPriceCurrency.toFixed(2)}</maxPriceCurrency>` : ""}
+          <interbudgetaryTransfer>${contractConditions.interbudgetaryTransfer}</interbudgetaryTransfer>
+          <contractLifeCycle>${contractConditions.contractLifeCycle}</contractLifeCycle>
+          <purchaseCode>${escapeXml(requirement.ikz)}</purchaseCode>
+          ${ikzInfoXml(requirement)}
+          <tenderPlan2020Info>
+            ${requirement.tenderPlan2020Info.plan2020Number ? `<plan2020Number>${escapeXml(requirement.tenderPlan2020Info.plan2020Number)}</plan2020Number>` : ""}
+            ${requirement.tenderPlan2020Info.position2020Number ? `<position2020Number>${escapeXml(requirement.tenderPlan2020Info.position2020Number)}</position2020Number>` : ""}
+            ${requirement.tenderPlan2020Info.position2020ExtNumber ? `<position2020ExtNumber>${escapeXml(requirement.tenderPlan2020Info.position2020ExtNumber)}</position2020ExtNumber>` : ""}
+          </tenderPlan2020Info>
+${stagesXml(requirement)}
+${deliveryPlacesXml(requirement)}
+${deliveryTermXml(requirement)}
+        </contractConditionsInfo>
+      </customerRequirementInfo>`;
+
+  const customerRequirementsXml = (
+    dto.notificationInfo.customerRequirementInfos ?? [customerRequirement]
+  )
+    .map(customerRequirementXml)
+    .join("\n");
 
   // Преимущества (ст. 28–30) — блок notificationInfo/preferensesInfo
   const preferensesXml = dto.notificationInfo.preferensesInfo.length
@@ -3342,6 +3538,22 @@ ${dto.notificationInfo.restrictionsInfo
   // notificationInfo. Пустой блок не выводим — его ЕИС тоже отклонит.
   const attachmentsXml = buildEisAttachmentsInfoXml(dto.attachments, "  ");
 
+  // По XSD 17.0 `totalSum` и флаги объёма лежат внутри notDrug/drugPurchaseObjectsInfo:
+  // сначала позиции, затем суммы базового purchaseObjects2020Type, затем
+  // quantityUndefined и isStructuredForm из расширения. На уровне
+  // purchaseObjectsInfo допустим только choice и блок родительских объектов.
+  const objectsTotalsXml = `${
+    dto.notificationInfo.purchaseObjectsInfo.totalSum !== undefined
+      ? `<totalSum>${dto.notificationInfo.purchaseObjectsInfo.totalSum.toFixed(2)}</totalSum>`
+      : ""
+  }${
+    dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency !== undefined
+      ? `<totalSumCurrency>${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency.toFixed(2)}</totalSumCurrency>`
+      : ""
+  }`;
+  const objectsFlagsXml = `<quantityUndefined>${dto.notificationInfo.purchaseObjectsInfo.quantityUndefined}</quantityUndefined>
+      <isStructuredForm>${dto.notificationInfo.purchaseObjectsInfo.isStructuredForm}</isStructuredForm>`;
+
   const bodyXml = `
   ${dto.externalId ? `<externalId>${escapeXml(dto.externalId)}</externalId>` : ""}
   <versionNumber>${dto.versionNumber}</versionNumber>
@@ -3369,46 +3581,29 @@ ${dto.notificationInfo.restrictionsInfo
 ${attachmentsXml}
   <notificationInfo>
     <customerRequirementsInfo>
-      <customerRequirementInfo>
-        ${guaranteeXml("applicationGuarantee", customerRequirement.applicationGuarantee)}
-        ${guaranteeXml("contractGuarantee", customerRequirement.contractGuarantee)}
-        ${guaranteeXml("provisionWarranty", customerRequirement.provisionWarranty)}
-        <contractConditionsInfo>
-          <maxPriceInfo>
-            <maxPrice>${contractConditions.maxPrice.toFixed(2)}</maxPrice>
-            <currency><code>RUB</code><name>Российский рубль</name></currency>
-            ${contractConditions.isContractPriceFormula ? "<isContractPriceFormula>true</isContractPriceFormula>" : ""}
-            ${contractConditions.contractPriceFormulaText ? `<contractPriceFormulaText>${escapeXml(contractConditions.contractPriceFormulaText)}</contractPriceFormulaText>` : ""}
-          </maxPriceInfo>
-          ${contractConditions.maxPriceCurrency !== undefined ? `<maxPriceCurrency>${contractConditions.maxPriceCurrency.toFixed(2)}</maxPriceCurrency>` : ""}
-          <interbudgetaryTransfer>${contractConditions.interbudgetaryTransfer}</interbudgetaryTransfer>
-          <contractLifeCycle>${contractConditions.contractLifeCycle}</contractLifeCycle>
-          <purchaseCode>${escapeXml(customerRequirement.ikz)}</purchaseCode>
-          <tenderPlan2020Info>
-            ${customerRequirement.tenderPlan2020Info.plan2020Number ? `<plan2020Number>${escapeXml(customerRequirement.tenderPlan2020Info.plan2020Number)}</plan2020Number>` : ""}
-            ${customerRequirement.tenderPlan2020Info.position2020Number ? `<position2020Number>${escapeXml(customerRequirement.tenderPlan2020Info.position2020Number)}</position2020Number>` : ""}
-            ${customerRequirement.tenderPlan2020Info.position2020ExtNumber ? `<position2020ExtNumber>${escapeXml(customerRequirement.tenderPlan2020Info.position2020ExtNumber)}</position2020ExtNumber>` : ""}
-          </tenderPlan2020Info>
-${stagesXml}
-${deliveryPlacesXml}
-${deliveryTermXml}
-        </contractConditionsInfo>
-      </customerRequirementInfo>
+      ${customerRequirementsXml}
     </customerRequirementsInfo>
     <purchaseObjectsInfo>
-      <isStructuredForm>${dto.notificationInfo.purchaseObjectsInfo.isStructuredForm}</isStructuredForm>
-      ${dto.notificationInfo.purchaseObjectsInfo.quantityUndefined ? "<quantityUndefined>true</quantityUndefined>" : ""}
       ${
         drugsXml
           ? `<drugPurchaseObjectsInfo>
 ${drugsXml}
+${objectsTotalsXml}
+${objectsFlagsXml}
       </drugPurchaseObjectsInfo>`
           : `<notDrugPurchaseObjectsInfo>
 ${objectsXml}
+${objectsTotalsXml}
+${objectsFlagsXml}
       </notDrugPurchaseObjectsInfo>`
       }
-      ${dto.notificationInfo.purchaseObjectsInfo.totalSum !== undefined ? `<totalSum>${dto.notificationInfo.purchaseObjectsInfo.totalSum.toFixed(2)}</totalSum>` : ""}
-      ${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency !== undefined ? `<totalSumCurrency>${dto.notificationInfo.purchaseObjectsInfo.totalSumCurrency.toFixed(2)}</totalSumCurrency>` : ""}
+      ${
+        parentObjectsXml
+          ? `<notDrugPurchaseParentObjectsInfo>
+${parentObjectsXml}
+      </notDrugPurchaseParentObjectsInfo>`
+          : ""
+      }
     </purchaseObjectsInfo>
     ${criteriaXml}
 ${preferensesXml}

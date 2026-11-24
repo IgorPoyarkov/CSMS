@@ -6,6 +6,10 @@ import {
   canPublishNotice,
   type NoticeAttachment,
 } from "./noticeAttachment.schema";
+import { DeliveryPlaceSchema } from "./deliveryPlace.schema";
+
+export { DeliveryPlaceSchema } from "./deliveryPlace.schema";
+export type { DeliveryPlace } from "./deliveryPlace.schema";
 
 
 export const EisPhoneSchema = z.object({
@@ -45,22 +49,6 @@ export const ContractStageSchema = z.object({
   startOffsetDays: z.number(),
   durationDays: z.number(),
   kbkRows: z.array(KbkFinancingRowSchema),
-});
-
-// Место поставки указывается каскадом уровней (Tasks 7, п. 2): страна, субъект
-// Российской Федерации, муниципальное образование, населённый пункт и адрес.
-// Промежуточные уровни необязательны — место поставки допускается описать и
-// строкой адреса, если справочник региона не подключён
-export const DeliveryPlaceSchema = z.object({
-  id: z.string(),
-  country: z.string(),
-  oksmCode: z.string().optional(),
-  garGuid: z.string().optional(),
-  region: z.string().optional(),
-  municipality: z.string().optional(),
-  settlement: z.string().optional(),
-  address: z.string(),
-  additionalInfo: z.string().optional(),
 });
 
 export const PurchaseObjectRequirementSchema = z.object({
@@ -104,6 +92,23 @@ export const PurchaseObjectItemSchema = z.object({
   ktruName: z.string().optional(),
   // Связанное структурированное ООЗ (единый набор характеристик)
   objectDescriptionId: z.union([z.string(), z.number()]).optional(),
+  // Конкретный объект из коллекции purchaseObjects — источник характеристик
+  // и родительской связи в ЕИС 17.0.
+  purchaseObjectId: z.union([z.string(), z.number()]).optional(),
+  // Реквизиты позиции ПГ конкретного объекта: если объекты закупки из разных
+  // позиций, в ЕИС 17.0 у каждого свой customerRequirementInfo.
+  purchasePlanId: z.union([z.string(), z.number()]).optional(),
+  positionId: z.union([z.string(), z.number()]).optional(),
+  plan2020Number: z.string().optional(),
+  positionUniqueNumber: z.string().optional(),
+  positionSerialNumber: z.string().optional(),
+  ikz: z.string().optional(),
+  // Родительский объект закупки (ЕИС 17.0 parentPurchaseObject): дочерняя
+  // работа/услуга «входит в состав» родителя.
+  parentObjectId: z.union([z.string(), z.number()]).optional(),
+  parentExternalSid: z.string().optional(),
+  parentOkpd2Code: z.string().optional(),
+  parentOkpd2Name: z.string().optional(),
   name: z.string(),
   okeiCode: z.string().optional(),
   unit: z.string(),

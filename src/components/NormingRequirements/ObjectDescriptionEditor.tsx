@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
+import PurchaseObjectsSection from "./PurchaseObjectsSection";
+import { usePurchaseObjects, useUpdatePurchaseObject } from "../../services/PurchaseObject/purchaseObject.api";
+import type { PurchaseObject } from "../../services/PurchaseObject/purchaseObject.schema";
 import { formatMoney } from "../PurchasePlan/purchasePlan.config";
 import { usePurchasePlan } from "../../services/PurchasePlan/purchasePlan.api";
 import {
@@ -87,16 +90,38 @@ export default function ObjectDescriptionEditor({
     CharacteristicCategory | "all"
   >("all");
   const [showPreview, setShowPreview] = useState(false);
+  // Характеристики в форме редактируются у выбранного объекта закупки.
+  const [activeObjectId, setActiveObjectId] = useState<
+    string | number | null
+  >(null);
   const [copied, setCopied] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  // Все выбранные коды: основной плюс дополнительные объекты закупки.
+  const { data: allPurchaseObjects = [] } = usePurchaseObjects(
+    organizationId ?? initialValue?.organizationId ?? undefined,
+  );
+  const updatePurchaseObject = useUpdatePurchaseObject();
+  const purchaseObjects = useMemo(
+    () =>
+      allPurchaseObjects.filter(
+        (item) =>
+          item.objectDescriptionId !== undefined &&
+          String(item.objectDescriptionId) === String(initialValue?.id),
+      ),
+    [allPurchaseObjects, initialValue?.id],
+  );
+
+  // Все выбранные коды: код ООЗ плюс коды отдельных объектов закупки.
   const selectedOkpd2Codes = useMemo(
     () =>
-      [draft.okpd2Code, ...(draft.okpd2Items ?? []).map((item) => item.code)]
+      [
+        draft.okpd2Code,
+        ...purchaseObjects.map((item) => item.okpd2Code),
+        ...(draft.okpd2Items ?? []).map((item) => item.code),
+      ]
         .filter((code) => Boolean(code?.trim()))
         .map((code) => code.trim().toLowerCase()),
-    [draft.okpd2Code, draft.okpd2Items],
+    [draft.okpd2Code, draft.okpd2Items, purchaseObjects],
   );
   const matchedOkpd2 = useMemo(
     () => findOkpd2ByCode(okpd2Dictionary, draft.okpd2Code),
@@ -267,33 +292,23 @@ export default function ObjectDescriptionEditor({
     setSubmitError("");
   };
 
-  const addOkpd2Item = () => {
+  /**
+   * Выбор объекта закупки: редактор характеристик и общие поля переключаются
+   * на данные выбранного объекта, а не на «первый попавшийся» код ООЗ.
+   */
+  const handleSelectPurchaseObject = (object: PurchaseObject) => {
+    setActiveObjectId(object.id ?? null);
     setDraft((prev) => ({
       ...prev,
-      okpd2Items: [...(prev.okpd2Items ?? []), { code: "", name: "" }],
-    }));
-    setSubmitError("");
-  };
-
-  const updateOkpd2Item = (
-    idx: number,
-    item: { code?: string; name?: string } | null,
-  ) => {
-    setDraft((prev) => ({
-      ...prev,
-      okpd2Items: (prev.okpd2Items ?? []).map((current, i) =>
-        i === idx
-          ? { code: item?.code ?? "", name: item?.name ?? "" }
-          : current,
-      ),
-    }));
-    setSubmitError("");
-  };
-
-  const removeOkpd2Item = (idx: number) => {
-    setDraft((prev) => ({
-      ...prev,
-      okpd2Items: (prev.okpd2Items ?? []).filter((_, i) => i !== idx),
+      okpd2Code: object.okpd2Code || prev.okpd2Code,
+      okpd2Name: object.okpd2Name || prev.okpd2Name,
+      ktruCode: object.ktruCode ?? "",
+      ktruName: object.ktruName ?? "",
+      unit: object.unit ?? "",
+      quantity: object.quantity || "1",
+      useKtru: Boolean(object.useKtru),
+      characteristics: object.characteristics ?? [],
+      standards: object.standards ?? [],
     }));
     setSubmitError("");
   };
@@ -444,13 +459,6 @@ export default function ObjectDescriptionEditor({
       setSubmitError("Выберите код ОКПД2.");
       return;
     }
-    if ((draft.okpd2Items ?? []).some((item) => !item.code.trim())) {
-      setSubmitError(
-        "Выберите код ОКПД2 для каждого добавленного объекта или удалите пустую строку.",
-      );
-      return;
-    }
-
     const emptyChar = draft.characteristics.find((c) => !c.name.trim());
     if (emptyChar) {
       setSubmitError(
@@ -494,6 +502,24 @@ export default function ObjectDescriptionEditor({
           ? draft.approvedDate || new Date().toISOString().slice(0, 10)
           : draft.approvedDate,
     };
+
+    // Характеристики редактируются у выбранного объекта, поэтому сохраняем
+    // их обратно в отдельный документ, а не только в плоские поля ООЗ.
+    if (activeObjectId !== null && activeObjectId !== undefined) {
+      updatePurchaseObject.mutate({
+        id: activeObjectId,
+        okpd2Code: nextToSave.okpd2Code,
+        okpd2Name: nextToSave.okpd2Name,
+        ktruCode: nextToSave.ktruCode,
+        ktruName: nextToSave.ktruName,
+        unit: nextToSave.unit,
+        quantity: nextToSave.quantity,
+        isIndeterminateVolume: nextToSave.isIndeterminateVolume,
+        useKtru: nextToSave.useKtru,
+        characteristics: nextToSave.characteristics,
+        standards: nextToSave.standards,
+      });
+    }
 
     onSave(nextToSave);
   };
@@ -584,60 +610,27 @@ export default function ObjectDescriptionEditor({
               onSelect={(item) => applyOkpd2(item?.code ?? "", item?.name ?? "")}
             />
 
-            {/* Один ООЗ может описывать несколько объектов с разными кодами. */}
-            {(draft.okpd2Items ?? []).length > 0 && (
-              <div className={block("okpd2-list")}>
-                {(draft.okpd2Items ?? []).map((item, idx) => (
-                  <div className={block("okpd2-item")} key={`${idx}-${item.code}`}>
-                    <div className={block("field", ["grow"])}>
-                      <label className={block("label")}>
-                        Дополнительный код ОКПД2 {idx + 2}
-                      </label>
-                      <Okpd2Select
-                        code={item.code}
-                        name={item.name}
-                        allowedCodes={planOkpd2SelectCodes}
-                        initialQuery={item.code || planOkpd2SelectCodes[0] || ""}
-                        multilineLabel
-                        onSelect={(selected) => updateOkpd2Item(idx, selected)}
-                      />
-                      {item.code.trim() &&
-                        !planOkpd2Codes.includes(
-                          item.code.trim().toLowerCase(),
-                        ) && (
-                          <span className={block("warning-msg")}>
-                            Код отсутствует в позиции ПГ — удалите его или
-                            добавьте в план-график.
-                          </span>
-                        )}
-                    </div>
-                    <button
-                      type="button"
-                      className={block("secondary-btn")}
-                      onClick={() => removeOkpd2Item(idx)}
-                    >
-                      Удалить
-                    </button>
-                    {templatesByCode[item.code]?.characteristics.length ? (
-                      <button
-                        type="button"
-                        className={block("inline-btn")}
-                        onClick={() => handleApplyNormingTemplate(item.code)}
-                      >
-                        + Типовые требования ПП 926
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              type="button"
-              className={block("inline-btn")}
-              onClick={addOkpd2Item}
-            >
-              + Добавить код ОКПД2 (ещё один объект)
-            </button>
+            {/* Каждый объект закупки — отдельный документ со своими
+                характеристиками, связями с ПГ/СЗ и родительским объектом. */}
+            <PurchaseObjectsSection
+              description={initialValue}
+              organizationId={organizationId}
+              activeObjectId={activeObjectId}
+              allowedCodes={planOkpd2SelectCodes}
+              templates={Object.values(templatesByCode)}
+              positionRequisites={{
+                plan2020Number: purchasePlan?.planNumber
+                  ? String(purchasePlan.planNumber)
+                  : undefined,
+                positionUniqueNumber: planPosition?.uniqueNumber
+                  ? String(planPosition.uniqueNumber)
+                  : undefined,
+                positionSerialNumber: planPosition?.serialNumber
+                  ? String(planPosition.serialNumber)
+                  : undefined,
+              }}
+              onSelect={handleSelectPurchaseObject}
+            />
 
             {(planOkpd2Mismatch || planPositionMissing) && (
               <>

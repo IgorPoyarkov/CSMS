@@ -20,6 +20,9 @@ export const PG_COLLECTIONS = [
   "structuralUnits",
   "contractServices",
   "purchasePlans",
+  // Объекты закупки: отдельные документы со своими характеристиками,
+  // связями с ООЗ/ПГ/СЗ и родительским объектом (ЕИС 17.0).
+  "purchaseObjects",
   "procurements",
   "notices",
   "employeeEducations",

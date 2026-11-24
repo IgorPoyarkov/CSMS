@@ -34,6 +34,8 @@ import {
 } from "../../services/BidEvaluation/bidEvaluation.schema";
 import { MIN_PROCEDURE_DAYS, placingWayFamily } from "./noticeInfo.config";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import { usePurchaseObjects } from "../../services/PurchaseObject/purchaseObject.api";
+import { buildNoticeItemsFromPurchaseObjects } from "../../services/Procurements/noticePurchaseObjects";
 import {
   formatCharacteristicValue,
   getObjectDescriptionOkpd2Codes,
@@ -240,6 +242,11 @@ const NoticeInfoForm = () => {
     currentUser?.organizationId,
   );
   const { data: objectDescriptions = [] } = useOrganizationObjectDescriptions(
+    currentUser?.organizationId,
+  );
+  // Отдельные объекты закупки несут свои характеристики, связи с ПГ/СЗ
+  // и родительским объектом — из них разворачиваем позиции извещения.
+  const { data: allPurchaseObjects = [] } = usePurchaseObjects(
     currentUser?.organizationId,
   );
 
@@ -1452,13 +1459,25 @@ const NoticeInfoForm = () => {
               )
             : matchedDesc;
           if (!itemDesc) return;
+          const descriptionObjects = allPurchaseObjects.filter(
+            (object) =>
+              object.objectDescriptionId !== undefined &&
+              String(object.objectDescriptionId) === String(itemDesc.id),
+          );
           expandedItems.push(
-            ...buildExtraPurchaseItems(
-              item,
-              getObjectDescriptionOkpd2Codes(itemDesc),
-              usedCodes,
-              `okpd2-${idx + 1}`,
-            ),
+            ...(descriptionObjects.length > 0
+              ? buildNoticeItemsFromPurchaseObjects(
+                  descriptionObjects,
+                  item,
+                  usedCodes,
+                  `object-${idx + 1}`,
+                )
+              : buildExtraPurchaseItems(
+                  item,
+                  getObjectDescriptionOkpd2Codes(itemDesc),
+                  usedCodes,
+                  `okpd2-${idx + 1}`,
+                )),
           );
         });
         setValue("purchaseObjects.items", expandedItems);
@@ -1527,13 +1546,27 @@ const NoticeInfoForm = () => {
         };
         const usedCodes = new Set<string>();
         if (okpd2Code) usedCodes.add(okpd2Code.trim().toLowerCase());
-        const extraItems = matchedDesc
-          ? buildExtraPurchaseItems(
-              baseItem,
-              getObjectDescriptionOkpd2Codes(matchedDesc),
-              usedCodes,
-              "okpd2",
+        const descriptionObjects = matchedDesc
+          ? allPurchaseObjects.filter(
+              (object) =>
+                object.objectDescriptionId !== undefined &&
+                String(object.objectDescriptionId) === String(matchedDesc.id),
             )
+          : [];
+        const extraItems = matchedDesc
+          ? descriptionObjects.length > 0
+            ? buildNoticeItemsFromPurchaseObjects(
+                descriptionObjects,
+                baseItem,
+                usedCodes,
+                "object",
+              )
+            : buildExtraPurchaseItems(
+                baseItem,
+                getObjectDescriptionOkpd2Codes(matchedDesc),
+                usedCodes,
+                "okpd2",
+              )
           : [];
         setValue("purchaseObjects.items", [baseItem, ...extraItems]);
       }
@@ -1559,6 +1592,7 @@ const NoticeInfoForm = () => {
     matchedNote,
     matchedDesc,
     objectDescriptions,
+    allPurchaseObjects,
     okpd2Refs,
     purchasePlans,
     userOrganization?.inn,

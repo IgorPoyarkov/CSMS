@@ -9,7 +9,11 @@ import {
   toNoticeObjectDescriptionFields,
 } from "../../../services/ObjectDescription/objectDescription.schema";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
-import { buildExtraPurchaseItems } from "../../../services/Procurements/noticePurchaseObjects";
+import {
+  buildExtraPurchaseItems,
+  buildNoticeItemsFromPurchaseObjects,
+} from "../../../services/Procurements/noticePurchaseObjects";
+import { usePurchaseObjects } from "../../../services/PurchaseObject/purchaseObject.api";
 import { useKtruDictionary } from "../../../services/KtruRef/ktruRef.api";
 import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
 import KtruSelect from "../../UI/KtruSelect/KtruSelect";
@@ -79,6 +83,9 @@ const ObjectDescriptionSection = () => {
   const { data: savedDescriptions = [] } = useOrganizationObjectDescriptions(
     organization?.id,
   );
+  const { data: allPurchaseObjects = [] } = usePurchaseObjects(
+    organization?.id,
+  );
   const { data: ktruRefs = [] } = useKtruDictionary();
   const { register, watch, setValue, getValues } =
     useFormContext<NoticeInfoFormValues>();
@@ -122,13 +129,25 @@ const ObjectDescriptionSection = () => {
         .filter(Boolean)
         .map((code) => code.trim().toLowerCase()),
     );
+    const descriptionObjects = allPurchaseObjects.filter(
+      (object) =>
+        object.objectDescriptionId !== undefined &&
+        String(object.objectDescriptionId) === String(found.id),
+    );
     const extraItems = items.flatMap((item, idx) =>
-      buildExtraPurchaseItems(
-        item,
-        getObjectDescriptionOkpd2Codes(found),
-        usedCodes,
-        `ooz-${idx + 1}`,
-      ),
+      descriptionObjects.length > 0
+        ? buildNoticeItemsFromPurchaseObjects(
+            descriptionObjects,
+            item,
+            usedCodes,
+            `object-${idx + 1}`,
+          )
+        : buildExtraPurchaseItems(
+            item,
+            getObjectDescriptionOkpd2Codes(found),
+            usedCodes,
+            `ooz-${idx + 1}`,
+          ),
     );
     if (extraItems.length > 0) {
       setValue("purchaseObjects.items", [...items, ...extraItems], {

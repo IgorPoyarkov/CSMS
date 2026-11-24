@@ -390,6 +390,33 @@
     margin-top: 8px;
   }
 
+  &__label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__reuse-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+  }
+
+  &__source-badge {
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--accent-soft, var(--surface));
+    color: var(--accent-emphasis);
+    font-size: 11px;
+  }
+
   &__okpd2-item {
     display: flex;
     align-items: flex-end;
@@ -399,6 +426,11 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--surface-raised);
+
+    &[data-active="true"] {
+      border-color: var(--accent-emphasis);
+      background: var(--accent-soft, var(--surface-raised));
+    }
   }
 
   &__plan-restore {
