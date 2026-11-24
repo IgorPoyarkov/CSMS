@@ -751,12 +751,10 @@ export default function PurchaseNoteModal({
         item.objectDescriptionId !== null &&
         String(item.objectDescriptionId) !== "",
     );
-  // Готовность ООЗ и полнота закупок по позиции плана-графика.
-  // По умолчанию оба флага включены: заказчик снимает их осознанно,
-  // когда набор объектов ещё не сформирован или закупка не последняя.
+  // Готовность ООЗ: пока набор объектов не признан конечным, расчёт НМЦК
+  // блокируется. Флаг «последняя закупка по позиции ПГ» убран из формы —
+  // в схеме он остался только для чтения старых записей.
   const watchedOozSetComplete = watch("oozSetComplete") ?? true;
-  const watchedPositionProcurementsComplete =
-    watch("positionProcurementsComplete") ?? true;
   // Проверки сканируют справочник на каждую позицию: без мемоизации они
   // повторялись бы при каждом нажатии в любой поле формы (watch подписывает
   // всю модалку), а строк в служебке бывает больше десятка.
@@ -2355,14 +2353,18 @@ export default function PurchaseNoteModal({
                           <td>{itemSupplyDuringWorks ? "да" : "—"}</td>
                           <td>
                             <div className={block("row-actions")}>
-                              <button
-                                type="button"
-                                className={block("link-btn")}
-                                disabled={isReadOnly}
-                                onClick={() => toggleItemExpanded(rowId)}
-                              >
-                                Редактировать
-                              </button>
+                              {/* Правка объектов СЗ — только уполномоченным
+                                  членам КС; без прав кнопку не показываем
+                                  вообще, чтобы не вводить в заблуждение. */}
+                              {!isReadOnly && (
+                                <button
+                                  type="button"
+                                  className={block("link-btn")}
+                                  onClick={() => toggleItemExpanded(rowId)}
+                                >
+                                  Редактировать
+                                </button>
+                              )}
                               {!oozIsSource && (
                                 <button
                                   type="button"
@@ -2767,16 +2769,6 @@ export default function PurchaseNoteModal({
                 disabled={isReadOnly}
                 onChange={(e) =>
                   setValue("oozSetComplete", e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <CustomCheckbox
-                label="Это последняя закупка по позиции плана-графика (дальнейших закупок не будет)"
-                checked={watchedPositionProcurementsComplete}
-                disabled={isReadOnly}
-                onChange={(e) =>
-                  setValue("positionProcurementsComplete", e.target.checked, {
                     shouldDirty: true,
                   })
                 }

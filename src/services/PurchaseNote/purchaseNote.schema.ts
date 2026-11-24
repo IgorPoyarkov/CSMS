@@ -204,9 +204,9 @@ const PurchaseNoteBaseSchema = z
     objectDescriptionFileName: z.string().optional(),
     objectDescriptionFileUpdatedAt: z.string().optional(),
 
-    // Готовность ООЗ и позиции плана-графика:
-    // - набор объектов конечный, описание позволяет определить НМЦК;
-    // - это последняя закупка по позиции плана-графика (дальнейших не будет).
+    // Готовность ООЗ: набор объектов конечный, описание позволяет
+    // определить НМЦК. Чекпоинт «последняя закупка по позиции ПГ» убран
+    // из формы; поле оставлено только для чтения старых записей.
     oozSetComplete: z.boolean().optional(),
     positionProcurementsComplete: z.boolean().optional(),
     nmckRequestStatus: z.enum(["none", "requested", "received"]).optional(),
