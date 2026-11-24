@@ -513,6 +513,15 @@
     color: var(--text-secondary);
   }
 
+  // Значение реквизита, пришедшего из ООЗ: показываем как текст, поля ввода нет
+  &__field-value {
+    display: block;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+  }
+
   &__warning {
     margin: 4px 0 0;
     font-size: 12px;
@@ -827,10 +836,9 @@
 
   &__indicator-row {
     display: grid;
-    grid-template-columns: minmax(200px, 2fr) 90px minmax(150px, 1fr) minmax(
-        150px,
-        1fr
-      ) auto;
+    grid-template-columns:
+      minmax(200px, 2fr) 90px minmax(150px, 1fr) minmax(150px, 1fr)
+      auto;
     gap: 8px;
     align-items: center;
   }
