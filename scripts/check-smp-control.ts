@@ -4,7 +4,13 @@
 
 import assert from "node:assert/strict";
 import type { ContractSmpRecord } from "../src/services/ContractSmp/contractSmp.schema";
-import type { SmpRegistryEntry } from "../src/services/ContractSmp/smpRegistry.schema";
+import type { NmckMarketOffer } from "../src/services/Nmck/nmck.schema";
+import {
+  SMP_REGISTRY_NOT_LOADED_TEXT,
+  analyzeNmckSmpComposition,
+  isSmpRegistryLoaded,
+  type SmpRegistryEntry,
+} from "../src/services/ContractSmp/smpRegistry.schema";
 import { businessDaysAfter } from "../src/services/Calendar/calendar.schema";
 import {
   smpCheckBadge,
@@ -25,6 +31,8 @@ import {
  * Что фиксируем:
  * — реестр сверяется только по ИНН, а запись без ИНН считается непроверенной,
  *   а не «не СМП» (иначе заказчик отклонял бы корректные сведения);
+ * — пустой реестр (нет выгрузки ФНС) — не вердикт «не в реестре», а отсутствие
+ *   проверки: приёмка не блокируется, объём привлечения считается неподтверждённым;
  * — приёмку блокирует только первый неподтверждённый ИНН: повторное
  *   представление уже проверенного ИНН и просрочка срока — не отказ, просрочка
  *   идёт в неустойку;
@@ -133,6 +141,55 @@ assert.match(
   excluded.text,
   /Исключён из реестра МСП \(прекращение деятельности\)/,
 );
+
+// Пустой реестр — отсутствие выгрузки ФНС, а не «поставщика нет в реестре»:
+// вердикта нет, приёмка не блокируется, но и объём не подтверждается
+assert.equal(isSmpRegistryLoaded([]), false);
+assert.equal(isSmpRegistryLoaded(registry), true);
+
+const noRegistry = smpRecordCheck(record({}), [], [], {
+  today: "2026-06-03",
+});
+assert.equal(noRegistry.registry.applicable, true);
+assert.equal(noRegistry.registry.registryLoaded, false);
+assert.equal(noRegistry.registry.status, "registry_unavailable");
+assert.match(noRegistry.registry.text, /Реестр МСП не загружен: сверка ИНН/);
+assert.equal(noRegistry.ok, true);
+assert.equal(noRegistry.acceptanceBlocked, false);
+assert.equal(noRegistry.blocking.length, 0);
+assert.equal(noRegistry.warnings.length, 1);
+assert.equal(noRegistry.warnings[0].code, "registry");
+assert.match(noRegistry.warnings[0].message, /не выполнена/);
+assert.equal(smpCheckTone(noRegistry), "warning");
+
+// Проверка состава КП: без выгрузки реестра статусы не выставляются и
+// рекомендация по режиму закупки не выдаётся
+const offers: NmckMarketOffer[] = [
+  {
+    id: "offer-1",
+    supplierName: "АО «Курсктара»",
+    supplierInn: "4630000790",
+    unitPrice: "1000",
+  },
+];
+const emptyRegistryAnalysis = analyzeNmckSmpComposition(offers, []);
+assert.equal(emptyRegistryAnalysis.registryLoaded, false);
+assert.equal(emptyRegistryAnalysis.notSmpCount, 0);
+assert.equal(emptyRegistryAnalysis.unknownCount, 1);
+assert.equal(emptyRegistryAnalysis.recommendation, null);
+assert.match(SMP_REGISTRY_NOT_LOADED_TEXT, /Реестр МСП не загружен/);
+
+const loadedRegistryAnalysis = analyzeNmckSmpComposition(offers, [
+  {
+    inn: "4630000790",
+    name: "АО «Курсктара»",
+    category: "small",
+    isActive: true,
+  },
+]);
+assert.equal(loadedRegistryAnalysis.registryLoaded, true);
+assert.equal(loadedRegistryAnalysis.smpCount, 1);
+assert.equal(loadedRegistryAnalysis.recommendation?.mode, "smp_only");
 
 // Без ИНН запись непроверенная, а не «не СМП»: только предупреждение
 const noInn = smpRecordCheck(
@@ -260,5 +317,5 @@ assert.deepEqual(
 );
 
 console.log(
-  "OK   СМП: реестр МСП по ИНН, блокировка только первого ИНН, сроки ПП 1466 по записи",
+  "OK   СМП: реестр МСП по ИНН (пустой реестр = «не проверено»), блокировка только первого ИНН, сроки ПП 1466 по записи",
 );

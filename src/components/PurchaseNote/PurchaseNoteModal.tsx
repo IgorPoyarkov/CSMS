@@ -104,6 +104,7 @@ import {
 } from "../../services/NationalRegime/pp1875";
 import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
 import {
+  SMP_REGISTRY_NOT_LOADED_TEXT,
   analyzeNmckSmpComposition,
   smpRegistryCategoryLabels,
 } from "../../services/ContractSmp/smpRegistry.schema";
@@ -3377,6 +3378,17 @@ export default function PurchaseNoteModal({
                   </span>
                 ) : (
                   <>
+                    {/* Пустой реестр — не «никого нет в реестре», а отсутствие
+                        выгрузки ФНС: без предупреждения таблица читалась бы как
+                        отказ всем поставщикам */}
+                    {!smpComposition.registryLoaded && (
+                      <p
+                        className={block("hint")}
+                        style={{ marginTop: 0, color: "var(--state-warning)" }}
+                      >
+                        {SMP_REGISTRY_NOT_LOADED_TEXT}
+                      </p>
+                    )}
                     <div style={{ overflowX: "auto" }}>
                       <table className={block("nmck-table")}>
                         <thead>
@@ -3412,7 +3424,9 @@ export default function PurchaseNoteModal({
                                   <span
                                     className={block("smp-status", ["unknown"])}
                                   >
-                                    нужен ИНН
+                                    {smpComposition.registryLoaded
+                                      ? "нужен ИНН"
+                                      : "не проверено"}
                                   </span>
                                 )}
                               </td>

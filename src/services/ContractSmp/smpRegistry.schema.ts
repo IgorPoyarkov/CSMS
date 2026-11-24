@@ -7,8 +7,13 @@ import { MINIMUM_SMP_REQUIRED_PERCENT } from "./pp1466";
  *
  * Заказчик проверяет по нему поставщиков, у которых запрошены коммерческие
  * предложения для обоснования НМЦК методом сопоставимых рыночных цен
- * (ч. 2–5 ст. 22 Закона № 44-ФЗ). Результат проверки — не юридический факт:
- * реестр в системе демонстрационный, а на проде сведения берутся из ФНС.
+ * (ч. 2–5 ст. 22 Закона № 44-ФЗ), и субподрядчиков, привлечённых к контракту.
+ *
+ * Источник — официальная выгрузка ФНС (набор открытых данных 7707329152-rsmp).
+ * Своих записей система не держит: коллекция `smpRegistry` наполняется
+ * импортом (`npm run smp:registry:import -- <файл>`). Пока выгрузки нет,
+ * реестр пуст, и «поставщика нет в реестре» — не факт, а отсутствие проверки:
+ * такой ИНН получает статус `unknown`, а не `out_of_registry`.
  *
  * Зачем это нужно: если все КП получены от СМП/СОНКО, закупку можно провести
  * только среди них (ч. 1, 3 ст. 30); если СМП только часть поставщиков —
@@ -43,6 +48,18 @@ export const SmpRegistryEntrySchema = z.object({
 
 export type SmpRegistryEntry = z.infer<typeof SmpRegistryEntrySchema>;
 export const SmpRegistryListSchema = z.array(SmpRegistryEntrySchema);
+
+/**
+ * Реестр загружен, если в нём есть хотя бы одна запись. Пустой справочник
+ * ничего не доказывает: это отсутствие выгрузки ФНС, а не «поставщика нет
+ * в реестре МСП» — иначе каждый реальный ИНН получал бы ложный отказ.
+ */
+export const isSmpRegistryLoaded = (registry: SmpRegistryEntry[]): boolean =>
+  registry.length > 0;
+
+/** Что показывать вместо вердикта, пока выгрузка реестра не загружена. */
+export const SMP_REGISTRY_NOT_LOADED_TEXT =
+  "Реестр МСП не загружен: в системе нет выгрузки ФНС, принадлежность к СМП/СОНКО не проверена. Загрузите выгрузку реестра: npm run smp:registry:import -- <файл.csv|json>";
 
 // ─── Нормализация и сопоставление ───────────────────────────────────────────
 
@@ -128,6 +145,8 @@ export interface SmpCompositionAnalysis {
   unknownCount: number;
   smpSharePercent: number;
   allSmp: boolean;
+  /** Реестр МСП загружен: без выгрузки вердиктов «в реестре / не в реестре» нет. */
+  registryLoaded: boolean;
   rows: SmpSupplierMatch[];
   recommendation: SmpRecommendation | null;
 }
@@ -145,8 +164,18 @@ export const analyzeNmckSmpComposition = (
   // не влияет на НМЦК, значит и поставщик не характеризует выборку
   const included = offers.filter((offer) => offer.included !== false);
 
+  // Без выгрузки ФНС сверять не с чем: статусы остаются непроверенными, и
+  // рекомендация не выдаётся — иначе система советовала бы режим закупки
+  // по данным, которых у неё нет
+  const registryLoaded = isSmpRegistryLoaded(registry);
+
   const rows: SmpSupplierMatch[] = included.map((offer) => {
     const inn = normalizeInn(offer.supplierInn);
+
+    if (!registryLoaded) {
+      return { offer, entry: null, status: "unknown", matchBy: null };
+    }
+
     const entry = findSmpRegistryEntry(
       { inn, name: offer.supplierName },
       registry,
@@ -180,7 +209,7 @@ export const analyzeNmckSmpComposition = (
 
   let recommendation: SmpRecommendation | null = null;
 
-  if (total === 0) {
+  if (total === 0 || !registryLoaded) {
     recommendation = null;
   } else if (allSmp) {
     recommendation = {
@@ -214,6 +243,7 @@ export const analyzeNmckSmpComposition = (
     unknownCount,
     smpSharePercent,
     allSmp,
+    registryLoaded,
     rows,
     recommendation,
   };

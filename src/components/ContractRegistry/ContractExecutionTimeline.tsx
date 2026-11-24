@@ -453,7 +453,9 @@ export default function ContractExecutionTimeline({
           smpRegistry,
         );
         const registryNote =
-          registry.applicable && registry.status !== "in_registry"
+          registry.applicable &&
+          registry.registryLoaded &&
+          registry.status !== "in_registry"
             ? registry.text
             : "";
         items.push({

@@ -1039,11 +1039,13 @@ export default function SmpSection({
                             ? "ok"
                             : check.registry.status === "unknown"
                               ? "unknown"
-                              : check.blocking.some(
-                                    (issue) => issue.code === "registry",
-                                  )
-                                ? "error"
-                                : "warn",
+                              : check.registry.status === "registry_unavailable"
+                                ? "warn"
+                                : check.blocking.some(
+                                      (issue) => issue.code === "registry",
+                                    )
+                                  ? "error"
+                                  : "warn",
                         ])}
                         title={check.registry.text}
                       >
@@ -1051,9 +1053,11 @@ export default function SmpSection({
                           ? "в реестре МСП"
                           : check.registry.status === "unknown"
                             ? "ИНН не указан"
-                            : check.registry.status === "excluded"
-                              ? "исключён из МСП"
-                              : "нет в реестре МСП"}
+                            : check.registry.status === "registry_unavailable"
+                              ? "реестр не загружен"
+                              : check.registry.status === "excluded"
+                                ? "исключён из МСП"
+                                : "нет в реестре МСП"}
                       </span>
                     )}
                   </td>
