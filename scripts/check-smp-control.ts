@@ -3,7 +3,15 @@
 // поэтому TZ здесь не выставляем.
 
 import assert from "node:assert/strict";
-import type { ContractSmpRecord } from "../src/services/ContractSmp/contractSmp.schema";
+import {
+  smpActualAmount,
+  smpDocumentsAmount,
+  smpLinkedDocuments,
+  smpSubContracts,
+  smpUnlinkedDocuments,
+  smpVolumeSources,
+  type ContractSmpRecord,
+} from "../src/services/ContractSmp/contractSmp.schema";
 import type { NmckMarketOffer } from "../src/services/Nmck/nmck.schema";
 import {
   SMP_REGISTRY_NOT_CHECKED_TEXT,
@@ -426,6 +434,140 @@ assert.deepEqual(
     ["p2", 1, 4],
     ["p5", 5, 2],
   ],
+);
+
+// ─── Договор → акты и оплаты: фактическое привлечение по оплатам ───────────
+
+// Договор принят заказчиком, поэтому он и его документы идут в объём
+const subContract = record({ id: 10, amount: "1000", status: "accepted" });
+const actByLink = record({
+  id: 11,
+  documentType: "acceptance",
+  amount: "600",
+  status: "accepted",
+  subContractRecordId: 10,
+});
+// Акт без ссылки, но с ИНН того же субподрядчика: заведён до появления поля
+// «договор-основание» и всё равно относится к этому договору
+const actByInn = record({
+  id: 12,
+  documentType: "acceptance",
+  amount: "100",
+  status: "accepted",
+  subContractRecordId: undefined,
+});
+const paymentByLink = record({
+  id: 13,
+  documentType: "payment",
+  amount: "500",
+  status: "accepted",
+  subContractRecordId: 10,
+});
+// Другой субподрядчик: к этому договору не относится и в его сводке не виден
+const foreignPayment = record({
+  id: 14,
+  documentType: "payment",
+  amount: "999",
+  supplierInn: "7712345678",
+  status: "accepted",
+});
+
+const bundle = [subContract, actByLink, actByInn, paymentByLink, foreignPayment];
+
+assert.deepEqual(
+  smpSubContracts(bundle).map((item) => String(item.id)),
+  ["10"],
+);
+assert.deepEqual(
+  smpLinkedDocuments(subContract, bundle).map((item) => String(item.id)),
+  ["11", "12", "13"],
+);
+assert.equal(
+  smpDocumentsAmount(smpLinkedDocuments(subContract, bundle), "acceptance"),
+  700,
+);
+assert.equal(
+  smpDocumentsAmount(smpLinkedDocuments(subContract, bundle), "payment"),
+  500,
+);
+
+// Документ чужого субподрядчика без привязки не теряется: он показывается
+// отдельной строкой, иначе акт выпал бы из таблицы совсем
+assert.deepEqual(
+  smpUnlinkedDocuments(bundle).map((item) => String(item.id)),
+  ["14"],
+);
+
+// Оплаты по договору перекрывают расчёт по сумме договора: факт — 500, а не 1000
+const sources = smpVolumeSources(bundle);
+assert.equal(sources.contracted, 1000);
+assert.equal(sources.paid, 500);
+assert.equal(sources.accepted, 700);
+assert.equal(sources.basis, "payments");
+assert.equal(sources.actual, 500);
+assert.equal(smpActualAmount(bundle), 500);
+
+// Пока платёжек нет, факт остаётся прежним — по сумме принятого договора:
+// иначе у заказчиков, которые ведут только договоры, объём обнулился бы
+const noPayments = [subContract, actByLink];
+assert.equal(smpVolumeSources(noPayments).basis, "contracts");
+assert.equal(smpActualAmount(noPayments), 1000);
+
+// Отклонённая платёжка объём не увеличивает
+const withRejected = [
+  ...bundle,
+  record({
+    id: 15,
+    documentType: "payment",
+    amount: "400",
+    status: "rejected",
+    subContractRecordId: 10,
+  }),
+];
+assert.equal(smpVolumeSources(withRejected).paid, 500);
+
+// Документ без ссылки, подходящий по ИНН двум договорам одного субподрядчика,
+// считается один раз — иначе оплата удвоила бы объём
+const secondSubContract = record({
+  id: 20,
+  documentNumber: "СМП-2",
+  amount: "200",
+  status: "accepted",
+});
+const sharedPayment = record({
+  id: 21,
+  documentType: "payment",
+  amount: "300",
+  status: "accepted",
+  subContractRecordId: undefined,
+});
+const sharedSources = smpVolumeSources([
+  subContract,
+  secondSubContract,
+  sharedPayment,
+]);
+assert.equal(sharedSources.contracted, 1200);
+assert.equal(sharedSources.paid, 300);
+
+// Непринятый договор объёма не даёт, и его акты с оплатами в факт не идут
+const draftSubContract = record({
+  id: 30,
+  documentNumber: "СМП-ЧЕРНОВИК",
+  amount: "900",
+  status: "submitted",
+});
+assert.equal(
+  smpVolumeSources([
+    draftSubContract,
+    record({
+      id: 31,
+      documentType: "payment",
+      amount: "900",
+      status: "accepted",
+      subContractRecordId: 30,
+    }),
+  ]).actual,
+  0,
 );
 
 console.log(

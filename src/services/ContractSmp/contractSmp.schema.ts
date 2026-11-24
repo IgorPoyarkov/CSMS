@@ -230,14 +230,153 @@ export const countsTowardsSmpVolume = (record: ContractSmpRecord): boolean =>
   record.isSmpSubject &&
   isRecordAccepted(record);
 
-// Фактический объём привлечения — сумма принятых договоров с СМП
-export const smpActualAmount = (records: ContractSmpRecord[]): number =>
-  records
-    .filter(countsTowardsSmpVolume)
+// ─── Структура сведений: договор → приложенные документы ───────────────────
+
+/**
+ * Документы, приложенные к договору субподрядчика.
+ *
+ * Связь задаётся полем `subContractRecordId`. Если ссылки нет (акт и платёжку
+ * завели до появления поля), документ относим к договору того же
+ * субподрядчика по ИНН — иначе он «висел» бы отдельно от договора, к которому
+ * его прислали, и фактическое привлечение считалось бы без него.
+ */
+export const smpLinkedDocuments = (
+  subContract: ContractSmpRecord,
+  records: ContractSmpRecord[],
+  type?: ContractSmpDocumentType,
+): ContractSmpRecord[] =>
+  records.filter((record) => {
+    if (record.documentType === "subContract") return false;
+    if (type !== undefined && record.documentType !== type) return false;
+    if (String(record.id) === String(subContract.id)) return false;
+
+    if (
+      record.subContractRecordId !== undefined &&
+      record.subContractRecordId !== ""
+    ) {
+      return String(record.subContractRecordId) === String(subContract.id);
+    }
+
+    return (
+      Boolean(record.supplierInn) && record.supplierInn === subContract.supplierInn
+    );
+  });
+
+// Договоры с субподрядчиками — корневые строки раздела: под каждым
+// показываются присланные к нему декларации, акты и платёжные поручения
+export const smpSubContracts = (
+  records: ContractSmpRecord[],
+): ContractSmpRecord[] =>
+  records.filter((record) => record.documentType === "subContract");
+
+// Сумма документов одного типа; отклонённый документ не считается
+export const smpDocumentsAmount = (
+  documents: ContractSmpRecord[],
+  type: ContractSmpDocumentType,
+): number =>
+  documents
+    .filter(
+      (document) =>
+        document.documentType === type && document.status !== "rejected",
+    )
     .reduce(
-      (sum, record) => sum + (Number.parseFloat(record.amount ?? "") || 0),
+      (sum, document) => sum + (Number.parseFloat(document.amount ?? "") || 0),
       0,
     );
+
+// Документы, не привязанные ни к одному договору: показываем их отдельным
+// блоком, чтобы акт без привязки не пропадал из таблицы
+export const smpUnlinkedDocuments = (
+  records: ContractSmpRecord[],
+): ContractSmpRecord[] => {
+  const contracts = smpSubContracts(records);
+
+  return records.filter((record) => {
+    if (record.documentType === "subContract") return false;
+
+    return !contracts.some(
+      (contract) => smpLinkedDocuments(contract, [record]).length > 0,
+    );
+  });
+};
+
+export interface SmpVolumeSources {
+  /** Сумма принятых договоров с СМП — заявленный объём привлечения */
+  contracted: number;
+  /** Оплачено подрядчиком субподрядчикам по этим договорам */
+  paid: number;
+  /** Принято по актам приёмки по этим договорам */
+  accepted: number;
+  /** На чём основан факт: оплаты или (пока их нет) суммы договоров */
+  basis: "payments" | "contracts";
+  /** Фактическое привлечение, которое идёт в требуемый объём */
+  actual: number;
+}
+
+/**
+ * Источники фактического объёма привлечения СМП.
+ *
+ * Факт считается по суммам оплат подрядчика субподрядчикам: договор без
+ * оплаты — ещё не привлечение. Пока платёжек нет ни по одному договору,
+ * сохраняется прежний расчёт по суммам принятых договоров — иначе у
+ * заказчиков, которые ведут только договоры, объём обнулился бы.
+ *
+ * Документ, привязанный к договору по ИНН, может попасть в выборку нескольких
+ * договоров одного субподрядчика, поэтому перед суммированием убираем
+ * повторы: иначе оплата посчиталась бы дважды.
+ */
+export const smpVolumeSources = (
+  records: ContractSmpRecord[],
+): SmpVolumeSources => {
+  const contracts = records.filter(countsTowardsSmpVolume);
+  const contracted = contracts.reduce(
+    (sum, record) => sum + (Number.parseFloat(record.amount ?? "") || 0),
+    0,
+  );
+
+  const distinctDocuments = (
+    type: ContractSmpDocumentType,
+  ): ContractSmpRecord[] => {
+    const seen = new Set<string>();
+    const documents: ContractSmpRecord[] = [];
+
+    for (const contract of contracts) {
+      for (const document of smpLinkedDocuments(contract, records, type)) {
+        const key =
+          document.id != null
+            ? String(document.id)
+            : `${document.documentNumber}|${document.documentDate}|${
+                document.amount ?? ""
+              }`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        documents.push(document);
+      }
+    }
+
+    return documents;
+  };
+
+  const paid = smpDocumentsAmount(distinctDocuments("payment"), "payment");
+  const accepted = smpDocumentsAmount(
+    distinctDocuments("acceptance"),
+    "acceptance",
+  );
+  const basis: SmpVolumeSources["basis"] = paid > 0 ? "payments" : "contracts";
+
+  return {
+    contracted,
+    paid,
+    accepted,
+    basis,
+    actual: basis === "payments" ? paid : contracted,
+  };
+};
+
+// Фактический объём привлечения: оплаты по договорам с СМП, а пока платёжек
+// нет — суммы принятых договоров с СМП
+export const smpActualAmount = (records: ContractSmpRecord[]): number =>
+  smpVolumeSources(records).actual;
 
 // Требуемый объём: процент из служебки по позиции ПГ × цена контракта
 export const smpRequiredAmount = (

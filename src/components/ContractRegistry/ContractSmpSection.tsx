@@ -16,6 +16,11 @@ import {
   contractSmpDocumentTypeLabels,
   contractSmpStatusLabels,
   contractSmpPriceTypeLabels,
+  smpDocumentsAmount,
+  smpLinkedDocuments,
+  smpSubContracts,
+  smpUnlinkedDocuments,
+  smpVolumeSources,
   type ContractSmpRecord,
 } from "../../services/ContractSmp/contractSmp.schema";
 import {
@@ -194,16 +199,53 @@ export default function SmpSection({
     return map;
   }, [records, smpRegistry]);
 
-  // Строка таблицы: запись + её проверка. Пара собирается заранее, чтобы в JSX
-  // не тащить поиск по карте в каждую ячейку
-  const rows = useMemo(
-    () =>
-      records.map((record) => ({
-        record,
-        check: checks.get(String(record.id)),
-      })),
-    [records, checks],
-  );
+  // Строки таблицы: договор с субподрядчиком, а под ним — присланные к нему
+  // декларация, акты приёмки и платёжные поручения. Сводка по договору
+  // считается здесь один раз, чтобы не перебирать документы в каждой ячейке.
+  //
+  // Записи, которые ни к одному договору не привязались, показываются в конце
+  // без отступа — иначе акт, заведённый без договора-основания, пропал бы из
+  // таблицы совсем.
+  const rows = useMemo(() => {
+    const ordered: Array<{
+      record: ContractSmpRecord;
+      nested: boolean;
+      paymentAmount?: number;
+      acceptanceAmount?: number;
+      documentCount?: number;
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const subContract of smpSubContracts(records)) {
+      const documents = smpLinkedDocuments(subContract, records);
+      ordered.push({
+        record: subContract,
+        nested: false,
+        paymentAmount: smpDocumentsAmount(documents, "payment"),
+        acceptanceAmount: smpDocumentsAmount(documents, "acceptance"),
+        documentCount: documents.length,
+      });
+      seen.add(String(subContract.id));
+
+      for (const document of documents) {
+        // Документ мог привязаться к двум договорам одного субподрядчика по
+        // ИНН — второй раз строку не повторяем
+        if (seen.has(String(document.id))) continue;
+        seen.add(String(document.id));
+        ordered.push({ record: document, nested: true });
+      }
+    }
+
+    for (const record of smpUnlinkedDocuments(records)) {
+      if (seen.has(String(record.id))) continue;
+      ordered.push({ record, nested: false });
+    }
+
+    return ordered.map((row) => ({
+      ...row,
+      check: checks.get(String(row.record.id)),
+    }));
+  }, [records, checks]);
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ContractSmpRecord | null>(null);
@@ -212,6 +254,10 @@ export default function SmpSection({
   // открывает форму с подставленными реквизитами — их проверяют, а не
   // перепечатывают из XML
   const [eisDraft, setEisDraft] = useState<ContractSmpRecord | null>(null);
+  // Черновик документа, приложенного к договору субподрядчика: акт или
+  // платёжка создаются из строки договора, поэтому договор-основание и
+  // реквизиты субподрядчика уже заполнены
+  const [childDraft, setChildDraft] = useState<ContractSmpRecord | null>(null);
   // Результат постановки в очередь ЕИС: строка под таблицей вместо alert —
   // отказ шлюза надо прочитать, а не закрыть по привычке
   const [eisQueued, setEisQueued] = useState<{ text: string; ok: boolean } | null>(
@@ -284,6 +330,11 @@ export default function SmpSection({
     [records, contractPrice, effectivePercent, eisActual],
   );
 
+  // Источники факта: оплаты подрядчика субподрядчикам, а пока платёжек нет —
+  // суммы принятых договоров. Подпись под прогресс-баром показывает, что
+  // именно учтено, чтобы цифра не выглядела взятой из ниоткуда
+  const volumeSources = useMemo(() => smpVolumeSources(records), [records]);
+
   // Дедлайны: подрядчик + заказчик
   const deadlines = useMemo(() => computeSmpDeadlines(records), [records]);
 
@@ -348,6 +399,32 @@ export default function SmpSection({
   function handleCreate() {
     setShowForm(true);
     setEisDraft(null);
+    setChildDraft(null);
+    setEisQueued(null);
+  }
+
+  /**
+   * Новый документ по договору субподрядчика: акт приёмки или платёжное
+   * поручение. Договор-основание и реквизиты субподрядчика подставлены, чтобы
+   * документ сразу встал под нужную строку, а оплата попала в фактическое
+   * привлечение СМП.
+   */
+  function handleCreateChild(subContract: ContractSmpRecord) {
+    if (subContract.id == null) return;
+
+    const draft = emptyContractSmpRecord("", contractId);
+    draft.documentType = "acceptance";
+    draft.subContractRecordId = subContract.id;
+    draft.supplierName = subContract.supplierName;
+    draft.supplierInn = subContract.supplierInn ?? "";
+    draft.supplierKpp = subContract.supplierKpp ?? "";
+    draft.isSmpSubject = subContract.isSmpSubject;
+    draft.comment = `Документ по договору № ${subContract.documentNumber} от ${subContract.documentDate}.`;
+
+    setChildDraft(draft);
+    setEisDraft(null);
+    setEditing(null);
+    setShowForm(false);
     setEisQueued(null);
   }
 
@@ -355,6 +432,7 @@ export default function SmpSection({
     setShowForm(false);
     setEditing(null);
     setEisDraft(null);
+    setChildDraft(null);
   }
 
   function handleSave(data: ContractSmpRecord) {
@@ -374,6 +452,7 @@ export default function SmpSection({
     setShowForm(false);
     setEditing(null);
     setEisDraft(null);
+    setChildDraft(null);
   }
 
   /**
@@ -701,7 +780,9 @@ export default function SmpSection({
           <span>
             {usesEisActual
               ? "Факт (субдоговоры из карточки ЕИС):"
-              : "Факт (принятые договоры с СМП):"}
+              : volumeSources.basis === "payments"
+                ? "Факт (оплаты по договорам с СМП):"
+                : "Факт (принятые договоры с СМП, оплат пока нет):"}
           </span>
           <strong style={{ color: progressColor }}>
             {volume.actual.toLocaleString("ru-RU")} ₽
@@ -717,6 +798,16 @@ export default function SmpSection({
           />
         </div>
         <div className={block("volume-footer")}>
+          {/* Расшифровка факта: видно, что именно учтено, — иначе цифра
+              «оплаты» выглядела бы взятой из ниоткуда */}
+          {!usesEisActual && volumeSources.basis === "payments" && (
+            <span className={block("rowSummary")}>
+              Договоров с СМП на{" "}
+              {volumeSources.contracted.toLocaleString("ru-RU")} ₽ · принято по
+              актам {volumeSources.accepted.toLocaleString("ru-RU")} ₽. В факт
+              идут оплаты подрядчика субподрядчикам.
+            </span>
+          )}
           {!hasRequirement ? (
             <span>
               Процент не задан — объём не рассчитывается. Укажите его в блоке
@@ -1048,6 +1139,11 @@ export default function SmpSection({
           <h5 className={block("recordsTitle")}>
             Сведения о привлечении ({records.length})
           </h5>
+          <p className={block("hint")}>
+            Под каждым договором с субподрядчиком — присланные к нему акты
+            приёмки и платёжные поручения. Фактическое привлечение СМП считается
+            по суммам оплат: договор без оплаты объём ещё не закрывает.
+          </p>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -1064,218 +1160,261 @@ export default function SmpSection({
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ record, check }) => (
-                <tr key={record.id}>
-                  <td>{contractSmpDocumentTypeLabels[record.documentType]}</td>
-                  <td>
-                    № {record.documentNumber} от {record.documentDate}
-                  </td>
-                  <td>
-                    {record.supplierName}
-                    {record.supplierInn && (
-                      <>
-                        <br />
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            color: "var(--text-secondary)",
-                          }}
-                        >
-                          ИНН {record.supplierInn}
+              {rows.map(
+                ({
+                  record,
+                  check,
+                  nested,
+                  paymentAmount,
+                  acceptanceAmount,
+                  documentCount,
+                }) => (
+                  <tr
+                    key={record.id}
+                    className={nested ? block("rowChild") : undefined}
+                  >
+                    <td>
+                      {nested && (
+                        <span className={block("childMark")} aria-hidden="true">
+                          └{" "}
                         </span>
-                      </>
-                    )}
-                  </td>
-                  <td>
-                    {record.amount
-                      ? Number(record.amount).toLocaleString("ru-RU")
-                      : "—"}
-                  </td>
-                  <td className={block("smp-cell")}>
-                    {record.isSmpSubject ? "✓" : "—"}
-                    {/* Вердикт реестра: сверка идёт по ИНН, а не по названию */}
-                    {check?.registry.applicable && (
-                      <span
-                        className={block("registry", [
-                          check.registry.status === "in_registry"
-                            ? "ok"
-                            : check.registry.status === "unknown" ||
-                                check.registry.status === "unchecked"
-                              ? "unknown"
-                              : check.blocking.some(
-                                    (issue) => issue.code === "registry",
-                                  )
-                                ? "error"
-                                : "warn",
-                        ])}
-                        title={check.registry.text}
-                      >
-                        {check.registry.status === "in_registry"
-                          ? "в реестре МСП"
-                          : check.registry.status === "unknown"
-                            ? "ИНН не указан"
-                            : check.registry.status === "unchecked"
-                              ? "не проверено"
-                              : check.registry.status === "excluded"
-                                ? "исключён из МСП"
-                                : "нет в реестре МСП"}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {/* Сроки ПП 1466 по этой записи: ближайший или нарушенный */}
-                    {check?.deadline ? (
-                      <>
-                        <span
-                          className={
-                            check.deadline.status === "overdue"
-                              ? styles.projectionLate
-                              : check.deadline.status === "met"
-                                ? styles.projectionOk
-                                : styles.projectionNote
-                          }
-                          title={check.deadlineText}
-                        >
-                          {smpDeadlineShort(check.deadline)}
-                        </span>
-                        <br />
-                        <span
-                          className={styles.projectionNote}
-                          title={`${check.deadline.title}: ${check.deadline.basis}`}
-                        >
-                          до {formatDate(check.deadline.dueDate)} ·{" "}
-                          {check.deadline.clause}
-                        </span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td>{record.receivedAt?.slice(0, 10)}</td>
-                  <td>
-                    <Select
-                      className={block("statusSelect")}
-                      value={record.status}
-                      onChange={(event) =>
-                        handleStatusChange(
-                          record.id!,
-                          event.target.value as ContractSmpRecord["status"],
-                        )
-                      }
-                    >
-                      {Object.entries(contractSmpStatusLabels).map(
-                        ([key, label]) => (
-                          <option key={key} value={key}>
-                            {label}
-                          </option>
-                        ),
                       )}
-                    </Select>
-                    {/* Сводка проверки: причина видна по наведению, строка не
-                        обрастает колонками */}
-                    {check && smpCheckTone(check) !== "ok" && (
-                      <span
-                        className={block("checkBadge", [smpCheckTone(check)])}
-                        title={smpCheckIssuesText(check)}
-                      >
-                        {smpCheckBadge(check)}
-                      </span>
-                    )}
-                  </td>
-                  <td className={block("confirm-cell")}>
-                    <div className={block("confirm-row")}>
-                      {record.supplierConfirmedAt ? (
-                        <span className={block("confirm-done")}>
-                          Подрядчик: {record.supplierConfirmedAt.slice(0, 10)}
-                          {record.supplierConfirmedBy && (
-                            <>
-                              <br />
-                              <span>{record.supplierConfirmedBy}</span>
-                            </>
-                          )}
-                          {record.supplierConfirmedDocument && (
-                            <>
-                              <br />
-                              <span className={block("confirm-doc")}>
-                                {record.supplierConfirmedDocument}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                      ) : (
-                        <button
-                          className={styles.btnSmall}
-                          onClick={() => handleSupplierConfirm(record)}
-                          disabled={updateRecord.isPending}
-                          title="Действие подрядчика «подтверждаю достоверность» (п. 6 ПП РФ N 1466). В демо его выполняет заказчик — вход подрядчика по ссылке отложен (Tasks 9, п. 2, п/п 3)"
-                        >
-                          Подтвердить достоверность
-                        </button>
-                      )}
-                    </div>
-                    <div className={block("confirm-row")}>
-                      {record.customerConfirmedAt ? (
-                        <span className={block("confirm-done")}>
-                          Заказчик: {record.customerConfirmedAt.slice(0, 10)}
-                          {record.customerConfirmedBy && (
-                            <>
-                              <br />
-                              <span>{record.customerConfirmedBy}</span>
-                            </>
-                          )}
-                          {record.customerConfirmedDocument && (
-                            <>
-                              <br />
-                              <span className={block("confirm-doc")}>
-                                {record.customerConfirmedDocument}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                      ) : (
-                        <button
-                          className={styles.btnSmall}
-                          onClick={() => handleCustomerConfirm(record)}
-                          disabled={
-                            updateRecord.isPending ||
-                            record.status !== "submitted" ||
-                            Boolean(check?.acceptanceBlocked)
-                          }
-                          title={
-                            check?.acceptanceBlocked
-                              ? `${check.registry.text}. Приёмка заблокирована: договор с таким субподрядчиком не закроет объём привлечения СМП (ч. 6 ст. 30 44-ФЗ)`
-                              : "Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
-                          }
-                        >
-                          Принять и подтвердить
-                        </button>
-                      )}
-                      {check?.acceptanceBlocked &&
-                        !record.customerConfirmedAt && (
-                          <span className={styles.cellDanger}>
-                            Реестр МСП не подтверждает субподрядчика
+                      {contractSmpDocumentTypeLabels[record.documentType]}
+                    </td>
+                    <td>
+                      № {record.documentNumber} от {record.documentDate}
+                    </td>
+                    <td>
+                      {record.supplierName}
+                      {record.supplierInn && (
+                        <>
+                          <br />
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--text-secondary)",
+                            }}
+                          >
+                            ИНН {record.supplierInn}
                           </span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {record.amount
+                        ? Number(record.amount).toLocaleString("ru-RU")
+                        : "—"}
+                      {/* Сводка по договору: сколько по нему оплачено и принято по
+                          актам — из оплат и складывается фактическое привлечение */}
+                      {documentCount !== undefined && documentCount > 0 && (
+                        <span className={block("rowSummary")}>
+                          Оплачено:{" "}
+                          {(paymentAmount ?? 0).toLocaleString("ru-RU")} ₽
+                          <br />
+                          По актам:{" "}
+                          {(acceptanceAmount ?? 0).toLocaleString("ru-RU")} ₽
+                          <br />
+                          Документов: {documentCount}
+                        </span>
+                      )}
+                    </td>
+                    <td className={block("smp-cell")}>
+                      {record.isSmpSubject ? "✓" : "—"}
+                      {/* Вердикт реестра: сверка идёт по ИНН, а не по названию */}
+                      {check?.registry.applicable && (
+                        <span
+                          className={block("registry", [
+                            check.registry.status === "in_registry"
+                              ? "ok"
+                              : check.registry.status === "unknown" ||
+                                  check.registry.status === "unchecked"
+                                ? "unknown"
+                                : check.blocking.some(
+                                      (issue) => issue.code === "registry",
+                                    )
+                                  ? "error"
+                                  : "warn",
+                          ])}
+                          title={check.registry.text}
+                        >
+                          {check.registry.status === "in_registry"
+                            ? "в реестре МСП"
+                            : check.registry.status === "unknown"
+                              ? "ИНН не указан"
+                              : check.registry.status === "unchecked"
+                                ? "не проверено"
+                                : check.registry.status === "excluded"
+                                  ? "исключён из МСП"
+                                  : "нет в реестре МСП"}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {/* Сроки ПП 1466 по этой записи: ближайший или нарушенный */}
+                      {check?.deadline ? (
+                        <>
+                          <span
+                            className={
+                              check.deadline.status === "overdue"
+                                ? styles.projectionLate
+                                : check.deadline.status === "met"
+                                  ? styles.projectionOk
+                                  : styles.projectionNote
+                            }
+                            title={check.deadlineText}
+                          >
+                            {smpDeadlineShort(check.deadline)}
+                          </span>
+                          <br />
+                          <span
+                            className={styles.projectionNote}
+                            title={`${check.deadline.title}: ${check.deadline.basis}`}
+                          >
+                            до {formatDate(check.deadline.dueDate)} ·{" "}
+                            {check.deadline.clause}
+                          </span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>{record.receivedAt?.slice(0, 10)}</td>
+                    <td>
+                      <Select
+                        className={block("statusSelect")}
+                        value={record.status}
+                        onChange={(event) =>
+                          handleStatusChange(
+                            record.id!,
+                            event.target.value as ContractSmpRecord["status"],
+                          )
+                        }
+                      >
+                        {Object.entries(contractSmpStatusLabels).map(
+                          ([key, label]) => (
+                            <option key={key} value={key}>
+                              {label}
+                            </option>
+                          ),
                         )}
-                    </div>
-                  </td>
-                  <td>
-                    <button
-                      className={styles.btnSmall}
-                      onClick={() => {
-                        setEisDraft(null);
-                        setEditing(record);
-                      }}
-                    >
-                      Ред
-                    </button>
-                    <button
-                      className={`${styles.btnSmall} ${styles.btnDanger}`}
-                      onClick={() => handleDelete(record.id!)}
-                    >
-                      Удал
-                    </button>
-                  </td>
-                </tr>
+                      </Select>
+                      {/* Сводка проверки: причина видна по наведению, строка не
+                          обрастает колонками */}
+                      {check && smpCheckTone(check) !== "ok" && (
+                        <span
+                          className={block("checkBadge", [smpCheckTone(check)])}
+                          title={smpCheckIssuesText(check)}
+                        >
+                          {smpCheckBadge(check)}
+                        </span>
+                      )}
+                    </td>
+                    <td className={block("confirm-cell")}>
+                      <div className={block("confirm-row")}>
+                        {record.supplierConfirmedAt ? (
+                          <span className={block("confirm-done")}>
+                            Подрядчик: {record.supplierConfirmedAt.slice(0, 10)}
+                            {record.supplierConfirmedBy && (
+                              <>
+                                <br />
+                                <span>{record.supplierConfirmedBy}</span>
+                              </>
+                            )}
+                            {record.supplierConfirmedDocument && (
+                              <>
+                                <br />
+                                <span className={block("confirm-doc")}>
+                                  {record.supplierConfirmedDocument}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          <button
+                            className={styles.btnSmall}
+                            onClick={() => handleSupplierConfirm(record)}
+                            disabled={updateRecord.isPending}
+                            title="Действие подрядчика «подтверждаю достоверность» (п. 6 ПП РФ N 1466). В демо его выполняет заказчик — вход подрядчика по ссылке отложен (Tasks 9, п. 2, п/п 3)"
+                          >
+                            Подтвердить достоверность
+                          </button>
+                        )}
+                      </div>
+                      <div className={block("confirm-row")}>
+                        {record.customerConfirmedAt ? (
+                          <span className={block("confirm-done")}>
+                            Заказчик: {record.customerConfirmedAt.slice(0, 10)}
+                            {record.customerConfirmedBy && (
+                              <>
+                                <br />
+                                <span>{record.customerConfirmedBy}</span>
+                              </>
+                            )}
+                            {record.customerConfirmedDocument && (
+                              <>
+                                <br />
+                                <span className={block("confirm-doc")}>
+                                  {record.customerConfirmedDocument}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        ) : (
+                          <button
+                            className={styles.btnSmall}
+                            onClick={() => handleCustomerConfirm(record)}
+                            disabled={
+                              updateRecord.isPending ||
+                              record.status !== "submitted" ||
+                              Boolean(check?.acceptanceBlocked)
+                            }
+                            title={
+                              check?.acceptanceBlocked
+                                ? `${check.registry.text}. Приёмка заблокирована: договор с таким субподрядчиком не закроет объём привлечения СМП (ч. 6 ст. 30 44-ФЗ)`
+                                : "Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
+                            }
+                          >
+                            Принять и подтвердить
+                          </button>
+                        )}
+                        {check?.acceptanceBlocked &&
+                          !record.customerConfirmedAt && (
+                            <span className={styles.cellDanger}>
+                              Реестр МСП не подтверждает субподрядчика
+                            </span>
+                          )}
+                      </div>
+                    </td>
+                    <td>
+                      {/* Документы к договору заводятся из его строки: иначе акт
+                          и платёжка остаются без договора-основания */}
+                      {record.documentType === "subContract" && (
+                        <button
+                          className={styles.btnSmall}
+                          onClick={() => handleCreateChild(record)}
+                          title="Добавить акт приёмки или платёжное поручение по этому договору"
+                        >
+                          + документ
+                        </button>
+                      )}
+                      <button
+                        className={styles.btnSmall}
+                        onClick={() => {
+                          setEisDraft(null);
+                          setChildDraft(null);
+                          setEditing(record);
+                        }}
+                      >
+                        Ред
+                      </button>
+                      <button
+                        className={`${styles.btnSmall} ${styles.btnDanger}`}
+                        onClick={() => handleDelete(record.id!)}
+                      >
+                        Удал
+                      </button>
+                    </td>
+                  </tr>
               ))}
             </tbody>
           </table>
@@ -1348,15 +1487,16 @@ export default function SmpSection({
         </p>
       )}
 
-      {/* Форма создания / редактирования. Черновик из строки ЕИС открывается
-          тем же окном: это создание записи, а не правка существующей.
-          Условие включает `editing`, иначе кнопка «Ред» только заполняла бы
-          состояние, а окно не открывалось */}
-      {(showForm || eisDraft || editing !== null) && (
+      {/* Форма создания / редактирования. Черновик из строки ЕИС и документ,
+          созданный из строки договора, открываются тем же окном: это создание
+          записи, а не правка существующей. Условие включает `editing`, иначе
+          кнопка «Ред» только заполняла бы состояние, а окно не открывалось */}
+      {(showForm || eisDraft || childDraft || editing !== null) && (
         <ContractSmpRecordForm
           contractId={contractId}
           record={editing ?? null}
-          draft={eisDraft}
+          draft={eisDraft ?? childDraft}
+          draftTitle={childDraft ? "Документ по договору с субподрядчиком" : undefined}
           records={records}
           onClose={handleCancel}
           onSave={handleSave}
@@ -1405,6 +1545,11 @@ interface FormProps {
    */
   draft?: ContractSmpRecord | null;
   /**
+   * Заголовок окна для черновика. Документ, созданный из строки договора, —
+   * тоже черновик, но «сведения из карточки ЕИС» здесь были бы неправдой.
+   */
+  draftTitle?: string;
+  /**
    * Все записи контракта: по ним видно, представлялся ли такой ИНН ранее и
    * какие сроки ПП 1466 уже действуют. Без них проверка в форме невозможна.
    */
@@ -1417,6 +1562,7 @@ function ContractSmpRecordForm({
   contractId,
   record,
   draft = null,
+  draftTitle,
   records,
   onClose,
   onSave,
@@ -1439,6 +1585,43 @@ function ContractSmpRecordForm({
   } = methods;
 
   const priceType = useWatch({ control: methods.control, name: "priceType" });
+  const documentType = useWatch({
+    control: methods.control,
+    name: "documentType",
+  });
+
+  // Договоры, к которым можно приложить акт или платёжку: список тот же, что в
+  // таблице, поэтому документ сразу встанет под нужным субподрядчиком
+  const subContracts = useMemo(
+    () => smpSubContracts(records),
+    [records],
+  );
+  const basisField = register("subContractRecordId");
+
+  /**
+   * Договор-основание выбран: реквизиты субподрядчика принадлежат договору, а
+   * не документу, поэтому подставляем их сюда — акт и платёжка не могут
+   * относиться к другому лицу.
+   */
+  function applyBasis(value: string) {
+    const parent = subContracts.find((item) => String(item.id) === value);
+    if (!parent) return;
+
+    setValue("supplierName", parent.supplierName, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("supplierInn", parent.supplierInn ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("supplierKpp", parent.supplierKpp ?? "", {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setValue("isSmpSubject", parent.isSmpSubject, { shouldDirty: true });
+    checkSupplierInn(parent.supplierInn);
+  }
 
   // Живая проверка вводимых реквизитов: реестр МСП сверяется по ИНН, сроки
   // ПП 1466 считаются от дат записи. Ошибку видно до сохранения, а не в
@@ -1554,7 +1737,7 @@ function ContractSmpRecordForm({
             {isEditing
               ? "Редактировать сведения"
               : draft
-                ? "Сведения из карточки ЕИС"
+                ? (draftTitle ?? "Сведения из карточки ЕИС")
                 : "Новые сведения о СМП"}
           </h3>
           <button
@@ -1588,6 +1771,38 @@ function ContractSmpRecordForm({
                 )}
               </Select>
             </div>
+
+            {/* Договор-основание: акт и платёжка не существуют сами по себе —
+                они всегда приложены к договору с субподрядчиком */}
+            {documentType !== "subContract" && (
+              <div className={block("field", ["wide"])}>
+                <label className={block("label")} htmlFor="smp-basis">
+                  Договор с субподрядчиком (основание)
+                </label>
+                <Select
+                  id="smp-basis"
+                  className={block("select")}
+                  {...basisField}
+                  onChange={(event) => {
+                    void basisField.onChange(event);
+                    applyBasis(event.target.value);
+                  }}
+                >
+                  <option value="">— не указан —</option>
+                  {subContracts.map((item) => (
+                    <option key={String(item.id)} value={String(item.id)}>
+                      № {item.documentNumber} от {item.documentDate} ·{" "}
+                      {item.supplierName}
+                    </option>
+                  ))}
+                </Select>
+                <span className={block("hint")}>
+                  {subContracts.length === 0
+                    ? "Сначала заведите договор с субподрядчиком: без него акт и платёжка не встанут под субподрядчика и не попадут в фактическое привлечение СМП."
+                    : "Документ встанет под выбранным договором; суммы оплат по этим документам формируют фактическое привлечение СМП."}
+                </span>
+              </div>
+            )}
 
             {/* Номер / дата */}
             <div className={block("field")}>

@@ -1302,6 +1302,32 @@
   background: var(--state-danger-soft);
 }
 
+/* Документы, приложенные к договору: договор остаётся корневой строкой, акты
+   и платёжки идут под ним с отступом и приглушённым фоном */
+.smp-section__rowChild {
+  background: var(--surface-raised);
+
+  td {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+}
+
+.smp-section__childMark {
+  margin-right: 2px;
+  color: var(--text-secondary);
+}
+
+/* Сводка по договору в колонке суммы: оплачено, принято по актам, сколько
+   документов приложено */
+.smp-section__rowSummary {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
 /* Строка подтаблицы ЕИС кликабельна: из неё заводят сведения о привлечении,
    поэтому курсор и подсветка должны говорить об этом до наведения на кнопку */
 .smp-section__eis-row {
@@ -1592,6 +1618,12 @@
 
 .smp-form__fileHint {
   margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Подсказка под полем формы: почему договор-основание обязателен */
+.smp-form__hint {
   font-size: 11px;
   color: var(--text-secondary);
 }

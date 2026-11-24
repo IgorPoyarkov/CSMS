@@ -13,6 +13,7 @@ import {
   contractSmpDocumentTypeLabels,
   isRecordAccepted,
   receivedDateOf,
+  smpLinkedDocuments,
   type ContractSmpRecord,
 } from "./contractSmp.schema";
 
@@ -87,26 +88,14 @@ const documentLabel = (record: ContractSmpRecord): string =>
     record.documentNumber || "—"
   } от ${record.documentDate || "—"}`;
 
-// Документы, которые подрядчик приложил к договору субподрядчика: по прямой
-// ссылке, а если ссылки нет — по ИНН того же субподрядчика
+// Документы, которые подрядчик приложил к договору субподрядчика: связь по
+// прямой ссылке или, если её нет, по ИНН того же субподрядчика — правило живёт
+// в схеме, чтобы таблица сведений и расчёт сроков видели одинаковый состав
 const linkedDocuments = (
   subContract: ContractSmpRecord,
   records: ContractSmpRecord[],
   type: ContractSmpRecord["documentType"],
-): ContractSmpRecord[] =>
-  records.filter((record) => {
-    if (record.documentType !== type) return false;
-    if (String(record.id) === String(subContract.id)) return false;
-
-    if (
-      record.subContractRecordId !== undefined &&
-      record.subContractRecordId !== ""
-    ) {
-      return String(record.subContractRecordId) === String(subContract.id);
-    }
-
-    return Boolean(record.supplierInn) && record.supplierInn === subContract.supplierInn;
-  });
+): ContractSmpRecord[] => smpLinkedDocuments(subContract, records, type);
 
 // Представлен ли документ до наступления срока
 const submittedWithin = (
