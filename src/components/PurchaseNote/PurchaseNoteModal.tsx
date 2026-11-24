@@ -922,12 +922,26 @@ export default function PurchaseNoteModal({
   const watchedStructuredForm = Boolean(watch("isStructuredForm") ?? true);
   const watchedItems = (watch("items") ?? []) as PurchaseNoteObjectItem[];
   const watchedOozId = watch("objectDescriptionId");
-  const selectedOoz = objectDescriptions.find(
-    (desc) =>
-      watchedOozId !== null &&
-      watchedOozId !== undefined &&
-      String(desc.id) === String(watchedOozId),
-  );
+  // ООЗ может быть связан тремя способами: явным objectDescriptionId в СЗ,
+  // ссылкой в позициях (старые записи) или автоматическим подбором по
+  // позиции ПГ/ИКЗ. Раньше читался только первый — из-за этого кнопка
+  // «Утвердить ООЗ» оставалась заблокированной даже у пользователя со всеми
+  // правами, если описание подставилось позже инициализации формы.
+  const selectedOoz =
+    objectDescriptions.find(
+      (desc) =>
+        watchedOozId !== null &&
+        watchedOozId !== undefined &&
+        String(desc.id) === String(watchedOozId),
+    ) ??
+    objectDescriptions.find((desc) =>
+      watchedItems.some(
+        (item) =>
+          item.objectDescriptionId !== undefined &&
+          String(item.objectDescriptionId) === String(desc.id),
+      ),
+    ) ??
+    autoMatchedDesc;
   // Признак неопределённого объёма задаётся в ООЗ; переключателя в СЗ нет.
   // Для старых записей без ООЗ сохраняем значение самих СЗ.
   const watchedIndeterminate = Boolean(
@@ -1087,6 +1101,17 @@ export default function PurchaseNoteModal({
   // после утверждения ООЗ; остальные разделы — после подписания НМЦК в ЭП
   // (иного признака «НМЦК утверждена» в модели нет).
   const oozApproved = selectedOoz?.status === "approved";
+  // Показываем точную причину неактивной кнопки: право, отсутствие ООЗ,
+  // уже утверждённый статус или выполняющаяся мутация.
+  const approveOozDisabledReason = isReadOnly
+    ? (purchaseNoteDeniedReason ?? "Нет права редактировать служебную записку")
+    : !selectedOoz
+      ? "ООЗ не подставлен к позиции плана-графика"
+      : oozApproved
+        ? "ООЗ уже утверждено"
+        : updateObjectDescription.isPending
+          ? "Идёт утверждение ООЗ"
+          : undefined;
   const oozReady = oozApproved;
   const hasNmck = Boolean(watchedNmckCalculation || watchedNmckFileName);
   const nmckApproved = Boolean(
@@ -1879,6 +1904,11 @@ export default function PurchaseNoteModal({
     ) {
       return;
     }
+    // Если ООЗ найден через позиции или автоподбор, сохраняем явную связь —
+    // иначе после перезагрузки кнопка снова окажется заблокированной.
+    if (String(watchedOozId ?? "") !== String(selectedOoz.id)) {
+      setValue("objectDescriptionId", selectedOoz.id, { shouldDirty: true });
+    }
     const approver = employee?.employee ? fullName(employee.employee) : "";
     updateObjectDescription.mutate({
       id: selectedOoz.id,
@@ -2484,7 +2514,10 @@ export default function PurchaseNoteModal({
               <span className={block("hint")}>
                 {selectedOoz
                   ? `Статус ООЗ: ${oozApproved ? "утверждено" : "ожидает утверждения"}.`
-                  : "ООЗ не подставлен — утверждение недоступно."}
+                  : "ООЗ не подставлен к позиции плана-графика."}
+                {approveOozDisabledReason
+                  ? ` Кнопка неактивна: ${approveOozDisabledReason}.`
+                  : ""}
                 {updateObjectDescription.isError
                   ? " Не удалось утвердить ООЗ, попробуйте ещё раз."
                   : ""}
