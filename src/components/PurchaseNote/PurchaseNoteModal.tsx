@@ -149,7 +149,11 @@ import {
 import Pp2571RequirementsPanel from "./Pp2571RequirementsPanel";
 
 import { formatDeliveryAddress } from "../../services/AddressRef/addressRef.schema";
-import { formatCharacteristicValue } from "../../services/ObjectDescription/objectDescription.schema";
+import {
+  formatCharacteristicValue,
+  getObjectDescriptionOkpd2Codes,
+  type ObjectDescription,
+} from "../../services/ObjectDescription/objectDescription.schema";
 import {
   positionKbkCodes,
   positionKbkEntries,
@@ -192,6 +196,46 @@ const formatRub = (value: string | number | undefined): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(num)}`;
+};
+
+/**
+ * Объекты СЗ создаются только из ООЗ: по одной позиции на каждый код ОКПД2
+ * описания. Ручного добавления/удаления объектов в служебной записке нет —
+ * состав меняется в конструкторе ООЗ и подтягивается сюда целиком.
+ */
+const buildNoteItemsFromOoz = (
+  desc: ObjectDescription,
+  position: PurchasePlanPosition,
+  indeterminate: boolean,
+): PurchaseNoteObjectItem[] => {
+  const descriptionCodes = getObjectDescriptionOkpd2Codes(desc);
+  // ООЗ без кода ОКПД2 всё равно должна дать одну позицию — иначе СЗ
+  // останется без объектов и её нельзя будет сохранить.
+  const codes = descriptionCodes.length
+    ? descriptionCodes
+    : [{ code: position.okpd2Code ?? "", name: position.okpd2Name }];
+  const total = String(position.amountTotal ?? "");
+  const totalNumber = toNumber(total) ?? 0;
+  const quantity =
+    indeterminate || desc.isIndeterminateVolume ? "1" : desc.quantity || "1";
+
+  return codes.map(({ code, name }, idx) => ({
+    id: `item-${idx + 1}`,
+    objectDescriptionId: desc.id,
+    name: desc.title,
+    okpd2Code: code,
+    okpd2Name: name ?? desc.okpd2Name ?? "",
+    ktruCode: desc.ktruCode ?? "",
+    ktruName: desc.ktruName ?? "",
+    unit: desc.unit ?? "",
+    quantity,
+    unitPrice: "",
+    totalPrice:
+      totalNumber > 0 ? (totalNumber / codes.length).toFixed(2) : total,
+    // Национальный режим задаёт позже закупщик/юрист КС (ПП РФ № 1875).
+    nationalRegimeType: "none",
+    isSupplyDuringWorks: false,
+  }));
 };
 
 // Годовые суммы финансирования по КБК: в СЗ правятся по годам, «всего»
@@ -332,19 +376,12 @@ export default function PurchaseNoteModal({
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const proceedAfterSaveRef = useRef(false);
-  // Раскрытые для правки объекты закупки. Новая позиция раскрывается сразу,
-  // после «Сохранить» — сворачивается в короткую строку.
+  // Раскрытые для правки объекты закупки: после «Сохранить» позиция
+  // сворачивается в короткую строку.
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
     () => new Set(),
   );
   const isItemExpanded = (id: string) => expandedItemIds.has(id);
-  const expandItem = (id: string) =>
-    setExpandedItemIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
   const collapseItem = (id: string) =>
     setExpandedItemIds((prev) => {
       if (!prev.has(id)) return prev;
@@ -365,17 +402,32 @@ export default function PurchaseNoteModal({
 
   const kbkEntries = useMemo(() => positionKbkEntries(position), [position]);
 
-  // Коды ОКПД2 позиций плана-графика: добавить объект с другим кодом нельзя
+  // Коды ОКПД2 позиций плана-графика и связанных ООЗ: объекты СЗ приходят
+  // из ООЗ целиком, поэтому дополнительные коды тоже должны проходить сверку.
   const allowedOkpd2Codes = useMemo(() => {
-    const codes = Array.from(
-      new Set(
-        plan.positions
-          .map((planPosition) => planPosition.okpd2Code?.trim())
-          .filter((code): code is string => Boolean(code)),
-      ),
-    );
-    return codes.length > 0 ? codes : undefined;
-  }, [plan]);
+    const codes = new Set<string>();
+    const add = (code?: string | null) => {
+      const trimmed = code?.trim();
+      if (trimmed) codes.add(trimmed);
+    };
+    plan.positions.forEach((planPosition) => {
+      add(planPosition.okpd2Code);
+      planPosition.okpd2Items?.forEach((item) => add(item.okpd2Code));
+    });
+    objectDescriptions
+      .filter(
+        (desc) =>
+          (position.id !== undefined &&
+            desc.positionId !== undefined &&
+            String(desc.positionId) === String(position.id)) ||
+          (Boolean(position.identificationCode) &&
+            desc.ikz === position.identificationCode),
+      )
+      .forEach((desc) =>
+        getObjectDescriptionOkpd2Codes(desc).forEach((item) => add(item.code)),
+      );
+    return codes.size > 0 ? Array.from(codes) : undefined;
+  }, [plan, objectDescriptions, position]);
   const positionKbks = positionKbkCodes(position);
   const defaultKbk = position.kbk || positionKbks[0] || "";
   const orgBudgetLevelLabel = organization?.budgetLevel
@@ -570,26 +622,24 @@ export default function PurchaseNoteModal({
       fundingSource: orgBudgetLevelLabel,
       subject: position.objectOfPurchase || autoMatchedDesc?.title || "",
       isIndeterminateVolume: autoMatchedDesc?.isIndeterminateVolume ?? false,
-      items: [
-        {
-          id: "item-1",
-          objectDescriptionId: autoMatchedDesc?.id ?? undefined,
-          name: position.objectOfPurchase || autoMatchedDesc?.title || "",
-          okpd2Code: position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
-          okpd2Name: position.okpd2Name || autoMatchedDesc?.okpd2Name || "",
-          ktruCode:
-            autoMatchedDesc?.ktruCode || position.ktruCode || "",
-          ktruName: autoMatchedDesc?.ktruName || position.ktruName || "",
-          unit: autoMatchedDesc?.unit || "",
-          quantity: firstQty,
-          unitPrice: "",
-          totalPrice: String(position.amountTotal ?? ""),
-          // Национальный режим по ПП РФ № 1875 по объектам устанавливают
-          // позже закупщик/юрист КС. В СЗ он не подставляется автоматически.
-          nationalRegimeType: "none",
-          isSupplyDuringWorks: false,
-        },
-      ],
+      items: autoMatchedDesc
+        ? buildNoteItemsFromOoz(autoMatchedDesc, position, false)
+        : [
+            {
+              id: "item-1",
+              name: position.objectOfPurchase || "",
+              okpd2Code: position.okpd2Code || "",
+              okpd2Name: position.okpd2Name || "",
+              ktruCode: position.ktruCode || "",
+              ktruName: position.ktruName || "",
+              unit: "",
+              quantity: firstQty,
+              unitPrice: "",
+              totalPrice: String(position.amountTotal ?? ""),
+              nationalRegimeType: "none",
+              isSupplyDuringWorks: false,
+            },
+          ],
       okpd2Code: position.okpd2Code || autoMatchedDesc?.okpd2Code || "",
       okpd2Name: position.okpd2Name || autoMatchedDesc?.okpd2Name || "",
       unit: autoMatchedDesc?.unit || "",
@@ -634,19 +684,35 @@ export default function PurchaseNoteModal({
     formState: { errors },
   } = methods;
 
-  // Возврат из конструктора ООЗ: новое описание приходит в query и сразу
-  // становится выбранным, чтобы цепочка «создал ООЗ → продолжил СЗ» не рвалась.
+  // Возврат из конструктора ООЗ: описание приходит в query, объекты СЗ
+  // пересоздаются целиком по всем кодам ООЗ. Выборочное ручное добавление
+  // здесь больше не нужно — ООЗ единственный источник состава объектов.
+  // Один и тот же id применяем один раз, иначе перезагрузка справочника
+  // затёр бы пользовательские правки реквизитов позиций.
+  const appliedOozQueryIdRef = useRef<string | null>(null);
   useEffect(() => {
     const oozId = new URLSearchParams(location.search).get("oozId");
-    if (!oozId) return;
+    if (!oozId || isReadOnly || appliedOozQueryIdRef.current === oozId) return;
+    const desc = objectDescriptions.find((item) => String(item.id) === oozId);
+    if (!desc) return;
+    appliedOozQueryIdRef.current = oozId;
     setValue("objectDescriptionId", oozId, { shouldDirty: true });
-  }, [location.search, setValue]);
+    setValue(
+      "items",
+      buildNoteItemsFromOoz(
+        desc,
+        position,
+        Boolean(getValues("isIndeterminateVolume")),
+      ),
+      { shouldDirty: true },
+    );
+    if (!getValues("subject")?.trim()) setValue("subject", desc.title);
+    if (desc.otherRequirements && !getValues("otherRequirements")) {
+      setValue("otherRequirements", desc.otherRequirements);
+    }
+  }, [location.search, objectDescriptions, position, setValue, getValues, isReadOnly]);
 
-  const {
-    fields: itemFields,
-    append: appendItem,
-    remove: removeItem,
-  } = useFieldArray({
+  const { fields: itemFields } = useFieldArray({
     control,
     name: "items",
   });
@@ -742,19 +808,6 @@ export default function PurchaseNoteModal({
       watchedOozId !== undefined &&
       String(desc.id) === String(watchedOozId),
   );
-  // Если объект закупки внесён через ООЗ, она единственный источник правды:
-  // ручное добавление/удаление объектов и правка реквизитов закрываются.
-  const oozIsSource =
-    Boolean(selectedOoz) ||
-    watchedItems.some(
-      (item) => item.objectDescriptionId !== undefined &&
-        item.objectDescriptionId !== null &&
-        String(item.objectDescriptionId) !== "",
-    );
-  // Готовность ООЗ: пока набор объектов не признан конечным, расчёт НМЦК
-  // блокируется. Флаг «последняя закупка по позиции ПГ» убран из формы —
-  // в схеме он остался только для чтения старых записей.
-  const watchedOozSetComplete = watch("oozSetComplete") ?? true;
   // Проверки сканируют справочник на каждую позицию: без мемоизации они
   // повторялись бы при каждом нажатии в любой поле формы (watch подписывает
   // всю модалку), а строк в служебке бывает больше десятка.
@@ -904,19 +957,16 @@ export default function PurchaseNoteModal({
     | NmckSignature
     | undefined;
 
-  // ООЗ первично: пока набор объектов не признан конечным, задание на
-  // подготовку НМЦК и расчёт блокируются. Для тарифного и затратного методов
-  // ограничение мягче — их состав тоже может включать товары, но описание
-  // всё равно нужно, поэтому оставляем предупреждение.
-  const nmckMethod = watchedNmckCalculation?.method;
-  const nmckMethodSoft = nmckMethod === "tariff" || nmckMethod === "cost";
-  const oozReady = Boolean(selectedOoz) && watchedOozSetComplete;
+  // Чекпоинты «набор объектов конечный» и «последняя закупка по позиции ПГ»
+  // убраны из формы: состав объектов задаёт ООЗ, а доступ к следующим блокам
+  // открывают действия согласования. Без ООЗ запрос и расчёт НМЦК недоступны.
+  const oozReady = Boolean(selectedOoz);
   // Обоснование НМЦК считается готовым, когда есть расчёт или загруженный
   // файл обоснования. Пока ООЗ и НМЦК не готовы, остальные требования СЗ
-  // бессмысленны и скрываются, чтобы не заполнять их вслепую.
+  // скрываются, чтобы не заполнять их вслепую.
   const hasNmck = Boolean(watchedNmckCalculation || watchedNmckFileName);
   const laterSectionsReady = oozReady && hasNmck;
-  const nmckRequestAllowed = oozReady || nmckMethodSoft;
+  const nmckRequestAllowed = oozReady;
 
   // Суммы финансирования по КБК правятся по годам: «всего» — расчётная
   // величина. Объёмы плана-графика служат лимитом, превышать их нельзя.
@@ -1229,40 +1279,6 @@ export default function PurchaseNoteModal({
     applyNmckToItems();
   };
 
-  // Единое структурированное ООЗ на служебную записку: набор характеристик
-  // в СЗ один, поэтому ООЗ выбирается над таблицей позиций, а не в каждой
-  // строке. Первая позиция подтягивает реквизиты из описания.
-  const handleSelectNoteOoz = (selectedId: string) => {
-    if (isReadOnly) return;
-    setValue("objectDescriptionId", selectedId || undefined);
-    setValue("items.0.objectDescriptionId", selectedId || undefined);
-    const found = objectDescriptions.find(
-      (desc) => String(desc.id) === selectedId,
-    );
-    if (!found) return;
-
-    setValue("items.0.name", found.title);
-    // Национальный режим не подставляем: его по объектам устанавливают позже
-    // закупщик/юрист КС, ответственные по 44-ФЗ.
-    if (found.okpd2Code) setValue("items.0.okpd2Code", found.okpd2Code);
-    if (found.okpd2Name) setValue("items.0.okpd2Name", found.okpd2Name);
-    setValue("items.0.ktruCode", found.ktruCode ?? "");
-    setValue("items.0.ktruName", found.ktruName ?? "");
-    if (found.unit) setValue("items.0.unit", found.unit);
-    setValue(
-      "items.0.quantity",
-      watchedIndeterminate ? "1" : found.quantity || "1",
-    );
-    applyNmckToItems();
-
-    if (!watch("subject")?.trim()) {
-      setValue("subject", found.title);
-    }
-    if (found.otherRequirements && !watch("otherRequirements")) {
-      setValue("otherRequirements", found.otherRequirements);
-    }
-  };
-
   // Выбор ОКПД2 в позиции: наименование и сброс КТРУ, если оно относится
   // к другому коду. Нацрежим по ПП РФ № 1875 здесь не трогаем — его позже
   // устанавливают закупщик/юрист КС.
@@ -1297,32 +1313,6 @@ export default function PurchaseNoteModal({
     if (item?.unit && !getValues(`items.${index}.unit`)) {
       setValue(`items.${index}.unit`, item.unit);
     }
-  };
-
-  // ООЗ конкретного объекта закупки: характеристики живут под своей позицией
-  // и являются единственным источником правды для наименования, ОКПД2/КТРУ,
-  // единицы и количества. Нацрежим заполняется позже закупщиком/юристом КС.
-  const handleSelectItemOoz = (index: number, selectedId: string) => {
-    if (isReadOnly) return;
-    setValue(`items.${index}.objectDescriptionId`, selectedId || undefined);
-    const found = objectDescriptions.find(
-      (desc) => String(desc.id) === selectedId,
-    );
-    if (!found) return;
-
-    setValue(`items.${index}.name`, found.title);
-    if (found.okpd2Code) {
-      setValue(`items.${index}.okpd2Code`, found.okpd2Code);
-      setValue(`items.${index}.okpd2Name`, found.okpd2Name ?? "");
-    }
-    setValue(`items.${index}.ktruCode`, found.ktruCode ?? "");
-    setValue(`items.${index}.ktruName`, found.ktruName ?? "");
-    if (found.unit) setValue(`items.${index}.unit`, found.unit);
-    setValue(
-      `items.${index}.quantity`,
-      watchedIndeterminate ? "1" : found.quantity || "1",
-    );
-    applyNmckToItems();
   };
 
   // Гарантия качества даёт право установить обеспечение гарантийных обязательств
@@ -2188,60 +2178,40 @@ export default function PurchaseNoteModal({
             />
           </div>
 
-          {/* Единое ООЗ: один набор характеристик на служебную записку.
-              Выбор объекта идёт над таблицей — видно, что выбрал заказчик. */}
+          {/* Объекты СЗ подставляются из ООЗ целиком. Ручного выбора нет:
+              состав меняется в конструкторе, здесь только отображаем источник. */}
           <div className={block("field", ["wide"])}>
             <div className={block("label-row")}>
-              <label className={block("label")} htmlFor="note-ooz">
-                Структурированное ООЗ — единый набор характеристик (из
-                /norming-requirements)
-              </label>
+              <span className={block("label")}>
+                Структурированное ООЗ — источник объектов закупки
+              </span>
               <Link
                 to={`/norming-requirements?${normingLinkParams}`}
                 className={block("inline-link")}
               >
-                Редактировать в конструкторе ООЗ
+                Открыть конструктор ООЗ
                 <ExternalLink size={12} aria-hidden="true" />
               </Link>
             </div>
-            <CustomSelect
-              listData={objectDescriptions}
-              selectedValue={
-                watchedOozId !== null && watchedOozId !== undefined
-                  ? String(watchedOozId)
-                  : null
-              }
-              placeholder="— Не выбрано (заполнить вручную / позже) —"
-              getKey={(desc) => String(desc.id)}
-              getLabel={(desc) =>
-                `${desc.title} (${desc.okpd2Code}${desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})`
-              }
-              searchable
-              searchPlaceholder="Поиск по наименованию ООЗ…"
-              onClick={(id) => handleSelectNoteOoz(String(id))}
-            />
             {selectedOoz ? (
               <span className={block("hint")}>
-                Источник:{" "}
-                {autoMatchedDesc &&
-                String(autoMatchedDesc.id) === String(selectedOoz.id)
-                  ? "подобрано автоматически по позиции плана-графика / ИКЗ"
-                  : "выбрано вручную"}
-                . Характеристик в ООЗ: {selectedOoz.characteristics.length}
-                {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}.
-                Состав характеристик ведётся в конструкторе ООЗ, в СЗ он только
-                выбирается.
+                {selectedOoz.title} ({getObjectDescriptionOkpd2Codes(selectedOoz)
+                  .map((item) => item.code)
+                  .join(", ")}
+                {selectedOoz.ktruCode ? ` · КТРУ ${selectedOoz.ktruCode}` : ""}
+                ). Объекты и характеристики подставлены из ООЗ автоматически;
+                состав меняется в конструкторе ООЗ.
               </span>
             ) : (
               <span className={block("hint")}>
                 ООЗ подбирается по позиции плана-графика автоматически. Если
-                описание не найдено, его заводят в конструкторе ООЗ — в СЗ
-                характеристики не редактируются.
+                описание ещё не создано, заведите его в конструкторе ООЗ —
+                объекты и характеристики попадут в СЗ целиком.
               </span>
             )}
           </div>
 
-          {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ, правка и удаление */}
+          {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ и правка реквизитов */}
           <div className={block("field", ["wide"])}>
             <div className={block("positions-table-wrap")}>
               <table className={block("positions-table")}>
@@ -2363,16 +2333,6 @@ export default function PurchaseNoteModal({
                                   onClick={() => toggleItemExpanded(rowId)}
                                 >
                                   Редактировать
-                                </button>
-                              )}
-                              {!oozIsSource && (
-                                <button
-                                  type="button"
-                                  className={block("danger-btn")}
-                                  disabled={isReadOnly}
-                                  onClick={() => removeItem(idx)}
-                                >
-                                  Удалить
                                 </button>
                               )}
                             </div>
@@ -2619,52 +2579,16 @@ export default function PurchaseNoteModal({
                                 >
                                   Сохранить
                                 </button>
-                                {!oozIsSource && (
-                                  <button
-                                    type="button"
-                                    className={block("danger-btn")}
-                                    disabled={isReadOnly}
-                                    onClick={() => removeItem(idx)}
-                                  >
-                                    Удалить
-                                  </button>
-                                )}
                               </div>
                             </div>
                           </td>
                         </tr>
 
-                        {/* ООЗ и характеристики — под своим объектом закупки */}
+                        {/* Характеристики приходят вместе с объектом из ООЗ,
+                            выбирать описание в строке больше не нужно */}
                         <tr>
                           <td colSpan={10}>
                             <div className={block("item-ooz")}>
-                              <div className={block("field", ["wide"])}>
-                                <label
-                                  className={block("label")}
-                                  htmlFor={`note-item-ooz-${idx}`}
-                                >
-                                  ООЗ объекта закупки
-                                </label>
-                                <CustomSelect
-                                  listData={objectDescriptions}
-                                  selectedValue={
-                                    itemOozId !== null &&
-                                    itemOozId !== undefined
-                                      ? String(itemOozId)
-                                      : null
-                                  }
-                                  placeholder="— Не выбрано (характеристики не заданы) —"
-                                  getKey={(desc) => String(desc.id)}
-                                  getLabel={(desc) =>
-                                    `${desc.title} (${desc.okpd2Code}${desc.ktruCode ? ` · КТРУ ${desc.ktruCode}` : ""})`
-                                  }
-                                  searchable
-                                  searchPlaceholder="Поиск ООЗ…"
-                                  onClick={(id) =>
-                                    handleSelectItemOoz(idx, String(id))
-                                  }
-                                />
-                              </div>
                               {itemDesc ? (
                                 itemDesc.characteristics.length > 0 ? (
                                   <ul className={block("item-ooz-list")}>
@@ -2683,12 +2607,13 @@ export default function PurchaseNoteModal({
                                   </ul>
                                 ) : (
                                   <span className={block("hint")}>
-                                    В выбранном ООЗ нет характеристик.
+                                    В ООЗ этого объекта нет характеристик.
                                   </span>
                                 )
                               ) : (
                                 <span className={block("hint")}>
-                                  Характеристики появятся после выбора ООЗ.
+                                  Объект заведён без ООЗ — характеристики не
+                                  заданы.
                                 </span>
                               )}
                             </div>
@@ -2700,37 +2625,6 @@ export default function PurchaseNoteModal({
                 </tbody>
               </table>
             </div>
-
-            {/* ООЗ — единственный источник правды для объекта закупки:
-                ручное добавление объектов после её выбора не нужно */}
-            {!oozIsSource && (
-              <button
-                type="button"
-                className={block("link-btn")}
-                disabled={isReadOnly}
-                onClick={() => {
-                  const id = `item-${Date.now()}`;
-                  appendItem({
-                    id,
-                    objectDescriptionId: undefined,
-                    name: "",
-                    okpd2Code: "",
-                    okpd2Name: "",
-                    ktruCode: "",
-                    ktruName: "",
-                    unit: "",
-                    quantity: "1",
-                    unitPrice: "",
-                    totalPrice: "",
-                    nationalRegimeType: "none",
-                    isSupplyDuringWorks: false,
-                  });
-                  expandItem(id);
-                }}
-              >
-                + Добавить объект закупки
-              </button>
-            )}
 
             {/* Сводка по национальному режиму (ПП РФ N 1875): ожидаемый режим
                 по перечням приложений N 1 и N 2 против выбранного в позициях */}
@@ -2758,29 +2652,6 @@ export default function PurchaseNoteModal({
             )}
           </div>
 
-          {/* Готовность ООЗ — в конце блока ООЗ, после описания объектов:
-              без конечного набора нельзя подобрать сопоставимые товары
-              и корректно определить НМЦК */}
-          <div className={block("field", ["wide"])}>
-            <div className={block("ooz-flags")}>
-              <CustomCheckbox
-                label="Набор объектов закупки конечный — описание готово для определения НМЦК"
-                checked={watchedOozSetComplete}
-                disabled={isReadOnly}
-                onChange={(e) =>
-                  setValue("oozSetComplete", e.target.checked, {
-                    shouldDirty: true,
-                  })
-                }
-              />
-              <span className={block("hint")}>
-                Пока набор не признан конечным, задание на подготовку НМЦК и
-                расчёт блокируются: для метода сопоставимых рыночных цен нужны
-                идентичные или сопоставимые товары. Для тарифного и затратного
-                методов ограничение мягче, но описание всё равно необходимо.
-              </span>
-            </div>
-          </div>
         </div>
       </fieldset>
 

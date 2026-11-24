@@ -204,9 +204,8 @@ const PurchaseNoteBaseSchema = z
     objectDescriptionFileName: z.string().optional(),
     objectDescriptionFileUpdatedAt: z.string().optional(),
 
-    // Готовность ООЗ: набор объектов конечный, описание позволяет
-    // определить НМЦК. Чекпоинт «последняя закупка по позиции ПГ» убран
-    // из формы; поле оставлено только для чтения старых записей.
+    // Бывшие чекпоинты СЗ: оба убраны из формы, поля остались optional
+    // только для чтения старых записей и не задают гейтов.
     oozSetComplete: z.boolean().optional(),
     positionProcurementsComplete: z.boolean().optional(),
     nmckRequestStatus: z.enum(["none", "requested", "received"]).optional(),
@@ -614,10 +613,6 @@ export const emptyPurchaseNote = (
   fundingSource: "Бюджет субъекта Российской Федерации",
   subject: "",
   isIndeterminateVolume: false,
-  // По умолчанию набор объектов считается конечным, а закупка — последней
-  // по позиции плана-графика: заказчик снимает флаги осознанно
-  oozSetComplete: true,
-  positionProcurementsComplete: true,
   items: [
     {
       id: "item-1",

@@ -860,17 +860,6 @@
     gap: 8px;
   }
 
-  // Флаги готовности ООЗ и полноты закупок по позиции
-  &__ooz-flags {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface-raised);
-  }
-
   &__nmck-box {
     display: flex;
     flex-direction: column;
