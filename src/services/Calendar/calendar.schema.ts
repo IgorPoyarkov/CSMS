@@ -177,7 +177,9 @@ export const businessDaysAfter = (
     Number(toIsoDateValue.slice(8, 10)),
   );
 
-  while (cur <= last) {
+  // Считаем дни строго после `from` и по `to` включительно: `<=` добавляло
+  // лишний рабочий день, и просрочка в интерфейсе была на день больше
+  while (cur < last) {
     cur.setDate(cur.getDate() + 1);
     if (isBusinessDay(toIsoDate(cur), extraHolidays)) count++;
   }
