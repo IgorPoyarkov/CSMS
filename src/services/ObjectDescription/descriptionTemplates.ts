@@ -6,6 +6,7 @@ import type { KtruRef } from "../KtruRef/ktruRef.schema";
 import type {
   ObjectCharacteristic,
   ObjectDescription,
+  ObjectDescriptionProductType,
 } from "./objectDescription.schema";
 
 /**
@@ -23,8 +24,16 @@ import type {
  * скрыть обязательное требование хуже, чем показать лишнее поле.
  */
 export const isGoodsObjectDescription = (
-  description: Pick<ObjectDescription, "title" | "okpd2Code">,
+  description: Pick<ObjectDescription, "title" | "okpd2Code"> & {
+    productType?: ObjectDescriptionProductType;
+  },
 ): boolean => {
+  // Явно выбранный вид предмета — источник правды. Товар при работах/услугах
+  // тоже требует п. 7 ч. 1 ст. 33; работы и услуги — нет.
+  if (description.productType) {
+    return description.productType.startsWith("PRODUCT");
+  }
+
   const signal = okpd2Signal(description.okpd2Code).kind;
   if (signal === "goods" || signal === "unknown" || signal === "ambiguous") {
     return true;

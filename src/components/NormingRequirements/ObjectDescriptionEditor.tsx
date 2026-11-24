@@ -22,9 +22,12 @@ import {
   TRADEMARK_RULES,
   trademarkRuleLabels,
   validateObjectDescriptionCompliance,
+  OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS,
+  OBJECT_DESCRIPTION_PRODUCT_TYPES,
   type CharacteristicCategory,
   type ObjectCharacteristic,
   type ObjectDescription,
+  type ObjectDescriptionProductType,
   type ObjectDescriptionStatus,
   type ObjectStandardRef,
 } from "../../services/ObjectDescription/objectDescription.schema";
@@ -300,6 +303,7 @@ export default function ObjectDescriptionEditor({
     setActiveObjectId(object.id ?? null);
     setDraft((prev) => ({
       ...prev,
+      productType: object.productType ?? prev.productType,
       okpd2Code: object.okpd2Code || prev.okpd2Code,
       okpd2Name: object.okpd2Name || prev.okpd2Name,
       ktruCode: object.ktruCode ?? "",
@@ -508,6 +512,7 @@ export default function ObjectDescriptionEditor({
     if (activeObjectId !== null && activeObjectId !== undefined) {
       updatePurchaseObject.mutate({
         id: activeObjectId,
+        productType: nextToSave.productType,
         okpd2Code: nextToSave.okpd2Code,
         okpd2Name: nextToSave.okpd2Name,
         ktruCode: nextToSave.ktruCode,
@@ -597,6 +602,37 @@ export default function ObjectDescriptionEditor({
               value={draft.title}
               onChange={(e) => patch("title", e.target.value)}
             />
+          </div>
+
+          {/* Вид предмета — источник правды для СЗ, извещения и ЕИС.
+              Первые три значения совпадают с productType ЕИС 17.0, два
+              «товар при …» кодируются PRODUCT + родительский объект. */}
+          <div className={block("field", ["wide"])}>
+            <label className={block("label")} htmlFor="ooz-product-type">
+              Вид объекта закупки *
+            </label>
+            <Select
+              id="ooz-product-type"
+              className={block("select")}
+              value={draft.productType}
+              onChange={(e) =>
+                patch(
+                  "productType",
+                  e.target.value as ObjectDescriptionProductType,
+                )
+              }
+            >
+              {OBJECT_DESCRIPTION_PRODUCT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </Select>
+            <span className={block("hint")}>
+              «Товар при выполнении работ/оказании услуг» — поставка в составе
+              работ или услуг: укажите родительский объект в карточке ниже. В
+              ЕИС 17.0 это PRODUCT со ссылкой на родителя WORK/SERVICE.
+            </span>
           </div>
 
           <div className={block("field", ["wide"])}>

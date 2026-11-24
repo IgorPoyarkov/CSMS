@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
   getObjectDescriptionOkpd2Codes,
+  OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS,
+  OBJECT_DESCRIPTION_PRODUCT_TYPES,
   type ObjectDescription,
 } from "../../services/ObjectDescription/objectDescription.schema";
 import {
@@ -341,9 +343,11 @@ export default function PurchaseObjectsSection({
                   })
                 }
               >
-                <option value="PRODUCT">Товар</option>
-                <option value="WORK">Работа</option>
-                <option value="SERVICE">Услуга</option>
+                {OBJECT_DESCRIPTION_PRODUCT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS[type]}
+                  </option>
+                ))}
               </select>
             </div>
 

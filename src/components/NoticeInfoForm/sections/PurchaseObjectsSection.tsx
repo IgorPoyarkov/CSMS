@@ -1,5 +1,9 @@
 import { Fragment, useMemo, useState } from "react";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
+import {
+  useNoticeFieldLock,
+  useNoticeFormContext,
+} from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import Okpd2Select from "../../UI/Okpd2Select/Okpd2Select";
@@ -64,7 +68,11 @@ const PurchaseObjectsSection = ({
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue, control } =
-    useFormContext<NoticeInfoFormValues>();
+    useNoticeFormContext<NoticeInfoFormValues>();
+  const { isLocked } = useNoticeFieldLock();
+  // Состав и реквизиты позиций приходят из утверждённого ООЗ/СЗ: кастомные
+  // селекты пишут через setValue, поэтому проверяют блокировку явно.
+  const itemsLocked = isLocked("purchaseObjects.items");
 
   const items = watch("purchaseObjects.items") ?? [];
   const isIndeterminate = watch("purchaseObjects.isIndeterminateVolume");
@@ -146,11 +154,13 @@ const PurchaseObjectsSection = ({
   const totalSum = items.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
 
   const handleRecalcRow = (index: number, qty: number, price: number) => {
+    if (itemsLocked) return;
     const sum = Number((qty * price).toFixed(2));
     setValue(`purchaseObjects.items.${index}.totalPrice`, sum);
   };
 
   const handleAppendItem = () => {
+    if (itemsLocked) return;
     const id = `item-${Date.now()}`;
     append({
       id,
@@ -182,6 +192,7 @@ const PurchaseObjectsSection = ({
   // Выбор ОКПД2: подставляем наименование, национальный режим по ПП 1875
   // и сбрасываем КТРУ, если оно относится к другому коду
   const handleSelectOkpd2 = (index: number, item: Okpd2Ref | null) => {
+    if (itemsLocked) return;
     const code = item?.code ?? "";
     setValue(`purchaseObjects.items.${index}.okpd2OrKtruCode`, code, {
       shouldDirty: true,
@@ -215,6 +226,7 @@ const PurchaseObjectsSection = ({
 
   // Выбор позиции КТРУ: наименование и единица измерения каталога
   const handleSelectKtru = (index: number, item: KtruRef | null) => {
+    if (itemsLocked) return;
     setValue(`purchaseObjects.items.${index}.ktruCode`, item?.ktruCode ?? "", {
       shouldDirty: true,
     });
@@ -258,6 +270,7 @@ const PurchaseObjectsSection = ({
               <button
                 type="button"
                 className={block("small-btn")}
+                disabled={itemsLocked}
                 onClick={handleAppendItem}
               >
                 + Добавить товар, работу, услугу
@@ -407,6 +420,7 @@ const PurchaseObjectsSection = ({
                               <button
                                 type="button"
                                 className={block("small-btn", ["danger"])}
+                                disabled={itemsLocked}
                                 onClick={() => remove(index)}
                               >
                                 Удалить
@@ -428,6 +442,7 @@ const PurchaseObjectsSection = ({
                               code={currentItem?.okpd2OrKtruCode}
                               name={currentItem?.name}
                               allowedCodes={allowedCodes}
+                              disabled={itemsLocked}
                               onSelect={(item) =>
                                 handleSelectOkpd2(index, item)
                               }
@@ -436,6 +451,7 @@ const PurchaseObjectsSection = ({
                               className={block("select")}
                               okpd2Code={currentItem?.okpd2OrKtruCode}
                               ktruCode={currentItem?.ktruCode}
+                              disabled={itemsLocked}
                               onSelect={(item) => handleSelectKtru(index, item)}
                             />
                           </td>
@@ -455,6 +471,7 @@ const PurchaseObjectsSection = ({
                               value={currentItem?.unit ?? ""}
                               valueMode="name"
                               placeholder="Ед. по ОКЕИ…"
+                              disabled={itemsLocked}
                               onChange={(nextUnit, okeiItem) => {
                                 setValue(
                                   `purchaseObjects.items.${index}.unit`,
@@ -499,6 +516,7 @@ const PurchaseObjectsSection = ({
                               )}
                               value={currentItem?.unitPrice}
                               ariaLabel={`Цена за единицу, позиция ${index + 1}`}
+                              disabled={itemsLocked}
                               onChange={(next) => {
                                 setValue(
                                   `purchaseObjects.items.${index}.unitPrice`,
@@ -575,6 +593,7 @@ const PurchaseObjectsSection = ({
                               <button
                                 type="button"
                                 className={block("small-btn", ["danger"])}
+                                disabled={itemsLocked}
                                 onClick={() => remove(index)}
                               >
                                 Удалить
@@ -1055,6 +1074,7 @@ const PurchaseObjectsSection = ({
                           <button
                             type="button"
                             className={block("small-btn", ["danger"])}
+                            disabled={itemsLocked}
                             onClick={() => remove(index)}
                           >
                             Удалить

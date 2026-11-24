@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { FieldArrayPath, Path } from "react-hook-form";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
+import { useNoticeFormContext } from "../noticeFieldLockHooks";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
 import { useNormingTemplates } from "../../../services/ObjectDescription/objectDescription.api";
@@ -61,7 +62,7 @@ const NormingRequirementsBlock = ({
   const block = bem(styles, "eis-main");
   const { organization } = useMyContractRole();
   const { register, control, watch, getValues, setValue } =
-    useFormContext<NoticeInfoFormValues>();
+    useNoticeFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
   const { data: ktruRefs = [] } = useKtruDictionary();
   const { byCode: templatesByCode } = useNormingTemplates(organization?.id);

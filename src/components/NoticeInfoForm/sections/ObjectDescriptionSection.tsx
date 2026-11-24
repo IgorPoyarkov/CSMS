@@ -1,5 +1,8 @@
 import { Link } from "react-router-dom";
-import { useFormContext } from "react-hook-form";
+import {
+  useNoticeFieldLock,
+  useNoticeFormContext,
+} from "../noticeFieldLockHooks";
 import { ExternalLink, FileText } from "lucide-react";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
@@ -88,7 +91,9 @@ const ObjectDescriptionSection = () => {
   );
   const { data: ktruRefs = [] } = useKtruDictionary();
   const { register, watch, setValue, getValues } =
-    useFormContext<NoticeInfoFormValues>();
+    useNoticeFormContext<NoticeInfoFormValues>();
+  const { isLocked } = useNoticeFieldLock();
+  const descriptionLocked = isLocked("objectDescription");
 
   const objectDescription = watch("objectDescription");
   // Код ОКПД2 описания может быть ещё не заполнен вручную, но уже выбран
@@ -221,7 +226,9 @@ const ObjectDescriptionSection = () => {
             className={block("select")}
             okpd2Code={effectiveOkpd2}
             ktruCode={objectDescription.ktruCode}
+            disabled={descriptionLocked}
             onSelect={(item) => {
+              if (descriptionLocked) return;
               setValue("objectDescription.ktruCode", item?.ktruCode ?? "", {
                 shouldDirty: true,
               });

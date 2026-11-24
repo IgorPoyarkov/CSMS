@@ -1,6 +1,8 @@
 import {
   formatCharacteristicValue,
+  isEmbeddedSupplyProductType,
   takeMissingOkpd2Codes,
+  toEisProductType,
 } from "../ObjectDescription/objectDescription.schema";
 import type { PurchaseObject } from "../PurchaseObject/purchaseObject.schema";
 import type { NoticeInfoFormValues } from "./noticeInfo.schema";
@@ -78,7 +80,10 @@ export const buildNoticeItemsFromPurchaseObjects = (
         parentExternalSid: parentExternalSid || undefined,
         parentOkpd2Code: object.parentOkpd2Code || undefined,
         parentOkpd2Name: object.parentOkpd2Name || undefined,
-        productType: object.productType ?? "PRODUCT",
+        // В ЕИС 17.0 допустимы только PRODUCT/WORK/SERVICE; «товар при
+        // работе/услуге» остаётся PRODUCT и несёт isSupplyDuringWorks.
+        productType: toEisProductType(object.productType),
+        isSupplyDuringWorks: isEmbeddedSupplyProductType(object.productType),
         okpd2OrKtruCode: code,
         okpd2Code: code,
         ktruCode: object.ktruCode ?? "",

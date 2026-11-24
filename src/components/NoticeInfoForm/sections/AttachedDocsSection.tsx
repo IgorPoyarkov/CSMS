@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
-import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { useFieldArray, useWatch } from "react-hook-form";
+import {
+  useNoticeFieldLock,
+  useNoticeFormContext,
+} from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import {
   NOTICE_ATTACHMENT_SOURCE_LABELS,
@@ -28,7 +32,8 @@ import styles from "../NoticeInfoForm.module.scss";
 const AttachedDocsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
-  const { control } = useFormContext<NoticeInfoFormValues>();
+  const { control } = useNoticeFormContext<NoticeInfoFormValues>();
+  const { isLocked } = useNoticeFieldLock();
 
   const { fields, append, remove, update } = useFieldArray({
     control,
@@ -97,15 +102,29 @@ const AttachedDocsSection = () => {
     }));
   };
 
-  // Код вида документа из nsiEPDocTypes: его знает только заказчик (справочник
-  // ЕИС), поэтому вводится вручную. Пока пуст — предупреждение о ФЛК, не запрет.
-  const handleDocKindCode = (index: number, code: string) => {
-    const current = fields[index];
+  // Документы, пришедшие из утверждённой СЗ (ООЗ и обоснование НМЦК),
+  // редактированию в извещении не подлежат. Ручные вложения остаются доступны.
+  const isDocLocked = (doc: { sourceKind?: string }): boolean =>
+    isLocked("attachedDocs") &&
+    ["nmck", "object_description", "purchase_note"].includes(
+      doc.sourceKind ?? "",
+    );
 
-    update(index, {
-      ...current,
-      docKindCode: code.slice(0, 10).trim() || undefined,
-    });
+  // Код и наименование вида документа из nsiEPDocTypes, а также URL файла —
+  // поля attachmentWithKindType XSD 17.0. Их значения знает только заказчик,
+  // поэтому вводятся вручную; пустой код даёт предупреждение ФЛК, не запрет.
+  const handleDocField = (
+    index: number,
+    field: "docKindCode" | "docKindName" | "url",
+    value: string,
+  ) => {
+    const current = fields[index];
+    if (isDocLocked(current)) return;
+    const limit =
+      field === "docKindCode" ? 10 : field === "docKindName" ? 2000 : undefined;
+    const next = limit ? value.slice(0, limit) : value;
+
+    update(index, { ...current, [field]: next.trim() || undefined });
   };
 
   const handleStatus = (
@@ -250,9 +269,11 @@ const AttachedDocsSection = () => {
                                 maxLength={10}
                                 placeholder="код из справочника ЕИС"
                                 value={doc.docKindCode ?? ""}
+                                disabled={isDocLocked(doc)}
                                 onChange={(event) =>
-                                  handleDocKindCode(
+                                  handleDocField(
                                     doc.index,
+                                    "docKindCode",
                                     event.target.value,
                                   )
                                 }
@@ -263,10 +284,49 @@ const AttachedDocsSection = () => {
                                 </span>
                               )}
                             </label>
+
+                            <label className={block("doc-kind")}>
+                              <span className={block("doc-kind-label")}>
+                                Наименование вида документа
+                              </span>
+                              <input
+                                className={block("input")}
+                                maxLength={2000}
+                                placeholder="из справочника ЕИС"
+                                value={doc.docKindName ?? ""}
+                                disabled={isDocLocked(doc)}
+                                onChange={(event) =>
+                                  handleDocField(
+                                    doc.index,
+                                    "docKindName",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </label>
+
+                            <label className={block("doc-kind")}>
+                              <span className={block("doc-kind-label")}>
+                                URL файла (вместо вложения contentId/content)
+                              </span>
+                              <input
+                                className={block("input")}
+                                placeholder="https://…"
+                                value={doc.url ?? ""}
+                                disabled={isDocLocked(doc)}
+                                onChange={(event) =>
+                                  handleDocField(
+                                    doc.index,
+                                    "url",
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </label>
                           </div>
 
                           <div className={block("doc-actions")}>
-                            {doc.status !== "approved" && (
+                            {!isDocLocked(doc) && doc.status !== "approved" && (
                               <button
                                 type="button"
                                 className={block("small-btn")}
@@ -277,7 +337,8 @@ const AttachedDocsSection = () => {
                                 Утвердить
                               </button>
                             )}
-                            {canSuspend &&
+                            {!isDocLocked(doc) &&
+                              canSuspend &&
                               doc.status !== "suspended_before_publish" && (
                                 <button
                                   type="button"
@@ -293,7 +354,7 @@ const AttachedDocsSection = () => {
                                   Отложить до публикации
                                 </button>
                               )}
-                            {doc.status !== "draft" && (
+                            {!isDocLocked(doc) && doc.status !== "draft" && (
                               <button
                                 type="button"
                                 className={block("small-btn", ["ghost"])}

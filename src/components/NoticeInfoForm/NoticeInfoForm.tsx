@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
@@ -51,6 +51,14 @@ import {
   validateNoticeInfoEis17,
 } from "../../services/Eis/eis17Types";
 import { downloadText } from "../../services/Eis/eisExport";
+import {
+  describeNoticeLockedSources,
+  findNoticeLockedChanges,
+  getNoticeLockedPaths,
+  restoreNoticeLockedFields,
+  snapshotNoticeLockedFields,
+  type NoticeLockedSnapshot,
+} from "../../services/Procurements/noticeApprovedFields";
 
 import NoticeStateSection from "./sections/NoticeStateSection";
 
@@ -66,6 +74,8 @@ import NormingSubmitButton from "./sections/NormingSubmitButton";
 import ParticipantsRequirementsSection from "./sections/ParticipantsRequirementsSection";
 import ObjectDescriptionSection from "./sections/ObjectDescriptionSection";
 import AttachedDocsSection from "./sections/AttachedDocsSection";
+import Eis17FieldsSection from "./sections/Eis17FieldsSection";
+import { NoticeFieldLockProvider } from "./noticeFieldLock";
 
 interface LocationState {
   ikz?: string;
@@ -297,6 +307,14 @@ const NoticeInfoForm = () => {
     matchedNote,
     id,
   ]);
+
+  // Утверждённые СЗ и ООЗ фиксируют свои реквизиты в извещении: они не
+  // редактируются и восстанавливаются из снимка при сохранении.
+  const lockedPaths = useMemo(
+    () => getNoticeLockedPaths({ note: matchedNote, description: matchedDesc }),
+    [matchedNote, matchedDesc],
+  );
+  const lockedSources = describeNoticeLockedSources(lockedPaths);
 
   // Коды ОКПД2 из позиций плана-графика, к которому относится служебная
   // записка. Извещение не может выйти за пределы плана: иначе теряется связь
@@ -577,8 +595,11 @@ const NoticeInfoForm = () => {
     },
   });
 
-  const { setValue, getValues, handleSubmit, setError } = methods;
+  const { setValue, getValues, handleSubmit, setError, reset } = methods;
   const appliedPrefillKeyRef = useRef<string>("");
+  const lockedSnapshotRef = useRef<NoticeLockedSnapshot>({});
+  const lockedPathsRef = useRef<readonly string[]>(lockedPaths);
+  lockedPathsRef.current = lockedPaths;
 
   useEffect(() => {
     if (currentUser) {
@@ -1588,6 +1609,13 @@ const NoticeInfoForm = () => {
         });
       }
     }
+
+    // Снимок делается после всех подстановок: гейт сравнивает форму именно с
+    // тем, что дали утверждённые документы, а не с повторно посчитанными 값ами.
+    lockedSnapshotRef.current = snapshotNoticeLockedFields(
+      getValues(),
+      lockedPathsRef.current,
+    );
   }, [
     matchedNote,
     matchedDesc,
@@ -1607,6 +1635,32 @@ const NoticeInfoForm = () => {
     formData: NoticeInfoFormValues,
     next: "list" | "contract" = "list",
   ) => {
+    // Реквизиты утверждённых СЗ/ООЗ не меняются в извещении: если поле
+    // изменилось программно (или до блокировки), сохранение запрещено,
+    // а значение возвращается из снимка предзаполнения.
+    const lockedChanges = findNoticeLockedChanges(
+      formData,
+      lockedSnapshotRef.current,
+      lockedPathsRef.current,
+    );
+    if (lockedChanges.length > 0) {
+      lockedChanges.forEach((change) =>
+        setError(change.path as Path<NoticeInfoFormValues>, {
+          type: "locked",
+          message:
+            "Заполнено из утверждённого документа и недоступно для редактирования",
+        }),
+      );
+      reset(
+        restoreNoticeLockedFields(
+          formData,
+          lockedSnapshotRef.current,
+          lockedPathsRef.current,
+        ),
+      );
+      return;
+    }
+
     // Валидация минимальных сроков процедуры (ч. 2 ст. 45 44-ФЗ)
     const procedureError = validateProcedureDates(
       formData.procedureInfo.plannedPublishDate,
@@ -1778,12 +1832,15 @@ const NoticeInfoForm = () => {
             ? `СЗ № ${matchedNote.noteNumber} от ${matchedNote.noteDate}`
             : ""}
           {matchedNote && matchedDesc ? " · " : ""}
-          {matchedDesc ? `ООЗ «${matchedDesc.title}»` : ""}. Все подставленные
-          поля можно откорректировать перед публикацией.
+          {matchedDesc ? `ООЗ «${matchedDesc.title}»` : ""}.{" "}
+          {lockedSources
+            ? `Реквизиты из ${lockedSources} утверждены и недоступны для редактирования; остальные поля можно откорректировать перед публикацией.`
+            : "Все подставленные поля можно откорректировать перед публикацией."}
         </div>
       )}
 
-      <FormProvider {...methods}>
+      <NoticeFieldLockProvider lockedPaths={lockedPaths}>
+        <FormProvider {...methods}>
         <form
           className={block("form")}
           onSubmit={handleSubmit((data) => onSubmit(data))}
@@ -1802,6 +1859,7 @@ const NoticeInfoForm = () => {
           <NormingControlSection />
           <ParticipantsRequirementsSection />
           <AttachedDocsSection />
+          <Eis17FieldsSection />
 
           {showEisXml &&
             (() => {
@@ -1880,7 +1938,8 @@ const NoticeInfoForm = () => {
             <NormingSubmitButton isSaving={isSaving} />
           </footer>
         </form>
-      </FormProvider>
+        </FormProvider>
+      </NoticeFieldLockProvider>
     </section>
   );
 };

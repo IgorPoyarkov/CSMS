@@ -1,5 +1,8 @@
 import { useEffect } from "react";
-import { useFormContext } from "react-hook-form";
+import {
+  useNoticeFieldLock,
+  useNoticeFormContext,
+} from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import { validatePlacingWayAgainstAuctionList } from "../../../services/Okpd2Ref/auctionListControl";
 import { useOkpd2Dictionary } from "../../../services/Okpd2Ref/okpd2Ref.api";
@@ -73,9 +76,12 @@ const GeneralInfoSection = ({
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue, getValues } =
-    useFormContext<NoticeInfoFormValues>();
+    useNoticeFormContext<NoticeInfoFormValues>();
   const { data: okpd2Refs = [] } = useOkpd2Dictionary();
 
+  const { isLocked } = useNoticeFieldLock();
+  const placingWayLocked = isLocked("generalInfo.placingWayCode");
+  const organizerLocked = isLocked("generalInfo.placementOrganizerType");
   const generalInfo = watch("generalInfo");
   const isContestWay = isContestCode(generalInfo.placingWayCode);
   const purchaseObjects = watch("purchaseObjects.items") ?? [];
@@ -200,7 +206,9 @@ const GeneralInfoSection = ({
                         type="radio"
                         value={way.code}
                         checked={generalInfo.placingWayCode === way.code}
+                        disabled={placingWayLocked}
                         onChange={() => {
+                          if (placingWayLocked) return;
                           setValue("generalInfo.placingWayCode", way.code);
                           setValue(
                             "notificationType",
@@ -237,6 +245,7 @@ const GeneralInfoSection = ({
                     <button
                       type="button"
                       className={block("link-btn")}
+                      disabled={placingWayLocked}
                       onClick={() =>
                         setValue("generalInfo.placingWayCode", "OKB20")
                       }
@@ -256,6 +265,7 @@ const GeneralInfoSection = ({
                       <button
                         type="button"
                         className={block("link-btn")}
+                        disabled={placingWayLocked}
                         onClick={() =>
                           setValue("generalInfo.placingWayCode", "EA20")
                         }
@@ -334,6 +344,7 @@ const GeneralInfoSection = ({
                     type="radio"
                     value="customer"
                     checked={generalInfo.placementOrganizerType === "customer"}
+                    disabled={organizerLocked}
                     onChange={() =>
                       setValue("generalInfo.placementOrganizerType", "customer")
                     }
@@ -347,6 +358,7 @@ const GeneralInfoSection = ({
                     checked={
                       generalInfo.placementOrganizerType === "joint_organizer"
                     }
+                    disabled={organizerLocked}
                     onChange={() =>
                       setValue(
                         "generalInfo.placementOrganizerType",

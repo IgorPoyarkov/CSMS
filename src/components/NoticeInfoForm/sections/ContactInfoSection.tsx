@@ -1,5 +1,5 @@
 import type React from "react";
-import { useFormContext } from "react-hook-form";
+import { useNoticeFormContext } from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import {
   EIS_RESPONSIBLE_ROLES,
@@ -12,7 +12,7 @@ import Select from "../../UI/Select";
 const ContactInfoSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
-  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { register, watch, setValue } = useNoticeFormContext<NoticeInfoFormValues>();
 
   const contactInfo = watch("contactInfo");
 

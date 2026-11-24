@@ -1,4 +1,4 @@
-import { useFormContext } from "react-hook-form";
+import { useNoticeFormContext } from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import {
   EIS_NOTIFICATION_TYPES,
@@ -12,7 +12,7 @@ import Select from "../../UI/Select";
 const NoticeStateSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
-  const { register, watch } = useFormContext<NoticeInfoFormValues>();
+  const { register, watch } = useNoticeFormContext<NoticeInfoFormValues>();
   const noticeState = watch("noticeState");
   const placingWayCode = watch("generalInfo.placingWayCode");
   const explicitType = watch("notificationType");

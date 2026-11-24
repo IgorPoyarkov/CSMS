@@ -22,6 +22,7 @@ import {
   EIS_NATIONAL_REGIME_RESTRICTION_CODE,
 } from "../NationalRegime/pp1875";
 import type { ContractProject } from "../ContractProject/contractProject.schema";
+import { toEisProductType } from "../ObjectDescription/objectDescription.schema";
 import {
   EIS_PACKET_DESCRIPTORS,
   buildEisPacket,
@@ -1670,7 +1671,7 @@ export const mapNoticeInfoToEis17 = (
               : "");
           return {
             externalSid: item.externalSid || item.id,
-            type: item.productType ?? "PRODUCT",
+            type: toEisProductType(item.productType),
             okpd2Code: item.okpd2Code || (!looksLikeKtru ? code : undefined),
             ktruCode: item.ktruCode || (looksLikeKtru ? code : undefined),
             name: item.name,

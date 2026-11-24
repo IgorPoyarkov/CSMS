@@ -1,4 +1,4 @@
-import { useFormContext } from "react-hook-form";
+import { useNoticeFormContext } from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import {
@@ -24,7 +24,7 @@ import Select from "../../UI/Select";
 const ParticipantsRequirementsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
-  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { register, watch, setValue } = useNoticeFormContext<NoticeInfoFormValues>();
   const { mapping } = usePp2604MappingOrDefault();
 
   const placingWayCode = watch("generalInfo.placingWayCode");

@@ -1020,19 +1020,32 @@ export const EIS_XSD_COVERAGE: EisTypeCoverage[] = [
         note: "ЕИС при приёме игнорирует и заполняет при передаче; у нас хранится для сверки.",
       },
       {
-        field: "attachedDocs[].category",
+        field: "attachedDocs[].docKindCode",
         xsd: "attachmentsInfo/attachmentInfo/docKindInfo/code",
-        status: "missing",
+        status: "mapped",
         required: true,
         note:
-          "XSD требует код вида документа из справочника nsiEPDocTypes для каждого вложения. Модель извещения хранит категорию (описание объекта, обоснование НМЦК…), а не код справочника: соответствие надо согласовать с владельцем модели, подставлять коды по догадке нельзя — ЕИС их сверит.",
+          "Код вида документа из справочника nsiEPDocTypes вводится в форме извещения (до 10 символов). Категория документа — наша классификация, код ЕИС не выводится по догадке.",
       },
       {
-        field: "attachedDocs[].url / storageRef",
+        field: "attachedDocs[].docKindName",
+        xsd: "attachmentsInfo/attachmentInfo/docKindInfo/name",
+        status: "mapped",
+        note: "Наименование вида документа, до 2000 символов; редактируется в форме извещения.",
+      },
+      {
+        field: "attachedDocs[].url",
+        xsd: "attachmentsInfo/attachmentInfo/(url | contentId | content)",
+        status: "mapped",
+        note:
+          "XSD требует ровно одно из url/contentId/content. URL вводится в форме извещения; storageRef — наше хранилище, ЕИС его не прочитает.",
+      },
+      {
+        field: "attachedDocs[].storageRef",
         xsd: "attachmentsInfo/attachmentInfo/(url | contentId | content)",
         status: "partial",
         note:
-          "XSD требует ровно одно из url/contentId/content. storageRef — наше хранилище, ЕИС его не прочитает: файл нужно отдать через url/contentId или вложить content.",
+          "storageRef хранится для сверки, но ЕИС его не читает: файл отдаётся через url/contentId или вложением content.",
       },
       {
         field: "noticeState",

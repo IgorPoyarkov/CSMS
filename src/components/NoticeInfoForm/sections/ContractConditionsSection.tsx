@@ -1,4 +1,8 @@
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
+import {
+  useNoticeFieldLock,
+  useNoticeFormContext,
+} from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import AddressCascade from "../../UI/AddressCascade/AddressCascade";
@@ -15,7 +19,10 @@ const ContractConditionsSection = () => {
   const { bem } = useUtils();
   const block = bem(styles, "eis-main");
   const { register, watch, setValue, control } =
-    useFormContext<NoticeInfoFormValues>();
+    useNoticeFormContext<NoticeInfoFormValues>();
+  const { isLocked } = useNoticeFieldLock();
+  const nmckLocked = isLocked("generalInfo.nmck");
+  const placesLocked = isLocked("contractConditions.deliveryPlaces");
 
   const conditions = watch("contractConditions");
   const nmck = watch("generalInfo.nmck");
@@ -54,6 +61,7 @@ const ContractConditionsSection = () => {
                 className={block("input", ["phone-num"])}
                 value={nmck}
                 ariaLabel="Начальная (максимальная) цена контракта"
+                disabled={nmckLocked}
                 onChange={(next) =>
                   setValue("generalInfo.nmck", next, {
                     shouldDirty: true,
@@ -459,6 +467,7 @@ const ContractConditionsSection = () => {
                     <button
                       type="button"
                       className={block("small-btn", ["danger"])}
+                      disabled={placesLocked}
                       onClick={() => removePlace(index)}
                     >
                       Удалить место поставки
@@ -471,6 +480,7 @@ const ContractConditionsSection = () => {
             <button
               type="button"
               className={block("link-btn")}
+              disabled={placesLocked}
               onClick={() =>
                 appendPlace({
                   id: String(Date.now()),

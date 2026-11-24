@@ -29,6 +29,57 @@ export const OBJECT_DESCRIPTION_STATUSES = [
 export type ObjectDescriptionStatus =
   (typeof OBJECT_DESCRIPTION_STATUSES)[number];
 
+/**
+ * Вид предмета ООЗ. Первые три значения совпадают с `productType` ЕИС,
+ * последние два — доменное уточнение: предмет остаётся товаром, но поставляется
+ * в ходе выполнения работ/оказания услуг. В ЕИС 17.0 это кодируется парой
+ * `type=PRODUCT` + `parentPurchaseObject` (карточка родителя WORK/SERVICE).
+ */
+export const OBJECT_DESCRIPTION_PRODUCT_TYPES = [
+  "PRODUCT",
+  "WORK",
+  "SERVICE",
+  "PRODUCT_DURING_WORK",
+  "PRODUCT_DURING_SERVICE",
+] as const;
+
+export type ObjectDescriptionProductType =
+  (typeof OBJECT_DESCRIPTION_PRODUCT_TYPES)[number];
+
+export const OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS: Record<
+  ObjectDescriptionProductType,
+  string
+> = {
+  PRODUCT: "Товар",
+  WORK: "Работа",
+  SERVICE: "Услуга",
+  PRODUCT_DURING_WORK: "Товар при выполнении работ",
+  PRODUCT_DURING_SERVICE: "Товар при оказании услуг",
+};
+
+/** Значение `productType`, допустимое в XSD 17.0. */
+export const toEisProductType = (
+  type?: ObjectDescriptionProductType | string,
+): "PRODUCT" | "WORK" | "SERVICE" => {
+  if (type === "WORK" || type === "SERVICE") return type;
+  return "PRODUCT";
+};
+
+/** Товар, поставляемый в ходе работ или услуг: нужен родительский объект. */
+export const isEmbeddedSupplyProductType = (
+  type?: ObjectDescriptionProductType | string,
+): boolean =>
+  type === "PRODUCT_DURING_WORK" || type === "PRODUCT_DURING_SERVICE";
+
+/** Ожидаемый тип родителя для «товара при работе/услуге». */
+export const embeddedSupplyParentType = (
+  type?: ObjectDescriptionProductType | string,
+): "WORK" | "SERVICE" | undefined => {
+  if (type === "PRODUCT_DURING_WORK") return "WORK";
+  if (type === "PRODUCT_DURING_SERVICE") return "SERVICE";
+  return undefined;
+};
+
 export const objectDescriptionStatusLabels: Record<
   ObjectDescriptionStatus,
   string
@@ -186,6 +237,11 @@ export const ObjectDescriptionSchema = z.object({
 
   // Идентификация объекта
   title: z.string().trim().min(2, "Укажите наименование объекта закупки"),
+  // Вид предмета: источник правды для СЗ, извещения и ЕИС. Старые ООЗ без
+  // поля получают PRODUCT — миграция БД не требуется.
+  productType: z
+    .enum(OBJECT_DESCRIPTION_PRODUCT_TYPES)
+    .default("PRODUCT"),
   okpd2Code: z.string().trim().min(2, "Укажите код ОКПД2"),
   okpd2Name: optionalString(),
   // Дополнительные объекты закупки; .default([]) подставляется для старых
@@ -601,6 +657,7 @@ export const emptyObjectDescription = (
   status: "draft",
   ikz: "",
   title: "",
+  productType: "PRODUCT",
   okpd2Code: "",
   okpd2Name: "",
   okpd2Items: [],

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   getObjectDescriptionOkpd2Codes,
+  isEmbeddedSupplyProductType,
   ObjectCharacteristicSchema,
   ObjectStandardRefSchema,
   type ObjectDescription,
@@ -30,6 +31,8 @@ export const PURCHASE_OBJECT_PRODUCT_TYPES = [
   "PRODUCT",
   "WORK",
   "SERVICE",
+  "PRODUCT_DURING_WORK",
+  "PRODUCT_DURING_SERVICE",
 ] as const;
 export type PurchaseObjectProductType =
   (typeof PURCHASE_OBJECT_PRODUCT_TYPES)[number];
@@ -126,6 +129,7 @@ export const buildPurchaseObjectsFromDescription = (
     ObjectDescription,
     | "id"
     | "organizationId"
+    | "productType"
     | "purchasePlanId"
     | "positionId"
     | "ikz"
@@ -154,6 +158,7 @@ export const buildPurchaseObjectsFromDescription = (
     positionId: desc.positionId,
     ikz: desc.ikz,
     name: index === 0 ? desc.title : code.name || desc.title,
+    productType: desc.productType ?? "PRODUCT",
     okpd2Code: code.code,
     okpd2Name: code.name ?? desc.okpd2Name,
     ktruCode: index === 0 ? desc.ktruCode : "",
@@ -161,6 +166,9 @@ export const buildPurchaseObjectsFromDescription = (
     unit: desc.unit,
     quantity: desc.quantity,
     isIndeterminateVolume: desc.isIndeterminateVolume,
+    // «Товар при работе/услуге» сразу помечается как входящий в состав:
+    // родитель пользователь выбирает в карточке объекта.
+    isPartOfWorkService: isEmbeddedSupplyProductType(desc.productType),
     useKtru: index === 0 ? desc.useKtru : false,
     characteristics: index === 0 ? desc.characteristics : [],
     standards: index === 0 ? desc.standards : [],

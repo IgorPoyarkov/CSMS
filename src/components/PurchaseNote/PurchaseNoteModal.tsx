@@ -74,7 +74,10 @@ import {
   DEFECT_LIST_REVIEW_DAYS,
 } from "../../services/DefectList/defectList.schema";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
-import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
+import {
+  useOrganizationObjectDescriptions,
+  useUpdateObjectDescription,
+} from "../../services/ObjectDescription/objectDescription.api";
 import { usePurchaseObjects } from "../../services/PurchaseObject/purchaseObject.api";
 import type { PurchaseObject } from "../../services/PurchaseObject/purchaseObject.schema";
 import {
@@ -169,6 +172,7 @@ import { formatDeliveryAddress } from "../../services/AddressRef/addressRef.sche
 import {
   formatCharacteristicValue,
   getObjectDescriptionOkpd2Codes,
+  isEmbeddedSupplyProductType,
   type ObjectDescription,
 } from "../../services/ObjectDescription/objectDescription.schema";
 import {
@@ -252,7 +256,8 @@ const buildNoteItemsFromOoz = (
     unitPrice: "",
     totalPrice: "",
     nationalRegimeType: "none" as const,
-    isSupplyDuringWorks: false,
+    // «Товар при работе/услуге» задаётся в ООЗ и наследуется СЗ.
+    isSupplyDuringWorks: isEmbeddedSupplyProductType(desc.productType),
   }));
   const items = descriptionObjects.length
     ? descriptionObjects.map((object, idx) => ({
@@ -272,7 +277,9 @@ const buildNoteItemsFromOoz = (
         unitPrice: "",
         totalPrice: "",
         nationalRegimeType: "none" as const,
-        isSupplyDuringWorks: false,
+        isSupplyDuringWorks: isEmbeddedSupplyProductType(
+          object.productType ?? desc.productType,
+        ),
       }))
     : fallbackItems;
 
@@ -407,6 +414,9 @@ export default function PurchaseNoteModal({
 
   const createNote = useCreatePurchaseNote();
   const updateNote = useUpdatePurchaseNote();
+  // Утверждение ООЗ доступно прямо из блока 2 СЗ: без этого перехода разделы
+  // НМЦК и требований остаются закрытыми, даже если у пользователя есть права.
+  const updateObjectDescription = useUpdateObjectDescription();
   // Обоснование НМЦК — документ Раздела 2 извещения: при сохранении СЗ он
   // прикладывается к связанному извещению, а не только остаётся в записке.
   const { data: notices = [] } = useNotices();
@@ -1854,6 +1864,31 @@ export default function PurchaseNoteModal({
     });
   };
 
+  /**
+   * Утвердить ООЗ прямо из СЗ. Раньше это можно было сделать только в
+   * конструкторе ООЗ и только руководителю КС: контрактный управляющий с
+   * полными правами на СЗ застревал на закрытом блоке НМЦК. Право утверждать
+   * ООЗ приравниваем к праву редактировать СЗ (оно включает и isHead).
+   */
+  const approveOozFromNote = () => {
+    if (
+      !selectedOoz ||
+      selectedOoz.id === undefined ||
+      isReadOnly ||
+      updateObjectDescription.isPending
+    ) {
+      return;
+    }
+    const approver = employee?.employee ? fullName(employee.employee) : "";
+    updateObjectDescription.mutate({
+      id: selectedOoz.id,
+      status: "approved",
+      approvedByName: selectedOoz.approvedByName || approver || undefined,
+      approvedDate:
+        selectedOoz.approvedDate || new Date().toISOString().slice(0, 10),
+    });
+  };
+
   const canWorkflowAction = !isReadOnly && !isBusy && isEditMode;
   const isDraftLikeStatus = isDraftLikePurchaseNote(watchedStatus);
 
@@ -2441,6 +2476,46 @@ export default function PurchaseNoteModal({
                 ? `Признак «Невозможно определить количество/объём» (ч. 24 ст. 22) из ООЗ: ${selectedOoz.isIndeterminateVolume ? "установлен — количество во всех объектах = 1" : "не установлен"}.`
                 : "Признак «Невозможно определить количество/объём» (ч. 24 ст. 22) задаётся в ООЗ и переносится в СЗ автоматически."}
             </span>
+
+            {/* Гейт следующего этапа: ООЗ утверждается здесь же, в блоке 2.
+                Пока статус не approved, блок НМЦК и остальные разделы СЗ
+                скрыты — права на СЗ дают и право утвердить её ООЗ. */}
+            <div className={block("label-row")}>
+              <span className={block("hint")}>
+                {selectedOoz
+                  ? `Статус ООЗ: ${oozApproved ? "утверждено" : "ожидает утверждения"}.`
+                  : "ООЗ не подставлен — утверждение недоступно."}
+                {updateObjectDescription.isError
+                  ? " Не удалось утвердить ООЗ, попробуйте ещё раз."
+                  : ""}
+              </span>
+              <div className={block("footer-actions")}>
+                <button
+                  type="button"
+                  className={block("btn-accent")}
+                  disabled={
+                    isReadOnly ||
+                    !selectedOoz ||
+                    oozApproved ||
+                    updateObjectDescription.isPending
+                  }
+                  onClick={approveOozFromNote}
+                >
+                  {updateObjectDescription.isPending
+                    ? "Утверждение..."
+                    : "Утвердить ООЗ"}
+                </button>
+                {canWorkflowAction && isDraftLikeStatus && (
+                  <button
+                    type="button"
+                    className={block("btn")}
+                    onClick={() => submitWorkflow("in_review")}
+                  >
+                    Направить в КС
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ и правка реквизитов */}
@@ -4666,9 +4741,9 @@ export default function PurchaseNoteModal({
 
       {!laterSectionsReady && (
         <div className={block("pending-notice")}>
-          Сначала утвердите структурированное ООЗ, затем подготовьте и
-          подпишите обоснование НМЦК в ЭП. Остальные требования служебной
-          записки появятся после этого.
+          Утвердите структурированное ООЗ кнопкой в блоке 2 «Предмет и объекты
+          закупки», затем подготовьте и подпишите обоснование НМЦК в ЭП.
+          Остальные требования служебной записки появятся после этого.
         </div>
       )}
 
