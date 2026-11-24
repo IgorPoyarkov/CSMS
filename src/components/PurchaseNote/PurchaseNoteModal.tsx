@@ -187,7 +187,8 @@ import Select from "../UI/Select";
  * Реализует правила Закона № 44-ФЗ и приказа Минфина РФ № 158н:
  * - право правки ограничено полномочиями в КС (неавторизованным — режим чтения);
  * - КБК наследуется из ПГ без правки (несогласие доступно планировщику/согласующему);
- * - единый флаг ч. 24 ст. 22 над списком объектов закупки фиксирует количество = 1;
+ * - признак неопределённого объёма (ч. 24 ст. 22) задаётся в ООЗ и только
+ *   переносится в СЗ — отдельного переключателя над объектами нет;
  * - относительные/абсолютные сроки поставки, приёмка от события/датой, множественные места поставки;
  * - уровень бюджета фиксирован от заказчика, источник финансирования текстом,
  *   аванс без «порядка оплаты», казначейское (полное / только аванса) и банковское сопровождение;
@@ -225,7 +226,6 @@ const formatRub = (value: string | number | undefined): string => {
 const buildNoteItemsFromOoz = (
   desc: ObjectDescription,
   position: PurchasePlanPosition,
-  indeterminate: boolean,
   objects: PurchaseObject[] = [],
 ): PurchaseNoteObjectItem[] => {
   const descriptionObjects = objects.filter(
@@ -248,8 +248,7 @@ const buildNoteItemsFromOoz = (
     ktruCode: desc.ktruCode ?? "",
     ktruName: desc.ktruName ?? "",
     unit: desc.unit ?? "",
-    quantity:
-      indeterminate || desc.isIndeterminateVolume ? "1" : desc.quantity || "1",
+    quantity: desc.isIndeterminateVolume ? "1" : desc.quantity || "1",
     unitPrice: "",
     totalPrice: "",
     nationalRegimeType: "none" as const,
@@ -267,7 +266,7 @@ const buildNoteItemsFromOoz = (
         ktruName: object.ktruName ?? "",
         unit: object.unit ?? desc.unit ?? "",
         quantity:
-          indeterminate || object.isIndeterminateVolume
+          desc.isIndeterminateVolume || object.isIndeterminateVolume
             ? "1"
             : object.quantity || desc.quantity || "1",
         unitPrice: "",
@@ -551,6 +550,22 @@ export default function PurchaseNoteModal({
     }));
 
     if (note) {
+      // Признак объёма хранится в ООЗ. Старое поле СЗ остаётся фолбэком только
+      // для записей без связанного описания.
+      const noteOoz =
+        objectDescriptions.find(
+          (desc) =>
+            (note.objectDescriptionId !== undefined &&
+              String(desc.id) === String(note.objectDescriptionId)) ||
+            (note.items ?? []).some(
+              (item) =>
+                item.objectDescriptionId !== undefined &&
+                String(item.objectDescriptionId) === String(desc.id),
+            ),
+        ) ?? autoMatchedDesc;
+      const noteIndeterminate =
+        noteOoz?.isIndeterminateVolume ?? note.isIndeterminateVolume ?? false;
+
       const legacyItems: PurchaseNoteObjectItem[] =
         note.items && note.items.length > 0
           ? note.items
@@ -566,9 +581,7 @@ export default function PurchaseNoteModal({
                 // ktruCode/ktruName живут в items и в ООЗ; верхний уровень СЗ
                 // их не хранит, поэтому берём снимок из позиции ПГ.
                 unit: note.unit || "",
-                quantity: note.isIndeterminateVolume
-                  ? "1"
-                  : note.quantity || "1",
+                quantity: noteIndeterminate ? "1" : note.quantity || "1",
                 unitPrice: "",
                 totalPrice: note.initialMaxPrice || "",
                 nationalRegimeType: note.nationalRegimeType ?? "none",
@@ -589,6 +602,7 @@ export default function PurchaseNoteModal({
       return {
         ...base,
         ...note,
+        isIndeterminateVolume: noteIndeterminate,
         // Критерии ПП РФ N 2604 всегда держим полным набором из четырёх
         // критериев: так значимость и показатели редактируются стабильно
         evaluationCriteria: normalizeCriteria(
@@ -680,12 +694,7 @@ export default function PurchaseNoteModal({
       subject: position.objectOfPurchase || autoMatchedDesc?.title || "",
       isIndeterminateVolume: autoMatchedDesc?.isIndeterminateVolume ?? false,
       items: autoMatchedDesc
-        ? buildNoteItemsFromOoz(
-            autoMatchedDesc,
-            position,
-            false,
-            purchaseObjects,
-          )
+        ? buildNoteItemsFromOoz(autoMatchedDesc, position, purchaseObjects)
         : [
             {
               id: "item-1",
@@ -764,14 +773,13 @@ export default function PurchaseNoteModal({
     if (!desc) return;
     appliedOozQueryIdRef.current = oozId;
     setValue("objectDescriptionId", oozId, { shouldDirty: true });
+    // Признак объёма не редактируется в СЗ — он приходит из выбранного ООЗ
+    setValue("isIndeterminateVolume", Boolean(desc.isIndeterminateVolume), {
+      shouldDirty: true,
+    });
     setValue(
       "items",
-      buildNoteItemsFromOoz(
-        desc,
-        position,
-        Boolean(getValues("isIndeterminateVolume")),
-        purchaseObjects,
-      ),
+      buildNoteItemsFromOoz(desc, position, purchaseObjects),
       { shouldDirty: true },
     );
     if (!getValues("subject")?.trim()) setValue("subject", desc.title);
@@ -799,21 +807,18 @@ export default function PurchaseNoteModal({
     const key = String(autoMatchedDesc.id);
     if (appliedAutoOozRef.current === key) return;
     appliedAutoOozRef.current = key;
-    replace(
-      buildNoteItemsFromOoz(
-        autoMatchedDesc,
-        position,
-        Boolean(getValues("isIndeterminateVolume")),
-        purchaseObjects,
-      ),
+    setValue(
+      "isIndeterminateVolume",
+      Boolean(autoMatchedDesc.isIndeterminateVolume),
     );
+    replace(buildNoteItemsFromOoz(autoMatchedDesc, position, purchaseObjects));
   }, [
     initialNote,
     purchaseObjectsLoading,
     autoMatchedDesc,
     position,
     purchaseObjects,
-    getValues,
+    setValue,
     replace,
     isReadOnly,
   ]);
@@ -889,7 +894,6 @@ export default function PurchaseNoteModal({
     createKsTask.isPending ||
     updateKsTask.isPending;
 
-  const watchedIndeterminate = Boolean(watch("isIndeterminateVolume"));
   const watchedKbkDisagreement = Boolean(watch("kbkDisagreement"));
   const watchedHasAdvance = Boolean(watch("hasAdvance"));
   const watchedTreasury = Boolean(watch("requiresTreasurySupport"));
@@ -913,6 +917,11 @@ export default function PurchaseNoteModal({
       watchedOozId !== null &&
       watchedOozId !== undefined &&
       String(desc.id) === String(watchedOozId),
+  );
+  // Признак неопределённого объёма задаётся в ООЗ; переключателя в СЗ нет.
+  // Для старых записей без ООЗ сохраняем значение самих СЗ.
+  const watchedIndeterminate = Boolean(
+    selectedOoz?.isIndeterminateVolume ?? watch("isIndeterminateVolume"),
   );
   // Проверки сканируют справочник на каждую позицию: без мемоизации они
   // повторялись бы при каждом нажатии в любой поле формы (watch подписывает
@@ -1421,20 +1430,6 @@ export default function PurchaseNoteModal({
     });
   };
 
-  // Единый переключатель «невозможно определить количество» синхронизирует quantity = "1" у всех объектов
-  const handleToggleIndeterminate = (checked: boolean) => {
-    if (isReadOnly) return;
-    setValue("isIndeterminateVolume", checked);
-    if (checked) {
-      const currentItems = getValues("items") ?? [];
-      currentItems.forEach((_, idx) => {
-        setValue(`items.${idx}.quantity`, "1");
-      });
-      setValue("quantity", "1");
-    }
-    applyNmckToItems();
-  };
-
   // Выбор ОКПД2 в позиции: наименование и сброс КТРУ, если оно относится
   // к другому коду. Нацрежим по ПП РФ № 1875 здесь не трогаем — его позже
   // устанавливают закупщик/юрист КС.
@@ -1677,9 +1672,14 @@ export default function PurchaseNoteModal({
     proceedAfterSaveRef.current = false;
 
     const firstItem = data.items?.[0];
+    // Признак объёма приходит из ООЗ; в СЗ его только перенаследуем в данные
+    // записи, чтобы извещение, экспорт и проект контракта видели тот же флаг.
+    const indeterminate = Boolean(
+      selectedOoz?.isIndeterminateVolume ?? data.isIndeterminateVolume,
+    );
     const normalizedItems = (data.items ?? []).map((it) => ({
       ...it,
-      quantity: data.isIndeterminateVolume ? "1" : it.quantity || "1",
+      quantity: indeterminate ? "1" : it.quantity || "1",
     }));
 
     const placeStrings = (data.deliveryPlaces ?? [])
@@ -1702,6 +1702,7 @@ export default function PurchaseNoteModal({
     const normalized: PurchaseNote = {
       ...data,
       status: targetStatus,
+      isIndeterminateVolume: indeterminate,
       // Критерии фиксируются вместе со способом закупки и категорией по ОКПД2:
       // из СЗ они попадают в извещение. Если выбран не конкурс (или способ
       // ещё не выбран), Положение N 2604 не применяется — полей в СЗ нет.
@@ -1738,9 +1739,7 @@ export default function PurchaseNoteModal({
       okpd2Code: firstItem?.okpd2Code || data.okpd2Code || "",
       okpd2Name: firstItem?.okpd2Name || data.okpd2Name || "",
       unit: firstItem?.unit || data.unit || "",
-      quantity: data.isIndeterminateVolume
-        ? "1"
-        : firstItem?.quantity || data.quantity || "1",
+      quantity: indeterminate ? "1" : firstItem?.quantity || data.quantity || "1",
       nationalRegimeType:
         firstItem?.nationalRegimeType || data.nationalRegimeType || "none",
       deliveryPlace: placeStrings.join("; ") || data.deliveryPlace || "",
@@ -2406,16 +2405,6 @@ export default function PurchaseNoteModal({
             )}
           </div>
 
-          {/* Флаг невозможности определить количество — строго над объектами */}
-          <div className={block("field", ["wide"])}>
-            <CustomCheckbox
-              label="Невозможно определить количество/объём товаров, работ, услуг (ч. 24 ст. 22 Закона № 44-ФЗ — во всех объектах количество фиксируется равным 1)"
-              checked={watchedIndeterminate}
-              disabled={isReadOnly}
-              onChange={(e) => handleToggleIndeterminate(e.target.checked)}
-            />
-          </div>
-
           {/* Объекты СЗ подставляются из ООЗ целиком. Ручного выбора нет:
               состав меняется в конструкторе, здесь только отображаем источник. */}
           <div className={block("field", ["wide"])}>
@@ -2447,6 +2436,11 @@ export default function PurchaseNoteModal({
                 объекты и характеристики попадут в СЗ целиком.
               </span>
             )}
+            <span className={block("hint")}>
+              {selectedOoz
+                ? `Признак «Невозможно определить количество/объём» (ч. 24 ст. 22) из ООЗ: ${selectedOoz.isIndeterminateVolume ? "установлен — количество во всех объектах = 1" : "не установлен"}.`
+                : "Признак «Невозможно определить количество/объём» (ч. 24 ст. 22) задаётся в ООЗ и переносится в СЗ автоматически."}
+            </span>
           </div>
 
           {/* Сводная таблица объектов закупки: ОКПД2 / КТРУ и правка реквизитов */}
