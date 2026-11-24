@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
   useContractCardProjection,
@@ -41,6 +42,8 @@ import {
   contractSmpDocumentTypeLabels,
   contractSmpStatusLabels,
 } from "../../services/ContractSmp/contractSmp.schema";
+import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
+import { smpOverdueMarks, smpRegistryCheck } from "../../services/ContractSmp/smpControl";
 import { useAcceptanceSummary } from "../ContractAcceptance/acceptanceSummary";
 import {
   acceptanceKindLabels,
@@ -114,6 +117,32 @@ const KIND_ORDER: Record<TimelineKind, number> = {
   payment: 1,
   smp: 2,
   penalty: 3,
+};
+
+/** Порядок чипов фильтра — тот же, что порядок видов в линии. */
+const TIMELINE_KINDS: TimelineKind[] = [
+  "acceptance",
+  "payment",
+  "smp",
+  "penalty",
+];
+
+/**
+ * Фильтр видов фактов живёт в URL: ссылкой «только оплаты» можно поделиться, а
+ * переход в другую карточку и назад не сбрасывает выбор. Отсутствие параметра
+ * означает «включено всё» — состояние по умолчанию, а не отдельный флаг.
+ */
+const EXECUTION_KINDS_PARAM = "execution";
+
+const parseKinds = (raw: string | null): Set<TimelineKind> => {
+  if (raw === null) return new Set(TIMELINE_KINDS);
+  const requested = raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value): value is TimelineKind =>
+      (TIMELINE_KINDS as string[]).includes(value),
+    );
+  return new Set(requested);
 };
 
 /**
@@ -193,6 +222,9 @@ export default function ContractExecutionTimeline({
   const { data: payments } = useContractPayments(contractId);
   const { data: penalties } = useContractPenalties(contractId);
   const { data: smpRecords } = useContractSmpRecords(contractId);
+  // Реестр МСП нужен для сверки субподрядчиков: ключ запроса общий с блоком
+  // «Привлечение СМП», повторного обращения не будет
+  const { data: smpRegistry = [] } = useSmpRegistry();
 
   // Реквизиты для печатных форм: акт и платёжка печатаются по данным карточки
   // ЕИС, а подрядчика документ добирает из сторон акта или строки платежа
@@ -402,8 +434,28 @@ export default function ContractExecutionTimeline({
     // Свои записи приоритетнее подтаблицы ЕИС: они подтверждены документами
     // субподряда, а выгрузка ЕИС показывает только опубликованные сведения
     if ((smpRecords ?? []).length > 0) {
+      const marks = smpOverdueMarks(smpRecords ?? []);
       for (const record of smpRecords ?? []) {
         const date = isoDate(record.documentDate || record.receivedAt);
+        // Просроченные сроки ПП 1466 по этой записи: показываем самый тяжёлый,
+        // иначе «позже срока» видно только в таблице сроков блока СМП
+        const worst = marks
+          .filter((mark) => String(mark.recordId) === String(record.id))
+          .sort(
+            (left, right) =>
+              right.overdueBusinessDays - left.overdueBusinessDays,
+          )[0];
+        // Признак «СМП» в сведениях заявлен подрядчиком: реестр подтверждает
+        // его по ИНН, и расхождение видно прямо в хронологии
+        const registry = smpRegistryCheck(
+          record,
+          smpRecords ?? [],
+          smpRegistry,
+        );
+        const registryNote =
+          registry.applicable && registry.status !== "in_registry"
+            ? registry.text
+            : "";
         items.push({
           key: `smp-${record.id}`,
           kind: "smp",
@@ -411,9 +463,21 @@ export default function ContractExecutionTimeline({
           title: `${contractSmpDocumentTypeLabels[record.documentType]} № ${
             record.documentNumber || "—"
           }`,
-          note: [record.supplierName, contractSmpStatusLabels[record.status]]
+          note: [
+            record.supplierName,
+            contractSmpStatusLabels[record.status],
+            registryNote,
+          ]
             .filter(Boolean)
             .join(" · "),
+          mark: worst
+            ? {
+                text: `позже срока на ${daysLabel(
+                  worst.overdueBusinessDays,
+                )} (${worst.clause})`,
+                tone: "late",
+              }
+            : undefined,
           amount: record.amount ? Number(record.amount) : null,
           stageKey: resolveStage(null, date),
         });
@@ -485,6 +549,16 @@ export default function ContractExecutionTimeline({
     }
     for (const node of stageNodes) node.items.sort(compare);
 
+    // Счётчики для фильтра: сколько фактов каждого вида есть в линии. Считаем
+    // по полному списку, чтобы на чипе было видно, что скрывается фильтром
+    const kindCounts: Record<TimelineKind, number> = {
+      acceptance: 0,
+      payment: 0,
+      smp: 0,
+      penalty: 0,
+    };
+    for (const item of items) kindCounts[item.kind] += 1;
+
     const usesManualAcceptance = acceptanceRows.length > 0;
     const usesManualPayments = manualPayments.length > 0;
     return {
@@ -514,6 +588,7 @@ export default function ContractExecutionTimeline({
           )
         : contractCardSmpTotal(contractCardSmpRows(projection?.Smp ?? [])),
       hasItems: items.length > 0,
+      kindCounts,
     };
   }, [
     projection,
@@ -521,17 +596,53 @@ export default function ContractExecutionTimeline({
     payments,
     penalties,
     smpRecords,
+    smpRegistry,
     summary,
     contract.executionStartDate,
     contract.executionEndDate,
     documentContext,
   ]);
 
+  // ─── Фильтр видов фактов ────────────────────────────────────────────────
+  // Выбор живёт в URL (`?execution=payment,smp`): ссылка воспроизводит вид, а
+  // кнопка «назад» возвращает предыдущий набор, как у обычных фильтров списка
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeKinds = useMemo(
+    () => parseKinds(searchParams.get(EXECUTION_KINDS_PARAM)),
+    [searchParams],
+  );
+  const filtersApplied = activeKinds.size !== TIMELINE_KINDS.length;
+  const visibleItems = (list: TimelineItem[]): TimelineItem[] =>
+    filtersApplied ? list.filter((item) => activeKinds.has(item.kind)) : list;
+
+  const toggleKind = (kind: TimelineKind): void => {
+    const next = new Set(activeKinds);
+    if (next.has(kind)) next.delete(kind);
+    else next.add(kind);
+    const params = new URLSearchParams(searchParams);
+    // «Включено всё» — это состояние по умолчанию: параметр убираем, чтобы
+    // ссылка на карточку оставалась короткой
+    if (next.size === TIMELINE_KINDS.length) params.delete(EXECUTION_KINDS_PARAM);
+    else {
+      params.set(
+        EXECUTION_KINDS_PARAM,
+        TIMELINE_KINDS.filter((entry) => next.has(entry)).join(","),
+      );
+    }
+    setSearchParams(params, { replace: true });
+  };
+
   // Пока идёт первый запрос или адаптер недоступен, секцию не рисуем: пустое
   // состояние ниже — про отсутствие выгрузки, а не про сетевую ошибку
   if (!contractId || isLoading || isError) return null;
 
   const unpaidTotal = Math.max(0, timeline.acceptedTotal - timeline.paidTotal);
+  const visibleContractItems = visibleItems(timeline.contractItems);
+  // Сколько фактов осталось видно: по нему понимаем, что фильтр скрыл всё
+  const visibleTotal = TIMELINE_KINDS.reduce(
+    (sum, kind) => sum + (activeKinds.has(kind) ? timeline.kindCounts[kind] : 0),
+    0,
+  );
 
   return (
     <section id="contract-execution" className={styles.subSection}>
@@ -582,6 +693,45 @@ export default function ContractExecutionTimeline({
         </p>
       ) : (
         <div className={styles.timeline}>
+          {/* Фильтр видов фактов: переключает только хронологию — сводка выше
+              всегда показывает полные суммы, иначе цифры «прыгали» бы */}
+          {timeline.hasItems && (
+            <div className={styles.timelineFilters}>
+              <span className={styles.timelineFiltersLabel}>Показывать:</span>
+              {TIMELINE_KINDS.map((kind) => {
+                const on = activeKinds.has(kind);
+                return (
+                  <button
+                    key={kind}
+                    type="button"
+                    aria-pressed={on}
+                    className={`${styles.timelineFilterChip} ${
+                      styles[`timelineFilter_${kind}`]
+                    }`}
+                    onClick={() => toggleKind(kind)}
+                  >
+                    {KIND_LABELS[kind]}
+                    <span className={styles.timelineFilterCount}>
+                      {timeline.kindCounts[kind]}
+                    </span>
+                  </button>
+                );
+              })}
+              {filtersApplied && (
+                <button
+                  type="button"
+                  className={styles.timelineFilterReset}
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams);
+                    params.delete(EXECUTION_KINDS_PARAM);
+                    setSearchParams(params, { replace: true });
+                  }}
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
+          )}
           <div className={styles.timelineNode}>
             <div className={styles.timelineHead}>
               <span className={styles.timelineBullet} aria-hidden="true" />
@@ -635,13 +785,17 @@ export default function ContractExecutionTimeline({
                     </span>
                   </div>
                   <TimelineEvents
-                    items={node.items}
-                    empty="Приёмок, оплат и неустоек по этапу пока нет"
+                    items={visibleItems(node.items)}
+                    empty={
+                      filtersApplied && node.items.length > 0
+                        ? "По выбранным видам фактов на этапе ничего нет"
+                        : "Приёмок, оплат и неустоек по этапу пока нет"
+                    }
                   />
                 </div>
               ))}
 
-              {timeline.contractItems.length > 0 && (
+              {visibleContractItems.length > 0 && (
                 <div className={styles.timelineStage}>
                   {timeline.stageNodes.length > 0 && (
                     <div className={styles.timelineStageHead}>
@@ -661,7 +815,7 @@ export default function ContractExecutionTimeline({
                       </div>
                     </div>
                   )}
-                  <TimelineEvents items={timeline.contractItems} />
+                  <TimelineEvents items={visibleContractItems} />
                 </div>
               )}
 
@@ -671,6 +825,15 @@ export default function ContractExecutionTimeline({
                   поручений, сведений о СМП и неустоек по этому контракту.
                 </p>
               )}
+
+              {timeline.hasItems &&
+                visibleTotal === 0 &&
+                timeline.stageNodes.length === 0 && (
+                  <p className={styles.timelineEmpty}>
+                    По выбранным видам фактов ничего нет: включите другие чипы
+                    фильтра или сбросьте его.
+                  </p>
+                )}
             </div>
           </div>
         </div>
