@@ -8840,3 +8840,13 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   `draft-for-review`, ZIP валиден; grep по `question`/`answer` не находит
   «код/печатает/флаг/поле/VBA/шаблон/True/DLookup/заложен». Пары не
   индексируются: `qaFile` в `sources.json` не менялся.
+- **Синхронизирован отчёт по БД.** `docs/legal/sodu-db-relationships.md`:
+  заголовок и таблица «Что учесть при обновлении 40 Q&A» переписаны под
+  оставшиеся id (старые диапазоны удалённых пар убраны), в рекомендациях
+  остались проверки `vba-27`, `vba-49`, `vba-50`, `vba-56`.
+- **Чужая незавершённая работа (не трогать).** В рабочем дереве изменён
+  `src/components/PurchaseNote/PurchaseNoteModal.tsx` (~2379/2377 строк,
+  правки по КТРУ/ОКПД2 из карточки ООЗ). `npx tsc -b` падает только там:
+  `recalcItemTotal`, `handleSelectItemOkpd2`, `handleSelectItemKtru`
+  (TS6133); `npx oxlint src` — предупреждения в т.ч. в этом файле,
+  `npx vite build` — успешно. Файл в коммит не включён.
