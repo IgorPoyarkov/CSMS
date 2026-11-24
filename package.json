@@ -29,6 +29,7 @@
     "serve": "node scripts/serve-dist.mjs",
     "start:fast": "npm run build:web && concurrently -n web,pg,api -c cyan,magenta,green \"npm run serve\" \"npm run pg:server\" \"npm run api\"",
     "smp:registry:import": "node scripts/import-smp-registry.mjs",
+    "smp:seed-mock": "node scripts/seed-smp-mock.mjs",
     "counterparties:migrate": "node scripts/migrate-counterparties.mjs",
     "pg:seed": "node scripts/seed-postgres.mjs",
     "pg:server": "node scripts/pg-json-server.mjs",
