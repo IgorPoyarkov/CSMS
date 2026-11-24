@@ -17,7 +17,9 @@ import styles from "./LegalNpa.module.scss";
 /**
  * Реестр НПА с редакциями. Показывает, сколько редакций загружено и хватает ли
  * их до порога: 7 для федерального закона, 3 для указа, постановления,
- * распоряжения и приказа. Неполный набор — красный бейдж, полный — зелёный.
+ * распоряжения и приказа. Порог — ориентир: если источник подтвердил, что
+ * редакций всего меньше, набор считается полным (зелёный бейдж); без
+ * подтверждения — жёлтый «сверить», но это не ошибка.
  */
 export default function LegalActsPage() {
   const { bem, formatDate } = useUtils();
@@ -56,9 +58,9 @@ export default function LegalActsPage() {
         <div>
           <h1 className={block("title")}>НПА и редакции</h1>
           <p className={block("subtitle")}>
-            Реестр актов с версиями: у федерального закона — минимум 7
-            редакций, у указа, постановления, распоряжения и приказа — минимум
-            3. Неподтверждённая редакция в проверках и ответах консультанта не
+            Реестр актов с версиями: у федерального закона — минимум 7 редакций,
+            у указа, постановления, распоряжения и приказа — минимум 3.
+            Неподтверждённая редакция в проверках и ответах консультанта не
             используется.
           </p>
         </div>
@@ -70,7 +72,7 @@ export default function LegalActsPage() {
             <b>{totals.complete}</b> полный набор
           </span>
           <span className={block("total", ["warn"])}>
-            <b>{totals.incomplete}</b> не хватает
+            <b>{totals.incomplete}</b> без подтверждения
           </span>
         </div>
       </header>
@@ -88,7 +90,9 @@ export default function LegalActsPage() {
         <Select
           className={block("select")}
           value={kind}
-          onChange={(event) => setKind(event.target.value as NpaActKind | "all")}
+          onChange={(event) =>
+            setKind(event.target.value as NpaActKind | "all")
+          }
           aria-label="Вид акта"
         >
           <option value="all">Все виды</option>
@@ -113,8 +117,8 @@ export default function LegalActsPage() {
 
       {isError && (
         <p className={block("error")}>
-          Не удалось загрузить реестр: {String((error as Error)?.message ?? "")}.
-          Проверьте, что PG-адаптер запущен на порту 3002.
+          Не удалось загрузить реестр: {String((error as Error)?.message ?? "")}
+          . Проверьте, что PG-адаптер запущен на порту 3002.
         </p>
       )}
 
@@ -123,7 +127,8 @@ export default function LegalActsPage() {
           <p>Реестр пуст. Заполните каркас демонстрационными редакциями:</p>
           <code>node scripts/npa-sync.mjs --seed</code>
           <p>
-            Затем проверьте порог: <code>node scripts/npa-sync.mjs --check</code>
+            Затем проверьте порог:{" "}
+            <code>node scripts/npa-sync.mjs --check</code>
           </p>
         </div>
       )}
@@ -137,6 +142,13 @@ export default function LegalActsPage() {
               100,
               Math.round((completeness.actual / completeness.required) * 100),
             );
+            // Порог — ориентир. Если источник подтвердил, что редакций всего
+            // меньше, набор полный: это не ошибка и не «недобор».
+            const badgeText = completeness.sourceComplete
+              ? `${completeness.actual} ред. · источник подтвердил`
+              : completeness.complete
+                ? `${completeness.actual} / ${completeness.required} · полный набор`
+                : `${completeness.actual} из ${completeness.required} · не подтверждено`;
 
             return (
               <article key={act.id} className={block("card")}>
@@ -146,7 +158,9 @@ export default function LegalActsPage() {
                     <p className={block("card-kind")}>
                       {npaKindLabels[npaKindOf(act)]}
                       {act.actNumber ? ` · № ${act.actNumber}` : ""}
-                      {act.adoptedDate ? ` · ${formatDate(act.adoptedDate)}` : ""}
+                      {act.adoptedDate
+                        ? ` · ${formatDate(act.adoptedDate)}`
+                        : ""}
                     </p>
                   </div>
                   <span
@@ -154,10 +168,7 @@ export default function LegalActsPage() {
                       completeness.complete ? "ok" : "warn",
                     ])}
                   >
-                    {completeness.actual} / {completeness.required}
-                    {completeness.complete
-                      ? " · полный набор"
-                      : ` · не хватает ${completeness.missing}`}
+                    {badgeText}
                   </span>
                 </div>
 

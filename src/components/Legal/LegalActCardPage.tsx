@@ -11,6 +11,7 @@ import {
   npaKindLabels,
   npaKindOf,
   sortVersions,
+  sortVersionsDesc,
 } from "../../services/LegalNpa/legalNpa.schema";
 import Select from "../UI/Select";
 import styles from "./LegalNpa.module.scss";
@@ -36,19 +37,25 @@ export default function LegalActCardPage() {
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
 
-  const versions = useMemo(
+  // Хронология — для выбора «было → стало», обратная — для чтения списка:
+  // свежие редакции нужны первыми, архаика внизу.
+  const chronological = useMemo(
     () => sortVersions(act?.versions ?? []),
+    [act?.versions],
+  );
+  const versions = useMemo(
+    () => sortVersionsDesc(act?.versions ?? []),
     [act?.versions],
   );
   const completeness = act ? npaCompleteness(act) : null;
 
   const fromVersion =
-    versions.find((version) => version.id === fromId) ??
-    versions[versions.length - 2] ??
-    versions[0];
+    chronological.find((version) => version.id === fromId) ??
+    chronological[chronological.length - 2] ??
+    chronological[0];
   const toVersion =
-    versions.find((version) => version.id === toId) ??
-    versions[versions.length - 1];
+    chronological.find((version) => version.id === toId) ??
+    chronological[chronological.length - 1];
 
   const diff = useMemo(() => {
     if (!fromVersion || !toVersion || fromVersion.id === toVersion.id) {
@@ -120,9 +127,11 @@ export default function LegalActCardPage() {
             {completeness.actual} из {completeness.required} редакций
           </b>
           <span>
-            {completeness.complete
-              ? "Порог набора выполнен."
-              : `Не хватает ${completeness.missing}: добавьте редакции синхронизацией.`}
+            {completeness.sourceComplete
+              ? `Источник подтвердил: всего ${completeness.actual} редакций — набор полный.`
+              : completeness.complete
+                ? "Порог набора выполнен."
+                : "Набор не подтверждён источником. Это не ошибка: проверьте, все ли редакции загружены."}
           </span>
           <code>node scripts/npa-sync.mjs --check</code>
         </div>
@@ -206,7 +215,7 @@ export default function LegalActCardPage() {
                   value={fromVersion?.id ?? ""}
                   onChange={(event) => setFromId(event.target.value)}
                 >
-                  {versions.map((version) => (
+                  {chronological.map((version) => (
                     <option key={version.id} value={version.id}>
                       {version.revision} · {formatDate(version.validFrom)}
                     </option>
@@ -221,7 +230,7 @@ export default function LegalActCardPage() {
                   value={toVersion?.id ?? ""}
                   onChange={(event) => setToId(event.target.value)}
                 >
-                  {versions.map((version) => (
+                  {chronological.map((version) => (
                     <option key={version.id} value={version.id}>
                       {version.revision} · {formatDate(version.validFrom)}
                     </option>

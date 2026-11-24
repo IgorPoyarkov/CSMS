@@ -100,6 +100,11 @@ export const NpaActSchema = z.object({
   sourceUrl: z.string().trim().optional(),
   isVerified: z.boolean().default(false),
   lastCheckedDate: isoDate.optional(),
+  // Источник подтвердил, что других редакций нет: набор полный, даже если
+  // редакций меньше рекомендованного порога (например, у приказа их всего 2).
+  sourceComplete: z.boolean().default(false),
+  // Сколько редакций существует по источнику — для подписи «в источнике N».
+  sourceVersionsTotal: z.number().int().nonnegative().optional(),
   versions: z.array(NpaVersionSchema).default([]),
 });
 
@@ -118,19 +123,28 @@ export interface NpaCompleteness {
   actual: number;
   missing: number;
   complete: boolean;
+  /** Набор подтверждён источником: других редакций не существует. */
+  sourceComplete: boolean;
 }
 
+/**
+ * Полнота набора. Порог — ориентир, а не требование: если источник
+ * подтвердил, что редакций всего меньше (sourceComplete), набор считается
+ * полным. Неподтверждённый недобор — не ошибка, а повод проверить источник.
+ */
 export const npaCompleteness = (
-  act: Pick<NpaAct, "actType" | "versions">,
+  act: Pick<NpaAct, "actType" | "versions" | "sourceComplete">,
 ): NpaCompleteness => {
   const required = requiredVersions(act);
   const actual = act.versions.length;
+  const sourceComplete = act.sourceComplete === true;
 
   return {
     required,
     actual,
-    missing: Math.max(0, required - actual),
-    complete: actual >= required,
+    missing: sourceComplete ? 0 : Math.max(0, required - actual),
+    complete: actual >= required || sourceComplete,
+    sourceComplete,
   };
 };
 
@@ -151,7 +165,9 @@ export const versionOnDate = (
   if (versions.length === 0) return null;
   const target = dateValue(date);
   if (target === null) {
-    return [...versions].sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+    return [...versions].sort((a, b) =>
+      b.validFrom.localeCompare(a.validFrom),
+    )[0];
   }
 
   return (
@@ -185,7 +201,12 @@ export const diffNpaArticles = (
   for (const [number, article] of after) {
     const previous = before.get(number);
     if (!previous) {
-      result.push({ number, title: article.title, status: "added", after: article.text });
+      result.push({
+        number,
+        title: article.title,
+        status: "added",
+        after: article.text,
+      });
       continue;
     }
     if (previous.text !== article.text || previous.title !== article.title) {
@@ -201,7 +222,12 @@ export const diffNpaArticles = (
 
   for (const [number, article] of before) {
     if (!after.has(number)) {
-      result.push({ number, title: article.title, status: "removed", before: article.text });
+      result.push({
+        number,
+        title: article.title,
+        status: "removed",
+        before: article.text,
+      });
     }
   }
 
@@ -210,3 +236,7 @@ export const diffNpaArticles = (
 
 export const sortVersions = (versions: NpaVersion[]): NpaVersion[] =>
   [...versions].sort((a, b) => a.validFrom.localeCompare(b.validFrom));
+
+/** Свежие редакции первыми — так их читают в интерфейсе. */
+export const sortVersionsDesc = (versions: NpaVersion[]): NpaVersion[] =>
+  [...versions].sort((a, b) => b.validFrom.localeCompare(a.validFrom));

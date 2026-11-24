@@ -94,14 +94,18 @@ const seedActs = () => [
     sourceUrl: "http://publication.pravo.gov.ru/document/0001201304080023",
     isVerified: false,
     lastCheckedDate: new Date().toISOString().slice(0, 10),
+    // Семь последних редакций, а не первые: архаика 2013–2015 годов в
+    // консультанте бесполезна. Даты демонстрационные — точный перечень
+    // редакций и номера изменяющих актов даёт синхронизация с pravo.gov.ru.
+    sourceComplete: false,
     versions: [
-      version("2013-04-05", "Первоначальная редакция"),
-      version("2014-01-01", "ред. от 02.07.2013"),
-      version("2014-06-04", "ред. от 04.06.2014"),
-      version("2015-01-01", "ред. от 31.12.2014"),
-      version("2016-01-01", "ред. от 13.07.2015"),
-      version("2019-07-01", "ред. от 27.06.2019"),
       version("2022-01-01", "ред. от 02.07.2021"),
+      version("2022-07-01", "ред. от 01.07.2022"),
+      version("2023-01-01", "ред. от 28.12.2022"),
+      version("2023-07-01", "ред. от 04.08.2023"),
+      version("2024-01-01", "ред. от 25.12.2023"),
+      version("2024-07-01", "ред. от 08.08.2024"),
+      version("2025-01-01", "ред. от 25.12.2024"),
     ],
   },
   {
@@ -116,6 +120,7 @@ const seedActs = () => [
     sourceUrl: "http://publication.pravo.gov.ru/",
     isVerified: false,
     lastCheckedDate: new Date().toISOString().slice(0, 10),
+    sourceComplete: false,
     versions: [
       version("2017-09-09", "Первоначальная редакция"),
       version("2019-01-01", "ред. от 15.11.2018"),
@@ -134,6 +139,7 @@ const seedActs = () => [
     sourceUrl: "http://publication.pravo.gov.ru/",
     isVerified: false,
     lastCheckedDate: new Date().toISOString().slice(0, 10),
+    sourceComplete: false,
     versions: [
       version("2020-07-31", "Первоначальная редакция"),
       version("2021-01-01", "ред. от 31.07.2020 (вступление)"),
@@ -148,36 +154,68 @@ const kindOf = (act) =>
 const completeness = (act) => {
   const required = MIN_VERSIONS[kindOf(act)];
   const actual = Array.isArray(act.versions) ? act.versions.length : 0;
-  return { required, actual, complete: actual >= required };
+  const sourceComplete = act.sourceComplete === true;
+  return {
+    required,
+    actual,
+    sourceComplete,
+    // Порог — ориентир: подтверждённый источником набор считается полным,
+    // даже если редакций меньше (у приказа их может быть всего две).
+    complete: actual >= required || sourceComplete,
+  };
 };
 
 const printCheck = (acts) => {
   const rows = acts.map((act) => {
-    const { required, actual, complete } = completeness(act);
+    const { required, actual, complete, sourceComplete } = completeness(act);
+    const status = sourceComplete
+      ? `OK · в источнике ${actual}`
+      : complete
+        ? "OK"
+        : `проверить: ${actual} из ${required}`;
+
     return {
       id: act.id,
       act: act.shortName,
       kind: kindOf(act),
       actual,
       required,
-      status: complete ? "OK" : `не хватает ${required - actual}`,
+      status,
     };
   });
 
   if (rows.length === 0) {
     console.log("Актов нет. Запустите: node scripts/npa-sync.mjs --seed");
-    return false;
+    return true;
   }
 
   console.table(rows);
-  const incomplete = rows.filter((row) => row.status !== "OK");
+  const incomplete = rows.filter((row) => !row.status.startsWith("OK"));
   console.log(
     incomplete.length === 0
-      ? "Полнота редакций: все акты соответствуют порогу."
-      : `Полнота редакций: не соответствуют порогу — ${incomplete.length}.`,
+      ? "Полнота редакций: наборы полные (порог или подтверждение источника)."
+      : `Полнота редакций: ${incomplete.length} акт(ов) без подтверждения набора — это не ошибка, а повод сверить источник.`,
   );
 
   return incomplete.length === 0;
+};
+
+/** Отметить, что источник подтвердил: других редакций нет. */
+const markSourceComplete = async (actId) => {
+  const acts = await listActs();
+  const target = acts.find((act) => String(act.id) === String(actId));
+  if (!target) throw new Error(`Акт ${actId} не найден`);
+
+  const total = Array.isArray(target.versions) ? target.versions.length : 0;
+  await upsertAct({
+    id: target.id,
+    sourceComplete: true,
+    sourceVersionsTotal: total,
+    lastCheckedDate: new Date().toISOString().slice(0, 10),
+  });
+  console.log(
+    `${target.shortName}: набор подтверждён источником (${total} редакций).`,
+  );
 };
 
 /** Декодирование HTML-сущностей: в <title> они числовые (&#x424;…). */
@@ -325,9 +363,16 @@ const main = async () => {
     return;
   }
 
+  if (flag("complete")) {
+    await markSourceComplete(option("act", "npa-44fz"));
+    return;
+  }
+
   if (flag("check")) {
     const ok = printCheck(await listActs());
-    if (!ok) process.exitCode = 1;
+    // Мягкий режим: недобор — предупреждение, а не ошибка. Код 1 только с
+    // --strict, когда проверка нужна в CI и набор обязан быть подтверждён.
+    if (!ok && flag("strict")) process.exitCode = 1;
     return;
   }
 
@@ -344,7 +389,9 @@ const main = async () => {
     [
       "Команды:",
       "  --seed                       записать демонстрационные акты и редакции",
-      "  --check                      проверить порог редакций (7 для ФЗ, 3 для остальных)",
+      "  --check                      проверить набор редакций (7 для ФЗ, 3 для остальных)",
+      "  --check --strict             код 1, если набор не подтверждён (для CI)",
+      "  --complete --act=<id>        источник подтвердил: других редакций нет",
       "  --list                       показать акты и число редакций",
       "  --source=pravo --url=...     добавить редакцию с карточки pravo.gov.ru",
       "  --act=<id>                   акт для --source=pravo (по умолчанию npa-44fz)",

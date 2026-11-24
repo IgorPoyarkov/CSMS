@@ -51,10 +51,12 @@ export default function LegalChangesPage() {
         <div>
           <h1 className={block("title")}>Состояние реестра НПА</h1>
           <p className={block("subtitle")}>
-            Очередь администратора НПА: акты, где не хватает редакций до порога
-            (7 для ФЗ, 3 для остальных), и редакции, ожидающие подтверждения.
-            Черновые редакции не используются в проверках и ответах
-            консультанта.
+            Очередь администратора НПА: наборы, которые ещё не подтверждены
+            источником (порог — 7 для ФЗ, 3 для остальных), и редакции,
+            ожидающие подтверждения. Меньше порога — не ошибка: у акта может
+            быть всего две редакции, тогда достаточно отметить набор
+            подтверждённым. Черновые редакции в проверках и ответах
+            консультанта не используются.
           </p>
         </div>
         <div className={block("totals")}>
@@ -74,11 +76,12 @@ export default function LegalChangesPage() {
 
       <section className={block("section")}>
         <h2 className={block("section-title")}>
-          Не хватает редакций ({incomplete.length})
+          Наборы без подтверждения ({incomplete.length})
         </h2>
         {incomplete.length === 0 ? (
           <p className={block("hint")}>
-            У всех актов набор редакций соответствует порогу.
+            У всех актов набор полный: порог достигнут или источник подтвердил,
+            что других редакций нет.
           </p>
         ) : (
           <ul className={block("list")}>
@@ -94,7 +97,7 @@ export default function LegalChangesPage() {
                   </span>
                 </div>
                 <span className={block("chip", ["warn"])}>
-                  не хватает {completeness.missing}
+                  {completeness.actual} из {completeness.required} · сверить
                 </span>
               </li>
             ))}
@@ -133,8 +136,10 @@ export default function LegalChangesPage() {
       </section>
 
       <p className={block("hint")}>
-        Проверка порога из терминала: <code>node scripts/npa-sync.mjs --check</code>.
-        Обновление редакций: <code>node scripts/npa-sync.mjs --source=pravo --url=…</code>.
+        Проверка набора: <code>node scripts/npa-sync.mjs --check</code> (жёсткий
+        режим для CI — с <code>--strict</code>). Подтвердить, что других
+        редакций нет: <code>node scripts/npa-sync.mjs --complete --act=…</code>.
+        Обновление: <code>node scripts/npa-sync.mjs --source=pravo --url=…</code>.
       </p>
     </section>
   );
