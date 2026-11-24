@@ -1413,9 +1413,9 @@ const NoticeInfoForm = () => {
             quantity,
             unitPrice,
             totalPrice,
-            volumeSpecifyingMethod: (isIndeterminate ? "SF" : "QF") as
+            volumeSpecifyingMethod: (isIndeterminate ? "VTF" : "QF") as
               | "QF"
-              | "SF",
+              | "VTF",
             volumeTextForm: "",
             trademarks: itemDesc?.trademarkName || "",
             isEquivalentDeliveryAllowed: false,
@@ -1510,7 +1510,7 @@ const NoticeInfoForm = () => {
           quantity,
           unitPrice,
           totalPrice,
-          volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
+          volumeSpecifyingMethod: isIndeterminate ? "VTF" : "QF",
           volumeTextForm: "",
           trademarks: matchedDesc?.trademarkName || "",
           isEquivalentDeliveryAllowed: false,

@@ -165,7 +165,7 @@ const PurchaseObjectsSection = ({
       quantity: 1,
       unitPrice: 0,
       totalPrice: 0,
-      volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
+      volumeSpecifyingMethod: isIndeterminate ? "VTF" : "QF",
       volumeTextForm: "",
       trademarks: "",
       isEquivalentDeliveryAllowed: false,
@@ -722,7 +722,7 @@ const PurchaseObjectsSection = ({
                               </div>
                             </div>
 
-                            {currentItem?.volumeSpecifyingMethod === "SF" && (
+                            {currentItem?.volumeSpecifyingMethod === "VTF" && (
                               <input
                                 type="text"
                                 placeholder="Текстовое описание объёма (volumeTextForm)"

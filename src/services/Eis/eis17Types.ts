@@ -567,7 +567,7 @@ export interface EisNotification2020 {
         quantity: number;
         price: number;
         sum: number;
-        volumeSpecifyingMethod: "QF" | "SF";
+        volumeSpecifyingMethod: "QF" | "VTF";
         volumeTextForm?: string;
         trademark?: string;
         isMedicalProduct?: boolean;
@@ -1566,9 +1566,15 @@ export const mapNoticeInfoToEis17 = (
             quantity: item.quantity,
             price: item.unitPrice,
             sum: item.totalPrice,
+            // SF приходит из старых извещений; по XSD 17.0 допустимы только
+            // QF (количество) и VTF (объём текстом).
             volumeSpecifyingMethod:
-              item.volumeSpecifyingMethod ??
-              (notice.purchaseObjects.isIndeterminateVolume ? "SF" : "QF"),
+              item.volumeSpecifyingMethod === "SF"
+                ? "VTF"
+                : (item.volumeSpecifyingMethod ??
+                  (notice.purchaseObjects.isIndeterminateVolume
+                    ? "VTF"
+                    : "QF")),
             volumeTextForm: item.volumeTextForm || undefined,
             trademark: item.trademarks || undefined,
             isMedicalProduct: item.isMedicalProduct,
@@ -3138,7 +3144,7 @@ export const buildNotification2020XmlPreview = (
   const objectsXml = dto.notificationInfo.purchaseObjectsInfo.objects
     .map(
       (obj) => `        <purchaseObject>
-          <type>${obj.type}</type>
+          ${obj.externalSid ? `<externalSid>${escapeXml(obj.externalSid)}</externalSid>` : ""}
           ${obj.ktruCode ? `<KTRU><code>${escapeXml(obj.ktruCode)}</code></KTRU>` : ""}
           ${obj.okpd2Code ? `<OKPD2><OKPDCode>${escapeXml(obj.okpd2Code)}</OKPDCode></OKPD2>` : ""}
           <name>${escapeXml(obj.name)}</name>
@@ -3147,6 +3153,7 @@ export const buildNotification2020XmlPreview = (
           <quantity><value>${obj.quantity}</value></quantity>
           <sum>${obj.sum.toFixed(2)}</sum>
           <volumeSpecifyingMethod>${obj.volumeSpecifyingMethod}</volumeSpecifyingMethod>
+          <type>${obj.type}</type>
         </purchaseObject>`,
     )
     .join("\n");

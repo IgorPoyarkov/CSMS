@@ -18,7 +18,9 @@ export const buildExtraPurchaseItems = (
   takeMissingOkpd2Codes(allOkpd2, usedCodes).map((entry, idx) => ({
     ...base,
     id: `${base.id}-${suffix}-${idx + 1}`,
-    externalSid: "",
+    // Внешний SID должен быть уникальным и у дополнительных позиций:
+    // по нему ЕИС связывает дочерний объект с родительским.
+    externalSid: `${base.externalSid || base.id}-${suffix}-${idx + 1}`,
     okpd2OrKtruCode: entry.code,
     okpd2Code: entry.code,
     ktruCode: "",

@@ -110,7 +110,9 @@ export const PurchaseObjectItemSchema = z.object({
   quantity: z.number(),
   unitPrice: z.number(),
   totalPrice: z.number(),
-  volumeSpecifyingMethod: z.enum(["QF", "SF"]).optional(),
+  // XSD 17.0 (BaseTypes.xsd): QF | VTF. SF оставлен только для чтения
+  // старых извещений, при маппинге приводится к VTF.
+  volumeSpecifyingMethod: z.enum(["QF", "VTF", "SF"]).optional(),
   volumeTextForm: z.string().optional(),
   trademarks: z.string().optional(),
   isEquivalentDeliveryAllowed: z.boolean().optional(),

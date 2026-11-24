@@ -116,7 +116,7 @@ export const EIS_DAY_TYPE_OPTIONS = [
 
 export const EIS_VOLUME_SPECIFYING_METHODS = [
   { value: "QF", label: "Количественно (QF)" },
-  { value: "SF", label: "Текстовое описание объёма (SF)" },
+  { value: "VTF", label: "Текстовое описание объёма (VTF)" },
 ] as const;
 
 /**

@@ -47,7 +47,7 @@ assert.equal(
 
 const base = {
   id: "sz-item-1",
-  externalSid: "",
+  externalSid: "sz-item-1-sid",
   productType: "PRODUCT",
   okpd2OrKtruCode: "42.11.20.200",
   okpd2Code: "42.11.20.200",
@@ -76,11 +76,18 @@ assert.deepEqual(
 );
 assert.equal(extras.every((item) => item.totalPrice === 0), true);
 assert.deepEqual(
+  extras.map((item) => item.externalSid),
+  ["sz-item-1-sid-okpd2-1-1", "sz-item-1-sid-okpd2-1-2"],
+);
+assert.deepEqual(
   takeMissingOkpd2Codes(getObjectDescriptionOkpd2Codes(desc), new Set(["19.20.21"])).map(
     (item) => item.code,
   ),
   ["42.11.20.200", "71.12.14"],
 );
+
+// SF остался только в старых извещениях: в ЕИС 17.0 допустимы QF и VTF
+(extras[0] as any).volumeSpecifyingMethod = "SF";
 
 const notice = {
   notificationType: "EF2020",
@@ -110,8 +117,20 @@ const notice = {
 
 const dto = mapNoticeInfoToEis17(notice);
 assert.equal(dto.notificationInfo.purchaseObjectsInfo.objects.length, 3);
+assert.deepEqual(
+  dto.notificationInfo.purchaseObjectsInfo.objects.map(
+    (item) => item.volumeSpecifyingMethod,
+  ),
+  ["QF", "VTF", "QF"],
+);
 const xml = buildNotification2020XmlPreview(notice);
 assert.equal((xml.match(/<OKPD2>/g) ?? []).length, 3);
+assert.equal(
+  xml.includes("<volumeSpecifyingMethod>VTF</volumeSpecifyingMethod>"),
+  true,
+);
+assert.equal(xml.includes("<volumeSpecifyingMethod>SF<"), false);
+assert.equal(xml.includes("<externalSid>sz-item-1-sid</externalSid>"), true);
 console.log(
-  "OK: ООЗ с 3 кодами → 3 позиции извещения → 3 блока OKPD2 в XML ЕИС 17.0",
+  "OK: ООЗ с 3 кодами → 3 позиции извещения → 3 блока OKPD2, SF → VTF, внешние SID сохранены",
 );
