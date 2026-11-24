@@ -1,0 +1,22 @@
+{
+  "apiBase": "http://localhost:5099",
+  "ollama": "http://localhost:11434",
+  "embedModel": "nomic-embed-text",
+  "chatModel": "deepseek-r1:7b",
+  "contextModule": "",
+  "maxChunkChars": 1100,
+  "chunkOverlap": 120,
+  "maxXsdChunks": 250,
+  "maxDocChars": 260000,
+  "docFiles": [
+    "PROJECT.md",
+    "docs/legal/ai-consultant-44fz.md",
+    "docs/tasks/snapshot-first-offline.md",
+    "docs/tasks/civil-code-clause-suggestions.md",
+    ".koda/PROJECT_STATE.md"
+  ],
+  "xsdDirs": ["src", "docs", "eis-parser", "../csms-api"],
+  "qaFile": "docs/legal/consultant-qa.json",
+  "minScore": 0.34,
+  "topK": 6
+}

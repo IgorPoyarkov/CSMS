@@ -75,6 +75,10 @@ const LegalActsRegistry = lazy(
 const LiabilityMappingPage = lazy(
   () => import("./components/LiabilityMapping/LiabilityMappingPage"),
 );
+// Консультант по 44-ФЗ: локальный RAG с ответами только по загруженным нормам.
+const ConsultantPage = lazy(
+  () => import("./components/Consultant/ConsultantPage"),
+);
 const EisSmpExportPage = lazy(() => import("./components/Eis/EisSmpExportPage"));
 const EisPackagesPage = lazy(() => import("./components/Eis/EisPackagesPage"));
 const EisSchemaExplorerPage = lazy(
@@ -382,6 +386,11 @@ const router = createBrowserRouter([
         // Compliance & Liability Mapping: обязанности 158н → нормы КоАП
         path: "/liability-mapping",
         element: lazySection(<LiabilityMappingPage />),
+      },
+      {
+        // Консультант: ответы по 44-ФЗ из локального индекса норм и XSD.
+        path: "/consultant",
+        element: lazySection(<ConsultantPage />),
       },
       {
         // Журнал действий с ЭП заказчика: кто, когда, каким сертификатом подписал

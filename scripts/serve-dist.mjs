@@ -36,6 +36,9 @@ if (!existsSync(path.join(root, "index.html"))) {
 
 /** Прокси повторяет настройки server.proxy из vite.config.ts. */
 const proxyRoutes = [
+  // Консультант — отдельный локальный сервис; конкретный префикс должен идти
+  // раньше общего /api, иначе запрос уйдёт в csms-api и вернёт 404.
+  { prefix: "/api/consultant", target: "http://127.0.0.1:5098" },
   { prefix: "/api", target: "http://127.0.0.1:5099" },
   { prefix: "/openapi", target: "http://127.0.0.1:5099" },
   {

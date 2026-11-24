@@ -27,14 +27,16 @@
     "preview": "vite preview",
     "build:web": "vite build",
     "serve": "node scripts/serve-dist.mjs",
-    "start:fast": "npm run build:web && concurrently -n web,pg,api -c cyan,magenta,green \"npm run serve\" \"npm run pg:server\" \"npm run api\"",
+    "consultant:ingest": "node scripts/consultant/ingest.mjs",
+    "consultant:server": "node scripts/consultant/server.mjs",
+    "start:fast": "npm run build:web && concurrently -n web,pg,api,consultant -c cyan,magenta,green,yellow \"npm run serve\" \"npm run pg:server\" \"npm run api\" \"npm run consultant:server\"",
     "smp:registry:import": "node scripts/import-smp-registry.mjs",
     "smp:seed-mock": "node scripts/seed-smp-mock.mjs",
     "counterparties:migrate": "node scripts/migrate-counterparties.mjs",
     "pg:seed": "node scripts/seed-postgres.mjs",
     "pg:server": "node scripts/pg-json-server.mjs",
     "api": "node scripts/start-api.mjs",
-    "start": "concurrently -n web,pg,api -c cyan,magenta,green \"npm run dev\" \"npm run pg:server\" \"npm run api\""
+    "start": "concurrently -n web,pg,api,consultant -c cyan,magenta,green,yellow \"npm run dev\" \"npm run pg:server\" \"npm run api\" \"npm run consultant:server\""
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.2",

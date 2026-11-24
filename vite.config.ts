@@ -11,6 +11,12 @@ export default defineConfig({
     // В dev проксируем API на csms-api и адаптер PostgreSQL: браузер видит
     // один origin и не зависит от CORS. Абсолютный VITE_EIS_API_URL работает.
     proxy: {
+      // Консультант — отдельный локальный сервис; префикс должен совпадать
+      // раньше общего /api, иначе запрос уйдёт в csms-api.
+      "/api/consultant": {
+        target: "http://localhost:5098",
+        changeOrigin: true,
+      },
       "/api": {
         target: "http://localhost:5099",
         changeOrigin: true,
