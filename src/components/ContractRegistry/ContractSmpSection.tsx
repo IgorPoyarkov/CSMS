@@ -28,6 +28,15 @@ import {
   SOURCE_FILE_HINT,
   type SourceFileFields,
 } from "../../services/ContractSmp/sourceFile";
+import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
+import {
+  smpCheckBadge,
+  smpCheckIssuesText,
+  smpCheckTone,
+  smpDeadlineShort,
+  smpRecordCheck,
+  type SmpRecordCheck,
+} from "../../services/ContractSmp/smpControl";
 import {
   useCreatePenalty,
   useUpdateContract,
@@ -108,6 +117,31 @@ export default function SmpSection({
   const updateRecord = useUpdateContractSmpRecord();
   const deleteRecord = useDeleteContractSmpRecord();
   const createPenalty = useCreatePenalty();
+
+  // Реестр МСП: единственный источник подтверждения, что субподрядчик —
+  // субъект МСП. Заявленный в сведениях признак «СМП» ничего не доказывает
+  const { data: smpRegistry = [] } = useSmpRegistry();
+
+  // Проверка каждой записи: реестр МСП + сроки ПП 1466. Одна функция на
+  // таблицу, форму и хронологию исполнения — вердикт не должен расходиться
+  const checks = useMemo(() => {
+    const map = new Map<string, SmpRecordCheck>();
+    for (const record of records) {
+      map.set(String(record.id), smpRecordCheck(record, records, smpRegistry));
+    }
+    return map;
+  }, [records, smpRegistry]);
+
+  // Строка таблицы: запись + её проверка. Пара собирается заранее, чтобы в JSX
+  // не тащить поиск по карте в каждую ячейку
+  const rows = useMemo(
+    () =>
+      records.map((record) => ({
+        record,
+        check: checks.get(String(record.id)),
+      })),
+    [records, checks],
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ContractSmpRecord | null>(null);
@@ -482,6 +516,10 @@ export default function SmpSection({
 
   function handleCustomerConfirm(record: ContractSmpRecord) {
     if (record.customerConfirmedAt) return;
+    // Приёмка субподрядчика, которого нет в реестре МСП, закрыла бы объём
+    // привлечения незаконно (ч. 6 ст. 30 44-ФЗ) — кнопка уже заблокирована,
+    // проверка страхует от устаревшего рендера
+    if (checks.get(String(record.id))?.acceptanceBlocked) return;
     setSigning({ record, action: "smp_customer_confirm" });
   }
 
@@ -956,6 +994,7 @@ export default function SmpSection({
                 <th>Субподрядчик</th>
                 <th>Сумма, ₽</th>
                 <th>СМП</th>
+                <th>Сроки</th>
                 <th>Получено</th>
                 <th>Статус</th>
                 <th>Подтверждения (п. 6 ПП 1466)</th>
@@ -963,7 +1002,7 @@ export default function SmpSection({
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {rows.map(({ record, check }) => (
                 <tr key={record.id}>
                   <td>{contractSmpDocumentTypeLabels[record.documentType]}</td>
                   <td>
@@ -990,8 +1029,62 @@ export default function SmpSection({
                       ? Number(record.amount).toLocaleString("ru-RU")
                       : "—"}
                   </td>
-                  <td style={{ textAlign: "center" }}>
+                  <td className={block("smp-cell")}>
                     {record.isSmpSubject ? "✓" : "—"}
+                    {/* Вердикт реестра: сверка идёт по ИНН, а не по названию */}
+                    {check?.registry.applicable && (
+                      <span
+                        className={block("registry", [
+                          check.registry.status === "in_registry"
+                            ? "ok"
+                            : check.registry.status === "unknown"
+                              ? "unknown"
+                              : check.blocking.some(
+                                    (issue) => issue.code === "registry",
+                                  )
+                                ? "error"
+                                : "warn",
+                        ])}
+                        title={check.registry.text}
+                      >
+                        {check.registry.status === "in_registry"
+                          ? "в реестре МСП"
+                          : check.registry.status === "unknown"
+                            ? "ИНН не указан"
+                            : check.registry.status === "excluded"
+                              ? "исключён из МСП"
+                              : "нет в реестре МСП"}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    {/* Сроки ПП 1466 по этой записи: ближайший или нарушенный */}
+                    {check?.deadline ? (
+                      <>
+                        <span
+                          className={
+                            check.deadline.status === "overdue"
+                              ? styles.projectionLate
+                              : check.deadline.status === "met"
+                                ? styles.projectionOk
+                                : styles.projectionNote
+                          }
+                          title={check.deadlineText}
+                        >
+                          {smpDeadlineShort(check.deadline)}
+                        </span>
+                        <br />
+                        <span
+                          className={styles.projectionNote}
+                          title={`${check.deadline.title}: ${check.deadline.basis}`}
+                        >
+                          до {formatDate(check.deadline.dueDate)} ·{" "}
+                          {check.deadline.clause}
+                        </span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td>{record.receivedAt?.slice(0, 10)}</td>
                   <td>
@@ -1013,6 +1106,16 @@ export default function SmpSection({
                         ),
                       )}
                     </Select>
+                    {/* Сводка проверки: причина видна по наведению, строка не
+                        обрастает колонками */}
+                    {check && smpCheckTone(check) !== "ok" && (
+                      <span
+                        className={block("checkBadge", [smpCheckTone(check)])}
+                        title={smpCheckIssuesText(check)}
+                      >
+                        {smpCheckBadge(check)}
+                      </span>
+                    )}
                   </td>
                   <td className={block("confirm-cell")}>
                     <div className={block("confirm-row")}>
@@ -1070,13 +1173,24 @@ export default function SmpSection({
                           onClick={() => handleCustomerConfirm(record)}
                           disabled={
                             updateRecord.isPending ||
-                            record.status !== "submitted"
+                            record.status !== "submitted" ||
+                            Boolean(check?.acceptanceBlocked)
                           }
-                          title="Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
+                          title={
+                            check?.acceptanceBlocked
+                              ? `${check.registry.text}. Приёмка заблокирована: договор с таким субподрядчиком не закроет объём привлечения СМП (ч. 6 ст. 30 44-ФЗ)`
+                              : "Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
+                          }
                         >
                           Принять и подтвердить
                         </button>
                       )}
+                      {check?.acceptanceBlocked &&
+                        !record.customerConfirmedAt && (
+                          <span className={styles.cellDanger}>
+                            Реестр МСП не подтверждает субподрядчика
+                          </span>
+                        )}
                     </div>
                   </td>
                   <td>
@@ -1156,6 +1270,7 @@ export default function SmpSection({
           contractId={contractId}
           record={editing ?? null}
           draft={eisDraft}
+          records={records}
           onClose={handleCancel}
           onSave={handleSave}
         />
@@ -1202,6 +1317,11 @@ interface FormProps {
    * не правит существующую.
    */
   draft?: ContractSmpRecord | null;
+  /**
+   * Все записи контракта: по ним видно, представлялся ли такой ИНН ранее и
+   * какие сроки ПП 1466 уже действуют. Без них проверка в форме невозможна.
+   */
+  records: ContractSmpRecord[];
   onClose: () => void;
   onSave: (data: ContractSmpRecord) => void;
 }
@@ -1210,6 +1330,7 @@ function ContractSmpRecordForm({
   contractId,
   record,
   draft = null,
+  records,
   onClose,
   onSave,
 }: FormProps) {
@@ -1231,6 +1352,19 @@ function ContractSmpRecordForm({
   } = methods;
 
   const priceType = useWatch({ control: methods.control, name: "priceType" });
+
+  // Живая проверка вводимых реквизитов: реестр МСП сверяется по ИНН, сроки
+  // ПП 1466 считаются от дат записи. Ошибку видно до сохранения, а не в
+  // таблице после него
+  const { data: smpRegistry = [] } = useSmpRegistry();
+  const watchedRecord = useWatch({
+    control: methods.control,
+  }) as Partial<ContractSmpRecord>;
+  const liveCheck = smpRecordCheck(
+    { ...emptyContractSmpRecord("", contractId), ...watchedRecord },
+    records,
+    smpRegistry,
+  );
 
   // Файл-основание: в базе остаётся только его имя, содержимое не читается
   const [sourceFile, setSourceFile] = useState<SourceFileFields | null>(null);
@@ -1275,6 +1409,23 @@ function ContractSmpRecordForm({
   function onSubmit(data: ContractSmpRecord) {
     onSave(data);
   }
+
+  // Пустой ИНН у новой записи — незаполненное поле, а не ошибка: не мигаем
+  // красным, пока человек не ввёл ни одной цифры
+  const registryReady =
+    liveCheck.registry.applicable && liveCheck.registry.status !== "unknown";
+  const liveIssues = [...liveCheck.blocking, ...liveCheck.warnings].filter(
+    (issue) => registryReady || issue.code !== "registry",
+  );
+  const liveTone = smpCheckTone(liveCheck);
+  const noticeClass =
+    liveTone === "error"
+      ? styles.xmlNotice_error
+      : liveTone === "warning"
+        ? styles.xmlNotice_warn
+        : styles.xmlNotice_ok;
+  const showNotice =
+    registryReady || liveIssues.length > 0 || Boolean(liveCheck.deadlineText);
 
   return (
     <div className={block()} onClick={onClose}>
@@ -1488,6 +1639,33 @@ function ContractSmpRecordForm({
                 </span>
               )}
             </div>
+
+            {/* Живая сверка: реестр МСП по ИНН и сроки ПП 1466 по датам */}
+            {showNotice && (
+              <div className={block("field", ["wide"])}>
+                <div className={`${styles.xmlNotice} ${noticeClass}`}>
+                  {registryReady && (
+                    <span className={styles.xmlNoticeItem}>
+                      Реестр МСП: {liveCheck.registry.text}
+                    </span>
+                  )}
+                  {liveCheck.deadlineText && (
+                    <span className={styles.xmlNoticeItem}>
+                      Сроки ПП 1466: {liveCheck.deadlineText}
+                    </span>
+                  )}
+                  {liveIssues.map((issue) => (
+                    <span
+                      key={`${issue.code}-${issue.field}-${issue.message}`}
+                      className={styles.xmlNoticeItem}
+                    >
+                      • {issue.message}
+                      {issue.hint ? ` ${issue.hint}` : ""}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Файл-основание: имя читаем, содержимое остаётся у пользователя */}
