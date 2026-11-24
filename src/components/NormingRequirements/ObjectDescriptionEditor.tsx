@@ -178,6 +178,12 @@ export default function ObjectDescriptionEditor({
     () => planOkpd2Options.map((item) => item.code.trim().toLowerCase()),
     [planOkpd2Options],
   );
+  // Коды в исходном регистре — их отдаём в селекторы: при клике список
+  // открывается на коде из ПГ, а не на первой странице справочника ОКПД2.
+  const planOkpd2SelectCodes = useMemo(
+    () => planOkpd2Options.map((item) => item.code.trim()),
+    [planOkpd2Options],
+  );
   const planContextExpected = Boolean(draft.purchasePlanId || draft.positionId);
   const planPositionMissing =
     planContextExpected && !purchasePlanLoading && !planPosition;
@@ -572,6 +578,8 @@ export default function ObjectDescriptionEditor({
             <Okpd2Select
               code={draft.okpd2Code}
               name={draft.okpd2Name}
+              allowedCodes={planOkpd2SelectCodes}
+              initialQuery={planOkpd2SelectCodes[0] ?? ""}
               multilineLabel
               onSelect={(item) => applyOkpd2(item?.code ?? "", item?.name ?? "")}
             />
@@ -588,6 +596,8 @@ export default function ObjectDescriptionEditor({
                       <Okpd2Select
                         code={item.code}
                         name={item.name}
+                        allowedCodes={planOkpd2SelectCodes}
+                        initialQuery={item.code || planOkpd2SelectCodes[0] || ""}
                         multilineLabel
                         onSelect={(selected) => updateOkpd2Item(idx, selected)}
                       />
@@ -767,8 +777,9 @@ export default function ObjectDescriptionEditor({
                 <>
                   <KtruSelect
                     className={block("ktru-select")}
-                    okpd2Code={draft.okpd2Code}
+                    okpd2Code={planPosition?.okpd2Code ?? draft.okpd2Code}
                     ktruCode={draft.ktruCode}
+                    initialQuery={planPosition?.ktruCode ?? ""}
                     onSelect={handleSelectKtru}
                     disabled={!draft.okpd2Code}
                     showCharacteristicFilter

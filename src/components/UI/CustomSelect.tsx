@@ -17,6 +17,8 @@ interface CustomSelectProps<TItem> {
   searchable?: boolean;
   searchPlaceholder?: string;
   getSearchText?: (item: TItem) => string;
+  /** Что подставить в поиск при открытии — код из позиции ПГ */
+  initialQuery?: string;
   /** Запрет выбора (режим только для чтения и поля с источником данных) */
   disabled?: boolean;
   /** Класс для тонкой подстройки под форму */
@@ -36,6 +38,7 @@ export default function CustomSelect<TItem>({
   searchable = false,
   searchPlaceholder = "Поиск…",
   getSearchText,
+  initialQuery = "",
   disabled = false,
   className,
 }: CustomSelectProps<TItem>) {
@@ -104,6 +107,7 @@ export default function CustomSelect<TItem>({
   const toggleOpen = () => {
     if (disabled) return;
     if (isOpen) setQuery("");
+    else setQuery(initialQuery);
     setIsOpen(!isOpen);
   };
 

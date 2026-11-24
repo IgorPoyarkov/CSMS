@@ -25,6 +25,12 @@ interface Okpd2SelectProps {
    * а ввод кода вручную вне списка запрещается.
    */
   allowedCodes?: string[];
+  /**
+   * Что подставить в поиск при открытии списка. Используется код из позиции
+   * ПГ, чтобы список сразу начинался с нужного кода, а не с первого элемента
+   * справочника на 21 066 записей.
+   */
+  initialQuery?: string;
   placeholder?: string;
   disabled?: boolean;
   id?: string;
@@ -55,6 +61,7 @@ export default function Okpd2Select({
   name,
   onSelect,
   allowedCodes,
+  initialQuery = "",
   placeholder = "Код или наименование ОКПД2…",
   disabled = false,
   id,
@@ -196,7 +203,7 @@ export default function Okpd2Select({
     }
 
     setIsOpen(true);
-    setQuery("");
+    setQuery(initialQuery);
     setHighlighted(0);
   }
 

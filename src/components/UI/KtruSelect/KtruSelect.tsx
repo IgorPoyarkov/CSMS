@@ -20,6 +20,8 @@ interface KtruSelectProps {
   className?: string;
   /** Показывать фильтр по характеристикам (для карточки ООЗ) */
   showCharacteristicFilter?: boolean;
+  /** Код КТРУ из позиции ПГ — открываем список сразу на нём */
+  initialQuery?: string;
 }
 
 interface KtruOption {
@@ -58,6 +60,7 @@ export default function KtruSelect({
   placeholder = "— Без КТРУ —",
   className,
   showCharacteristicFilter = false,
+  initialQuery = "",
 }: KtruSelectProps) {
   const [characteristicFilter, setCharacteristicFilter] =
     useState<CharacteristicFilter>("all");
@@ -189,6 +192,7 @@ export default function KtruSelect({
           getSearchText={(option) => `${option.code} ${option.label}`}
           searchable
           searchPlaceholder="Поиск по коду или наименованию КТРУ…"
+          initialQuery={initialQuery}
           disabled={disabled}
           onClick={(_code, option) => onSelect(option.item)}
         />
