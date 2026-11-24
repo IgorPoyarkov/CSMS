@@ -233,6 +233,12 @@
   }
 }
 
+.legal-acts__card-horizon {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
 .legal-acts__card-actions,
 .legal-act__header-actions {
   display: flex;

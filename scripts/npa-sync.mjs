@@ -2,9 +2,13 @@
 /**
  * Синхронизация НПА и проверка полноты редакций.
  *
- * Правило владельца: у федерального закона должно быть не меньше 7 редакций,
- * у указа, постановления, распоряжения и приказа — не меньше 3. Скрипт
- * проверяет это по данным `legalActs` и умеет наполнять каркас:
+ * Ориентир полноты: три редакции у любого вида акта. Порог — не требование:
+ * недобор не считается ошибкой, если источник подтвердил, что других редакций
+ * нет. У 44-ФЗ горизонт релевантности — 01.01.2022: закон с тех пор изменился
+ * целиком, а контрактов более ранних лет в системе практически нет, поэтому
+ * архивные редакции не загружаются и не учитываются в проверке.
+ *
+ * Скрипт проверяет набор по данным `legalActs` и умеет наполнять каркас:
  *
  *   node scripts/npa-sync.mjs --check
  *   node scripts/npa-sync.mjs --seed
@@ -21,13 +25,16 @@ import { dirname } from "node:path";
 
 const API = process.env.NPA_API || "http://localhost:3002";
 const MIN_VERSIONS = {
-  "federal-law": 7,
+  "federal-law": 3,
   "presidential-decree": 3,
   "government-decree": 3,
   "government-order": 3,
   "ministry-order": 3,
   other: 3,
 };
+
+/** Горизонт релевантности 44-ФЗ: редакции до 2022 года не нужны. */
+const FEDERAL_LAW_RELEVANT_FROM = "2022-01-01";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -38,6 +45,9 @@ const option = (name, fallback) => {
 };
 
 const apiBase = option("api", API).replace(/\/$/, "");
+
+/** Горизонт, заданный флагом `--relevant-from=ГГГГ-ММ-ДД` (иначе — дефолт). */
+const RELEVANT_FROM_OVERRIDE = option("relevant-from", null);
 
 const request = async (path, init = {}) => {
   const response = await fetch(`${apiBase}${path}`, {
@@ -94,17 +104,16 @@ const seedActs = () => [
     sourceUrl: "http://publication.pravo.gov.ru/document/0001201304080023",
     isVerified: false,
     lastCheckedDate: new Date().toISOString().slice(0, 10),
-    // Семь последних редакций, а не первые: архаика 2013–2015 годов в
-    // консультанте бесполезна. Даты демонстрационные — точный перечень
-    // редакций и номера изменяющих актов даёт синхронизация с pravo.gov.ru.
+    // Только горизонт с 2022 года: до него 44-ФЗ действовал в другом каркасе,
+    // сверять его с текущими проверками нельзя, а контрактов тех лет в системе
+    // нет. Четыре редакции — покрывают 2022–2025. Даты демонстрационные:
+    // точный перечень редакций и номера изменяющих актов даёт pravo.gov.ru.
     sourceComplete: false,
+    relevantFrom: RELEVANT_FROM_OVERRIDE ?? FEDERAL_LAW_RELEVANT_FROM,
     versions: [
       version("2022-01-01", "ред. от 02.07.2021"),
-      version("2022-07-01", "ред. от 01.07.2022"),
       version("2023-01-01", "ред. от 28.12.2022"),
-      version("2023-07-01", "ред. от 04.08.2023"),
       version("2024-01-01", "ред. от 25.12.2023"),
-      version("2024-07-01", "ред. от 08.08.2024"),
       version("2025-01-01", "ред. от 25.12.2024"),
     ],
   },
@@ -151,13 +160,31 @@ const seedActs = () => [
 const kindOf = (act) =>
   Object.hasOwn(MIN_VERSIONS, act.actType) ? act.actType : "other";
 
+/** Редакция на горизонте: действовала после `relevantFrom` или действует. */
+const versionRelevant = (version, from) => {
+  if (!from) return true;
+  return !version.validTo || version.validTo > from;
+};
+
+/** Редакции на горизонте релевантности (все, если горизонт не задан). */
+const relevantVersions = (act) => {
+  const list = Array.isArray(act.versions) ? act.versions : [];
+  return act.relevantFrom
+    ? list.filter((version) => versionRelevant(version, act.relevantFrom))
+    : list;
+};
+
 const completeness = (act) => {
   const required = MIN_VERSIONS[kindOf(act)];
-  const actual = Array.isArray(act.versions) ? act.versions.length : 0;
+  const list = Array.isArray(act.versions) ? act.versions : [];
+  const actual = relevantVersions(act).length;
+  const archived = list.length - actual;
   const sourceComplete = act.sourceComplete === true;
   return {
     required,
     actual,
+    archived,
+    relevantFrom: act.relevantFrom ?? null,
     sourceComplete,
     // Порог — ориентир: подтверждённый источником набор считается полным,
     // даже если редакций меньше (у приказа их может быть всего две).
@@ -167,7 +194,8 @@ const completeness = (act) => {
 
 const printCheck = (acts) => {
   const rows = acts.map((act) => {
-    const { required, actual, complete, sourceComplete } = completeness(act);
+    const { required, actual, archived, relevantFrom, complete, sourceComplete } =
+      completeness(act);
     const status = sourceComplete
       ? `OK · в источнике ${actual}`
       : complete
@@ -178,7 +206,9 @@ const printCheck = (acts) => {
       id: act.id,
       act: act.shortName,
       kind: kindOf(act),
+      horizon: relevantFrom ?? "—",
       actual,
+      archived,
       required,
       status,
     };
@@ -193,7 +223,7 @@ const printCheck = (acts) => {
   const incomplete = rows.filter((row) => !row.status.startsWith("OK"));
   console.log(
     incomplete.length === 0
-      ? "Полнота редакций: наборы полные (порог или подтверждение источника)."
+      ? "Полнота редакций: наборы полные на горизонте (порог или подтверждение источника)."
       : `Полнота редакций: ${incomplete.length} акт(ов) без подтверждения набора — это не ошибка, а повод сверить источник.`,
   );
 
@@ -206,7 +236,8 @@ const markSourceComplete = async (actId) => {
   const target = acts.find((act) => String(act.id) === String(actId));
   if (!target) throw new Error(`Акт ${actId} не найден`);
 
-  const total = Array.isArray(target.versions) ? target.versions.length : 0;
+  // Считаем только редакции на горизонте: архивные в источник не запрашиваем.
+  const total = relevantVersions(target).length;
   await upsertAct({
     id: target.id,
     sourceComplete: true,
@@ -214,7 +245,7 @@ const markSourceComplete = async (actId) => {
     lastCheckedDate: new Date().toISOString().slice(0, 10),
   });
   console.log(
-    `${target.shortName}: набор подтверждён источником (${total} редакций).`,
+    `${target.shortName}: набор подтверждён источником (${total} редакций на горизонте).`,
   );
 };
 
@@ -243,9 +274,10 @@ const fetchPravoCard = async (url) => {
   const html = await response.text();
   const text = (pattern) => html.match(pattern)?.[1]?.trim();
 
-  const title = decodeHtml(
-    text(/<title>([\s\S]*?)<\/title>/i) ?? "",
-  ).replace(/\s+/g, " ");
+  const title = decodeHtml(text(/<title>([\s\S]*?)<\/title>/i) ?? "").replace(
+    /\s+/g,
+    " ",
+  );
   // Значение лежит в соседнем <span class="document-info-data">, поэтому
   // между подписью и числом допускаем разметку.
   const eoNumber = text(
@@ -321,10 +353,13 @@ const syncPravo = async ({ url, actId, download }) => {
     id: target.id,
     versions,
     sourceUrl: target.sourceUrl ?? card.cardUrl,
+    ...(RELEVANT_FROM_OVERRIDE ? { relevantFrom: RELEVANT_FROM_OVERRIDE } : {}),
     lastCheckedDate: new Date().toISOString().slice(0, 10),
   });
 
+  const horizon = RELEVANT_FROM_OVERRIDE ?? target.relevantFrom;
   console.log(`Акт: ${target.shortName}`);
+  if (horizon) console.log(`Горизонт: редакции с ${horizon}`);
   console.log(`Карточка: ${card.cardUrl}`);
   console.log(`Опубликование: ${card.eoNumber} от ${card.publishedIso ?? "—"}`);
   if (card.actualUrl) console.log(`Текст: ${card.actualUrl}`);
@@ -357,9 +392,16 @@ const main = async () => {
   if (flag("seed")) {
     for (const act of seedActs()) {
       await upsertAct(act);
-      console.log(`· ${act.shortName}: ${act.versions.length} редакций`);
+      const horizon = act.relevantFrom
+        ? `, горизонт с ${act.relevantFrom}`
+        : "";
+      console.log(
+        `· ${act.shortName}: ${act.versions.length} редакций${horizon}`,
+      );
     }
-    console.log("Демо-набор записан. Проверка: node scripts/npa-sync.mjs --check");
+    console.log(
+      "Демо-набор записан. Проверка: node scripts/npa-sync.mjs --check",
+    );
     return;
   }
 
@@ -389,12 +431,14 @@ const main = async () => {
     [
       "Команды:",
       "  --seed                       записать демонстрационные акты и редакции",
-      "  --check                      проверить набор редакций (7 для ФЗ, 3 для остальных)",
+      "  --check                      проверить набор на горизонте (ориентир — 3 редакции)",
       "  --check --strict             код 1, если набор не подтверждён (для CI)",
       "  --complete --act=<id>        источник подтвердил: других редакций нет",
       "  --list                       показать акты и число редакций",
       "  --source=pravo --url=...     добавить редакцию с карточки pravo.gov.ru",
       "  --act=<id>                   акт для --source=pravo (по умолчанию npa-44fz)",
+      "  --relevant-from=ГГГГ-ММ-ДД   горизонт: редакции до даты не учитываются",
+      "                               (44-ФЗ по умолчанию — 2022-01-01)",
       "  --download                   сохранить PDF карточки в .tmp/npa",
       "  --api=http://localhost:3002  адрес PG-адаптера",
     ].join("\n"),

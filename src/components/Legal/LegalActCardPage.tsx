@@ -125,13 +125,19 @@ export default function LegalActCardPage() {
         >
           <b>
             {completeness.actual} из {completeness.required} редакций
+            {completeness.relevantFrom
+              ? ` на горизонте с ${formatDate(completeness.relevantFrom)}`
+              : ""}
           </b>
           <span>
             {completeness.sourceComplete
               ? `Источник подтвердил: всего ${completeness.actual} редакций — набор полный.`
               : completeness.complete
-                ? "Порог набора выполнен."
+                ? "Ориентир набора выполнен."
                 : "Набор не подтверждён источником. Это не ошибка: проверьте, все ли редакции загружены."}
+            {completeness.archived > 0
+              ? ` Архивных редакций в реестре: ${completeness.archived}.`
+              : ""}
           </span>
           <code>node scripts/npa-sync.mjs --check</code>
         </div>

@@ -5,10 +5,15 @@ import { z } from "zod";
  * документа в поле `versions`. Отдельная коллекция не нужна: актов немного,
  * а версии всегда читаются вместе с актом.
  *
- * Минимальный набор редакций — требование владельца: для федеральных законов
- * не меньше 7, для указов, постановлений, распоряжений и приказов — не меньше 3.
- * Порог проверяется скриптом `scripts/npa-sync.mjs --check` и показывается в
- * интерфейсе: неполный набор — красный бейдж, полный — зелёный.
+ * Набор редакций — ориентир, а не требование: у любого вида акта достаточно
+ * трёх редакций, а недобор не считается ошибкой, если источник подтвердил,
+ * что других редакций нет (`sourceComplete`). Проверка — `scripts/npa-sync.mjs
+ * --check` (мягкая, код 1 только с `--strict`), полнота показывается бейджем.
+ *
+ * Горизонт релевантности (`relevantFrom`) отсекает архив. У 44-ФЗ это
+ * 01.01.2022: закон с тех пор изменился целиком, а контрактов более ранних лет
+ * в системе практически нет. Редакции до горизонта не загружаются и не
+ * учитываются в полноте набора — держать историю 2013–2021 бессмысленно.
  */
 
 export const NPA_ACT_KINDS = [
@@ -31,15 +36,25 @@ export const npaKindLabels: Record<NpaActKind, string> = {
   other: "Иной акт",
 };
 
-/** Минимум редакций по виду акта. */
+/**
+ * Ориентир полноты по виду акта. Для федерального закона он такой же, как для
+ * остальных: 7 редакций 44-ФЗ не нужны — актуальна только история с 2022 года
+ * (см. `relevantFrom`), остальные акты небольшие и собираются целиком.
+ */
 export const NPA_MIN_VERSIONS: Record<NpaActKind, number> = {
-  "federal-law": 7,
+  "federal-law": 3,
   "presidential-decree": 3,
   "government-decree": 3,
   "government-order": 3,
   "ministry-order": 3,
   other: 3,
 };
+
+/**
+ * Горизонт для федеральных законов по умолчанию: до 2022 года 44-ФЗ действовал
+ * в другой редакции-каркасе, сверять её с текущими проверками нельзя.
+ */
+export const NPA_FEDERAL_LAW_RELEVANT_FROM = "2022-01-01";
 
 /** Виды актов, которые в `legalActs` записаны старым перечнем. */
 const KIND_ALIASES: Record<string, NpaActKind> = {
@@ -105,6 +120,9 @@ export const NpaActSchema = z.object({
   sourceComplete: z.boolean().default(false),
   // Сколько редакций существует по источнику — для подписи «в источнике N».
   sourceVersionsTotal: z.number().int().nonnegative().optional(),
+  // Горизонт релевантности: редакции, действовавшие до этой даты, архивные —
+  // их не загружаем и не считаем в полноте набора (у 44-ФЗ — 01.01.2022).
+  relevantFrom: isoDate.optional(),
   versions: z.array(NpaVersionSchema).default([]),
 });
 
@@ -118,40 +136,75 @@ export const npaKindOf = (act: Pick<NpaAct, "actType">): NpaActKind =>
 export const requiredVersions = (act: Pick<NpaAct, "actType">): number =>
   NPA_MIN_VERSIONS[npaKindOf(act)];
 
+const dateValue = (value: string | undefined): number | null => {
+  if (!value) return null;
+  const ts = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(ts) ? ts : null;
+};
+
+/**
+ * Редакция попадает на горизонт, если действовала хотя бы часть периода после
+ * `relevantFrom`: `validTo` не задан (действует) или позже горизонта. Редакция,
+ * закончившаяся до горизонта, — архивная.
+ */
+export const versionIsRelevant = (
+  version: Pick<NpaVersion, "validFrom" | "validTo">,
+  relevantFrom?: string,
+): boolean => {
+  const from = dateValue(relevantFrom);
+  if (from === null) return true;
+  const to = dateValue(version.validTo);
+  return to === null || to > from;
+};
+
+/** Редакции на горизонте релевантности (все, если горизонт не задан). */
+export const relevantVersions = (
+  act: Pick<NpaAct, "versions" | "relevantFrom">,
+): NpaVersion[] =>
+  act.versions.filter((version) =>
+    versionIsRelevant(version, act.relevantFrom),
+  );
+
 export interface NpaCompleteness {
   required: number;
+  /** Сколько редакций на горизонте (архивные не считаются). */
   actual: number;
+  /** Сколько редакций отсечено горизонтом. */
+  archived: number;
   missing: number;
   complete: boolean;
+  /** Горизонт релевантности акта, если задан. */
+  relevantFrom?: string;
   /** Набор подтверждён источником: других редакций не существует. */
   sourceComplete: boolean;
 }
 
 /**
- * Полнота набора. Порог — ориентир, а не требование: если источник
- * подтвердил, что редакций всего меньше (sourceComplete), набор считается
- * полным. Неподтверждённый недобор — не ошибка, а повод проверить источник.
+ * Полнота набора на горизонте релевантности. Порог — ориентир, а не
+ * требование: если источник подтвердил, что редакций всего меньше
+ * (sourceComplete), набор считается полным. Неподтверждённый недобор — не
+ * ошибка, а повод проверить источник.
  */
 export const npaCompleteness = (
-  act: Pick<NpaAct, "actType" | "versions" | "sourceComplete">,
+  act: Pick<
+    NpaAct,
+    "actType" | "versions" | "sourceComplete" | "relevantFrom"
+  >,
 ): NpaCompleteness => {
   const required = requiredVersions(act);
-  const actual = act.versions.length;
+  const actual = relevantVersions(act).length;
+  const archived = act.versions.length - actual;
   const sourceComplete = act.sourceComplete === true;
 
   return {
     required,
     actual,
+    archived,
     missing: sourceComplete ? 0 : Math.max(0, required - actual),
     complete: actual >= required || sourceComplete,
+    relevantFrom: act.relevantFrom,
     sourceComplete,
   };
-};
-
-const dateValue = (value: string | undefined): number | null => {
-  if (!value) return null;
-  const ts = Date.parse(`${value}T00:00:00Z`);
-  return Number.isFinite(ts) ? ts : null;
 };
 
 /**
