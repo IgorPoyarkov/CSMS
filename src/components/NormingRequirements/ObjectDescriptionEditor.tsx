@@ -43,6 +43,7 @@ import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
+import CustomModal from "../UI/CustomModal";
 import styles from "./NormingRequirementsPage.module.scss";
 import Select from "../UI/Select";
 
@@ -89,6 +90,14 @@ export default function ObjectDescriptionEditor({
   const [copied, setCopied] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // Все выбранные коды: основной плюс дополнительные объекты закупки.
+  const selectedOkpd2Codes = useMemo(
+    () =>
+      [draft.okpd2Code, ...(draft.okpd2Items ?? []).map((item) => item.code)]
+        .filter((code) => Boolean(code?.trim()))
+        .map((code) => code.trim().toLowerCase()),
+    [draft.okpd2Code, draft.okpd2Items],
+  );
   const matchedOkpd2 = useMemo(
     () => findOkpd2ByCode(okpd2Dictionary, draft.okpd2Code),
     [okpd2Dictionary, draft.okpd2Code],
@@ -110,8 +119,11 @@ export default function ObjectDescriptionEditor({
     [fillingInstructions],
   );
   const ktruForOkpd2 = useMemo(
-    () => findKtruByOkpd2(ktruDictionary, draft.okpd2Code),
-    [ktruDictionary, draft.okpd2Code],
+    () =>
+      selectedOkpd2Codes.flatMap((code) =>
+        findKtruByOkpd2(ktruDictionary, code),
+      ),
+    [ktruDictionary, selectedOkpd2Codes],
   );
   const hasKtruForOkpd2 = ktruForOkpd2.length > 0;
   // Пока справочник грузится (или недоступен), флаг не прячем: иначе он
@@ -143,23 +155,38 @@ export default function ObjectDescriptionEditor({
       ),
     [purchasePlan, draft.positionId],
   );
-  const planOkpd2Codes = useMemo(() => {
+  // Все коды позиции ПГ в исходном регистре — они же используются для
+  // кнопки «Вернуть код из ПГ» в сообщении о расхождении.
+  const planOkpd2Options = useMemo(() => {
     if (!planPosition) return [];
-    return [
-      planPosition.okpd2Code,
-      ...(planPosition.okpd2Items ?? []).map((item) => item.okpd2Code),
-    ]
-      .filter((code): code is string => Boolean(code?.trim()))
-      .map((code) => code.trim().toLowerCase());
+    const codes = [
+      { code: planPosition.okpd2Code ?? "", name: planPosition.okpd2Name },
+      ...(planPosition.okpd2Items ?? []).map((item) => ({
+        code: item.okpd2Code ?? "",
+        name: item.okpd2Name,
+      })),
+    ];
+    const seen = new Set<string>();
+    return codes.filter((item) => {
+      const code = item.code?.trim();
+      if (!code || seen.has(code.toLowerCase())) return false;
+      seen.add(code.toLowerCase());
+      return true;
+    });
   }, [planPosition]);
+  const planOkpd2Codes = useMemo(
+    () => planOkpd2Options.map((item) => item.code.trim().toLowerCase()),
+    [planOkpd2Options],
+  );
   const planContextExpected = Boolean(draft.purchasePlanId || draft.positionId);
   const planPositionMissing =
     planContextExpected && !purchasePlanLoading && !planPosition;
+  // Каждый выбранный код ООЗ должен быть в ПГ: иначе закупка не связана
+  // с позицией плана-графика, и все действия с ООЗ блокируются.
   const planOkpd2Mismatch =
     (Boolean(planPosition) || planPositionMissing) &&
-    !planOkpd2Codes.some(
-      (code) => code === draft.okpd2Code.trim().toLowerCase(),
-    );
+    (selectedOkpd2Codes.length === 0 ||
+      selectedOkpd2Codes.some((code) => !planOkpd2Codes.includes(code)));
   const planCheckPending =
     Boolean(draft.purchasePlanId) &&
     (purchasePlanLoading || (!purchasePlan && Boolean(organizationId)));
@@ -206,6 +233,65 @@ export default function ObjectDescriptionEditor({
     setSubmitError("");
   };
 
+  /** Смена основного кода ОКПД2: обнуляет неактуальную привязку к КТРУ. */
+  const applyOkpd2 = (code: string, name: string) => {
+    setDraft((prev) => {
+      // Позиций КТРУ по коду нет — флаг применения каталога сохранять нельзя.
+      const ktruAvailable =
+        !code ||
+        ktruDictionaryLoading ||
+        ktruDictionary.length === 0 ||
+        findKtruByOkpd2(ktruDictionary, code).length > 0;
+      return {
+        ...prev,
+        okpd2Code: code,
+        okpd2Name: name,
+        title: prev.title.trim() || !name ? prev.title : name,
+        useKtru: ktruAvailable ? prev.useKtru : false,
+        ktruCode: ktruAvailable ? prev.ktruCode : "",
+        ktruName: ktruAvailable ? prev.ktruName : "",
+        characteristics: ktruAvailable
+          ? prev.characteristics
+          : prev.characteristics.map((c) => ({
+              ...c,
+              isMandatoryFromKtru: false,
+            })),
+      };
+    });
+    setSubmitError("");
+  };
+
+  const addOkpd2Item = () => {
+    setDraft((prev) => ({
+      ...prev,
+      okpd2Items: [...(prev.okpd2Items ?? []), { code: "", name: "" }],
+    }));
+    setSubmitError("");
+  };
+
+  const updateOkpd2Item = (
+    idx: number,
+    item: { code?: string; name?: string } | null,
+  ) => {
+    setDraft((prev) => ({
+      ...prev,
+      okpd2Items: (prev.okpd2Items ?? []).map((current, i) =>
+        i === idx
+          ? { code: item?.code ?? "", name: item?.name ?? "" }
+          : current,
+      ),
+    }));
+    setSubmitError("");
+  };
+
+  const removeOkpd2Item = (idx: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      okpd2Items: (prev.okpd2Items ?? []).filter((_, i) => i !== idx),
+    }));
+    setSubmitError("");
+  };
+
   const handleSelectKtru = (item: KtruRef | null) => {
     setDraft((prev) => {
       const next: ObjectDescription = {
@@ -237,14 +323,15 @@ export default function ObjectDescriptionEditor({
     );
   };
 
-  const handleApplyNormingTemplate = () => {
-    if (!templateForCode || templateForCode.characteristics.length === 0) {
+  const handleApplyNormingTemplate = (code = draft.okpd2Code) => {
+    const template = templatesByCode[code];
+    if (!template || template.characteristics.length === 0) {
       return;
     }
     const existingNames = new Set(
       draft.characteristics.map((c) => c.name.trim().toLowerCase()),
     );
-    const cloned = templateForCode.characteristics
+    const cloned = template.characteristics
       .filter((c) => !existingNames.has(c.name.trim().toLowerCase()))
       .map((c) => ({
         ...c,
@@ -338,7 +425,7 @@ export default function ObjectDescriptionEditor({
     }
     if (planOkpd2Mismatch || planPositionMissing) {
       setSubmitError(
-        "ОКПД2 ООЗ не совпадает с ОКПД2 позиции плана-графика. Внесите изменения в ПГ (добавьте общий код ОКПД2) или выберите код из позиции ПГ.",
+        "ОКПД2 ООЗ не совпадает с ОКПД2 позиции плана-графика. Верните код кнопками в блоке ОКПД2 либо внесите изменения в ПГ (добавьте общий код ОКПД2).",
       );
       return;
     }
@@ -349,6 +436,12 @@ export default function ObjectDescriptionEditor({
     }
     if (!draft.okpd2Code.trim()) {
       setSubmitError("Выберите код ОКПД2.");
+      return;
+    }
+    if ((draft.okpd2Items ?? []).some((item) => !item.code.trim())) {
+      setSubmitError(
+        "Выберите код ОКПД2 для каждого добавленного объекта или удалите пустую строку.",
+      );
       return;
     }
 
@@ -438,9 +531,10 @@ export default function ObjectDescriptionEditor({
           <button
             type="button"
             className={block("secondary-btn")}
-            onClick={() => setShowPreview((v) => !v)}
+            title="Показать готовый текст ООЗ, который можно скопировать в техническое задание или извещение"
+            onClick={() => setShowPreview(true)}
           >
-            {showPreview ? "Скрыть макет ТЗ" : "Макет ТЗ"}
+            Текст ООЗ для ТЗ и извещения
           </button>
           <button
             type="button"
@@ -479,41 +573,89 @@ export default function ObjectDescriptionEditor({
               code={draft.okpd2Code}
               name={draft.okpd2Name}
               multilineLabel
-              onSelect={(item) => {
-                const nextCode = item?.code ?? "";
-                // Позиций КТРУ по коду нет — флаг применения каталога
-                // показывать и сохранять нельзя.
-                const ktruAvailable =
-                  !nextCode ||
-                  ktruDictionaryLoading ||
-                  ktruDictionary.length === 0 ||
-                  findKtruByOkpd2(ktruDictionary, nextCode).length > 0;
-                setDraft((prev) => ({
-                  ...prev,
-                  okpd2Code: nextCode,
-                  okpd2Name: item?.name ?? "",
-                  title:
-                    prev.title.trim() || !item?.name ? prev.title : item.name,
-                  useKtru: ktruAvailable ? prev.useKtru : false,
-                  ktruCode: ktruAvailable ? prev.ktruCode : "",
-                  ktruName: ktruAvailable ? prev.ktruName : "",
-                  characteristics: ktruAvailable
-                    ? prev.characteristics
-                    : prev.characteristics.map((c) => ({
-                        ...c,
-                        isMandatoryFromKtru: false,
-                      })),
-                }));
-                setSubmitError("");
-              }}
+              onSelect={(item) => applyOkpd2(item?.code ?? "", item?.name ?? "")}
             />
+
+            {/* Один ООЗ может описывать несколько объектов с разными кодами. */}
+            {(draft.okpd2Items ?? []).length > 0 && (
+              <div className={block("okpd2-list")}>
+                {(draft.okpd2Items ?? []).map((item, idx) => (
+                  <div className={block("okpd2-item")} key={`${idx}-${item.code}`}>
+                    <div className={block("field", ["grow"])}>
+                      <label className={block("label")}>
+                        Дополнительный код ОКПД2 {idx + 2}
+                      </label>
+                      <Okpd2Select
+                        code={item.code}
+                        name={item.name}
+                        multilineLabel
+                        onSelect={(selected) => updateOkpd2Item(idx, selected)}
+                      />
+                      {item.code.trim() &&
+                        !planOkpd2Codes.includes(
+                          item.code.trim().toLowerCase(),
+                        ) && (
+                          <span className={block("warning-msg")}>
+                            Код отсутствует в позиции ПГ — удалите его или
+                            добавьте в план-график.
+                          </span>
+                        )}
+                    </div>
+                    <button
+                      type="button"
+                      className={block("secondary-btn")}
+                      onClick={() => removeOkpd2Item(idx)}
+                    >
+                      Удалить
+                    </button>
+                    {templatesByCode[item.code]?.characteristics.length ? (
+                      <button
+                        type="button"
+                        className={block("inline-btn")}
+                        onClick={() => handleApplyNormingTemplate(item.code)}
+                      >
+                        + Типовые требования ПП 926
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={block("inline-btn")}
+              onClick={addOkpd2Item}
+            >
+              + Добавить код ОКПД2 (ещё один объект)
+            </button>
+
             {(planOkpd2Mismatch || planPositionMissing) && (
-              <p className={block("error-msg")}>
-                Код ОКПД2 не совпадает ни с одним кодом ОКПД2 позиции
-                плана-графика (или позиция не найдена). Внесите изменения в ПГ
-                — добавьте общий код ОКПД2 в позицию, — либо выберите код из
-                позиции ПГ. Действия с ООЗ заблокированы.
-              </p>
+              <>
+                <p className={block("error-msg")}>
+                  Один или несколько кодов ОКПД2 не совпадают с кодами позиции
+                  плана-графика (или позиция не найдена). Верните код кнопкой
+                  ниже либо добавьте общий код в ПГ. Действия с ООЗ
+                  заблокированы.
+                </p>
+                {planOkpd2Options.length > 0 && (
+                  <div className={block("plan-restore")}>
+                    <span>Вернуть код из ПГ:</span>
+                    {planOkpd2Options.map((option) => (
+                      <button
+                        key={option.code}
+                        type="button"
+                        className={block("inline-btn")}
+                        onClick={() =>
+                          applyOkpd2(option.code, option.name ?? "")
+                        }
+                      >
+                        {option.code}
+                        {option.name ? ` — ${option.name}` : ""}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             {planCheckPending && (
               <p className={block("field-hint")}>
@@ -533,7 +675,7 @@ export default function ObjectDescriptionEditor({
                   <button
                     type="button"
                     className={block("inline-btn")}
-                    onClick={handleApplyNormingTemplate}
+                    onClick={() => handleApplyNormingTemplate()}
                   >
                     + Подставить типовые требования ПП 926 (
                     {templateForCode.characteristics.length})
@@ -659,6 +801,15 @@ export default function ObjectDescriptionEditor({
         <legend className={block("legend")}>
           2. Структурированные характеристики (ст. 33 44-ФЗ / ПП 145 / ПП 926)
         </legend>
+
+        {draft.characteristics.length === 0 && (
+          <p className={block("characteristics-warning")}>
+            <strong>Внимание:</strong> не добавлено ни одной характеристики.
+            Ст. 33 44-ФЗ требует описания объекта закупки, а для позиции КТРУ
+            показатели обязательны (ПП РФ № 145). Это предупреждение —
+            сохранение ООЗ не блокируется.
+          </p>
+        )}
 
         <div className={block("char-toolbar")}>
           <div className={block("chips")}>
@@ -1270,20 +1421,39 @@ export default function ObjectDescriptionEditor({
         okpd2Dictionary={okpd2Dictionary}
       />
 
+      {/* Текст для ТЗ/извещения открывается отдельным окном: кнопка в шапке
+          сама по себе не объясняла, зачем нужна «Макет ТЗ». */}
       {showPreview && (
-        <div className={block("preview-box")}>
-          <div className={block("preview-head")}>
-            <h3>Структурированный макет ТЗ (ООЗ)</h3>
-            <button
-              type="button"
-              className={block("inline-btn")}
-              onClick={handleCopyText}
-            >
-              {copied ? "Скопировано ✓" : "Копировать текст"}
-            </button>
+        <CustomModal onClose={() => setShowPreview(false)}>
+          <div className={block("preview-modal")}>
+            <div className={block("preview-head")}>
+              <h3>Текст ООЗ для технического задания и извещения</h3>
+              <button
+                type="button"
+                className={block("secondary-btn")}
+                onClick={() => setShowPreview(false)}
+              >
+                Закрыть
+              </button>
+            </div>
+            <p className={block("preview-note")}>
+              Ниже собран текст из заполненных полей карточки (наименование,
+              коды ОКПД2, КТРУ, характеристики, стандарты и требования).
+              Скопируйте его в техническое задание или вставьте в извещение —
+              при изменении карточки текст обновится.
+            </p>
+            <pre className={block("preview-pre")}>{previewText}</pre>
+            <div className={block("preview-actions")}>
+              <button
+                type="button"
+                className={block("primary-btn")}
+                onClick={handleCopyText}
+              >
+                {copied ? "Скопировано ✓" : "Копировать текст"}
+              </button>
+            </div>
           </div>
-          <pre className={block("preview-pre")}>{previewText}</pre>
-        </div>
+        </CustomModal>
       )}
 
       {submitError && <p className={block("error-msg")}>{submitError}</p>}

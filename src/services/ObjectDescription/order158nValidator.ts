@@ -349,19 +349,24 @@ export const validateOrder158nCompliance = (
     !desc.okpd2Code.trim() ||
     (!desc.isIndeterminateVolume && (!desc.unit?.trim() || !desc.quantity?.trim()));
 
-  if (hardErrors.length > 0 || desc.characteristics.length === 0) {
-    const reasons = [
-      desc.characteristics.length === 0
-        ? "не добавлено ни одной характеристики"
-        : "",
-      ...hardErrors.map((e) => e.message),
-    ].filter(Boolean);
+  if (hardErrors.length > 0) {
     checks.push({
       id: "p3_2_2_2_structure",
       clause: "п. 3.2.2.2",
       title: "Полнота структурированного описания объекта (ст. 33 44-ФЗ, ПП N 145)",
       status: "fail",
-      detail: reasons.join(" "),
+      detail: hardErrors.map((e) => e.message).join(" "),
+    });
+  } else if (desc.characteristics.length === 0) {
+    // Отсутствие характеристик — предупреждение по ст. 33 и правилам КТРУ,
+    // но не основание блокировать сохранение ООЗ (требование заказчика).
+    checks.push({
+      id: "p3_2_2_2_structure",
+      clause: "п. 3.2.2.2",
+      title: "Полнота структурированного описания объекта (ст. 33 44-ФЗ, ПП N 145)",
+      status: "warning",
+      detail:
+        "Не добавлено ни одной характеристики: ст. 33 44-ФЗ требует описания объекта, а при применении КТРУ показатели обязательны (ПП РФ N 145). Добавьте показатели, но это не блокирует сохранение.",
     });
   } else if (missingMeasures) {
     checks.push({

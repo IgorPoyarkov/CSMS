@@ -157,6 +157,20 @@ export const ObjectStandardRefSchema = z.object({
 
 export type ObjectStandardRef = z.infer<typeof ObjectStandardRefSchema>;
 
+/**
+ * Дополнительный код ОКПД2 в одном ООЗ: закупка может включать несколько
+ * объектов (например, позиция ПГ с несколькими кодами). Основной код остаётся
+ * в okpd2Code для обратной совместимости с извещением и старыми документами.
+ */
+export const ObjectDescriptionOkpd2ItemSchema = z.object({
+  code: z.string().trim().min(2, "Укажите код ОКПД2"),
+  name: optionalString(),
+});
+
+export type ObjectDescriptionOkpd2Item = z.infer<
+  typeof ObjectDescriptionOkpd2ItemSchema
+>;
+
 export const ObjectDescriptionSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   organizationId: z.union([z.string(), z.number()]).nullable().optional(),
@@ -174,6 +188,9 @@ export const ObjectDescriptionSchema = z.object({
   title: z.string().trim().min(2, "Укажите наименование объекта закупки"),
   okpd2Code: z.string().trim().min(2, "Укажите код ОКПД2"),
   okpd2Name: optionalString(),
+  // Дополнительные объекты закупки; .default([]) подставляется для старых
+  // сохранённых ООЗ, где такого поля ещё нет.
+  okpd2Items: z.array(ObjectDescriptionOkpd2ItemSchema).default([]),
   useKtru: z.boolean().default(false),
   ktruCode: optionalString(),
   ktruName: optionalString(),
@@ -261,8 +278,9 @@ export const validateObjectDescriptionCompliance = (
     issues.push({
       level: "warning",
       code: "NO_CHARACTERISTICS",
-      message:
-        "Не добавлено ни одной характеристики объекта закупки (п. 1 ч. 1 ст. 33 44-ФЗ).",
+      message: useKtru
+        ? "Не добавлено ни одной характеристики. Для позиции КТРУ показатели обязательны (п. 6 Правил использования КТРУ, ПП РФ N 145); ст. 33 44-ФЗ также требует описания объекта. Это предупреждение, сохранение не блокируется."
+        : "Не добавлено ни одной характеристики. Ст. 33 44-ФЗ требует описания объекта закупки, а при применении КТРУ показатели обязательны (ПП РФ N 145). Это предупреждение, сохранение не блокируется.",
     });
   }
 
@@ -369,6 +387,13 @@ export const toNoticeObjectDescriptionFields = (
       .join("; ");
 
   const extras: string[] = [];
+  if (desc.okpd2Items?.length) {
+    extras.push(
+      `Дополнительные коды ОКПД2: ${desc.okpd2Items
+        .map((item) => `${item.code}${item.name ? ` — ${item.name}` : ""}`)
+        .join(", ")}`,
+    );
+  }
   if (desc.ktruCode) {
     extras.push(`КТРУ: ${desc.ktruCode}`);
   }
@@ -414,10 +439,19 @@ export const toNoticeObjectDescriptionFields = (
 export const buildObjectDescriptionSummaryText = (
   desc: ObjectDescription,
 ): string => {
+  const okpd2Parts = [
+    { code: desc.okpd2Code, name: desc.okpd2Name },
+    ...(desc.okpd2Items ?? []),
+  ]
+    .filter((item) => item.code.trim())
+    .map(
+      (item) =>
+        `${item.code}${item.name?.trim() ? ` — ${item.name.trim()}` : ""}`,
+    );
   const lines: string[] = [
     `ОПИСАНИЕ ОБЪЕКТА ЗАКУПКИ (ст. 33 44-ФЗ, ПП РФ № 145)`,
     `Наименование: ${desc.title}`,
-    `ОКПД2: ${desc.okpd2Code}${desc.okpd2Name ? ` — ${desc.okpd2Name}` : ""}`,
+    `ОКПД2: ${okpd2Parts.join("; ")}`,
   ];
 
   if (desc.useKtru && desc.ktruCode) {
@@ -523,6 +557,7 @@ export const emptyObjectDescription = (
   title: "",
   okpd2Code: "",
   okpd2Name: "",
+  okpd2Items: [],
   useKtru: false,
   ktruCode: "",
   ktruName: "",
