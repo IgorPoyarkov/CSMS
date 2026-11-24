@@ -70,6 +70,7 @@ import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListContro
 import type { ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.schema";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
+import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
 import styles from "./MarketNmckCalculator.module.scss";
 import Select from "../UI/Select";
 
@@ -1027,16 +1028,20 @@ export default function MarketNmckCalculator({
                               </option>
                             ))}
                           </Select>
-                          <input
-                            className={block("input")}
+                          {/* Поставщик из справочника: наименование и ИНН
+                              подставляются парой, чтобы источники цен не
+                              расходились по написанию одной и той же фирмы */}
+                          <CounterpartySelect
+                            inn={item.offer.supplierInn ?? ""}
+                            name={item.offer.supplierName}
                             disabled={disabled}
-                            value={item.offer.supplierName}
-                            onChange={(e) =>
+                            placeholder="Поставщик / реестровая запись"
+                            onSelect={(counterparty) =>
                               updateOffer(item.index, {
-                                supplierName: e.target.value,
+                                supplierName: counterparty.name,
+                                supplierInn: counterparty.inn,
                               })
                             }
-                            placeholder="Поставщик / реестровая запись"
                           />
                           <input
                             className={block("input")}

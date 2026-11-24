@@ -71,6 +71,7 @@ import ClauseSuggestionsPanel from "./ClauseSuggestionsPanel";
 import type { ClauseTemplate } from "../../services/ContractProject/clauseTemplates.api";
 import styles from "./ContractProject.module.scss";
 import Select from "../UI/Select";
+import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
 
 interface ContractLocationState {
   // Ссылка на закупку: проект не должен держаться только на ИКЗ
@@ -869,6 +870,72 @@ export default function ContractProjectForm() {
     </div>
   );
 
+  // Поставщика удобнее выбрать из справочника контрагентов: реквизиты
+  // подставляются в поля преамбулы, но остаются редактируемыми — в тексте
+  // контракта фиксируются данные на дату заключения, а карточка справочника
+  // может быть уточнена позже
+  const renderCounterpartyPicker = () => (
+    <div className={`${styles.fields} ${styles.counterpartyPicker}`}>
+      <div className={`${styles.field} ${styles.fieldWide}`}>
+        <label className={styles.label} htmlFor="contract-counterparty">
+          Контрагент из справочника
+        </label>
+        <CounterpartySelect
+          id="contract-counterparty"
+          inn={project.requisites?.supplierInn ?? ""}
+          name={project.supplierName ?? ""}
+          placeholder="Найти по ИНН или наименованию — реквизиты подставятся в преамбулу"
+          onSelect={(counterparty) => {
+            // Наименование карточки — полное: сокращённое подставляем отдельно,
+            // если оно заполнено в справочнике
+            methods.setValue("supplierName", counterparty.name, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierFullName", counterparty.name, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue(
+              "requisites.supplierShortName",
+              counterparty.shortName ?? "",
+              { shouldDirty: true, shouldValidate: true },
+            );
+            methods.setValue("requisites.supplierInn", counterparty.inn, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierKpp", counterparty.kpp ?? "", {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierOgrn", counterparty.ogrn ?? "", {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierAddress", counterparty.legalAddress ?? "", {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierEmail", counterparty.email ?? "", {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+            methods.setValue("requisites.supplierPhone", counterparty.phone ?? "", {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+          }}
+        />
+        <p className={styles.hint}>
+          Справочник общий для контракта, сведений о СМП и котировок НМЦК: если
+          контрагента в нём нет, заведите карточку — реквизиты больше не
+          придётся вбивать повторно.
+        </p>
+      </div>
+    </div>
+  );
+
   const renderSection = (section: ContractSectionDef, index: number) => {
     const included = isContractSectionIncluded(project, section.id);
     const overrideText = contractSectionOverrideText(project, section.id);
@@ -923,6 +990,11 @@ export default function ContractProjectForm() {
           renderAppendices()
         ) : (
           <>
+            {/* Справочник контрагентов нужен и в преамбуле, и в реквизитах:
+                в преамбуле он рядом с наименованием поставщика, в реквизитах —
+                рядом с ИНН, КПП и адресом */}
+            {(section.id === "preamble" || section.id === "requisites") &&
+              renderCounterpartyPicker()}
             <div className={styles.fields}>
               {section.fields.map((field) =>
                 field.kind === "stages" ? (

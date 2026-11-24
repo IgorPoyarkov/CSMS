@@ -1,0 +1,165 @@
+@use "variables" as *;
+@use "no-scrollbar" as *;
+
+.counterparty-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+
+  &__wrapper {
+    position: relative;
+  }
+
+  &__input {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 30px 10px 12px;
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    color: var(--text-primary);
+    background-color: var(--surface-field);
+    border: 1px solid var(--field-border);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    appearance: none;
+    -webkit-appearance: none;
+
+    &::placeholder {
+      color: var(--placeholder);
+    }
+
+    &:hover,
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      color: var(--text-secondary);
+      background-color: var(--surface-panel);
+    }
+  }
+
+  &__arrow {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 11px;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+  }
+
+  &--open {
+    .counterparty-select__arrow {
+      transform: translateY(-50%) rotate(180deg);
+    }
+  }
+
+  // Выпадающий список: карточек в справочнике немного, поэтому прокрутка
+  // включается только после десяти строк
+  &__list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 280px;
+    margin: 0;
+    padding: 4px 0;
+    list-style-type: none;
+    background-color: var(--surface-panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    box-shadow: 0 6px 16px var(--shadow);
+    overflow-y: auto;
+    @include no-scrollbar;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      background-color: var(--accent-soft);
+    }
+
+    &--active {
+      font-weight: 700;
+      color: var(--text-on-accent);
+      background-color: var(--accent);
+    }
+  }
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // ИНН — то, по чему сверяют карточку с документом, поэтому не обрезается
+  &__inn {
+    flex-shrink: 0;
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--text-secondary);
+
+    .counterparty-select__item--active & {
+      color: var(--text-on-accent);
+    }
+  }
+
+  // Вердикт реестра МСП: показывается только у проверенных контрагентов
+  &__badge {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+
+    &--smp {
+      background: var(--state-success-soft);
+      color: var(--state-success);
+    }
+
+    &--not-smp {
+      background: var(--state-danger-soft);
+      color: var(--state-danger);
+    }
+
+    .counterparty-select__item--active & {
+      background: var(--surface-panel);
+      color: var(--text-primary);
+    }
+  }
+
+  // Подсказка вместо строк выдачи: пустой справочник или нет совпадений
+  &__empty {
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-secondary);
+  }
+}

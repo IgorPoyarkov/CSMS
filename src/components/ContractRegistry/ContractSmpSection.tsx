@@ -73,6 +73,7 @@ import type {
   SignatureEvent,
 } from "../../services/Eds/eds.schema";
 import Select from "../UI/Select";
+import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
 import ContractViolationNotice from "./ContractViolationNotice";
 
 /**
@@ -1688,6 +1689,37 @@ function ContractSmpRecordForm({
             )}
 
             {/* Субподрядчик */}
+            <div className={block("field", ["wide"])}>
+              <label className={block("label")} htmlFor="smp-counterparty">
+                Контрагент из справочника
+              </label>
+              <CounterpartySelect
+                id="smp-counterparty"
+                inn={watchedRecord.supplierInn}
+                name={watchedRecord.supplierName}
+                placeholder="Найти по ИНН или наименованию — реквизиты подставятся ниже"
+                onSelect={(counterparty) => {
+                  // Справочник — только подсказка: поля ниже остаются
+                  // редактируемыми, потому что сведения в ЕИС фиксируются на
+                  // дату документа и могут отличаться от текущей карточки
+                  setValue("supplierName", counterparty.name, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("supplierInn", counterparty.inn, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  setValue("supplierKpp", counterparty.kpp ?? "", {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  // Вердикт МСП подтягиваем сразу: у нового контрагента сверки
+                  // ещё нет, а у известного она могла устареть
+                  checkSupplierInn(counterparty.inn);
+                }}
+              />
+            </div>
             <div className={block("field", ["wide"])}>
               <label className={block("label")} htmlFor="smp-supplier">
                 Субподрядчик (наименование)

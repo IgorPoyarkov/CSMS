@@ -18,6 +18,9 @@ import {
   contractCardSupplier,
 } from "../../services/ContractRegistry/contractCardProjection.schema";
 import { useContractSmpRecords } from "../../services/ContractSmp/contractSmp.api";
+import { smpRegistryCategoryLabels } from "../../services/ContractSmp/smpRegistry.schema";
+import { useCounterpartyByInn } from "../../services/Counterparty/counterparty.api";
+import { counterpartySmpLabel } from "../../services/Counterparty/counterparty.schema";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import useUtils from "../../hooks/useUtils";
 import ContractEisSection from "./ContractEisSection";
@@ -51,6 +54,10 @@ export default function ContractCardPage() {
   // Ручные записи о привлечении СМП: блок прячем, только если нет ни требования,
   // ни сведений из ЕИС, ни уже внесённых субдоговоров
   const { data: smpRecords } = useContractSmpRecords(contract?.id ?? id);
+  // Реквизиты подрядчика из справочника контрагентов: реестр контрактов и
+  // выгрузка ЕИС отдают ИНН, но не всегда наименование, а справочник знает
+  // и название, и актуальный ли это субъект МСП
+  const { counterparty: supplierCard } = useCounterpartyByInn(contract?.supplierInn);
   const smpRequirement = useMemo(
     () => contractCardSmpRequirement(projection?.Smp ?? []),
     [projection],
@@ -102,7 +109,11 @@ export default function ContractCardPage() {
   // этих полей почти не отдаёт, а в выгрузке они есть. Запись реестра остаётся
   // приоритетнее, чтобы ручные правки не перекрывались импортом
   const eisSupplier = contractCardSupplier(projection);
-  const supplierName = contract.supplierName || eisSupplier.name;
+  // Порядок: ручная правка → выгрузка ЕИС → справочник контрагентов. Справочник
+  // последний, потому что документ важнее актуальной карточки, но если в
+  // документе наименования нет вовсе, лучше показать его из справочника
+  const supplierName =
+    contract.supplierName || eisSupplier.name || supplierCard?.name;
   const supplierInn = contract.supplierInn || eisSupplier.inn;
   const subject = contractCardSubject(projection) || contract.contractName;
   // Номер контракта, а не реестровый номер: у импортированных записей в
@@ -198,6 +209,24 @@ export default function ContractCardPage() {
           <span>Цена: {formatMoney(contract.contractPrice)} ₽</span>
           <span>Подрядчик: {supplierName || "не указан в выгрузке"}</span>
           {supplierInn && <span>ИНН: {supplierInn}</span>}
+          {supplierCard && (
+            <span
+              className={`${styles.supplierBadge} ${styles[`supplierBadge_${supplierCard.smp.status}`]}`}
+              title={counterpartySmpLabel(
+                supplierCard.smp,
+                smpRegistryCategoryLabels,
+                formatDate,
+              )}
+            >
+              {supplierCard.smp.status === "in_registry"
+                ? "СМП подтверждён"
+                : supplierCard.smp.status === "out_of_registry"
+                  ? "не СМП"
+                  : supplierCard.smp.status === "excluded"
+                    ? "исключён из МСП"
+                    : "МСП не проверен"}
+            </span>
+          )}
           <span>Заключён: {formatDate(contract.contractDate)}</span>
           {/* Импорт ЕИС не всегда отдаёт дату начала исполнения: тогда срок
               читается как «до <дата>», а не «— — дата» */}

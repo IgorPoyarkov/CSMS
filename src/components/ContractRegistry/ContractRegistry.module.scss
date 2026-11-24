@@ -89,7 +89,7 @@
 }
 
 // Пометка «СМП» в шапке карточки: контракт с обязанностью привлечения
-// субподрядчиков. У контрактов без такого условия пометки нет — карточки
+// Субподрядчиков. У контрактов без такого условия пометки нет — карточки
 // отличаются, а не показывают «0 из 0»
 .smpBadge {
   padding: 3px 10px;
@@ -100,6 +100,37 @@
   color: var(--accent);
   background: var(--accent-soft);
   border: 1px solid var(--accent);
+}
+
+// Вердикт справочника контрагентов по подрядчику: признак МСП не хранится в
+// карточке контракта, а показывается по результату сверки ИНН. Отдельный класс
+// от `.smpBadge`: там пометка контракта, здесь — статус поставщика
+.supplierBadge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+
+  &_in_registry {
+    color: var(--state-success);
+    background: var(--state-success-soft);
+    border: 1px solid var(--state-success);
+  }
+
+  &_out_of_registry,
+  &_excluded {
+    color: var(--state-danger);
+    background: var(--state-danger-soft);
+    border: 1px solid var(--state-danger);
+  }
+
+  &_unchecked {
+    color: var(--text-secondary);
+    background: var(--surface-panel);
+    border: 1px solid var(--field-border);
+  }
 }
 
 // ─── Исполнение в строке реестра ────────────────────────────────────────────

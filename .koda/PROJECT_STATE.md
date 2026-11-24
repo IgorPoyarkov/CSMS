@@ -245,6 +245,7 @@ contractProjects 2 · contractRegistry 5 · contractStages 9 · contractPayments
 contractPenalties 5 · contractDeliveries 3 · contractFunctions 5 · legalActs 16
 smnpPlans/Reports/Procurements 3/3/3 · purchaseNotes 4 · contractSmpRecords 23
 objectDescriptions 5 · edsCertificates 4 · edsSignatureEvents 4 · okpd2Refs 143 · ktruRefs 6 · addressRegions/Municipalities 89/31
+counterparties 2 (справочник контрагентов по ИНН, §180)
 ```
 
 - Организации: 1 ГБУЗ «ГКБ № 7», 2 Депимущество БО, 3 МБОУ «СОШ № 15»,
@@ -660,9 +661,12 @@ exclude`, угол через `@property` + JS-фолбэк), неоновая �
 6. **Агент НПА (§38).** Сверить реальные импорты 1875/2604, разобрать 88
    `unresolved` 471-р и принимать решения по `needs_review` через `/verify`;
    эталон `auctionListControl.ts` считать историческим, не источником истины.
-7. **Проверка контрагентов (§77, бэк готов).** Подключить
-   `/api/eis/counterparties/check` к карточке контрагента на фронте, показать
-   дату и id выгрузки как снимок источника.
+7. **Проверка контрагентов (§77, бэк готов; частично перекрыто §180).**
+   Справочник `counterparties` уже есть и связан с карточкой контракта,
+   проектом контракта, сведениями о СМП и котировками НМЦК; вердикт МСП
+   берётся из `smpRegistry` (`POST /__smp/check` адаптера `:3002`). Осталось
+   подключить `/api/eis/counterparties/check` из `csms-api` и показывать дату и
+   id выгрузки как снимок источника.
 8. **Адаптивность (§129).** Аудит 390 px пройден по всем роутам; остались
    необязательные улучшения: увеличить тач-цели `.btn--sm` (`×` 29×44) и
    ссылок «← назад» (24 px по высоте) до 40–44 px, проверить модалки
@@ -7800,9 +7804,24 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   (подтверждение редакций, журнал); модель — на GPU-узле заказчика (on-prem);
   режим «только нормы» для подрядчиков — флаг сессии/роли без инструментов к
   данным.
-- **Не реализовано.** Код консультанта не писался: документ фиксирует
-  архитектуру и следующий шаг — каркас `rule_catalog`, сервис `npaSync`,
-  экраны `/legal` и `/consultant`.
+- **Каркас версионности реализован.** Порог: 7 редакций для ФЗ, 3 — для
+  указа, постановления, распоряжения и приказа
+  (`NPA_MIN_VERSIONS` в `src/services/LegalNpa/legalNpa.schema.ts`). Схема
+  хранит версии внутри документа `legalActs` (`versions`), поэтому новых
+  коллекций и правок PG-адаптера не потребовалось. API — `legalNpa.api.ts`
+  (react-query: список актов, сохранение версий, подтверждение). Экраны:
+  `/legal` (реестр с прогрессом `N / required`), `/legal/:id` (таймлайн,
+  подтверждение, diff по статьям), `/legal/changes` (неполные наборы и
+  черновые версии); пункт «НПА и редакции» — в меню «Ещё».
+  `scripts/npa-sync.mjs`: `--seed` (44-ФЗ 7, ПП 1042 3, 158н 3 — только
+  реквизиты, без выдуманных текстов), `--check` (exit 1 при неполном наборе),
+  `--source=pravo --url=…` (карточка pravo.gov.ru: номер и дата опубликования,
+  PDF, добавление редакции), `--download`. Проверено: seed и check дают 7/7,
+  3/3, 3/3; загрузка карточки 44-ФЗ (`0001201304080023`) добавляет редакцию,
+  `--seed` возвращает демо-набор.
+- **Не реализовано.** Разбор полного текста статей и сбор всех исторических
+  редакций 44-ФЗ; `rule_catalog` и сам консультант (RAG, инструменты, чат
+  `/consultant`).
 
 ## 2026-11-24 — КС-уведомление о ненадлежащем исполнении и блок приёмки
 
@@ -8385,4 +8404,52 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   `npx oxlint src` — только прежние предупреждения react-hooks.
 - **Коммит.** В коммит включены только наши файлы. Чужая WIP по контрагентам,
   юрбазе, договорному реестру и НМЦК в рабочем дереве не захватывалась.
+
+## 180. Справочник контрагентов по ИНН (`counterparties`, §180)
+
+- **Коллекция `counterparties`.** Ключ — ИНН, карточка = реквизиты: `inn`,
+  `name`, `shortName`, `kpp`, `ogrn`, `legalAddress`, `email`, `phone`, `note`,
+  `isActive`. Добавлена в `PG_COLLECTIONS` адаптера `:3002`; DDL PostgreSQL не
+  менялся. Схема и хелперы — `src/services/Counterparty/counterparty.schema.ts`,
+  API и хуки — `counterparty.api.ts` (`/counterparties`).
+- **Вердикт МСП в карточке не хранится.** Единственный источник — `smpRegistry`
+  (запись сверки по ИНН), карточка компонуется с ним на чтении:
+  `useCounterpartiesWithSmp` + `withSmpVerdict`. Так повторная сверка не требует
+  правки справочника и не появляется второго места с тем же фактом.
+  Нет записи в `smpRegistry` → `unchecked` («не проверялся»), а не «не СМП»;
+  `found: false` → `out_of_registry`; `isActive: false` → `excluded`;
+  запись без `found` (полная выгрузка реестра) → `in_registry`.
+- **Документы хранят снимок.** `contractRegistry`, `contractSmpRecords`,
+  `purchaseNotes.nmckOffers` по-прежнему держат свои `supplierName/Inn/Kpp`:
+  селектор только заполняет поля формы, поэтому правка карточки не переписывает
+  уже оформленные сведения ЕИС. Копирование реквизитов — `counterpartyRequisites`.
+- **UI `CounterpartySelect`** (`components/UI/CounterpartySelect`): поиск по ИНН
+  и обоим наименованиям, бейдж МСП, создание карточки на новый валидный ИНН,
+  клавиатура (↑/↓/Enter/Esc), закрытие по клику вне. Подключён в
+  `ContractSmpSection` (над редактируемыми полями субподрядчика, дополнительно
+  вызывает `checkSupplierInn`), `MarketNmckCalculator` (наименование + ИНН КП),
+  `ContractProjectForm` (секции «Преамбула» и «Реквизиты» → `supplierName`,
+  `requisites.supplier*`), `ContractCardPage` (фолбэк наименования по ИНН и
+  бейдж с подсказкой `counterpartySmpLabel`).
+- **Приёмка поставщика не выбирает.** `AcceptanceFormPage` берёт
+  `supplierName/supplierInn` из контракта реестра и показывает их только для
+  чтения: подмена поставщика в акте исказила бы сведения о конкретном контракте.
+- **Миграция `scripts/migrate-counterparties.mjs`** (`npm run counterparties:migrate`):
+  собирает ИНН из `contractRegistry`, `contractProjects`, `contractSmpRecords`,
+  `purchaseNotes.nmckOffers`, заводит по карточке на валидный ИНН
+  (`counterparty-${inn}`), дозаполняет только пустые поля, ИНН без наименования
+  печатает отдельным списком. Идемпотентна, есть `--dry-run`. Прогон на рабочей
+  базе 2026-11-24: найдено 2 ИНН, создано 2 карточки, дозаполнять было нечего.
+- **Проверка `scripts/check-counterparties.ts`** (`npm run check:counterparties`,
+  включена в `npm test`): полнота ИНН 10/12 цифр, нормализация в
+  `createCounterpartyDraft`, поисковый текст, все четыре вердикта (включая запись
+  без `found`), свежесть вердикта, подписи, копирование реквизитов, дефолты схемы.
+- **Проверки.** `npx tsc -b` — чисто, `npx oxlint src scripts` — 0 ошибок
+  (16 прежних предупреждений react-hooks), `npm run test:scripts` — 59/59,
+  `npm run check:counterparties` — ок, `npx vite build` — успешно.
+- **Открыто.** Экран-реестр справочника (сейчас карточки создаются из форм и
+  миграции, отдельного списка с редактированием нет); сверка с
+  `/api/eis/counterparties/check` из `csms-api`; после обновления кода адаптера
+  `:3002` его нужно перезапустить, иначе `GET /counterparties` = 404 (старый
+  процесс держит прежний `PG_COLLECTIONS`).
 

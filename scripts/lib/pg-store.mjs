@@ -45,6 +45,9 @@ export const PG_COLLECTIONS = [
   "legalActs",
   "purchaseNotes",
   "smpRegistry",
+  // Справочник контрагентов: реквизиты поставщиков и субподрядчиков вводятся
+  // один раз, а вердикт реестра МСП берётся из smpRegistry по ИНН
+  "counterparties",
   "contractSmpRecords",
   "accessRequests",
   "addressRegions",
