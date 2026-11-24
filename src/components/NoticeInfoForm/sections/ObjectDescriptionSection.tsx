@@ -4,8 +4,12 @@ import { ExternalLink, FileText } from "lucide-react";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
 import { useOrganizationObjectDescriptions } from "../../../services/ObjectDescription/objectDescription.api";
-import { toNoticeObjectDescriptionFields } from "../../../services/ObjectDescription/objectDescription.schema";
+import {
+  getObjectDescriptionOkpd2Codes,
+  toNoticeObjectDescriptionFields,
+} from "../../../services/ObjectDescription/objectDescription.schema";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
+import { buildExtraPurchaseItems } from "../../../services/Procurements/noticePurchaseObjects";
 import { useKtruDictionary } from "../../../services/KtruRef/ktruRef.api";
 import { checkKtruUsage } from "../../../services/KtruRef/ktruControl";
 import KtruSelect from "../../UI/KtruSelect/KtruSelect";
@@ -76,7 +80,8 @@ const ObjectDescriptionSection = () => {
     organization?.id,
   );
   const { data: ktruRefs = [] } = useKtruDictionary();
-  const { register, watch, setValue } = useFormContext<NoticeInfoFormValues>();
+  const { register, watch, setValue, getValues } =
+    useFormContext<NoticeInfoFormValues>();
 
   const objectDescription = watch("objectDescription");
   // Код ОКПД2 описания может быть ещё не заполнен вручную, но уже выбран
@@ -90,6 +95,7 @@ const ObjectDescriptionSection = () => {
     return null;
   }
 
+  const allOkpd2 = getObjectDescriptionOkpd2Codes(objectDescription);
   const effectiveOkpd2 = objectDescription.okpd2Code || firstItemCode;
 
   const ktruIssue = checkKtruUsage(
@@ -105,6 +111,30 @@ const ObjectDescriptionSection = () => {
     setValue("objectDescription", toNoticeObjectDescriptionFields(found), {
       shouldDirty: true,
     });
+
+    // Выбранный ООЗ может описывать несколько объектов: добавляем позиции
+    // для кодов, которых ещё нет в извещении (ЕИС принимает по одному коду).
+    const items = getValues("purchaseObjects.items") ?? [];
+    if (items.length === 0) return;
+    const usedCodes = new Set(
+      items
+        .map((item) => item.okpd2Code || item.okpd2OrKtruCode)
+        .filter(Boolean)
+        .map((code) => code.trim().toLowerCase()),
+    );
+    const extraItems = items.flatMap((item, idx) =>
+      buildExtraPurchaseItems(
+        item,
+        getObjectDescriptionOkpd2Codes(found),
+        usedCodes,
+        `ooz-${idx + 1}`,
+      ),
+    );
+    if (extraItems.length > 0) {
+      setValue("purchaseObjects.items", [...items, ...extraItems], {
+        shouldDirty: true,
+      });
+    }
   };
 
   return (
@@ -227,6 +257,28 @@ const ObjectDescriptionSection = () => {
           документы» — отдельно прикреплять его к извещению не нужно.
         </span>
       </div>
+
+      {allOkpd2.length > 1 && (
+        <div className={block("preview")}>
+          <h3 className={block("preview-title")}>
+            Коды ОКПД2 объекта закупки ({allOkpd2.length})
+          </h3>
+          <p className={block("preview-text")}>
+            Коды пришли из связанного ООЗ. Формат ЕИС 17.0 допускает только
+            один код ОКПД2 на позицию, поэтому каждый код выведен отдельной
+            позицией в разделе «Объекты закупки». Проверьте количество и
+            стоимость добавленных позиций перед сохранением.
+          </p>
+          <ul className={block("preview-text")}>
+            {allOkpd2.map((item) => (
+              <li key={item.code}>
+                {item.code}
+                {item.name ? ` — ${item.name}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={block("preview")}>
         <h3 className={block("preview-title")}>Краткое описание</h3>

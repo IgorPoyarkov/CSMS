@@ -375,6 +375,59 @@ export const validateObjectDescriptionCompliance = (
 };
 
 /**
+ * Источник кодов ОКПД2: и полный ООЗ, и уже заполненный блок извещения,
+ * где эти поля необязательны.
+ */
+type Okpd2CodeSource = {
+  okpd2Code?: string | null;
+  okpd2Name?: string | null;
+  okpd2Items?: Array<{ code?: string | null; name?: string | null }>;
+};
+
+/**
+ * Все коды ОКПД2 ООЗ: основной плюс дополнительные объекты закупки.
+ * Повторы отсекаются, чтобы один код не породил две позиции в извещении.
+ */
+export const getObjectDescriptionOkpd2Codes = (
+  desc: Okpd2CodeSource,
+): Array<{ code: string; name?: string }> => {
+  const seen = new Set<string>();
+  return [
+    { code: desc.okpd2Code, name: desc.okpd2Name },
+    ...(desc.okpd2Items ?? []),
+  ]
+    .map((item) => ({
+      code: item.code?.trim() ?? "",
+      name: item.name?.trim() || undefined,
+    }))
+    .filter((item) => {
+      const key = item.code.toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
+
+/**
+ * Берём из списка только те коды, которых ещё нет в извещении. Множество
+ * `usedCodes` обновляется, чтобы повтор не попал в другую позицию.
+ */
+export const takeMissingOkpd2Codes = (
+  allCodes: Array<{ code: string; name?: string }>,
+  usedCodes: Set<string>,
+): Array<{ code: string; name?: string }> => {
+  const missing: Array<{ code: string; name?: string }> = [];
+  allCodes.forEach((item) => {
+    const code = item.code?.trim();
+    const key = code?.toLowerCase();
+    if (!code || !key || usedCodes.has(key)) return;
+    usedCodes.add(key);
+    missing.push({ code, name: item.name });
+  });
+  return missing;
+};
+
+/**
  * Сборник текстовых полей для подстановки в секцию ObjectDescriptionSection извещения.
  */
 export const toNoticeObjectDescriptionFields = (
@@ -386,14 +439,8 @@ export const toNoticeObjectDescriptionFields = (
       .map((c) => `${c.name}: ${formatCharacteristicValue(c)}`)
       .join("; ");
 
+  const allOkpd2 = getObjectDescriptionOkpd2Codes(desc);
   const extras: string[] = [];
-  if (desc.okpd2Items?.length) {
-    extras.push(
-      `Дополнительные коды ОКПД2: ${desc.okpd2Items
-        .map((item) => `${item.code}${item.name ? ` — ${item.name}` : ""}`)
-        .join(", ")}`,
-    );
-  }
   if (desc.ktruCode) {
     extras.push(`КТРУ: ${desc.ktruCode}`);
   }
@@ -421,6 +468,11 @@ export const toNoticeObjectDescriptionFields = (
     objectName: desc.title,
     okpd2Code: desc.okpd2Code,
     okpd2Name: desc.okpd2Name ?? "",
+    // Дополнительные коды приходят структурированно, а не текстом в otherRequirements
+    okpd2Items: allOkpd2.slice(1).map((item) => ({
+      code: item.code,
+      name: item.name ?? "",
+    })),
     ktruCode: desc.ktruCode ?? "",
     ktruName: "",
     consumerProperties: joinByCategory(["consumer"]),
@@ -439,15 +491,9 @@ export const toNoticeObjectDescriptionFields = (
 export const buildObjectDescriptionSummaryText = (
   desc: ObjectDescription,
 ): string => {
-  const okpd2Parts = [
-    { code: desc.okpd2Code, name: desc.okpd2Name },
-    ...(desc.okpd2Items ?? []),
-  ]
-    .filter((item) => item.code.trim())
-    .map(
-      (item) =>
-        `${item.code}${item.name?.trim() ? ` — ${item.name.trim()}` : ""}`,
-    );
+  const okpd2Parts = getObjectDescriptionOkpd2Codes(desc).map(
+    (item) => `${item.code}${item.name ? ` — ${item.name}` : ""}`,
+  );
   const lines: string[] = [
     `ОПИСАНИЕ ОБЪЕКТА ЗАКУПКИ (ст. 33 44-ФЗ, ПП РФ № 145)`,
     `Наименование: ${desc.title}`,

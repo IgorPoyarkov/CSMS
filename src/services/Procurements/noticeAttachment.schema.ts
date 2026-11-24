@@ -514,6 +514,11 @@ export const inheritAttachmentsFromPurchaseNote = ({
           objectDescription.okpd2Code
             ? `ОКПД2 ${objectDescription.okpd2Code}`
             : undefined,
+          objectDescription.okpd2Items?.length
+            ? `Доп. ОКПД2: ${objectDescription.okpd2Items
+                .map((item) => item.code)
+                .join(", ")}`
+            : undefined,
           objectDescription.ktruCode
             ? `КТРУ ${objectDescription.ktruCode}`
             : undefined,
@@ -589,6 +594,7 @@ export const buildObjectDescriptionAttachment = ({
     JSON.stringify({
       title: description.title,
       okpd2Code: description.okpd2Code,
+      okpd2Items: description.okpd2Items,
       ktruCode: description.ktruCode,
       unit: description.unit,
       quantity: description.quantity,
@@ -614,6 +620,9 @@ export const buildObjectDescriptionAttachment = ({
     description: buildDescription(
       description.title,
       description.okpd2Code ? `ОКПД2 ${description.okpd2Code}` : undefined,
+      description.okpd2Items?.length
+        ? `Доп. ОКПД2: ${description.okpd2Items.map((item) => item.code).join(", ")}`
+        : undefined,
       description.ktruCode ? `КТРУ ${description.ktruCode}` : undefined,
     ),
     mimeType: DOCX_MIME,

@@ -36,8 +36,13 @@ import { MIN_PROCEDURE_DAYS, placingWayFamily } from "./noticeInfo.config";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import {
   formatCharacteristicValue,
+  getObjectDescriptionOkpd2Codes,
   toNoticeObjectDescriptionFields,
 } from "../../services/ObjectDescription/objectDescription.schema";
+import {
+  buildExtraPurchaseItems,
+  type NoticePurchaseItem,
+} from "../../services/Procurements/noticePurchaseObjects";
 import {
   buildNotification2020XmlPreview,
   inferNotificationType,
@@ -300,10 +305,17 @@ const NoticeInfoForm = () => {
         : undefined;
     if (!plan) return undefined;
 
+    // У позиции ПГ может быть несколько кодов: основной + okpd2Items.
+    // Извещение обязано проверять весь набор, иначе ООЗ с несколькими
+    // объектами выглядит как закупка вне плана.
     const codes = Array.from(
       new Set(
         plan.positions
-          .map((position) => position.okpd2Code?.trim())
+          .flatMap((position) => [
+            position.okpd2Code,
+            ...(position.okpd2Items ?? []).map((item) => item.okpd2Code),
+          ])
+          .map((code) => code?.trim())
           .filter((code): code is string => Boolean(code)),
       ),
     );
@@ -1387,7 +1399,7 @@ const NoticeInfoForm = () => {
             okpd2Refs,
           ).regime;
 
-          return {
+          const baseItem: NoticePurchaseItem = {
             id: item.id || `sz-item-${idx + 1}`,
             externalSid: item.id ? String(item.id) : "",
             productType: "PRODUCT" as const,
@@ -1421,8 +1433,35 @@ const NoticeInfoForm = () => {
             normingRequirements:
               normingReqs.length > 0 ? normingReqs : undefined,
           };
+          return baseItem;
         });
-        setValue("purchaseObjects.items", mappedItems);
+
+        // Дополнительные коды ООЗ → отдельные позиции извещения (по одному
+        // ОКПД2 на purchaseObject по XSD ЕИС 17.0)
+        const usedCodes = new Set<string>();
+        const expandedItems: NoticePurchaseItem[] = [];
+        mappedItems.forEach((item, idx) => {
+          expandedItems.push(item);
+          const code = item.okpd2Code || item.okpd2OrKtruCode;
+          if (code) usedCodes.add(code.trim().toLowerCase());
+          const itemDesc = matchedNote?.items?.[idx]?.objectDescriptionId
+            ? onlyOoz.find(
+                (d) =>
+                  String(d.id) ===
+                  String(matchedNote.items?.[idx]?.objectDescriptionId),
+              )
+            : matchedDesc;
+          if (!itemDesc) return;
+          expandedItems.push(
+            ...buildExtraPurchaseItems(
+              item,
+              getObjectDescriptionOkpd2Codes(itemDesc),
+              usedCodes,
+              `okpd2-${idx + 1}`,
+            ),
+          );
+        });
+        setValue("purchaseObjects.items", expandedItems);
       } else if (matchedNote?.subject || matchedDesc?.title) {
         const qtyRaw = Number.parseFloat(
           isIndeterminate
@@ -1457,38 +1496,46 @@ const NoticeInfoForm = () => {
           okpd2Refs,
         ).regime;
 
-        setValue("purchaseObjects.items", [
-          {
-            id: "sz-item-1",
-            externalSid: "",
-            productType: "PRODUCT",
-            okpd2OrKtruCode: okpd2Code,
-            okpd2Code: matchedNote?.okpd2Code || matchedDesc?.okpd2Code || "",
-            ktruCode: matchedDesc?.ktruCode ?? "",
-            ktruName: "",
-            okeiCode: "",
-            name: matchedNote?.subject || matchedDesc?.title || "",
-            unit: matchedNote?.unit || matchedDesc?.unit || "шт",
-            quantity,
-            unitPrice,
-            totalPrice,
-            volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
-            volumeTextForm: "",
-            trademarks: matchedDesc?.trademarkName || "",
-            isEquivalentDeliveryAllowed: false,
-            isMedicalProduct: false,
-            isSoftware: false,
-            isSupplyDuringWorks: false,
-            nationalRegimeType:
-              declaredRegime === "none" && expectedRegime
-                ? expectedRegime
-                : declaredRegime,
-            imposibilityBan: false,
-            imposibilityBanReason: "",
-            normingRequirements:
-              normingReqs.length > 0 ? normingReqs : undefined,
-          },
-        ]);
+        const baseItem: NoticePurchaseItem = {
+          id: "sz-item-1",
+          externalSid: "",
+          productType: "PRODUCT",
+          okpd2OrKtruCode: okpd2Code,
+          okpd2Code: matchedNote?.okpd2Code || matchedDesc?.okpd2Code || "",
+          ktruCode: matchedDesc?.ktruCode ?? "",
+          ktruName: "",
+          okeiCode: "",
+          name: matchedNote?.subject || matchedDesc?.title || "",
+          unit: matchedNote?.unit || matchedDesc?.unit || "шт",
+          quantity,
+          unitPrice,
+          totalPrice,
+          volumeSpecifyingMethod: isIndeterminate ? "SF" : "QF",
+          volumeTextForm: "",
+          trademarks: matchedDesc?.trademarkName || "",
+          isEquivalentDeliveryAllowed: false,
+          isMedicalProduct: false,
+          isSoftware: false,
+          isSupplyDuringWorks: false,
+          nationalRegimeType:
+            declaredRegime === "none" && expectedRegime
+              ? expectedRegime
+              : declaredRegime,
+          imposibilityBan: false,
+          imposibilityBanReason: "",
+          normingRequirements: normingReqs.length > 0 ? normingReqs : undefined,
+        };
+        const usedCodes = new Set<string>();
+        if (okpd2Code) usedCodes.add(okpd2Code.trim().toLowerCase());
+        const extraItems = matchedDesc
+          ? buildExtraPurchaseItems(
+              baseItem,
+              getObjectDescriptionOkpd2Codes(matchedDesc),
+              usedCodes,
+              "okpd2",
+            )
+          : [];
+        setValue("purchaseObjects.items", [baseItem, ...extraItems]);
       }
     }
 
@@ -1540,14 +1587,19 @@ const NoticeInfoForm = () => {
       return;
     }
 
-    // Связь с планом-графиком: коды ОКПД2 вне позиций плана не допускаются
+    // Связь с планом-графиком: коды ОКПД2 вне позиций плана не допускаются.
+    // Проверяем и позиции извещения, и весь набор кодов связанного ООЗ.
     if (allowedOkpd2Codes && allowedOkpd2Codes.length > 0) {
-      const allowedSet = new Set(allowedOkpd2Codes);
+      const allowedSet = new Set(
+        allowedOkpd2Codes.map((code) => code.trim().toLowerCase()),
+      );
+      const isAllowed = (code: string) =>
+        allowedSet.has(code.trim().toLowerCase());
       const foreignCodes = Array.from(
         new Set(
           formData.purchaseObjects.items
             .map((item) => item.okpd2OrKtruCode)
-            .filter((code) => Boolean(code) && !allowedSet.has(code)),
+            .filter((code) => Boolean(code) && !isAllowed(code)),
         ),
       );
 
@@ -1559,10 +1611,18 @@ const NoticeInfoForm = () => {
         return;
       }
 
-      const descCode = formData.objectDescription?.okpd2Code;
-      if (descCode && !allowedSet.has(descCode)) {
+      const descCodes = [
+        formData.objectDescription?.okpd2Code,
+        ...(formData.objectDescription?.okpd2Items ?? []).map(
+          (item) => item.code,
+        ),
+      ].filter((code): code is string => Boolean(code?.trim()));
+      const foreignDescCodes = Array.from(
+        new Set(descCodes.filter((code) => !isAllowed(code))),
+      );
+      if (foreignDescCodes.length > 0) {
         setError("objectDescription.okpd2Code", {
-          message: `Код ОКПД2 ${descCode} отсутствует в плане-графике заказчика`,
+          message: `Коды ОКПД2 ООЗ отсутствуют в плане-графике заказчика: ${foreignDescCodes.join(", ")}`,
         });
 
         return;

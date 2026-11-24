@@ -465,6 +465,12 @@ export const NoticeInfoSchema = z.object({
       objectName: z.string().optional(),
       okpd2Code: z.string().optional(),
       okpd2Name: z.string().optional(),
+      // Дополнительные объекты закупки из ООЗ; ЕИС принимает по одному коду
+      // на позицию, поэтому они разворачиваются в отдельные purchaseObjects.
+      // Без default: zodResolver иначе меняет тип входа и ломает useForm.
+      okpd2Items: z
+        .array(z.object({ code: z.string(), name: z.string().optional() }))
+        .optional(),
       ktruCode: z.string().optional(),
       ktruName: z.string().optional(),
       consumerProperties: z.string().optional(),
