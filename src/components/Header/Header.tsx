@@ -90,6 +90,7 @@ const MORE_GROUPS: NavGroup[] = [
       { to: "/analytics", label: "Аналитика закупок" },
       { to: "/reports/order-158n", label: "Отчёты 158н" },
       { to: "/liability-mapping", label: "Ответственность КС" },
+      { to: "/legal", label: "НПА и редакции" },
       { to: "/ui-solutions", label: "UI-решения" },
       { to: "/brand", label: "Фирменный знак" },
       { to: "/visit-card", label: "Визитка проекта" },

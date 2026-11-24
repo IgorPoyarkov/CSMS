@@ -1,0 +1,582 @@
+@use "variables" as *;
+
+// ─── НПА: реестр, карточка акта и очередь проверки ───────────────────────────
+// Три блока в одном модуле: у них общие шапка, фильтры, чипы и типографика,
+// а различаются только раскладкой. Стили держим на переменных темы, чтобы
+// страницы читались и в светлой, и в тёмной теме.
+
+.legal-acts,
+.legal-act,
+.legal-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  color: var(--text-primary);
+}
+
+.legal-acts__header,
+.legal-act__header,
+.legal-changes__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.legal-acts__title,
+.legal-act__title,
+.legal-changes__title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.legal-acts__subtitle,
+.legal-act__full,
+.legal-changes__subtitle {
+  margin: 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.legal-acts__totals,
+.legal-changes__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legal-acts__total,
+.legal-changes__total {
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  b {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &--ok {
+    border-color: var(--accent);
+  }
+
+  &--warn {
+    border-color: var(--state-warning);
+  }
+}
+
+// ─── Фильтры ─────────────────────────────────────────────────────────────────
+
+.legal-acts__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.legal-acts__search {
+  flex: 1 1 280px;
+  min-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.legal-acts__select,
+.legal-act__select {
+  min-width: 200px;
+}
+
+.legal-acts__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+// ─── Реестр актов ────────────────────────────────────────────────────────────
+
+.legal-acts__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.legal-acts__card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-panel);
+}
+
+.legal-acts__card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.legal-acts__card-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.legal-acts__card-kind,
+.legal-act__meta,
+.legal-act__kind,
+.legal-changes__row-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legal-acts__badge,
+.legal-act__chip,
+.legal-changes__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-secondary);
+
+  &--ok {
+    border-color: var(--accent);
+    color: var(--accent-emphasis);
+    background: var(--accent-soft);
+  }
+
+  &--warn {
+    border-color: var(--state-warning);
+    color: var(--state-warning);
+    background: var(--state-warning-soft);
+  }
+
+  &--muted {
+    color: var(--text-secondary);
+  }
+
+  &--added {
+    border-color: var(--accent);
+    color: var(--accent-emphasis);
+  }
+
+  &--removed {
+    border-color: var(--state-danger);
+    color: var(--state-danger);
+  }
+
+  &--changed {
+    border-color: var(--state-warning);
+    color: var(--state-warning);
+  }
+}
+
+.legal-acts__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-accent);
+  overflow: hidden;
+}
+
+.legal-acts__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+
+  &--warn {
+    background: var(--state-warning);
+  }
+}
+
+.legal-acts__card-current {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  b {
+    color: var(--text-primary);
+  }
+}
+
+.legal-acts__card-actions,
+.legal-act__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.legal-acts__link,
+.legal-act__link,
+.legal-changes__link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-emphasis);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.legal-acts__source {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+// ─── Карточка акта ───────────────────────────────────────────────────────────
+
+.legal-act__completeness {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  b {
+    color: var(--text-primary);
+  }
+
+  code {
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--surface-accent);
+    font-size: 11px;
+    align-self: flex-start;
+  }
+
+  &--warn {
+    border-color: var(--state-warning);
+  }
+
+  &--ok {
+    border-color: var(--accent);
+  }
+}
+
+.legal-act__section,
+.legal-changes__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legal-act__section-title,
+.legal-changes__section-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.legal-act__timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-act__version {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--surface-panel);
+
+  &--verified {
+    border-left-color: var(--accent);
+  }
+
+  &--draft {
+    border-left-color: var(--state-warning);
+  }
+}
+
+.legal-act__version-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.legal-act__version-date {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.legal-act__version-revision {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.legal-act__version-act {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legal-act__version-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legal-act__verify {
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.legal-act__compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.legal-act__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+  flex: 1 1 260px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.legal-act__diff {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-act__diff-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: var(--surface-panel);
+  font-size: 13px;
+
+  &--added {
+    border-left-color: var(--accent);
+  }
+
+  &--removed {
+    border-left-color: var(--state-danger);
+  }
+
+  &--changed {
+    border-left-color: var(--state-warning);
+  }
+}
+
+.legal-act__diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+
+  span:not([class]) {
+    color: var(--text-secondary);
+  }
+}
+
+.legal-act__diff-before,
+.legal-act__diff-after {
+  margin: 4px 0 0;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.legal-act__diff-before {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: var(--state-danger);
+}
+
+.legal-act__diff-after {
+  color: var(--text-primary);
+}
+
+// ─── Очередь проверки ────────────────────────────────────────────────────────
+
+.legal-changes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-changes__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.legal-changes__row-title {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--accent-emphasis);
+  }
+}
+
+// ─── Общие состояния ─────────────────────────────────────────────────────────
+
+.legal-acts__hint,
+.legal-act__hint,
+.legal-changes__hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+
+  code {
+    padding: 1px 6px;
+    border-radius: 5px;
+    background: var(--surface-accent);
+    font-size: 11px;
+  }
+}
+
+.legal-acts__error,
+.legal-act__error {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--state-danger);
+  border-radius: 10px;
+  background: var(--state-danger-soft);
+  color: var(--state-danger);
+  font-size: 13px;
+}
+
+.legal-acts__empty,
+.legal-act__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface-panel);
+  font-size: 13px;
+  color: var(--text-secondary);
+
+  p {
+    margin: 0;
+  }
+
+  code {
+    align-self: flex-start;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--surface-accent);
+    color: var(--text-primary);
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 900px) {
+  .legal-acts__filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  // В колонке flex-basis работает по высоте: без сброса поиск растянулся бы
+  // на 280 px вниз. Оставляем ему естественную высоту.
+  .legal-acts__search {
+    flex: 0 0 auto;
+  }
+
+  .legal-acts__select {
+    width: 100%;
+  }
+
+  .legal-acts__toggle,
+  .legal-act__verify {
+    min-height: 44px;
+  }
+
+  .legal-act__version {
+    flex-direction: column;
+  }
+}

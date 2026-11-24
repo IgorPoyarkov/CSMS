@@ -83,6 +83,13 @@ const EisSchemaExplorerPage = lazy(
 const EisChainPage = lazy(() => import("./components/Eis/EisChainPage"));
 const EisTestAccessPage = lazy(() => import("./components/Eis/EisTestAccessPage"));
 const BrandPage = lazy(() => import("./components/Brand/BrandPage"));
+const LegalActsPage = lazy(() => import("./components/Legal/LegalActsPage"));
+const LegalActCardPage = lazy(
+  () => import("./components/Legal/LegalActCardPage"),
+);
+const LegalChangesPage = lazy(
+  () => import("./components/Legal/LegalChangesPage"),
+);
 const NormingRequirementsPage = lazy(
   () => import("./components/NormingRequirements/NormingRequirementsPage"),
 );
@@ -431,6 +438,21 @@ const router = createBrowserRouter([
         // Фирменный знак: варианты, палитра, правила и файлы для скачивания
         path: "/brand",
         element: lazySection(<BrandPage />),
+      },
+      {
+        // НПА с редакциями: реестр актов и очередь проверки.
+        // Статический /legal/changes стоит раньше /legal/:id, иначе
+        // «changes» попал бы в параметр id.
+        path: "/legal",
+        element: lazySection(<LegalActsPage />),
+      },
+      {
+        path: "/legal/changes",
+        element: lazySection(<LegalChangesPage />),
+      },
+      {
+        path: "/legal/:id",
+        element: lazySection(<LegalActCardPage />),
       },
     ],
   },
