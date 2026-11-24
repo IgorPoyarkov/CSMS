@@ -8,6 +8,7 @@ import { useFetchCurrentUser } from "../../services/Users/user.api";
 import { useEdsCertificates } from "../../services/Eds/eds.api";
 import { certificateStateOn } from "../../services/Eds/eds.schema";
 import { downloadText } from "../../services/Eis/eisExport";
+import { exportEisTestAccessToDocx } from "../../services/Eis/eisTestAccessExport";
 import EdsFileSigner from "../Eds/EdsFileSigner";
 import {
   buildEisTestAccessRequestText,
@@ -244,6 +245,17 @@ export default function EisTestAccessPage() {
     void save("sent");
   }
 
+  async function downloadDocx() {
+    try {
+      const certificate = activeCertificates[0] ?? null;
+      await exportEisTestAccessToDocx(request, certificate);
+    } catch (error) {
+      setSaveMessage(
+        error instanceof Error ? error.message : "Не удалось сформировать Word-документ.",
+      );
+    }
+  }
+
   const readinessTone = missingChecks.length === 0 ? "ok" : "warn";
 
   return (
@@ -360,6 +372,9 @@ export default function EisTestAccessPage() {
             <button type="button" className={block("btn")} onClick={() => downloadRequest(request, requestText)}>
               Скачать текст обращения
             </button>
+            <button type="button" className={block("btn")} onClick={() => void downloadDocx()}>
+              Скачать Word (.docx)
+            </button>
             <span className={block("small")}>
               Статус: {eisTestAccessStatusLabels[request.status]}
             </span>
@@ -445,6 +460,9 @@ export default function EisTestAccessPage() {
           <button type="button" className={block("btn")} onClick={() => downloadRequest(request, requestText)}>
             Скачать файл обращения
           </button>
+          <button type="button" className={block("btn")} onClick={() => void downloadDocx()}>
+            Скачать Word с оттиском ЭП
+          </button>
           <button type="button" className={block("btn", ["primary"])} onClick={markSigned}>
             Отметить как подписанное ЭП
           </button>
@@ -462,6 +480,11 @@ export default function EisTestAccessPage() {
             </span>
           )}
         </div>
+        <p className={block("hint")}>
+          Word-документ формируется из текущего черновика. Если обращение отмечено как
+          подписанное ЭП, в документ добавляется визуальный оттиск подписи с реквизитами
+          сертификата. Юридическую силу имеет файл подписи .sig, приложенный к обращению.
+        </p>
       </div>
 
       <EdsFileSigner />

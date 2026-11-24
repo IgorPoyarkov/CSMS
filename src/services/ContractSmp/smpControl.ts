@@ -8,6 +8,7 @@ import {
   type SmpDeadlineItem,
 } from "./deadlines";
 import {
+  isSmpRegistryEntryFound,
   normalizeInn,
   smpRegistryCategoryLabels,
   type SmpRegistryEntry,
@@ -30,9 +31,10 @@ import {
  *
  * Сверка с реестром идёт ТОЛЬКО по ИНН: наименование меняется и допускает
  * совпадение с одноимённой организацией, ИНН — нет. Записи без ИНН считаются
- * непроверенными, а не «не СМП». Так же и пустой реестр: если выгрузка ФНС не
- * загружена, проверка честно говорит «не проверено» и не блокирует приёмку —
- * иначе каждый реальный ИНН получал бы ложное «в реестре МСП не найден».
+ * непроверенными, а не «не СМП». Так же и непроверенный ИНН: справочник хранит
+ * результаты точечных запросов к сервису ФНС, поэтому отсутствие записи —
+ * «не проверено» (статус `unchecked`), а не «не в реестре», и приёмку такая
+ * запись не блокирует — иначе каждый ещё не сверенный ИНН получал бы отказ.
  */
 
 export type SmpCheckSeverity = "error" | "warning";
@@ -59,8 +61,8 @@ export type SmpRegistryStatus =
   | "in_registry"
   | "excluded"
   | "out_of_registry"
-  /** Выгрузка ФНС не загружена: сверять ИНН не с чем, вердикта нет. */
-  | "registry_unavailable"
+  /** ИНН ещё не сверялся с сервисом ФНС: вердикта нет, приёмка не блокируется. */
+  | "unchecked"
   | "unknown";
 
 export interface SmpRegistryCheck {
@@ -69,7 +71,7 @@ export interface SmpRegistryCheck {
   status: SmpRegistryStatus;
   /** Найденная запись реестра (по ИНН). */
   entry: SmpRegistryEntry | null;
-  /** Есть ли в системе выгрузка реестра: без неё статус — «не проверено». */
+  /** Есть ли в справочнике хотя бы одна сверка (не влияет на вердикт по ИНН). */
   registryLoaded: boolean;
   /**
    * Первое представление этого ИНН как СМП. Повторно реестр не блокирует
@@ -166,12 +168,12 @@ const registryEntryByInn = (
 const registryStatusOf = (
   inn: string,
   entry: SmpRegistryEntry | null,
-  registryLoaded: boolean,
 ): SmpRegistryStatus => {
   if (!inn) return "unknown";
-  // Пустая коллекция — это отсутствие выгрузки, а не «поставщика нет в реестре»
-  if (!registryLoaded) return "registry_unavailable";
-  if (!entry) return "out_of_registry";
+  // Записи нет — этот ИНН ещё не сверяли: «не в реестре» утверждать нельзя
+  if (!entry) return "unchecked";
+  // Сверка выполнена и ИНН в реестре не значится
+  if (!isSmpRegistryEntryFound(entry)) return "out_of_registry";
   return entry.isActive ? "in_registry" : "excluded";
 };
 
@@ -196,8 +198,8 @@ const registryTextOf = (
     }
     case "out_of_registry":
       return `ИНН ${inn} в реестре МСП не найден`;
-    case "registry_unavailable":
-      return `Реестр МСП не загружен: сверка ИНН ${inn} не выполнена`;
+    case "unchecked":
+      return `ИНН ${inn} не сверялся с реестром МСП`;
     default:
       return "ИНН не указан — принадлежность к реестру МСП не проверена";
   }
@@ -232,7 +234,7 @@ export const smpRegistryCheck = (
   const inn = normalizeInn(record.supplierInn);
   const registryLoaded = registry.length > 0;
   const entry = registryEntryByInn(record, registry);
-  const status = registryStatusOf(inn, entry, registryLoaded);
+  const status = registryStatusOf(inn, entry);
   const verifiedBy = acceptedSubContractWithSameInn(record, records);
 
   const base = registryTextOf(status, entry, inn);
@@ -392,16 +394,16 @@ export const smpRecordCheck = (
         hint:
           "Проверьте ИНН; если субподрядчик не является субъектом МСП/СОНКО — снимите признак «Субъект МСП / СОНКО», иначе объём привлечения будет завышен.",
       });
-    } else if (registryCheck.status === "registry_unavailable") {
-      // Сверки не было — значит и «не СМП» сказать нельзя. Приёмку не блокируем
-      // (иначе система встанет до загрузки выгрузки), но объём привлечения
-      // считается неподтверждённым, пока реестр не загружен
+    } else if (registryCheck.status === "unchecked") {
+      // Сверки по этому ИНН ещё не было — значит и «не СМП» сказать нельзя.
+      // Приёмку не блокируем: вердикт появится после проверки в реестре, а до
+      // неё объём привлечения просто не подтверждён
       issues.push({
         field: "supplierInn",
         code: "registry",
         severity: "warning",
         message: `${registryCheck.text}: договор пока не подтверждает объём привлечения СМП (ч. 6 ст. 30 44-ФЗ).`,
-        hint: "Загрузите официальную выгрузку реестра МСП (npm run smp:registry:import -- <файл>) и перепроверьте запись.",
+        hint: "Нажмите «Проверить в реестре МСП» — ответ сервиса ФНС по этому ИНН сохранится в справочнике.",
       });
     } else if (registryCheck.status === "unknown") {
       issues.push({

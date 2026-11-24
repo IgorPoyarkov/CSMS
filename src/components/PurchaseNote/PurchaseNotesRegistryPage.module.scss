@@ -225,6 +225,14 @@
       border-left-color: var(--state-warning);
     }
 
+    &--revision {
+      border-left-color: var(--state-info, var(--state-warning));
+    }
+
+    &--ks_approved {
+      border-left-color: var(--state-success);
+    }
+
     &--approved {
       border-left-color: var(--state-success);
     }

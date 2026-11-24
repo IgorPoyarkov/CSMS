@@ -3,6 +3,8 @@ import {
   CheckCircle2,
   Clock,
   FileClock,
+  RotateCcw,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 import useUtils from "../../hooks/useUtils";
@@ -20,7 +22,8 @@ interface PurchaseNoteStatusBadgeProps {
 
 /**
  * Визуальный индикатор статуса согласования служебной записки (потребности):
- * «В работе», «На согласовании», «Согласовано», «Отклонено», «Аннулировано».
+ * «В работе», «На согласовании», «На доработке», «Одобрено КС»,
+ * «Утверждено», «Отклонено», «Аннулировано».
  */
 export default function PurchaseNoteStatusBadge({
   status,
@@ -36,6 +39,10 @@ export default function PurchaseNoteStatusBadge({
     switch (status) {
       case "approved":
         return <CheckCircle2 size={size} aria-hidden="true" />;
+      case "ks_approved":
+        return <ShieldCheck size={size} aria-hidden="true" />;
+      case "revision":
+        return <RotateCcw size={size} aria-hidden="true" />;
       case "in_review":
         return <FileClock size={size} aria-hidden="true" />;
       case "rejected":

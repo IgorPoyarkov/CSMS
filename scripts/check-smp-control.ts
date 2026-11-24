@@ -6,9 +6,11 @@ import assert from "node:assert/strict";
 import type { ContractSmpRecord } from "../src/services/ContractSmp/contractSmp.schema";
 import type { NmckMarketOffer } from "../src/services/Nmck/nmck.schema";
 import {
-  SMP_REGISTRY_NOT_LOADED_TEXT,
+  SMP_REGISTRY_NOT_CHECKED_TEXT,
+  SmpInnLookupSchema,
   analyzeNmckSmpComposition,
   isSmpRegistryLoaded,
+  smpInnLookupText,
   type SmpRegistryEntry,
 } from "../src/services/ContractSmp/smpRegistry.schema";
 import { businessDaysAfter } from "../src/services/Calendar/calendar.schema";
@@ -31,8 +33,10 @@ import {
  * Что фиксируем:
  * — реестр сверяется только по ИНН, а запись без ИНН считается непроверенной,
  *   а не «не СМП» (иначе заказчик отклонял бы корректные сведения);
- * — пустой реестр (нет выгрузки ФНС) — не вердикт «не в реестре», а отсутствие
- *   проверки: приёмка не блокируется, объём привлечения считается неподтверждённым;
+ * — справочник хранит результаты точечных сверок, поэтому ИНН без записи —
+ *   «не проверено» (`unchecked`): приёмка не блокируется, объём привлечения
+ *   считается неподтверждённым; «не в реестре» бывает только при явной
+ *   записи `found: false`, полученной от сервиса ФНС;
  * — приёмку блокирует только первый неподтверждённый ИНН: повторное
  *   представление уже проверенного ИНН и просрочка срока — не отказ, просрочка
  *   идёт в неустойку;
@@ -68,6 +72,9 @@ const registry: SmpRegistryEntry[] = [
     category: "micro",
     registryNumber: "МСП-000123",
     isActive: true,
+    found: true,
+    checkedAt: "2026-11-20T08:00:00.000Z",
+    source: "fns-live",
   },
   {
     id: 2,
@@ -75,6 +82,20 @@ const registry: SmpRegistryEntry[] = [
     name: "ООО «Ромашка»",
     isActive: false,
     note: "прекращение деятельности",
+    found: true,
+    checkedAt: "2026-11-20T08:00:00.000Z",
+    source: "fns-live",
+  },
+  // Сверка выполнена, ИНН в реестре не значится: это вердикт с датой, а не
+  // отсутствие проверки
+  {
+    id: 3,
+    inn: "7799999999",
+    name: "",
+    isActive: false,
+    found: false,
+    checkedAt: "2026-11-24T08:00:00.000Z",
+    source: "fns-live",
   },
 ];
 
@@ -90,7 +111,7 @@ assert.match(
   /В реестре МСП: Микропредприятие, запись № МСП-000123/,
 );
 // REGISTRY-MARK
-// ИНН отсутствует в реестре: первое представление — блокирующая ошибка
+// Сверка дала отрицательный результат: первое представление — блокирующая ошибка
 const notFound = smpRecordCheck(
   record({ supplierInn: "7799999999" }),
   [],
@@ -142,28 +163,42 @@ assert.match(
   /Исключён из реестра МСП \(прекращение деятельности\)/,
 );
 
-// Пустой реестр — отсутствие выгрузки ФНС, а не «поставщика нет в реестре»:
+// Пустой реестр — отсутствие сверок, а не «поставщика нет в реестре»:
 // вердикта нет, приёмка не блокируется, но и объём не подтверждается
 assert.equal(isSmpRegistryLoaded([]), false);
 assert.equal(isSmpRegistryLoaded(registry), true);
+
+// ИНН известен, но сверки по нему не было: тоже «не проверено», а не отказ
+const unchecked = smpRecordCheck(
+  record({ id: 7, supplierInn: "7788888888" }),
+  [],
+  registry,
+  { today: "2026-06-03" },
+);
+assert.equal(unchecked.registry.status, "unchecked");
+assert.match(unchecked.registry.text, /ИНН 7788888888 не сверялся с реестром МСП/);
+assert.equal(unchecked.ok, true);
+assert.equal(unchecked.acceptanceBlocked, false);
+assert.equal(unchecked.warnings.length, 1);
 
 const noRegistry = smpRecordCheck(record({}), [], [], {
   today: "2026-06-03",
 });
 assert.equal(noRegistry.registry.applicable, true);
 assert.equal(noRegistry.registry.registryLoaded, false);
-assert.equal(noRegistry.registry.status, "registry_unavailable");
-assert.match(noRegistry.registry.text, /Реестр МСП не загружен: сверка ИНН/);
+assert.equal(noRegistry.registry.status, "unchecked");
+assert.match(noRegistry.registry.text, /ИНН 7701234567 не сверялся с реестром МСП/);
 assert.equal(noRegistry.ok, true);
 assert.equal(noRegistry.acceptanceBlocked, false);
 assert.equal(noRegistry.blocking.length, 0);
 assert.equal(noRegistry.warnings.length, 1);
 assert.equal(noRegistry.warnings[0].code, "registry");
-assert.match(noRegistry.warnings[0].message, /не выполнена/);
+assert.match(noRegistry.warnings[0].message, /не подтверждает объём привлечения/);
+assert.match(noRegistry.warnings[0].hint ?? "", /Проверить в реестре МСП/);
 assert.equal(smpCheckTone(noRegistry), "warning");
 
-// Проверка состава КП: без выгрузки реестра статусы не выставляются и
-// рекомендация по режиму закупки не выдаётся
+// Проверка состава КП: непроверенный ИНН — «не проверено», вердиктов и
+// рекомендации по режиму закупки нет, пока сверка не выполнена
 const offers: NmckMarketOffer[] = [
   {
     id: "offer-1",
@@ -176,8 +211,9 @@ const emptyRegistryAnalysis = analyzeNmckSmpComposition(offers, []);
 assert.equal(emptyRegistryAnalysis.registryLoaded, false);
 assert.equal(emptyRegistryAnalysis.notSmpCount, 0);
 assert.equal(emptyRegistryAnalysis.unknownCount, 1);
+assert.equal(emptyRegistryAnalysis.uncheckedCount, 1);
 assert.equal(emptyRegistryAnalysis.recommendation, null);
-assert.match(SMP_REGISTRY_NOT_LOADED_TEXT, /Реестр МСП не загружен/);
+assert.match(SMP_REGISTRY_NOT_CHECKED_TEXT, /Проверить в реестре МСП/);
 
 const loadedRegistryAnalysis = analyzeNmckSmpComposition(offers, [
   {
@@ -185,11 +221,54 @@ const loadedRegistryAnalysis = analyzeNmckSmpComposition(offers, [
     name: "АО «Курсктара»",
     category: "small",
     isActive: true,
+    found: true,
+    checkedAt: "2026-11-24T08:00:00.000Z",
   },
 ]);
 assert.equal(loadedRegistryAnalysis.registryLoaded, true);
 assert.equal(loadedRegistryAnalysis.smpCount, 1);
+assert.equal(loadedRegistryAnalysis.uncheckedCount, 0);
 assert.equal(loadedRegistryAnalysis.recommendation?.mode, "smp_only");
+
+// Сверка «не найден» — тоже вердикт: только явная запись `found: false`
+const negativeAnalysis = analyzeNmckSmpComposition(offers, [
+  {
+    inn: "4630000790",
+    name: "",
+    isActive: false,
+    found: false,
+    checkedAt: "2026-11-24T08:00:00.000Z",
+  },
+]);
+assert.equal(negativeAnalysis.notSmpCount, 1);
+assert.equal(negativeAnalysis.unknownCount, 0);
+assert.equal(negativeAnalysis.recommendation?.mode, "none");
+assert.match(negativeAnalysis.recommendation?.reason ?? "", /не значатся/);
+
+// Часть выборки не сверена — рекомендации нет: процент был бы неполным
+const partialAnalysis = analyzeNmckSmpComposition(
+  [
+    ...offers,
+    {
+      id: "offer-2",
+      supplierName: "ООО «Неизвестный»",
+      supplierInn: "7799999998",
+      unitPrice: "1200",
+    },
+  ],
+  [
+    {
+      inn: "4630000790",
+      name: "АО «Курсктара»",
+      category: "small",
+      isActive: true,
+      found: true,
+    },
+  ],
+);
+assert.equal(partialAnalysis.smpCount, 1);
+assert.equal(partialAnalysis.uncheckedCount, 1);
+assert.equal(partialAnalysis.recommendation, null);
 
 // Без ИНН запись непроверенная, а не «не СМП»: только предупреждение
 const noInn = smpRecordCheck(
@@ -217,6 +296,39 @@ assert.equal(notSmp.registry.text, "");
 assert.equal(notSmp.ok, true);
 assert.equal(smpCheckBadge(notSmp), "проверено");
 // DEADLINES-MARK
+
+// ─── Ответ сервиса ФНС ─────────────────────────────────────────────────────
+
+// Схема ответа и подпись для интерфейса: сервер отдаёт нормированный ответ,
+// и клиент не должен падать на нём или показывать «не найдено» без вердикта
+const fnsAnswer = SmpInnLookupSchema.parse({
+  inn: "4630000790",
+  found: true,
+  status: "in_registry",
+  cached: false,
+  name: 'АКЦИОНЕРНОЕ ОБЩЕСТВО "КУРСКТАРА"',
+  category: "small",
+  region: "46",
+  includedAt: "2017-08-10",
+  checkedAt: "2026-11-24T01:05:49.454Z",
+});
+assert.match(smpInnLookupText(fnsAnswer), /В реестре МСП: Малое предприятие/);
+assert.match(smpInnLookupText(fnsAnswer), /проверено 24\.11\.2026/);
+assert.equal(
+  SmpInnLookupSchema.safeParse({ inn: "1", found: false, status: "nonsense" })
+    .success,
+  false,
+);
+
+const unavailable = SmpInnLookupSchema.parse({
+  inn: "4630000790",
+  found: false,
+  status: "unavailable",
+  error: "Сервис ФНС ответил 503",
+});
+assert.match(smpInnLookupText(unavailable), /Сервис ФНС недоступен/);
+// Недоступность сервиса — не «не в реестре»: found остаётся false, статус свой
+assert.equal(unavailable.status, "unavailable");
 
 // ─── Сроки ПП 1466 ─────────────────────────────────────────────────────────
 
@@ -317,5 +429,5 @@ assert.deepEqual(
 );
 
 console.log(
-  "OK   СМП: реестр МСП по ИНН (пустой реестр = «не проверено»), блокировка только первого ИНН, сроки ПП 1466 по записи",
+  "OK   СМП: сверка ИНН с реестром МСП (нет записи = «не проверено»), блокировка только первого ИНН, сроки ПП 1466 по записи",
 );

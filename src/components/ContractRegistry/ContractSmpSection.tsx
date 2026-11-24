@@ -28,7 +28,15 @@ import {
   SOURCE_FILE_HINT,
   type SourceFileFields,
 } from "../../services/ContractSmp/sourceFile";
-import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
+import {
+  useSmpInnCheck,
+  useSmpRegistry,
+} from "../../services/ContractSmp/smpRegistry.api";
+import {
+  normalizeInn,
+  smpInnLookupText,
+  type SmpInnLookup,
+} from "../../services/ContractSmp/smpRegistry.schema";
 import {
   smpCheckBadge,
   smpCheckIssuesText,
@@ -119,8 +127,61 @@ export default function SmpSection({
   const createPenalty = useCreatePenalty();
 
   // Реестр МСП: единственный источник подтверждения, что субподрядчик —
-  // субъект МСП. Заявленный в сведениях признак «СМП» ничего не доказывает
+  // субъект МСП. Заявленный в сведениях признак «СМП» ничего не доказывает.
+  // Справочник хранит ответы сервиса ФНС по конкретным ИНН, поэтому вердикта
+  // нет ровно до тех пор, пока ИНН не сверен — его и запускает кнопка ниже
   const { data: smpRegistry = [] } = useSmpRegistry();
+  const innCheck = useSmpInnCheck();
+  const [innCheckMessage, setInnCheckMessage] = useState<string | null>(null);
+
+  /** ИНН субподрядчиков, заявленных как СМП: их и сверяем с реестром. */
+  const smpInns = useMemo(
+    () => [
+      ...new Set(
+        records
+          .filter((record) => record.isSmpSubject)
+          .map((record) => normalizeInn(record.supplierInn))
+          .filter(Boolean),
+      ),
+    ],
+    [records],
+  );
+
+  const checkRecordInns = () => {
+    if (smpInns.length === 0) return;
+
+    setInnCheckMessage(null);
+    innCheck.mutate(smpInns, {
+      onSuccess: (answers) => {
+        const count = (status: string) =>
+          answers.filter((answer) => answer.status === status).length;
+        const withoutVerdict = answers.filter(
+          (answer) =>
+            answer.status === "unavailable" || answer.status === "invalid",
+        );
+
+        setInnCheckMessage(
+          [
+            `Проверено ИНН: ${answers.length}.`,
+            `в реестре: ${count("in_registry")}`,
+            `не найдено: ${count("out_of_registry")}`,
+            count("excluded") > 0 ? `исключено: ${count("excluded")}` : "",
+            withoutVerdict.length > 0
+              ? `без вердикта: ${withoutVerdict
+                  .map((answer) => answer.inn)
+                  .join(", ")}`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        );
+      },
+      onError: () =>
+        setInnCheckMessage(
+          "Сервис ФНС недоступен: вердикта по ИНН нет, повторите позже.",
+        ),
+    });
+  };
 
   // Проверка каждой записи: реестр МСП + сроки ПП 1466. Одна функция на
   // таблицу, форму и хронологию исполнения — вердикт не должен расходиться
@@ -1037,15 +1098,14 @@ export default function SmpSection({
                         className={block("registry", [
                           check.registry.status === "in_registry"
                             ? "ok"
-                            : check.registry.status === "unknown"
+                            : check.registry.status === "unknown" ||
+                                check.registry.status === "unchecked"
                               ? "unknown"
-                              : check.registry.status === "registry_unavailable"
-                                ? "warn"
-                                : check.blocking.some(
-                                      (issue) => issue.code === "registry",
-                                    )
-                                  ? "error"
-                                  : "warn",
+                              : check.blocking.some(
+                                    (issue) => issue.code === "registry",
+                                  )
+                                ? "error"
+                                : "warn",
                         ])}
                         title={check.registry.text}
                       >
@@ -1053,8 +1113,8 @@ export default function SmpSection({
                           ? "в реестре МСП"
                           : check.registry.status === "unknown"
                             ? "ИНН не указан"
-                            : check.registry.status === "registry_unavailable"
-                              ? "реестр не загружен"
+                            : check.registry.status === "unchecked"
+                              ? "не проверено"
                               : check.registry.status === "excluded"
                                 ? "исключён из МСП"
                                 : "нет в реестре МСП"}
@@ -1226,6 +1286,21 @@ export default function SmpSection({
         <button className={styles.btnPrimary} onClick={handleCreate}>
           + Загрузить сведения
         </button>
+        {/* Сверка заявленных СМП с реестром: ответ сервиса ФНС сохраняется в
+            справочнике и сразу меняет вердикты в таблице и приёмке */}
+        {smpInns.length > 0 && (
+          <button
+            type="button"
+            className={styles.btnSmall}
+            onClick={checkRecordInns}
+            disabled={innCheck.isPending}
+            title="Спросить сервис ФНС по ИНН субподрядчиков и сохранить ответ в справочнике"
+          >
+            {innCheck.isPending
+              ? "Проверяем в реестре МСП…"
+              : `Проверить ИНН в реестре МСП (${smpInns.length})`}
+          </button>
+        )}
         {/* Нарушение по СМП видит тот, кто вносит сведения: уведомление
             собирает предмет нарушения и уходит ответственному в КС */}
         <button
@@ -1245,6 +1320,13 @@ export default function SmpSection({
           </span>
         )}
       </div>
+
+      {/* Итог сверки ИНН: без вердикта по ИНН объём привлечения не подтверждён */}
+      {innCheckMessage && (
+        <p className={block("hint")} role="status">
+          {innCheckMessage}
+        </p>
+      )}
 
       {/* Итог постановки в очередь ЕИС: отказ шлюза надо прочитать, поэтому
           строка под таблицей, а не модальное окно */}
@@ -1369,6 +1451,38 @@ function ContractSmpRecordForm({
     records,
     smpRegistry,
   );
+
+  // Точечная сверка ИНН: подрядчик вводит ИНН — система спрашивает сервис ФНС
+  // и сразу показывает вердикт. Полная выгрузка реестра не нужна, ответ
+  // сохраняется в справочнике и работает для приёмки и для КП
+  const innCheck = useSmpInnCheck();
+  const [innAnswer, setInnAnswer] = useState<SmpInnLookup | null>(null);
+  const watchedInn = normalizeInn(watchedRecord.supplierInn);
+  const supplierInnField = register("supplierInn");
+
+  // Ответ показывается только для того ИНН, по которому он получен: правишь
+  // ИНН — прежний вердикт исчезает сам, без побочного эффекта
+  const shownInnAnswer = innAnswer?.inn === watchedInn ? innAnswer : null;
+
+  const checkSupplierInn = (value?: string) => {
+    const inn = normalizeInn(value ?? getValues("supplierInn"));
+    if (inn.length !== 10 && inn.length !== 12) {
+      setInnAnswer(null);
+      return;
+    }
+
+    innCheck.mutate(inn, {
+      onSuccess: ([answer]) => setInnAnswer(answer ?? null),
+    });
+  };
+
+  const innAnswerTone =
+    shownInnAnswer?.status === "in_registry"
+      ? "ok"
+      : shownInnAnswer?.status === "unavailable" ||
+          shownInnAnswer?.status === "invalid"
+        ? "warn"
+        : "no";
 
   // Файл-основание: в базе остаётся только его имя, содержимое не читается
   const [sourceFile, setSourceFile] = useState<SourceFileFields | null>(null);
@@ -1594,12 +1708,41 @@ function ContractSmpRecordForm({
               <label className={block("label")} htmlFor="smp-inn">
                 ИНН
               </label>
-              <input
-                id="smp-inn"
-                className={block("input")}
-                {...register("supplierInn")}
-                placeholder="10 или 12 цифр"
-              />
+              <div className={block("innRow")}>
+                <input
+                  id="smp-inn"
+                  className={block("input")}
+                  {...supplierInnField}
+                  placeholder="10 или 12 цифр"
+                  onBlur={(event) => {
+                    void supplierInnField.onBlur(event);
+                    // Ушёл из поля — сразу сверяем ИНН с реестром МСП
+                    checkSupplierInn(event.target.value);
+                  }}
+                />
+                <button
+                  type="button"
+                  className={block("innCheck")}
+                  onClick={() => checkSupplierInn()}
+                  disabled={
+                    innCheck.isPending ||
+                    (watchedInn.length !== 10 && watchedInn.length !== 12)
+                  }
+                  title="Спросить сервис ФНС и сохранить ответ в справочнике"
+                >
+                  {innCheck.isPending ? "Проверяем…" : "Проверить в реестре МСП"}
+                </button>
+              </div>
+              {shownInnAnswer && (
+                <span className={block("innAnswer", [innAnswerTone])}>
+                  {smpInnLookupText(shownInnAnswer)}
+                </span>
+              )}
+              {innCheck.isError && (
+                <span className={block("innAnswer", ["warn"])}>
+                  Проверка не выполнена: сервис ФНС недоступен, вердикта нет.
+                </span>
+              )}
               {errorText("supplierInn") && (
                 <span className={block("error")}>
                   {errorText("supplierInn")}

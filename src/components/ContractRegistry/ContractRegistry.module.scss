@@ -1422,6 +1422,53 @@
   color: var(--state-danger);
 }
 
+/* Сверка ИНН с реестром МСП: кнопка в строке с полем и ответ под ним */
+
+.smp-form__innRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.smp-form__innCheck {
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+.smp-form__innAnswer {
+  font-size: 11px;
+  line-height: 1.4;
+
+  &--ok {
+    color: var(--state-success);
+  }
+
+  &--no {
+    color: var(--state-danger);
+  }
+
+  &--warn {
+    color: var(--state-warning);
+  }
+}
+
 /* Файл-основание */
 
 .smp-form__fileRow {

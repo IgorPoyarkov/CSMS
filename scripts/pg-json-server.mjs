@@ -16,6 +16,12 @@ import {
   PG_SCHEMA,
   upsertDocument,
 } from "./lib/pg-store.mjs";
+import {
+  docToAnswer,
+  isLookupFresh,
+  lookupInn,
+  unavailableAnswer,
+} from "./lib/smp-lookup.mjs";
 
 const PORT = Number(process.env.PG_ADAPTER_PORT || 3002);
 
@@ -317,6 +323,102 @@ async function nextId(collection) {
   );
   return Number(result.rows[0].next);
 }
+
+// ─── Реестр МСП: точечная сверка ИНН ───────────────────────────────────────
+
+/**
+ * Сверка ИНН с реестром МСП по запросу: полный перечень справочника не нужен.
+ *
+ * Заказчик и подрядчик проверяют конкретных поставщиков — при вводе
+ * субподрядчика и при сверке коммерческих предложений. Ответ сервиса ФНС
+ * складывается в `smpRegistry` как результат сверки с датой: «в реестре
+ * (категория, дата включения)», «не в реестре», «исключён». Свежий ответ
+ * (TTL `SMP_REGISTRY_TTL_DAYS`, по умолчанию 30 дней) отдаётся из базы, чтобы
+ * не дёргать ФНС на каждое открытие формы. Если сервис недоступен, статус —
+ * `unavailable`: вердикт не выдумывается.
+ */
+const SMP_CHECK_PATHS = ["/__smp/check", "/pg-api/__smp/check"];
+
+/** Ответ ФНС по ИНН, уже сохранённый в справочнике. */
+const findLookupDoc = async (inn) => {
+  const result = await pool.query(
+    `SELECT doc FROM ${PG_SCHEMA}.documents
+     WHERE collection = 'smpRegistry' AND inn = $1
+     ORDER BY seq ASC LIMIT 1`,
+    [inn],
+  );
+  return result.rows[0]?.doc ?? null;
+};
+
+const checkInn = async (rawInn, { refresh = false } = {}) => {
+  const inn = String(rawInn ?? "").replace(/\D/g, "");
+  if (!inn) {
+    return {
+      inn,
+      found: false,
+      status: "invalid",
+      cached: false,
+      error: "ИНН не указан",
+    };
+  }
+
+  const cached = await findLookupDoc(inn);
+  if (cached && !refresh && isLookupFresh(cached)) {
+    return docToAnswer(cached, true);
+  }
+
+  try {
+    const answer = await lookupInn(inn);
+    // Невалидный ИНН в справочник не пишем: это опечатка, а не сверка
+    if (answer.status === "invalid") return answer;
+
+    const { status: _status, cached: _cached, ...doc } = answer;
+    const saved = { ...doc, id: cached?.id ?? inn };
+    await upsertDocument(pool, "smpRegistry", saved);
+    // Ответ отдаём нормированным: кэш и свежий запрос выглядят одинаково
+    return docToAnswer(saved, false);
+  } catch (error) {
+    console.error(`[pg] сверка ИНН ${inn}:`, error.message);
+    return unavailableAnswer(inn, error);
+  }
+};
+
+app.get(SMP_CHECK_PATHS, async (req, res) => {
+  try {
+    const answer = await checkInn(req.query.inn, {
+      refresh: req.query.refresh === "1" || req.query.refresh === "true",
+    });
+    res.json(answer);
+  } catch (error) {
+    console.error(`[pg] GET ${req.originalUrl}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Пакетная сверка: заказчик проверяет все ИНН из коммерческих предложений
+ * одной кнопкой. ИНН идут последовательно — ФНС не любит параллельные запросы
+ * с одного адреса, а их обычно не больше пяти.
+ */
+app.post(SMP_CHECK_PATHS, async (req, res) => {
+  const inns = Array.isArray(req.body?.inns) ? req.body.inns : [];
+  const unique = [...new Set(inns.map((inn) => String(inn ?? "").trim()))]
+    .filter(Boolean)
+    .slice(0, 50);
+
+  try {
+    const results = [];
+    for (const inn of unique) {
+      results.push(
+        await checkInn(inn, { refresh: req.body?.refresh === true }),
+      );
+    }
+    res.json({ results });
+  } catch (error) {
+    console.error(`[pg] POST ${req.originalUrl}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Express 5 не поддерживает `app.all("*")` — используем middleware без пути.
 app.use(async (req, res) => {

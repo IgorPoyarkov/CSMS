@@ -454,8 +454,9 @@ export default function ContractExecutionTimeline({
         );
         const registryNote =
           registry.applicable &&
-          registry.registryLoaded &&
-          registry.status !== "in_registry"
+          registry.status !== "in_registry" &&
+          registry.status !== "unchecked" &&
+          registry.status !== "unknown"
             ? registry.text
             : "";
         items.push({

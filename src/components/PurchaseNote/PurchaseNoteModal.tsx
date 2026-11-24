@@ -35,6 +35,7 @@ import {
   emptyPurchaseNote,
   filterVisiblePurchaseNotes,
   hasSmpSubcontractingRequirement,
+  isDraftLikePurchaseNote,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
   type NmckSignature,
@@ -62,6 +63,16 @@ import {
   exportPurchaseNoteToDocx,
   exportPurchaseNoteToPdf,
 } from "../../services/PurchaseNote/purchaseNoteExport";
+import {
+  useCreateTask,
+  useUpdateTask,
+} from "../../services/Tasks/tasks.api";
+import { emptyTask, type Task } from "../../services/Tasks/tasks.schema";
+import { contractServiceRoster } from "../../services/ContractService/contractService.config";
+import {
+  addDays,
+  DEFECT_LIST_REVIEW_DAYS,
+} from "../../services/DefectList/defectList.schema";
 import { useFetchOrganizationEmployees } from "../../services/StaffingTable/StaffingTable.api";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
 import {
@@ -102,10 +113,14 @@ import {
   nationalRegimeModeLabel,
   validateNationalRegime,
 } from "../../services/NationalRegime/pp1875";
-import { useSmpRegistry } from "../../services/ContractSmp/smpRegistry.api";
 import {
-  SMP_REGISTRY_NOT_LOADED_TEXT,
+  useSmpInnCheck,
+  useSmpRegistry,
+} from "../../services/ContractSmp/smpRegistry.api";
+import {
+  SMP_REGISTRY_NOT_CHECKED_TEXT,
   analyzeNmckSmpComposition,
+  normalizeInn,
   smpRegistryCategoryLabels,
 } from "../../services/ContractSmp/smpRegistry.schema";
 import {
@@ -317,6 +332,7 @@ export default function PurchaseNoteModal({
   const {
     organization,
     employee,
+    contractService,
     isLoading: isRoleLoading,
     canEditPurchaseNote,
     canDisagreeKbk,
@@ -376,6 +392,10 @@ export default function PurchaseNoteModal({
   const [exportFormat, setExportFormat] = useState<"docx" | "pdf" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const proceedAfterSaveRef = useRef(false);
+  // Целевой статус кнопки согласования: обычный переход или запрос решения КС
+  // по исключению нацрежима (сначала создаётся системная задача).
+  type WorkflowTarget = PurchaseNoteStatus | "ks_review";
+  const workflowStatusRef = useRef<WorkflowTarget | null>(null);
   // Раскрытые для правки объекты закупки: после «Сохранить» позиция
   // сворачивается в короткую строку.
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
@@ -779,10 +799,14 @@ export default function PurchaseNoteModal({
   }, [employee, editingNoteId, setValue, getValues]);
 
   const isEditMode = editingNoteId !== undefined && editingNoteId !== "";
+  const createKsTask = useCreateTask();
+  const updateKsTask = useUpdateTask();
   const isBusy =
     createNote.isPending ||
     updateNote.isPending ||
-    updateOrganization.isPending;
+    updateOrganization.isPending ||
+    createKsTask.isPending ||
+    updateKsTask.isPending;
 
   const watchedIndeterminate = Boolean(watch("isIndeterminateVolume"));
   const watchedKbkDisagreement = Boolean(watch("kbkDisagreement"));
@@ -795,6 +819,7 @@ export default function PurchaseNoteModal({
   );
   const watchedAcceptanceMode = watch("acceptanceTermMode") ?? "event";
   const watchedStatus = (watch("status") ?? "draft") as PurchaseNoteStatus;
+  const watchedKsReviewTaskId = watch("ksReviewTaskId");
   // Способ определения поставщика по умолчанию не подставляется: пока
   // пользователь не выбрал его, способ считается незаданным
   const watchedPlacingWay = watch("placingWayCode") ?? "";
@@ -958,14 +983,16 @@ export default function PurchaseNoteModal({
     | undefined;
 
   // Чекпоинты «набор объектов конечный» и «последняя закупка по позиции ПГ»
-  // убраны из формы: состав объектов задаёт ООЗ, а доступ к следующим блокам
-  // открывают действия согласования. Без ООЗ запрос и расчёт НМЦК недоступны.
-  const oozReady = Boolean(selectedOoz);
-  // Обоснование НМЦК считается готовым, когда есть расчёт или загруженный
-  // файл обоснования. Пока ООЗ и НМЦК не готовы, остальные требования СЗ
-  // скрываются, чтобы не заполнять их вслепую.
+  // убраны из формы: состав объектов задаёт ООЗ. Блок НМЦК открывается только
+  // после утверждения ООЗ; остальные разделы — после подписания НМЦК в ЭП
+  // (иного признака «НМЦК утверждена» в модели нет).
+  const oozApproved = selectedOoz?.status === "approved";
+  const oozReady = oozApproved;
   const hasNmck = Boolean(watchedNmckCalculation || watchedNmckFileName);
-  const laterSectionsReady = oozReady && hasNmck;
+  const nmckApproved = Boolean(
+    watchedNmckSignature?.eventId ?? watchedNmckSignature?.signedAt,
+  );
+  const laterSectionsReady = oozReady && nmckApproved;
   const nmckRequestAllowed = oozReady;
 
   // Суммы финансирования по КБК правятся по годам: «всего» — расчётная
@@ -1196,6 +1223,54 @@ export default function PurchaseNoteModal({
       ),
     [rawWatchedNmckOffers, watchedNmckCalculation, smpRegistry],
   );
+
+  // Точечная сверка ИНН: система спрашивает сервис ФНС по каждому поставщику и
+  // сохраняет ответ в справочнике. Полная выгрузка реестра не нужна — заказчику
+  // нужен вердикт по конкретным ИНН из коммерческих предложений
+  const smpInnCheck = useSmpInnCheck();
+  const [smpCheckMessage, setSmpCheckMessage] = useState<string | null>(null);
+  const smpInnsToCheck = useMemo(
+    () =>
+      smpComposition.rows
+        .map((row) => normalizeInn(row.offer.supplierInn))
+        .filter(Boolean),
+    [smpComposition.rows],
+  );
+
+  const checkSmpInns = () => {
+    if (smpInnsToCheck.length === 0) return;
+
+    setSmpCheckMessage(null);
+    smpInnCheck.mutate(smpInnsToCheck, {
+      onSuccess: (answers) => {
+        const count = (status: string) =>
+          answers.filter((answer) => answer.status === status).length;
+        const withoutVerdict = answers.filter(
+          (answer) =>
+            answer.status === "unavailable" || answer.status === "invalid",
+        );
+        const excluded = count("excluded");
+
+        setSmpCheckMessage(
+          [
+            `Проверено ИНН: ${answers.length}.`,
+            `в реестре: ${count("in_registry")}`,
+            `не найдено: ${count("out_of_registry")}`,
+            excluded > 0 ? `исключено: ${excluded}` : "",
+            withoutVerdict.length > 0
+              ? `без вердикта: ${withoutVerdict.length} (${withoutVerdict
+                  .map((answer) => answer.inn)
+                  .join(", ")})`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        );
+      },
+      onError: (error) =>
+        setSmpCheckMessage(`Не удалось проверить ИНН: ${String(error)}`),
+    });
+  };
 
   const percent = Number(watch("smpRequiredPercent"));
   const price = Number.parseFloat(String(watch("initialMaxPrice") ?? ""));
@@ -1456,8 +1531,16 @@ export default function PurchaseNoteModal({
   function onSubmit(data: PurchaseNote) {
     if (isReadOnly) {
       proceedAfterSaveRef.current = false;
+      workflowStatusRef.current = null;
       return;
     }
+
+    const workflowTarget = workflowStatusRef.current;
+    workflowStatusRef.current = null;
+    const targetStatus: PurchaseNoteStatus =
+      workflowTarget === "ks_review"
+        ? "in_review"
+        : (workflowTarget ?? data.status ?? "draft");
 
     // Связь с планом-графиком: коды ОКПД2 вне позиций плана не допускаются
     if (allowedOkpd2Codes && allowedOkpd2Codes.length > 0) {
@@ -1484,9 +1567,10 @@ export default function PurchaseNoteModal({
       }
     }
 
-    // ПП РФ N 1875: запрет/ограничение обязательны, но не установлены —
-    // потребность не сохраняется (обход по Enter недопустим)
-    if (nationalRegimeValidation.blocksSave) {
+    // ПП РФ N 1875: запрет/ограничение обязательны, но не установлены.
+    // Черновик сохраняется и уходит в КС системной задачей; «Утвердить»
+    // становится доступно только после согласования КС.
+    if (nationalRegimeValidation.blocksSave && targetStatus === "approved") {
       setError("root", {
         message:
           nationalRegimeValidation.summary ??
@@ -1522,8 +1606,7 @@ export default function PurchaseNoteModal({
       .filter(Boolean);
 
     const actorName = employee?.employee ? fullName(employee.employee) : "";
-    const statusChanged =
-      initialNote && data.status && data.status !== initialNote.status;
+    const statusChanged = initialNote && targetStatus !== initialNote.status;
 
     // ООЗ позиции: если описание выбрано, у служебной записки появляется
     // файл описания. Он переносится в прилагаемые документы извещения
@@ -1537,6 +1620,7 @@ export default function PurchaseNoteModal({
 
     const normalized: PurchaseNote = {
       ...data,
+      status: targetStatus,
       // Критерии фиксируются вместе со способом закупки и категорией по ОКПД2:
       // из СЗ они попадают в извещение. Если выбран не конкурс (или способ
       // ещё не выбран), Положение N 2604 не применяется — полей в СЗ нет.
@@ -1637,6 +1721,79 @@ export default function PurchaseNoteModal({
       createNote.mutate(normalized, { onSuccess: handleAfterSave });
     }
   }
+
+  // ─── Действия согласования ──────────────────────────────────────────────────
+  // Исполнитель системной задачи — работник КС с функцией описания объекта;
+  // если такой не назначен, задача адресуется руководителю КС.
+  const ksAssignee = useMemo(() => {
+    const roster = contractService ? contractServiceRoster(contractService) : [];
+    return (
+      roster.find((row) => row.functions?.includes("purchase_description")) ??
+      roster[0]
+    );
+  }, [contractService]);
+
+  const submitWorkflow = (target: WorkflowTarget) => {
+    workflowStatusRef.current = target;
+    proceedAfterSaveRef.current = false;
+    void handleSubmit(onSubmit)();
+  };
+
+  /**
+   * ПП РФ № 1875: если режим не установлен, СЗ сохраняется черновиком и
+   * направляется в КС системной задачей. Прямой «Утвердить» в этом случае
+   * недоступен — он откроется после согласования КС.
+   */
+  const requestKsReview = () => {
+    if (!organization?.id || !ksAssignee?.employeeId) return;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const actor = employee?.employee ? fullName(employee.employee) : "";
+    const task: Task = {
+      ...emptyTask(organization.id),
+      title: `Согласование СЗ ${watch("noteNumber") || editingNoteId || ""}: национальный режим`,
+      description:
+        "Проверить национальный режим по ПП РФ № 1875 и согласовать или вернуть служебную записку на доработку.",
+      origin: "system",
+      status: "pending",
+      functionCode: "purchase_description",
+      order158nPoolCode: "purchase_description",
+      assigneeId: ksAssignee.employeeId,
+      assigneeName: ksAssignee.employeeFullName ?? "",
+      assignedByEmployeeId: employee?.id,
+      assignedByName: actor || undefined,
+      dueDate: addDays(todayIso, DEFECT_LIST_REVIEW_DAYS),
+      createdAt: todayIso,
+    };
+
+    createKsTask.mutate(task, {
+      onSuccess: (created) => {
+        setValue("ksReviewTaskId", created.id);
+        setValue("ksReviewRequestedAt", todayIso);
+        submitWorkflow("ks_review");
+      },
+    });
+  };
+
+  const canWorkflowAction = !isReadOnly && !isBusy && isEditMode;
+  const isDraftLikeStatus = isDraftLikePurchaseNote(watchedStatus);
+
+  const completeKsReview = () => {
+    const hasKsTask =
+      watchedKsReviewTaskId !== undefined &&
+      watchedKsReviewTaskId !== null &&
+      watchedKsReviewTaskId !== "";
+    if (hasKsTask) {
+      updateKsTask.mutate({
+        id: watchedKsReviewTaskId,
+        changes: {
+          status: "completed",
+          result: "Согласовано",
+          completedAt: new Date().toISOString().slice(0, 10),
+        },
+      });
+    }
+    submitWorkflow("ks_approved");
+  };
 
   // Текущее значение select инициатора (либо id сотрудника из штатки, либо текстовый фолбэк)
   const matchedInitiatorByText =
@@ -1776,7 +1933,7 @@ export default function PurchaseNoteModal({
     !isReadOnly &&
     editingNoteId !== undefined &&
     editingNoteId !== "" &&
-    Boolean(watchedNmckCalculation || watchedNmckFileName);
+    hasNmck;
 
   const nmckSignHint = !editingNoteId
     ? "Сначала сохраните служебную записку: подписывается сохранённый документ."
@@ -3241,15 +3398,42 @@ export default function PurchaseNoteModal({
                   </span>
                 ) : (
                   <>
-                    {/* Пустой реестр — не «никого нет в реестре», а отсутствие
-                        выгрузки ФНС: без предупреждения таблица читалась бы как
-                        отказ всем поставщикам */}
-                    {!smpComposition.registryLoaded && (
+                    {/* Сверка по кнопке: ответ сервиса ФНС сохраняется в
+                        справочнике, и таблица сразу показывает вердикты */}
+                    <div className={block("label-row")}>
+                      <button
+                        type="button"
+                        className={block("btn-accent")}
+                        onClick={checkSmpInns}
+                        disabled={
+                          smpInnCheck.isPending || smpInnsToCheck.length === 0
+                        }
+                      >
+                        <ShieldCheck size={14} aria-hidden="true" />{" "}
+                        {smpInnCheck.isPending
+                          ? "Проверяем в реестре МСП…"
+                          : `Проверить ИНН в реестре МСП (${smpInnsToCheck.length})`}
+                      </button>
+                      <span className={block("hint")} style={{ marginTop: 0 }}>
+                        сверено: {smpComposition.smpCount + smpComposition.notSmpCount}{" "}
+                        из {smpComposition.total}
+                      </span>
+                    </div>
+
+                    {smpCheckMessage && (
+                      <div className={block("alert-warning")} role="status">
+                        {smpCheckMessage}
+                      </div>
+                    )}
+
+                    {/* Непроверенный ИНН — не «никого нет в реестре»: пока
+                        сверки не было, таблица не должна читаться как отказ */}
+                    {smpComposition.unknownCount > 0 && (
                       <p
                         className={block("hint")}
                         style={{ marginTop: 0, color: "var(--state-warning)" }}
                       >
-                        {SMP_REGISTRY_NOT_LOADED_TEXT}
+                        {SMP_REGISTRY_NOT_CHECKED_TEXT}
                       </p>
                     )}
                     <div style={{ overflowX: "auto" }}>
@@ -3287,9 +3471,9 @@ export default function PurchaseNoteModal({
                                   <span
                                     className={block("smp-status", ["unknown"])}
                                   >
-                                    {smpComposition.registryLoaded
-                                      ? "нужен ИНН"
-                                      : "не проверено"}
+                                    {row.offer.supplierInn
+                                      ? "не проверено"
+                                      : "нужен ИНН"}
                                   </span>
                                 )}
                               </td>
@@ -4407,8 +4591,9 @@ export default function PurchaseNoteModal({
 
       {!laterSectionsReady && (
         <div className={block("pending-notice")}>
-          Сначала выберите структурированное ООЗ и подготовьте обоснование
-          НМЦК. Остальные требования служебной записки появятся после этого.
+          Сначала утвердите структурированное ООЗ, затем подготовьте и
+          подпишите обоснование НМЦК в ЭП. Остальные требования служебной
+          записки появятся после этого.
         </div>
       )}
 
@@ -5143,8 +5328,9 @@ export default function PurchaseNoteModal({
           <span className={block("error")}>{errorText("root")}</span>
         )}
         {nationalRegimeValidation.hasErrors && (
-          <span className={block("error")}>
-            {nationalRegimeValidation.summary}
+          <span className={block("alert-warning")}>
+            {nationalRegimeValidation.summary}. Черновик сохраняется, но
+            утверждение требует решения КС.
           </span>
         )}
         {(createNote.isError || updateNote.isError) && (
@@ -5154,15 +5340,70 @@ export default function PurchaseNoteModal({
           </span>
         )}
         <div className={block("footer-actions")}>
+          {canWorkflowAction &&
+            isDraftLikeStatus &&
+            !nationalRegimeValidation.blocksSave && (
+              <button
+                type="button"
+                className={block("btn-accent")}
+                onClick={() => submitWorkflow("in_review")}
+              >
+                Отправить на согласование
+              </button>
+            )}
+          {canWorkflowAction && isDraftLikeStatus && nationalRegimeValidation.blocksSave && (
+            <button
+              type="button"
+              className={block("btn-accent")}
+              disabled={!organization?.id || !ksAssignee?.employeeId}
+              onClick={requestKsReview}
+            >
+              Запросить решение КС
+            </button>
+          )}
+          {canWorkflowAction && watchedStatus === "in_review" && (
+            <>
+              <button
+                type="button"
+                className={block("btn")}
+                onClick={() => submitWorkflow("revision")}
+              >
+                Отправить на доработку
+              </button>
+              <button
+                type="button"
+                className={block("btn-primary")}
+                onClick={completeKsReview}
+              >
+                Согласовать КС
+              </button>
+            </>
+          )}
+          {canWorkflowAction && watchedStatus === "ks_approved" && (
+            <>
+              <button
+                type="button"
+                className={block("btn")}
+                onClick={() => submitWorkflow("revision")}
+              >
+                Отправить на доработку
+              </button>
+              <button
+                type="button"
+                className={block("btn-primary")}
+                onClick={() => submitWorkflow("approved")}
+              >
+                Утвердить
+              </button>
+            </>
+          )}
           <button type="button" onClick={onClose} disabled={isBusy}>
             {isReadOnly ? "Назад к плану-графику" : "Отмена"}
           </button>
           <button
             type="submit"
             className={block("btn-primary")}
-            disabled={
-              isBusy || isReadOnly || nationalRegimeValidation.blocksSave
-            }
+            disabled={isBusy || isReadOnly}
             onClick={() => {
               proceedAfterSaveRef.current = false;
             }}

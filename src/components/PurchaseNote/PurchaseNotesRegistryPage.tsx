@@ -143,13 +143,9 @@ export default function PurchaseNotesRegistryPage() {
   // Счётчики статусов — по набору выше: при выбранном годе или поисковом
   // запросе чипы показывают реальные числа, а не общий итог по всем СЗ.
   const statusCounts = useMemo(() => {
-    const counts: Record<PurchaseNoteStatus, number> = {
-      draft: 0,
-      in_review: 0,
-      approved: 0,
-      rejected: 0,
-      cancelled: 0,
-    };
+    const counts = Object.fromEntries(
+      PURCHASE_NOTE_STATUSES.map((status) => [status, 0]),
+    ) as Record<PurchaseNoteStatus, number>;
     for (const note of scopedNotes) {
       const s = (note.status ?? "draft") as PurchaseNoteStatus;
       if (s in counts) counts[s] += 1;

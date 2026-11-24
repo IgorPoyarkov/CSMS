@@ -24,6 +24,18 @@
     color: var(--state-warning);
   }
 
+  &--revision {
+    background: var(--state-info-soft, var(--state-warning-soft));
+    border-color: var(--state-info, var(--state-warning));
+    color: var(--state-info, var(--state-warning));
+  }
+
+  &--ks_approved {
+    background: var(--state-success-soft);
+    border-color: var(--state-success);
+    color: var(--state-success);
+  }
+
   &--approved {
     background: var(--state-success-soft);
     border-color: var(--state-success);

@@ -339,11 +339,23 @@ const PurchaseNoteBaseSchema = z
     otherRequirements: z.string().optional(),
 
     status: z
-      .enum(["draft", "in_review", "approved", "rejected", "cancelled"])
+      .enum([
+        "draft",
+        "in_review",
+        "revision",
+        "ks_approved",
+        "approved",
+        "rejected",
+        "cancelled",
+      ])
       .default("draft"),
     approvalUpdatedAt: z.string().optional(),
     approvalUpdatedBy: z.string().optional(),
     approvalComment: z.string().optional(),
+    // Системная задача КС по исключению нацрежима (ПП РФ № 1875): пока
+    // задача не выполнена, «Утвердить» недоступно.
+    ksReviewTaskId: z.union([z.string(), z.number()]).optional(),
+    ksReviewRequestedAt: z.string().optional(),
     comment: z.string().optional(),
     createdAt: isoDate(),
     /**
@@ -438,7 +450,7 @@ export const PurchaseNoteSchema = PurchaseNoteBaseSchema.superRefine(
       requirementsPart2_1Art31: note.requirementsPart2_1Art31,
       requirementsPart1_1Art31: note.requirementsPart1_1Art31,
       sanctionsRnpRequirement: note.sanctionsRnpRequirement,
-      isDraft: (note.status ?? "draft") === "draft",
+      isDraft: isDraftLikePurchaseNote(note.status),
     })
       .filter((issue) => issue.level === "error")
       .forEach((issue) =>
@@ -458,6 +470,8 @@ export const PurchaseNoteListSchema = z.array(PurchaseNoteReadSchema);
 export const PURCHASE_NOTE_STATUSES = [
   "draft",
   "in_review",
+  "revision",
+  "ks_approved",
   "approved",
   "rejected",
   "cancelled",
@@ -468,8 +482,22 @@ export type PurchaseNoteStatus = (typeof PURCHASE_NOTE_STATUSES)[number];
 export type PurchaseNoteStatusTone =
   | "in_progress"
   | "in_review"
+  | "revision"
+  | "ks_approved"
   | "approved"
   | "rejected";
+
+/**
+ * Черновик и возврат на доработку сохраняются с предупреждениями: пользователь
+ * ещё заполняет СЗ. Остальные статусы означают, что записка вышла из работы.
+ */
+export const isDraftLikePurchaseNote = (status?: PurchaseNoteStatus | string) =>
+  status === "draft" || status === "revision";
+
+/** Одобрение КС приравнивается к согласованию при переносе вложений и отчётах. */
+export const isApprovedPurchaseNoteStatus = (
+  status?: PurchaseNoteStatus | string,
+) => status === "ks_approved" || status === "approved";
 
 export const PURCHASE_NOTE_STATUS_META: Record<
   PurchaseNoteStatus,
@@ -485,13 +513,23 @@ export const PURCHASE_NOTE_STATUS_META: Record<
     tone: "in_progress",
   },
   in_review: {
-    label: "На согласовании",
+    label: "На согласовании в КС",
     shortLabel: "Согласование",
     tone: "in_review",
   },
+  revision: {
+    label: "На доработке",
+    shortLabel: "Доработка",
+    tone: "revision",
+  },
+  ks_approved: {
+    label: "Одобрено КС",
+    shortLabel: "Одобрено КС",
+    tone: "ks_approved",
+  },
   approved: {
-    label: "Согласовано",
-    shortLabel: "Согласовано",
+    label: "Утверждено",
+    shortLabel: "Утверждено",
     tone: "approved",
   },
   rejected: {

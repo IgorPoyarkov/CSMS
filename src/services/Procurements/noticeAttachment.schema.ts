@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { isContestPlacingWay } from "../Okpd2Ref/auctionListControl";
 import type { ObjectDescription } from "../ObjectDescription/objectDescription.schema";
-import type { PurchaseNote } from "../PurchaseNote/purchaseNote.schema";
+import {
+  isApprovedPurchaseNoteStatus,
+  type PurchaseNote,
+} from "../PurchaseNote/purchaseNote.schema";
 
 /**
  * Документы закупки как составная часть извещения (Раздел 2 формы извещения,
@@ -448,7 +451,7 @@ const buildDescription = (...parts: Array<string | undefined>): string =>
  * Переносит утверждённые документы служебной записки в извещение.
  *
  * ООЗ и обоснование НМЦК считаются утверждёнными только у утверждённой СЗ
- * (`status === "approved"`), иначе они попадают в извещение черновиками и
+ * (утверждено или одобрено КС), иначе они попадают в извещение черновиками и
  * блокируют публикацию — это намеренно: публиковать неутверждённое нельзя.
  */
 export const inheritAttachmentsFromPurchaseNote = ({
@@ -462,7 +465,7 @@ export const inheritAttachmentsFromPurchaseNote = ({
   if (!note) return result;
 
   const timestamp = now ?? new Date().toISOString();
-  const isNoteApproved = note.status === "approved";
+  const isNoteApproved = isApprovedPurchaseNoteStatus(note.status);
   const noteStatus: NoticeAttachmentStatus = isNoteApproved
     ? "approved"
     : "draft";
@@ -658,7 +661,7 @@ export const buildNmckJustificationAttachment = ({
   const fileName = note.nmckFileName || note.nmckSignature?.fileName;
   if (!fileName) return null;
 
-  const isApproved = note.status === "approved";
+  const isApproved = isApprovedPurchaseNoteStatus(note.status);
   const timestamp = new Date().toISOString();
 
   return normalizeNoticeAttachment({

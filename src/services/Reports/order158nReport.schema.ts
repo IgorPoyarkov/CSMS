@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isApprovedPurchaseNoteStatus } from "../PurchaseNote/purchaseNote.schema";
 import {
   CONTRACT_MANAGER_MAX_ANNUAL_VOLUME,
   ContractServiceCreationMethodSchema,
@@ -702,8 +703,8 @@ export function buildOrder158nActivityReport(
 
   // СЗ и НМЦК + ООЗ + Дефектовки (п. 3.2)
   const notesTotalCount = periodNotes.length;
-  const notesApprovedCount = periodNotes.filter(
-    (n) => n.status === "approved",
+  const notesApprovedCount = periodNotes.filter((n) =>
+    isApprovedPurchaseNoteStatus(n.status),
   ).length;
   const notesWithNmckCount = periodNotes.filter((n) =>
     Boolean(n.nmckCalculation),
