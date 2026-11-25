@@ -19,7 +19,8 @@
   "xsdDirs": ["src", "docs", "eis-parser", "../csms-api"],
   "qaFiles": [
     "docs/legal/consultant-qa.json",
-    "docs/legal/consultant-qa-vba.json"
+    "docs/legal/consultant-qa-vba.json",
+    "docs/legal/consultant-qa-44fz-200.json"
   ],
   "minScore": 0.34,
   "topK": 6
