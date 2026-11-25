@@ -54,6 +54,8 @@ model = AutoModelForCausalLM.from_pretrained(
 model = PeftModel.from_pretrained(model, str(ADAPTER))
 model.eval()
 
+report = []
+
 for row in rows:
     context = row.get("input") or ""
     user = (
@@ -75,9 +77,15 @@ for row in rows:
             **inputs,
             max_new_tokens=220,
             do_sample=False,
+            temperature=None,
+            top_p=None,
             pad_token_id=tokenizer.pad_token_id,
         )
     text = tokenizer.decode(output[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
-    print("\nВОПРОС:", row["instruction"])
-    print("ЭТАЛОН:", row["output"][:220].replace("\n", " "))
-    print("МОДЕЛЬ:", text.strip()[:400].replace("\n", " "))
+    report.append("\nВОПРОС: " + row["instruction"])
+    report.append("ЭТАЛОН: " + row["output"][:220].replace("\n", " "))
+    report.append("МОДЕЛЬ: " + text.strip()[:400].replace("\n", " "))
+
+out_file = ROOT / ".tmp" / "lora" / "eval-report.txt"
+out_file.write_text("\n".join(report) + "\n", encoding="utf-8")
+print(f"Отчёт: {out_file}")

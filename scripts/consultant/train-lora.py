@@ -167,7 +167,10 @@ def main():
         optim="paged_adamw_8bit",
         logging_steps=10,
         eval_strategy="epoch",
-        save_strategy="epoch",
+        # Частые чекпоинты: перезапуск сервера не должен терять час обучения.
+        save_strategy="steps",
+        save_steps=18,
+        save_total_limit=2,
         report_to=[],
         group_by_length=True,
         remove_unused_columns=False,
@@ -180,7 +183,19 @@ def main():
         eval_dataset=eval_ds,
         data_collator=Collator(tokenizer.pad_token_id),
     )
-    trainer.train()
+    # LORA_RESUME=1 — продолжить с последнего чекпоинта после сбоя/перезапуска.
+    resume_from = None
+    if os.environ.get("LORA_RESUME") == "1" and OUTPUT_DIR.exists():
+        # Без trainer_state.json Trainer не сможет восстановить шаг и оптимизатор.
+        checkpoints = [
+            p
+            for p in OUTPUT_DIR.glob("checkpoint-*")
+            if p.name.split("-")[-1].isdigit() and (p / "trainer_state.json").exists()
+        ]
+        if checkpoints:
+            resume_from = str(max(checkpoints, key=lambda p: int(p.name.split("-")[-1])))
+            print(f"Возобновляем обучение: {resume_from}")
+    trainer.train(resume_from_checkpoint=resume_from)
     trainer.save_model(str(OUTPUT_DIR))
     tokenizer.save_pretrained(str(OUTPUT_DIR))
     print(f"Адаптер сохранён: {OUTPUT_DIR}")
