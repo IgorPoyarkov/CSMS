@@ -111,6 +111,16 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(str(BASE_MODEL), trust_remote_code=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.chat_template is None:
+        # У DeepSeek-R1 шаблон совпадает с тем, что использует Ollama.
+        tokenizer.chat_template = (
+            "{% for message in messages %}"
+            "{% if message['role'] == 'system' %}{{ message['content'] }}"
+            "{% elif message['role'] == 'user' %}<｜User｜>{{ message['content'] }}"
+            "{% elif message['role'] == 'assistant' %}<｜Assistant｜>{{ message['content'] }}"
+            "{% endif %}{% endfor %}"
+            "{% if add_generation_prompt %}<｜Assistant｜>{% endif %}"
+        )
     train_ds = tokenize_rows(tokenizer, train_rows)
     eval_ds = tokenize_rows(tokenizer, eval_rows)
 

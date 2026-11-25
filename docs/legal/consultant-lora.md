@@ -38,6 +38,32 @@ $py = "C:\Users\liven\AppData\Local\Programs\Python\Python311\python.exe"
 `LORA_EPOCHS` и `LORA_MAX_LENGTH`. На 322 парах это эксперимент по стилю, а не
 «знание закона»: юридические факты по-прежнему приходят из RAG.
 
+## Интеграция в Ollama
+
+Адаптер не меняет `deepseek-r1:7b` — создаётся отдельная модель:
+
+```powershell
+# 1. Конвертер llama.cpp (только нужные файлы, sparse-checkout)
+& .\scripts\consultant\prepare-llama-cpp.ps1
+
+# 2. Адаптер safetensors → GGUF
+& .\scripts\consultant\convert-lora-to-gguf.ps1
+
+# 3. FROM deepseek-r1:7b + ADAPTER → csms-44fz-lora
+& .\scripts\consultant\create-ollama-model.ps1
+```
+
+После этого можно сравнить ответы базовой и дообученной модели:
+
+```powershell
+& $py scripts/consultant/eval-lora.py
+```
+
+Модель `csms-44fz-lora` включается в консультант через `chatModel` в
+`scripts/consultant/sources.json` (RAG-поиск и фильтр редакций при этом не
+меняются). Шаблон чата в `train-lora.py` совпадает с шаблоном Ollama для
+`deepseek-r1:7b` (`<｜User｜>` / `<｜Assistant｜>`).
+
 ## Внимание
 
 - Не смешивать с архивными редакциями: датасет собран только из чанков без
