@@ -8969,10 +8969,48 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
   «обязательно … в извещении» по ч. 1 ст. 23. Вопрос про отпускные:
   `stage=no-norm` и follow-up «Продолжить поиск в других источниках?»; после
   согласия — `stage=widen` и инструмент «Поиск расширен за пределы 44-ФЗ».
-  Платёжный структурированный ответ СМП/СОНKO не сломан.
+  Платёжный структурированный ответ СМП/СОНКО не сломан.
 - **Ограничение.** Frontend пока не шлёт `sessionId`; без него сессия
   привязывается к IP, поэтому кнопки работают и без правки UI. Чужая WIP в
   `server.mjs`/`retrieve.mjs` (казначейские платежи, doc viewer) сохранена в
   рабочей директории, но в коммит не включена. Обучение LoRA не запускалось:
   сначала завершён и закоммичен этот backend; следующий шаг — подготовка
   датасета (пользователь выбрал гибрид RAG + LoRA).
+
+## 194. Датасет и скрипты QLoRA (2026-11-25)
+
+- **Выбор пользователя.** Гибрид: RAG остаётся источником фактов и цитат,
+  LoRA учит только стиль и формат. База — `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B`
+  (та же семейная модель, что `deepseek-r1:7b` в Ollama).
+- **Датасет.** `scripts/consultant/build-lora-dataset.mjs` собирает
+  `docs/legal/consultant-lora-dataset.jsonl`: **322 пары** (242 одобренных Q&A +
+  80 автоматических из текста действующих норм), `split` train/eval ~90/10.
+  Автоматические пары помечены `draft-for-review` и в RAG не индексируются.
+  Пересборка: `node scripts/consultant/build-lora-dataset.mjs`,
+  `--approved-only` — только проверенные пары. Отчёт —
+  `docs/legal/consultant-lora-dataset.report.json`.
+  Исправлено: в контекст берутся только чанки `npa`/`norm` (не QA), цитаты
+  нумеруются с 1, для статей находится название по заголовку, предпочитается
+  начало статьи, а не осколок после overlap.
+- **Окружение.** Python 3.11.9 через winget, `torch==2.5.1+cu121`,
+  `transformers==4.46.3`, `peft==0.13.2`, `bitsandbytes==0.44.1`,
+  `accelerate==1.1.1`, `datasets==3.1.0`, `trl==0.12.2`, `huggingface_hub==0.26.5`.
+  `check-ml.py`: CUDA=True, RTX 3060 12 ГБ, bf16=True. Первая загрузка базы
+  оборвалась на Xet-CDN; повтор — с `HF_HUB_DISABLE_XET=1`,
+  `HF_HUB_DOWNLOAD_TIMEOUT=300`.
+- **Скрипты.** `train-lora.py` (QLoRA 4-bit NF4, r=16, alpha=32, lr=2e-4,
+  2 эпохи, batch 1 × accum 8, bf16, `paged_adamw_8bit`; шаблон чата совпадает с
+  Ollama), `eval-lora.py` (сравнение ответов на 3 вопросах),
+  `prepare-llama-cpp.ps1` (sparse-checkout конвертера),
+  `convert-lora-to-gguf.ps1`, `create-ollama-model.ps1` (создаёт отдельную
+  модель `csms-44fz-lora` через `FROM deepseek-r1:7b` + `ADAPTER`).
+  Инструкция — `docs/legal/consultant-lora.md`.
+- **Состояние.** Коммиты `ad30ac8` (датасет и обучение) и `57f38cd`
+  (проверка и импорт) запушены. Базовая модель скачивается в фоне; само
+  обучение ещё не запускалось. Пользователь разрешил ставить стек, но
+  добавлять UI-кнопки follow-up **запретил** — чужая WIP в файлах консультанта
+  не трогалась, `src/components/Consultant/ConsultantPage.module.scss:324`
+  по-прежнему ломает `vite build`.
+- **Очередь.** Дождаться модели → `train-lora.py` → `eval-lora.py` → GGUF →
+  Ollama → сравнить ответы и только после проверки менять `chatModel` в
+  `scripts/consultant/sources.json`.
