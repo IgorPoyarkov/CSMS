@@ -307,39 +307,114 @@ async function collectWorkingNotes(cfg) {
   return chunks;
 }
 
-/** Свои вопросы-ответы: формат [{ question, answer, module, norm, url }]. */
-async function collectQa(cfg) {
-  if (!cfg.qaFile) return [];
-  const file = path.resolve(ROOT, cfg.qaFile);
-  let items;
-  try {
-    items = JSON.parse(await fs.readFile(file, "utf8"));
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(items)) return [];
-  return items.map((item) =>
-    makeChunk("qa", {
-      title: `Вопрос-ответ · ${item.module ?? "общее"}`,
-      ref: item.norm ?? "",
-      url: item.url ?? null,
-      text: `Вопрос: ${item.question}\nОтвет: ${item.answer}${item.norm ? `\nНорма: ${item.norm}` : ""}`,
-      meta: { module: item.module ?? null, question: item.question },
-    }),
+/**
+ * Официальные тексты НПА, скачанные с pravo.gov.ru (`fetch-pravo.mjs sync`).
+ * В индекс попадают только фактически скачанные редакции: будущие excluded,
+ * архивные помечаются в заголовке, чтобы консультант не выдавал их за действующие.
+ */
+async function collectPravoNpa(cfg) {
+  const chunks = [];
+  const manifestFile = path.join(import.meta.dirname, "../pravo-sources.json");
+  const manifest = JSON.parse(await fs.readFile(manifestFile, "utf8"));
+  const statusFile = path.join(ROOT, manifest.outputDir ?? ".tmp/pravo-downloads", "downloaded.json");
+  const status = JSON.parse(
+    (await fs.readFile(statusFile, "utf8").catch(() => null)) ?? "{}",
   );
+
+  for (const [slug, info] of Object.entries(status)) {
+    if (info.role === "future") continue;
+    const rel = (info.files ?? []).find((file) => file.endsWith(".md"));
+    if (!rel) continue;
+    let text;
+    try {
+      text = await fs.readFile(path.join(ROOT, rel), "utf8");
+    } catch {
+      continue;
+    }
+    // У постановлений нет заголовков «Статья N» — режем по нумерованным пунктам.
+    if (!/^##\s*Статья\s+\d+/m.test(text)) {
+      text = text.replace(/^(\d{1,3}\.\s)/gm, "## $1");
+    }
+    const name = `${info.shortName ?? info.act ?? slug} · ред. ${info.date ?? "?"}${
+      info.role === "archive" ? " (архивная)" : ""
+    }`;
+    for (const part of splitDocument(text, name, cfg.maxChunkChars)) {
+      chunks.push(
+        makeChunk("npa", {
+          title: part.title,
+          ref: part.ref,
+          // Локальная ссылка на скачанный файл; внешний источник остаётся в meta.
+          url: `/api/consultant/source/npa/${slug}?format=md`,
+          text: part.text,
+          meta: {
+            actId: info.actId,
+            shortName: info.shortName ?? null,
+            date: info.date ?? null,
+            role: info.role ?? null,
+            redid: info.redid ?? null,
+            slug,
+            externalUrl: info.cardUrl ?? info.publicationUrl ?? null,
+            localFile: rel,
+          },
+        }),
+      );
+    }
+  }
+  return chunks;
+}
+
+/** Свои вопросы-ответы: формат [{ question, answer, module, norm, url }]. */
+export async function collectQa(cfg) {
+  // qaFile оставлен для совместимости со старыми конфигурациями.
+  const files = Array.isArray(cfg.qaFiles)
+    ? cfg.qaFiles
+    : cfg.qaFile
+      ? [cfg.qaFile]
+      : [];
+  const chunks = [];
+  for (const fileRef of files) {
+    const file = path.resolve(ROOT, fileRef);
+    let items;
+    try {
+      items = JSON.parse(await fs.readFile(file, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      // Черновики ждут ревизии: в ответы консультанта они попадать не должны.
+      if (item.status === "draft-for-review") continue;
+      chunks.push(
+        makeChunk("qa", {
+          title: `Вопрос-ответ · ${item.module ?? "общее"}`,
+          ref: item.norm ?? "",
+          url: item.url ?? null,
+          text: `Вопрос: ${item.question}\nОтвет: ${item.answer}${item.norm ? `\nНорма: ${item.norm}` : ""}`,
+          meta: { module: item.module ?? null, question: item.question },
+        }),
+      );
+    }
+  }
+  return chunks;
 }
 
 export async function collectSources(cfg) {
-  const [snapshot, pp1875, xsd, docs, notes, qa] = await Promise.all([
+  // csms-api может быть не поднят: тогда теряем только точные коды ОКПД2 из БД,
+  // но сам текст ПП № 1875 уже есть среди скачанных НПА. Индекс собираем дальше.
+  const pp1875 = await collectPp1875(cfg).catch((error) => {
+    process.stderr.write(`Правила ПП № 1875 из csms-api недоступны: ${error.message}\n`);
+    return { chunks: [], lookup: {} };
+  });
+  const [snapshot, npa, xsd, docs, notes, qa] = await Promise.all([
     collectSnapshot(cfg),
-    collectPp1875(cfg),
+    collectPravoNpa(cfg),
     collectXsd(cfg),
     collectDocs(cfg),
     collectWorkingNotes(cfg),
     collectQa(cfg),
   ]);
   return {
-    chunks: [...snapshot, ...pp1875.chunks, ...xsd, ...docs, ...notes, ...qa],
+    chunks: [...snapshot, ...npa, ...pp1875.chunks, ...xsd, ...docs, ...notes, ...qa],
     lookup: pp1875.lookup,
   };
 }

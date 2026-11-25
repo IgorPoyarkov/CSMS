@@ -17,7 +17,10 @@
     ".koda/PROJECT_STATE.md"
   ],
   "xsdDirs": ["src", "docs", "eis-parser", "../csms-api"],
-  "qaFile": "docs/legal/consultant-qa.json",
+  "qaFiles": [
+    "docs/legal/consultant-qa.json",
+    "docs/legal/consultant-qa-vba.json"
+  ],
   "minScore": 0.34,
   "topK": 6
 }
