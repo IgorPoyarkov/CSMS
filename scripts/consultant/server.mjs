@@ -6,6 +6,12 @@ import { z } from "zod";
 import { ROOT } from "./lib/knowledge.mjs";
 import { embedTexts } from "./lib/embed.mjs";
 import { retrieve } from "./lib/retrieve.mjs";
+import {
+  isFz44Chunk,
+  referentialTargets,
+  stageForQuestion,
+  targetFilter,
+} from "./lib/dialog.mjs";
 
 const cfg = JSON.parse(
   await fs.readFile(path.join(import.meta.dirname, "sources.json"), "utf8"),
@@ -71,6 +77,67 @@ const askSchema = z.object({
 const DISCLAIMER = "Справочно. Проверьте первоисточник и редакцию.";
 const NORMATIVE_SOURCES = new Set(["npa", "norm", "qa", "pp1875", "pp1875-exact"]);
 
+// Уточняющие вопросы живут только в памяти процесса и истекают через 30 минут.
+// sessionId приходит с экрана; без него используем адрес клиента (локальный сервис).
+const sessions = new Map();
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const sessionKey = (req, sessionId) => sessionId || req.ip || "default";
+
+function getPending(key) {
+  const state = sessions.get(key);
+  if (!state) return null;
+  if (Date.now() - state.at > SESSION_TTL_MS) {
+    sessions.delete(key);
+    return null;
+  }
+  return state.pending;
+}
+
+function setPending(key, pending) {
+  sessions.set(key, { pending, at: Date.now() });
+}
+
+function clearPending(key) {
+  sessions.delete(key);
+}
+
+const editionFields = (found) => ({
+  edition: found?.pastEditionRequested ? "historical" : "current-only",
+  archiveChunksSkipped: found?.excludedArchive ?? 0,
+});
+
+function citeFromFragment(fragment) {
+  return {
+    n: fragment.n,
+    title: fragment.title,
+    ref: fragment.ref,
+    url: fragment.url,
+    quote: String(fragment.text ?? "").slice(0, 420),
+    score: Number((fragment.score ?? 0).toFixed(3)),
+    source: fragment.source,
+  };
+}
+
+/** Отсылка внутри 44-ФЗ: дописываем статью в контекст, ответ остаётся одним. */
+async function expandInternalRefs(found, refs, index, cfg) {
+  const fragments = [...found.fragments];
+  const seen = new Set(fragments.map((f) => `${f.title}|${f.text.slice(0, 60)}`));
+  for (const ref of refs) {
+    const text = `статья ${ref.target.article} 44-ФЗ`;
+    const [vector] = await embedTexts([text], cfg, 1);
+    const extra = retrieve({ ...index, queryVector: vector }, text, cfg, {
+      filter: targetFilter(ref.target),
+    });
+    for (const fragment of extra.fragments.slice(0, 2)) {
+      const key = `${fragment.title}|${fragment.text.slice(0, 60)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      fragments.push({ ...fragment, n: fragments.length + 1 });
+    }
+  }
+  return { ...found, fragments };
+}
+
 function refusalResponse(found, started, reason) {
   const detail = reason ? ` ${reason}` : "";
   const citations = (found.fragments || [])
@@ -93,6 +160,7 @@ function refusalResponse(found, started, reason) {
     confidence: Number(found.confidence.toFixed(3)),
     refusal: true,
     model: cfg.chatModel,
+    ...editionFields(found),
     latencyMs: Date.now() - started,
   };
 }
@@ -149,8 +217,9 @@ function buildPrompt(fragments, question, context) {
       "Если вопрос неоднозначный (смешаны разные субъекты/отношения: заказчик-поставщик, подрядчик-субподрядчик СМП/СОНКО, срок оплаты/срок привлечения/срок представления документов), сначала явно укажи неоднозначность и разложи ответ по случаям, опираясь только на найденные нормы.",
       "Если прямой нормы для конкретного случая во фрагментах нет, не подставляй похожую норму другого случая. Прямо напиши, что прямого ответа в загруженных редакциях нет, и назови ближайшую найденную норму.",
       "Фрагменты CurrentTasks.md/WorkPlan.md/csms-doc/csms-notes — рабочие заметки/описание проекта, не нормы. Они не могут быть основанием юридического ответа.",
-      "Фрагмент с пометкой «архивная редакция» описывает прошлое состояние нормы. Если в вопросе нет даты, отвечай по актуальной редакции и явно указывай дату редакции из заголовка фрагмента; архивный фрагмент используй только когда вопрос прямо про прошлый период или дату действия.",
-      "Не делай выводов о том, что норма утратила силу/действует до даты, по служебным пометкам заголовка фрагмента. Срок действия указывай только если он прямо написан в тексте процитированного фрагмента.",
+      "По умолчанию поиск идёт только по действующей редакции 44-ФЗ: архивные фрагменты в контекст не попадают. Если пользователь прямо спросил про прошлую дату, архивный фрагмент можно использовать, но явно называй дату редакции из заголовка.",
+      "Если в тексте нормы есть оговорка о сроке действия («до 1 января …», «не применяется до …», «вступает в силу с …»), соблюдай её и не применяй норму раньше указанной даты. Дату бери только из текста фрагмента, а не из заголовка.",
+      "Не делай выводов о том, что норма утратила силу/действует до даты, по служебным пометкам заголовка фрагмента.",
       "Если в вопросе указан номер статьи, а во фрагменте другой номер, прямо скажи, что в загруженной редакции нумерация иная, и процитируй найденную статью; не выдавай её за запрошенную.",
       "Не давай юридического заключения. Ответ — до 1500 знаков, по делу, без вступления и без повтора вопроса. В конце всегда добавь: «Справочно. Проверьте первоисточник и редакцию».",
     ].join(" "),
@@ -231,12 +300,57 @@ app.post("/api/consultant/ask", async (req, res) => {
     return res.status(400).json({ error: "Некорректный вопрос", details: parsed.error.issues });
   }
   const started = Date.now();
-  const { question, module, ruleId, entityId } = parsed.data;
+  const { question, module, ruleId, entityId, sessionId } = parsed.data;
   try {
-    const [queryVector] = await embedTexts([question], cfg, 1);
-    const found = retrieve({ ...index, queryVector }, question, cfg);
-    if (found.refusal) {
-      return res.json(refusalResponse(found, started));
+    const key = sessionKey(req, sessionId);
+    const pending = getPending(key);
+    const stage = stageForQuestion(question, pending);
+    let found;
+    let promptQuestion = question;
+    let followUp = null;
+    let externalOnlyResponse = null;
+
+    if (stage) {
+      // Пользователь согласился: ищем именно выбранную норму или расширяем поиск.
+      clearPending(key);
+      const searchText = stage.kind === "widen"
+        ? stage.question
+        : `${pending?.question ?? question} подробнее ${stage.label}`;
+      const [vector] = await embedTexts([searchText], cfg, 1);
+      found = stage.kind === "widen"
+        ? retrieve({ ...index, queryVector: vector }, searchText, cfg)
+        : retrieve({ ...index, queryVector: vector }, searchText, cfg, {
+            filter: targetFilter(stage.target),
+          });
+      promptQuestion = searchText;
+    } else {
+      // Первый проход всегда ищет норму в 44-ФЗ действующей редакции.
+      const [queryVector] = await embedTexts([question], cfg, 1);
+      found = retrieve({ ...index, queryVector }, question, cfg, {
+        filter: isFz44Chunk,
+      });
+    }
+
+    if (!stage && found.refusal) {
+      setPending(key, { kind: "widen", question });
+      return res.json({
+        answer:
+          "В действующей редакции 44-ФЗ прямого ответа по такому вопросу не найдено. " +
+          "Не подменяю норму похожей из другого акта. Если хотите, продолжу поиск в ПП РФ, " +
+          "приказах и рабочих материалах CSMS.",
+        citations: [],
+        tools: [],
+        confidence: Number(found.confidence.toFixed(3)),
+        refusal: false,
+        stage: "no-norm",
+        followUp: {
+          text: "Продолжить поиск в других источниках?",
+          question: `Продолжить поиск: ${question}`,
+        },
+        model: cfg.chatModel,
+        ...editionFields(found),
+        latencyMs: Date.now() - started,
+      });
     }
     if (found.legalQuestion && !found.exactCodes.length && !hasNormativeFragments(found)) {
       return res.json(
@@ -244,22 +358,65 @@ app.post("/api/consultant/ask", async (req, res) => {
       );
     }
 
-    const _isPaySmp = isPaymentSmpQuestion(question);
-    const structured = _isPaySmp ? buildPaymentSmpAnswer(found) : null;
-    if (structured) {
-      return res.json({
-        ...structured,
-        tools: [],
-        confidence: Number(found.confidence.toFixed(3)),
-        model: cfg.chatModel,
-        latencyMs: Date.now() - started,
-      });
+    if (!stage) {
+      const normFragment = found.fragments.find(
+        (item) => ["npa", "norm"].includes(item.source) && isFz44Chunk(item),
+      );
+      if (normFragment) {
+        const refs = referentialTargets(normFragment);
+        // Отсылка к другой статье 44-ФЗ раскрывается сразу: ответ остаётся одним.
+        if (refs.internal.length) {
+          found = await expandInternalRefs(found, refs.internal, index, cfg);
+        }
+        // Внешний акт показываем только после согласия пользователя.
+        if (refs.external.length) {
+          setPending(key, { kind: "norm", targets: refs.external, question });
+          const options = refs.external.map((item) => ({ label: item.label, question: item.question }));
+          if (!refs.internal.length) {
+            externalOnlyResponse = {
+              answer:
+                `В 44-ФЗ норма есть: ${normFragment.title}${normFragment.ref ? ` · ${normFragment.ref}` : ""}. ` +
+                `Она отсылочная: подробности установлены в ${refs.external.map((item) => item.label).join(", ")}.`,
+              citations: [citeFromFragment(normFragment)],
+              tools: [],
+              confidence: Number(found.confidence.toFixed(3)),
+              refusal: false,
+              stage: "referential",
+              followUp: { text: "Хотите, чтобы я посмотрел эту норму подробнее?", options },
+              model: cfg.chatModel,
+              ...editionFields(found),
+              latencyMs: Date.now() - started,
+            };
+          }
+          followUp = {
+            text: "В ответе есть также отсылка к другому акту. Посмотреть её подробнее?",
+            options,
+          };
+        }
+      }
+
+      const structured = isPaymentSmpQuestion(question) ? buildPaymentSmpAnswer(found) : null;
+      if (structured) {
+        return res.json({
+          ...structured,
+          tools: [],
+          confidence: Number(found.confidence.toFixed(3)),
+          refusal: false,
+          stage: "fz44",
+          ...(followUp ? { followUp } : {}),
+          model: cfg.chatModel,
+          ...editionFields(found),
+          latencyMs: Date.now() - started,
+        });
+      }
+      // Структурированные ответы уже содержат нужные нормы — вопрос не нужен.
+      if (externalOnlyResponse) return res.json(externalOnlyResponse);
     }
 
     const context = [module ? `модуль ${module}` : "", ruleId ? `правило ${ruleId}` : "", entityId ? `объект ${entityId}` : ""]
       .filter(Boolean)
       .join(", ");
-    let answer = String(await generate(buildPrompt(found.fragments, question, context)) || "");
+    let answer = String(await generate(buildPrompt(found.fragments, promptQuestion, context)) || "");
     let used = new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
     let citedFragments = found.fragments.filter((item) => used.has(item.n));
     let citedNormative = citedFragments.some((c) => NORMATIVE_SOURCES.has(c.source));
@@ -268,7 +425,7 @@ app.post("/api/consultant/ask", async (req, res) => {
     let hasUngroundedExpiry = /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(answer).toLowerCase()) &&
       !citedFragments.some((f) => /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(f.text||"").toLowerCase()));
     if (found.legalQuestion && (!used.size || !citedNormative || lat > cyr || hasUngroundedExpiry)) {
-      answer = String(await generate(buildPrompt(found.fragments, question + "\n\nОтветь строго на русском языке и обязательно поставь ссылки [n] на нормативные фрагменты npa/norm/qa/pp1875.", context)) || "");
+      answer = String(await generate(buildPrompt(found.fragments, promptQuestion + "\n\nОтветь строго на русском языке и обязательно поставь ссылки [n] на нормативные фрагменты npa/norm/qa/pp1875.", context)) || "");
       used = new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])));
       citedFragments = found.fragments.filter((item) => used.has(item.n));
       citedNormative = citedFragments.some((c) => NORMATIVE_SOURCES.has(c.source));
@@ -304,10 +461,16 @@ app.post("/api/consultant/ask", async (req, res) => {
     res.json({
       answer: answer || `Ответ не получен. ${DISCLAIMER}`,
       citations,
-      tools: found.exactCodes.length ? ["ПП 1875: точная проверка кода ОКПД2"] : [],
+      tools: [
+        ...(found.exactCodes.length ? ["ПП 1875: точная проверка кода ОКПД2"] : []),
+        ...(stage?.kind === "widen" ? ["Поиск расширен за пределы 44-ФЗ"] : []),
+      ],
       confidence: Number(found.confidence.toFixed(3)),
       refusal: false,
+      stage: stage?.kind ?? "fz44",
+      ...(followUp ? { followUp } : {}),
       model: cfg.chatModel,
+      ...editionFields(found),
       latencyMs: Date.now() - started,
     });
   } catch (error) {

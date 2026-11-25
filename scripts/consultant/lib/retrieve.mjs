@@ -115,15 +115,60 @@ function paymentSmpBoost(chunk, question) {
   return boost;
 }
 
+/**
+ * Архивная редакция задачи только в манифесте загрузки (`meta.role`) и в
+ * заголовке чанка. Проверяем оба варианта: старые индексы могли сохраниться
+ * без meta, но пометка «архивная» в title есть всегда.
+ */
+export function isArchiveChunk(chunk) {
+  return (
+    chunk?.meta?.role === "archive" ||
+    /архивн/i.test(String(chunk?.title ?? ""))
+  );
+}
+
+/**
+ * Пользователь прямо спрашивает о прошлом состоянии нормы. Без явной даты или
+ * слов про архив отвечаем только по действующей редакции; дата в вопросе
+ * допускает архив, но только если она уже прошла (будущая дата — условие
+ * вступления нормы, а не запрос старой редакции).
+ */
+export function asksPastEdition(question) {
+  const q = String(question ?? "").toLowerCase();
+  if (/архивн|историческ|раннее действовав|действовавш|в редакции от|по состоянию на|на дату|утративш/.test(q)) {
+    return true;
+  }
+  const now = new Date();
+  for (const [, day, month, year] of q.matchAll(/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/g)) {
+    if (new Date(Number(year), Number(month) - 1, Number(day)) < now) return true;
+  }
+  for (const [, year] of q.matchAll(/\b(\d{4})\s*год/g)) {
+    if (Number(year) < now.getFullYear()) return true;
+  }
+  return false;
+}
+
 /** Гибрид: векторная близость плюс небольшой вес за совпадение слов. */
-export function retrieve(index, question, cfg) {
+export function retrieve(index, question, cfg, options = {}) {
   const queryVector = index.queryVector;
   const queryGroups = tokenGroups(question);
+  const pastEditionRequested = asksPastEdition(question);
+  // По умолчанию архивные редакции не участвуют в поиске вообще: раньше они
+  // лишь штрафовались весом и иногда попадали в контекст вместо текущей нормы.
+  let candidates = typeof options.filter === "function"
+    ? index.chunks.filter(options.filter)
+    : index.chunks;
+  let excludedArchive = 0;
+  if (!pastEditionRequested) {
+    const before = candidates.length;
+    candidates = candidates.filter((chunk) => !isArchiveChunk(chunk));
+    excludedArchive = before - candidates.length;
+  }
   const articleRefs = [
     ...question.matchAll(/(?:ст\.?|статья|статьи|статью|статьёй)\s*(\d{1,3})/gi),
   ].map((match) => match[1]);
   const legalQuestion = isLegalQuestion(question);
-  const scored = index.chunks.map((chunk) => {
+  const scored = candidates.map((chunk) => {
     const vectorScore = cosine(queryVector, chunk.embedding);
     const textTokens = new Set(tokenize(`${chunk.title} ${chunk.text}`));
     let matches = 0;
@@ -174,6 +219,7 @@ export function retrieve(index, question, cfg) {
     text: item.chunk.text,
     score: item.score,
     source: item.chunk.source,
+    meta: item.chunk.meta ?? {},
   }));
 
   const exactFragments = exact.map((item) => {
@@ -221,5 +267,7 @@ export function retrieve(index, question, cfg) {
       (legalQuestion && !exact.length && !hasNormative),
     exactCodes: exact.map((item) => item.code),
     legalQuestion,
+    pastEditionRequested,
+    excludedArchive,
   };
 }
