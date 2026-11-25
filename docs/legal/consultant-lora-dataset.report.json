@@ -1,0 +1,15 @@
+{
+  "builtAt": "2026-11-25T19:45:05.967Z",
+  "total": 322,
+  "bySource": {
+    "approved-qa": 242,
+    "current-norm": 80
+  },
+  "bySplit": {
+    "train": 292,
+    "eval": 30
+  },
+  "withContext": 314,
+  "currentFzChunks": 1095,
+  "includeAuto": true
+}
