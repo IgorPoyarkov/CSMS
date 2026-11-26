@@ -19,6 +19,10 @@ using Microsoft.Extensions.Options;
 // --validate — проверить конфигурацию и создать БД без обращения к ЕИС,
 // --check — проверить токен и доступность локального ГОСТ-туннеля,
 // --import-nsi — выгрузить справочник НСИ (КТРУ) и опубликовать в csms-api,
+// --import-nsi-ktru-html — собрать КТРУ из публичных HTML-карточек ЕИС
+//   (перебор ОКПД2 + suffix, вложенность, обязательности, справочная информация),
+// --import-nsi-ktru-rss — ежедневная проверка RSS всех категорий рубрикатора:
+//   новые позиции/категории → обновление и публикация снимка (--dry-run — без API),
 // --pipeline-once — один проход четырёхэтапного конвейера (очередь архивов),
 // --parse-file <путь> — разобрать один XML без ЕИС и токена
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
@@ -49,6 +53,8 @@ var pipelineOnce = args.Contains("--pipeline-once", StringComparer.OrdinalIgnore
 var validateOnly = args.Contains("--validate", StringComparer.OrdinalIgnoreCase);
 var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
+var importKtruHtml = args.Contains("--import-nsi-ktru-html", StringComparer.OrdinalIgnoreCase);
+var importKtruRss = args.Contains("--import-nsi-ktru-rss", StringComparer.OrdinalIgnoreCase);
 var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
 var enrichContractors = args.Contains("--enrich-contractors", StringComparer.OrdinalIgnoreCase);
 var smpHtml = args.Contains("--smp-html", StringComparer.OrdinalIgnoreCase);
@@ -862,10 +868,58 @@ if (reparseDirectory is not null)
 
 builder.Services.AddHttpClient();
 
+// Публичный сайт ЕИС отдаёт 404 без браузерного User-Agent.
+builder.Services.AddHttpClient("ktru", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36");
+});
+
 builder.Services.Configure<EisClientOptions>(
     builder.Configuration.GetSection(EisClientOptions.SectionName));
 builder.Services.Configure<EisNsiOptions>(
     builder.Configuration.GetSection(EisNsiOptions.SectionName));
+builder.Services.Configure<KtruHtmlOptions>(
+    builder.Configuration.GetSection(KtruHtmlOptions.SectionName));
+
+// CLI переопределяет конфиг: так можно проверить один-два префикса без правки appsettings.
+builder.Services.PostConfigure<KtruHtmlOptions>(options =>
+{
+    var prefixes = GetArgumentValue(args, "--prefix");
+    if (!string.IsNullOrWhiteSpace(prefixes))
+    {
+        options.Prefixes = prefixes
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    if (int.TryParse(GetArgumentValue(args, "--take"), out var take) && take > 0)
+    {
+        options.Take = take;
+    }
+
+    if (int.TryParse(GetArgumentValue(args, "--max-suffix"), out var maxSuffix) && maxSuffix > 0)
+    {
+        options.MaxSuffix = maxSuffix;
+    }
+
+    if (int.TryParse(GetArgumentValue(args, "--category-limit"), out var categoryLimit) && categoryLimit > 0)
+    {
+        options.CategoryLimit = categoryLimit;
+    }
+
+    if (int.TryParse(GetArgumentValue(args, "--category-pages"), out var categoryPages) && categoryPages > 0)
+    {
+        options.MaxCategoryPages = categoryPages;
+    }
+
+    var statePath = GetArgumentValue(args, "--state");
+    if (!string.IsNullOrWhiteSpace(statePath))
+    {
+        options.StatePath = statePath;
+    }
+});
 
 // Биндер коллекций дописывает значения из конфига к значениям свойств-инициализаторов.
 // Убираем дубли, иначе воркер опрашивает один и тот же регион/тип по несколько раз.
@@ -899,6 +953,8 @@ builder.Services.AddSingleton<ArchiveProcessor>();
 builder.Services.AddSingleton<IEisPipelineRepository, EisPipelineRepository>();
 builder.Services.AddSingleton<EisPipelineRunner>();
 builder.Services.AddSingleton<NsiImportService>();
+builder.Services.AddSingleton<KtruHtmlImportService>();
+builder.Services.AddSingleton<KtruRssMonitorService>();
 builder.Services.AddTransient<ReferenceApiClient>();
 builder.Services.AddSingleton<ITenderRepository, TenderRepository>();
 builder.Services.AddSingleton<PollingWorker>();
@@ -984,6 +1040,94 @@ if (importNsi)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ошибка импорта справочника НСИ: {exception.Message}");
+        return 1;
+    }
+}
+
+if (importKtruHtml)
+{
+    try
+    {
+        var nsiOptions = host.Services.GetRequiredService<IOptions<EisNsiOptions>>().Value;
+        var snapshot = await host.Services.GetRequiredService<KtruHtmlImportService>()
+            .BuildSnapshotAsync(CancellationToken.None);
+
+        Console.WriteLine($"Справочник: {snapshot.Dataset}");
+        Console.WriteLine($"Версия: {snapshot.Version}");
+        Console.WriteLine($"SHA-256: {snapshot.SourceSha256}");
+        Console.WriteLine($"Позиций: {snapshot.Items.Count}");
+
+        if (dryRun)
+        {
+            var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                WriteIndented = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            };
+            var sample = snapshot.Items.Take(3).Select(item => new
+            {
+                item.Code,
+                item.ParentCode,
+                item.Name,
+                Payload = JsonSerializer.SerializeToElement(item.Payload, jsonOptions),
+            });
+            Console.WriteLine(JsonSerializer.Serialize(sample, jsonOptions));
+            Console.WriteLine("dry-run: снимок не опубликован.");
+            return 0;
+        }
+
+        var dto = new ReferenceImportRequestDto(
+            snapshot.Dataset,
+            snapshot.Version,
+            snapshot.SourceDocument,
+            snapshot.SourceUrl,
+            snapshot.SourceSha256,
+            snapshot.PublishedAt,
+            snapshot.Items);
+
+        var response = await host.Services.GetRequiredService<ReferenceApiClient>()
+            .PublishAsync(dto, CancellationToken.None);
+        Console.WriteLine($"Опубликовано в {nsiOptions.ApiBaseUrl}: {response}");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка импорта КТРУ из HTML: {exception.Message}");
+        return 1;
+    }
+}
+
+if (importKtruRss)
+{
+    try
+    {
+        var result = await host.Services.GetRequiredService<KtruRssMonitorService>()
+            .CheckAsync(publish: !dryRun, CancellationToken.None);
+
+        Console.WriteLine($"Категорий проверено: {result.CategoryCount}");
+        Console.WriteLine($"Новых категорий: {result.NewCategories.Length}");
+        foreach (var category in result.NewCategories)
+        {
+            Console.WriteLine($"  {category}");
+        }
+
+        Console.WriteLine($"Новых кодов: {result.NewCodes.Length}");
+        foreach (var code in result.NewCodes.Take(20))
+        {
+            Console.WriteLine($"  {code}");
+        }
+
+        Console.WriteLine($"Версия: {result.Version}");
+        Console.WriteLine(result.Published
+            ? "Снимок опубликован в csms-api."
+            : dryRun
+                ? "dry-run: публикация не выполнялась."
+                : "Публикация не потребовалась.");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка проверки RSS КТРУ: {exception.Message}");
         return 1;
     }
 }
