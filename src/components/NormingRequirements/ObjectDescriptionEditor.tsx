@@ -124,6 +124,11 @@ export default function ObjectDescriptionEditor({
   const [unitChangeBlocked, setUnitChangeBlocked] = useState(false);
   // Как в ЕИС: показывать в карточке КТРУ только обязательные поля.
   const [mandatoryOnly, setMandatoryOnly] = useState(false);
+  // Поля КТРУ без единицы измерения заблокированы, пока пользователь не
+  // решит задать единицу вручную (кнопка «Открыть» у такого поля).
+  const [manualUnitCharacteristics, setManualUnitCharacteristics] = useState<
+    string[]
+  >([]);
 
   const { data: allPurchaseObjects = [] } = usePurchaseObjects(
     organizationId ?? initialValue?.organizationId ?? undefined,
@@ -321,6 +326,38 @@ export default function ObjectDescriptionEditor({
     [mandatoryOnly, selectedKtru],
   );
 
+  /**
+   * У характеристики КТРУ единица измерения может отсутствовать. Такое поле
+   * показываем заблокированным с честной подсказкой; «Открыть» снимает блокировку
+   * только для этой характеристики, не меняя остальные поля каталога.
+   */
+  const isUnitMissingInKtru = (item: ObjectCharacteristic) => {
+    if (
+      !draft.useKtru ||
+      !selectedKtru ||
+      manualUnitCharacteristics.includes(item.id)
+    ) {
+      return false;
+    }
+    // Единица уже задана вручную — в том числе в сохранённом черновике,
+    // куда локальный список «открытых» полей не попадает.
+    if (item.unit.trim()) {
+      return false;
+    }
+    const source = selectedKtru.characteristics.find(
+      (characteristic) =>
+        characteristic.name.trim().toLowerCase() ===
+        item.name.trim().toLowerCase(),
+    );
+    return Boolean(source && !source.unit?.trim());
+  };
+
+  const openCharacteristicUnit = (id: string) => {
+    setManualUnitCharacteristics((prev) =>
+      prev.includes(id) ? prev : [...prev, id],
+    );
+  };
+
   const previewText = useMemo(
     () => buildObjectDescriptionSummaryText(draft),
     [draft],
@@ -397,6 +434,9 @@ export default function ObjectDescriptionEditor({
 
   const handleSelectKtru = (item: KtruRef | null) => {
     setUnitChangeBlocked(false);
+    // При смене позиции старые «открытые» единицы не имеют отношения к новым
+    // полям каталога — начинаем с чистого списка.
+    setManualUnitCharacteristics([]);
     // Если в позиции несколько единиц, не подставляем первую молча:
     // пользователь должен выбрать нужную сам.
     const options =
@@ -1088,6 +1128,15 @@ export default function ObjectDescriptionEditor({
                       >
                         <span className={block("ktru-field-name")}>
                           {characteristic.name}
+                          {!characteristic.unit?.trim() && (
+                            <span
+                              className={block("ktru-field-unit-empty")}
+                              title="В КТРУ нет единицы измерения"
+                            >
+                              {" "}
+                              · без единицы
+                            </span>
+                          )}
                         </span>
                         <span
                           className={block("ktru-field-badge", [
@@ -1235,17 +1284,39 @@ export default function ObjectDescriptionEditor({
                     />
                   </div>
 
-                  <div className={block("field", ["unit"])}>
+                  <div
+                    className={block("field", ["unit"])}
+                    title={
+                      isUnitMissingInKtru(item)
+                        ? "В КТРУ нет единицы измерения. Нажмите «Открыть», чтобы задать её вручную."
+                        : undefined
+                    }
+                  >
                     <label className={block("label")}>Ед. изм.</label>
                     <OkeiSelect
                       compact
                       value={item.unit}
                       valueMode="symbol"
                       placeholder="мм, кг, Вт"
+                      disabled={isUnitMissingInKtru(item)}
                       onChange={(nextUnit) =>
                         updateCharacteristic(idx, { unit: nextUnit })
                       }
                     />
+                    {isUnitMissingInKtru(item) && (
+                      <>
+                        <span className={block("field-hint")}>
+                          В КТРУ нет единицы измерения
+                        </span>
+                        <button
+                          type="button"
+                          className={block("inline-btn")}
+                          onClick={() => openCharacteristicUnit(item.id)}
+                        >
+                          Открыть
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   <div className={block("field")}>
