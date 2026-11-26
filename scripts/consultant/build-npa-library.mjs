@@ -44,6 +44,75 @@ const formatDate = (value) => {
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
 };
 
+const SUBJECT_START = /^(?:О|Об|ОБ|©б)\s/i;
+const SERVICE_LINE = /^(?:Федеральный закон|Кодекс Российской Федерации|Постановление Правительства|Распоряжение Правительства|Приказ|Редакция|Официальный текст|Дата публикации|Принят|Одобрен|Раздел|РАЗДЕЛ|ОБЩАЯ|ОСОБЕННАЯ|ГЛАВА|Глава|МИНИСТЕРСТВО|ФЕДЕРАЛЬНОЕ|ПРАВИТЕЛЬСТВО|РОССИЙСКАЯ ФЕДЕРАЦИЯ|Регистрационный|Москва|МОСКВА|ПРИКАЗ|ПОСТАНОВЛЕНИЕ|ФЕДЕРАЛЬНЫЙ ЗАКОН|КОДЕКС|от\s|Председатель|Министр|Подписано)/i;
+
+/**
+ * Полное название акта: карточка pravo.gov.ru даёт только вид, дату и номер,
+ * а предмет регулирования лежит в шапке сохранённой копии до первой главы.
+ * У отсканированных приказов шапка испорчена OCR — такие строки не берём,
+ * чтобы не показывать выдуманное название.
+ */
+const readSubject = async (slug, kind) => {
+  if (!slug) return "";
+  const file = path.join(ROOT, ".tmp/pravo-downloads", `${slug}.md`);
+  let head = "";
+  try {
+    const handle = await fs.open(file, "r");
+    try {
+      const buffer = Buffer.alloc(32 * 1024);
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+      head = buffer.subarray(0, bytesRead).toString("utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    return "";
+  }
+  const lines = head.split(/\r?\n/);
+  const stop = lines.findIndex((line) => line.trim().startsWith("## "));
+  for (const raw of lines.slice(0, stop < 0 ? lines.length : stop)) {
+    const value = raw
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^©(?=[А-Яа-яЁё])/, "О")
+      .replace(/[.,:;]+$/, "");
+    if (!value || value.length < 5 || value.length > 260) continue;
+    if (/^\d/.test(value) || /[|\\^`{}~]/.test(value)) continue;
+    const letters = (value.match(/[А-Яа-яЁё]/g) ?? []).length;
+    if (letters / value.length < 0.6) continue;
+    if (SERVICE_LINE.test(value) && !SUBJECT_START.test(value)) continue;
+    if (value === value.toUpperCase() && !SUBJECT_START.test(value)) continue;
+    // «частью 3 статьи 83 Градостроительного кодекса» — не название акта:
+    // кодекс/регламент должен быть в начале заголовка.
+    const codeTitle = /^(?:[А-Яа-яЁё-]+\s+){0,3}(?:кодекс|регламент)\b/i.test(value);
+    if (!SUBJECT_START.test(value) && !codeTitle) continue;
+    // У приказов шапка распознана из скана: берём только явно полные и
+    // не испорченные OCR формулировки, иначе показываем обозначение карточки.
+    if (
+      kind === "Приказ" &&
+      (!/^(?:Об утверждении|О внесении|Об установлении)/i.test(value) ||
+        value.length < 50 ||
+        /[?|]/.test(value))
+    ) {
+      continue;
+    }
+    return value;
+  }
+  return "";
+};
+
+const fullTitle = (base, subject) => {
+  const designation = String(base ?? "").replace(/\s+/g, " ").trim();
+  if (!subject) return designation;
+  if (!SUBJECT_START.test(subject)) {
+    // «Уголовный кодекс Российской Федерации» + номер из карточки.
+    const match = designation.match(/от\s+(\d{2}\.\d{2}\.\d{4})\s+№\s*(\S+)/);
+    if (match) return `${subject} от ${match[1]} № ${match[2]}`;
+  }
+  return `${designation} «${subject}»`;
+};
+
 // У части старых записей (например, ПП РФ № 1875) поле files не заполнено,
 // хотя файлы лежат на диске. Проверяем их напрямую, чтобы библиотека не
 // показывала доступный документ как «без текста».
@@ -88,9 +157,26 @@ for (const act of catalog) {
       .map((file) => String(file).match(/(\.md|\.txt|\.doc)$/i)?.[1]?.toLowerCase())
       .filter(Boolean),
   );
-  const title = active?.act || card?.documentName || act.title || act.short || act.id;
+  const designation = active?.act || card?.documentName || act.title || act.short || act.id;
+  const subject = await readSubject(active?.slug ?? "", act.kind);
+  const title = fullTitle(designation, subject);
   const slug = active?.slug ?? "";
   const sourceUrl = slug ? `/api/consultant/source/npa/${slug}?format=md` : "";
+  // Все загруженные редакции акта — для выбора внутри просмотра. В списке
+  // остаётся одна карточка на акт: архив не загромождает библиотеку.
+  const editions = records
+    .filter((record) => (record.files ?? []).some((file) => /\.md$/i.test(file)))
+    .map((record) => ({
+      slug: record.slug,
+      role: record.role ?? "",
+      date: formatDate(record.date),
+      caption: String(record.caption ?? "").trim(),
+      sourceUrl: `/api/consultant/source/npa/${record.slug}?format=md`,
+      wordUrl: (record.files ?? []).some((file) => /\.doc$/i.test(file))
+        ? `/api/consultant/source/npa/${record.slug}?format=doc&download=1`
+        : "",
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
   const chunks =
     (chunksBySlug.get(slug) ?? 0) +
     (act.id === "pp-1875" ? chunksBySlug.get("pp-1875") ?? 0 : 0);
@@ -118,6 +204,7 @@ for (const act of catalog) {
     slug,
     shortName: active?.shortName || card?.shortName || act.short || act.id,
     title,
+    subject,
     kind: act.kind || "НПА",
     number: String(act.number ?? ""),
     year: String(act.year ?? ""),
@@ -129,6 +216,7 @@ for (const act of catalog) {
     cardUrl: active?.cardUrl || card?.cardUrl || "",
     publicationUrl: active?.publicationUrl || "",
     formats: [...formats],
+    editions,
     chunks,
     status,
     note,

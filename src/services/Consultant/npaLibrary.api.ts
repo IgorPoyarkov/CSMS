@@ -11,6 +11,7 @@ const NpaLibraryItemSchema = z.object({
   slug: z.string(),
   shortName: z.string(),
   title: z.string(),
+  subject: z.string(),
   kind: z.string(),
   number: z.string(),
   year: z.string(),
@@ -22,6 +23,17 @@ const NpaLibraryItemSchema = z.object({
   cardUrl: z.string(),
   publicationUrl: z.string(),
   formats: z.array(z.string()),
+  // Все загруженные редакции акта: выбор — внутри просмотра, не в списке.
+  editions: z.array(
+    z.object({
+      slug: z.string(),
+      role: z.string(),
+      date: z.string(),
+      caption: z.string(),
+      sourceUrl: z.string(),
+      wordUrl: z.string(),
+    }),
+  ),
   chunks: z.number(),
   status: z.enum(["available", "missing-card", "future", "archive", "no-text"]),
   note: z.string(),

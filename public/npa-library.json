@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-11-26T14:24:47.951Z",
+  "builtAt": "2026-11-26T14:54:02.567Z",
   "total": 92,
   "available": 86,
   "missingCard": 6,
@@ -18,7 +18,8 @@
       "id": "fz-7",
       "slug": "fz-7-2026-09-01",
       "shortName": "7-ФЗ",
-      "title": "Федеральный закон от 10.01.2002 № 7-ФЗ",
+      "title": "Федеральный закон от 10.01.2002 № 7-ФЗ «Об охране окружающей среды»",
+      "subject": "Об охране окружающей среды",
       "kind": "Федеральный закон",
       "number": "7",
       "year": "2002",
@@ -34,10 +35,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-7-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-7-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-7-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 483,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-7-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A010.01.2002%C2%A0%E2%84%96%C2%A07-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-7-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+10.01.2002+%E2%84%96+7-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B5+%D0%BE%D0%BA%D1%80%D1%83%D0%B6%D0%B0%D1%8E%D1%89%D0%B5%D0%B9+%D1%81%D1%80%D0%B5%D0%B4%D1%8B%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-7-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-7-2026-09-01?format=doc&download=1"
     },
@@ -45,7 +56,8 @@
       "id": "gk-14",
       "slug": "gk-14-2026-06-10",
       "shortName": "ГК РФ, ч. 2",
-      "title": "Кодекс Российской Федерации от 26.01.1996 № 14-ФЗ",
+      "title": "Кодекс Российской Федерации от 26.01.1996 № 14-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "14",
       "year": "1996",
@@ -61,10 +73,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "gk-14-2026-06-10",
+          "role": "actual",
+          "date": "2026-06-10",
+          "caption": "с 10.06.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/gk-14-2026-06-10?format=md",
+          "wordUrl": "/api/consultant/source/npa/gk-14-2026-06-10?format=doc&download=1"
+        }
+      ],
       "chunks": 846,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgk-14-2026-06-10%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A026.01.1996%C2%A0%E2%84%96%C2%A014-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgk-14-2026-06-10%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+26.01.1996+%E2%84%96+14-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/gk-14-2026-06-10?format=md",
       "wordUrl": "/api/consultant/source/npa/gk-14-2026-06-10?format=doc&download=1"
     },
@@ -72,7 +94,8 @@
       "id": "fz-16",
       "slug": "fz-16-2026-09-01",
       "shortName": "16-ФЗ",
-      "title": "Федеральный закон от 09.02.2007 № 16-ФЗ",
+      "title": "Федеральный закон от 09.02.2007 № 16-ФЗ «О транспортной безопасности»",
+      "subject": "О транспортной безопасности",
       "kind": "Федеральный закон",
       "number": "16",
       "year": "2007",
@@ -88,10 +111,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-16-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-16-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-16-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 147,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-16-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A009.02.2007%C2%A0%E2%84%96%C2%A016-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-16-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+09.02.2007+%E2%84%96+16-%D0%A4%D0%97+%C2%AB%D0%9E+%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%BD%D0%BE%D0%B9+%D0%B1%D0%B5%D0%B7%D0%BE%D0%BF%D0%B0%D1%81%D0%BD%D0%BE%D1%81%D1%82%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-16-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-16-2026-09-01?format=doc&download=1"
     },
@@ -99,7 +132,8 @@
       "id": "fz-28",
       "slug": "fz-28-2026-01-20",
       "shortName": "28-ФЗ",
-      "title": "Федеральный закон от 12.02.1998 № 28-ФЗ",
+      "title": "Федеральный закон от 12.02.1998 № 28-ФЗ «О гражданской обороне»",
+      "subject": "О гражданской обороне",
       "kind": "Федеральный закон",
       "number": "28",
       "year": "1998",
@@ -115,10 +149,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-28-2026-01-20",
+          "role": "actual",
+          "date": "2026-01-20",
+          "caption": "с 20.01.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-28-2026-01-20?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-28-2026-01-20?format=doc&download=1"
+        }
+      ],
       "chunks": 50,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-28-2026-01-20%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A012.02.1998%C2%A0%E2%84%96%C2%A028-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-28-2026-01-20%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+12.02.1998+%E2%84%96+28-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B3%D1%80%D0%B0%D0%B6%D0%B4%D0%B0%D0%BD%D1%81%D0%BA%D0%BE%D0%B9+%D0%BE%D0%B1%D0%BE%D1%80%D0%BE%D0%BD%D0%B5%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-28-2026-01-20?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-28-2026-01-20?format=doc&download=1"
     },
@@ -126,7 +170,8 @@
       "id": "fz-31",
       "slug": "fz-31-2024-03-23",
       "shortName": "31-ФЗ",
-      "title": "Федеральный закон от 26.02.1997 № 31-ФЗ",
+      "title": "Федеральный закон от 26.02.1997 № 31-ФЗ «О мобилизационной подготовке и мобилизации в Российской Федерации»",
+      "subject": "О мобилизационной подготовке и мобилизации в Российской Федерации",
       "kind": "Федеральный закон",
       "number": "31",
       "year": "1997",
@@ -142,10 +187,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-31-2024-03-23",
+          "role": "actual",
+          "date": "2024-03-23",
+          "caption": "с 23.03.2024, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-31-2024-03-23?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-31-2024-03-23?format=doc&download=1"
+        }
+      ],
       "chunks": 92,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-31-2024-03-23%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A026.02.1997%C2%A0%E2%84%96%C2%A031-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-31-2024-03-23%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+26.02.1997+%E2%84%96+31-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%BC%D0%BE%D0%B1%D0%B8%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9+%D0%BF%D0%BE%D0%B4%D0%B3%D0%BE%D1%82%D0%BE%D0%B2%D0%BA%D0%B5+%D0%B8+%D0%BC%D0%BE%D0%B1%D0%B8%D0%BB%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%B8+%D0%B2+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-31-2024-03-23?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-31-2024-03-23?format=doc&download=1"
     },
@@ -153,7 +208,8 @@
       "id": "fz-44",
       "slug": "fz-44-2026-10-01",
       "shortName": "44-ФЗ",
-      "title": "Федеральный закон от 05.04.2013 № 44-ФЗ",
+      "title": "Федеральный закон от 05.04.2013 № 44-ФЗ «О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд»",
+      "subject": "О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд",
       "kind": "Федеральный закон",
       "number": "44",
       "year": "2013",
@@ -169,10 +225,76 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-44-2026-10-01",
+          "role": "actual",
+          "date": "2026-10-01",
+          "caption": "с 01.10.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2026-10-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2026-10-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2026-08-04",
+          "role": "archive",
+          "date": "2026-08-04",
+          "caption": "на 04.08.2026, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2026-08-04?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2026-08-04?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2026-07-01",
+          "role": "archive",
+          "date": "2026-07-01",
+          "caption": "на 01.07.2026, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2026-07-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2026-07-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2026-01-01",
+          "role": "archive",
+          "date": "2026-01-01",
+          "caption": "на 01.01.2026, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2026-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2026-01-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2025-01-01",
+          "role": "archive",
+          "date": "2025-01-01",
+          "caption": "на 01.01.2025, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2025-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2025-01-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2024-01-01",
+          "role": "archive",
+          "date": "2024-01-01",
+          "caption": "на 01.01.2024, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2024-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2024-01-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2023-01-01",
+          "role": "archive",
+          "date": "2023-01-01",
+          "caption": "на 01.01.2023, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2023-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2023-01-01?format=doc&download=1"
+        },
+        {
+          "slug": "fz-44-2022-07-01",
+          "role": "archive",
+          "date": "2022-07-01",
+          "caption": "на 01.07.2022, недействующая",
+          "sourceUrl": "/api/consultant/source/npa/fz-44-2022-07-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-44-2022-07-01?format=doc&download=1"
+        }
+      ],
       "chunks": 945,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-44-2026-10-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A005.04.2013%C2%A0%E2%84%96%C2%A044-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-44-2026-10-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+05.04.2013+%E2%84%96+44-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%BD%D0%BE%D0%B9+%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%B5+%D0%B2+%D1%81%D1%84%D0%B5%D1%80%D0%B5+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BC%D1%83%D0%BD%D0%B8%D1%86%D0%B8%D0%BF%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-44-2026-10-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-44-2026-10-01?format=doc&download=1"
     },
@@ -180,7 +302,8 @@
       "id": "fz-45",
       "slug": "fz-45-2025-07-01",
       "shortName": "45-ФЗ",
-      "title": "Федеральный закон от 20.04.1995 № 45-ФЗ",
+      "title": "Федеральный закон от 20.04.1995 № 45-ФЗ «О государственной защите судей, должностных лиц правоохранительных и контролирующих органов»",
+      "subject": "О государственной защите судей, должностных лиц правоохранительных и контролирующих органов",
       "kind": "Федеральный закон",
       "number": "45",
       "year": "1995",
@@ -196,10 +319,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-45-2025-07-01",
+          "role": "actual",
+          "date": "2025-07-01",
+          "caption": "с 01.07.2025, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-45-2025-07-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-45-2025-07-01?format=doc&download=1"
+        }
+      ],
       "chunks": 46,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-45-2025-07-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A020.04.1995%C2%A0%E2%84%96%C2%A045-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-45-2025-07-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+20.04.1995+%E2%84%96+45-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9+%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D0%B5+%D1%81%D1%83%D0%B4%D0%B5%D0%B9%2C+%D0%B4%D0%BE%D0%BB%D0%B6%D0%BD%D0%BE%D1%81%D1%82%D0%BD%D1%8B%D1%85+%D0%BB%D0%B8%D1%86+%D0%BF%D1%80%D0%B0%D0%B2%D0%BE%D0%BE%D1%85%D1%80%D0%B0%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%B8%D1%80%D1%83%D1%8E%D1%89%D0%B8%D1%85+%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%BE%D0%B2%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-45-2025-07-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-45-2025-07-01?format=doc&download=1"
     },
@@ -207,7 +340,8 @@
       "id": "gk-51",
       "slug": "gk-51-2026-10-23",
       "shortName": "ГК РФ, ч. 1",
-      "title": "Кодекс Российской Федерации от 30.11.1994 № 51-ФЗ",
+      "title": "Кодекс Российской Федерации от 30.11.1994 № 51-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "51",
       "year": "1994",
@@ -223,10 +357,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "gk-51-2026-10-23",
+          "role": "actual",
+          "date": "2026-10-23",
+          "caption": "с 23.10.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/gk-51-2026-10-23?format=md",
+          "wordUrl": "/api/consultant/source/npa/gk-51-2026-10-23?format=doc&download=1"
+        }
+      ],
       "chunks": 970,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgk-51-2026-10-23%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.11.1994%C2%A0%E2%84%96%C2%A051-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgk-51-2026-10-23%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.11.1994+%E2%84%96+51-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/gk-51-2026-10-23?format=md",
       "wordUrl": "/api/consultant/source/npa/gk-51-2026-10-23?format=doc&download=1"
     },
@@ -234,7 +378,8 @@
       "id": "uk-63",
       "slug": "uk-63-2026-08-15",
       "shortName": "УК РФ",
-      "title": "Кодекс Российской Федерации от 13.06.1996 № 63-ФЗ",
+      "title": "Кодекс Российской Федерации от 13.06.1996 № 63-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "63",
       "year": "1996",
@@ -250,10 +395,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "uk-63-2026-08-15",
+          "role": "actual",
+          "date": "2026-08-15",
+          "caption": "с 15.08.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/uk-63-2026-08-15?format=md",
+          "wordUrl": "/api/consultant/source/npa/uk-63-2026-08-15?format=doc&download=1"
+        }
+      ],
       "chunks": 1161,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fuk-63-2026-08-15%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A013.06.1996%C2%A0%E2%84%96%C2%A063-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fuk-63-2026-08-15%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+13.06.1996+%E2%84%96+63-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/uk-63-2026-08-15?format=md",
       "wordUrl": "/api/consultant/source/npa/uk-63-2026-08-15?format=doc&download=1"
     },
@@ -261,7 +416,8 @@
       "id": "fz-63-ep",
       "slug": "fz-63-ep-2026-03-01",
       "shortName": "63-ФЗ (ЭП)",
-      "title": "Федеральный закон от 06.04.2011 № 63-ФЗ",
+      "title": "Федеральный закон от 06.04.2011 № 63-ФЗ «Об электронной подписи»",
+      "subject": "Об электронной подписи",
       "kind": "Федеральный закон",
       "number": "63",
       "year": "2011",
@@ -277,10 +433,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-63-ep-2026-03-01",
+          "role": "actual",
+          "date": "2026-03-01",
+          "caption": "с 01.03.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-63-ep-2026-03-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-63-ep-2026-03-01?format=doc&download=1"
+        }
+      ],
       "chunks": 175,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-63-ep-2026-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A006.04.2011%C2%A0%E2%84%96%C2%A063-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-63-ep-2026-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+06.04.2011+%E2%84%96+63-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D1%8D%D0%BB%D0%B5%D0%BA%D1%82%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%B9+%D0%BF%D0%BE%D0%B4%D0%BF%D0%B8%D1%81%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-63-ep-2026-03-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-63-ep-2026-03-01?format=doc&download=1"
     },
@@ -288,7 +454,8 @@
       "id": "vk-73",
       "slug": "vk-73-2025-03-01",
       "shortName": "Водный кодекс",
-      "title": "Федеральный закон от 03.06.2006 № 73-ФЗ",
+      "title": "Федеральный закон от 03.06.2006 № 73-ФЗ «О введении в действие Водного кодекса Российской Федерации»",
+      "subject": "О введении в действие Водного кодекса Российской Федерации",
       "kind": "Федеральный закон",
       "number": "73",
       "year": "2006",
@@ -304,10 +471,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "vk-73-2025-03-01",
+          "role": "actual",
+          "date": "2025-03-01",
+          "caption": "с 01.03.2025, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/vk-73-2025-03-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/vk-73-2025-03-01?format=doc&download=1"
+        }
+      ],
       "chunks": 38,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fvk-73-2025-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A003.06.2006%C2%A0%E2%84%96%C2%A073-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fvk-73-2025-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+03.06.2006+%E2%84%96+73-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B2%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B2+%D0%B4%D0%B5%D0%B9%D1%81%D1%82%D0%B2%D0%B8%D0%B5+%D0%92%D0%BE%D0%B4%D0%BD%D0%BE%D0%B3%D0%BE+%D0%BA%D0%BE%D0%B4%D0%B5%D0%BA%D1%81%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/vk-73-2025-03-01?format=md",
       "wordUrl": "/api/consultant/source/npa/vk-73-2025-03-01?format=doc&download=1"
     },
@@ -315,7 +492,8 @@
       "id": "fz-89",
       "slug": "fz-89-2026-04-03",
       "shortName": "89-ФЗ",
-      "title": "Федеральный закон от 24.06.1998 № 89-ФЗ",
+      "title": "Федеральный закон от 24.06.1998 № 89-ФЗ «Об отходах производства и потребления»",
+      "subject": "Об отходах производства и потребления",
       "kind": "Федеральный закон",
       "number": "89",
       "year": "1998",
@@ -331,10 +509,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-89-2026-04-03",
+          "role": "actual",
+          "date": "2026-04-03",
+          "caption": "с 03.04.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-89-2026-04-03?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-89-2026-04-03?format=doc&download=1"
+        }
+      ],
       "chunks": 312,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-89-2026-04-03%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A024.06.1998%C2%A0%E2%84%96%C2%A089-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-89-2026-04-03%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+24.06.1998+%E2%84%96+89-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%82%D1%85%D0%BE%D0%B4%D0%B0%D1%85+%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D1%81%D1%82%D0%B2%D0%B0+%D0%B8+%D0%BF%D0%BE%D1%82%D1%80%D0%B5%D0%B1%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-89-2026-04-03?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-89-2026-04-03?format=doc&download=1"
     },
@@ -342,7 +530,8 @@
       "id": "fz-94",
       "slug": "fz-94-2015-03-08",
       "shortName": "94-ФЗ",
-      "title": "Федеральный закон от 28.07.2004 № 94-ФЗ",
+      "title": "Федеральный закон от 28.07.2004 № 94-ФЗ «О внесении изменений в Гражданский процессуальный кодекс Российской Федерации»",
+      "subject": "О внесении изменений в Гражданский процессуальный кодекс Российской Федерации",
       "kind": "Федеральный закон",
       "number": "94",
       "year": "2004",
@@ -358,10 +547,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-94-2015-03-08",
+          "role": "actual",
+          "date": "2015-03-08",
+          "caption": "с 08.03.2015, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/fz-94-2015-03-08?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-94-2015-03-08?format=doc&download=1"
+        }
+      ],
       "chunks": 8,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-94-2015-03-08%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A028.07.2004%C2%A0%E2%84%96%C2%A094-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-94-2015-03-08%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+28.07.2004+%E2%84%96+94-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%93%D1%80%D0%B0%D0%B6%D0%B4%D0%B0%D0%BD%D1%81%D0%BA%D0%B8%D0%B9+%D0%BF%D1%80%D0%BE%D1%86%D0%B5%D1%81%D1%81%D1%83%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%BA%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-94-2015-03-08?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-94-2015-03-08?format=doc&download=1"
     },
@@ -369,7 +568,8 @@
       "id": "fz-119",
       "slug": "fz-119-2004-07-27",
       "shortName": "119-ФЗ",
-      "title": "Федеральный закон от 31.07.1995 № 119-ФЗ",
+      "title": "Федеральный закон от 31.07.1995 № 119-ФЗ «Об основах государственной службы Российской»",
+      "subject": "Об основах государственной службы Российской",
       "kind": "Федеральный закон",
       "number": "119",
       "year": "1995",
@@ -385,10 +585,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-119-2004-07-27",
+          "role": "actual",
+          "date": "2004-07-27",
+          "caption": "с 27.07.2004, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/fz-119-2004-07-27?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-119-2004-07-27?format=doc&download=1"
+        }
+      ],
       "chunks": 96,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-119-2004-07-27%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A031.07.1995%C2%A0%E2%84%96%C2%A0119-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-119-2004-07-27%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+31.07.1995+%E2%84%96+119-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D0%B0%D1%85+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B9+%D1%81%D0%BB%D1%83%D0%B6%D0%B1%D1%8B+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-119-2004-07-27?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-119-2004-07-27?format=doc&download=1"
     },
@@ -396,7 +606,8 @@
       "id": "fz-135",
       "slug": "fz-135-2026-09-09",
       "shortName": "135-ФЗ",
-      "title": "Федеральный закон от 26.07.2006 № 135-ФЗ",
+      "title": "Федеральный закон от 26.07.2006 № 135-ФЗ «О защите конкуренции»",
+      "subject": "О защите конкуренции",
       "kind": "Федеральный закон",
       "number": "135",
       "year": "2006",
@@ -412,10 +623,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-135-2026-09-09",
+          "role": "actual",
+          "date": "2026-09-09",
+          "caption": "с 09.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-135-2026-09-09?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-135-2026-09-09?format=doc&download=1"
+        }
+      ],
       "chunks": 470,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-135-2026-09-09%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A026.07.2006%C2%A0%E2%84%96%C2%A0135-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-135-2026-09-09%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+26.07.2006+%E2%84%96+135-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D0%B5+%D0%BA%D0%BE%D0%BD%D0%BA%D1%83%D1%80%D0%B5%D0%BD%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-135-2026-09-09?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-135-2026-09-09?format=doc&download=1"
     },
@@ -423,7 +644,8 @@
       "id": "zk-136",
       "slug": "zk-136-2026-11-13",
       "shortName": "Земельный кодекс",
-      "title": "Кодекс Российской Федерации от 25.10.2001 № 136-ФЗ",
+      "title": "Кодекс Российской Федерации от 25.10.2001 № 136-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "136",
       "year": "2001",
@@ -439,10 +661,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "zk-136-2026-11-13",
+          "role": "actual",
+          "date": "2026-11-13",
+          "caption": "с 13.11.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/zk-136-2026-11-13?format=md",
+          "wordUrl": "/api/consultant/source/npa/zk-136-2026-11-13?format=doc&download=1"
+        }
+      ],
       "chunks": 896,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fzk-136-2026-11-13%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A025.10.2001%C2%A0%E2%84%96%C2%A0136-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fzk-136-2026-11-13%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+25.10.2001+%E2%84%96+136-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/zk-136-2026-11-13?format=md",
       "wordUrl": "/api/consultant/source/npa/zk-136-2026-11-13?format=doc&download=1"
     },
@@ -450,7 +682,8 @@
       "id": "bk-145",
       "slug": "bk-145-2026-11-13",
       "shortName": "БК РФ",
-      "title": "Кодекс Российской Федерации от 31.07.1998 № 145-ФЗ",
+      "title": "Кодекс Российской Федерации от 31.07.1998 № 145-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "145",
       "year": "1998",
@@ -466,10 +699,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "bk-145-2026-11-13",
+          "role": "actual",
+          "date": "2026-11-13",
+          "caption": "с 13.11.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/bk-145-2026-11-13?format=md",
+          "wordUrl": "/api/consultant/source/npa/bk-145-2026-11-13?format=doc&download=1"
+        }
+      ],
       "chunks": 1811,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fbk-145-2026-11-13%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A031.07.1998%C2%A0%E2%84%96%C2%A0145-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fbk-145-2026-11-13%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+31.07.1998+%E2%84%96+145-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/bk-145-2026-11-13?format=md",
       "wordUrl": "/api/consultant/source/npa/bk-145-2026-11-13?format=doc&download=1"
     },
@@ -477,7 +720,8 @@
       "id": "fz-152",
       "slug": "fz-152-2026-07-26",
       "shortName": "152-ФЗ",
-      "title": "Федеральный закон от 27.07.2006 № 152-ФЗ",
+      "title": "Федеральный закон от 27.07.2006 № 152-ФЗ «О персональных данных»",
+      "subject": "О персональных данных",
       "kind": "Федеральный закон",
       "number": "152",
       "year": "2006",
@@ -493,10 +737,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-152-2026-07-26",
+          "role": "actual",
+          "date": "2026-07-26",
+          "caption": "с 26.07.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-152-2026-07-26?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-152-2026-07-26?format=doc&download=1"
+        }
+      ],
       "chunks": 149,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-152-2026-07-26%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A027.07.2006%C2%A0%E2%84%96%C2%A0152-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-152-2026-07-26%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+27.07.2006+%E2%84%96+152-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%BF%D0%B5%D1%80%D1%81%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D1%85%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-152-2026-07-26?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-152-2026-07-26?format=doc&download=1"
     },
@@ -504,7 +758,8 @@
       "id": "fz-184",
       "slug": "fz-184-2026-09-01",
       "shortName": "184-ФЗ",
-      "title": "Федеральный закон от 27.12.2002 № 184-ФЗ",
+      "title": "Федеральный закон от 27.12.2002 № 184-ФЗ «О техническом регулировании»",
+      "subject": "О техническом регулировании",
       "kind": "Федеральный закон",
       "number": "184",
       "year": "2002",
@@ -520,10 +775,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-184-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-184-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-184-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 191,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-184-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A027.12.2002%C2%A0%E2%84%96%C2%A0184-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-184-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+27.12.2002+%E2%84%96+184-%D0%A4%D0%97+%C2%AB%D0%9E+%D1%82%D0%B5%D1%85%D0%BD%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%BE%D0%BC+%D1%80%D0%B5%D0%B3%D1%83%D0%BB%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-184-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-184-2026-09-01?format=doc&download=1"
     },
@@ -531,7 +796,8 @@
       "id": "zhk-188",
       "slug": "zhk-188-2026-10-07",
       "shortName": "ЖК РФ",
-      "title": "Кодекс Российской Федерации от 29.12.2004 № 188-ФЗ",
+      "title": "Кодекс Российской Федерации от 29.12.2004 № 188-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "188",
       "year": "2004",
@@ -547,10 +813,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "zhk-188-2026-10-07",
+          "role": "actual",
+          "date": "2026-10-07",
+          "caption": "с 07.10.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/zhk-188-2026-10-07?format=md",
+          "wordUrl": "/api/consultant/source/npa/zhk-188-2026-10-07?format=doc&download=1"
+        }
+      ],
       "chunks": 868,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fzhk-188-2026-10-07%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A029.12.2004%C2%A0%E2%84%96%C2%A0188-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fzhk-188-2026-10-07%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+29.12.2004+%E2%84%96+188-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/zhk-188-2026-10-07?format=md",
       "wordUrl": "/api/consultant/source/npa/zhk-188-2026-10-07?format=doc&download=1"
     },
@@ -558,7 +834,8 @@
       "id": "grk-190",
       "slug": "grk-190-2026-09-01",
       "shortName": "ГрК РФ",
-      "title": "Кодекс Российской Федерации от 29.12.2004 № 190-ФЗ",
+      "title": "Кодекс Российской Федерации от 29.12.2004 № 190-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "190",
       "year": "2004",
@@ -574,10 +851,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "grk-190-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/grk-190-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/grk-190-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 1443,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgrk-190-2026-09-01%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A029.12.2004%C2%A0%E2%84%96%C2%A0190-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fgrk-190-2026-09-01%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+29.12.2004+%E2%84%96+190-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/grk-190-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/grk-190-2026-09-01?format=doc&download=1"
     },
@@ -585,7 +872,8 @@
       "id": "fz-191",
       "slug": "fz-191-2026-08-04",
       "shortName": "191-ФЗ",
-      "title": "Федеральный закон от 29.12.2004 № 191-ФЗ",
+      "title": "Федеральный закон от 29.12.2004 № 191-ФЗ «О введении в действие Градостроительного кодекса Российской Федерации»",
+      "subject": "О введении в действие Градостроительного кодекса Российской Федерации",
       "kind": "Федеральный закон",
       "number": "191",
       "year": "2004",
@@ -601,10 +889,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-191-2026-08-04",
+          "role": "actual",
+          "date": "2026-08-04",
+          "caption": "с 04.08.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-191-2026-08-04?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-191-2026-08-04?format=doc&download=1"
+        }
+      ],
       "chunks": 155,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-191-2026-08-04%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A029.12.2004%C2%A0%E2%84%96%C2%A0191-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-191-2026-08-04%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+29.12.2004+%E2%84%96+191-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B2%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B2+%D0%B4%D0%B5%D0%B9%D1%81%D1%82%D0%B2%D0%B8%D0%B5+%D0%93%D1%80%D0%B0%D0%B4%D0%BE%D1%81%D1%82%D1%80%D0%BE%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D0%BA%D0%BE%D0%B4%D0%B5%D0%BA%D1%81%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-191-2026-08-04?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-191-2026-08-04?format=doc&download=1"
     },
@@ -612,7 +910,8 @@
       "id": "koap-195",
       "slug": "koap-195-2026-11-03",
       "shortName": "КоАП РФ",
-      "title": "Кодекс Российской Федерации от 30.12.2001 № 195-ФЗ",
+      "title": "Кодекс Российской Федерации от 30.12.2001 № 195-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "195",
       "year": "2001",
@@ -628,10 +927,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "koap-195-2026-11-03",
+          "role": "actual",
+          "date": "2026-11-03",
+          "caption": "с 03.11.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/koap-195-2026-11-03?format=md",
+          "wordUrl": "/api/consultant/source/npa/koap-195-2026-11-03?format=doc&download=1"
+        }
+      ],
       "chunks": 2995,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fkoap-195-2026-11-03%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.12.2001%C2%A0%E2%84%96%C2%A0195-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fkoap-195-2026-11-03%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.12.2001+%E2%84%96+195-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/koap-195-2026-11-03?format=md",
       "wordUrl": "/api/consultant/source/npa/koap-195-2026-11-03?format=doc&download=1"
     },
@@ -639,7 +948,8 @@
       "id": "tk-197",
       "slug": "tk-197-2026-09-01",
       "shortName": "ТК РФ",
-      "title": "Кодекс Российской Федерации от 30.12.2001 № 197-ФЗ",
+      "title": "Кодекс Российской Федерации от 30.12.2001 № 197-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "197",
       "year": "2001",
@@ -655,10 +965,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "tk-197-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/tk-197-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/tk-197-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 1144,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ftk-197-2026-09-01%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.12.2001%C2%A0%E2%84%96%C2%A0197-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ftk-197-2026-09-01%3Fformat%3Dmd&title=%D0%9A%D0%BE%D0%B4%D0%B5%D0%BA%D1%81+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.12.2001+%E2%84%96+197-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/tk-197-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/tk-197-2026-09-01?format=doc&download=1"
     },
@@ -666,7 +986,8 @@
       "id": "fz-209",
       "slug": "fz-209-2026-09-01",
       "shortName": "209-ФЗ",
-      "title": "Федеральный закон от 24.07.2007 № 209-ФЗ",
+      "title": "Федеральный закон от 24.07.2007 № 209-ФЗ «О развитии малого и среднего предпринимательства в Российской Федерации»",
+      "subject": "О развитии малого и среднего предпринимательства в Российской Федерации",
       "kind": "Федеральный закон",
       "number": "209",
       "year": "2007",
@@ -682,10 +1003,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-209-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-209-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-209-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 270,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-209-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A024.07.2007%C2%A0%E2%84%96%C2%A0209-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-209-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+24.07.2007+%E2%84%96+209-%D0%A4%D0%97+%C2%AB%D0%9E+%D1%80%D0%B0%D0%B7%D0%B2%D0%B8%D1%82%D0%B8%D0%B8+%D0%BC%D0%B0%D0%BB%D0%BE%D0%B3%D0%BE+%D0%B8+%D1%81%D1%80%D0%B5%D0%B4%D0%BD%D0%B5%D0%B3%D0%BE+%D0%BF%D1%80%D0%B5%D0%B4%D0%BF%D1%80%D0%B8%D0%BD%D0%B8%D0%BC%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%B2+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-209-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-209-2026-09-01?format=doc&download=1"
     },
@@ -693,7 +1024,8 @@
       "id": "fz-223",
       "slug": "fz-223-2025-01-01",
       "shortName": "223-ФЗ",
-      "title": "Федеральный закон от 18.07.2011 № 223-ФЗ",
+      "title": "Федеральный закон от 18.07.2011 № 223-ФЗ «О закупках товаров, работ, услуг отдельными видами юридических лиц»",
+      "subject": "О закупках товаров, работ, услуг отдельными видами юридических лиц",
       "kind": "Федеральный закон",
       "number": "223",
       "year": "2011",
@@ -709,10 +1041,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-223-2025-01-01",
+          "role": "actual",
+          "date": "2025-01-01",
+          "caption": "с 01.01.2025, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-223-2025-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-223-2025-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 255,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-223-2025-01-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A018.07.2011%C2%A0%E2%84%96%C2%A0223-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-223-2025-01-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+18.07.2011+%E2%84%96+223-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BA%D0%B0%D1%85+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%BC%D0%B8+%D0%B2%D0%B8%D0%B4%D0%B0%D0%BC%D0%B8+%D1%8E%D1%80%D0%B8%D0%B4%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D1%85+%D0%BB%D0%B8%D1%86%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-223-2025-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-223-2025-01-01?format=doc&download=1"
     },
@@ -720,7 +1062,8 @@
       "id": "fz-257",
       "slug": "fz-257-2026-09-01",
       "shortName": "257-ФЗ",
-      "title": "Федеральный закон от 08.11.2007 № 257-ФЗ",
+      "title": "Федеральный закон от 08.11.2007 № 257-ФЗ «Об автомобильных дорогах и о дорожной деятельности в Российской Федерации и о внесении изменений в отдельные законодательные акты Российской Федерации»",
+      "subject": "Об автомобильных дорогах и о дорожной деятельности в Российской Федерации и о внесении изменений в отдельные законодательные акты Российской Федерации",
       "kind": "Федеральный закон",
       "number": "257",
       "year": "2007",
@@ -736,10 +1079,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-257-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-257-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-257-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 378,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-257-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A008.11.2007%C2%A0%E2%84%96%C2%A0257-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-257-2026-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+08.11.2007+%E2%84%96+257-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%B0%D0%B2%D1%82%D0%BE%D0%BC%D0%BE%D0%B1%D0%B8%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%B4%D0%BE%D1%80%D0%BE%D0%B3%D0%B0%D1%85+%D0%B8+%D0%BE+%D0%B4%D0%BE%D1%80%D0%BE%D0%B6%D0%BD%D0%BE%D0%B9+%D0%B4%D0%B5%D1%8F%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D1%81%D1%82%D0%B8+%D0%B2+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%B8+%D0%BE+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D0%BE%D0%B4%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-257-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-257-2026-09-01?format=doc&download=1"
     },
@@ -747,7 +1100,8 @@
       "id": "fz-259",
       "slug": "fz-259-2026-01-01",
       "shortName": "259-ФЗ",
-      "title": "Федеральный закон от 08.08.2024 № 259-ФЗ",
+      "title": "Федеральный закон от 08.08.2024 № 259-ФЗ «О внесении изменений в части первую и вторую Налогового кодекса Российской Федерации и отдельные законодательные акты Российской Федерации о налогах и сборах»",
+      "subject": "О внесении изменений в части первую и вторую Налогового кодекса Российской Федерации и отдельные законодательные акты Российской Федерации о налогах и сборах",
       "kind": "Федеральный закон",
       "number": "259",
       "year": "2024",
@@ -763,10 +1117,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-259-2026-01-01",
+          "role": "actual",
+          "date": "2026-01-01",
+          "caption": "с 01.01.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-259-2026-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-259-2026-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 228,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-259-2026-01-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A008.08.2024%C2%A0%E2%84%96%C2%A0259-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-259-2026-01-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+08.08.2024+%E2%84%96+259-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D1%87%D0%B0%D1%81%D1%82%D0%B8+%D0%BF%D0%B5%D1%80%D0%B2%D1%83%D1%8E+%D0%B8+%D0%B2%D1%82%D0%BE%D1%80%D1%83%D1%8E+%D0%9D%D0%B0%D0%BB%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D0%B3%D0%BE+%D0%BA%D0%BE%D0%B4%D0%B5%D0%BA%D1%81%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%B8+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D0%BE%D0%B4%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE+%D0%BD%D0%B0%D0%BB%D0%BE%D0%B3%D0%B0%D1%85+%D0%B8+%D1%81%D0%B1%D0%BE%D1%80%D0%B0%D1%85%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-259-2026-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-259-2026-01-01?format=doc&download=1"
     },
@@ -774,7 +1138,8 @@
       "id": "fz-275",
       "slug": "fz-275-2026-08-04",
       "shortName": "275-ФЗ",
-      "title": "Федеральный закон от 29.12.2012 № 275-ФЗ",
+      "title": "Федеральный закон от 29.12.2012 № 275-ФЗ «О государственном оборонном заказе»",
+      "subject": "О государственном оборонном заказе",
       "kind": "Федеральный закон",
       "number": "275",
       "year": "2012",
@@ -790,10 +1155,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-275-2026-08-04",
+          "role": "actual",
+          "date": "2026-08-04",
+          "caption": "с 04.08.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-275-2026-08-04?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-275-2026-08-04?format=doc&download=1"
+        }
+      ],
       "chunks": 258,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-275-2026-08-04%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A029.12.2012%C2%A0%E2%84%96%C2%A0275-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-275-2026-08-04%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+29.12.2012+%E2%84%96+275-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%BC+%D0%BE%D0%B1%D0%BE%D1%80%D0%BE%D0%BD%D0%BD%D0%BE%D0%BC+%D0%B7%D0%B0%D0%BA%D0%B0%D0%B7%D0%B5%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-275-2026-08-04?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-275-2026-08-04?format=doc&download=1"
     },
@@ -801,7 +1176,8 @@
       "id": "fz-307",
       "slug": "fz-307-2026-08-15",
       "shortName": "307-ФЗ",
-      "title": "Федеральный закон от 30.12.2008 № 307-ФЗ",
+      "title": "Федеральный закон от 30.12.2008 № 307-ФЗ «Об аудиторской деятельности»",
+      "subject": "Об аудиторской деятельности",
       "kind": "Федеральный закон",
       "number": "307",
       "year": "2008",
@@ -817,10 +1193,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-307-2026-08-15",
+          "role": "actual",
+          "date": "2026-08-15",
+          "caption": "с 15.08.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-307-2026-08-15?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-307-2026-08-15?format=doc&download=1"
+        }
+      ],
       "chunks": 195,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-307-2026-08-15%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A030.12.2008%C2%A0%E2%84%96%C2%A0307-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-307-2026-08-15%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+30.12.2008+%E2%84%96+307-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%B0%D1%83%D0%B4%D0%B8%D1%82%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9+%D0%B4%D0%B5%D1%8F%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D1%81%D1%82%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-307-2026-08-15?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-307-2026-08-15?format=doc&download=1"
     },
@@ -828,7 +1214,8 @@
       "id": "fz-315",
       "slug": "fz-315-2026-03-01",
       "shortName": "315-ФЗ",
-      "title": "Федеральный закон от 01.12.2007 № 315-ФЗ",
+      "title": "Федеральный закон от 01.12.2007 № 315-ФЗ «О саморегулируемых организациях»",
+      "subject": "О саморегулируемых организациях",
       "kind": "Федеральный закон",
       "number": "315",
       "year": "2007",
@@ -844,10 +1231,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-315-2026-03-01",
+          "role": "actual",
+          "date": "2026-03-01",
+          "caption": "с 01.03.2026, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-315-2026-03-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-315-2026-03-01?format=doc&download=1"
+        }
+      ],
       "chunks": 109,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-315-2026-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A001.12.2007%C2%A0%E2%84%96%C2%A0315-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-315-2026-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+01.12.2007+%E2%84%96+315-%D0%A4%D0%97+%C2%AB%D0%9E+%D1%81%D0%B0%D0%BC%D0%BE%D1%80%D0%B5%D0%B3%D1%83%D0%BB%D0%B8%D1%80%D1%83%D0%B5%D0%BC%D1%8B%D1%85+%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F%D1%85%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-315-2026-03-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-315-2026-03-01?format=doc&download=1"
     },
@@ -855,7 +1252,8 @@
       "id": "fz-360",
       "slug": "fz-360-2024-12-26",
       "shortName": "360-ФЗ",
-      "title": "Федеральный закон от 02.07.2021 № 360-ФЗ",
+      "title": "Федеральный закон от 02.07.2021 № 360-ФЗ «О внесении изменений в отдельные законодательные акты Российской Федерации»",
+      "subject": "О внесении изменений в отдельные законодательные акты Российской Федерации",
       "kind": "Федеральный закон",
       "number": "360",
       "year": "2021",
@@ -871,10 +1269,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-360-2024-12-26",
+          "role": "actual",
+          "date": "2024-12-26",
+          "caption": "с 26.12.2024, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-360-2024-12-26?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-360-2024-12-26?format=doc&download=1"
+        }
+      ],
       "chunks": 462,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-360-2024-12-26%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A002.07.2021%C2%A0%E2%84%96%C2%A0360-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-360-2024-12-26%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+02.07.2021+%E2%84%96+360-%D0%A4%D0%97+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D0%BE%D0%B4%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-360-2024-12-26?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-360-2024-12-26?format=doc&download=1"
     },
@@ -882,7 +1290,8 @@
       "id": "fz-384",
       "slug": "fz-384-2024-09-01",
       "shortName": "384-ФЗ",
-      "title": "Федеральный закон от 30.12.2009 № 384-ФЗ",
+      "title": "Федеральный закон от 30.12.2009 № 384-ФЗ",
+      "subject": "",
       "kind": "Федеральный закон",
       "number": "384",
       "year": "2009",
@@ -898,10 +1307,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-384-2024-09-01",
+          "role": "actual",
+          "date": "2024-09-01",
+          "caption": "с 01.09.2024, актуальная",
+          "sourceUrl": "/api/consultant/source/npa/fz-384-2024-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-384-2024-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 104,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-384-2024-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A030.12.2009%C2%A0%E2%84%96%C2%A0384-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-384-2024-09-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+30.12.2009+%E2%84%96+384-%D0%A4%D0%97",
       "sourceUrl": "/api/consultant/source/npa/fz-384-2024-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-384-2024-09-01?format=doc&download=1"
     },
@@ -909,7 +1328,8 @@
       "id": "fz-443",
       "slug": "fz-443-2025-03-01",
       "shortName": "443-ФЗ",
-      "title": "Федеральный закон от 29.12.2017 № 443-ФЗ",
+      "title": "Федеральный закон от 29.12.2017 № 443-ФЗ «Об организации дорожного движения в Российской Федерации и о внесении изменений в отдельные законодательные акты Российской Федерации»",
+      "subject": "Об организации дорожного движения в Российской Федерации и о внесении изменений в отдельные законодательные акты Российской Федерации",
       "kind": "Федеральный закон",
       "number": "443",
       "year": "2017",
@@ -925,10 +1345,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "fz-443-2025-03-01",
+          "role": "actual",
+          "date": "2025-03-01",
+          "caption": "с 01.03.2025, актуальная, есть не вступившие в силу редакции",
+          "sourceUrl": "/api/consultant/source/npa/fz-443-2025-03-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/fz-443-2025-03-01?format=doc&download=1"
+        }
+      ],
       "chunks": 82,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-443-2025-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82%C2%A029.12.2017%C2%A0%E2%84%96%C2%A0443-%D0%A4%D0%97",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Ffz-443-2025-03-01%3Fformat%3Dmd&title=%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD+%D0%BE%D1%82+29.12.2017+%E2%84%96+443-%D0%A4%D0%97+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%B8+%D0%B4%D0%BE%D1%80%D0%BE%D0%B6%D0%BD%D0%BE%D0%B3%D0%BE+%D0%B4%D0%B2%D0%B8%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B2+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%B8+%D0%BE+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D0%BE%D0%B4%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/fz-443-2025-03-01?format=md",
       "wordUrl": "/api/consultant/source/npa/fz-443-2025-03-01?format=doc&download=1"
     },
@@ -936,7 +1366,8 @@
       "id": "pp-19",
       "slug": "pp-19-2015-11-11",
       "shortName": "ПП РФ № 19",
-      "title": "Постановление Правительства Российской Федерации от 17.01.2015 № 19",
+      "title": "Постановление Правительства Российской Федерации от 17.01.2015 № 19 «О внесении изменений в некоторые акты Правительства Российской Федерации»",
+      "subject": "О внесении изменений в некоторые акты Правительства Российской Федерации",
       "kind": "Постановление Правительства",
       "number": "19",
       "year": "",
@@ -952,10 +1383,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-19-2015-11-11",
+          "role": "actual",
+          "date": "2015-11-11",
+          "caption": "с 11.11.2015, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-19-2015-11-11?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-19-2015-11-11?format=doc&download=1"
+        }
+      ],
       "chunks": 4,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-19-2015-11-11%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A017.01.2015%C2%A0%E2%84%96%C2%A019",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-19-2015-11-11%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+17.01.2015+%E2%84%96+19+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%BD%D0%B5%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-19-2015-11-11?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-19-2015-11-11?format=doc&download=1"
     },
@@ -963,7 +1404,8 @@
       "id": "pp-60",
       "slug": "pp-60-2026-10-01",
       "shortName": "ПП РФ № 60",
-      "title": "Постановление Правительства Российской Федерации от 27.01.2022 № 60",
+      "title": "Постановление Правительства Российской Федерации от 27.01.2022 № 60",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "60",
       "year": "2022",
@@ -979,10 +1421,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-60-2026-10-01",
+          "role": "actual",
+          "date": "2026-10-01",
+          "caption": "с 01.10.2026, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-60-2026-10-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-60-2026-10-01?format=doc&download=1"
+        }
+      ],
       "chunks": 399,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-60-2026-10-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A027.01.2022%C2%A0%E2%84%96%C2%A060",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-60-2026-10-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+27.01.2022+%E2%84%96+60",
       "sourceUrl": "/api/consultant/source/npa/pp-60-2026-10-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-60-2026-10-01?format=doc&download=1"
     },
@@ -990,7 +1442,8 @@
       "id": "pp-87",
       "slug": "pp-87-2025-10-22",
       "shortName": "ПП РФ № 87",
-      "title": "Постановление Правительства Российской Федерации от 16.02.2008 № 87",
+      "title": "Постановление Правительства Российской Федерации от 16.02.2008 № 87 «О составе разделов проектной документации и требованиях к их содержанию»",
+      "subject": "О составе разделов проектной документации и требованиях к их содержанию",
       "kind": "Постановление Правительства",
       "number": "87",
       "year": "2008",
@@ -1006,10 +1459,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-87-2025-10-22",
+          "role": "actual",
+          "date": "2025-10-22",
+          "caption": "с 22.10.2025, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-87-2025-10-22?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-87-2025-10-22?format=doc&download=1"
+        }
+      ],
       "chunks": 299,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-87-2025-10-22%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A016.02.2008%C2%A0%E2%84%96%C2%A087",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-87-2025-10-22%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+16.02.2008+%E2%84%96+87+%C2%AB%D0%9E+%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%B5+%D1%80%D0%B0%D0%B7%D0%B4%D0%B5%D0%BB%D0%BE%D0%B2+%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%D0%BD%D0%BE%D0%B9+%D0%B4%D0%BE%D0%BA%D1%83%D0%BC%D0%B5%D0%BD%D1%82%D0%B0%D1%86%D0%B8%D0%B8+%D0%B8+%D1%82%D1%80%D0%B5%D0%B1%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%D1%85+%D0%BA+%D0%B8%D1%85+%D1%81%D0%BE%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D0%BD%D0%B8%D1%8E%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-87-2025-10-22?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-87-2025-10-22?format=doc&download=1"
     },
@@ -1017,7 +1480,8 @@
       "id": "pp-145",
       "slug": "pp-145-2025-01-01",
       "shortName": "ПП РФ № 145",
-      "title": "Постановление Правительства Российской Федерации от 08.02.2017 № 145",
+      "title": "Постановление Правительства Российской Федерации от 08.02.2017 № 145",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "145",
       "year": "2017",
@@ -1033,10 +1497,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-145-2025-01-01",
+          "role": "actual",
+          "date": "2025-01-01",
+          "caption": "с 01.01.2025, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-145-2025-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-145-2025-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 21,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-145-2025-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A008.02.2017%C2%A0%E2%84%96%C2%A0145",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-145-2025-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+08.02.2017+%E2%84%96+145",
       "sourceUrl": "/api/consultant/source/npa/pp-145-2025-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-145-2025-01-01?format=doc&download=1"
     },
@@ -1044,7 +1518,8 @@
       "id": "pp-238",
       "slug": "pp-238-2025-05-22",
       "shortName": "ПП РФ № 238",
-      "title": "Постановление Правительства Российской Федерации от 17.03.2015 № 238",
+      "title": "Постановление Правительства Российской Федерации от 17.03.2015 № 238",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "238",
       "year": "2015",
@@ -1060,10 +1535,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-238-2025-05-22",
+          "role": "actual",
+          "date": "2025-05-22",
+          "caption": "с 22.05.2025, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-238-2025-05-22?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-238-2025-05-22?format=doc&download=1"
+        }
+      ],
       "chunks": 40,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-238-2025-05-22%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A017.03.2015%C2%A0%E2%84%96%C2%A0238",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-238-2025-05-22%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+17.03.2015+%E2%84%96+238",
       "sourceUrl": "/api/consultant/source/npa/pp-238-2025-05-22?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-238-2025-05-22?format=doc&download=1"
     },
@@ -1071,7 +1556,8 @@
       "id": "pp-468",
       "slug": "pp-468-2024-09-01",
       "shortName": "ПП РФ № 468",
-      "title": "Постановление Правительства Российской Федерации от 21.06.2010 № 468",
+      "title": "Постановление Правительства Российской Федерации от 21.06.2010 № 468 «О порядке проведения строительного контроля при осуществлении строительства, реконструкции и капитального ремонта объектов капитального строительства»",
+      "subject": "О порядке проведения строительного контроля при осуществлении строительства, реконструкции и капитального ремонта объектов капитального строительства",
       "kind": "Постановление Правительства",
       "number": "468",
       "year": "2010",
@@ -1087,10 +1573,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-468-2024-09-01",
+          "role": "actual",
+          "date": "2024-09-01",
+          "caption": "с 01.09.2024, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-468-2024-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-468-2024-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 14,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-468-2024-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A021.06.2010%C2%A0%E2%84%96%C2%A0468",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-468-2024-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+21.06.2010+%E2%84%96+468+%C2%AB%D0%9E+%D0%BF%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B5+%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D1%81%D1%82%D1%80%D0%BE%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D1%8F+%D0%BF%D1%80%D0%B8+%D0%BE%D1%81%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8+%D1%81%D1%82%D1%80%D0%BE%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%2C+%D1%80%D0%B5%D0%BA%D0%BE%D0%BD%D1%81%D1%82%D1%80%D1%83%D0%BA%D1%86%D0%B8%D0%B8+%D0%B8+%D0%BA%D0%B0%D0%BF%D0%B8%D1%82%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D1%80%D0%B5%D0%BC%D0%BE%D0%BD%D1%82%D0%B0+%D0%BE%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%BE%D0%B2+%D0%BA%D0%B0%D0%BF%D0%B8%D1%82%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D1%81%D1%82%D1%80%D0%BE%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-468-2024-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-468-2024-09-01?format=doc&download=1"
     },
@@ -1098,7 +1594,8 @@
       "id": "pp-552",
       "slug": "pp-552-2020-01-01",
       "shortName": "ПП РФ № 552",
-      "title": "Постановление Правительства Российской Федерации от 05.06.2015 № 552",
+      "title": "Постановление Правительства Российской Федерации от 05.06.2015 № 552 «Об утверждении Правил формирования, утверждения и ведения плана закупок товаров, работ, услуг для обеспечения федеральных нужд, а также требований к форме плана закупок товаров, работ, услуг для обеспечения федеральных нужд»",
+      "subject": "Об утверждении Правил формирования, утверждения и ведения плана закупок товаров, работ, услуг для обеспечения федеральных нужд, а также требований к форме плана закупок товаров, работ, услуг для обеспечения федеральных нужд",
       "kind": "Постановление Правительства",
       "number": "552",
       "year": "2015",
@@ -1114,10 +1611,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-552-2020-01-01",
+          "role": "actual",
+          "date": "2020-01-01",
+          "caption": "с 01.01.2020, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-552-2020-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-552-2020-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 43,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-552-2020-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A005.06.2015%C2%A0%E2%84%96%C2%A0552",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-552-2020-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+05.06.2015+%E2%84%96+552+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D0%BB+%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%2C+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B8+%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BF%D0%BB%D0%B0%D0%BD%D0%B0+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D1%84%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%2C+%D0%B0+%D1%82%D0%B0%D0%BA%D0%B6%D0%B5+%D1%82%D1%80%D0%B5%D0%B1%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9+%D0%BA+%D1%84%D0%BE%D1%80%D0%BC%D0%B5+%D0%BF%D0%BB%D0%B0%D0%BD%D0%B0+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D1%84%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-552-2020-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-552-2020-01-01?format=doc&download=1"
     },
@@ -1125,7 +1632,8 @@
       "id": "pp-563",
       "slug": "pp-563-2024-05-31",
       "shortName": "ПП РФ № 563",
-      "title": "Постановление Правительства Российской Федерации от 12.05.2017 № 563",
+      "title": "Постановление Правительства Российской Федерации от 12.05.2017 № 563",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "563",
       "year": "2017",
@@ -1141,10 +1649,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-563-2024-05-31",
+          "role": "actual",
+          "date": "2024-05-31",
+          "caption": "с 31.05.2024, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-563-2024-05-31?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-563-2024-05-31?format=doc&download=1"
+        }
+      ],
       "chunks": 60,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-563-2024-05-31%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A012.05.2017%C2%A0%E2%84%96%C2%A0563",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-563-2024-05-31%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+12.05.2017+%E2%84%96+563",
       "sourceUrl": "/api/consultant/source/npa/pp-563-2024-05-31?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-563-2024-05-31?format=doc&download=1"
     },
@@ -1152,7 +1670,8 @@
       "id": "pp-570",
       "slug": "pp-570-2026-10-02",
       "shortName": "ПП РФ № 570",
-      "title": "Постановление Правительства Российской Федерации от 15.05.2017 № 570",
+      "title": "Постановление Правительства Российской Федерации от 15.05.2017 № 570",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "570",
       "year": "2017",
@@ -1168,10 +1687,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-570-2026-10-02",
+          "role": "actual",
+          "date": "2026-10-02",
+          "caption": "с 02.10.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-570-2026-10-02?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-570-2026-10-02?format=doc&download=1"
+        }
+      ],
       "chunks": 9,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-570-2026-10-02%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A015.05.2017%C2%A0%E2%84%96%C2%A0570",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-570-2026-10-02%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+15.05.2017+%E2%84%96+570",
       "sourceUrl": "/api/consultant/source/npa/pp-570-2026-10-02?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-570-2026-10-02?format=doc&download=1"
     },
@@ -1179,7 +1708,8 @@
       "id": "pp-572",
       "slug": "pp-572-2026-03-01",
       "shortName": "ПП РФ № 572",
-      "title": "Постановление Правительства Российской Федерации от 03.05.2024 № 572",
+      "title": "Постановление Правительства Российской Федерации от 03.05.2024 № 572 «О порядке формирования и ведения Государственного реестра сортов и гибридов сельскохозяйственных растений, допущенных к использованию, а также предоставления сведений из него»",
+      "subject": "О порядке формирования и ведения Государственного реестра сортов и гибридов сельскохозяйственных растений, допущенных к использованию, а также предоставления сведений из него",
       "kind": "Постановление Правительства",
       "number": "572",
       "year": "",
@@ -1195,10 +1725,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-572-2026-03-01",
+          "role": "actual",
+          "date": "2026-03-01",
+          "caption": "с 01.03.2026, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-572-2026-03-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-572-2026-03-01?format=doc&download=1"
+        }
+      ],
       "chunks": 46,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-572-2026-03-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A003.05.2024%C2%A0%E2%84%96%C2%A0572",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-572-2026-03-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+03.05.2024+%E2%84%96+572+%C2%AB%D0%9E+%D0%BF%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B5+%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B8+%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D0%93%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE+%D1%80%D0%B5%D0%B5%D1%81%D1%82%D1%80%D0%B0+%D1%81%D0%BE%D1%80%D1%82%D0%BE%D0%B2+%D0%B8+%D0%B3%D0%B8%D0%B1%D1%80%D0%B8%D0%B4%D0%BE%D0%B2+%D1%81%D0%B5%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D1%85%D0%BE%D0%B7%D1%8F%D0%B9%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D1%80%D0%B0%D1%81%D1%82%D0%B5%D0%BD%D0%B8%D0%B9%2C+%D0%B4%D0%BE%D0%BF%D1%83%D1%89%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%BA+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8E%2C+%D0%B0+%D1%82%D0%B0%D0%BA%D0%B6%D0%B5+%D0%BF%D1%80%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D1%81%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B8%D0%B7+%D0%BD%D0%B5%D0%B3%D0%BE%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-572-2026-03-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-572-2026-03-01?format=doc&download=1"
     },
@@ -1206,7 +1746,8 @@
       "id": "pp-579",
       "slug": "pp-579-2023-04-11",
       "shortName": "ПП РФ № 579",
-      "title": "Постановление Правительства Российской Федерации от 10.04.2023 № 579",
+      "title": "Постановление Правительства Российской Федерации от 10.04.2023 № 579 «Об особенностях порядка предоставления обеспечения заявок»",
+      "subject": "Об особенностях порядка предоставления обеспечения заявок",
       "kind": "Постановление Правительства",
       "number": "579",
       "year": "2023",
@@ -1221,10 +1762,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-579-2023-04-11",
+          "role": "actual",
+          "date": "2023-04-11",
+          "caption": "оригинал от 2023-04-11, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/pp-579-2023-04-11?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 6,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-579-2023-04-11%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+10.04.2023+%E2%84%96+579",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-579-2023-04-11%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+10.04.2023+%E2%84%96+579+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%81%D0%BE%D0%B1%D0%B5%D0%BD%D0%BD%D0%BE%D1%81%D1%82%D1%8F%D1%85+%D0%BF%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B0+%D0%BF%D1%80%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-579-2023-04-11?format=md",
       "wordUrl": ""
     },
@@ -1232,7 +1783,8 @@
       "id": "pp-615",
       "slug": "pp-615-2026-11-16",
       "shortName": "ПП РФ № 615",
-      "title": "Постановление Правительства Российской Федерации от 30.04.2020 № 615",
+      "title": "Постановление Правительства Российской Федерации от 30.04.2020 № 615",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "615",
       "year": "",
@@ -1248,10 +1800,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-615-2026-11-16",
+          "role": "actual",
+          "date": "2026-11-16",
+          "caption": "с 16.11.2026, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-615-2026-11-16?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-615-2026-11-16?format=doc&download=1"
+        }
+      ],
       "chunks": 25,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-615-2026-11-16%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.04.2020%C2%A0%E2%84%96%C2%A0615",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-615-2026-11-16%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.04.2020+%E2%84%96+615",
       "sourceUrl": "/api/consultant/source/npa/pp-615-2026-11-16?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-615-2026-11-16?format=doc&download=1"
     },
@@ -1259,7 +1821,8 @@
       "id": "pp-924",
       "slug": "pp-924-2021-01-01",
       "shortName": "ПП РФ № 924",
-      "title": "Постановление Правительства Российской Федерации от 14.09.2016 № 924",
+      "title": "Постановление Правительства Российской Федерации от 14.09.2016 № 924",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "924",
       "year": "2016",
@@ -1275,10 +1838,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-924-2021-01-01",
+          "role": "actual",
+          "date": "2021-01-01",
+          "caption": "с 01.01.2021, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-924-2021-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-924-2021-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 228,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-924-2021-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A014.09.2016%C2%A0%E2%84%96%C2%A0924",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-924-2021-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+14.09.2016+%E2%84%96+924",
       "sourceUrl": "/api/consultant/source/npa/pp-924-2021-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-924-2021-01-01?format=doc&download=1"
     },
@@ -1286,7 +1859,8 @@
       "id": "pp-926",
       "slug": "pp-926-2025-06-12",
       "shortName": "ПП РФ № 926",
-      "title": "Постановление Правительства Российской Федерации от 02.09.2015 № 926",
+      "title": "Постановление Правительства Российской Федерации от 02.09.2015 № 926 «Об утверждении Общих правил определения требований к закупаемым заказчиками отдельным видам товаров, работ, услуг (в том числе предельных цен товаров, работ, услуг)»",
+      "subject": "Об утверждении Общих правил определения требований к закупаемым заказчиками отдельным видам товаров, работ, услуг (в том числе предельных цен товаров, работ, услуг)",
       "kind": "Постановление Правительства",
       "number": "926",
       "year": "2015",
@@ -1302,10 +1876,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-926-2025-06-12",
+          "role": "actual",
+          "date": "2025-06-12",
+          "caption": "с 12.06.2025, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-926-2025-06-12?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-926-2025-06-12?format=doc&download=1"
+        }
+      ],
       "chunks": 18,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-926-2025-06-12%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A002.09.2015%C2%A0%E2%84%96%C2%A0926",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-926-2025-06-12%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+02.09.2015+%E2%84%96+926+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9E%D0%B1%D1%89%D0%B8%D1%85+%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB+%D0%BE%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D1%82%D1%80%D0%B5%D0%B1%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9+%D0%BA+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%B0%D0%B5%D0%BC%D1%8B%D0%BC+%D0%B7%D0%B0%D0%BA%D0%B0%D0%B7%D1%87%D0%B8%D0%BA%D0%B0%D0%BC%D0%B8+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%BC+%D0%B2%D0%B8%D0%B4%D0%B0%D0%BC+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%28%D0%B2+%D1%82%D0%BE%D0%BC+%D1%87%D0%B8%D1%81%D0%BB%D0%B5+%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D1%86%D0%B5%D0%BD+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3%29%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-926-2025-06-12?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-926-2025-06-12?format=doc&download=1"
     },
@@ -1313,7 +1897,8 @@
       "id": "pp-963",
       "slug": "pp-963-2025-02-04",
       "shortName": "ПП РФ № 963",
-      "title": "Постановление Правительства Российской Федерации от 20.09.2014 № 963",
+      "title": "Постановление Правительства Российской Федерации от 20.09.2014 № 963 «Об осуществлении банковского сопровождения контрактов»",
+      "subject": "Об осуществлении банковского сопровождения контрактов",
       "kind": "Постановление Правительства",
       "number": "963",
       "year": "2014",
@@ -1329,10 +1914,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-963-2025-02-04",
+          "role": "actual",
+          "date": "2025-02-04",
+          "caption": "с 04.02.2025, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-963-2025-02-04?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-963-2025-02-04?format=doc&download=1"
+        }
+      ],
       "chunks": 25,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-963-2025-02-04%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A020.09.2014%C2%A0%E2%84%96%C2%A0963",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-963-2025-02-04%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+20.09.2014+%E2%84%96+963+%C2%AB%D0%9E%D0%B1+%D0%BE%D1%81%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B1%D0%B0%D0%BD%D0%BA%D0%BE%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE+%D1%81%D0%BE%D0%BF%D1%80%D0%BE%D0%B2%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%BE%D0%B2%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-963-2025-02-04?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-963-2025-02-04?format=doc&download=1"
     },
@@ -1340,7 +1935,8 @@
       "id": "pp-964",
       "slug": "pp-964-2019-07-27",
       "shortName": "ПП РФ № 964",
-      "title": "Постановление Правительства Российской Федерации от 11.09.2015 № 964",
+      "title": "Постановление Правительства Российской Федерации от 11.09.2015 № 964",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "964",
       "year": "2015",
@@ -1356,10 +1952,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-964-2019-07-27",
+          "role": "actual",
+          "date": "2019-07-27",
+          "caption": "с 27.07.2019, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-964-2019-07-27?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-964-2019-07-27?format=doc&download=1"
+        }
+      ],
       "chunks": 2,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-964-2019-07-27%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A011.09.2015%C2%A0%E2%84%96%C2%A0964",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-964-2019-07-27%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+11.09.2015+%E2%84%96+964",
       "sourceUrl": "/api/consultant/source/npa/pp-964-2019-07-27?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-964-2019-07-27?format=doc&download=1"
     },
@@ -1367,7 +1973,8 @@
       "id": "pp-1005",
       "slug": "pp-1005-2024-12-26",
       "shortName": "ПП РФ № 1005",
-      "title": "Постановление Правительства Российской Федерации от 08.11.2013 № 1005",
+      "title": "Постановление Правительства Российской Федерации от 08.11.2013 № 1005 «О независимых гарантиях, используемых для целей Федерального закона \"О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд\"»",
+      "subject": "О независимых гарантиях, используемых для целей Федерального закона \"О контрактной системе в сфере закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд\"",
       "kind": "Постановление Правительства",
       "number": "1005",
       "year": "2013",
@@ -1383,10 +1990,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1005-2024-12-26",
+          "role": "actual",
+          "date": "2024-12-26",
+          "caption": "с 26.12.2024, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1005-2024-12-26?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1005-2024-12-26?format=doc&download=1"
+        }
+      ],
       "chunks": 43,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1005-2024-12-26%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A008.11.2013%C2%A0%E2%84%96%C2%A01005",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1005-2024-12-26%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+08.11.2013+%E2%84%96+1005+%C2%AB%D0%9E+%D0%BD%D0%B5%D0%B7%D0%B0%D0%B2%D0%B8%D1%81%D0%B8%D0%BC%D1%8B%D1%85+%D0%B3%D0%B0%D1%80%D0%B0%D0%BD%D1%82%D0%B8%D1%8F%D1%85%2C+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D1%8C%D0%B7%D1%83%D0%B5%D0%BC%D1%8B%D1%85+%D0%B4%D0%BB%D1%8F+%D1%86%D0%B5%D0%BB%D0%B5%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D0%B7%D0%B0%D0%BA%D0%BE%D0%BD%D0%B0+%22%D0%9E+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%BD%D0%BE%D0%B9+%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%B5+%D0%B2+%D1%81%D1%84%D0%B5%D1%80%D0%B5+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BC%D1%83%D0%BD%D0%B8%D1%86%D0%B8%D0%BF%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%22%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1005-2024-12-26?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1005-2024-12-26?format=doc&download=1"
     },
@@ -1394,7 +2011,8 @@
       "id": "pp-1038",
       "slug": "pp-1038-2026-09-01",
       "shortName": "ПП РФ № 1038",
-      "title": "Постановление Правительства Российской Федерации от 18.11.2013 № 1038",
+      "title": "Постановление Правительства Российской Федерации от 18.11.2013 № 1038 «О Министерстве строительства и жилищно-коммунального хозяйства Российской Федерации»",
+      "subject": "О Министерстве строительства и жилищно-коммунального хозяйства Российской Федерации",
       "kind": "Постановление Правительства",
       "number": "1038",
       "year": "2013",
@@ -1410,10 +2028,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1038-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1038-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1038-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 109,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1038-2026-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A018.11.2013%C2%A0%E2%84%96%C2%A01038",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1038-2026-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+18.11.2013+%E2%84%96+1038+%C2%AB%D0%9E+%D0%9C%D0%B8%D0%BD%D0%B8%D1%81%D1%82%D0%B5%D1%80%D1%81%D1%82%D0%B2%D0%B5+%D1%81%D1%82%D1%80%D0%BE%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%B8+%D0%B6%D0%B8%D0%BB%D0%B8%D1%89%D0%BD%D0%BE-%D0%BA%D0%BE%D0%BC%D0%BC%D1%83%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D1%85%D0%BE%D0%B7%D1%8F%D0%B9%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1038-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1038-2026-09-01?format=doc&download=1"
     },
@@ -1421,7 +2049,8 @@
       "id": "pp-1042",
       "slug": "pp-1042-2019-08-02",
       "shortName": "ПП РФ № 1042",
-      "title": "Постановление Правительства Российской Федерации от 30.08.2017 № 1042",
+      "title": "Постановление Правительства Российской Федерации от 30.08.2017 № 1042",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "1042",
       "year": "2017",
@@ -1437,10 +2066,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1042-2019-08-02",
+          "role": "actual",
+          "date": "2019-08-02",
+          "caption": "с 02.08.2019, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1042-2019-08-02?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1042-2019-08-02?format=doc&download=1"
+        }
+      ],
       "chunks": 12,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1042-2019-08-02%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.08.2017%C2%A0%E2%84%96%C2%A01042",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1042-2019-08-02%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.08.2017+%E2%84%96+1042",
       "sourceUrl": "/api/consultant/source/npa/pp-1042-2019-08-02?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1042-2019-08-02?format=doc&download=1"
     },
@@ -1448,7 +2087,8 @@
       "id": "pp-1047",
       "slug": "pp-1047-2026-10-01",
       "shortName": "ПП РФ № 1047",
-      "title": "Постановление Правительства Российской Федерации от 29.06.2021 № 1047",
+      "title": "Постановление Правительства Российской Федерации от 29.06.2021 № 1047 «Об утверждении Положения о федеральном государственном контроле (надзоре) в области торгового мореплавания и внутреннего водного транспорта»",
+      "subject": "Об утверждении Положения о федеральном государственном контроле (надзоре) в области торгового мореплавания и внутреннего водного транспорта",
       "kind": "Постановление Правительства",
       "number": "1047",
       "year": "",
@@ -1464,10 +2104,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1047-2026-10-01",
+          "role": "actual",
+          "date": "2026-10-01",
+          "caption": "с 01.10.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1047-2026-10-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1047-2026-10-01?format=doc&download=1"
+        }
+      ],
       "chunks": 76,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1047-2026-10-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A029.06.2021%C2%A0%E2%84%96%C2%A01047",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1047-2026-10-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+29.06.2021+%E2%84%96+1047+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D0%BE%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BE+%D1%84%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%BC+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D0%BE%D0%BC+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%BE%D0%BB%D0%B5+%28%D0%BD%D0%B0%D0%B4%D0%B7%D0%BE%D1%80%D0%B5%29+%D0%B2+%D0%BE%D0%B1%D0%BB%D0%B0%D1%81%D1%82%D0%B8+%D1%82%D0%BE%D1%80%D0%B3%D0%BE%D0%B2%D0%BE%D0%B3%D0%BE+%D0%BC%D0%BE%D1%80%D0%B5%D0%BF%D0%BB%D0%B0%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B8+%D0%B2%D0%BD%D1%83%D1%82%D1%80%D0%B5%D0%BD%D0%BD%D0%B5%D0%B3%D0%BE+%D0%B2%D0%BE%D0%B4%D0%BD%D0%BE%D0%B3%D0%BE+%D1%82%D1%80%D0%B0%D0%BD%D1%81%D0%BF%D0%BE%D1%80%D1%82%D0%B0%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1047-2026-10-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1047-2026-10-01?format=doc&download=1"
     },
@@ -1475,7 +2125,8 @@
       "id": "pp-1063",
       "slug": "pp-1063-2017-08-30",
       "shortName": "ПП РФ № 1063",
-      "title": "Постановление Правительства Российской Федерации от 25.11.2013 № 1063",
+      "title": "Постановление Правительства Российской Федерации от 25.11.2013 № 1063",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "1063",
       "year": "2013",
@@ -1491,10 +2142,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1063-2017-08-30",
+          "role": "actual",
+          "date": "2017-08-30",
+          "caption": "с 30.08.2017, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1063-2017-08-30?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1063-2017-08-30?format=doc&download=1"
+        }
+      ],
       "chunks": 7,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1063-2017-08-30%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A025.11.2013%C2%A0%E2%84%96%C2%A01063",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1063-2017-08-30%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+25.11.2013+%E2%84%96+1063",
       "sourceUrl": "/api/consultant/source/npa/pp-1063-2017-08-30?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1063-2017-08-30?format=doc&download=1"
     },
@@ -1502,7 +2163,8 @@
       "id": "pp-1085",
       "slug": "pp-1085-2022-01-01",
       "shortName": "ПП РФ № 1085",
-      "title": "Постановление Правительства Российской Федерации от 28.11.2013 № 1085",
+      "title": "Постановление Правительства Российской Федерации от 28.11.2013 № 1085 «Об утверждении Правил оценки заявок, окончательных предложений участников закупки товаров, работ, услуг для обеспечения государственных и муниципальных нужд»",
+      "subject": "Об утверждении Правил оценки заявок, окончательных предложений участников закупки товаров, работ, услуг для обеспечения государственных и муниципальных нужд",
       "kind": "Постановление Правительства",
       "number": "1085",
       "year": "2013",
@@ -1518,10 +2180,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1085-2022-01-01",
+          "role": "actual",
+          "date": "2022-01-01",
+          "caption": "с 01.01.2022, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1085-2022-01-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1085-2022-01-01?format=doc&download=1"
+        }
+      ],
       "chunks": 29,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1085-2022-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A028.11.2013%C2%A0%E2%84%96%C2%A01085",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1085-2022-01-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+28.11.2013+%E2%84%96+1085+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D0%BB+%D0%BE%D1%86%D0%B5%D0%BD%D0%BA%D0%B8+%D0%B7%D0%B0%D1%8F%D0%B2%D0%BE%D0%BA%2C+%D0%BE%D0%BA%D0%BE%D0%BD%D1%87%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BF%D1%80%D0%B5%D0%B4%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B9+%D1%83%D1%87%D0%B0%D1%81%D1%82%D0%BD%D0%B8%D0%BA%D0%BE%D0%B2+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BA%D0%B8+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BC%D1%83%D0%BD%D0%B8%D1%86%D0%B8%D0%BF%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1085-2022-01-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1085-2022-01-01?format=doc&download=1"
     },
@@ -1529,7 +2201,8 @@
       "id": "pp-1087",
       "slug": "pp-1087-2026-09-09",
       "shortName": "ПП РФ № 1087",
-      "title": "Постановление Правительства Российской Федерации от 30.06.2023 № 1087",
+      "title": "Постановление Правительства Российской Федерации от 30.06.2023 № 1087",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "1087",
       "year": "",
@@ -1545,10 +2218,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1087-2026-09-09",
+          "role": "actual",
+          "date": "2026-09-09",
+          "caption": "с 09.09.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1087-2026-09-09?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1087-2026-09-09?format=doc&download=1"
+        }
+      ],
       "chunks": 18,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1087-2026-09-09%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A030.06.2023%C2%A0%E2%84%96%C2%A01087",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1087-2026-09-09%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+30.06.2023+%E2%84%96+1087",
       "sourceUrl": "/api/consultant/source/npa/pp-1087-2026-09-09?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1087-2026-09-09?format=doc&download=1"
     },
@@ -1556,7 +2239,8 @@
       "id": "pp-1148",
       "slug": "pp-1148-2026-04-28",
       "shortName": "ПП РФ № 1148",
-      "title": "Постановление Правительства Российской Федерации от 28.06.2022 № 1148",
+      "title": "Постановление Правительства Российской Федерации от 28.06.2022 № 1148",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "1148",
       "year": "",
@@ -1572,10 +2256,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1148-2026-04-28",
+          "role": "actual",
+          "date": "2026-04-28",
+          "caption": "с 28.04.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1148-2026-04-28?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1148-2026-04-28?format=doc&download=1"
+        }
+      ],
       "chunks": 21,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1148-2026-04-28%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A028.06.2022%C2%A0%E2%84%96%C2%A01148",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1148-2026-04-28%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+28.06.2022+%E2%84%96+1148",
       "sourceUrl": "/api/consultant/source/npa/pp-1148-2026-04-28?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1148-2026-04-28?format=doc&download=1"
     },
@@ -1583,7 +2277,8 @@
       "id": "pp-1315",
       "slug": "pp-1315-2026-04-28",
       "shortName": "ПП РФ № 1315",
-      "title": "Постановление Правительства Российской Федерации от 09.08.2021 № 1315",
+      "title": "Постановление Правительства Российской Федерации от 09.08.2021 № 1315 «О внесении изменений в некоторые акты Правительства Российской Федерации»",
+      "subject": "О внесении изменений в некоторые акты Правительства Российской Федерации",
       "kind": "Постановление Правительства",
       "number": "1315",
       "year": "2021",
@@ -1599,10 +2294,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1315-2026-04-28",
+          "role": "actual",
+          "date": "2026-04-28",
+          "caption": "с 28.04.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1315-2026-04-28?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1315-2026-04-28?format=doc&download=1"
+        }
+      ],
       "chunks": 3,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1315-2026-04-28%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A009.08.2021%C2%A0%E2%84%96%C2%A01315",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1315-2026-04-28%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+09.08.2021+%E2%84%96+1315+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%BD%D0%B5%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D0%B5+%D0%B0%D0%BA%D1%82%D1%8B+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1315-2026-04-28?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1315-2026-04-28?format=doc&download=1"
     },
@@ -1610,7 +2315,8 @@
       "id": "pp-1466",
       "slug": "pp-1466-2022-10-31",
       "shortName": "ПП РФ № 1466",
-      "title": "Постановление Правительства Российской Федерации от 23.12.2016 № 1466",
+      "title": "Постановление Правительства Российской Федерации от 23.12.2016 № 1466 «Об утверждении типовых условий контрактов, предусматривающих привлечение к исполнению контрактов субподрядчиков, соисполнителей из числа субъектов малого предпринимательства, социально ориентированных некоммерческих организаций»",
+      "subject": "Об утверждении типовых условий контрактов, предусматривающих привлечение к исполнению контрактов субподрядчиков, соисполнителей из числа субъектов малого предпринимательства, социально ориентированных некоммерческих организаций",
       "kind": "Постановление Правительства",
       "number": "1466",
       "year": "2016",
@@ -1626,10 +2332,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1466-2022-10-31",
+          "role": "actual",
+          "date": "2022-10-31",
+          "caption": "с 31.10.2022, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1466-2022-10-31?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1466-2022-10-31?format=doc&download=1"
+        }
+      ],
       "chunks": 5,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1466-2022-10-31%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A023.12.2016%C2%A0%E2%84%96%C2%A01466",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1466-2022-10-31%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+23.12.2016+%E2%84%96+1466+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D1%82%D0%B8%D0%BF%D0%BE%D0%B2%D1%8B%D1%85+%D1%83%D1%81%D0%BB%D0%BE%D0%B2%D0%B8%D0%B9+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%BE%D0%B2%2C+%D0%BF%D1%80%D0%B5%D0%B4%D1%83%D1%81%D0%BC%D0%B0%D1%82%D1%80%D0%B8%D0%B2%D0%B0%D1%8E%D1%89%D0%B8%D1%85+%D0%BF%D1%80%D0%B8%D0%B2%D0%BB%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D0%B5+%D0%BA+%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D1%8E+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%BE%D0%B2+%D1%81%D1%83%D0%B1%D0%BF%D0%BE%D0%B4%D1%80%D1%8F%D0%B4%D1%87%D0%B8%D0%BA%D0%BE%D0%B2%2C+%D1%81%D0%BE%D0%B8%D1%81%D0%BF%D0%BE%D0%BB%D0%BD%D0%B8%D1%82%D0%B5%D0%BB%D0%B5%D0%B9+%D0%B8%D0%B7+%D1%87%D0%B8%D1%81%D0%BB%D0%B0+%D1%81%D1%83%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%BE%D0%B2+%D0%BC%D0%B0%D0%BB%D0%BE%D0%B3%D0%BE+%D0%BF%D1%80%D0%B5%D0%B4%D0%BF%D1%80%D0%B8%D0%BD%D0%B8%D0%BC%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0%2C+%D1%81%D0%BE%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE+%D0%BE%D1%80%D0%B8%D0%B5%D0%BD%D1%82%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D1%85+%D0%BD%D0%B5%D0%BA%D0%BE%D0%BC%D0%BC%D0%B5%D1%80%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D1%85+%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D0%B9%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1466-2022-10-31?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1466-2022-10-31?format=doc&download=1"
     },
@@ -1637,7 +2353,8 @@
       "id": "pp-1479",
       "slug": "pp-1479-2025-09-01",
       "shortName": "ПП РФ № 1479",
-      "title": "Постановление Правительства Российской Федерации от 16.09.2020 № 1479",
+      "title": "Постановление Правительства Российской Федерации от 16.09.2020 № 1479 «Об утверждении Правил противопожарного режима в Российской Федерации»",
+      "subject": "Об утверждении Правил противопожарного режима в Российской Федерации",
       "kind": "Постановление Правительства",
       "number": "1479",
       "year": "2020",
@@ -1653,10 +2370,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-1479-2025-09-01",
+          "role": "actual",
+          "date": "2025-09-01",
+          "caption": "с 01.09.2025, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1479-2025-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1479-2025-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 313,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1479-2025-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A016.09.2020%C2%A0%E2%84%96%C2%A01479",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1479-2025-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+16.09.2020+%E2%84%96+1479+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D0%BB+%D0%BF%D1%80%D0%BE%D1%82%D0%B8%D0%B2%D0%BE%D0%BF%D0%BE%D0%B6%D0%B0%D1%80%D0%BD%D0%BE%D0%B3%D0%BE+%D1%80%D0%B5%D0%B6%D0%B8%D0%BC%D0%B0+%D0%B2+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1479-2025-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1479-2025-09-01?format=doc&download=1"
     },
@@ -1664,7 +2391,8 @@
       "id": "pp-1875",
       "slug": "pp-1875-2026-11-01",
       "shortName": "ПП РФ № 1875",
-      "title": "Постановление Правительства Российской Федерации от 23.12.2024 № 1875",
+      "title": "Постановление Правительства Российской Федерации от 23.12.2024 № 1875 «О мерах по предоставлению национального режима при осуществлении закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд, закупок товаров, работ, услуг отдельными видами юридических лиц»",
+      "subject": "О мерах по предоставлению национального режима при осуществлении закупок товаров, работ, услуг для обеспечения государственных и муниципальных нужд, закупок товаров, работ, услуг отдельными видами юридических лиц",
       "kind": "Постановление Правительства",
       "number": "1875",
       "year": "2024",
@@ -1680,10 +2408,20 @@
         ".txt",
         ".doc"
       ],
+      "editions": [
+        {
+          "slug": "pp-1875-2026-11-01",
+          "role": "actual",
+          "date": "2026-11-01",
+          "caption": "с 01.11.2026, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-1875-2026-11-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-1875-2026-11-01?format=doc&download=1"
+        }
+      ],
       "chunks": 727,
       "status": "available",
       "note": "Правила индексируются из csms-api по точным кодам ОКПД2; локальный текст доступен для просмотра.",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1875-2026-11-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A023.12.2024%C2%A0%E2%84%96%C2%A01875",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-1875-2026-11-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+23.12.2024+%E2%84%96+1875+%C2%AB%D0%9E+%D0%BC%D0%B5%D1%80%D0%B0%D1%85+%D0%BF%D0%BE+%D0%BF%D1%80%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8E+%D0%BD%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B3%D0%BE+%D1%80%D0%B5%D0%B6%D0%B8%D0%BC%D0%B0+%D0%BF%D1%80%D0%B8+%D0%BE%D1%81%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BC%D1%83%D0%BD%D0%B8%D1%86%D0%B8%D0%BF%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4%2C+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BE%D0%BA+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D0%BC%D0%B8+%D0%B2%D0%B8%D0%B4%D0%B0%D0%BC%D0%B8+%D1%8E%D1%80%D0%B8%D0%B4%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D1%85+%D0%BB%D0%B8%D1%86%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-1875-2026-11-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-1875-2026-11-01?format=doc&download=1"
     },
@@ -1691,7 +2429,8 @@
       "id": "pp-2024",
       "slug": "pp-2024-2025-10-15",
       "shortName": "ПП РФ № 2024",
-      "title": "Постановление Правительства Российской Федерации от 24.11.2021 № 2024",
+      "title": "Постановление Правительства Российской Федерации от 24.11.2021 № 2024 «О правилах казначейского сопровождения»",
+      "subject": "О правилах казначейского сопровождения",
       "kind": "Постановление Правительства",
       "number": "2024",
       "year": "2021",
@@ -1707,10 +2446,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-2024-2025-10-15",
+          "role": "actual",
+          "date": "2025-10-15",
+          "caption": "с 15.10.2025, актуальная, есть не вступившие в силу редакции (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-2024-2025-10-15?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-2024-2025-10-15?format=doc&download=1"
+        }
+      ],
       "chunks": 30,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2024-2025-10-15%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A024.11.2021%C2%A0%E2%84%96%C2%A02024",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2024-2025-10-15%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+24.11.2021+%E2%84%96+2024+%C2%AB%D0%9E+%D0%BF%D1%80%D0%B0%D0%B2%D0%B8%D0%BB%D0%B0%D1%85+%D0%BA%D0%B0%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B3%D0%BE+%D1%81%D0%BE%D0%BF%D1%80%D0%BE%D0%B2%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-2024-2025-10-15?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-2024-2025-10-15?format=doc&download=1"
     },
@@ -1718,7 +2467,8 @@
       "id": "pp-2483",
       "slug": "pp-2483-2026-09-01",
       "shortName": "ПП РФ № 2483",
-      "title": "Постановление Правительства Российской Федерации от 25.12.2021 № 2483",
+      "title": "Постановление Правительства Российской Федерации от 25.12.2021 № 2483 «Об утверждении Правил проведения казначейского мониторинга и применения мер реагирования в целях недопущения финансовых нарушений участниками казначейского сопровождения»",
+      "subject": "Об утверждении Правил проведения казначейского мониторинга и применения мер реагирования в целях недопущения финансовых нарушений участниками казначейского сопровождения",
       "kind": "Постановление Правительства",
       "number": "2483",
       "year": "",
@@ -1734,10 +2484,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-2483-2026-09-01",
+          "role": "actual",
+          "date": "2026-09-01",
+          "caption": "с 01.09.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-2483-2026-09-01?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-2483-2026-09-01?format=doc&download=1"
+        }
+      ],
       "chunks": 19,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2483-2026-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A025.12.2021%C2%A0%E2%84%96%C2%A02483",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2483-2026-09-01%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+25.12.2021+%E2%84%96+2483+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D0%BB+%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BA%D0%B0%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B3%D0%BE+%D0%BC%D0%BE%D0%BD%D0%B8%D1%82%D0%BE%D1%80%D0%B8%D0%BD%D0%B3%D0%B0+%D0%B8+%D0%BF%D1%80%D0%B8%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BC%D0%B5%D1%80+%D1%80%D0%B5%D0%B0%D0%B3%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B2+%D1%86%D0%B5%D0%BB%D1%8F%D1%85+%D0%BD%D0%B5%D0%B4%D0%BE%D0%BF%D1%83%D1%89%D0%B5%D0%BD%D0%B8%D1%8F+%D1%84%D0%B8%D0%BD%D0%B0%D0%BD%D1%81%D0%BE%D0%B2%D1%8B%D1%85+%D0%BD%D0%B0%D1%80%D1%83%D1%88%D0%B5%D0%BD%D0%B8%D0%B9+%D1%83%D1%87%D0%B0%D1%81%D1%82%D0%BD%D0%B8%D0%BA%D0%B0%D0%BC%D0%B8+%D0%BA%D0%B0%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B3%D0%BE+%D1%81%D0%BE%D0%BF%D1%80%D0%BE%D0%B2%D0%BE%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-2483-2026-09-01?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-2483-2026-09-01?format=doc&download=1"
     },
@@ -1745,7 +2505,8 @@
       "id": "pp-2571",
       "slug": "pp-2571-2026-04-27",
       "shortName": "ПП РФ № 2571",
-      "title": "Постановление Правительства Российской Федерации от 29.12.2021 № 2571",
+      "title": "Постановление Правительства Российской Федерации от 29.12.2021 № 2571 «О требованиях к участникам закупки товаров, работ, услуг для обеспечения государственных и муниципальных нужд и признании утратившими силу некоторых актов и отдельных положений актов Правительства Российской Федерации»",
+      "subject": "О требованиях к участникам закупки товаров, работ, услуг для обеспечения государственных и муниципальных нужд и признании утратившими силу некоторых актов и отдельных положений актов Правительства Российской Федерации",
       "kind": "Постановление Правительства",
       "number": "2571",
       "year": "2021",
@@ -1761,10 +2522,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-2571-2026-04-27",
+          "role": "actual",
+          "date": "2026-04-27",
+          "caption": "с 27.04.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-2571-2026-04-27?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-2571-2026-04-27?format=doc&download=1"
+        }
+      ],
       "chunks": 149,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2571-2026-04-27%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A029.12.2021%C2%A0%E2%84%96%C2%A02571",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2571-2026-04-27%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+29.12.2021+%E2%84%96+2571+%C2%AB%D0%9E+%D1%82%D1%80%D0%B5%D0%B1%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%D1%85+%D0%BA+%D1%83%D1%87%D0%B0%D1%81%D1%82%D0%BD%D0%B8%D0%BA%D0%B0%D0%BC+%D0%B7%D0%B0%D0%BA%D1%83%D0%BF%D0%BA%D0%B8+%D1%82%D0%BE%D0%B2%D0%B0%D1%80%D0%BE%D0%B2%2C+%D1%80%D0%B0%D0%B1%D0%BE%D1%82%2C+%D1%83%D1%81%D0%BB%D1%83%D0%B3+%D0%B4%D0%BB%D1%8F+%D0%BE%D0%B1%D0%B5%D1%81%D0%BF%D0%B5%D1%87%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D0%BE%D1%81%D1%83%D0%B4%D0%B0%D1%80%D1%81%D1%82%D0%B2%D0%B5%D0%BD%D0%BD%D1%8B%D1%85+%D0%B8+%D0%BC%D1%83%D0%BD%D0%B8%D1%86%D0%B8%D0%BF%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BD%D1%83%D0%B6%D0%B4+%D0%B8+%D0%BF%D1%80%D0%B8%D0%B7%D0%BD%D0%B0%D0%BD%D0%B8%D0%B8+%D1%83%D1%82%D1%80%D0%B0%D1%82%D0%B8%D0%B2%D1%88%D0%B8%D0%BC%D0%B8+%D1%81%D0%B8%D0%BB%D1%83+%D0%BD%D0%B5%D0%BA%D0%BE%D1%82%D0%BE%D1%80%D1%8B%D1%85+%D0%B0%D0%BA%D1%82%D0%BE%D0%B2+%D0%B8+%D0%BE%D1%82%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D1%8B%D1%85+%D0%BF%D0%BE%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B0%D0%BA%D1%82%D0%BE%D0%B2+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/pp-2571-2026-04-27?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-2571-2026-04-27?format=doc&download=1"
     },
@@ -1772,7 +2543,8 @@
       "id": "pp-2604",
       "slug": "pp-2604-2026-09-30",
       "shortName": "ПП РФ № 2604",
-      "title": "Постановление Правительства Российской Федерации от 31.12.2021 № 2604",
+      "title": "Постановление Правительства Российской Федерации от 31.12.2021 № 2604",
+      "subject": "",
       "kind": "Постановление Правительства",
       "number": "2604",
       "year": "2021",
@@ -1788,10 +2560,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "pp-2604-2026-09-30",
+          "role": "actual",
+          "date": "2026-09-30",
+          "caption": "с 30.09.2026, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/pp-2604-2026-09-30?format=md",
+          "wordUrl": "/api/consultant/source/npa/pp-2604-2026-09-30?format=doc&download=1"
+        }
+      ],
       "chunks": 63,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2604-2026-09-30%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A031.12.2021%C2%A0%E2%84%96%C2%A02604",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Fpp-2604-2026-09-30%3Fformat%3Dmd&title=%D0%9F%D0%BE%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+31.12.2021+%E2%84%96+2604",
       "sourceUrl": "/api/consultant/source/npa/pp-2604-2026-09-30?format=md",
       "wordUrl": "/api/consultant/source/npa/pp-2604-2026-09-30?format=doc&download=1"
     },
@@ -1799,7 +2581,8 @@
       "id": "rp-471",
       "slug": "rp-471-2022-10-31",
       "shortName": "РП РФ № 471-р",
-      "title": "Распоряжение Правительства Российской Федерации от 21.03.2016 № 471-р",
+      "title": "Распоряжение Правительства Российской Федерации от 21.03.2016 № 471-р",
+      "subject": "",
       "kind": "Распоряжение Правительства",
       "number": "471",
       "year": "2016",
@@ -1815,10 +2598,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "rp-471-2022-10-31",
+          "role": "actual",
+          "date": "2022-10-31",
+          "caption": "с 31.10.2022, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/rp-471-2022-10-31?format=md",
+          "wordUrl": "/api/consultant/source/npa/rp-471-2022-10-31?format=doc&download=1"
+        }
+      ],
       "chunks": 9,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Frp-471-2022-10-31%3Fformat%3Dmd&title=%D0%A0%D0%B0%D1%81%D0%BF%D0%BE%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A021.03.2016%C2%A0%E2%84%96%C2%A0471-%D1%80",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Frp-471-2022-10-31%3Fformat%3Dmd&title=%D0%A0%D0%B0%D1%81%D0%BF%D0%BE%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+21.03.2016+%E2%84%96+471-%D1%80",
       "sourceUrl": "/api/consultant/source/npa/rp-471-2022-10-31?format=md",
       "wordUrl": "/api/consultant/source/npa/rp-471-2022-10-31?format=doc&download=1"
     },
@@ -1826,7 +2619,8 @@
       "id": "rp-2344",
       "slug": "rp-2344-2023-01-25",
       "shortName": "РП РФ № 2344-р",
-      "title": "Распоряжение Правительства Российской Федерации от 03.11.2016 № 2344-р",
+      "title": "Распоряжение Правительства Российской Федерации от 03.11.2016 № 2344-р",
+      "subject": "",
       "kind": "Распоряжение Правительства",
       "number": "2344",
       "year": "",
@@ -1842,10 +2636,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "rp-2344-2023-01-25",
+          "role": "actual",
+          "date": "2023-01-25",
+          "caption": "с 25.01.2023, актуальная (текст  не готов)",
+          "sourceUrl": "/api/consultant/source/npa/rp-2344-2023-01-25?format=md",
+          "wordUrl": "/api/consultant/source/npa/rp-2344-2023-01-25?format=doc&download=1"
+        }
+      ],
       "chunks": 7,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Frp-2344-2023-01-25%3Fformat%3Dmd&title=%D0%A0%D0%B0%D1%81%D0%BF%D0%BE%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82%C2%A003.11.2016%C2%A0%E2%84%96%C2%A02344-%D1%80",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Frp-2344-2023-01-25%3Fformat%3Dmd&title=%D0%A0%D0%B0%D1%81%D0%BF%D0%BE%D1%80%D1%8F%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5+%D0%9F%D1%80%D0%B0%D0%B2%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D1%81%D1%82%D0%B2%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B9+%D0%A4%D0%B5%D0%B4%D0%B5%D1%80%D0%B0%D1%86%D0%B8%D0%B8+%D0%BE%D1%82+03.11.2016+%E2%84%96+2344-%D1%80",
       "sourceUrl": "/api/consultant/source/npa/rp-2344-2023-01-25?format=md",
       "wordUrl": "/api/consultant/source/npa/rp-2344-2023-01-25?format=doc&download=1"
     },
@@ -1854,6 +2658,7 @@
       "slug": "order-44n-2022-02-07",
       "shortName": "Приказ № 44н",
       "title": "Приказ Казначейства России от 22.12.2021 № 44н",
+      "subject": "",
       "kind": "Приказ",
       "number": "44",
       "year": "",
@@ -1868,6 +2673,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-44n-2022-02-07",
+          "role": "actual",
+          "date": "2022-02-07",
+          "caption": "оригинал от 2022-02-07, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-44n-2022-02-07?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 129,
       "status": "available",
       "note": "",
@@ -1879,7 +2694,8 @@
       "id": "order-55n",
       "slug": "order-55n-2019-07-31",
       "shortName": "Приказ № 55н",
-      "title": "Приказ Минфина России от 10.04.2019 № 55н",
+      "title": "Приказ Минфина России от 10.04.2019 № 55н «Об утверждении Порядка формирования идентификационного»",
+      "subject": "Об утверждении Порядка формирования идентификационного",
       "kind": "Приказ",
       "number": "55",
       "year": "2019",
@@ -1894,10 +2710,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-55n-2019-07-31",
+          "role": "actual",
+          "date": "2019-07-31",
+          "caption": "оригинал от 2019-07-31, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-55n-2019-07-31?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 16,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-55n-2019-07-31%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%84%D0%B8%D0%BD%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+10.04.2019+%E2%84%96+55%D0%BD",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-55n-2019-07-31%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%84%D0%B8%D0%BD%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+10.04.2019+%E2%84%96+55%D0%BD+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B0+%D1%84%D0%BE%D1%80%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F+%D0%B8%D0%B4%D0%B5%D0%BD%D1%82%D0%B8%D1%84%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/order-55n-2019-07-31?format=md",
       "wordUrl": ""
     },
@@ -1906,6 +2732,7 @@
       "slug": "order-124-pr-2022-04-27",
       "shortName": "Приказ № 124/пр",
       "title": "Приказ Минстроя России от 25.02.2022 № 124/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "124",
       "year": "2022",
@@ -1920,6 +2747,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-124-pr-2022-04-27",
+          "role": "actual",
+          "date": "2022-04-27",
+          "caption": "оригинал от 2022-04-27, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-124-pr-2022-04-27?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 8,
       "status": "available",
       "note": "",
@@ -1932,6 +2769,7 @@
       "slug": "order-158n-2020-10-20",
       "shortName": "Приказ № 158н",
       "title": "Приказ Минфина России от 31.07.2020 № 158н",
+      "subject": "",
       "kind": "Приказ",
       "number": "158",
       "year": "2020",
@@ -1946,6 +2784,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-158n-2020-10-20",
+          "role": "actual",
+          "date": "2020-10-20",
+          "caption": "оригинал от 2020-10-20, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-158n-2020-10-20?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 23,
       "status": "available",
       "note": "",
@@ -1958,6 +2806,7 @@
       "slug": "order-205n-2021-12-29",
       "shortName": "Приказ № 205н",
       "title": "Приказ Минфина России от 02.12.2021 № 205н",
+      "subject": "",
       "kind": "Приказ",
       "number": "205",
       "year": "",
@@ -1972,6 +2821,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-205n-2021-12-29",
+          "role": "actual",
+          "date": "2021-12-29",
+          "caption": "оригинал от 2021-12-29, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-205n-2021-12-29?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 45,
       "status": "available",
       "note": "",
@@ -1984,6 +2843,7 @@
       "slug": "order-210n-2021-12-29",
       "shortName": "Приказ № 210н",
       "title": "Приказ Минфина России от 10.12.2021 № 210н",
+      "subject": "",
       "kind": "Приказ",
       "number": "210",
       "year": "",
@@ -1998,6 +2858,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-210n-2021-12-29",
+          "role": "actual",
+          "date": "2021-12-29",
+          "caption": "оригинал от 2021-12-29, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-210n-2021-12-29?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 28,
       "status": "available",
       "note": "",
@@ -2009,7 +2879,8 @@
       "id": "order-214n",
       "slug": "order-214n-2021-12-29",
       "shortName": "Приказ № 214н",
-      "title": "Приказ Минфина России от 17.12.2021 № 214н",
+      "title": "Приказ Минфина России от 17.12.2021 № 214н «Об утверждении Порядка осуществления территориальными органами»",
+      "subject": "Об утверждении Порядка осуществления территориальными органами",
       "kind": "Приказ",
       "number": "214",
       "year": "",
@@ -2024,10 +2895,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-214n-2021-12-29",
+          "role": "actual",
+          "date": "2021-12-29",
+          "caption": "оригинал от 2021-12-29, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-214n-2021-12-29?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 117,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-214n-2021-12-29%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%84%D0%B8%D0%BD%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+17.12.2021+%E2%84%96+214%D0%BD",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-214n-2021-12-29%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%84%D0%B8%D0%BD%D0%B0+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+17.12.2021+%E2%84%96+214%D0%BD+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B0+%D0%BE%D1%81%D1%83%D1%89%D0%B5%D1%81%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D1%82%D0%B5%D1%80%D1%80%D0%B8%D1%82%D0%BE%D1%80%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%BC%D0%B8+%D0%BE%D1%80%D0%B3%D0%B0%D0%BD%D0%B0%D0%BC%D0%B8%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/order-214n-2021-12-29?format=md",
       "wordUrl": ""
     },
@@ -2036,6 +2917,7 @@
       "slug": "order-233n-2020-11-12",
       "shortName": "Приказ № 233н",
       "title": "Приказ Минфина России от 07.10.2020 № 233н",
+      "subject": "",
       "kind": "Приказ",
       "number": "233",
       "year": "2020",
@@ -2050,6 +2932,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-233n-2020-11-12",
+          "role": "actual",
+          "date": "2020-11-12",
+          "caption": "оригинал от 2020-11-12, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-233n-2020-11-12?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 4,
       "status": "available",
       "note": "",
@@ -2062,6 +2954,7 @@
       "slug": "order-288-2020-11-20",
       "shortName": "Приказ № 288",
       "title": "Приказ Минтранса России от 07.08.2020 № 288",
+      "subject": "",
       "kind": "Приказ",
       "number": "288",
       "year": "2020",
@@ -2076,6 +2969,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-288-2020-11-20",
+          "role": "actual",
+          "date": "2020-11-20",
+          "caption": "оригинал от 2020-11-20, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-288-2020-11-20?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 11,
       "status": "available",
       "note": "",
@@ -2087,7 +2990,8 @@
       "id": "order-336-pr",
       "slug": "order-336-pr-2018-10-24",
       "shortName": "Приказ № 336/пр",
-      "title": "Приказ Минстроя России от 05.06.2018 № 336/пр",
+      "title": "Приказ Минстроя России от 05.06.2018 № 336/пр «Об утверждении Методики составления графика выполнения»",
+      "subject": "Об утверждении Методики составления графика выполнения",
       "kind": "Приказ",
       "number": "336",
       "year": "2018",
@@ -2102,10 +3006,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-336-pr-2018-10-24",
+          "role": "actual",
+          "date": "2018-10-24",
+          "caption": "оригинал от 2018-10-24, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-336-pr-2018-10-24?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 19,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-336-pr-2018-10-24%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+05.06.2018+%E2%84%96+336%2F%D0%BF%D1%80",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-336-pr-2018-10-24%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+05.06.2018+%E2%84%96+336%2F%D0%BF%D1%80+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9C%D0%B5%D1%82%D0%BE%D0%B4%D0%B8%D0%BA%D0%B8+%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D0%B3%D1%80%D0%B0%D1%84%D0%B8%D0%BA%D0%B0+%D0%B2%D1%8B%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D1%8F%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/order-336-pr-2018-10-24?format=md",
       "wordUrl": ""
     },
@@ -2114,6 +3028,7 @@
       "slug": "",
       "shortName": "Приказ № 348",
       "title": "Приказ Минтранса от 12.11.2013 № 348",
+      "subject": "",
       "kind": "Приказ",
       "number": "348",
       "year": "2013",
@@ -2125,6 +3040,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",
@@ -2137,6 +3053,7 @@
       "slug": "",
       "shortName": "Приказ № 384",
       "title": "Приказ Минтранса от 25.10.2012 № 384",
+      "subject": "",
       "kind": "Приказ",
       "number": "384",
       "year": "2012",
@@ -2148,6 +3065,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",
@@ -2160,6 +3078,7 @@
       "slug": "",
       "shortName": "Приказ № 402",
       "title": "Приказ Минтранса от 16.11.2012 № 402",
+      "subject": "",
       "kind": "Приказ",
       "number": "402",
       "year": "2012",
@@ -2171,6 +3090,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",
@@ -2183,6 +3103,7 @@
       "slug": "order-421-pr-2020-09-24",
       "shortName": "Приказ № 421/пр",
       "title": "Приказ Минстроя России от 04.08.2020 № 421/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "421",
       "year": "2020",
@@ -2197,6 +3118,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-421-pr-2020-09-24",
+          "role": "actual",
+          "date": "2020-09-24",
+          "caption": "оригинал от 2020-09-24, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-421-pr-2020-09-24?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 341,
       "status": "available",
       "note": "",
@@ -2209,6 +3140,7 @@
       "slug": "order-484-pr-2022-10-04",
       "shortName": "Приказ № 484/пр",
       "title": "Приказ Минстроя России от 14.06.2022 № 484/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "484",
       "year": "2022",
@@ -2223,6 +3155,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-484-pr-2022-10-04",
+          "role": "actual",
+          "date": "2022-10-04",
+          "caption": "оригинал от 2022-10-04, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-484-pr-2022-10-04?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 118,
       "status": "available",
       "note": "",
@@ -2235,6 +3177,7 @@
       "slug": "order-500-pr-2021-08-13",
       "shortName": "Приказ № 500/пр",
       "title": "Приказ Минстроя России от 21.07.2021 № 500/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "500",
       "year": "2021",
@@ -2249,6 +3192,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-500-pr-2021-08-13",
+          "role": "actual",
+          "date": "2021-08-13",
+          "caption": "оригинал от 2021-08-13, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-500-pr-2021-08-13?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 39,
       "status": "available",
       "note": "",
@@ -2261,6 +3214,7 @@
       "slug": "order-556-pr-2025-11-27",
       "shortName": "Приказ № 556/пр",
       "title": "Приказ Минстроя России от 15.09.2025 № 556/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "556",
       "year": "2025",
@@ -2275,6 +3229,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-556-pr-2025-11-27",
+          "role": "actual",
+          "date": "2025-11-27",
+          "caption": "оригинал от 2025-11-27, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-556-pr-2025-11-27?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 4,
       "status": "available",
       "note": "",
@@ -2287,6 +3251,7 @@
       "slug": "",
       "shortName": "Приказ № 567",
       "title": "рынка",
+      "subject": "",
       "kind": "Приказ",
       "number": "567",
       "year": "",
@@ -2298,6 +3263,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",
@@ -2309,7 +3275,8 @@
       "id": "order-728-pr",
       "slug": "order-728-pr-2021-12-02",
       "shortName": "Приказ № 728/пр",
-      "title": "Приказ Минстроя России от 07.10.2021 № 728/пр",
+      "title": "Приказ Минстроя России от 07.10.2021 № 728/пр «О внесении изменений в Методику составления сметы контракта»",
+      "subject": "О внесении изменений в Методику составления сметы контракта",
       "kind": "Приказ",
       "number": "728",
       "year": "2021",
@@ -2324,10 +3291,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-728-pr-2021-12-02",
+          "role": "actual",
+          "date": "2021-12-02",
+          "caption": "оригинал от 2021-12-02, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-728-pr-2021-12-02?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 11,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-728-pr-2021-12-02%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+07.10.2021+%E2%84%96+728%2F%D0%BF%D1%80",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-728-pr-2021-12-02%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+07.10.2021+%E2%84%96+728%2F%D0%BF%D1%80+%C2%AB%D0%9E+%D0%B2%D0%BD%D0%B5%D1%81%D0%B5%D0%BD%D0%B8%D0%B8+%D0%B8%D0%B7%D0%BC%D0%B5%D0%BD%D0%B5%D0%BD%D0%B8%D0%B9+%D0%B2+%D0%9C%D0%B5%D1%82%D0%BE%D0%B4%D0%B8%D0%BA%D1%83+%D1%81%D0%BE%D1%81%D1%82%D0%B0%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D1%81%D0%BC%D0%B5%D1%82%D1%8B+%D0%BA%D0%BE%D0%BD%D1%82%D1%80%D0%B0%D0%BA%D1%82%D0%B0%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/order-728-pr-2021-12-02?format=md",
       "wordUrl": ""
     },
@@ -2335,7 +3312,8 @@
       "id": "order-841-pr",
       "slug": "order-841-pr-2020-02-04",
       "shortName": "Приказ № 841/пр",
-      "title": "Приказ Минстроя России от 23.12.2019 № 841/пр",
+      "title": "Приказ Минстроя России от 23.12.2019 № 841/пр «Об утверждении Порядка определения начальной (максимальной) цены»",
+      "subject": "Об утверждении Порядка определения начальной (максимальной) цены",
       "kind": "Приказ",
       "number": "841",
       "year": "2019",
@@ -2350,10 +3328,20 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-841-pr-2020-02-04",
+          "role": "actual",
+          "date": "2020-02-04",
+          "caption": "оригинал от 2020-02-04, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-841-pr-2020-02-04?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 89,
       "status": "available",
       "note": "",
-      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-841-pr-2020-02-04%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+23.12.2019+%E2%84%96+841%2F%D0%BF%D1%80",
+      "viewerUrl": "/consultant?doc=%2Fapi%2Fconsultant%2Fsource%2Fnpa%2Forder-841-pr-2020-02-04%3Fformat%3Dmd&title=%D0%9F%D1%80%D0%B8%D0%BA%D0%B0%D0%B7+%D0%9C%D0%B8%D0%BD%D1%81%D1%82%D1%80%D0%BE%D1%8F+%D0%A0%D0%BE%D1%81%D1%81%D0%B8%D0%B8+%D0%BE%D1%82+23.12.2019+%E2%84%96+841%2F%D0%BF%D1%80+%C2%AB%D0%9E%D0%B1+%D1%83%D1%82%D0%B2%D0%B5%D1%80%D0%B6%D0%B4%D0%B5%D0%BD%D0%B8%D0%B8+%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%D0%BA%D0%B0+%D0%BE%D0%BF%D1%80%D0%B5%D0%B4%D0%B5%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F+%D0%BD%D0%B0%D1%87%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9+%28%D0%BC%D0%B0%D0%BA%D1%81%D0%B8%D0%BC%D0%B0%D0%BB%D1%8C%D0%BD%D0%BE%D0%B9%29+%D1%86%D0%B5%D0%BD%D1%8B%C2%BB",
       "sourceUrl": "/api/consultant/source/npa/order-841-pr-2020-02-04?format=md",
       "wordUrl": ""
     },
@@ -2362,6 +3350,7 @@
       "slug": "",
       "shortName": "Приказ № 999",
       "title": "Приказ МЧС от 23.12.2005 № 999",
+      "subject": "",
       "kind": "Приказ",
       "number": "999",
       "year": "2005",
@@ -2373,6 +3362,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",
@@ -2385,6 +3375,7 @@
       "slug": "order-1026-pr-2022-12-30",
       "shortName": "Приказ № 1026/пр",
       "title": "Приказ Минстроя России от 02.12.2022 № 1026/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "1026",
       "year": "2022",
@@ -2399,6 +3390,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-1026-pr-2022-12-30",
+          "role": "actual",
+          "date": "2022-12-30",
+          "caption": "оригинал от 2022-12-30, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-1026-pr-2022-12-30?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 47,
       "status": "available",
       "note": "",
@@ -2411,6 +3412,7 @@
       "slug": "order-1470-pr-2018-05-15",
       "shortName": "Приказ № 1470/пр",
       "title": "Приказ Минстроя России от 24.10.2017 № 1470/пр",
+      "subject": "",
       "kind": "Приказ",
       "number": "1470",
       "year": "2017",
@@ -2425,6 +3427,16 @@
         ".txt",
         ".md"
       ],
+      "editions": [
+        {
+          "slug": "order-1470-pr-2018-05-15",
+          "role": "actual",
+          "date": "2018-05-15",
+          "caption": "оригинал от 2018-05-15, распознан из скана",
+          "sourceUrl": "/api/consultant/source/npa/order-1470-pr-2018-05-15?format=md",
+          "wordUrl": ""
+        }
+      ],
       "chunks": 16,
       "status": "available",
       "note": "",
@@ -2437,6 +3449,7 @@
       "slug": "",
       "shortName": "Постановление Госкомстата № 1",
       "title": "Постановление Госкомстата № 1",
+      "subject": "",
       "kind": "Постановление Госкомстата",
       "number": "1",
       "year": "2004",
@@ -2448,6 +3461,7 @@
       "cardUrl": "",
       "publicationUrl": "",
       "formats": [],
+      "editions": [],
       "chunks": 0,
       "status": "missing-card",
       "note": "Официальной карточки на pravo.gov.ru нет: акт не загружен и не может цитироваться как первоисточник.",

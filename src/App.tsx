@@ -94,6 +94,9 @@ const LegalActCardPage = lazy(
 const LegalChangesPage = lazy(
   () => import("./components/Legal/LegalChangesPage"),
 );
+const NpaLibraryPage = lazy(
+  () => import("./components/Legal/NpaLibraryPage"),
+);
 const NormingRequirementsPage = lazy(
   () => import("./components/NormingRequirements/NormingRequirementsPage"),
 );
@@ -458,6 +461,12 @@ const router = createBrowserRouter([
       {
         path: "/legal/changes",
         element: lazySection(<LegalChangesPage />),
+      },
+      {
+        // Библиотека НПА: все акты проекта с тем же просмотром, что у цитат.
+        // Статический адрес раньше /legal/:id, иначе «library» стал бы id.
+        path: "/legal/library",
+        element: lazySection(<NpaLibraryPage />),
       },
       {
         path: "/legal/:id",

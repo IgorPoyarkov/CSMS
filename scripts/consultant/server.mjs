@@ -5,7 +5,7 @@ import express from "express";
 import { z } from "zod";
 import { ROOT } from "./lib/knowledge.mjs";
 import { embedTexts } from "./lib/embed.mjs";
-import { retrieve } from "./lib/retrieve.mjs";
+import { retrieve, isArchiveChunk } from "./lib/retrieve.mjs";
 import {
   isFz44Chunk,
   referentialTargets,
@@ -112,6 +112,7 @@ function citeFromFragment(fragment) {
     title: fragment.title,
     ref: fragment.ref,
     url: fragment.url,
+    externalUrl: fragment.meta?.externalUrl ?? null,
     quote: String(fragment.text ?? "").slice(0, 420),
     score: Number((fragment.score ?? 0).toFixed(3)),
     source: fragment.source,
@@ -169,11 +170,141 @@ function hasNormativeFragments(found) {
   return found.fragments.some((f) => NORMATIVE_SOURCES.has(f.source));
 }
 
+/**
+ * Если модель отказалась или дала слишком короткий ответ, а норма уже найдена,
+ * отдаём сами фрагменты: пользователь видит текст нормы с цитатами, а не
+ * сообщение о том, что документ будто бы не изучался. Ничего не выдумываем.
+ */
+function citationAnswer(found) {
+  const top = found.fragments
+    .filter((fragment) => NORMATIVE_SOURCES.has(fragment.source))
+    .slice(0, 4);
+  if (!top.length) return null;
+  return {
+    answer:
+      top
+        .map(
+          (fragment, index) =>
+            `[${index + 1}] ${fragment.title}${fragment.ref ? ` · ${fragment.ref}` : ""}: ` +
+            String(fragment.text).slice(0, 320),
+        )
+        .join("\n\n") +
+      `\n\n${DISCLAIMER}`,
+    citations: top.map((fragment, index) => ({
+      ...citeFromFragment(fragment),
+      n: index + 1,
+    })),
+    refusal: false,
+  };
+}
+
+function respondWithCitations(res, found, started, stage, followUp) {
+  const direct = citationAnswer(found);
+  if (!direct) return false;
+  res.json({
+    ...direct,
+    tools: found.exactCodes.length ? ["ПП 1875: точная проверка кода ОКПД2"] : [],
+    confidence: Number(found.confidence.toFixed(3)),
+    refusal: false,
+    stage: stage?.kind ?? "fz44",
+    ...(followUp ? { followUp } : {}),
+    model: cfg.chatModel,
+    ...editionFields(found),
+    latencyMs: Date.now() - started,
+  });
+  return true;
+}
+
 function isPaymentSmpQuestion(question) {
   const q = String(question).toLowerCase();
-  const pay = /оплат|срок\s+оплат|платеж|платёж/.test(q);
+  const pay = /оплат|оплач|платеж|платёж/.test(q);
   const smp = /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/.test(q);
   return pay && smp;
+}
+
+function isTreasuryPaymentQuestion(question) {
+  const q = String(question).toLowerCase();
+  return /оплат|оплач|платеж|платёж/.test(q) && /казначейск|казначейств|сопровожден/.test(q);
+}
+
+function findTreasuryPaymentChunks(index, allowArchive = false) {
+  const chunks = Array.isArray(index?.chunks) ? index.chunks : [];
+  const scored = [];
+  for (const c of chunks) {
+    // Как и в основном поиске: архивная редакция не должна попадать в ответ,
+    // если пользователь прямо не спросил про прошлое состояние нормы.
+    if (!allowArchive && isArchiveChunk(c)) continue;
+    if (!NORMATIVE_SOURCES.has(c.source)) continue;
+    const text = String(c.text || "");
+    const title = String(c.title || "");
+    const hay = (title + "\n" + text).toLowerCase();
+    if (!/казначейск/.test(hay) || !/оплат/.test(hay)) continue;
+    let s = 0;
+    if (/ст\.?\s*34|статья\s*34|ч\.?\s*13\.1|части\s*13\.1/i.test(hay)) s += 4;
+    if (/не более десяти рабочих дней/.test(hay)) s += 5;
+    if (/казначейскому сопровождению/.test(hay)) s += 3;
+    if (/документа о приемке/.test(hay)) s += 1;
+    if (/44-фз/.test(hay)) s += 2;
+    if (/2026-10-01|актуальн/.test(hay)) s += 2;
+    if (/архивная/.test(hay)) s -= 4;
+    if (s >= 7) scored.push({ c, s });
+  }
+  scored.sort((a,b)=>b.s-a.s);
+  return scored.slice(0,3).map((x,i)=>({
+    n: 900+i, title: x.c.title, ref: x.c.ref, url: x.c.url, text: x.c.text,
+    score: 0.99, source: x.c.source, meta: x.c.meta || {}
+  }));
+}
+
+function buildTreasuryPaymentAnswer(found, index) {
+  const txt = (f) => String(f.title||"") + " " + String(f.ref||"") + " " + String(f.text||"");
+  let st34General = pickCitation(found, (f) =>
+    /ст\.?\s*34|статья\s*34/i.test(txt(f)) &&
+    /не более (семи|15|пятнадцати) рабочих дней/i.test(txt(f)) &&
+    /дат[ыа] подписания заказчиком документа о приемке/i.test(txt(f))
+  );
+  let st34Treasury = pickCitation(found, (f) =>
+    /ст\.?\s*34|статья\s*34/i.test(txt(f)) &&
+    /казначейск/i.test(txt(f)) &&
+    /не более десяти рабочих дней/i.test(txt(f)) &&
+    /оплат/i.test(txt(f))
+  );
+  const extra = findTreasuryPaymentChunks(index, found.pastEditionRequested);
+  if (!st34Treasury) st34Treasury = extra.find((f)=>/не более десяти рабочих дней/i.test(String(f.text||"")) && /казначейск/i.test(String(f.text||""))) || null;
+  if (!st34General) st34General = extra.find((f)=>/не более (семи|15|пятнадцати) рабочих дней/i.test(String(f.text||"")) && /дат[ыа] подписания заказчиком документа о приемке/i.test(String(f.text||""))) || st34Treasury || null;
+  if (!st34Treasury && !st34General) return null;
+  const cites = [st34General, st34Treasury].filter((c,i,a)=>c && a.findIndex(x=>String(x.title)===String(c.title) && String(x.ref)===String(c.ref) && String(x.text).slice(0,80)===String(c.text).slice(0,80))===i);
+  const byId = new Map(cites.map((c,i)=>[c,i+1]));
+  const ref = (c) => c && byId.has(c) ? `[${byId.get(c)}]` : "";
+  const parts = [];
+  parts.push("При казначейском сопровождении срок оплаты по контракту 44-ФЗ определяется ч. 13.1 ст. 34 44-ФЗ.");
+  if (st34General) {
+    parts.push(`Общее правило: срок оплаты поставленного товара, выполненной работы (ее результатов), оказанной услуги, отдельных этапов исполнения контракта должен составлять не более 15 рабочих дней, а с 1 июля 2022 года - не более 7 рабочих дней с даты подписания заказчиком документа о приемке по ч. 7 ст. 94 44-ФЗ ${ref(st34General)}.`);
+  }
+  if (st34Treasury) {
+    parts.push(`Исключение при казначейском сопровождении: если в соответствии с законодательством РФ расчеты по контракту или расчеты по контракту в части выплаты аванса подлежат казначейскому сопровождению, срок оплаты должен составлять не более 10 рабочих дней с даты подписания документа о приемке, предусмотренного ч. 7 ст. 94 44-ФЗ ${ref(st34Treasury)}.`);
+  } else {
+    parts.push("В загруженных фрагментах прямо виден общий срок по ч. 13.1 ст. 34 44-ФЗ, но пункт о казначейском сопровождении не попал в цитаты. Проверьте актуальный текст ч. 13.1 ст. 34 44-ФЗ.");
+  }
+  parts.push("Справочно. Проверьте первоисточник и актуальную редакцию.");
+  const quoteFor = (c, wantTreasury) => {
+    const text = String(c.text || "");
+    if (wantTreasury) {
+      const idx = text.toLowerCase().indexOf("казначейскому сопровождению");
+      if (idx >= 0) {
+        const start = Math.max(0, idx - 120);
+        return text.slice(start, start + 420);
+      }
+    }
+    return text.slice(0, 420);
+  };
+  const citations = cites.map((c,i)=>({
+    n:i+1, title:c.title, ref:c.ref, url:c.url,
+    externalUrl:c.meta?.externalUrl ?? null,
+    quote: quoteFor(c, c === st34Treasury),
+    score:Number((c.score||0).toFixed(3)), source:c.source
+  }));
+  return { answer: parts.join("\n\n"), citations, refusal: false };
 }
 
 function pickCitation(found, predicate) {
@@ -215,7 +346,7 @@ function buildPrompt(fragments, question, context) {
       "Используй ТОЛЬКО приведённые фрагменты. Не добавляй знаний извне и не выдумывай нормы, даты, редакции, сроки и проценты.",
       "Каждое юридическое утверждение подтверждай ссылкой [номер] на фрагмент с источником npa/norm/qa/pp1875. Не делай юридических выводов только из csms-notes/csms-doc/xsd.",
       "Если вопрос неоднозначный (смешаны разные субъекты/отношения: заказчик-поставщик, подрядчик-субподрядчик СМП/СОНКО, срок оплаты/срок привлечения/срок представления документов), сначала явно укажи неоднозначность и разложи ответ по случаям, опираясь только на найденные нормы.",
-      "Если прямой нормы для конкретного случая во фрагментах нет, не подставляй похожую норму другого случая. Прямо напиши, что прямого ответа в загруженных редакциях нет, и назови ближайшую найденную норму.",
+      "Если среди фрагментов есть норма, прямо регулирующая вопрос, отвечай по ней и обязательно цитируй её [номер]. Не пиши об отсутствии ответа, если подходящая норма перед тобой. Не подставляй норму другого случая. Только если ни один фрагмент не покрывает вопрос, скажи, что прямого ответа в загруженных редакциях нет, и процитируй ближайшую найденную норму.",
       "Фрагменты CurrentTasks.md/WorkPlan.md/csms-doc/csms-notes — рабочие заметки/описание проекта, не нормы. Они не могут быть основанием юридического ответа.",
       "По умолчанию поиск идёт только по действующей редакции 44-ФЗ: архивные фрагменты в контекст не попадают. Если пользователь прямо спросил про прошлую дату, архивный фрагмент можно использовать, но явно называй дату редакции из заголовка.",
       "Если в тексте нормы есть оговорка о сроке действия («до 1 января …», «не применяется до …», «вступает в силу с …»), соблюдай её и не применяй норму раньше указанной даты. Дату бери только из текста фрагмента, а не из заголовка.",
@@ -248,8 +379,8 @@ async function generate(prompt) {
     { role: "user", content: prompt.user },
   ];
 
-  // llama.cpp ╨╛╤В╨┤╨░╤С╤В OpenAI-╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╤Л╨╣ /v1/chat/completions; Ollama ╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜
-  // ╨║╨░╨║ ╨╖╨░╨┐╨░╤Б╨╜╨╛╨╣ ╨┐╤Г╤В╤М (╨╕ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П ╨┤╨╗╤П ╤Н╨╝╨▒╨╡╨┤╨┤╨╕╨╜╨│╨╛╨▓).
+  // llama.cpp отдаёт OpenAI-совместимый /v1/chat/completions; Ollama оставлен
+  // как запасной путь (и используется для эмбеддингов).
   if (cfg.chatApi === "openai") {
     const base = String(cfg.chatBase ?? "http://127.0.0.1:5100/v1").replace(/\/+$/, "");
     const response = await fetch(`${base}/chat/completions`, {
@@ -267,9 +398,9 @@ async function generate(prompt) {
       throw new Error(`llama.cpp ${response.status}: ${(await response.text()).slice(0, 400)}`);
     }
     const body = await response.json();
-    // llama.cpp ╨┤╨╗╤П DeepSeek-R1 ╨╛╤В╨┤╨░╤С╤В ╨╛╤Б╨╜╨╛╨▓╨╜╤Г╤О ╤З╨░╤Б╤В╤М ╨╛╤В╨▓╨╡╤В╨░ ╨▓ reasoning_content.
+    // llama.cpp для DeepSeek-R1 отдаёт основную часть ответа в reasoning_content.
     const message = body.choices?.[0]?.message ?? {};
-    return cleanAnswer(message.content || message.reasoning_content || "");
+    return cleanAnswer(message.content) || cleanAnswer(message.reasoning_content) || "";
   }
 
   const response = await fetch(
@@ -289,7 +420,11 @@ async function generate(prompt) {
     throw new Error(`Ollama ${response.status}: ${(await response.text()).slice(0, 400)}`);
   }
   const body = await response.json();
-  return cleanAnswer(body.message?.content ?? "");
+  return (
+    cleanAnswer(body.message?.content) ||
+    cleanAnswer(body.message?.reasoning_content) ||
+    ""
+  );
 }
 
 const app = express();
@@ -358,7 +493,21 @@ app.post("/api/consultant/ask", async (req, res) => {
       });
     }
 
-    if (!stage && found.refusal) {
+    const _isPaySmp = isPaymentSmpQuestion(question);
+    const _isTreasuryPay = !_isPaySmp && isTreasuryPaymentQuestion(question);
+    // Структурированные ответы ищут норму по всему индексу. Считаем их до
+    // проверки found.refusal, иначе fallback по казначейству остаётся мёртвым.
+    const structured = _isPaySmp
+      ? buildPaymentSmpAnswer(found)
+      : _isTreasuryPay
+        ? buildTreasuryPaymentAnswer(found, index)
+        : null;
+
+    if (!stage && found.refusal && !structured) {
+      if (hasNormativeFragments(found)) {
+        respondWithCitations(res, found, started, stage, followUp);
+        return;
+      }
       setPending(key, { kind: "widen", question });
       return res.json({
         answer:
@@ -379,7 +528,7 @@ app.post("/api/consultant/ask", async (req, res) => {
         latencyMs: Date.now() - started,
       });
     }
-    if (found.legalQuestion && !found.exactCodes.length && !hasNormativeFragments(found)) {
+    if (found.legalQuestion && !found.exactCodes.length && !hasNormativeFragments(found) && !structured) {
       return res.json(
         refusalResponse(found, started, "Найдены только рабочие заметки/описание проекта, а не норма."),
       );
@@ -421,24 +570,25 @@ app.post("/api/consultant/ask", async (req, res) => {
           };
         }
       }
-
-      const structured = isPaymentSmpQuestion(question) ? buildPaymentSmpAnswer(found) : null;
-      if (structured) {
-        return res.json({
-          ...structured,
-          tools: [],
-          confidence: Number(found.confidence.toFixed(3)),
-          refusal: false,
-          stage: "fz44",
-          ...(followUp ? { followUp } : {}),
-          model: cfg.chatModel,
-          ...editionFields(found),
-          latencyMs: Date.now() - started,
-        });
-      }
-      // Структурированные ответы уже содержат нужные нормы — вопрос не нужен.
-      if (externalOnlyResponse) return res.json(externalOnlyResponse);
     }
+
+    if (structured) {
+      return res.json({
+        ...structured,
+        tools: [],
+        confidence: Number(found.confidence.toFixed(3)),
+        refusal: false,
+        stage: stage?.kind ?? "fz44",
+        ...(followUp ? { followUp } : {}),
+        model: cfg.chatModel,
+        ...editionFields(found),
+        latencyMs: Date.now() - started,
+      });
+    }
+
+    // Структурированные ответы (оплата, казначейство) уже содержат нужные
+    // нормы из других актов — им уточняющий вопрос не нужен.
+    if (externalOnlyResponse) return res.json(externalOnlyResponse);
 
     const context = [module ? `модуль ${module}` : "", ruleId ? `правило ${ruleId}` : "", entityId ? `объект ${entityId}` : ""]
       .filter(Boolean)
@@ -462,22 +612,28 @@ app.post("/api/consultant/ask", async (req, res) => {
         !citedFragments.some((f) => /действу[ею]т до|утратил[ао]? силу|устарел[ао]?/.test(String(f.text||"").toLowerCase()));
     }
     const citations = (citedFragments.length ? citedFragments : found.fragments)
-      .map(({ n, title, ref, url, text, score, source }) => ({
+      .map(({ n, title, ref, url, text, score, source, meta }) => ({
         n,
         title,
         ref,
         url,
+        externalUrl: meta?.externalUrl ?? null,
         quote: text.slice(0, 420),
         score: Number(score.toFixed(3)),
         source,
       }));
     const hasNormativeAvailable = hasNormativeFragments(found);
     const substantive = cyr >= 80 && lat <= cyr;
-    if (found.legalQuestion && hasUngroundedExpiry) {
-      return res.json(refusalResponse(found, started, "Ответ содержит не подтверждённое утверждение о сроке действия нормы."));
-    }
-    if (found.legalQuestion && (!substantive || (!citedNormative && !hasNormativeAvailable))) {
-      return res.json(refusalResponse(found, started, "Ответ не подтверждён нормативными цитатами или нарушает формат."));
+    const modelRefusal = /прямого ответа.{0,60}нет|в загруженных редакциях.{0,60}нет|не найден[оы]|не учил|не подтверждено/i.test(answer);
+    if (found.legalQuestion && (hasUngroundedExpiry || modelRefusal || !substantive || (!citedNormative && !hasNormativeAvailable))) {
+      // Норма уже в контексте — отдаём её текст с цитатами, даже если модель
+      // написала отказ или ответ вышел слишком коротким. Отказ остаётся только
+      // когда нормативных фрагментов действительно нет.
+      if (hasNormativeAvailable && respondWithCitations(res, found, started, stage, followUp)) return;
+      const reason = hasUngroundedExpiry
+        ? "Ответ содержит не подтверждённое утверждение о сроке действия нормы."
+        : "Ответ не подтверждён нормативными цитатами или нарушает формат.";
+      return res.json(refusalResponse(found, started, reason));
     }
     // Если модель дала содержательный русский ответ без маркеров [n], но у нас есть нормативные фрагменты, прикладываем их как цитаты.
     if (found.legalQuestion && !citedNormative && hasNormativeAvailable && substantive) {

@@ -73,9 +73,9 @@ function lookupForCode(lookup, code) {
 }
 
 const LEGAL_HINTS = [
-  /оплат[аы]|срок\s+оплат|\bплатеж|\bплатёж/i,
+  /оплат|оплач|платеж|платёж/i,
   /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/i,
-  /контракт|договор|закупк|заказчик|поставщик|подрядчик|исполнитель/i,
+  /контракт|договор|закупк|заказчик|поставщик|подрядчик|исполнитель|44-фз/i,
   /штраф|пен[ия]|неустойк|обеспечени/i,
   /приемк|приёмк|акт/i,
 ];
@@ -95,18 +95,27 @@ function sourcePriority(source) {
 function paymentSmpBoost(chunk, question) {
   const text = `${chunk.title} ${chunk.text}`.toLowerCase();
   const q = question.toLowerCase();
-  const asksPayment = /оплат|срок\s+оплат|платеж|платёж/.test(q);
+  const asksPayment = /оплат|оплач|платеж|платёж/.test(q);
   const asksSmp = /смп|сонко|субподряд|соисполнител|малого предпринимательства|социально ориентированн/.test(q);
+  const asksTreasury = /казначейск|казначейств|сопровожден/.test(q);
   let boost = 0;
   if (asksPayment) {
     if (/срок оплаты/.test(text)) boost += 0.14;
     if (/не более .*рабочих дней/.test(text) && /оплат/.test(text)) boost += 0.12;
-    if (/статья 34/.test(text) && /оплат/.test(text)) boost += 0.12;
+    if (/статья 34|ст\.?\s*34/i.test(text) && /оплат/.test(text)) boost += 0.12;
     if (/13\.1/.test(text) && /оплат/.test(text)) boost += 0.12;
     if (/статья 30/.test(text) && asksSmp) boost += 0.1;
     if (/1466/.test(chunk.title)) boost += 0.12;
     if (/типовые условия контрактов/.test(text) && asksSmp) boost += 0.08;
     if (/оплачивать поставленные субподрядчиком/.test(text)) boost += 0.14;
+  }
+  if (asksTreasury) {
+    if (/казначейск/.test(text) && /сопровожден/.test(text)) boost += 0.22;
+    if (/казначейск/.test(text) && /срок оплат/.test(text)) boost += 0.2;
+    if (/не более десяти рабочих дней/.test(text) && /казначейск/.test(text)) boost += 0.22;
+    if (/статья 34/.test(text) && /казначейск/.test(text)) boost += 0.12;
+    if (/13\.1/.test(text) && /казначейск/.test(text)) boost += 0.12;
+    if (/жилищн|пен[ия]|неустойк|коап|гк рф, ч|земельн/.test(text) && !/44-фз|контракт/.test(text)) boost -= 0.18;
   }
   if (asksSmp && /субъектов малого предпринимательства|социально ориентированных некоммерческих/.test(text)) boost += 0.05;
   if (chunk.source === "npa" && !/архивная/.test(chunk.title)) boost += 0.03;
@@ -135,7 +144,7 @@ export function isArchiveChunk(chunk) {
  */
 export function asksPastEdition(question) {
   const q = String(question ?? "").toLowerCase();
-  if (/архивн|историческ|раннее действовав|действовавш|в редакции от|по состоянию на|на дату|утративш/.test(q)) {
+  if (/архивн|историческ|ранее действовав|действовавш|в редакции от|по состоянию на|на дату|утративш/.test(q)) {
     return true;
   }
   const now = new Date();
@@ -167,7 +176,11 @@ export function retrieve(index, question, cfg, options = {}) {
   const articleRefs = [
     ...question.matchAll(/(?:ст\.?|статья|статьи|статью|статьёй)\s*(\d{1,3})/gi),
   ].map((match) => match[1]);
-  const legalQuestion = isLegalQuestion(question);
+  const qLower = String(question ?? "").toLowerCase();
+  const treasuryIntent =
+    /оплат|оплач|платеж|платёж/.test(qLower) &&
+    /казначейск|казначейств|сопровожден/.test(qLower);
+  const legalQuestion = isLegalQuestion(question) || treasuryIntent;
   const scored = candidates.map((chunk) => {
     const vectorScore = cosine(queryVector, chunk.embedding);
     const textTokens = new Set(tokenize(`${chunk.title} ${chunk.text}`));
@@ -258,13 +271,20 @@ export function retrieve(index, question, cfg, options = {}) {
   // вопросам, поэтому порог дополняем lexical-покрытием: хоть одно слово
   // вопроса должно встречаться в найденном фрагменте.
   const topGrounding = Math.max(0, ...picked.map((item) => item.lexical));
+  // Слабое ранжирование — сигнал качества, но не основание отказа: если
+  // нормативный фрагмент найден, его нужно отдать с цитатой, а не писать,
+  // что документ не изучали. Отказ только при полном отсутствии норм.
+  const rankingWeak =
+    !exact.length &&
+    ((filteredVector[0]?.score ?? 0) < (cfg.minScore ?? 0.34) || topGrounding < 0.2);
+  const grounded = fragments.some((fragment) =>
+    ["npa", "norm", "qa", "pp1875", "pp1875-exact"].includes(fragment.source),
+  );
   return {
     fragments,
     confidence: fragments.length ? Math.max(...fragments.map((item) => item.score)) : 0,
-    refusal:
-      !fragments.length ||
-      (!exact.length && ((filteredVector[0]?.score ?? 0) < (cfg.minScore ?? 0.34) || topGrounding < 0.2)) ||
-      (legalQuestion && !exact.length && !hasNormative),
+    refusal: !fragments.length || !grounded,
+    rankingWeak,
     exactCodes: exact.map((item) => item.code),
     legalQuestion,
     pastEditionRequested,
