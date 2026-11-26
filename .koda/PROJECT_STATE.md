@@ -9107,3 +9107,32 @@ src/services/Procurements` — 0 warnings; `npx vite build` — ок. Смоук
 - **Коммит.** В индекс взяты только правки задачи; чужой эндпоинт раздачи
   pravo-файлов и правки точных правил ПП 1875 в `server.mjs`/`retrieve.mjs`,
   переформатирование `App.tsx`/`Header.tsx` и прочая WIP — в рабочем дереве.
+
+## 204. Справочники ЕИС: связка XSD ↔ НСИ ↔ фронт (2026-11-26)
+
+- **Источник:** архив пользователя `Все_справочники_по_ЭП_v368(15.1)FCSNF-25057.zip`
+  (XLSX, 104 листа, 15 186 строк). Это описания и значения справочников ЕИС;
+  ссылок на XSD/компоненты внутри нет, связь выводится по коду НСИ.
+- **Сборка:** `scripts/reference-books/build_reference_book_links.py` +
+  `scripts/reference-books/ui-hints.json` (ручная связка там, где имя датасета
+  отличается от кода в выгрузке) → `public/nsi-reference-books.json`. Код
+  `nsiFoo` из XSD/API сопоставляется с таблицей БД `NSI_FOO` через лист
+  `NSI_ALL_LIST`; учтены варианты `...List`/`...s`. Исключены
+  `src/services/Eis/generated/**` и `*.d.ts`.
+- **Итог:** 104 справочника, 72 связаны с XSD, 27 — с интерфейсом. JSON
+  читается `useNsiReferenceBooks()` (`src/services/Eis/nsiReferenceBooks.api.ts`,
+  zod + React Query); в `EisCoverageModal` под таблицей полей показан список
+  справочников конкретного XSD-файла и читающие их компоненты.
+- **КТРУ:** в архиве только 11 кодов-описаний в `nsiAllList` (`nsiKTRU`,
+  `nsiKTRUNew`, `nsiKTRUNewActive`, `nsiKTRUNotUsingReasons`, `nsiRightSideKTRU`
+  и др.), листа с позициями вида `01.13.43.110-00000002` нет. Позиции у нас
+  идут через `/api/references/nsiKTRU/items` (`KtruSelect`/`ktruRef.api.ts`).
+- **Нет в архиве как значений:** `nsiOKPD2`, `nsiOKEI`, `nsiKLADR`/`nsiOKTMO`,
+  `nsiKOKS`, `nsiPurchasePreferences` — зафиксированы в `externalDatasets` с
+  указанием реального источника, выдуманных связей нет.
+- **Проверки и документы:** `docs/tasks/eis-nsi-reference-books.md`;
+  `npx tsc -b` — 0, `npx vite build` — зелёный, `npx oxlint src` — только
+  старые warning в чужих файлах (`PurchaseNoteModal`, `StaffingTable`).
+  `python -m py_compile` и `json.tool` для скрипта/каталога — чисто.
+  Чужую WIP (`KoksRef/`, `src/services/Eis/generated/**`, многие файлы форм)
+  не трогал; правки только в новых файлах и в `EisCoverageModal`.

@@ -285,6 +285,86 @@
     color: var(--text-secondary);
   }
 
+  &__nsi {
+    margin: 10px 20px 0;
+    padding: 10px 12px;
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  &__nsi-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  &__nsi-title {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  &__nsi-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &__nsi-empty,
+  &__nsi-note {
+    margin: 6px 0 0;
+    font-size: 11px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  &__nsi-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 6px;
+    max-height: 190px;
+    overflow: auto;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__nsi-item {
+    padding: 6px 8px;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  &__nsi-item-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__nsi-rows {
+    font-size: 11px;
+    white-space: nowrap;
+    color: var(--text-secondary);
+  }
+
+  &__nsi-name {
+    margin-top: 3px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  &__nsi-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
   &__notes {
     margin: 8px 20px 0;
     padding-left: 18px;

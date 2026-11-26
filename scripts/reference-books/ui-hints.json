@@ -1,0 +1,114 @@
+{
+  "_comment": "Ручная связка компонентов/сервисов с кодами НСИ там, где код в XLSX и код в нашем API называются по-разному. Автоматический скан по коду работает поверх этого списка.",
+
+  "nsialllist": [
+    "src/services/Eis/referenceData.api.ts",
+    "src/components/Eis/ReferenceDataBadge.tsx"
+  ],
+  "nsiokpd2": [
+    "src/components/UI/Okpd2Select/Okpd2Select.tsx",
+    "src/services/Okpd2Ref/okpd2Ref.api.ts",
+    "src/components/Eis/ReferenceDataBadge.tsx"
+  ],
+  "nsiokpd2requirement": [
+    "src/components/UI/Okpd2Select/Okpd2Select.tsx",
+    "src/services/Okpd2Ref/okpd2Ref.api.ts"
+  ],
+  "nsinpaokpd2link": [
+    "src/services/Npa/npa.api.ts",
+    "src/services/Okpd2Ref/okpd2Ref.api.ts"
+  ],
+  "nsiktru": [
+    "src/components/UI/KtruSelect/KtruSelect.tsx",
+    "src/services/KtruRef/ktruRef.api.ts",
+    "src/components/Eis/ReferenceDataBadge.tsx"
+  ],
+  "nsicharacteristicsfillinginstructions": [
+    "src/components/UI/KtruSelect/KtruSelect.tsx",
+    "src/services/KtruRef/ktruRef.api.ts",
+    "src/services/ObjectDescription/objectDescription.schema.ts"
+  ],
+  "nsifillingcharacteristics": [
+    "src/components/UI/KtruSelect/KtruSelect.tsx",
+    "src/services/ObjectDescription/objectDescription.schema.ts"
+  ],
+  "nsicharobjpurchase": [
+    "src/components/NormingRequirements/ObjectDescriptionEditor.tsx",
+    "src/services/ObjectDescription/objectDescription.schema.ts"
+  ],
+  "nsisubjectrf": [
+    "src/components/UI/AddressCascade/AddressCascade.tsx",
+    "src/services/AddressRef/addressRef.api.ts"
+  ],
+  "nsiorganizationextract": [
+    "src/components/UI/AddressCascade/AddressCascade.tsx",
+    "src/services/AddressRef/addressRef.api.ts"
+  ],
+  "nsieadoctype": [
+    "src/services/Procurements/noticeAttachment.schema.ts",
+    "src/services/ContractProject/contractProjectAttachment.ts"
+  ],
+  "nsirpgzspecialpurchase2020": [
+    "src/services/SpecialPurchaseType/specialPurchaseType.api.ts"
+  ],
+  "nsispecialpurchases2020": [
+    "src/services/SpecialPurchaseType/specialPurchaseType.api.ts"
+  ],
+  "nsipurchasetypeforppa": [
+    "src/services/SpecialPurchaseType/specialPurchaseType.api.ts"
+  ],
+  "nsibudgetlevel": [
+    "src/services/PurchasePlan/purchasePlan.schema.ts"
+  ],
+  "nsindsrate": [
+    "src/services/Nmck/nmck.schema.ts"
+  ],
+  "nsirejectreason": [
+    "src/services/ContractChange/contractChange.types.ts"
+  ],
+
+  "_external": [
+    {
+      "code": "nsiOKPD2",
+      "inArchive": false,
+      "source": "официальное дерево НСИ ЕИС, /api/references/nsiOKPD2/all",
+      "ui": ["src/components/UI/Okpd2Select/Okpd2Select.tsx", "src/services/Okpd2Ref/okpd2Ref.api.ts"]
+    },
+    {
+      "code": "nsiKTRU",
+      "inArchive": "descriptor-only",
+      "source": "/api/references/nsiKTRU/items (пока снимок, импорт через getNsiRequest готов)",
+      "ui": ["src/components/UI/KtruSelect/KtruSelect.tsx", "src/services/KtruRef/ktruRef.api.ts"]
+    },
+    {
+      "code": "nsiOKEI",
+      "inArchive": false,
+      "source": "/api/okei + локальный снимок часто используемых единиц",
+      "ui": ["src/components/UI/OkeiSelect/OkeiSelect.tsx", "src/services/OkeiRef/okeiRef.api.ts"]
+    },
+    {
+      "code": "nsiKLADR",
+      "inArchive": false,
+      "source": "ФИАС/ГАР по мастер-токену ФНС, сейчас субъекты РФ вручную",
+      "ui": ["src/components/UI/AddressCascade/AddressCascade.tsx", "src/services/AddressRef/addressRef.api.ts"]
+    },
+    {
+      "code": "nsiOKTMO",
+      "inArchive": false,
+      "source": "нет загрузки",
+      "ui": ["src/components/UI/AddressCascade/AddressCascade.tsx"]
+    },
+    {
+      "code": "nsiKOKS",
+      "inArchive": false,
+      "source": "локальный снимок /koksRefs, импорт не подключён",
+      "ui": ["src/components/PurchasePlan/KoksPickerModal.tsx", "src/services/KoksRef/koksRef.api.ts"]
+    },
+    {
+      "code": "nsiPurchasePreferences",
+      "inArchive": false,
+      "source": "коды приложения ПП РФ № 2571, отдельный справочник ЕИС",
+      "ui": ["src/services/Pp2571/pp2571.schema.ts", "src/services/NationalRegime/pp1875.ts"]
+    }
+  ]
+}

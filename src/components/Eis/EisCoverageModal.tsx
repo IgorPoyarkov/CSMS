@@ -2,6 +2,11 @@ import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import { useEisSchemaCatalog } from "../../services/Eis/eisSchemaCatalog";
 import {
+  fileNameOf,
+  nsiBooksForXsd,
+  useNsiReferenceBooks,
+} from "../../services/Eis/nsiReferenceBooks.api";
+import {
   EIS_XSD_COVERAGE,
   EIS_XSD_SNAPSHOT_VERSION,
   eisCoverageStatusLabels,
@@ -79,6 +84,9 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
   // Описания «что написано рядом» лежат в каталоге XSD, а не в карте:
   // каталог грузится один раз и кэшируется react-query.
   const { data: schemaCatalog } = useEisSchemaCatalog();
+  // Справочники НСИ показываем рядом с XSD: код из выгрузки ЕИС связывает
+  // файл схемы с нашим компонентом, который этот код читает.
+  const { data: nsiCatalog } = useNsiReferenceBooks();
   const [activeDomain, setActiveDomain] = useState<string>(
     EIS_XSD_COVERAGE.find((item) => item.domain === "PurchasePlanPosition")
       ?.domain ??
@@ -100,6 +108,10 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
   const summary = useMemo(
     () => eisCoverageSummary(active ? [active] : []),
     [active],
+  );
+  const relatedBooks = useMemo(
+    () => (nsiCatalog && active ? nsiBooksForXsd(nsiCatalog, active.xsdFile) : []),
+    [nsiCatalog, active],
   );
 
   return (
@@ -237,6 +249,56 @@ const EisCoverageModal = ({ onClose }: EisCoverageModalProps) => {
                 </tbody>
               </table>
             </div>
+
+            {nsiCatalog ? (
+              <section className={modal("nsi")}>
+                <div className={modal("nsi-head")}>
+                  <h3 className={modal("nsi-title")}>
+                    Справочники НСИ в этом XSD
+                  </h3>
+                  <span className={modal("nsi-count")}>
+                    {relatedBooks.length} из {nsiCatalog.bookCount}
+                  </span>
+                </div>
+                {relatedBooks.length === 0 ? (
+                  <p className={modal("nsi-empty")}>
+                    В выгрузке ЕИС для этого файла справочников не найдено.
+                  </p>
+                ) : (
+                  <ul className={modal("nsi-list")}>
+                    {relatedBooks.slice(0, 12).map((book) => (
+                      <li key={book.sheet} className={modal("nsi-item")}>
+                        <div className={modal("nsi-item-head")}>
+                          <code className={modal("code")}>
+                            {book.code || book.sheet}
+                          </code>
+                          <span className={modal("nsi-rows")}>
+                            {book.rowCount} записей
+                          </span>
+                        </div>
+                        <div className={modal("nsi-name")}>{book.title}</div>
+                        <div className={modal("nsi-files")}>
+                          {book.uiRefs.length > 0 ? (
+                            book.uiRefs.slice(0, 3).map((ref) => (
+                              <code key={ref.file} className={modal("code")}>
+                                {fileNameOf(ref.file)}
+                              </code>
+                            ))
+                          ) : (
+                            <span>в интерфейсе не используется</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className={modal("nsi-note")}>
+                  КТРУ в выгрузке: только описания справочников (
+                  {nsiCatalog.ktru.descriptorCodes.length} кодов), позиций нет —
+                  они приходят через {nsiCatalog.ktru.appEndpoint}.
+                </p>
+              </section>
+            ) : null}
 
             {active.notes.length > 0 && (
               <ul className={modal("notes")}>
