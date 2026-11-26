@@ -13,7 +13,7 @@ from pathlib import Path
 
 import torch
 from datasets import Dataset
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -26,9 +26,22 @@ from transformers import (
 ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = ROOT / "docs" / "legal" / "consultant-lora-dataset.jsonl"
 BASE_MODEL = ROOT / ".tmp" / "lora" / "base-model"
-OUTPUT_DIR = ROOT / ".tmp" / "lora" / "adapter"
-MAX_LENGTH = int(os.environ.get("LORA_MAX_LENGTH", "1536"))
-EPOCHS = float(os.environ.get("LORA_EPOCHS", "2"))
+
+# Параметры можно задать файлом .tmp/lora/train-config.json — так обучение
+# переживает перезапуск сессии и его легко поставить в планировщик Windows.
+CONFIG_FILE = ROOT / ".tmp" / "lora" / "train-config.json"
+run_cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8")) if CONFIG_FILE.exists() else {}
+
+def setting(name, env_name, default):
+    return run_cfg.get(name, os.environ.get(env_name, default))
+
+OUTPUT_DIR = ROOT / ".tmp" / "lora" / str(setting("out", "LORA_OUT", "adapter"))
+# initAdapter — путь к уже обученному адаптеру, с которого продолжаем.
+# out — отдельная папка, чтобы не перетирать предыдущий адаптер.
+INIT_ADAPTER = str(setting("initAdapter", "LORA_INIT_ADAPTER", "")).strip()
+MAX_LENGTH = int(setting("maxLength", "LORA_MAX_LENGTH", 1536))
+EPOCHS = float(setting("epochs", "LORA_EPOCHS", 2))
+LEARNING_RATE = float(setting("lr", "LORA_LR", "2e-4"))
 SEED = 42
 
 SYSTEM = (
@@ -139,17 +152,26 @@ def main():
     )
     model.config.use_cache = False
     model = prepare_model_for_kbit_training(model)
-    model = get_peft_model(model, LoraConfig(
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.05,
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
-        ],
-    ))
+    if INIT_ADAPTER:
+        # Дообучение: берём веса прежнего адаптера, а не начинаем с нуля.
+        # Chainer Trainer не нужен — достаточно самих весов PEFT.
+        init_path = Path(INIT_ADAPTER)
+        if not init_path.is_absolute():
+            init_path = ROOT / init_path
+        model = PeftModel.from_pretrained(model, str(init_path), is_trainable=True)
+        print(f"Продолжаем с адаптера: {init_path}")
+    else:
+        model = get_peft_model(model, LoraConfig(
+            r=16,
+            lora_alpha=32,
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=[
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj",
+            ],
+        ))
     model.print_trainable_parameters()
 
     args = TrainingArguments(
@@ -158,7 +180,7 @@ def main():
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=8,
         num_train_epochs=EPOCHS,
-        learning_rate=2e-4,
+        learning_rate=LEARNING_RATE,
         lr_scheduler_type="cosine",
         warmup_ratio=0.05,
         max_grad_norm=0.3,

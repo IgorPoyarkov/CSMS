@@ -243,6 +243,35 @@ function cleanAnswer(text) {
 }
 
 async function generate(prompt) {
+  const messages = [
+    { role: "system", content: prompt.system },
+    { role: "user", content: prompt.user },
+  ];
+
+  // llama.cpp ╨╛╤В╨┤╨░╤С╤В OpenAI-╤Б╨╛╨▓╨╝╨╡╤Б╤В╨╕╨╝╤Л╨╣ /v1/chat/completions; Ollama ╨╛╤Б╤В╨░╨▓╨╗╨╡╨╜
+  // ╨║╨░╨║ ╨╖╨░╨┐╨░╤Б╨╜╨╛╨╣ ╨┐╤Г╤В╤М (╨╕ ╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П ╨┤╨╗╤П ╤Н╨╝╨▒╨╡╨┤╨┤╨╕╨╜╨│╨╛╨▓).
+  if (cfg.chatApi === "openai") {
+    const base = String(cfg.chatBase ?? "http://127.0.0.1:5100/v1").replace(/\/+$/, "");
+    const response = await fetch(`${base}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: cfg.chatModel ?? "csms-44fz",
+        messages,
+        temperature: 0.2,
+        max_tokens: 2048,
+        stream: false,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`llama.cpp ${response.status}: ${(await response.text()).slice(0, 400)}`);
+    }
+    const body = await response.json();
+    // llama.cpp ╨┤╨╗╤П DeepSeek-R1 ╨╛╤В╨┤╨░╤С╤В ╨╛╤Б╨╜╨╛╨▓╨╜╤Г╤О ╤З╨░╤Б╤В╤М ╨╛╤В╨▓╨╡╤В╨░ ╨▓ reasoning_content.
+    const message = body.choices?.[0]?.message ?? {};
+    return cleanAnswer(message.content || message.reasoning_content || "");
+  }
+
   const response = await fetch(
     `${cfg.ollama ?? "http://localhost:11434"}/api/chat`,
     {
@@ -251,10 +280,7 @@ async function generate(prompt) {
       body: JSON.stringify({
         model: cfg.chatModel ?? "deepseek-r1:7b",
         stream: false,
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
-        ],
+        messages,
         options: { temperature: 0.2, num_ctx: 8192 },
       }),
     },
@@ -286,6 +312,7 @@ app.get("/api/consultant/status", async (_req, res) => {
     builtAt: index?.builtAt ?? null,
     embedModel: cfg.embedModel,
     chatModel: cfg.chatModel,
+    chatApi: cfg.chatApi ?? "ollama",
     stats: index?.stats ?? null,
   });
 });

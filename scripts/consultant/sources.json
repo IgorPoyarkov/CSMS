@@ -3,6 +3,8 @@
   "ollama": "http://localhost:11434",
   "embedModel": "nomic-embed-text",
   "chatModel": "deepseek-r1:7b",
+  "chatApi": "ollama",
+  "chatBase": "http://127.0.0.1:5100/v1",
   "contextModule": "",
   "maxChunkChars": 1100,
   "chunkOverlap": 120,
