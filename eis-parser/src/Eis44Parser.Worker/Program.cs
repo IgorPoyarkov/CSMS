@@ -23,6 +23,8 @@ using Microsoft.Extensions.Options;
 //   (перебор ОКПД2 + suffix, вложенность, обязательности, справочная информация),
 // --import-nsi-ktru-rss — ежедневная проверка RSS всех категорий рубрикатора:
 //   новые позиции/категории → обновление и публикация снимка (--dry-run — без API),
+// --ktru-codes <коды через запятую> — точечно догрузить позиции в уже
+//   опубликованный справочник (например, код из позиции ПГ, которого нет в НСИ),
 // --pipeline-once — один проход четырёхэтапного конвейера (очередь архивов),
 // --parse-file <путь> — разобрать один XML без ЕИС и токена
 //   (в том числе fcsRegulationRules и fcsRequestForQuotation),
@@ -55,6 +57,7 @@ var checkOnly = args.Contains("--check", StringComparer.OrdinalIgnoreCase);
 var importNsi = args.Contains("--import-nsi", StringComparer.OrdinalIgnoreCase);
 var importKtruHtml = args.Contains("--import-nsi-ktru-html", StringComparer.OrdinalIgnoreCase);
 var importKtruRss = args.Contains("--import-nsi-ktru-rss", StringComparer.OrdinalIgnoreCase);
+var ktruCodesArg = GetArgumentValue(args, "--ktru-codes");
 var dryRun = args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase);
 var enrichContractors = args.Contains("--enrich-contractors", StringComparer.OrdinalIgnoreCase);
 var smpHtml = args.Contains("--smp-html", StringComparer.OrdinalIgnoreCase);
@@ -1040,6 +1043,64 @@ if (importNsi)
     catch (Exception exception)
     {
         Console.Error.WriteLine($"Ошибка импорта справочника НСИ: {exception.Message}");
+        return 1;
+    }
+}
+
+if (!string.IsNullOrWhiteSpace(ktruCodesArg))
+{
+    try
+    {
+        var codes = ktruCodesArg
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var importService = host.Services.GetRequiredService<KtruHtmlImportService>();
+        var cards = await importService.CollectCardsAsync(codes, CancellationToken.None);
+        if (cards.Count == 0)
+        {
+            Console.Error.WriteLine("Не удалось собрать ни одной карточки КТРУ из переданных кодов.");
+            return 1;
+        }
+
+        var fresh = await importService.FinishAsync(cards, CancellationToken.None);
+        var apiClient = host.Services.GetRequiredService<ReferenceApiClient>();
+        var nsiOptions = host.Services.GetRequiredService<IOptions<EisNsiOptions>>().Value;
+        var htmlOptions = host.Services.GetRequiredService<IOptions<KtruHtmlOptions>>().Value;
+        var published = await apiClient.GetItemsAsync(nsiOptions.Dataset, CancellationToken.None);
+        var merged = published
+            .Where(item => item.Code is null || !cards.ContainsKey(item.Code))
+            .Concat(fresh.Items)
+            .ToArray();
+        var snapshot = KtruHtmlSnapshotBuilder.BuildFromItems(
+            merged,
+            nsiOptions.Dataset,
+            importService.ToAbsolute(htmlOptions.CardPath),
+            DateTimeOffset.UtcNow);
+
+        Console.WriteLine($"Добавлено карточек: {cards.Count}");
+        Console.WriteLine($"Всего позиций в снимке: {snapshot.Items.Count}");
+        Console.WriteLine($"Версия: {snapshot.Version}");
+        if (dryRun)
+        {
+            Console.WriteLine("dry-run: снимок не опубликован.");
+            return 0;
+        }
+
+        var response = await apiClient.PublishAsync(
+            new ReferenceImportRequestDto(
+                snapshot.Dataset,
+                snapshot.Version,
+                snapshot.SourceDocument,
+                snapshot.SourceUrl,
+                snapshot.SourceSha256,
+                snapshot.PublishedAt,
+                snapshot.Items),
+            CancellationToken.None);
+        Console.WriteLine($"Опубликовано в {nsiOptions.ApiBaseUrl}: {response}");
+        return 0;
+    }
+    catch (Exception exception)
+    {
+        Console.Error.WriteLine($"Ошибка точечного импорта КТРУ: {exception.Message}");
         return 1;
     }
 }
