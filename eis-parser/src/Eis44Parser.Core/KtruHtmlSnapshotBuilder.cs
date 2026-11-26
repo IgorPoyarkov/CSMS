@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Eis44Parser.Core.Models;
 
 namespace Eis44Parser.Core;
@@ -15,6 +16,10 @@ namespace Eis44Parser.Core;
 public static class KtruHtmlSnapshotBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    // Границы диапазона в значениях ЕИС пишутся как «>= 5» / «<= 10»
+    // (иногда символами ≤/≥) — вытаскиваем число для полей minValue/maxValue.
+    private static readonly Regex MinBound = new(@">=?\s*([^;\s]+)", RegexOptions.CultureInvariant);
+    private static readonly Regex MaxBound = new(@"<=?\s*([^;\s]+)", RegexOptions.CultureInvariant);
 
     public static NsiSnapshot Build(
         IReadOnlyList<KtruCardHtmlRecord> cards,
@@ -88,23 +93,11 @@ public static class KtruHtmlSnapshotBuilder
     /// <summary>Совместимый с ktruRef.api.ts набор полей плюс новые блоки.</summary>
     private static Dictionary<string, object?> BuildPayload(KtruCardHtmlRecord card)
     {
+        // Одна характеристика = одна строка. Раньше здесь был SelectMany по
+        // значениям, из-за чего позиция с 5 вариантами давала 5 одинаковых
+        // полей с одним именем — в ООЗ они выглядели как дубли.
         var characteristics = card.Characteristics
-            .SelectMany(characteristic => characteristic.Values.Select(value =>
-                (object)new Dictionary<string, object?>
-                {
-                    ["name"] = characteristic.Name,
-                    ["isMandatory"] = characteristic.Required,
-                    ["unit"] = value.Unit,
-                    ["valueText"] = value.Value,
-                    ["valueType"] = DetectValueType(value.Value, characteristic.Values.Count),
-                    ["values"] = characteristic.Values
-                        .Select(item => (object)new Dictionary<string, object?>
-                        {
-                            ["value"] = item.Value,
-                            ["unit"] = item.Unit,
-                        })
-                        .ToArray(),
-                }))
+            .Select(BuildCharacteristic)
             .ToArray();
 
         return new Dictionary<string, object?>
@@ -137,34 +130,64 @@ public static class KtruHtmlSnapshotBuilder
         };
     }
 
-    /// <summary>Грубая типизация значения для уже существующего фронтового enum.</summary>
-    private static string DetectValueType(string value, int valuesCount)
+    /// <summary>Одна строка характеристики: все варианты остаются в values[].</summary>
+    private static Dictionary<string, object?> BuildCharacteristic(KtruCharacteristic characteristic)
     {
-        var normalized = value
+        var values = characteristic.Values
+            .Where(value => !string.IsNullOrWhiteSpace(value.Value))
+            .Select(value => (object)new Dictionary<string, object?>
+            {
+                ["value"] = value.Value,
+                ["unit"] = value.Unit,
+            })
+            .ToArray();
+
+        var texts = characteristic.Values
+            .Select(value => value.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        var unit = characteristic.Values
+            .Select(value => value.Unit)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
+        var (valueType, valueText, minValue, maxValue) = DescribeValues(texts);
+
+        return new Dictionary<string, object?>
+        {
+            ["name"] = characteristic.Name,
+            ["isMandatory"] = characteristic.Required,
+            ["unit"] = unit,
+            ["valueType"] = valueType,
+            // Фронт ждёт перечень допустимых значений через «;» в valueText.
+            ["valueText"] = valueText,
+            ["minValue"] = minValue,
+            ["maxValue"] = maxValue,
+            ["values"] = values,
+        };
+    }
+
+    /// <summary>Тип значения и тексты для уже существующего фронтового enum.</summary>
+    private static (string Type, string Text, string? Min, string? Max) DescribeValues(
+        IReadOnlyList<string> values)
+    {
+        var joined = string.Join("; ", values);
+        var normalized = joined
             .Replace("≤", "<=", StringComparison.Ordinal)
             .Replace("≥", ">=", StringComparison.Ordinal);
-
         var hasMin = normalized.Contains(">=", StringComparison.Ordinal) ||
                      normalized.Contains(">", StringComparison.Ordinal);
         var hasMax = normalized.Contains("<=", StringComparison.Ordinal) ||
                      normalized.Contains("<", StringComparison.Ordinal);
 
-        if (hasMin && hasMax)
+        if (hasMin || hasMax)
         {
-            return "range";
+            var min = hasMin ? MinBound.Match(normalized).Groups[1].Value : null;
+            var max = hasMax ? MaxBound.Match(normalized).Groups[1].Value : null;
+            var type = hasMin && hasMax ? "range" : hasMin ? "min" : "max";
+            return (type, "", min, max);
         }
 
-        if (hasMin)
-        {
-            return "min";
-        }
-
-        if (hasMax)
-        {
-            return "max";
-        }
-
-        return valuesCount > 1 ? "enum" : "text";
+        // Несколько вариантов — один перечень, а не несколько одинаковых полей.
+        return (values.Count > 1 ? "enum" : "text", joined, null, null);
     }
 
     private static DateTimeOffset? ReadLastPublishDate(IEnumerable<KtruCardHtmlRecord> cards)

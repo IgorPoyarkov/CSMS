@@ -272,9 +272,18 @@ public sealed class KtruCardHtmlParserTests
         var payload = JsonSerializer.SerializeToElement(item.Payload);
         Assert.Equal("Килограмм", payload.GetProperty("unit").GetString());
         Assert.Equal("01.13.11.000-00000001", payload.GetProperty("childCodes")[0].GetString());
-        // Два значения первой характеристики + одно значение второй.
-        Assert.Equal(3, payload.GetProperty("characteristics").EnumerateArray().Count());
-        Assert.False(payload.GetProperty("characteristics")[0].GetProperty("isMandatory").GetBoolean());
+        // Одна строка на характеристику: 5 вариантов не превращаются в 5 полей.
+        var characteristics = payload.GetProperty("characteristics").EnumerateArray().ToArray();
+        Assert.Equal(2, characteristics.Length);
+        Assert.False(characteristics[0].GetProperty("isMandatory").GetBoolean());
+        Assert.Equal("Да; Нет", characteristics[0].GetProperty("valueText").GetString());
+        Assert.Equal("enum", characteristics[0].GetProperty("valueType").GetString());
+        Assert.Equal(2, characteristics[0].GetProperty("values").EnumerateArray().Count());
+        Assert.Equal("Спаржа", characteristics[1].GetProperty("valueText").GetString());
+        Assert.Equal("text", characteristics[1].GetProperty("valueType").GetString());
+        Assert.Equal(
+            2,
+            characteristics.Select(item => item.GetProperty("name").GetString()).Distinct().Count());
         Assert.Equal("ГОСТ 34318-2017 \"Межгосударственный стандарт. Спаржа свежая. Технические условия\"",
             payload.GetProperty("standards")[0].GetProperty("name").GetString());
     }
