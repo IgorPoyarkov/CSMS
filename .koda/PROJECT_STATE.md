@@ -9236,7 +9236,6 @@ scripts/consultant/build-vba-qa-doc.mjs`. DOCX проверен как ZIP (17 �
 - **Открытый вопрос.** Пара 192 (ст. 7.32 КоАП, санкции 5–15 % отсутствуют в
   текущем тексте) остаётся в `draft-for-review` до решения пользователя.
 
-
 ## 200. Библиотека НПА с просмотром как в консультанте (2026-11-26)
 
 - **Запрос.** Пользователь попросил загрузить все НПА, которые использует
@@ -9276,7 +9275,7 @@ scripts/consultant/build-vba-qa-doc.mjs`. DOCX проверен как ZIP (17 �
   `node scripts/consultant/fetch-pravo.mjs reconvert` пересобрала тексты из
   уже сохранённых `.doc` без сети; publication-only OCR-файлы без `.doc`
   пропущены и требуют ручной сверки. В УК `## Статья 276.1` одна, `## Статья
-  2761` нет; в 44-ФЗ `24.2`, `110.1`, `4.1)`, `6.1.` на месте. Парсер
+2761` нет; в 44-ФЗ `24.2`, `110.1`, `4.1)`, `6.1.` на месте. Парсер
   `consultantDocument.ts` вместо жёсткого списка оснований использует
   `restoreArticleNumber(raw, previous)` — номер восстанавливается по
   предыдущему заголовку. В браузере `/consultant?doc=…uk-63…&ref=Статья%20276.1`
@@ -9353,7 +9352,6 @@ passed / 10 skipped (postgres), из них 21 новый (`SecurityLedgerRulesT
 обеспечений агент не проверяет (показывает процент от цены контракта
 справочно); отдельной страницы реестра нет — только API, SSE и справка
 «Агенты» в шапке.
-
 
 ## 203. Единые нормы размеров обеспечений: ошибки в СЗ и извещении, красные проверки проекта (2026-11-26)
 
@@ -9525,7 +9523,7 @@ passed / 10 skipped (postgres), из них 21 новый (`SecurityLedgerRulesT
   Проверено в браузере на `49.31.21.110-00000054`: до нажатия 9 заблокированных
   полей, после «Открыть» — 8. `vite build`, `oxlint`, `tsc -b` — чисто.
 - **Ловушка (dev-сервер):** страница падала с `SyntaxError: .../UI/Select.tsx
-  does not provide an export named 'default'` из-за залипшего пустого кэша
+does not provide an export named 'default'` из-за залипшего пустого кэша
   трансформации Vite; обновление `LastWriteTime` файла `Select.tsx` и
   перезагрузка страницы убрали ошибку. Файл по содержимому не менялся.
   Повторный `npx tsc -b` после правок прошёл без ошибок (чужая WIP в
@@ -9572,3 +9570,50 @@ passed / 10 skipped (postgres), из них 21 новый (`SecurityLedgerRulesT
   `Add` (PowerShell превращает его в пустую строку) — схема читается через
   `XmlSchema.Read` и добавляется объектом.
 
+## 206. Автоматическая интеграция утверждённых ООЗ, НМЦК и проекта контракта в извещение (2026-11-27)
+
+- **Запрос.** Автоматическая интеграция утверждённого ООЗ, обоснования НМЦК
+  и проекта контракта в извещение: данные подставляются при утверждении
+  соответствующих документов и блокируются для редактирования в форме
+  извещения.
+- **Блокировка полей.** `noticeApprovedFields.ts`: `getNoticeLockedPaths`
+  расширен правилами — ООЗ блокируется при `status === "approved"`, НМЦК
+  при наличии `nmckSignature`, проект контракта при `status !== "draft"`.
+  Пути: `objectDescription` целиком, `initialMaxPrice`, `nmckCalculation`,
+  `nmckFileName`, `nmckFileUpdatedAt`, `contractProjectId`,
+  `contractProjectNumber`, `generalInfo.orderName`, `generalInfo.nmck`,
+  `generalInfo.contractPrice`, `generalInfo.contractTerm`,
+  `generalInfo.contractPaymentTerm`, `generalInfo.security`,
+  `generalInfo.warranty`, `generalInfo.smp`.
+- **Секция ООЗ (`ObjectDescriptionSection.tsx`).** Read-only блок с полным
+  описанием из утверждённого ООЗ: наименование, ОКПД2, КТРУ, товарный знак,
+  гарантия, реквизиты утверждения, характеристики с категориями и значениями,
+  стандарты. Бейдж «Утверждено», плашка «Данные утверждены в ООЗ», селект
+  шаблонов скрыт.
+- **Секция НМЦК (`NmckJustificationSection.tsx`).** Read-only блок обоснования:
+  метод расчёта, дата, предмет, ОКПД2, количество, итоговая цена
+  (`formatNmckMoney`), обоснование, плашка «Утверждено» при подписи ЭП
+  с ФИО и датой, список доп. ОКПД2, ссылки «Открыть служебную записку»
+  и «Открыть расчёт НМЦК» (`/nmck-calculator`).
+- **Секция проекта контракта (`ContractProjectPreviewSection.tsx`).** Read-only
+  просмотр: ИКЗ закупки, статус-бейдж, наименование, номер, вид, предмет,
+  описание, цена, валюта, даты, срок оплаты, СМП, ссылка на конструктор.
+- **Предзаполнение (`NoticeInfoForm.tsx`).** `useEffect` при монтировании:
+  поиск `matchedContractProject` по `contractProjectId` → `procurementId` →
+  извещение; поиск `nmckApprovedNote` по `purchaseNoteId` или ИКЗ.
+  `lockedPaths` передаёт `nmckNote` и `contractProject` для корректной
+  блокировки. В `prefillKey` включён id и `updatedAt` проекта. Вложения
+  проекта приподставляются в `attachedDocs` со статусом `approved` (не draft)
+  или `attached`.
+- **Валидация.** `findNoticeLockedChanges` проверяет, что заблокированные
+  поля не изменены после снимка `lockedSnapshotRef`.
+- **Стили.** `NoticeInfoForm.module.scss`: блоки `.object-description`,
+  `.nmck-preview`, `.contract-project-preview` с бейджами `--approved`,
+  `--published`, `--signed`, `--draft`, плашками locked-note, деталями
+  и полями-колонками. Цвета на токенах `--state-success` / `--state-success-soft`.
+- **Проверки.** `npx tsc -b` — 0 ошибок; `npx oxlint src` — 0 ошибок;
+  `npx vite build` — успешно собрано.
+- **Незавершённое.** В `AttachedDocsSection` вложение проекта может
+  конфликтовать с ручным upsert — проверить `isDocLocked` на `sourceKind`
+  `contract_project`. Возможно, добавить read-only НМЦК в
+  `GeneralInfoSection`/`ContractConditionsSection`.

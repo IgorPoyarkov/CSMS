@@ -1,5 +1,9 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, redirect, RouterProvider } from "react-router-dom";
+import {
+  createBrowserRouter,
+  redirect,
+  RouterProvider,
+} from "react-router-dom";
 import { ACCESS_TOKEN_KEY } from "./services/Access/access.api";
 import HomePage from "./pages/HomePage/HomePage";
 import AppLayout from "./components/AppLayout/AppLayout";
@@ -79,13 +83,17 @@ const LiabilityMappingPage = lazy(
 const ConsultantPage = lazy(
   () => import("./components/Consultant/ConsultantPage"),
 );
-const EisSmpExportPage = lazy(() => import("./components/Eis/EisSmpExportPage"));
+const EisSmpExportPage = lazy(
+  () => import("./components/Eis/EisSmpExportPage"),
+);
 const EisPackagesPage = lazy(() => import("./components/Eis/EisPackagesPage"));
 const EisSchemaExplorerPage = lazy(
   () => import("./components/Eis/EisSchemaExplorerPage"),
 );
 const EisChainPage = lazy(() => import("./components/Eis/EisChainPage"));
-const EisTestAccessPage = lazy(() => import("./components/Eis/EisTestAccessPage"));
+const EisTestAccessPage = lazy(
+  () => import("./components/Eis/EisTestAccessPage"),
+);
 const BrandPage = lazy(() => import("./components/Brand/BrandPage"));
 const LegalActsPage = lazy(() => import("./components/Legal/LegalActsPage"));
 const LegalActCardPage = lazy(
@@ -185,8 +193,7 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <HomePage />,
-        loader: () =>
-          visitCardSeen() ? null : redirect("/visit-card"),
+        loader: () => (visitCardSeen() ? null : redirect("/visit-card")),
       },
       {
         // Тяжёлые графики вынесены с главной: маршрут подгружается по требованию
@@ -256,14 +263,24 @@ const router = createBrowserRouter([
             element: lazySection(<PurchasePlanPositionEditPage />),
           },
           {
+            // Старый адрес служебной записки. Потребность больше не часть
+            // плана-графика, но ссылку не удаляем: страница сама разбирает
+            // параметры и работает по новому маршруту /purchase-notes/:noteId
             path: ":id/positions/:positionId/requirement",
             element: lazySection(<PurchaseNotePage />),
           },
         ],
       },
       {
+        // Потребность (служебная записка) — самостоятельный документ
         path: "/purchase-notes",
-        element: lazySection(<PurchaseNotesRegistryPage />),
+        children: [
+          { index: true, element: lazySection(<PurchaseNotesRegistryPage />) },
+          // Новая СЗ по позиции ПГ: /purchase-notes/new?planId=…&positionId=…
+          { path: "new", element: lazySection(<PurchaseNotePage />) },
+          // Существующая СЗ: /purchase-notes/:noteId
+          { path: ":noteId", element: lazySection(<PurchaseNotePage />) },
+        ],
       },
       {
         path: "/contract-service",

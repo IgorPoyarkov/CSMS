@@ -15,6 +15,7 @@ export const ConsultantCitationSchema = z.object({
   title: z.string(),
   ref: z.string().nullable().optional(),
   url: z.string().nullable().optional(),
+  externalUrl: z.string().nullable().optional(),
   quote: z.string(),
   score: z.number(),
   source: z.string(),

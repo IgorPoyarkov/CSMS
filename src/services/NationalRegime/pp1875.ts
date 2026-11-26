@@ -1,3 +1,5 @@
+import { NPA_DOCUMENT_CODES } from "../Npa/npa.api";
+import { isNpaIndexLoaded, resolveNpaRule } from "../Npa/npaControl";
 import type { Okpd2Ref } from "../Okpd2Ref/okpd2Ref.schema";
 
 /**
@@ -474,8 +476,13 @@ export interface Okpd2NationalRegimeCheck {
   groupLabel?: string;
   note?: string;
   legalBasis: string;
-  /** Источник: справочник ОКПД2 переопределяет правила приложений */
-  source: "dictionary" | "rule";
+  /**
+   * Источник: справочник ОКПД2 (dictionary), разобранный агентом акт (npa)
+   * либо жёстко зашитые перечни приложений (rule).
+   */
+  source: "dictionary" | "npa" | "rule";
+  /** Правило акта неоднозначно и ждёт решения человека. */
+  needsReview?: boolean;
 }
 
 interface RuleCandidate {
@@ -560,6 +567,80 @@ export const checkOkpd2NationalRegime = (
     };
   }
 
+  // Источник истины — правила НПА, разобранные агентом из официального текста.
+  // Пока индекс не загружен, используются жёстко зашитые перечни приложений.
+  if (isNpaIndexLoaded(NPA_DOCUMENT_CODES.nationalRegime)) {
+    const npa = resolveNpaRule(NPA_DOCUMENT_CODES.nationalRegime, code);
+
+    if (npa?.ruleType === "exclude") {
+      return {
+        code,
+        regime: null,
+        note: "Код выведен из перечней ПП РФ № 1875 оговоркой в акте.",
+        legalBasis: PP_1875_ACT_TITLE,
+        source: "npa",
+      };
+    }
+
+    if (npa) {
+      // Запрет/ограничение, разобранные из приложений акта — приоритет над
+      // жёсткими списками.
+      if (npa.regime === "ban" || npa.regime === "restriction") {
+        return {
+          code,
+          regime: npa.regime,
+          groupLabel:
+            npa.regime === "ban"
+              ? "Приложение № 1 (запрет)"
+              : "Приложение № 2 (ограничение)",
+          note: npa.conditionText ?? undefined,
+          legalBasis: PP_1875_ACT_TITLE,
+          source: "npa",
+          needsReview: npa.needsReview || undefined,
+        };
+      }
+
+      // include или conditional без разобранного режима (старая версия правил):
+      // приложение даёт жёсткий список; если кода там нет — нужна проверка.
+      const match = findRegimeRule(code);
+
+      if (match) {
+        return {
+          code,
+          regime: match.regime,
+          groupLabel:
+            match.regime === "ban"
+              ? `Приложение № 1 (запрет): ${match.rule.label}`
+              : `Приложение № 2 (ограничение): ${match.rule.label}`,
+          note: match.rule.note,
+          legalBasis: PP_1875_ACT_TITLE,
+          source: "npa",
+          needsReview: npa.needsReview || undefined,
+        };
+      }
+
+      return {
+        code,
+        regime: null,
+        note:
+          npa.conditionText ??
+          "Код входит в перечни ПП РФ № 1875 по данным акта, но приложение (запрет/ограничение) не определено — требуется проверка.",
+        legalBasis: PP_1875_ACT_TITLE,
+        source: "npa",
+        needsReview: true,
+      };
+    }
+
+    return {
+      code,
+      regime: null,
+      note:
+        "Код не входит в перечни приложений № 1 и № 2 к ПП РФ № 1875 по данным акта.",
+      legalBasis: PP_1875_ACT_TITLE,
+      source: "npa",
+    };
+  }
+
   const match = findRegimeRule(code);
 
   if (!match) {
@@ -582,6 +663,64 @@ export const checkOkpd2NationalRegime = (
     note: match.rule.note,
     legalBasis: PP_1875_ACT_TITLE,
     source: "rule",
+  };
+};
+
+/**
+ * Агент ПП РФ № 1875 для поля «Национальный режим»: по коду ОКПД2 предлагает
+ * режим, который следует установить (запрет, ограничение, преимущество или
+ * «не установлено»), и объясняет, на каком основании.
+ */
+export interface NationalRegimeRecommendation {
+  mode: NationalRegimeMode;
+  reason: string;
+}
+
+export const recommendNationalRegime = (
+  code: string | undefined,
+  dictionary?: Okpd2Ref[],
+): NationalRegimeRecommendation => {
+  const check = checkOkpd2NationalRegime(code, dictionary);
+
+  if (!check.code) {
+    return {
+      mode: "none",
+      reason: "укажите код ОКПД2 — агент подскажет режим по ПП РФ № 1875.",
+    };
+  }
+
+  if (check.needsReview) {
+    return {
+      mode: "none",
+      reason: check.note ?? "правило ПП РФ № 1875 требует проверки человеком.",
+    };
+  }
+
+  if (check.regime === "ban") {
+    return {
+      mode: "ban",
+      reason: check.groupLabel ?? "код включён в приложение № 1 (запрет).",
+    };
+  }
+
+  if (check.regime === "restriction") {
+    return {
+      mode: "restriction",
+      reason: check.groupLabel ?? "код включён в приложение № 2 (ограничение).",
+    };
+  }
+
+  if (isAdvantageApplicable(code, null)) {
+    return {
+      mode: "advantage",
+      reason:
+        "код вне перечней — правомерно преимущество для товаров российского происхождения.",
+    };
+  }
+
+  return {
+    mode: "none",
+    reason: "код вне перечней приложений № 1 и № 2 — режим не обязателен.",
   };
 };
 

@@ -88,6 +88,7 @@ const emptyIndicator = (kind: Indicator["kind"]): Indicator => ({
   limitMin: undefined,
   limitMax: undefined,
   scaleText: "",
+  otherOrder: "",
 });
 
 export default function BidEvaluationModal({
@@ -412,6 +413,28 @@ export default function BidEvaluationModal({
                     Шагов в шкале: {parseScaleText(indicator.scaleText).length}.
                     Оценка наличия/отсутствия — 100 и 0 баллов (п. 23
                     Положения).
+                  </span>
+                </div>
+              )}
+
+              {indicator.scoring === "other" && (
+                <div className={block("other-order")}>
+                  <label
+                    className={block("label")}
+                    htmlFor={`other-order-${criterionIndex}-${indicatorIndex}`}
+                  >
+                    Иной порядок оценки (п. 22 Положения)
+                  </label>
+                  <textarea
+                    id={`other-order-${criterionIndex}-${indicatorIndex}`}
+                    className={block("textarea")}
+                    rows={3}
+                    {...register(fieldPath(`${prefix}.otherOrder`))}
+                    placeholder="Опишите порядок расчёта баллов, установленный извещением"
+                  />
+                  <span className={block("hint")}>
+                    По иному порядку баллы автоматически не рассчитываются — их
+                    проставляет комиссия.
                   </span>
                 </div>
               )}
@@ -756,6 +779,19 @@ export default function BidEvaluationModal({
                   {bidColumns.map((column) => {
                     const valuePrefix = `bids.${bidIndex}.values.${column.indicatorId}`;
                     const indicator = column.indicator;
+
+                    // Иной порядок оценки (п. 22 Положения): балл проставляет
+                    // комиссия, поле значения участника не нужно
+                    if (indicator.scoring === "other") {
+                      return (
+                        <span
+                          key={`${bidIndex}-${column.indicatorId}`}
+                          className={block("hint")}
+                        >
+                          вручную
+                        </span>
+                      );
+                    }
 
                     if (indicator.scoring === "scale") {
                       return (

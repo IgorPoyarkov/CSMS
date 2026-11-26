@@ -46,6 +46,14 @@
     }
   }
 
+  // Многострочный вариант: длинные официальные названия видны целиком
+  &--wrap &__value {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   &__arrow {
     flex-shrink: 0;
     font-size: 11px;

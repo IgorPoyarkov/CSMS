@@ -92,6 +92,14 @@
   color: var(--text-primary);
 }
 
+/* Пометка о полях, зафиксированных утверждённой СЗ */
+.bannerNote {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--state-warning, var(--text-primary));
+}
+
 .bannerActions {
   display: flex;
   flex-wrap: wrap;

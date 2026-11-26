@@ -145,7 +145,8 @@ export default function Okpd2Select({
         return {
           code: item.code,
           name: item.name,
-          objectKind: okpd2Signal(item.code).kind,
+          // Вид объекта: раздел кода, а для спорных разделов — первое слово
+          objectKind: okpd2Signal(item.code, item.name).kind,
           isNormed: false,
           isAuctionRequired: auctionCheck.inAuctionList,
           auctionNote: auctionCheck.note,
@@ -227,11 +228,16 @@ export default function Okpd2Select({
     }
 
     const auctionCheck = checkOkpd2AuctionList(typed, dictionary);
+    // Вид объекта из справочника учитывает всё дерево ОКПД2 (в том числе
+    // соседние позиции), поэтому он точнее локального расчёта по коду
+    const knownKind = dictionary?.find(
+      (item) => item.code === typed,
+    )?.objectKind;
     onSelect({
       id: undefined,
       code: typed,
       name: name ?? "",
-      objectKind: okpd2Signal(typed).kind,
+      objectKind: knownKind ?? okpd2Signal(typed, name).kind,
       isNormed: false,
       isAuctionRequired: auctionCheck.inAuctionList,
       auctionNote: auctionCheck.note,
@@ -368,57 +374,57 @@ export default function Okpd2Select({
           {/* Серверная выдача показывается сразу, не дожидаясь полной
               загрузки локального справочника на 21 066 записей */}
           {options.map((item, index) => {
-              const auctionRes = checkOkpd2AuctionList(item.code, dictionary);
-              return (
-                <li
-                  key={String(item.id ?? item.code)}
-                  role="option"
-                  aria-selected={index === highlighted}
-                  className={block(
-                    "item",
-                    index === highlighted ? ["active"] : [],
-                  )}
-                  // Полное наименование отдаём нативному тултипу: в выдаче оно
-                  // обрезано, а прочитать нужно целиком
-                  title={`${item.code} — ${item.name}`}
-                  onMouseEnter={() => setHighlighted(index)}
-                  onMouseDown={(event) => {
-                    // mousedown, а не click: клик по списку не должен
-                    // успеть закрыть его через обработчик «вне компонента»
-                    event.preventDefault();
-                    pick(item);
-                  }}
-                >
-                  <span className={block("code")}>{item.code}</span>
-                  <span className={block("name")}>{item.name}</span>
-                  {auctionRes.inAuctionList && (
-                    <span
-                      className={block("badge", ["auction"])}
-                      title="Код входит в аукционный перечень (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022) — обязателен электронный аукцион"
-                    >
-                      аукц. 471-р
-                    </span>
-                  )}
-                  {item.isNormed && (
-                    <span
-                      className={block(
-                        "badge",
-                        item.normLimit ? ["limit"] : ["normed"],
-                      )}
-                      title={
-                        item.normLimit
-                          ? `Обязательное нормирование, предельная цена единицы ${formatMoney.format(item.normLimit)} ₽`
-                          : "Обязательное нормирование"
-                      }
-                    >
-                      {item.normLimit
-                        ? `норм. ≤ ${formatMoney.format(item.normLimit)} ₽`
-                        : "нормирование"}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+            const auctionRes = checkOkpd2AuctionList(item.code, dictionary);
+            return (
+              <li
+                key={String(item.id ?? item.code)}
+                role="option"
+                aria-selected={index === highlighted}
+                className={block(
+                  "item",
+                  index === highlighted ? ["active"] : [],
+                )}
+                // Полное наименование отдаём нативному тултипу: в выдаче оно
+                // обрезано, а прочитать нужно целиком
+                title={`${item.code} — ${item.name}`}
+                onMouseEnter={() => setHighlighted(index)}
+                onMouseDown={(event) => {
+                  // mousedown, а не click: клик по списку не должен
+                  // успеть закрыть его через обработчик «вне компонента»
+                  event.preventDefault();
+                  pick(item);
+                }}
+              >
+                <span className={block("code")}>{item.code}</span>
+                <span className={block("name")}>{item.name}</span>
+                {auctionRes.inAuctionList && (
+                  <span
+                    className={block("badge", ["auction"])}
+                    title="Код входит в аукционный перечень (РП РФ от 21.03.2016 № 471-р, ред. от 31.10.2022) — обязателен электронный аукцион"
+                  >
+                    аукц. 471-р
+                  </span>
+                )}
+                {item.isNormed && (
+                  <span
+                    className={block(
+                      "badge",
+                      item.normLimit ? ["limit"] : ["normed"],
+                    )}
+                    title={
+                      item.normLimit
+                        ? `Обязательное нормирование, предельная цена единицы ${formatMoney.format(item.normLimit)} ₽`
+                        : "Обязательное нормирование"
+                    }
+                  >
+                    {item.normLimit
+                      ? `норм. ≤ ${formatMoney.format(item.normLimit)} ₽`
+                      : "нормирование"}
+                  </span>
+                )}
+              </li>
+            );
+          })}
 
           {canUseTypedCode && (
             <li

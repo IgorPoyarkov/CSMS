@@ -14,7 +14,12 @@ import {
   NoticeInfoSchema,
   type NoticeInfoFormValues,
 } from "../../services/Procurements/noticeInfo.schema";
-import { inheritAttachmentsFromPurchaseNote } from "../../services/Procurements/noticeAttachment.schema";
+import {
+  inheritAttachmentsFromPurchaseNote,
+  upsertNoticeAttachment,
+} from "../../services/Procurements/noticeAttachment.schema";
+import { buildContractProjectAttachment } from "../../services/ContractProject/contractProjectAttachment";
+import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
 import { normalizePp2571Positions } from "../../services/Pp2571/pp2571.schema";
 import { useOkpd2Dictionary } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { collectNormingViolations } from "../../services/Okpd2Ref/normingControl";
@@ -23,6 +28,7 @@ import {
   validateNationalRegime,
 } from "../../services/NationalRegime/pp1875";
 import { RUSSIA } from "../../services/AddressRef/addressRef.schema";
+import { validateSecurityNorms } from "../../services/Security/securityNorms";
 import { ORGANIZATION_BUDGET_LEVEL_LABELS } from "../../services/Organization/organization.schema";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
@@ -74,6 +80,8 @@ import NormingSubmitButton from "./sections/NormingSubmitButton";
 import ParticipantsRequirementsSection from "./sections/ParticipantsRequirementsSection";
 import ObjectDescriptionSection from "./sections/ObjectDescriptionSection";
 import AttachedDocsSection from "./sections/AttachedDocsSection";
+import NmckJustificationSection from "./sections/NmckJustificationSection";
+import ContractProjectPreviewSection from "./sections/ContractProjectPreviewSection";
 import Eis17FieldsSection from "./sections/Eis17FieldsSection";
 import { NoticeFieldLockProvider } from "./noticeFieldLock";
 
@@ -259,6 +267,11 @@ const NoticeInfoForm = () => {
   const { data: allPurchaseObjects = [] } = usePurchaseObjects(
     currentUser?.organizationId,
   );
+  // Сохранённые проекты контрактов организации: утверждённый проект
+  // автоматически связывается с извещением и фиксирует его условия.
+  const { data: contractProjects = [] } = useOrganizationContractProjects(
+    currentUser?.organizationId,
+  );
 
   const matchedNote = useMemo(() => {
     if (state.purchaseNoteId !== undefined && state.purchaseNoteId !== "") {
@@ -274,7 +287,9 @@ const NoticeInfoForm = () => {
       if (byProc) return byProc;
     }
     if (state.ikz) {
-      return visiblePurchaseNotes.filter((n) => n.ikz === state.ikz).slice(-1)[0];
+      return visiblePurchaseNotes
+        .filter((n) => n.ikz === state.ikz)
+        .slice(-1)[0];
     }
     return undefined;
   }, [visiblePurchaseNotes, state.purchaseNoteId, state.ikz, id]);
@@ -310,9 +325,35 @@ const NoticeInfoForm = () => {
 
   // Утверждённые СЗ и ООЗ фиксируют свои реквизиты в извещении: они не
   // редактируются и восстанавливаются из снимка при сохранении.
+  // Проект контракта связывается с закупкой по id закупки или ИКЗ;
+  // утверждённым считается проект со статусом, отличным от «черновик».
+  const matchedContractProject = useMemo(() => {
+    const byProcurement = (project: (typeof contractProjects)[number]) =>
+      (id !== undefined &&
+        String(project.procurementId ?? "") === String(id)) ||
+      Boolean(matchedNote?.ikz && project.ikz === matchedNote.ikz) ||
+      Boolean(state.ikz && project.ikz === state.ikz);
+    const candidates = contractProjects.filter(byProcurement);
+    if (candidates.length === 0) return undefined;
+    // Утверждённый (размещён/подписан) важнее черновика
+    return (
+      candidates.find((project) => project.status !== "draft") ??
+      candidates[candidates.length - 1]
+    );
+  }, [contractProjects, id, matchedNote, state.ikz]);
+
+  // Обоснование НМЦК утверждено, когда подписано в ЭП (nmckSignature).
+  const nmckApprovedNote = matchedNote?.nmckSignature ? matchedNote : null;
+
   const lockedPaths = useMemo(
-    () => getNoticeLockedPaths({ note: matchedNote, description: matchedDesc }),
-    [matchedNote, matchedDesc],
+    () =>
+      getNoticeLockedPaths({
+        note: matchedNote,
+        description: matchedDesc,
+        nmckNote: nmckApprovedNote,
+        contractProject: matchedContractProject,
+      }),
+    [matchedNote, matchedDesc, nmckApprovedNote, matchedContractProject],
   );
   const lockedSources = describeNoticeLockedSources(lockedPaths);
 
@@ -595,7 +636,15 @@ const NoticeInfoForm = () => {
     },
   });
 
-  const { setValue, getValues, handleSubmit, setError, reset } = methods;
+  const {
+    setValue,
+    getValues,
+    handleSubmit,
+    setError,
+    clearErrors,
+    reset,
+    formState: { errors },
+  } = methods;
   const appliedPrefillKeyRef = useRef<string>("");
   const lockedSnapshotRef = useRef<NoticeLockedSnapshot>({});
   const lockedPathsRef = useRef<readonly string[]>(lockedPaths);
@@ -685,10 +734,11 @@ const NoticeInfoForm = () => {
     }
   }, [userOrganization, matchedNote, setValue]);
 
-  // Сквозное предзаполнение извещения из Потребности (СЗ) и связанного ООЗ
+  // Сквозное предзаполнение извещения из Потребности (СЗ), ООЗ
+  // и утверждённого проекта контракта
   useEffect(() => {
-    if (!matchedNote && !matchedDesc) return;
-    const prefillKey = `${matchedNote?.id ?? "none"}:${matchedDesc?.id ?? "none"}`;
+    if (!matchedNote && !matchedDesc && !matchedContractProject) return;
+    const prefillKey = `${matchedNote?.id ?? "none"}:${matchedDesc?.id ?? "none"}:${matchedContractProject?.id ?? "none"}:${matchedContractProject?.updatedAt ?? ""}`;
     if (appliedPrefillKeyRef.current === prefillKey) return;
     if (methods.formState.isDirty) return;
 
@@ -797,6 +847,7 @@ const NoticeInfoForm = () => {
                 limitMin: indicator.limitMin,
                 limitMax: indicator.limitMax,
                 scaleText: indicator.scaleText,
+                otherOrder: indicator.otherOrder,
               }),
             ),
           };
@@ -1326,6 +1377,33 @@ const NoticeInfoForm = () => {
       }
     }
 
+    // Утверждённый проект контракта → извещение: связь, номер и вложение.
+    // Условия утверждённого проекта (не «черновик») блокируются в извещении:
+    // менять их можно только в самом проекте контракта.
+    if (matchedContractProject) {
+      setValue("contractProjectId", matchedContractProject.id);
+      setValue(
+        "contractProjectNumber",
+        matchedContractProject.contractNumber ?? "",
+      );
+
+      const isApproved = matchedContractProject.status !== "draft";
+      const attachment = buildContractProjectAttachment({
+        project: matchedContractProject,
+        noticeId: id ?? null,
+        procurementId: matchedContractProject.procurementId ?? id ?? null,
+        purchaseNoteId: matchedNote?.id ?? null,
+      });
+      setValue(
+        "attachedDocs",
+        upsertNoticeAttachment(getValues("attachedDocs") ?? [], {
+          ...attachment,
+          status: isApproved ? "approved" : "attached",
+          approvedAt: isApproved ? attachment.attachedAt : undefined,
+        }),
+      );
+    }
+
     // Подстановка структурированного ООЗ
     if (matchedDesc) {
       setValue("objectDescriptionId", matchedDesc.id);
@@ -1375,6 +1453,31 @@ const NoticeInfoForm = () => {
       (d) => d.kind === "object_description",
     );
 
+    // Цены объектов в извещение приходят из обоснования НМЦК, а не из
+    // объектов СЗ: СЗ несёт количество и реквизиты из ООЗ, а стоимость
+    // существует только в расчёте по ст. 22 Закона № 44-ФЗ. НМЦК делится
+    // между позициями пропорционально количеству. Сохранённые цены самих
+    // объектов СЗ остаются фолбэком для записей без расчёта.
+    const nmckRecordTotal = Number.parseFloat(
+      String(matchedNote?.nmckCalculation?.nmckTotal ?? ""),
+    );
+    const noteItemQuantities = (matchedNote?.items ?? []).map((item) => {
+      const qty = Number.parseFloat(
+        String(item.quantity || "1").replace(",", "."),
+      );
+      return Number.isFinite(qty) && qty > 0 ? qty : 1;
+    });
+    const noteTotalQuantity = noteItemQuantities.reduce(
+      (sum, qty) => sum + qty,
+      0,
+    );
+    const nmckUnitPrice =
+      Number.isFinite(nmckRecordTotal) &&
+      nmckRecordTotal > 0 &&
+      noteTotalQuantity > 0
+        ? Math.round((nmckRecordTotal / noteTotalQuantity) * 100) / 100
+        : null;
+
     if (getValues("purchaseObjects.items").length === 0) {
       if (matchedNote?.items && matchedNote.items.length > 0) {
         const mappedItems = matchedNote.items.map((item, idx) => {
@@ -1395,16 +1498,22 @@ const NoticeInfoForm = () => {
                   String(matchedNote.initialMaxPrice ?? state.nmck ?? 0),
                 ) || 0
               : 0;
-          const totalPrice = Number.isFinite(totalParsed)
-            ? totalParsed
-            : Number.isFinite(unitParsed)
-              ? Math.round(unitParsed * quantity * 100) / 100
-              : fallbackTotal;
-          const unitPrice = Number.isFinite(unitParsed)
-            ? unitParsed
-            : quantity > 0
-              ? Math.round((totalPrice / quantity) * 100) / 100
-              : totalPrice;
+          // Обоснование НМЦК задаёт цену приоритетно над снимком объекта СЗ
+          const totalPrice =
+            nmckUnitPrice !== null
+              ? Math.round(nmckUnitPrice * quantity * 100) / 100
+              : Number.isFinite(totalParsed)
+                ? totalParsed
+                : Number.isFinite(unitParsed)
+                  ? Math.round(unitParsed * quantity * 100) / 100
+                  : fallbackTotal;
+          const unitPrice =
+            nmckUnitPrice ??
+            (Number.isFinite(unitParsed)
+              ? unitParsed
+              : quantity > 0
+                ? Math.round((totalPrice / quantity) * 100) / 100
+                : totalPrice);
 
           const normingReqs = (itemDesc?.characteristics ?? []).map((c) => ({
             id: c.id,
@@ -1509,8 +1618,15 @@ const NoticeInfoForm = () => {
             : String(matchedNote?.quantity || matchedDesc?.quantity || "1"),
         );
         const quantity = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+        // Стоимость берётся из обоснования НМЦК, объём финансового
+        // обеспечения из СЗ / плана-графика остаётся фолбэком
         const totalPriceRaw = Number.parseFloat(
-          String(matchedNote?.initialMaxPrice ?? state.nmck ?? 0),
+          String(
+            matchedNote?.nmckCalculation?.nmckTotal ??
+              matchedNote?.initialMaxPrice ??
+              state.nmck ??
+              0,
+          ),
         );
         const totalPrice = Number.isFinite(totalPriceRaw) ? totalPriceRaw : 0;
         const unitPrice =
@@ -1619,6 +1735,7 @@ const NoticeInfoForm = () => {
   }, [
     matchedNote,
     matchedDesc,
+    matchedContractProject,
     objectDescriptions,
     allPurchaseObjects,
     okpd2Refs,
@@ -1763,6 +1880,62 @@ const NoticeInfoForm = () => {
       return;
     }
 
+    // Нормы размеров обеспечений (ч. 1 ст. 44, ч. 6–7 ст. 34, ст. 96):
+    // заявка и гарантийные обязательства — ошибки, исполнение — ошибка в общем
+    // случае. Выше 30 % допустимо при авансе свыше 30 % НМЦК, поэтому проверка
+    // идёт по общему модулю, а не по границам схемы. Сохранение блокируется
+    // только на ошибках: предупреждения (авансовое исключение, расхождение
+    // суммы) остаются на усмотрение заказчика.
+    const securityFieldPath: Record<string, string> = {
+      application: "participantsRequirements.applicationSecurityPercent",
+      performance: "participantsRequirements.contractSecurityPercent",
+      warranty: "participantsRequirements.warrantySecurityPercent",
+    };
+    const securityErrors = validateSecurityNorms({
+      price: formData.generalInfo.nmck,
+      application: {
+        required: formData.participantsRequirements.requiresApplicationSecurity,
+        percent: formData.participantsRequirements.applicationSecurityPercent,
+      },
+      performance: {
+        required: formData.participantsRequirements.requiresContractSecurity,
+        percent: formData.participantsRequirements.contractSecurityPercent,
+      },
+      warranty: {
+        required: formData.participantsRequirements.requiresWarrantySecurity,
+        percent: formData.participantsRequirements.warrantySecurityPercent,
+      },
+      advance: {
+        percent: formData.contractConditions.hasAdvance
+          ? formData.contractConditions.advancePercent
+          : null,
+        treasurySupport:
+          formData.participantsRequirements.requiresTreasurySupport,
+      },
+    }).filter((issue) => issue.level === "error");
+
+    if (securityErrors.length > 0) {
+      // Поле процента не выводит текст ошибки под собой, поэтому сообщение
+      // показывается баннером у кнопки сохранения; путь первого нарушения
+      // ставится дополнительно, чтобы секция осталась подсвеченной.
+      setError(
+        securityFieldPath[
+          securityErrors[0].field
+        ] as Path<NoticeInfoFormValues>,
+        { type: "security", message: securityErrors[0].message },
+      );
+      setError("root", {
+        type: "security",
+        message: `Сохранение заблокировано: ${securityErrors
+          .map((issue) => `${issue.message} (${issue.legalRef})`)
+          .join(" ")}`,
+      });
+
+      return;
+    }
+
+    clearErrors("root");
+
     const payload: NoticeInfoFormValues = {
       ...formData,
       procurementId: id ?? formData.procurementId,
@@ -1841,103 +2014,112 @@ const NoticeInfoForm = () => {
 
       <NoticeFieldLockProvider lockedPaths={lockedPaths}>
         <FormProvider {...methods}>
-        <form
-          className={block("form")}
-          onSubmit={handleSubmit((data) => onSubmit(data))}
-        >
-          <NoticeStateSection />
-          {/* Способ определения поставщика приходит из служебной записки —
+          <form
+            className={block("form")}
+            onSubmit={handleSubmit((data) => onSubmit(data))}
+          >
+            <NoticeStateSection />
+            {/* Способ определения поставщика приходит из служебной записки —
               в извещении он показывается зафиксированным */}
-          <GeneralInfoSection
-            lockedPlacingWayCode={matchedNote?.placingWayCode}
-          />
-          <ContactInfoSection />
-          <ProcedureDatesSection />
-          <ContractConditionsSection />
-          <PurchaseObjectsSection allowedCodes={allowedOkpd2Codes} />
-          <ObjectDescriptionSection />
-          <NormingControlSection />
-          <ParticipantsRequirementsSection />
-          <AttachedDocsSection />
-          <Eis17FieldsSection />
+            <GeneralInfoSection
+              lockedPlacingWayCode={matchedNote?.placingWayCode}
+            />
+            <ContactInfoSection />
+            <ProcedureDatesSection />
+            <ContractConditionsSection />
+            <PurchaseObjectsSection allowedCodes={allowedOkpd2Codes} />
+            <ObjectDescriptionSection />
+            <NmckJustificationSection />
+            <ContractProjectPreviewSection />
+            <NormingControlSection />
+            <ParticipantsRequirementsSection />
+            <AttachedDocsSection />
+            <Eis17FieldsSection />
 
-          {showEisXml &&
-            (() => {
-              const snapshot = methods.getValues();
-              const eisValidation = validateNoticeInfoEis17(snapshot);
-              const xmlPreview = buildNotification2020XmlPreview(snapshot);
-              const eisBlock = bem(styles, "eis-main");
-              return (
-                <div className={eisBlock("eis-preview")}>
-                  <div className={eisBlock("eis-preview-head")}>
-                    <strong>
-                      Контроль XSD ЕИС 17.0 (
-                      {snapshot.notificationType ??
-                        inferNotificationType(
-                          snapshot.generalInfo.placingWayCode,
-                        )}
-                      ):{" "}
-                      {eisValidation.valid
-                        ? "ошибок XSD нет"
-                        : `ошибок: ${eisValidation.errorsCount}`}
-                      {eisValidation.warningsCount > 0
-                        ? `, предупреждений: ${eisValidation.warningsCount}`
-                        : ""}
-                    </strong>
-                    <button
-                      type="button"
-                      className={eisBlock("small-btn")}
-                      onClick={() =>
-                        downloadText(
-                          xmlPreview,
-                          `notification_${snapshot.notificationType ?? "2020"}_${snapshot.generalInfo.ikz || "draft"}.xml`,
-                          "application/xml;charset=utf-8",
-                        )
-                      }
-                    >
-                      Скачать XML 17.0
-                    </button>
-                  </div>
-                  {eisValidation.issues.length > 0 && (
-                    <ul className={eisBlock("eis-issues")}>
-                      {eisValidation.issues.map((issue, idx) => (
-                        <li
-                          key={`${issue.field}-${idx}`}
-                          className={eisBlock(
-                            issue.severity === "error"
-                              ? "red-note"
-                              : "yellow-warning",
+            {showEisXml &&
+              (() => {
+                const snapshot = methods.getValues();
+                const eisValidation = validateNoticeInfoEis17(snapshot);
+                const xmlPreview = buildNotification2020XmlPreview(snapshot);
+                const eisBlock = bem(styles, "eis-main");
+                return (
+                  <div className={eisBlock("eis-preview")}>
+                    <div className={eisBlock("eis-preview-head")}>
+                      <strong>
+                        Контроль XSD ЕИС 17.0 (
+                        {snapshot.notificationType ??
+                          inferNotificationType(
+                            snapshot.generalInfo.placingWayCode,
                           )}
-                        >
-                          {issue.message}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <pre className={eisBlock("eis-xml")}>{xmlPreview}</pre>
-                </div>
-              );
-            })()}
+                        ):{" "}
+                        {eisValidation.valid
+                          ? "ошибок XSD нет"
+                          : `ошибок: ${eisValidation.errorsCount}`}
+                        {eisValidation.warningsCount > 0
+                          ? `, предупреждений: ${eisValidation.warningsCount}`
+                          : ""}
+                      </strong>
+                      <button
+                        type="button"
+                        className={eisBlock("small-btn")}
+                        onClick={() =>
+                          downloadText(
+                            xmlPreview,
+                            `notification_${snapshot.notificationType ?? "2020"}_${snapshot.generalInfo.ikz || "draft"}.xml`,
+                            "application/xml;charset=utf-8",
+                          )
+                        }
+                      >
+                        Скачать XML 17.0
+                      </button>
+                    </div>
+                    {eisValidation.issues.length > 0 && (
+                      <ul className={eisBlock("eis-issues")}>
+                        {eisValidation.issues.map((issue, idx) => (
+                          <li
+                            key={`${issue.field}-${idx}`}
+                            className={eisBlock(
+                              issue.severity === "error"
+                                ? "red-note"
+                                : "yellow-warning",
+                            )}
+                          >
+                            {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <pre className={eisBlock("eis-xml")}>{xmlPreview}</pre>
+                  </div>
+                );
+              })()}
 
-          <footer className={block("footer")}>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowEisXml((prev) => !prev)}
-            >
-              {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={isSaving}
-              onClick={handleSubmit((data) => onSubmit(data, "contract"))}
-            >
-              Сохранить и сформировать проект контракта
-            </button>
-            <NormingSubmitButton isSaving={isSaving} />
-          </footer>
-        </form>
+            {errors.root?.message && (
+              <div className={block("error-banner")} role="alert">
+                <span className={block("danger-badge")}>!</span>
+                <span>{errors.root.message}</span>
+              </div>
+            )}
+
+            <footer className={block("footer")}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowEisXml((prev) => !prev)}
+              >
+                {showEisXml ? "Скрыть ЕИС 17.0" : "Проверка ЕИС 17.0 / XML"}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={isSaving}
+                onClick={handleSubmit((data) => onSubmit(data, "contract"))}
+              >
+                Сохранить и сформировать проект контракта
+              </button>
+              <NormingSubmitButton isSaving={isSaving} />
+            </footer>
+          </form>
         </FormProvider>
       </NoticeFieldLockProvider>
     </section>

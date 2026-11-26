@@ -379,6 +379,11 @@
     font-size: 12px;
     line-height: 1.45;
     color: var(--text-secondary);
+
+    &--warning {
+      color: var(--state-warning);
+      font-weight: 600;
+    }
   }
 
   &__warning-msg {

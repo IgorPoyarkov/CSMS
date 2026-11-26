@@ -424,6 +424,34 @@
     border-radius: 2px;
   }
 
+  // Ошибка нормы: заявка и гарантийные обязательства, исполнение в общем
+  // случае. Красный цвет означает, что сохранение извещения заблокировано.
+  &__red-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.35;
+    background-color: var(--state-danger-soft);
+    border: 1px solid var(--state-danger);
+    border-radius: 3px;
+    color: var(--state-danger);
+  }
+
+  &__error-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    font-weight: 700;
+    color: var(--text-on-accent);
+    background-color: var(--state-danger);
+    border-radius: 2px;
+  }
+
   &__fio-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(140px, 210px));
@@ -921,6 +949,274 @@
     font-size: 13px;
     color: var(--text-primary);
     line-height: 1.5;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    vertical-align: middle;
+
+    &--approved {
+      color: var(--state-success);
+      background-color: var(--state-success-soft);
+      border: 1px solid
+        color-mix(in srgb, var(--state-success) 35%, transparent);
+    }
+  }
+
+  &__locked-note {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background-color: var(--surface-raised);
+    border: 1px dashed var(--border-strong);
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 10px;
+  }
+
+  &__details-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  &__details-term {
+    color: var(--text-secondary);
+  }
+
+  &__details-value {
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  &__chars {
+    margin-top: 10px;
+  }
+
+  &__chars-title {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__chars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__chars-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background-color: var(--surface-field);
+    font-size: 12px;
+  }
+
+  &__chars-category {
+    color: var(--text-secondary);
+  }
+
+  &__chars-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__chars-value {
+    color: var(--text-primary);
+  }
+
+  &__chars-tag {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    color: var(--accent);
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+}
+
+// ─── Read-only просмотр утверждённых НМЦК и проекта контракта ────────────────
+.nmck-preview,
+.contract-project-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--surface-raised);
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__section-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding-bottom: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  &__field-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+  }
+
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  &__value {
+    font-size: 13px;
+    color: var(--text-primary);
+
+    &--highlight {
+      font-weight: 700;
+      color: var(--accent);
+    }
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+
+    &--approved {
+      color: var(--state-success);
+      background-color: var(--state-success-soft);
+      border: 1px solid
+        color-mix(in srgb, var(--state-success) 35%, transparent);
+    }
+
+    &--published {
+      color: var(--accent);
+      background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    }
+
+    &--signed {
+      color: var(--state-success);
+      background-color: var(--state-success-soft);
+      border: 1px solid
+        color-mix(in srgb, var(--state-success) 35%, transparent);
+    }
+
+    &--draft {
+      color: var(--text-secondary);
+      background-color: var(--surface-field);
+      border: 1px solid var(--border-strong);
+    }
+  }
+
+  &__approval {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background-color: var(--surface-field);
+    border: 1px solid var(--border);
+  }
+
+  &__preview {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: var(--surface-field);
+  }
+
+  &__preview-title {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  &__preview-text {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  &__link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 

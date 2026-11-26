@@ -326,24 +326,9 @@ export default function ObjectDescriptionEditor({
     [mandatoryOnly, selectedKtru],
   );
 
-  /**
-   * У характеристики КТРУ единица измерения может отсутствовать. Такое поле
-   * показываем заблокированным с честной подсказкой; «Открыть» снимает блокировку
-   * только для этой характеристики, не меняя остальные поля каталога.
-   */
-  const isUnitMissingInKtru = (item: ObjectCharacteristic) => {
-    if (
-      !draft.useKtru ||
-      !selectedKtru ||
-      manualUnitCharacteristics.includes(item.id)
-    ) {
-      return false;
-    }
-    // Единица уже задана вручную — в том числе в сохранённом черновике,
-    // куда локальный список «открытых» полей не попадает.
-    if (item.unit.trim()) {
-      return false;
-    }
+  /** Поле КТРУ, у которого в каталоге нет единицы измерения. */
+  const ktruUnitAbsent = (item: ObjectCharacteristic) => {
+    if (!draft.useKtru || !selectedKtru) return false;
     const source = selectedKtru.characteristics.find(
       (characteristic) =>
         characteristic.name.trim().toLowerCase() ===
@@ -352,10 +337,38 @@ export default function ObjectDescriptionEditor({
     return Boolean(source && !source.unit?.trim());
   };
 
+  /**
+   * Пока пользователь не «открыл» такую характеристику, поле заблокировано.
+   * Единица, заданная вручную (в том числе в сохранённом черновике), также
+   * считается открытой — локальный список не теряется при перезагрузке.
+   */
+  const isUnitMissingInKtru = (item: ObjectCharacteristic) =>
+    ktruUnitAbsent(item) &&
+    !manualUnitCharacteristics.includes(item.id) &&
+    !item.unit.trim();
+
+  /** Единица задана вручную там, где КТРУ её не предусматривает. */
+  const isManualUnitChange = (item: ObjectCharacteristic) =>
+    ktruUnitAbsent(item) && Boolean(item.unit.trim());
+
   const openCharacteristicUnit = (id: string) => {
     setManualUnitCharacteristics((prev) =>
       prev.includes(id) ? prev : [...prev, id],
     );
+  };
+
+  /** Вернуть характеристику к состоянию КТРУ и снять ручную единицу. */
+  const closeCharacteristicUnit = (idx: number) => {
+    const item = draft.characteristics[idx];
+    if (!item) return;
+    setManualUnitCharacteristics((prev) =>
+      prev.filter((id) => id !== item.id),
+    );
+    updateCharacteristic(idx, {
+      unit: "",
+      unitManuallyChanged: false,
+      unitChangeJustification: "",
+    });
   };
 
   const previewText = useMemo(
@@ -1289,7 +1302,9 @@ export default function ObjectDescriptionEditor({
                     title={
                       isUnitMissingInKtru(item)
                         ? "В КТРУ нет единицы измерения. Нажмите «Открыть», чтобы задать её вручную."
-                        : undefined
+                        : ktruUnitAbsent(item)
+                          ? "Единица задана вручную. Нажмите «Вернуть как в КТРУ», чтобы заблокировать поле."
+                          : undefined
                     }
                   >
                     <label className={block("label")}>Ед. изм.</label>
@@ -1300,7 +1315,17 @@ export default function ObjectDescriptionEditor({
                       placeholder="мм, кг, Вт"
                       disabled={isUnitMissingInKtru(item)}
                       onChange={(nextUnit) =>
-                        updateCharacteristic(idx, { unit: nextUnit })
+                        updateCharacteristic(idx, {
+                          unit: nextUnit,
+                          ...(ktruUnitAbsent(item)
+                            ? {
+                                unitManuallyChanged: Boolean(nextUnit.trim()),
+                                ...(nextUnit.trim()
+                                  ? {}
+                                  : { unitChangeJustification: "" }),
+                              }
+                            : {}),
+                        })
                       }
                     />
                     {isUnitMissingInKtru(item) && (
@@ -1317,6 +1342,23 @@ export default function ObjectDescriptionEditor({
                         </button>
                       </>
                     )}
+                    {ktruUnitAbsent(item) &&
+                      !isUnitMissingInKtru(item) && (
+                        <>
+                          <span className={block("field-hint")}>
+                            {isManualUnitChange(item)
+                              ? "Единица изменена вручную"
+                              : "Единица задаётся вручную"}
+                          </span>
+                          <button
+                            type="button"
+                            className={block("inline-btn")}
+                            onClick={() => closeCharacteristicUnit(idx)}
+                          >
+                            Вернуть как в КТРУ
+                          </button>
+                        </>
+                      )}
                   </div>
 
                   <div className={block("field")}>
@@ -1506,6 +1548,31 @@ export default function ObjectDescriptionEditor({
                     Итого: {formatCharacteristicValue(item)}
                   </span>
                 </div>
+
+                {isManualUnitChange(item) && (
+                  <div className={block("justification-box")}>
+                    <label className={block("label")}>
+                      Обоснование единицы, которой нет в КТРУ *
+                    </label>
+                    <textarea
+                      className={block("textarea")}
+                      rows={2}
+                      placeholder="Почему для показателя задана единица, которой нет в позиции КТРУ…"
+                      value={item.unitChangeJustification}
+                      onChange={(e) =>
+                        updateCharacteristic(idx, {
+                          unitChangeJustification: e.target.value,
+                        })
+                      }
+                    />
+                    {!item.unitChangeJustification.trim() && (
+                      <span className={block("field-hint", ["warning"])}>
+                        Без обоснования ООЗ не пройдёт автоконтроль и не будет
+                        утверждено.
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {draft.useKtru && item.isAdditionalOverKtru && (
                   <div className={block("justification-box")}>

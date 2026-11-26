@@ -17,7 +17,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import useUtils from "../../hooks/useUtils";
 import CustomSelect from "../UI/CustomSelect";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
-import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import {
   findOkpd2ByCode,
@@ -249,8 +248,6 @@ export default function PurchasePlanPositionForm({
   const purchaseNumber = useWatch({ control, name: "purchaseNumber" });
   const okpd2Code = useWatch({ control, name: "okpd2Code" });
   const okpd2Name = useWatch({ control, name: "okpd2Name" });
-  const useKtru = useWatch({ control, name: "useKtru" });
-  const ktruCode = useWatch({ control, name: "ktruCode" });
   const okpd2ItemsValues = useWatch({ control, name: "okpd2Items" });
   const isConstructionWorks = useWatch({
     control,
@@ -1042,62 +1039,6 @@ export default function PurchasePlanPositionForm({
                     аукцион (проведение конкурса неправомерно по ч. 6 ст. 24
                     44-ФЗ).
                   </span>
-                )}
-              </div>
-
-              {/* КТРУ под выбранным ОКПД2: либо код позиции, либо мотивированный
-                  отказ. Значения уходят в СЗ и ООЗ без повторного выбора. */}
-              <div className={block("cell", ["wide"])}>
-                <label className={block("checkbox")}>
-                  <input type="checkbox" {...register("useKtru")} />
-                  <span>Применять КТРУ для этого ОКПД2</span>
-                </label>
-                {useKtru ? (
-                  <>
-                    <KtruSelect
-                      okpd2Code={okpd2Code}
-                      ktruCode={ktruCode}
-                      className={block("input")}
-                      onSelect={(item) => {
-                        setValue("ktruCode", item?.ktruCode ?? "", {
-                          shouldValidate: true,
-                        });
-                        setValue("ktruName", item?.name ?? "", {
-                          shouldValidate: true,
-                        });
-                        setValue("ktruRefusalReason", "", {
-                          shouldValidate: true,
-                        });
-                      }}
-                    />
-                    {errors.ktruCode && (
-                      <span className={block("error")}>
-                        {String(errors.ktruCode.message)}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <label
-                      className={block("label")}
-                      htmlFor="position-ktru-refusal"
-                    >
-                      Мотивированный отказ от применения КТРУ
-                    </label>
-                    <textarea
-                      id="position-ktru-refusal"
-                      className={block("textarea")}
-                      rows={2}
-                      placeholder="Укажите причину, почему позиция КТРУ не применяется"
-                      {...register("ktruRefusalReason")}
-                    />
-                    {!okpd2Code && (
-                      <span className={block("hint", ["norm"])}>
-                        Сначала выберите ОКПД2, чтобы проверить наличие позиций
-                        КТРУ.
-                      </span>
-                    )}
-                  </>
                 )}
               </div>
 

@@ -1070,20 +1070,20 @@
   line-height: 1.2;
 }
 
-.smp-section__registry_ok {
+.smp-section__registry--ok {
   color: var(--state-success);
 }
 
-.smp-section__registry_warn {
+.smp-section__registry--warn {
   color: var(--state-warning);
 }
 
-.smp-section__registry_error {
+.smp-section__registry--error {
   color: var(--state-danger);
   font-weight: 600;
 }
 
-.smp-section__registry_unknown {
+.smp-section__registry--unknown {
   color: var(--text-secondary);
 }
 
@@ -1098,12 +1098,12 @@
   white-space: nowrap;
 }
 
-.smp-section__checkBadge_warning {
+.smp-section__checkBadge--warning {
   background: var(--state-warning-soft);
   color: var(--state-warning);
 }
 
-.smp-section__checkBadge_error {
+.smp-section__checkBadge--error {
   background: var(--state-danger-soft);
   color: var(--state-danger);
 }
@@ -1244,6 +1244,277 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* Нативные фильтры по видам документов: чипы переносятся на новые строки,
+   а не прячутся в горизонтальный скролл */
+.smp-section__filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 10px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.smp-section__filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &--active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--text-on-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.smp-section__filterCount {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-panel);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+/* Карточки договоров: список вместо широкой таблицы — без горизонтального
+   скролла, каждая карточка раскрывается по клику */
+.smp-section__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.smp-section__empty {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.smp-section__card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-panel);
+  overflow: hidden;
+
+  &--open {
+    border-color: var(--accent);
+  }
+}
+
+.smp-section__cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: var(--surface-raised);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover .smp-section__cardTitle {
+    color: var(--accent);
+  }
+
+  &--static {
+    cursor: default;
+
+    &:hover .smp-section__cardTitle {
+      color: inherit;
+    }
+  }
+}
+
+.smp-section__cardChevron {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.smp-section__cardMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.smp-section__cardTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.smp-section__cardSupplier {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smp-section__cardInn {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.smp-section__cardFlags {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.smp-section__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &--error {
+    background: var(--state-danger-soft);
+    color: var(--state-danger);
+  }
+
+  &--warning {
+    background: var(--state-warning-soft);
+    color: var(--state-warning);
+  }
+
+  &--ok {
+    background: var(--state-success-soft);
+    color: var(--state-success);
+  }
+}
+
+.smp-section__cardBody {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.smp-section__cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.smp-section__metaRow {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px;
+  font-size: 12px;
+}
+
+.smp-section__metaLabel {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.smp-section__metaValue {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.smp-section__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.smp-section__cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.smp-section__docs {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.smp-section__docsTitle {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.smp-section__docRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.smp-section__docType {
+  flex: 0 0 auto;
+  max-width: 180px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.smp-section__docInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.smp-section__docStatus {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.smp-section__docActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .smp-section__metaRow {
+    grid-template-columns: 1fr;
+  }
+
+  .smp-section__docRow {
+    flex-wrap: wrap;
+  }
 }
 
 .smp-section__statusSelect {
@@ -3383,6 +3654,17 @@
   align-items: baseline;
   gap: 12px;
   flex-wrap: wrap;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover .timelineTitle {
+    color: var(--accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
 /* Точка на линии: обозначает начало периода контракта */
@@ -3395,6 +3677,14 @@
   border-radius: 50%;
   background: var(--accent);
   border: 2px solid var(--surface-panel);
+}
+
+/* Шеврон раскрытия: показывает, что хронология сворачивается по клику */
+.timelineChevron {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  flex: 0 0 auto;
 }
 
 .timelineHeadBody {

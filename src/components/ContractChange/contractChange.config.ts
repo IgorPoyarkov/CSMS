@@ -189,6 +189,22 @@ const emptyToNull = (value: string): string | null => {
 
 // ─── Состояние формы ───────────────────────────────────────────────────────
 
+/**
+ * Строка объектов закупки в форме. Все значения — строки: так поле ввода
+ * принимает пустое значение и промежуточные «12,» без потери ввода.
+ */
+export interface ContractChangeObjectRow {
+  key: string;
+  name: string;
+  okpd2Code: string;
+  ktruCode: string;
+  unit: string;
+  oldQuantity: string;
+  newQuantity: string;
+  oldUnitPrice: string;
+  newUnitPrice: string;
+}
+
 export interface ContractChangeFormState {
   contractId: string;
   contractNumber: string;
@@ -223,6 +239,8 @@ export interface ContractChangeFormState {
   formulaText: string;
   unitPrice: string;
   initialMaxPrice: string;
+  /** Объекты закупки: связанный блок ПЭК при изменении цены или количества. */
+  purchaseObjects: ContractChangeObjectRow[];
 }
 
 export const emptyContractChangeForm = (): ContractChangeFormState => ({
@@ -259,6 +277,7 @@ export const emptyContractChangeForm = (): ContractChangeFormState => ({
   formulaText: "",
   unitPrice: "",
   initialMaxPrice: "",
+  purchaseObjects: [],
 });
 
 const textOf = (value: string | null | undefined): string => value ?? "";
@@ -301,6 +320,17 @@ export const contractChangeFormFrom = (
   unitPrice: input.unitPrice === null ? "" : String(input.unitPrice),
   initialMaxPrice:
     input.initialMaxPrice === null ? "" : String(input.initialMaxPrice),
+  purchaseObjects: (input.purchaseObjects ?? []).map((item, index) => ({
+    key: `object-${index}`,
+    name: item.name,
+    okpd2Code: textOf(item.okpd2Code),
+    ktruCode: textOf(item.ktruCode),
+    unit: textOf(item.unit),
+    oldQuantity: item.oldQuantity === null ? "" : String(item.oldQuantity),
+    newQuantity: item.newQuantity === null ? "" : String(item.newQuantity),
+    oldUnitPrice: item.oldUnitPrice === null ? "" : String(item.oldUnitPrice),
+    newUnitPrice: item.newUnitPrice === null ? "" : String(item.newUnitPrice),
+  })),
 });
 
 export const buildContractChangeInput = (
@@ -343,6 +373,16 @@ export const buildContractChangeInput = (
   unitPrice: parseNumber(form.unitPrice),
   initialMaxPrice: parseNumber(form.initialMaxPrice),
   createdBy,
+  purchaseObjects: form.purchaseObjects.map((item) => ({
+    name: item.name.trim(),
+    okpd2Code: emptyToNull(item.okpd2Code),
+    ktruCode: emptyToNull(item.ktruCode),
+    unit: emptyToNull(item.unit),
+    oldQuantity: parseNumber(item.oldQuantity),
+    newQuantity: parseNumber(item.newQuantity),
+    oldUnitPrice: parseNumber(item.oldUnitPrice),
+    newUnitPrice: parseNumber(item.newUnitPrice),
+  })),
 });
 
 // ─── Проверка формы ────────────────────────────────────────────────────────
@@ -471,6 +511,48 @@ export const validateContractChangeForm = (
     }
   }
 
+  // Объекты закупки — связанный блок: позиции проверяются теми же лимитами,
+  // что цена и количество контракта, и только если матрица разрешает
+  // соответствующий блок ПЭК.
+  if (form.purchaseObjects.length > 0) {
+    const canChangeQuantity = basis.allowsQuantityChange;
+    const canChangePrice = basis.allowsPriceChange;
+
+    if (!canChangeQuantity && !canChangePrice) {
+      errors.purchaseObjects =
+        "Основание не связано с блоком объектов закупки: менять позиции нельзя.";
+    } else {
+      form.purchaseObjects.forEach((item, index) => {
+        const label = item.name.trim() || `Позиция № ${index + 1}`;
+        const newQuantity = parseNumber(item.newQuantity);
+        const oldQuantity = parseNumber(item.oldQuantity);
+        const newUnitPrice = parseNumber(item.newUnitPrice);
+        const oldUnitPrice = parseNumber(item.oldUnitPrice);
+
+        if (newQuantity === null || newQuantity <= 0) {
+          errors.purchaseObjects = `${label}: укажите новое количество больше нуля.`;
+        } else if (oldQuantity !== null && oldQuantity > 0) {
+          const percent =
+            (Math.abs(newQuantity - oldQuantity) / oldQuantity) * 100;
+
+          if (percent > basis.maxQuantityPercent) {
+            errors.purchaseObjects = `${label}: количество меняется на ${percent.toFixed(2)} %, допустимо не более ${basis.maxQuantityPercent} %.`;
+          }
+        }
+
+        if (newUnitPrice === null || newUnitPrice <= 0) {
+          errors.purchaseObjects = `${label}: цена единицы должна быть больше нуля.`;
+        } else if (
+          !canChangePrice &&
+          oldUnitPrice !== null &&
+          newUnitPrice !== oldUnitPrice
+        ) {
+          errors.purchaseObjects = `${label}: по этому основанию цена единицы не меняется.`;
+        }
+      });
+    }
+  }
+
   if (basis.requiresGovernmentAct) {
     if (!form.governmentActNumber) {
       errors.governmentActNumber = "Укажите номер акта органа власти.";
@@ -505,17 +587,29 @@ export const validateContractChangeForm = (
     errors.newSupplier = "Укажите нового поставщика.";
   }
 
-  if (form.newSubject.trim() && !basis.allowsQualityImprovement) {
+  // Матрица nsiContractStructureChageCauseLink: поле доступно, только если
+  // основание связано с соответствующим блоком ПЭК. Те же коды проверяет
+  // сервер, поэтому клиент не отправит заведомо ошибочную комбинацию.
+  const allows = (code: string) =>
+    (basis.changeableConditions ?? []).some(
+      (condition) => condition.code === code,
+    );
+
+  if (form.newSupplier.trim() && !allows("SUPPLIER")) {
+    errors.newSupplier = "По этому основанию поставщик не меняется.";
+  }
+
+  if (form.newSubject.trim() && !allows("SUBJECT")) {
     errors.newSubject = "Предмет контракта по этому основанию не меняется.";
   }
 
   if (
     form.newExecutionEndDate &&
     form.newExecutionEndDate !== form.contractExecutionEndDate &&
-    !basis.requiresGovernmentAct
+    !allows("TERMS")
   ) {
     errors.newExecutionEndDate =
-      "Срок исполнения меняется только по акту органа власти.";
+      "Срок исполнения по этому основанию не меняется.";
   }
 
   return errors;
@@ -564,6 +658,26 @@ const conditionLines = (input: ContractChangeInput): string[] => {
         input.quantityUnit ? ` ${input.quantityUnit}` : ""
       }.`,
     );
+  }
+
+  // Объекты закупки пересчитываются вместе с ценой: в документе фиксируем
+  // количество, цену единицы и сумму каждой позиции
+  const objects = input.purchaseObjects ?? [];
+  if (objects.length > 0) {
+    lines.push("Объекты закупки:");
+
+    objects.forEach((item, index) => {
+      const total = (item.newQuantity ?? 0) * (item.newUnitPrice ?? 0);
+      const code = [item.okpd2Code, item.ktruCode].filter(Boolean).join(" / ");
+
+      lines.push(
+        `${index + 1}. ${item.name}${code ? ` (${code})` : ""}: количество ${
+          item.newQuantity ?? "—"
+        }${item.unit ? ` ${item.unit}` : ""}, цена единицы ${formatMoney(
+          item.newUnitPrice,
+        )} ₽, сумма ${formatMoney(total)} ₽.`,
+      );
+    });
   }
 
   if (input.newSubject) {

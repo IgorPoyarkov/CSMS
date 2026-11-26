@@ -85,6 +85,7 @@ const CONTRACT_SEARCH_FIELDS = [
   "supplierName",
   "supplierInn",
   "contractName",
+  "ikz",
 ].join(",");
 
 /** Одна порция реестра: строки страницы и всего контрактов у организации. */
@@ -103,14 +104,17 @@ const fetchContractsPortion = async (
   page: number,
   limit: number,
   search?: string,
+  contractNumber?: string,
 ): Promise<ContractRegistryPortion> => {
   const needle = search?.trim();
+  const numberNeedle = contractNumber?.trim();
   const response = await api.get(CONTRACTS_ENDPOINT, {
     params: {
       organizationId,
       _page: page,
       _limit: limit,
       ...(needle ? { _search: needle, _searchFields: CONTRACT_SEARCH_FIELDS } : {}),
+      ...(numberNeedle ? { contractNumber_like: numberNeedle } : {}),
     },
   });
   const items = ContractRegistryItemListSchema.parse(response.data);
@@ -505,6 +509,100 @@ export const prefetchContract = (
     staleTime: 60_000,
   });
 
+/** Агрегат по одному году заключения контракта. */
+export interface ContractRegistrySummaryYear {
+  year: number;
+  count: number;
+  amount: number;
+}
+
+/** Итоги реестра: считаются в БД, а не по загруженной порции строк. */
+export interface ContractRegistrySummary {
+  minYear: number;
+  total: number;
+  totalAmount: number;
+  years: ContractRegistrySummaryYear[];
+}
+
+export interface ContractRegistrySummaryFilters {
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  supplierName?: string;
+  advance?: "all" | "with" | "without";
+  /** Глубина окна в годах: по умолчанию последние 11 лет. */
+  years?: number;
+}
+
+/**
+ * Итоги реестра контрактов: количество и сумма по годам.
+ *
+ * Реестр открывается порциями по 25 строк, поэтому суммы и размеры папок по
+ * загруженным строкам неверны. Этот запрос считает всё в PostgreSQL одним
+ * GROUP BY; окно ограничено последними 11 годами.
+ */
+const fetchContractRegistrySummary = async (
+  organizationId: string | number,
+  filters: ContractRegistrySummaryFilters = {},
+): Promise<ContractRegistrySummary> => {
+  const response = await api.get("/__pg/contracts-summary", {
+    params: {
+      organizationId,
+      years: filters.years ?? 11,
+      ...(filters.status && filters.status !== "all"
+        ? { status: filters.status }
+        : {}),
+      ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+      ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
+      ...(filters.supplierName ? { supplierName: filters.supplierName } : {}),
+      ...(filters.advance && filters.advance !== "all"
+        ? { advance: filters.advance }
+        : {}),
+    },
+  });
+
+  const raw = response.data as {
+    minYear?: number;
+    total?: number;
+    totalAmount?: string;
+    years?: Array<{ year?: number; count?: number; amount?: string }>;
+  };
+
+  return {
+    minYear: Number(raw.minYear) || 0,
+    total: Number(raw.total) || 0,
+    totalAmount: Number.parseFloat(String(raw.totalAmount ?? "0")) || 0,
+    years: (raw.years ?? []).map((row) => ({
+      year: Number(row.year) || 0,
+      count: Number(row.count) || 0,
+      amount: Number.parseFloat(String(row.amount ?? "0")) || 0,
+    })),
+  };
+};
+
+export const useContractRegistrySummary = (
+  organizationId: string | number | undefined,
+  filters: ContractRegistrySummaryFilters = {},
+  enabled = true,
+) => {
+  const filterKey = JSON.stringify(filters);
+  return useQuery({
+    queryKey: [
+      ...contractRegistryQueryKey,
+      "summary",
+      String(organizationId),
+      filterKey,
+    ],
+    queryFn: () =>
+      fetchContractRegistrySummary(
+        organizationId as string | number,
+        filters,
+      ),
+    enabled: Boolean(organizationId) && enabled,
+    staleTime: 30_000,
+  });
+};
+
 // Контракты
 export const useContractRegistry = (
   organizationId: string | number | undefined,
@@ -531,15 +629,22 @@ export const useContractRegistry = (
 export const useContractRegistryRows = (
   organizationId: string | number | undefined,
   search?: string,
+  contractNumber?: string,
 ) => {
   const query = useInfiniteQuery({
-    queryKey: [...contractRowsKey, String(organizationId), search ?? ""],
+    queryKey: [
+      ...contractRowsKey,
+      String(organizationId),
+      search ?? "",
+      contractNumber ?? "",
+    ],
     queryFn: ({ pageParam }) =>
       fetchContractsPortion(
         organizationId as string | number,
         pageParam,
         CONTRACT_REGISTRY_PAGE_SIZE,
         search,
+        contractNumber,
       ),
     initialPageParam: 1,
     getNextPageParam: (lastPage, pages) => {

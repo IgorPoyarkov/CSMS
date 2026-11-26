@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileSpreadsheet, FileText } from "lucide-react";
+import {
+  CheckCircle2,
+  FileCheck2,
+  FileSignature,
+  FileText,
+} from "lucide-react";
 import useUtils from "../../hooks/useUtils";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -18,12 +23,17 @@ import {
   type PurchaseNote,
   type PurchaseNoteStatus,
 } from "../../services/PurchaseNote/purchaseNote.schema";
-import {
-  exportPurchaseNoteToDocx,
-  exportPurchaseNoteToPdf,
-} from "../../services/PurchaseNote/purchaseNoteExport";
+import { useAddProcurement } from "../../services/Procurements/procurement.api";
+import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
 import PurchaseNoteStatusBadge from "./PurchaseNoteStatusBadge";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
+import {
+  buildNoticeLocationState,
+  buildProcurementRaw,
+  hasProcurement,
+  procurementRoute,
+  type PurchaseNoteTarget,
+} from "./purchaseNoteNavigation";
 import styles from "./PurchaseNotesRegistryPage.module.scss";
 import Select from "../UI/Select";
 
@@ -78,7 +88,10 @@ export default function PurchaseNotesRegistryPage() {
     error,
   } = usePurchaseNotes(organizationId);
   const { data: plans = [] } = usePurchasePlans(organizationId);
+  // Контракты нужны, чтобы по заключённой СЗ открыть карточку контракта
+  const { data: contracts = [] } = useContractRegistry(organizationId);
   const updateNote = useUpdatePurchaseNote();
+  const createProcurement = useAddProcurement();
 
   const {
     employee,
@@ -93,8 +106,6 @@ export default function PurchaseNotesRegistryPage() {
   const [yearFilter, setYearFilter] = useState<string>(ALL_YEARS);
   const [pageSize, setPageSize] = useState<PageSizeValue>(10);
   const [page, setPage] = useState(1);
-  const [exportingKey, setExportingKey] = useState<string | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
 
   const visibleNotes = useMemo(
     () => filterVisiblePurchaseNotes(notes),
@@ -206,25 +217,50 @@ export default function PurchaseNotesRegistryPage() {
     return { plan, position };
   };
 
-  const handleExport = async (note: PurchaseNote, format: "docx" | "pdf") => {
-    const key = `${String(note.id ?? note.noteNumber)}:${format}`;
-    setExportingKey(key);
-    setExportError(null);
-    try {
-      const { plan, position } = resolvePlanAndPosition(note);
-      const context = { note, organization, plan, position };
-      if (format === "docx") {
-        await exportPurchaseNoteToDocx(context);
-      } else {
-        await exportPurchaseNoteToPdf(context);
-      }
-    } catch (err) {
-      setExportError(
-        `Не удалось сформировать ${format.toUpperCase()}: ${String(err)}`,
+  /**
+   * Контракт, заключённый по этой СЗ. Связь ищем по записи закупки, а если её
+   * ещё нет — по ИКЗ: реестровый номер присваивается уже после заключения.
+   */
+  const linkedContract = (note: PurchaseNote) => {
+    const { position } = resolvePlanAndPosition(note);
+    const procurementId = note.procurementId;
+    const ikz = note.ikz || position?.identificationCode || "";
+
+    return contracts.find(
+      (contract) =>
+        (procurementId !== undefined &&
+          procurementId !== null &&
+          procurementId !== "" &&
+          String(contract.procurementId ?? "") === String(procurementId)) ||
+        (ikz !== "" && contract.ikz === ikz),
+    );
+  };
+
+  /**
+   * Переход в извещение или проект контракта. Сведения СЗ передаются форме
+   * состоянием для предзаполнения; запись закупки создаётся только тогда,
+   * когда по СЗ её ещё нет — иначе формы не к чему привязать.
+   */
+  const openProcurement = (note: PurchaseNote, target: PurchaseNoteTarget) => {
+    const { position } = resolvePlanAndPosition(note);
+    const state = buildNoticeLocationState(note, position);
+
+    if (hasProcurement(note)) {
+      navigate(
+        procurementRoute(note.procurementId as string | number, target),
+        { state },
       );
-    } finally {
-      setExportingKey(null);
+      return;
     }
+
+    createProcurement.mutate(buildProcurementRaw(note, position), {
+      onSuccess: (created) => {
+        if (note.id !== undefined) {
+          updateNote.mutate({ id: note.id, procurementId: created.id });
+        }
+        navigate(procurementRoute(created.id, target), { state });
+      },
+    });
   };
 
   const handleChangeStatus = (
@@ -384,12 +420,6 @@ export default function PurchaseNotesRegistryPage() {
         </div>
       </div>
 
-      {exportError && (
-        <div className={block("error-banner")} role="alert">
-          {exportError}
-        </div>
-      )}
-
       {filteredNotes.length === 0 ? (
         <div className={block("empty")}>
           <p>
@@ -409,7 +439,7 @@ export default function PurchaseNotesRegistryPage() {
         <ul className={block("list")}>
           {pagedNotes.map((note) => {
             const noteKey = String(note.id ?? note.noteNumber);
-            const { plan, position } = resolvePlanAndPosition(note);
+            const { position } = resolvePlanAndPosition(note);
             const canOpenForm =
               note.purchasePlanId !== undefined &&
               note.purchasePlanId !== null &&
@@ -417,9 +447,24 @@ export default function PurchaseNotesRegistryPage() {
               note.positionId !== undefined &&
               note.positionId !== null &&
               note.positionId !== "";
-            const isExportingDocx = exportingKey === `${noteKey}:docx`;
-            const isExportingPdf = exportingKey === `${noteKey}:pdf`;
             const statusMeta = getPurchaseNoteStatusMeta(note.status);
+            // Карточка открывается только при известном идентификаторе
+            // контракта: в импортированных из ЕИС записях id может отсутствовать
+            const contractId = linkedContract(note)?.id;
+            const canOpenContract =
+              contractId !== undefined &&
+              contractId !== null &&
+              contractId !== "";
+            // Согласующих может быть много: в карточке держим одну строку с
+            // последним согласованием, полный список не разворачиваем
+            const approvalText = [
+              note.approvalUpdatedBy,
+              note.approvalUpdatedAt
+                ? formatRuDate(note.approvalUpdatedAt)
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
 
             return (
               <li key={noteKey} className={block("card", [statusMeta.tone])}>
@@ -458,45 +503,14 @@ export default function PurchaseNotesRegistryPage() {
                     <dt>Инициатор</dt>
                     <dd>{note.initiatorName || "—"}</dd>
                   </div>
-                  <div>
-                    <dt>План-график / Позиция</dt>
-                    <dd>
-                      {note.purchasePlanNumber || plan?.planNumber || "—"}
-                      {note.positionSerialNumber
-                        ? ` · поз. № ${note.positionSerialNumber}`
-                        : ""}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>ИКЗ</dt>
-                    <dd className={block("mono")}>
-                      {note.ikz ||
-                        position?.identificationCode ||
-                        "не сформирован"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>КБК</dt>
-                    <dd className={block("mono")}>
-                      {note.kbk || position?.kbk || "не указан"}
-                    </dd>
-                  </div>
-                  {(note.approvalUpdatedBy || note.approvalUpdatedAt) && (
-                    <div>
-                      <dt>Согласование</dt>
-                      <dd>
-                        {[
-                          note.approvalUpdatedBy,
-                          note.approvalUpdatedAt
-                            ? formatRuDate(note.approvalUpdatedAt)
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </dd>
-                    </div>
-                  )}
                 </dl>
+
+                {approvalText && (
+                  <p className={block("approval")} title={approvalText}>
+                    <CheckCircle2 size={13} aria-hidden="true" />
+                    <span>Согласовано: {approvalText}</span>
+                  </p>
+                )}
 
                 <div className={block("card-actions")}>
                   <div className={block("status-control")}>
@@ -529,43 +543,55 @@ export default function PurchaseNotesRegistryPage() {
                   </div>
 
                   <div className={block("buttons")}>
-                    <button
-                      type="button"
-                      className={block("btn")}
-                      disabled={isExportingDocx || isExportingPdf}
-                      onClick={() => handleExport(note, "docx")}
-                      title="Выгрузить служебную записку в Word (.docx) для подписания вне системы"
-                    >
-                      <FileSpreadsheet size={15} aria-hidden="true" />
-                      <span>
-                        {isExportingDocx ? "Формирование…" : "Выгрузить .docx"}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      className={block("btn")}
-                      disabled={isExportingDocx || isExportingPdf}
-                      onClick={() => handleExport(note, "pdf")}
-                      title="Выгрузить служебную записку в PDF (.pdf) для подписания вне системы"
-                    >
-                      <FileText size={15} aria-hidden="true" />
-                      <span>
-                        {isExportingPdf ? "Формирование…" : "Выгрузить .pdf"}
-                      </span>
-                    </button>
-
                     {canOpenForm && (
                       <button
                         type="button"
                         className={block("btn", ["primary"])}
-                        onClick={() =>
-                          navigate(
-                            `/purchase-plans/${note.purchasePlanId}/positions/${note.positionId}/requirement?noteId=${note.id ?? ""}`,
-                          )
-                        }
+                        // СЗ — самостоятельный документ со своим адресом
+                        onClick={() => navigate(`/purchase-notes/${note.id}`)}
                       >
                         Открыть СЗ
+                      </button>
+                    )}
+
+                    {/* Смежные документы закупки: извещение и проект контракта
+                        предзаполняются сведениями СЗ; если записи закупки ещё
+                        нет, она создаётся и связывается с СЗ */}
+                    <button
+                      type="button"
+                      className={block("btn")}
+                      // Пока создаётся запись закупки, повторный клик создал бы
+                      // вторую: блокируем оба перехода на время мутации
+                      disabled={createProcurement.isPending}
+                      onClick={() => openProcurement(note, "notice")}
+                      title="Открыть извещение с предзаполнением из СЗ. Если закупка ещё не создана, запись будет создана и связана с СЗ"
+                    >
+                      <FileText size={15} aria-hidden="true" />
+                      <span>Извещение</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={block("btn")}
+                      disabled={createProcurement.isPending}
+                      onClick={() => openProcurement(note, "contract-project")}
+                      title="Открыть проект контракта с предзаполнением из СЗ. Если закупка ещё не создана, запись будет создана и связана с СЗ"
+                    >
+                      <FileSignature size={15} aria-hidden="true" />
+                      <span>Проект контракта</span>
+                    </button>
+
+                    {canOpenContract && (
+                      <button
+                        type="button"
+                        className={block("btn")}
+                        onClick={() =>
+                          navigate(`/contract-registry/${contractId}`)
+                        }
+                        title="Открыть карточку заключённого контракта"
+                      >
+                        <FileCheck2 size={15} aria-hidden="true" />
+                        <span>Карточка контракта</span>
                       </button>
                     )}
                   </div>

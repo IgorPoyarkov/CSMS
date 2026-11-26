@@ -246,7 +246,10 @@ export const ContractSecuritySchema = z.object({
   bidSecurityPercent: z
     .string()
     .refine(
-      (v) => v === "" || (parseFloat(v) >= 0.5 && parseFloat(v) <= 5),
+      // Верхнюю границу проверяет общий модуль норм: она зависит от НМЦК
+      // (0,5–1 % до 20 млн, 0,5–5 % свыше). Схема не должна перехватывать
+      // ввод раньше правовой проверки — иначе пользователь не увидит норму.
+      (v) => v === "" || (parseFloat(v) >= 0 && parseFloat(v) <= 100),
       "Обеспечение заявки: 0.5–5% (ст. 44)",
     )
     .optional(),
@@ -255,7 +258,9 @@ export const ContractSecuritySchema = z.object({
   performanceSecurityPercent: z
     .string()
     .refine(
-      (v) => v === "" || (parseFloat(v) >= 0.5 && parseFloat(v) <= 30),
+      // 0,5–30 % — общее правило (ч. 6 ст. 96); выше 30 % допустимо при авансе
+      // свыше 30 % НМЦК, поэтому предел проверяет validateSecurityNorms.
+      (v) => v === "" || (parseFloat(v) >= 0 && parseFloat(v) <= 100),
       "Обеспечение исполнения: 0.5–30% (ст. 34 ч. 6)",
     )
     .optional(),
@@ -270,7 +275,9 @@ export const ContractSecuritySchema = z.object({
   warrantySecurityPercent: z
     .string()
     .refine(
-      (v) => v === "" || (parseFloat(v) >= 0 && parseFloat(v) <= 10),
+      // Норму «не более 10 %» (ч. 7 ст. 34) проверяет общий модуль: сообщение
+      // должно содержать пункт закона, а не только границу поля.
+      (v) => v === "" || (parseFloat(v) >= 0 && parseFloat(v) <= 100),
       "Обеспечение гарантийных обязательств: не более 10% (ст. 96)",
     )
     .optional(),

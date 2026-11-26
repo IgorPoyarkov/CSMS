@@ -13,6 +13,8 @@ export interface NpaResolvedRule {
   conditionText: string | null;
   status: NpaRuleInfo["status"];
   needsReview: boolean;
+  /** ban / restriction — приложение акта (ПП № 1875); null для прочих актов. */
+  regime: NpaRuleInfo["regime"];
 }
 
 type DirectRuleIndex = Record<string, NpaRuleInfo[]>;
@@ -91,6 +93,7 @@ export const resolveNpaRule = (
     conditionText: best.conditionText,
     status: best.status,
     needsReview: best.status === "needs_review",
+    regime: best.regime ?? null,
   };
 };
 
@@ -156,6 +159,7 @@ export const resolveIndexedNpaRule = (
       conditionText: rule.conditionText,
       status: rule.status,
       needsReview: rule.status === "needs_review",
+      regime: rule.regime ?? null,
     };
   }
 

@@ -13,6 +13,32 @@ import {
   targetFilter,
 } from "./lib/dialog.mjs";
 
+const PRAVO_STATUS_FILE = path.join(ROOT, ".tmp/pravo-downloads/downloaded.json");
+const PRAVO_DIR = path.join(ROOT, ".tmp/pravo-downloads");
+const NPA_EXT = { md: ".md", txt: ".txt", doc: ".doc" };
+
+async function readPravoStatus() {
+  try {
+    return JSON.parse(await fs.readFile(PRAVO_STATUS_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function safePravoFile(relPath) {
+  if (typeof relPath !== "string" || !relPath) return null;
+  const abs = path.resolve(ROOT, relPath);
+  const rel = path.relative(PRAVO_DIR, abs);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  return abs;
+}
+
+function pickNpaFile(info, format) {
+  const ext = NPA_EXT[format];
+  const files = Array.isArray(info?.files) ? info.files : [];
+  return files.find((f) => typeof f === "string" && f.toLowerCase().endsWith(ext)) ?? null;
+}
+
 const cfg = JSON.parse(
   await fs.readFile(path.join(import.meta.dirname, "sources.json"), "utf8"),
 );
@@ -450,6 +476,38 @@ app.get("/api/consultant/status", async (_req, res) => {
     chatApi: cfg.chatApi ?? "ollama",
     stats: index?.stats ?? null,
   });
+});
+
+app.get("/api/consultant/source/npa/:slug", async (req, res) => {
+  const slug = String(req.params.slug || "").trim();
+  if (!/^[a-z0-9][a-z0-9._-]{0,200}$/i.test(slug)) {
+    return res.status(400).json({ error: "Некорректный slug" });
+  }
+  const format = String(req.query.format || "md").toLowerCase();
+  if (!NPA_EXT[format]) return res.status(400).json({ error: "Поддерживаются format=md|txt|doc" });
+
+  const status = await readPravoStatus();
+  const info = status[slug];
+  if (!info) return res.status(404).json({ error: "Источник не найден" });
+
+  const rel = pickNpaFile(info, format);
+  const abs = safePravoFile(rel);
+  if (!abs) return res.status(404).json({ error: "Файл не найден" });
+  try {
+    await fs.access(abs);
+  } catch {
+    return res.status(404).json({ error: "Файл не найден на диске" });
+  }
+
+  const download = String(req.query.download || "") === "1";
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "private, max-age=300");
+  if (format === "md") res.type("text/markdown; charset=utf-8");
+  else if (format === "txt") res.type("text/plain; charset=utf-8");
+  else res.type("application/msword");
+  res.setHeader("Content-Disposition", `${download ? "attachment" : "inline"}; filename="${path.basename(abs)}"`);
+  const buf = await fs.readFile(abs);
+  return res.send(buf);
 });
 
 app.post("/api/consultant/ask", async (req, res) => {

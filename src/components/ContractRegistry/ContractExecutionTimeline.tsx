@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
 import {
@@ -610,6 +610,9 @@ export default function ContractExecutionTimeline({
   // Выбор живёт в URL (`?execution=payment,smp`): ссылка воспроизводит вид, а
   // кнопка «назад» возвращает предыдущий набор, как у обычных фильтров списка
   const [searchParams, setSearchParams] = useSearchParams();
+  // Хронология свёрнута по умолчанию: раскрывается по клику на «Контракт № …»
+  // или при переключении фильтра видов фактов
+  const [expanded, setExpanded] = useState(false);
   const activeKinds = useMemo(
     () => parseKinds(searchParams.get(EXECUTION_KINDS_PARAM)),
     [searchParams],
@@ -632,6 +635,9 @@ export default function ContractExecutionTimeline({
         TIMELINE_KINDS.filter((entry) => next.has(entry)).join(","),
       );
     }
+    // Переключение фильтра раскрывает хронологию — иначе результат фильтра
+    // остался бы скрытым под свёрнутым узлом
+    setExpanded(true);
     setSearchParams(params, { replace: true });
   };
 
@@ -736,7 +742,27 @@ export default function ContractExecutionTimeline({
             </div>
           )}
           <div className={styles.timelineNode}>
-            <div className={styles.timelineHead}>
+            <div
+              className={styles.timelineHead}
+              role="button"
+              tabIndex={0}
+              aria-expanded={expanded}
+              title={
+                expanded
+                  ? "Свернуть хронологию исполнения"
+                  : "Развернуть хронологию исполнения"
+              }
+              onClick={() => setExpanded((value) => !value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setExpanded((value) => !value);
+                }
+              }}
+            >
+              <span className={styles.timelineChevron} aria-hidden="true">
+                {expanded ? "▾" : "▸"}
+              </span>
               <span className={styles.timelineBullet} aria-hidden="true" />
               <div className={styles.timelineHeadBody}>
                 <span className={styles.timelineTitle}>
@@ -748,6 +774,14 @@ export default function ContractExecutionTimeline({
                   {contract.contractDate
                     ? ` · заключён ${showDate(contract.contractDate)}`
                     : ""}
+                  {timeline.hasItems
+                    ? ` · фактов: ${
+                        timeline.kindCounts.acceptance +
+                        timeline.kindCounts.payment +
+                        timeline.kindCounts.smp +
+                        timeline.kindCounts.penalty
+                      }`
+                    : ""}
                 </span>
               </div>
               <span className={styles.timelineSum}>
@@ -755,7 +789,8 @@ export default function ContractExecutionTimeline({
               </span>
             </div>
 
-            <div className={styles.timelineBody}>
+            {expanded && (
+              <div className={styles.timelineBody}>
               {timeline.stageNodes.map((node) => (
                 <div key={node.key} className={styles.timelineStage}>
                   <div className={styles.timelineStageHead}>
@@ -837,7 +872,8 @@ export default function ContractExecutionTimeline({
                     фильтра или сбросьте его.
                   </p>
                 )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}

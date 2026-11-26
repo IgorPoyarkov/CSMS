@@ -16,9 +16,11 @@ export interface ConfigurationButton {
 interface CustomButtonProps {
   configuration: ConfigurationButton;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
+  ariaLabel?: string;
 }
 
 const CustomButton = ({
+  ariaLabel,
   configuration: {
     button: {
       name = "",
@@ -41,6 +43,7 @@ const CustomButton = ({
       <button
         className={`${block("button")} ${defaultClass ? "btn" : ""}`}
         name={name}
+        aria-label={ariaLabel}
         type={validButtonType}
         onClick={onClick}
         disabled={disabled}

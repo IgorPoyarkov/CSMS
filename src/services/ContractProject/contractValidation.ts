@@ -6,6 +6,7 @@ import {
   contractKindTerms,
   contractSectionsForKind,
 } from "./contractStructure";
+import { validateSecurityNorms } from "../Security/securityNorms";
 
 /**
  * Проверки проекта контракта.
@@ -337,39 +338,43 @@ export const validateContractProject = (
   }
 
   // ─── Обеспечение ─────────────────────────────────────────────────────────
-  if (project.security.performanceSecurityRequired) {
-    const percent = num(project.security.performanceSecurityPercent);
-    if (percent < 0.5 || percent > 30) {
-      error(
-        "security",
-        "security.performanceSecurityPercent",
-        "Обеспечение исполнения контракта должно быть от 0,5 до 30 %",
-        "ч. 6 ст. 34, ст. 96",
-      );
-    }
-    if (finalPrice > 0 && has(project.security.securityAmount)) {
-      const expected = (finalPrice * percent) / 100;
-      if (Math.abs(num(project.security.securityAmount) - expected) > 1) {
-        warning(
-          "security",
-          "security.securityAmount",
-          `Сумма обеспечения ${num(project.security.securityAmount).toFixed(2)} руб. не соответствует ${percent} % от цены контракта (${expected.toFixed(2)} руб.)`,
-          "ч. 6 ст. 34",
-        );
-      }
-    }
-  }
-  if (project.security.warrantySecurityRequired) {
-    const percent = num(project.security.warrantySecurityPercent);
-    if (percent > 10) {
-      error(
-        "security",
-        "security.warrantySecurityPercent",
-        "Обеспечение гарантийных обязательств не может превышать 10 %",
-        "ч. 7 ст. 34, ст. 96",
-      );
-    }
-  }
+  // Нормы берутся из общего модуля: те же правила работают в служебной записке
+  // и извещении. Заявка и гарантийные обязательства — ошибки, обеспечение
+  // исполнения — ошибка в общем случае; выше 30 % допустимо только при авансе
+  // свыше 30 % НМЦК (ч. 6 ст. 96), там замечание остаётся предупреждением.
+  const securityFieldByKind: Record<string, string> = {
+    application: "security.bidSecurityPercent",
+    performance: "security.performanceSecurityPercent",
+    warranty: "security.warrantySecurityPercent",
+  };
+  validateSecurityNorms({
+    price: finalPrice,
+    application: {
+      required: project.security.bidSecurityRequired,
+      percent: project.security.bidSecurityPercent,
+    },
+    performance: {
+      required: project.security.performanceSecurityRequired,
+      percent: project.security.performanceSecurityPercent,
+      amount: project.security.securityAmount,
+    },
+    warranty: {
+      required: project.security.warrantySecurityRequired,
+      percent: project.security.warrantySecurityPercent,
+    },
+    advance: {
+      percent: project.price.advancePercent,
+      treasurySupport: project.price.treasurySupport,
+    },
+  }).forEach((issue) => {
+    const push = issue.level === "error" ? error : warning;
+    push(
+      "security",
+      securityFieldByKind[issue.field] ?? "security",
+      issue.message,
+      issue.legalRef,
+    );
+  });
 
   // ─── СМП/СОНКО ───────────────────────────────────────────────────────────
   const smpRequired = Boolean(

@@ -641,10 +641,6 @@ const collectRecordDocs = (
 
 interface RecordDocLinksProps {
   docs: RecordDocs;
-  record: KbkRecordUsage;
-  // Идентификатор плана: если у самой записки он не заполнен, карточка
-  // открывается в текущем плане-графике
-  planId?: string | number;
   // Вариант под наименованием для узких экранов, где графа скрыта
   underTitle?: boolean;
 }
@@ -653,12 +649,7 @@ interface RecordDocLinksProps {
  * Ссылки на извещения и служебные записки записи. ИКЗ в таблице не нужен:
  * он служит только ключом связи, а переход нужен в карточку документа.
  */
-function RecordDocLinks({
-  docs,
-  record,
-  planId,
-  underTitle = false,
-}: RecordDocLinksProps) {
+function RecordDocLinks({ docs, underTitle = false }: RecordDocLinksProps) {
   if (docs.notices.length === 0 && docs.notes.length === 0) {
     // Под наименованием пустой список не занимает места
     return underTitle ? null : <span className={styles["doc-empty"]}>—</span>;
@@ -694,26 +685,16 @@ function RecordDocLinks({
         </li>
       ))}
       {docs.notes.map((note) => {
-        // Карточка СЗ открывается страницей формирования потребности позиции
-        const notePlanId = note.purchasePlanId ?? planId;
-        const notePositionId = note.positionId ?? record.recordId;
+        // СЗ — самостоятельный документ: открываем по её id, а не через
+        // позицию плана-графика, частью которого она больше не является
         const hasCard =
-          notePlanId !== undefined &&
-          notePlanId !== null &&
-          notePlanId !== "" &&
-          notePositionId !== undefined &&
-          notePositionId !== null &&
-          notePositionId !== "";
+          note.id !== undefined && note.id !== null && note.id !== "";
 
         return (
           <li key={`note-${note.id}`}>
             <Link
               className={styles["doc-link"]}
-              to={
-                hasCard
-                  ? `/purchase-plans/${notePlanId}/positions/${notePositionId}/requirement?noteId=${note.id ?? ""}`
-                  : "/purchase-notes"
-              }
+              to={hasCard ? `/purchase-notes/${note.id}` : "/purchase-notes"}
               title={`Открыть служебную записку № ${note.noteNumber}`}
               onClick={(event) => event.stopPropagation()}
             >
@@ -917,12 +898,7 @@ function KbkRecordsModal({
                       )}
                       {/* На узких экранах графа «Извещение / СЗ» скрыта —
                           ссылки на документы остаются здесь */}
-                      <RecordDocLinks
-                        docs={docs}
-                        record={record}
-                        planId={plan.id}
-                        underTitle
-                      />
+                      <RecordDocLinks docs={docs} underTitle />
                       {/* Запись с несколькими КБК: на телефоне колонка «Всего
                           по записи» скрыта, поэтому объём показываем подписью */}
                       {record.kbkCount > 1 && (
@@ -942,11 +918,7 @@ function KbkRecordsModal({
                       )}
                     </td>
                     <td>
-                      <RecordDocLinks
-                        docs={docs}
-                        record={record}
-                        planId={plan.id}
-                      />
+                      <RecordDocLinks docs={docs} />
                     </td>
                     <td className={styles.num}>
                       {formatMoneyValue(record.amounts.total)}

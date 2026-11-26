@@ -146,10 +146,22 @@ export const CIVIL_CONTRACT_REQUIREMENTS: ReadonlyArray<{
 export function articleText(snapshot: CivilSnapshot, reference: string): string | null;
 export function classifyNormKind(text: string): string;
 export function findNormQualifiers(text: string): string[];
-export function okpd2Signal(code: string | number | null | undefined): {
+export function okpd2Signal(
+  code: string | number | null | undefined,
+  name?: string | null,
+): {
   kind: "goods" | "works" | "services" | "ambiguous" | "unknown";
   confidence: number;
 };
+export function resolveOkpd2Kinds(
+  items: Array<{ code: string; name?: string | null }>,
+): Map<
+  string,
+  {
+    kind: "goods" | "works" | "services" | "ambiguous" | "unknown";
+    confidence: number;
+  }
+>;
 export function normalizeDeclaredKind(value: unknown):
   | "goods"
   | "works"

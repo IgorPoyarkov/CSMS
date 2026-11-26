@@ -1,5 +1,10 @@
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "../axios.instance";
 import {
   ContractSmpRecordListSchema,
@@ -41,6 +46,31 @@ export const useContractSmpRecords = (
     queryFn: () => fetchRecordsByContract(contractId as string | number),
     enabled: Boolean(contractId),
   });
+
+/**
+ * Сведения о привлечении СМП сразу по нескольким контрактам.
+ *
+ * Нужны аналитике фактического привлечения за прошлые годы: чтобы посчитать
+ * средний процент по сопоставимым контрактам, приходится читать записи каждого
+ * контракта отдельно. Возвращает массив результатов в том же порядке, что и
+ * переданные идентификаторы.
+ */
+export const useContractSmpRecordsBatch = (
+  contractIds: Array<string | number | undefined | null>,
+) => {
+  const ids = contractIds.filter(
+    (id): id is string | number => id !== undefined && id !== null && id !== "",
+  );
+
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [...contractSmpQueryKey, "contract", String(id)],
+      queryFn: () => fetchRecordsByContract(id),
+      enabled: Boolean(id),
+      staleTime: 60_000,
+    })),
+  });
+};
 
 /**
  * Объём привлечения СМП для сводки: требуемая, фактическая сумма и дефицит.

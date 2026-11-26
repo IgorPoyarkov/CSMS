@@ -95,4 +95,19 @@ export const AGENTS_HELP: AgentHelpItem[] = [
       "Обновления приходят через SSE /api/references/events",
     ],
   },
+  {
+    title: "Реестр обеспечений",
+    kind: "Фоновый агент",
+    summary:
+      "Ведёт обеспечения по контрактам и пересчитывает сроки внесения, действия и возврата. Просрочки и ближайшие сроки поднимаются вверх списка, изменения приходят по SSE.",
+    place: "csms-api · SecurityLedgerWorker, /api/security-ledger",
+    status: "ok",
+    statusLabel: "Пересчёт раз в 60 мин, 21 тест",
+    details: [
+      "Статус считает домен по датам и сегодняшней дате МСК, без LLM: не внесено, действует, истекает, истёк срок, к возврату, просрочен возврат",
+      "Условия и снимок контракта приходят с фронта: агент не читает json-server и не меняет карточку контракта",
+      "Хранилище — файловый ledger.json (SECURITY_LEDGER_ROOT), PostgreSQL не нужен; правка идёт по ревизии",
+      "SSE /api/security-ledger/events отдаёт ready и security-ledger.changed со счётчиками",
+    ],
+  },
 ];

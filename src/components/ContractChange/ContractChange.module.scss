@@ -392,6 +392,138 @@
     color: var(--text-secondary);
   }
 
+  /* Матрица nsiContractStructureChageCauseLink: какие условия контракта
+     выбранное основание позволяет изменить */
+  &__conditions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-field);
+  }
+
+  &__conditions-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__conditions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__conditions-item {
+    padding: 3px 8px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface-panel);
+  }
+
+  &__conditions-empty {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+  }
+
+  /* Объекты закупки — связанный блок ПЭК при изменении цены или количества */
+  &__objects {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-panel);
+  }
+
+  &__objects-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__objects-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__objects-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__objects-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-x: auto;
+  }
+
+  &__objects-row {
+    display: grid;
+    grid-template-columns:
+      minmax(180px, 2fr) minmax(120px, 1fr) 56px 88px 96px 110px 110px 110px;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-primary);
+
+    &--head {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+  }
+
+  &__objects-name {
+    line-height: 1.35;
+  }
+
+  &__objects-code {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* Позиции объектов закупки в карточке изменения */
+  &__objects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__objects-item {
+    display: grid;
+    grid-template-columns:
+      minmax(160px, 2fr) minmax(100px, 1fr) 130px 170px 110px;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-field);
+  }
+
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

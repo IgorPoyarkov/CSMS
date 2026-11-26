@@ -2,11 +2,13 @@ import { useNoticeFormContext } from "../noticeFieldLockHooks";
 import useUtils from "../../../hooks/useUtils";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import {
+  bestDirectionLabels,
   detectObjectCategory,
   objectCategoryLimits,
   pp2604Applies,
   procedureApplicabilityHint,
   procedureKindFromPlacingWay,
+  type BestDirection,
 } from "../../../services/BidEvaluation/bidEvaluation.schema";
 import { usePp2604MappingOrDefault } from "../../../services/Pp2604/pp2604.api";
 import {
@@ -17,6 +19,7 @@ import {
   normalizePp2571Positions,
   PP2571_POSITIONS,
 } from "../../../services/Pp2571/pp2571.schema";
+import { validateSecurityNorms } from "../../../services/Security/securityNorms";
 import SecurityRequisitesFields from "../../PurchaseNote/SecurityRequisitesFields";
 import styles from "../NoticeInfoForm.module.scss";
 import Select from "../../UI/Select";
@@ -67,6 +70,30 @@ const ParticipantsRequirementsSection = () => {
   const rnpConflictWarning =
     Boolean(reqs.requirementsPart1_1Art31) &&
     Boolean(reqs.sanctionsRnpRequirement);
+  // Нормы размеров обеспечений: те же правила, что в СЗ и проекте контракта.
+  // Ошибки (заявка, гарантия, исполнение вне нормы) блокируют сохранение
+  // извещения, предупреждения остаются на усмотрение заказчика.
+  const securityNormsIssues = validateSecurityNorms({
+    price: watch("generalInfo.nmck"),
+    application: {
+      required: Boolean(reqs.requiresApplicationSecurity),
+      percent: reqs.applicationSecurityPercent,
+    },
+    performance: {
+      required: Boolean(reqs.requiresContractSecurity),
+      percent: reqs.contractSecurityPercent,
+    },
+    warranty: {
+      required: Boolean(reqs.requiresWarrantySecurity),
+      percent: reqs.warrantySecurityPercent,
+    },
+    advance: {
+      percent: watch("contractConditions.hasAdvance")
+        ? watch("contractConditions.advancePercent")
+        : null,
+      treasurySupport: Boolean(reqs.requiresTreasurySupport),
+    },
+  });
   // Выбранные позиции приложения ПП РФ № 2571 в нормализованном виде
   const selectedPp2571Positions = normalizePp2571Positions(
     reqs.pp2571Positions,
@@ -211,12 +238,11 @@ const ParticipantsRequirementsSection = () => {
                             {indicator.unit
                               ? `, ед. измерения: ${indicator.unit}`
                               : ""}
-                            {indicator.best
-                              ? `, ${
-                                  indicator.best === "min"
-                                    ? "лучше меньшее значение"
-                                    : "лучше большее значение"
-                                }`
+                            {indicator.best &&
+                            indicator.best in bestDirectionLabels
+                              ? `, ${bestDirectionLabels[
+                                  indicator.best as BestDirection
+                                ].toLowerCase()}`
                               : ""}
                             {indicator.limitMin !== undefined ||
                             indicator.limitMax !== undefined
@@ -225,6 +251,10 @@ const ParticipantsRequirementsSection = () => {
                             {indicator.scoring === "scale" &&
                             indicator.scaleText
                               ? ` · шкала: ${indicator.scaleText.replace(/\n/g, "; ")}`
+                              : ""}
+                            {indicator.scoring === "other" &&
+                            indicator.otherOrder
+                              ? ` · иной порядок оценки: ${indicator.otherOrder}`
                               : ""}
                           </li>
                         ))}
@@ -778,6 +808,28 @@ const ParticipantsRequirementsSection = () => {
                 />
               </div>
             )}
+            {securityNormsIssues.map((issue) => {
+              const isError = issue.level === "error";
+              return (
+                <div
+                  key={`${issue.code}-${issue.field}-${issue.level}`}
+                  className={block(isError ? "red-warning" : "yellow-warning")}
+                  role={isError ? "alert" : "status"}
+                >
+                  <span
+                    className={block(
+                      isError ? "error-badge" : "warning-badge",
+                    )}
+                  >
+                    !
+                  </span>
+                  <span>
+                    {isError ? "Ошибка, сохранение заблокировано: " : ""}
+                    {issue.message} ({issue.legalRef})
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 

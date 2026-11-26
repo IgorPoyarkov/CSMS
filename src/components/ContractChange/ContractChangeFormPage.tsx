@@ -4,6 +4,7 @@ import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
 import Loader from "../UI/Loader";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
+import { useNotices } from "../../services/Procurements/noticeInfo.api";
 import type { ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.schema";
 import {
   useContractChange,
@@ -28,6 +29,7 @@ import {
   issueIsError,
   validateContractChangeForm,
   type ContractChangeFormState,
+  type ContractChangeObjectRow,
   type FormErrors,
 } from "./contractChange.config";
 import styles from "./ContractChange.module.scss";
@@ -54,8 +56,10 @@ export default function ContractChangeFormPage() {
   const actor = contractChangeActor(employee, user?.email);
 
   const { data: contracts = [] } = useContractRegistry(orgId || undefined);
+  const { data: notices = [] } = useNotices();
   const { data: bases = [] } = useContractChangeBases();
-  const { data: existing, isLoading: isExistingLoading } = useContractChange(id);
+  const { data: existing, isLoading: isExistingLoading } =
+    useContractChange(id);
 
   const createMutation = useCreateContractChange();
   const updateMutation = useUpdateContractChange();
@@ -72,7 +76,8 @@ export default function ContractChangeFormPage() {
   const presetContract = useMemo(
     () =>
       presetContractId
-        ? (contracts.find((item) => String(item.id) === presetContractId) ?? null)
+        ? (contracts.find((item) => String(item.id) === presetContractId) ??
+          null)
         : null,
     [contracts, presetContractId],
   );
@@ -119,9 +124,76 @@ export default function ContractChangeFormPage() {
     [bases, form.basisCode],
   );
 
+  /**
+   * Матрица оснований: основание разрешает менять только те блоки проекта
+   * электронного контракта, с которыми оно связано (справочник ЕИС
+   * nsiContractStructureChageCauseLink). Проверяем по коду условия, а не по
+   * общему флагу — так поле блокируется ровно там, где сервер вернёт ошибку.
+   */
+  const basisAllows = (conditionCode: string): boolean =>
+    Boolean(
+      (basis?.changeableConditions ?? []).some(
+        (condition) => condition.code === conditionCode,
+      ),
+    );
+
   const contract = useMemo(
     () => contracts.find((item) => String(item.id) === form.contractId),
     [contracts, form.contractId],
+  );
+
+  // Объекты закупки берутся из связанного извещения: реестр контрактов
+  // хранит только итоговое количество, а пересчёт цены требует позиций.
+  const contractNotice = useMemo(() => {
+    const procurementId = contract?.procurementId;
+    if (!procurementId) return undefined;
+
+    return notices.find(
+      (notice) => String(notice.procurementId ?? "") === String(procurementId),
+    );
+  }, [notices, contract]);
+
+  /** Позиции извещения как строки формы: количество и цена единицы. */
+  const noticeObjectRows = useMemo<ContractChangeObjectRow[]>(
+    () =>
+      (contractNotice?.purchaseObjects.items ?? []).map((item, index) => ({
+        key: `notice-${item.id || index}`,
+        name: item.name,
+        okpd2Code: item.okpd2Code ?? item.okpd2OrKtruCode ?? "",
+        ktruCode: item.ktruCode ?? "",
+        unit: item.unit ?? "",
+        oldQuantity: String(item.quantity ?? ""),
+        newQuantity: String(item.quantity ?? ""),
+        oldUnitPrice: String(item.unitPrice ?? ""),
+        newUnitPrice: String(item.unitPrice ?? ""),
+      })),
+    [contractNotice],
+  );
+
+  const updateObjectRow = (
+    key: string,
+    patch: Partial<ContractChangeObjectRow>,
+  ) => {
+    setField(
+      "purchaseObjects",
+      form.purchaseObjects.map((row) =>
+        row.key === key ? { ...row, ...patch } : row,
+      ),
+    );
+  };
+
+  const objectRowTotal = (row: ContractChangeObjectRow): number => {
+    const quantity = Number(row.newQuantity.replace(",", "."));
+    const price = Number(row.newUnitPrice.replace(",", "."));
+
+    return Number.isFinite(quantity) && Number.isFinite(price)
+      ? quantity * price
+      : 0;
+  };
+
+  const objectsTotal = form.purchaseObjects.reduce(
+    (sum, row) => sum + objectRowTotal(row),
+    0,
   );
 
   const setField = <K extends keyof ContractChangeFormState>(
@@ -147,7 +219,12 @@ export default function ContractChangeFormPage() {
       return;
     }
 
-    setForm((current) => ({ ...current, ...snapshotOf(found) }));
+    // Позиции другого контракта к нему не относятся — список очищаем
+    setForm((current) => ({
+      ...current,
+      ...snapshotOf(found),
+      purchaseObjects: [],
+    }));
   };
 
   const changeKind = (kind: ContractChangeKind) => {
@@ -194,7 +271,10 @@ export default function ContractChangeFormPage() {
       navigate(`/contract-changes/${created.id}`);
     } catch (error) {
       setSubmitError(
-        readApiError(error, "Не удалось сохранить документ. Проверьте условия."),
+        readApiError(
+          error,
+          "Не удалось сохранить документ. Проверьте условия.",
+        ),
       );
     }
   };
@@ -319,7 +399,8 @@ export default function ContractChangeFormPage() {
             value={
               contractChangeStatusLabels[
                 form.contractStatus as keyof typeof contractChangeStatusLabels
-              ] ?? (form.contractStatus || "—")
+              ] ??
+              (form.contractStatus || "—")
             }
           />
           <ReadonlyField
@@ -351,13 +432,13 @@ export default function ContractChangeFormPage() {
                 changeKind(event.target.value as ContractChangeKind)
               }
             >
-              {(Object.keys(contractChangeKindLabels) as ContractChangeKind[]).map(
-                (kind) => (
-                  <option key={kind} value={kind}>
-                    {contractChangeKindLabels[kind]}
-                  </option>
-                ),
-              )}
+              {(
+                Object.keys(contractChangeKindLabels) as ContractChangeKind[]
+              ).map((kind) => (
+                <option key={kind} value={kind}>
+                  {contractChangeKindLabels[kind]}
+                </option>
+              ))}
             </Select>
           </label>
 
@@ -369,9 +450,11 @@ export default function ContractChangeFormPage() {
               onChange={(event) => setField("basisCode", event.target.value)}
             >
               <option value="">Выберите основание</option>
+              {/* Наименование — из справочника ЕИС nsiContractModificationReason
+                  (именно оно уходит в XML), статья 44-ФЗ — в скобках */}
               {basisOptions.map((item) => (
                 <option key={item.code} value={item.code}>
-                  {item.article} — {item.title}
+                  {item.eisReason ?? item.title} ({item.article})
                 </option>
               ))}
             </Select>
@@ -407,7 +490,9 @@ export default function ContractChangeFormPage() {
           </label>
 
           <label className={block("field", ["wide"])}>
-            <span className={block("field-label")}>Описание (необязательно)</span>
+            <span className={block("field-label")}>
+              Описание (необязательно)
+            </span>
             <textarea
               className={block("textarea")}
               value={form.description}
@@ -417,13 +502,50 @@ export default function ContractChangeFormPage() {
         </div>
 
         {basis && (
-          <p className={block("section-note")}>
-            {basis.description}
-            {basis.maxPriceIncreasePercent > 0 &&
-              ` Допустимое увеличение цены — до ${basis.maxPriceIncreasePercent} %.`}
-            {basis.maxQuantityPercent > 0 &&
-              ` Предел изменения количества — ${basis.maxQuantityPercent} %.`}
-          </p>
+          <>
+            <p className={block("section-note")}>
+              {basis.description}
+              {basis.maxPriceIncreasePercent > 0 &&
+                ` Допустимое увеличение цены — до ${basis.maxPriceIncreasePercent} %.`}
+              {basis.maxQuantityPercent > 0 &&
+                ` Предел изменения количества — ${basis.maxQuantityPercent} %.`}
+            </p>
+
+            {basis.eisReason && (
+              <p className={block("section-note")}>
+                Причина по справочнику ЕИС nsiContractModificationReason:{" "}
+                {basis.eisReason}.
+              </p>
+            )}
+
+            {/* Матрица nsiContractStructureChageCauseLink: какие блоки ПЭК
+                основание разрешает редактировать. Пусто — условия не меняются */}
+            <div className={block("conditions")}>
+              <span className={block("conditions-title")}>
+                {(basis.changeableConditions ?? []).length > 0
+                  ? "Какие условия контракта можно изменить"
+                  : "Условия контракта не меняются"}
+              </span>
+              {(basis.changeableConditions ?? []).length > 0 ? (
+                <ul className={block("conditions-list")}>
+                  {(basis.changeableConditions ?? []).map((condition) => (
+                    <li
+                      key={condition.code}
+                      className={block("conditions-item")}
+                      title={condition.xsdPath}
+                    >
+                      {condition.title}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={block("conditions-empty")}>
+                  При расторжении фиксируется дата прекращения обязательств и
+                  расчёты, новые условия не вводятся.
+                </p>
+              )}
+            </div>
+          </>
         )}
       </section>
 
@@ -516,7 +638,9 @@ export default function ContractChangeFormPage() {
                     type="date"
                     className={block("input")}
                     value={form.noticeDate}
-                    onChange={(event) => setField("noticeDate", event.target.value)}
+                    onChange={(event) =>
+                      setField("noticeDate", event.target.value)
+                    }
                   />
                   {errors.noticeDate && (
                     <span className={block("field-error")}>
@@ -561,10 +685,14 @@ export default function ContractChangeFormPage() {
                 className={block("input")}
                 value={form.newQuantity}
                 disabled={!basis.allowsQuantityChange}
-                onChange={(event) => setField("newQuantity", event.target.value)}
+                onChange={(event) =>
+                  setField("newQuantity", event.target.value)
+                }
               />
               {errors.newQuantity && (
-                <span className={block("field-error")}>{errors.newQuantity}</span>
+                <span className={block("field-error")}>
+                  {errors.newQuantity}
+                </span>
               )}
             </label>
 
@@ -573,7 +701,9 @@ export default function ContractChangeFormPage() {
               <input
                 className={block("input")}
                 value={form.quantityUnit}
-                onChange={(event) => setField("quantityUnit", event.target.value)}
+                onChange={(event) =>
+                  setField("quantityUnit", event.target.value)
+                }
               />
             </label>
 
@@ -596,11 +726,19 @@ export default function ContractChangeFormPage() {
               <textarea
                 className={block("textarea")}
                 value={form.newSubject}
-                disabled={!basis.allowsQualityImprovement}
+                disabled={!basisAllows("SUBJECT")}
                 onChange={(event) => setField("newSubject", event.target.value)}
               />
+              {!basisAllows("SUBJECT") && (
+                <span className={block("field-hint")}>
+                  Основание не связано с блоком предмета контракта в матрице
+                  nsiContractStructureChageCauseLink.
+                </span>
+              )}
               {errors.newSubject && (
-                <span className={block("field-error")}>{errors.newSubject}</span>
+                <span className={block("field-error")}>
+                  {errors.newSubject}
+                </span>
               )}
             </label>
 
@@ -609,24 +747,43 @@ export default function ContractChangeFormPage() {
               <input
                 className={block("input")}
                 value={form.newSupplier}
-                disabled={!basis.requiresNewSupplier}
-                onChange={(event) => setField("newSupplier", event.target.value)}
+                disabled={!basisAllows("SUPPLIER")}
+                onChange={(event) =>
+                  setField("newSupplier", event.target.value)
+                }
               />
+              {!basisAllows("SUPPLIER") && (
+                <span className={block("field-hint")}>
+                  По этому основанию поставщик не меняется.
+                </span>
+              )}
               {errors.newSupplier && (
-                <span className={block("field-error")}>{errors.newSupplier}</span>
+                <span className={block("field-error")}>
+                  {errors.newSupplier}
+                </span>
               )}
             </label>
 
             <label className={block("field")}>
-              <span className={block("field-label")}>Новый срок исполнения</span>
+              <span className={block("field-label")}>
+                Новый срок исполнения
+              </span>
               <input
                 type="date"
                 className={block("input")}
                 value={form.newExecutionEndDate}
+                disabled={!basisAllows("TERMS")}
                 onChange={(event) =>
                   setField("newExecutionEndDate", event.target.value)
                 }
               />
+              {!basisAllows("TERMS") && (
+                <span className={block("field-hint")}>
+                  Основание не связано с блоком сроков исполнения: срок
+                  меняется только по акту органа власти или при замене
+                  поставщика.
+                </span>
+              )}
               {errors.newExecutionEndDate && (
                 <span className={block("field-error")}>
                   {errors.newExecutionEndDate}
@@ -683,7 +840,9 @@ export default function ContractChangeFormPage() {
                 <textarea
                   className={block("textarea")}
                   value={form.formulaText}
-                  onChange={(event) => setField("formulaText", event.target.value)}
+                  onChange={(event) =>
+                    setField("formulaText", event.target.value)
+                  }
                 />
                 {errors.formulaText && (
                   <span className={block("field-error")}>
@@ -700,7 +859,9 @@ export default function ContractChangeFormPage() {
                   <input
                     className={block("input")}
                     value={form.unitPrice}
-                    onChange={(event) => setField("unitPrice", event.target.value)}
+                    onChange={(event) =>
+                      setField("unitPrice", event.target.value)
+                    }
                   />
                   {errors.unitPrice && (
                     <span className={block("field-error")}>
@@ -724,6 +885,118 @@ export default function ContractChangeFormPage() {
               </>
             )}
           </div>
+
+          {/* Объекты закупки — связанный блок ПЭК: изменение цены или
+              количества пересчитывает позиции, иначе цена контракта
+              расходится с суммой объектов */}
+          {(basisAllows("QUANTITY") ||
+            basisAllows("PRICE") ||
+            basisAllows("SUBJECT")) && (
+            <div className={block("objects")}>
+              <div className={block("objects-head")}>
+                <span className={block("objects-title")}>
+                  Объекты закупки
+                </span>
+                <div className={block("objects-actions")}>
+                  {noticeObjectRows.length > 0 && (
+                    <button
+                      type="button"
+                      className={block("secondary")}
+                      onClick={() =>
+                        setField("purchaseObjects", noticeObjectRows)
+                      }
+                    >
+                      Заполнить из извещения ({noticeObjectRows.length})
+                    </button>
+                  )}
+                  {form.purchaseObjects.length > 0 && (
+                    <button
+                      type="button"
+                      className={block("secondary")}
+                      onClick={() => setField("purchaseObjects", [])}
+                    >
+                      Очистить
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {form.purchaseObjects.length === 0 ? (
+                <p className={block("section-note")}>
+                  {noticeObjectRows.length > 0
+                    ? "Позиции не добавлены: цена и количество контракта меняются без пересчёта объектов закупки."
+                    : "Связанное извещение с объектами закупки не найдено."}
+                </p>
+              ) : (
+                <>
+                  <div className={block("objects-table")}>
+                    <div className={block("objects-row", ["head"])}>
+                      <span>Объект закупки</span>
+                      <span>ОКПД2 / КТРУ</span>
+                      <span>Ед.</span>
+                      <span>Кол-во было</span>
+                      <span>Кол-во стало</span>
+                      <span>Цена ед. было, ₽</span>
+                      <span>Цена ед. стало, ₽</span>
+                      <span>Сумма, ₽</span>
+                    </div>
+
+                    {form.purchaseObjects.map((row) => (
+                      <div key={row.key} className={block("objects-row")}>
+                        <span className={block("objects-name")}>
+                          {row.name}
+                        </span>
+                        <span className={block("objects-code")}>
+                          {[row.okpd2Code, row.ktruCode]
+                            .filter(Boolean)
+                            .join(" / ") || "—"}
+                        </span>
+                        <span>{row.unit || "—"}</span>
+                        <span>{row.oldQuantity || "—"}</span>
+                        <input
+                          className={block("input")}
+                          value={row.newQuantity}
+                          disabled={!basisAllows("QUANTITY")}
+                          onChange={(event) =>
+                            updateObjectRow(row.key, {
+                              newQuantity: event.target.value,
+                            })
+                          }
+                        />
+                        <span>{row.oldUnitPrice || "—"}</span>
+                        <input
+                          className={block("input")}
+                          value={row.newUnitPrice}
+                          disabled={!basisAllows("PRICE")}
+                          onChange={(event) =>
+                            updateObjectRow(row.key, {
+                              newUnitPrice: event.target.value,
+                            })
+                          }
+                        />
+                        <span>{formatMoney(objectRowTotal(row))}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className={block("section-note")}>
+                    Сумма позиций: {formatMoney(objectsTotal)} ₽.
+                    {Number(form.newPrice.replace(",", ".")) > 0 &&
+                      Math.abs(
+                        objectsTotal - Number(form.newPrice.replace(",", ".")),
+                      ) > 0.01 &&
+                      " Расходится с новой ценой контракта — проверьте пересчёт."}
+                  </p>
+                </>
+              )}
+
+              {errors.purchaseObjects && (
+                <span className={block("field-error")}>
+                  {errors.purchaseObjects}
+                </span>
+              )}
+            </div>
+          )}
         </section>
       )}
 

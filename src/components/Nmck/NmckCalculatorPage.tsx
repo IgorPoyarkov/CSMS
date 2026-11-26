@@ -23,27 +23,21 @@ import {
 import {
   emptyPurchaseNote,
   filterVisiblePurchaseNotes,
+  mergePurchaseNoteFiles,
   nextPurchaseNoteNumber,
   purchaseNotesForPosition,
   type PurchaseNote,
 } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useContractRegistry } from "../../services/ContractRegistry/contractRegistry.api";
-import {
-  findOkpd2ByCode,
-  useOkpd2Dictionary,
-} from "../../services/Okpd2Ref/okpd2Ref.api";
+import { useEdsCertificates } from "../../services/Eds/eds.api";
 import {
   formatNmckMoney,
   parseNumericInput,
 } from "../../services/Nmck/marketNmck";
-import {
-  NMCK_METHOD_LABELS,
-  type NmckCalculationRecord,
-} from "../../services/Nmck/nmck.schema";
+import { type NmckCalculationRecord } from "../../services/Nmck/nmck.schema";
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import MarketNmckCalculator from "./MarketNmckCalculator";
 import styles from "./NmckCalculatorPage.module.scss";
-import Select from "../UI/Select";
 
 const CREATE_NEW_NOTE_KEY = "__create_new__";
 
@@ -64,7 +58,8 @@ export default function NmckCalculatorPage() {
   const organizationId = organization?.id;
   const { data: user } = useFetchCurrentUser();
   const { data: employee } = useFetchEmployeeByUserId(user?.id);
-  const { canEditPurchaseNote, purchaseNoteDeniedReason } = useMyContractRole();
+  const { canEditPurchaseNote, purchaseNoteDeniedReason, isHead } =
+    useMyContractRole();
 
   const { data: plans = [], isLoading: isPlansLoading } =
     usePurchasePlans(organizationId);
@@ -76,7 +71,7 @@ export default function NmckCalculatorPage() {
   );
   const { data: contractRegistryItems = [] } =
     useContractRegistry(organizationId);
-  const { data: okpd2Refs = [] } = useOkpd2Dictionary();
+  const { data: edsCertificates = [] } = useEdsCertificates(organizationId);
 
   const updatePositionAmount = useUpdatePositionPlanAmount();
   const createNote = useCreatePurchaseNote();
@@ -125,18 +120,7 @@ export default function NmckCalculatorPage() {
     [visiblePurchaseNotes, selectedPosition?.id],
   );
 
-  const [manualNoteTarget, setManualNoteTarget] = useState<string>("");
-
   const effectiveNoteTarget = useMemo(() => {
-    if (manualNoteTarget === CREATE_NEW_NOTE_KEY) {
-      return CREATE_NEW_NOTE_KEY;
-    }
-    if (
-      manualNoteTarget &&
-      positionNotes.some((n) => String(n.id) === manualNoteTarget)
-    ) {
-      return manualNoteTarget;
-    }
     if (
       paramNoteId &&
       positionNotes.some((n) => String(n.id) === paramNoteId)
@@ -148,7 +132,7 @@ export default function NmckCalculatorPage() {
       return latest.id !== undefined ? String(latest.id) : CREATE_NEW_NOTE_KEY;
     }
     return CREATE_NEW_NOTE_KEY;
-  }, [manualNoteTarget, paramNoteId, positionNotes]);
+  }, [paramNoteId, positionNotes]);
 
   const selectedNote = useMemo(
     () =>
@@ -157,37 +141,6 @@ export default function NmckCalculatorPage() {
         : undefined,
     [effectiveNoteTarget, positionNotes],
   );
-
-  const handlePlanChange = (nextPlanId: string) => {
-    setSavedNotice(null);
-    setManualNoteTarget("");
-    const plan = plans.find((p) => String(p.id) === nextPlanId);
-    const firstPos = plan?.positions?.[0];
-    const nextParams = new URLSearchParams();
-    if (nextPlanId) nextParams.set("planId", nextPlanId);
-    if (firstPos?.id !== undefined) {
-      nextParams.set("positionId", String(firstPos.id));
-    }
-    setSearchParams(nextParams);
-  };
-
-  const handlePositionChange = (nextPosId: string) => {
-    setSavedNotice(null);
-    setManualNoteTarget("");
-    const nextParams = new URLSearchParams();
-    if (selectedPlan?.id !== undefined) {
-      nextParams.set("planId", String(selectedPlan.id));
-    }
-    if (nextPosId) {
-      nextParams.set("positionId", nextPosId);
-    }
-    setSearchParams(nextParams);
-  };
-
-  const handleNoteTargetChange = (nextTarget: string) => {
-    setSavedNotice(null);
-    setManualNoteTarget(nextTarget);
-  };
 
   const handleSaveToNote = ({
     record,
@@ -231,7 +184,9 @@ export default function NmckCalculatorPage() {
     const onNoteSaved = (saved: PurchaseNote, createdNewNote: boolean) => {
       maybeSyncPlanAmount();
       if (saved.id !== undefined) {
-        setManualNoteTarget(String(saved.id));
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("noteId", String(saved.id));
+        setSearchParams(nextParams, { replace: true });
       }
       setSavedNotice({
         planId: String(selectedPlan.id),
@@ -374,11 +329,30 @@ export default function NmckCalculatorPage() {
   }
 
   const calculatorName = employee?.employee ? fullName(employee.employee) : "";
-  const existingPosAmountTotal = toNumber(selectedPosition?.amountTotal);
-  const selectedOkpd2Ref = findOkpd2ByCode(
-    okpd2Refs,
-    selectedNote?.okpd2Code || selectedPosition?.okpd2Code,
+  const myCertificate = edsCertificates.find(
+    (certificate) =>
+      calculatorName !== "" &&
+      certificate.ownerName.trim() === calculatorName.trim(),
   );
+  const signer = {
+    compiledBy: calculatorName,
+    compiledPosition:
+      myCertificate?.ownerPosition ||
+      employee?.position ||
+      "Работник контрактной службы",
+    approver: isHead
+      ? calculatorName
+      : organization?.responsiblePerson || "",
+    certificateOwner: myCertificate?.ownerName || "",
+    certificateSerial: myCertificate?.serialNumber || "",
+    certificateInn: myCertificate?.inn || "",
+  };
+  const ooAttachments = mergePurchaseNoteFiles(
+    selectedNote?.objectDescriptionFiles,
+    selectedNote?.objectDescriptionFileName,
+    selectedNote?.objectDescriptionFileUpdatedAt,
+  ).map((file) => ({ fileName: file.fileName, updatedAt: file.fileUpdatedAt }));
+  const existingPosAmountTotal = toNumber(selectedPosition?.amountTotal);
   const firstNoteItem = selectedNote?.items?.[0];
   const initialRecord: NmckCalculationRecord | null =
     selectedNote?.nmckCalculation ?? null;
@@ -418,24 +392,34 @@ export default function NmckCalculatorPage() {
             (потребность) и не загромождает план-график.
           </p>
           <p className={block("subtitle")}>
-            Смета контракта и обоснование в связке с дефектовкой — в разделе{" "}
-            <Link className={block("link-btn")} to="/estimates">
-              «Сметы и НМЦК»
-            </Link>
-            .
+            Обоснование НМЦК формируется в выбранной Служебной записке. Для
+            проектно-сметного метода расчёт выполняется в разделе «Сметы и НМЦК».
           </p>
         </div>
       </header>
 
       <LegalActRefs component="NmckCalculatorPage" />
 
-      {/* Выбор позиции плана-графика и целевой Служебной записки */}
+      {/* План, позиция и СЗ приходят параметрами маршрута — селекторы не нужны.
+          Здесь только возврат в СЗ и полное отображение привязки. */}
       <div className={block("card")}>
         <h2 className={block("card-title")}>
-          Привязка расчёта к Служебной записке (по позиции ПГ)
+          Обоснование НМЦК для Служебной записки
         </h2>
+        <div>
+          <Link
+            className={block("link-btn")}
+            to={
+              selectedNote?.id !== undefined
+                ? `/purchase-notes/${selectedNote.id}`
+                : "/purchase-notes"
+            }
+          >
+            ← Вернуться в СЗ (потребность)
+          </Link>
+        </div>
 
-        {plans.length === 0 ? (
+        {plans.length === 0 && (
           <div className={block("banner", ["info"])}>
             <span>
               У организации пока нет планов-графиков. Вы можете выполнить расчёт
@@ -446,133 +430,6 @@ export default function NmckCalculatorPage() {
               Перейти к планам-графикам
             </Link>
           </div>
-        ) : (
-          <>
-            <div className={block("selectors")}>
-              <div className={block("field")}>
-                <label className={block("label")} htmlFor="nmck-plan-select">
-                  План-график закупок
-                </label>
-                <Select
-                  id="nmck-plan-select"
-                  className={block("select")}
-                  value={selectedPlan?.id ? String(selectedPlan.id) : ""}
-                  onChange={(e) => handlePlanChange(e.target.value)}
-                >
-                  {plans.map((p) => (
-                    <option key={String(p.id)} value={String(p.id)}>
-                      ПГ {p.planNumber} ({p.planYear} г., позиций:{" "}
-                      {p.positions.length})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className={block("field")}>
-                <label className={block("label")} htmlFor="nmck-pos-select">
-                  Позиция плана-графика
-                </label>
-                <Select
-                  id="nmck-pos-select"
-                  className={block("select")}
-                  disabled={planPositions.length === 0}
-                  value={
-                    selectedPosition?.id !== undefined
-                      ? String(selectedPosition.id)
-                      : ""
-                  }
-                  onChange={(e) => handlePositionChange(e.target.value)}
-                >
-                  {planPositions.length === 0 ? (
-                    <option value="">В этом плане пока нет позиций</option>
-                  ) : (
-                    planPositions.map((pos, idx) => (
-                      <option
-                        key={String(pos.id ?? idx)}
-                        value={String(pos.id ?? "")}
-                      >
-                        № {pos.purchaseNumber || pos.serialNumber || idx + 1} —{" "}
-                        {pos.objectOfPurchase.slice(0, 70)}
-                        {pos.objectOfPurchase.length > 70 ? "…" : ""}
-                      </option>
-                    ))
-                  )}
-                </Select>
-              </div>
-
-              <div className={block("field")}>
-                <label className={block("label")} htmlFor="nmck-note-select">
-                  Служебная записка (СЗ) для сохранения обоснования
-                </label>
-                <Select
-                  id="nmck-note-select"
-                  className={block("select")}
-                  disabled={!selectedPosition}
-                  value={effectiveNoteTarget}
-                  onChange={(e) => handleNoteTargetChange(e.target.value)}
-                >
-                  {positionNotes.map((n) => (
-                    <option key={String(n.id)} value={String(n.id)}>
-                      СЗ № {n.noteNumber || n.id} от {n.noteDate || "—"} (НМЦК:{" "}
-                      {n.initialMaxPrice
-                        ? `${formatNmckMoney(Number(n.initialMaxPrice))} ₽`
-                        : "не задана"}
-                      )
-                    </option>
-                  ))}
-                  <option value={CREATE_NEW_NOTE_KEY}>
-                    + Создать новую СЗ (черновик) с этим обоснованием
-                  </option>
-                </Select>
-              </div>
-            </div>
-
-            {selectedPosition && (
-              <div className={block("pos-summary")}>
-                <div className={block("pos-item")}>
-                  <span className={block("pos-label")}>ИКЗ позиции</span>
-                  <span
-                    className={`${block("pos-value")} ${block("pos-value", ["mono"])}`}
-                  >
-                    {selectedPosition.identificationCode || "не сформирован"}
-                  </span>
-                </div>
-                <div className={block("pos-item")}>
-                  <span className={block("pos-label")}>Код ОКПД2</span>
-                  <span className={block("pos-value")}>
-                    {selectedPosition.okpd2Code || "не указан"}
-                    {selectedOkpd2Ref?.isNormed
-                      ? selectedOkpd2Ref.normLimit !== undefined
-                        ? ` · нормир. ≤ ${formatNmckMoney(selectedOkpd2Ref.normLimit)} ₽`
-                        : " · нормируемая (ПП № 926)"
-                      : ""}
-                  </span>
-                </div>
-                <div className={block("pos-item")}>
-                  <span className={block("pos-label")}>
-                    Финансирование в ПГ (всего)
-                  </span>
-                  <span className={block("pos-value")}>
-                    {existingPosAmountTotal !== null
-                      ? `${formatNmckMoney(existingPosAmountTotal)} ₽`
-                      : "не указано"}
-                  </span>
-                </div>
-                <div className={block("pos-item")}>
-                  <span className={block("pos-label")}>
-                    Обоснование в выбранной СЗ
-                  </span>
-                  <span className={block("pos-value")}>
-                    {selectedNote?.nmckCalculation
-                      ? `${NMCK_METHOD_LABELS[selectedNote.nmckCalculation.method]}: ${formatNmckMoney(selectedNote.nmckCalculation.nmckTotal)} ₽`
-                      : selectedNote
-                        ? `СЗ № ${selectedNote.noteNumber} (расчёт ещё не сохранён)`
-                        : "Будет создана новая СЗ"}
-                  </span>
-                </div>
-              </div>
-            )}
-          </>
         )}
       </div>
 
@@ -616,7 +473,11 @@ export default function NmckCalculatorPage() {
           <div className={block("banner-actions")}>
             <Link
               className={block("link-btn")}
-              to={`/purchase-plans/${savedNotice.planId}/positions/${savedNotice.positionId}/requirement${savedNotice.noteId ? `?noteId=${savedNotice.noteId}` : ""}`}
+              to={
+                savedNotice.noteId
+                  ? `/purchase-notes/${savedNotice.noteId}`
+                  : "/purchase-notes"
+              }
             >
               <ExternalLink size={13} aria-hidden="true" /> Открыть СЗ
               (потребность)
@@ -658,16 +519,14 @@ export default function NmckCalculatorPage() {
           selectedNote?.ikz || selectedPosition?.identificationCode || ""
         }
         defaultCalculatorName={calculatorName}
+        signer={signer}
+        ooAttachments={ooAttachments}
         organizationName={
           organization?.shortName || organization?.fullName || ""
         }
         organization={organization ?? selectedPlan?.customer ?? null}
         planAmountLimit={existingPosAmountTotal}
         contractRegistryItems={contractRegistryItems}
-        canUpdatePlanAmount={Boolean(
-          canEditPurchaseNote && selectedPosition?.id !== undefined,
-        )}
-        defaultUpdatePlanAmount={false}
         isSaving={isSaving}
         saveButtonLabel={
           selectedNote

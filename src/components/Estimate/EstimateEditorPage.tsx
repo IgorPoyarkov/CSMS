@@ -1065,7 +1065,6 @@ export default function EstimateEditorPage() {
                   defaultUnit="компл."
                   defaultCalculatorName={authorName}
                   organization={organization ?? null}
-                  canUpdatePlanAmount={false}
                   disabled={isReadOnly}
                   isSaving={updateEstimate.isPending}
                   saveButtonLabel="Сохранить обоснование в смету"

@@ -35,6 +35,12 @@ interface PurchaseObjectsSectionProps {
     positionUniqueNumber?: string;
     positionSerialNumber?: string;
   };
+  /**
+   * Гарантирует, что карточка ООЗ уже сохранена, и возвращает её id.
+   * Нужен для новой карточки, открытой из СЗ: без сохранения родителя
+   * объект некуда привязать.
+   */
+  onEnsureDescription?: () => Promise<string | number | undefined>;
   onSelect: (object: PurchaseObject) => void;
 }
 
@@ -62,6 +68,7 @@ export default function PurchaseObjectsSection({
   disabled = false,
   templates = [],
   positionRequisites,
+  onEnsureDescription,
   onSelect,
 }: PurchaseObjectsSectionProps) {
   const { bem } = useUtils();
@@ -142,14 +149,45 @@ export default function PurchaseObjectsSection({
   }, [templates, allObjects, description.id]);
 
   const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [ensuring, setEnsuring] = useState(false);
 
-  const handleAddObject = () => {
+  /**
+   * Карточка ООЗ из СЗ может быть ещё не сохранена — тогда у неё нет id.
+   * Перед созданием объекта сохраняем черновик и получаем идентификатор,
+   * иначе объект некуда привязать и кнопка «Добавить объект» не работает.
+   */
+  const resolveDescriptionId = async (): Promise<
+    string | number | undefined
+  > => {
+    const existing = description.id;
+    if (existing !== undefined && existing !== null && existing !== "") {
+      return existing;
+    }
+    if (!onEnsureDescription) return undefined;
+    setEnsuring(true);
+    try {
+      const created = await onEnsureDescription();
+      // Только что сохранённую карточку не мигрируем автоматически: иначе
+      // эффект миграции создаст объект параллельно с нажатой кнопкой.
+      if (created !== undefined && created !== null && created !== "") {
+        migratedRef.current = String(created);
+      }
+      return created;
+    } finally {
+      setEnsuring(false);
+    }
+  };
+
+  const handleAddObject = async () => {
+    if (disabled || createObject.isPending || ensuring) return;
+    const descriptionId = await resolveDescriptionId();
+    if (descriptionId === undefined) return;
     createObject.mutate(
       {
         ...emptyPurchaseObject(),
         organizationId:
           organizationId ?? description.organizationId ?? undefined,
-        objectDescriptionId: description.id,
+        objectDescriptionId: descriptionId,
         purchasePlanId: description.purchasePlanId,
         positionId: description.positionId,
         ikz: description.ikz ?? "",
@@ -166,11 +204,11 @@ export default function PurchaseObjectsSection({
     );
   };
 
-  const handleReuseObject = () => {
-    const candidate = candidates.find(
-      (item) => item.key === selectedCandidate,
-    );
-    if (!candidate) return;
+  const handleReuseObject = async () => {
+    const candidate = candidates.find((item) => item.key === selectedCandidate);
+    if (!candidate || disabled || createObject.isPending || ensuring) return;
+    const descriptionId = await resolveDescriptionId();
+    if (descriptionId === undefined) return;
     const payload: PurchaseObjectInput = { ...candidate.payload };
     // Идентификаторы и старые связи не копируются: новый объект получает
     // собственный sid, привязку к текущему ООЗ/ПГ и чистую родительскую связь.
@@ -187,7 +225,7 @@ export default function PurchaseObjectsSection({
         ...payload,
         organizationId:
           organizationId ?? description.organizationId ?? undefined,
-        objectDescriptionId: description.id,
+        objectDescriptionId: descriptionId,
         purchasePlanId: description.purchasePlanId,
         positionId: description.positionId,
         ikz: description.ikz ?? "",
@@ -223,15 +261,22 @@ export default function PurchaseObjectsSection({
         <button
           type="button"
           className={block("inline-btn")}
-          disabled={disabled || !description.id || createObject.isPending}
+          disabled={
+            disabled ||
+            createObject.isPending ||
+            ensuring ||
+            (!description.id && !onEnsureDescription)
+          }
           onClick={handleAddObject}
         >
-          + Добавить объект
+          {ensuring ? "Сохраняем карточку…" : "+ Добавить объект"}
         </button>
       </div>
       {!description.id && (
         <p className={block("field-hint")}>
-          Сохраните описание закупки, чтобы добавлять отдельные объекты.
+          {onEnsureDescription
+            ? "Карточка ООЗ ещё не сохранена — при добавлении объекта она будет сохранена как черновик."
+            : "Сохраните описание закупки, чтобы добавлять отдельные объекты."}
         </p>
       )}
 
@@ -244,7 +289,12 @@ export default function PurchaseObjectsSection({
             <select
               className={block("select")}
               value={selectedCandidate}
-              disabled={disabled || !description.id || createObject.isPending}
+              disabled={
+                disabled ||
+                createObject.isPending ||
+                ensuring ||
+                (!description.id && !onEnsureDescription)
+              }
               onChange={(event) => setSelectedCandidate(event.target.value)}
             >
               <option value="">— Выберите объект —</option>
@@ -260,9 +310,10 @@ export default function PurchaseObjectsSection({
             className={block("secondary-btn")}
             disabled={
               disabled ||
-              !description.id ||
               !selectedCandidate ||
-              createObject.isPending
+              createObject.isPending ||
+              ensuring ||
+              (!description.id && !onEnsureDescription)
             }
             onClick={handleReuseObject}
           >
@@ -339,7 +390,8 @@ export default function PurchaseObjectsSection({
                 onChange={(event) =>
                   updateObject.mutate({
                     id: object.id!,
-                    productType: event.target.value as PurchaseObject["productType"],
+                    productType: event.target
+                      .value as PurchaseObject["productType"],
                   })
                 }
               >
@@ -399,7 +451,8 @@ export default function PurchaseObjectsSection({
                     updateObject.mutate({
                       id: object.id!,
                       parentObjectId: parent?.id,
-                      parentExternalSid: parent?.externalSid || String(parent?.id ?? ""),
+                      parentExternalSid:
+                        parent?.externalSid || String(parent?.id ?? ""),
                       parentOkpd2Code: parent?.okpd2Code,
                       parentOkpd2Name: parent?.okpd2Name,
                     });

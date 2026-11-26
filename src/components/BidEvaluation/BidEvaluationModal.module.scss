@@ -193,6 +193,15 @@
     min-width: 0;
   }
 
+  // Иной порядок оценки (п. 22 Положения) — как блок шкалы, но с текстом
+  // порядка вместо шагов «свойство = баллы»
+  &__other-order {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0 10px;
+  }
+
   &__scale {
     display: flex;
     flex-direction: column;

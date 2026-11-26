@@ -63,6 +63,10 @@ export const PurchaseNoteObjectItemSchema = z.object({
   nationalRegimeType: z
     .enum(["none", "ban", "restriction", "advantage"])
     .optional(),
+  // Отмена запрета/ограничения по ст. 14 (ПП РФ № 1875): заказчик вправе
+  // не применять режим при обосновании невозможности.
+  imposibilityBan: z.boolean().optional(),
+  imposibilityBanReason: z.string().optional(),
   isSupplyDuringWorks: z.boolean().optional(),
 });
 
@@ -111,6 +115,86 @@ export const PurchaseNoteContractProjectFileSchema = z.object({
 export type PurchaseNoteContractProjectFile = z.infer<
   typeof PurchaseNoteContractProjectFileSchema
 >;
+
+/**
+ * Универсальный файл-вложение Служебной записки. Большинство полей с файлами
+ * могут содержать несколько документов (обоснование, проект и т. п.), поэтому
+ * вложение хранится списком с необязательной подписью `description`.
+ */
+export const PurchaseNoteFileSchema = z.object({
+  id: z.string().optional(),
+  fileName: z.string().trim().min(1, "Укажите имя файла"),
+  description: z.string().optional(),
+  fileUpdatedAt: z.string().optional(),
+});
+
+export type PurchaseNoteFile = z.infer<typeof PurchaseNoteFileSchema>;
+
+/** Статус согласования отдельного блока (секции) служебной записки. */
+export type PurchaseNoteSectionReviewStatus = "approved" | "revision";
+
+/** Отметка согласования одного блока СЗ членом контрактной службы. */
+export interface PurchaseNoteSectionReview {
+  sectionId: string;
+  status: PurchaseNoteSectionReviewStatus;
+  comment?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+/** Канонический перечень блоков СЗ — единый для формы и листа согласования. */
+export const PURCHASE_NOTE_SECTIONS = [
+  { id: "requisites", title: "Реквизиты потребности и согласование" },
+  { id: "objects", title: "Предмет и объекты закупки (ст. 33)" },
+  { id: "nmck", title: "Обоснование НМЦК (ст. 22)" },
+  {
+    id: "procedure",
+    title: "Способ определения поставщика, сроки поставки, приёмки и места",
+  },
+  { id: "finance", title: "Финансирование, аванс и сопровождение (ст. 34)" },
+  {
+    id: "participants",
+    title: "СМП/СОНКО и требования к участникам (ст. 30, 31, ПП 1482, ПП 2571)",
+  },
+  {
+    id: "security",
+    title: "Обеспечение заявки, контракта, гарантия качества и реквизиты",
+  },
+  { id: "contract", title: "Проект контракта" },
+] as const;
+
+/** Идентификатор блока СЗ из канонического перечня. */
+export type PurchaseNoteSectionId = (typeof PURCHASE_NOTE_SECTIONS)[number]["id"];
+
+/** Слить одиночные legacy-поля файла с массивом вложений (обратная совместимость). */
+export const mergePurchaseNoteFiles = (
+  files: PurchaseNoteFile[] | undefined,
+  legacyFileName?: string,
+  legacyFileUpdatedAt?: string,
+  description?: string,
+): PurchaseNoteFile[] => {
+  const merged: PurchaseNoteFile[] = [];
+  if (legacyFileName && legacyFileName.trim().length > 0) {
+    merged.push({
+      fileName: legacyFileName.trim(),
+      description,
+      fileUpdatedAt: legacyFileUpdatedAt,
+    });
+  }
+  for (const file of files ?? []) {
+    if (
+      file.fileName.trim().length > 0 &&
+      !merged.some(
+        (existing) =>
+          existing.fileName === file.fileName.trim() &&
+          existing.description === file.description,
+      )
+    ) {
+      merged.push({ ...file, fileName: file.fileName.trim() });
+    }
+  }
+  return merged;
+};
 
 const PurchaseNoteBaseSchema = z
   .object({
@@ -201,12 +285,16 @@ const PurchaseNoteBaseSchema = z
     // Файл обоснования НМЦК, запрос на него и рабочие коммерческие предложения (ст. 22 44-ФЗ)
     nmckFileName: z.string().optional(),
     nmckFileUpdatedAt: z.string().optional(),
+    // Множественные файлы обоснования НМЦК (расчёт, обоснование, запрос КП)
+    nmckFiles: z.array(PurchaseNoteFileSchema).optional(),
 
     // Файл структурированного описания объекта закупки (ООЗ). Готовится
     // в служебной записке; после согласования переносится в прилагаемые
     // документы извещения.
     objectDescriptionFileName: z.string().optional(),
     objectDescriptionFileUpdatedAt: z.string().optional(),
+    // Множественные файлы ООЗ (обоснование, проект и прочие документы)
+    objectDescriptionFiles: z.array(PurchaseNoteFileSchema).optional(),
 
     // Бывшие чекпоинты СЗ: оба убраны из формы, поля остались optional
     // только для чтения старых записей и не задают гейтов.
@@ -341,6 +429,8 @@ const PurchaseNoteBaseSchema = z
     warrantyTermMonths: optionalNonNegativeInt(),
     allowUnilateralRefusalArt95: z.boolean().optional(),
     otherRequirements: z.string().optional(),
+    isLifecycleContract: z.boolean().optional(),
+    lifecycleCasesPP1087: z.array(z.string()).optional(),
 
     status: z
       .enum([
@@ -356,6 +446,22 @@ const PurchaseNoteBaseSchema = z
     approvalUpdatedAt: z.string().optional(),
     approvalUpdatedBy: z.string().optional(),
     approvalComment: z.string().optional(),
+    /**
+     * Отметки согласования по блокам СЗ: каждый блок контрактная служба может
+     * утвердить или вернуть на доработку отдельно (персональная подпись члена
+     * КС по секции). Не влияет на общий статус документа.
+     */
+    sectionReviews: z
+      .array(
+        z.object({
+          sectionId: z.string(),
+          status: z.enum(["approved", "revision"]),
+          comment: z.string().optional(),
+          updatedBy: z.string().optional(),
+          updatedAt: z.string().optional(),
+        }),
+      )
+      .optional(),
     // Системная задача КС по исключению нацрежима (ПП РФ № 1875): пока
     // задача не выполнена, «Утвердить» недоступно.
     ksReviewTaskId: z.union([z.string(), z.number()]).optional(),
@@ -452,7 +558,9 @@ export const PurchaseNoteSchema = PurchaseNoteBaseSchema.superRefine(
       point4Requirement: note.pp2571Point4Requirement,
       point4RequirementText: note.pp2571Point4RequirementText,
       requirementsPart2_1Art31: note.requirementsPart2_1Art31,
-      requirementsPart1_1Art31: note.requirementsPart1_1Art31,
+      // Требование ч. 1.1 ст. 31 обязательно — в проверках ПП РФ № 2571
+      // всегда считаем его установленным
+      requirementsPart1_1Art31: true,
       sanctionsRnpRequirement: note.sanctionsRnpRequirement,
       isDraft: isDraftLikePurchaseNote(note.status),
     })
@@ -750,10 +858,13 @@ export const emptyPurchaseNote = (
   warrantyTermMonths: 12,
   allowUnilateralRefusalArt95: true,
   otherRequirements: "",
+  isLifecycleContract: false,
+  lifecycleCasesPP1087: [],
   status: "draft",
   approvalUpdatedAt: "",
   approvalUpdatedBy: "",
   approvalComment: "",
+  sectionReviews: [],
   comment: "",
   createdAt: new Date().toISOString().slice(0, 10),
   isExternalEis: false,

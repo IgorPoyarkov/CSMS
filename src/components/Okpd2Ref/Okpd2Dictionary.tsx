@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import useUtils from "../../hooks/useUtils";
+import CustomCheckbox from "../UI/CustomCheckbox";
 import PageSizePicker from "../UI/PageSizePicker";
+import Select from "../UI/Select";
 import {
   AUCTION_LIST_ACT_TITLE,
   checkOkpd2AuctionList,
@@ -11,12 +13,19 @@ import {
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import { OKPD2_OBJECT_KIND_LABELS } from "../../services/Okpd2Ref/okpd2Ref.schema";
+import type { Okpd2ObjectKind } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import styles from "./Okpd2Dictionary.module.scss";
 
 // Просмотр справочника: поиск по коду и наименованию, отбор нормируемых и
 // аукционных позиций (РП № 471-р) и порционный вывод
 const PAGE_SIZES = [25, 50, 100, "all"] as const;
 type PageSize = (typeof PAGE_SIZES)[number];
+
+// Вид объекта — производный признак кода ОКПД2. В фильтре только однозначные
+// виды: «Неоднозначно» и «Не определено» — это состояние распознавания,
+// а не вид объекта для отбора
+const OBJECT_KIND_OPTIONS: Okpd2ObjectKind[] = ["goods", "works", "services"];
+type ObjectKindFilter = Okpd2ObjectKind | "all";
 
 const money = new Intl.NumberFormat("ru-RU", {
   minimumFractionDigits: 2,
@@ -34,8 +43,12 @@ export default function Okpd2Dictionary() {
   } = useOkpd2Dictionary();
 
   const [query, setQuery] = useState("");
+  const [objectKind, setObjectKind] = useState<ObjectKindFilter>("all");
   const [onlyNormed, setOnlyNormed] = useState(false);
   const [onlyAuction, setOnlyAuction] = useState(false);
+  // Предельная цена установлена не у всех нормируемых кодов: у части позиций
+  // лимит задаётся ведомственным перечнем, поэтому фильтр отдельный
+  const [onlyWithLimit, setOnlyWithLimit] = useState(false);
   const [pageSize, setPageSize] = useState<PageSize>(25);
   const [page, setPage] = useState(1);
 
@@ -43,8 +56,16 @@ export default function Okpd2Dictionary() {
     // Поиск не ограничиваем выдачей 30 строк: здесь нужен весь результат,
     // чтобы работала пагинация
     let matched = searchOkpd2(dictionary, query, Number.MAX_SAFE_INTEGER);
+    if (objectKind !== "all") {
+      matched = matched.filter((item) => item.objectKind === objectKind);
+    }
     if (onlyNormed) {
       matched = matched.filter((item) => item.isNormed);
+    }
+    if (onlyWithLimit) {
+      matched = matched.filter(
+        (item) => item.normLimit !== undefined && item.normLimit !== null,
+      );
     }
     if (onlyAuction) {
       matched = matched.filter(
@@ -52,7 +73,14 @@ export default function Okpd2Dictionary() {
       );
     }
     return matched;
-  }, [dictionary, query, onlyNormed, onlyAuction]);
+  }, [dictionary, query, objectKind, onlyNormed, onlyWithLimit, onlyAuction]);
+
+  const filtersActive =
+    query.trim() !== "" ||
+    objectKind !== "all" ||
+    onlyNormed ||
+    onlyAuction ||
+    onlyWithLimit;
 
   const normedCount = useMemo(
     () => dictionary.filter((item) => item.isNormed).length,
@@ -63,6 +91,14 @@ export default function Okpd2Dictionary() {
     () =>
       dictionary.filter(
         (item) => checkOkpd2AuctionList(item.code, dictionary).inAuctionList,
+      ).length,
+    [dictionary],
+  );
+
+  const limitCount = useMemo(
+    () =>
+      dictionary.filter(
+        (item) => item.normLimit !== undefined && item.normLimit !== null,
       ).length,
     [dictionary],
   );
@@ -81,8 +117,8 @@ export default function Okpd2Dictionary() {
           <h1 className={block("title")}>Справочник ОКПД2</h1>
           <p className={block("summary")}>
             Позиций в справочнике: {dictionary.length} · подлежит обязательному
-            нормированию: {normedCount} · в аукционном перечне (РП № 471-р):{" "}
-            {auctionCount}
+            нормированию: {normedCount} · с установленной предельной ценой:{" "}
+            {limitCount} · в аукционном перечне (РП № 471-р): {auctionCount}
           </p>
           <p className={block("note")}>
             Код и наименование подставляются в запись плана-графика, СЗ,
@@ -109,29 +145,55 @@ export default function Okpd2Dictionary() {
           }}
         />
 
-        <label className={block("toggle")}>
-          <input
-            type="checkbox"
-            checked={onlyNormed}
-            onChange={(event) => {
-              setOnlyNormed(event.target.checked);
-              setPage(1);
-            }}
-          />
-          Только подлежащие нормированию
+        <label className={block("control")}>
+          <span className={block("control-caption")}>Вид объекта</span>
+          <span className={block("select-box")}>
+            <Select
+              value={objectKind}
+              onChange={(event) => {
+                setObjectKind(event.target.value as ObjectKindFilter);
+                setPage(1);
+              }}
+            >
+              <option value="all">Все виды</option>
+              {OBJECT_KIND_OPTIONS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {OKPD2_OBJECT_KIND_LABELS[kind]}
+                </option>
+              ))}
+            </Select>
+          </span>
         </label>
 
-        <label className={block("toggle")}>
-          <input
-            type="checkbox"
-            checked={onlyAuction}
-            onChange={(event) => {
-              setOnlyAuction(event.target.checked);
-              setPage(1);
-            }}
-          />
-          Только из аукционного перечня (471-р)
-        </label>
+        <CustomCheckbox
+          compact
+          label="Только подлежащие нормированию"
+          checked={onlyNormed}
+          onChange={(event) => {
+            setOnlyNormed(event.target.checked);
+            setPage(1);
+          }}
+        />
+
+        <CustomCheckbox
+          compact
+          label="Только с предельной ценой"
+          checked={onlyWithLimit}
+          onChange={(event) => {
+            setOnlyWithLimit(event.target.checked);
+            setPage(1);
+          }}
+        />
+
+        <CustomCheckbox
+          compact
+          label="Только из аукционного перечня (471-р)"
+          checked={onlyAuction}
+          onChange={(event) => {
+            setOnlyAuction(event.target.checked);
+            setPage(1);
+          }}
+        />
 
         <PageSizePicker
           sizes={PAGE_SIZES}
@@ -148,6 +210,12 @@ export default function Okpd2Dictionary() {
       {isError && (
         <p className={block("status", ["error"])}>
           Не удалось загрузить справочник ОКПД2: {String(error)}
+        </p>
+      )}
+
+      {!isLoading && !isError && filtersActive && (
+        <p className={block("status")}>
+          По заданным условиям найдено позиций: {found.length}
         </p>
       )}
 
@@ -188,7 +256,7 @@ export default function Okpd2Dictionary() {
                           className={block("tag", [
                             item.objectKind === "ambiguous" ? "ambiguous" : "",
                           ])}
-                          title="Вид выведен из раздела кода ОКПД2: это косвенный сигнал для сверки с предметом, а не юридический вывод"
+                          title="Вид выведен из раздела кода ОКПД2, а для спорных разделов — из первого слова наименования: это косвенный сигнал для сверки с предметом, а не юридический вывод"
                         >
                           {OKPD2_OBJECT_KIND_LABELS[item.objectKind] ??
                             OKPD2_OBJECT_KIND_LABELS.unknown}

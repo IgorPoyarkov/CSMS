@@ -1,8 +1,6 @@
 import type { ObjectDescription } from "../ObjectDescription/objectDescription.schema";
-import {
-  isApprovedPurchaseNoteStatus,
-  type PurchaseNote,
-} from "../PurchaseNote/purchaseNote.schema";
+import type { ContractProject } from "../ContractProject/contractProject.schema";
+import type { PurchaseNote } from "../PurchaseNote/purchaseNote.schema";
 import type { NoticeInfoFormValues } from "./noticeInfo.schema";
 
 /**
@@ -130,11 +128,70 @@ export const NOTICE_OOZ_LOCKED_PATHS = [
   "participantsRequirements.warrantyTermAndVolume",
 ] as const;
 
+/** Реквизиты, фиксируемые утверждённым обоснованием НМЦК (подписанным в ЭП). */
+export const NOTICE_NMCK_LOCKED_PATHS = [
+  "generalInfo.nmck",
+  "contractConditions.currency",
+  "contractConditions.currencyCode",
+  "contractConditions.usePriceFormulaPP19",
+  "contractConditions.priceFormulaText",
+  "contractConditions.isForeignCurrencyNmck",
+  "contractConditions.maxContractPrice",
+] as const;
+
+/**
+ * Реквизиты, фиксируемые утверждённым проектом контракта
+ * (статус не «черновик»): предмет, цена, оплата, сроки, обеспечения,
+ * гарантии, СМП/СОНКО, изменение и расторжение.
+ */
+export const NOTICE_CONTRACT_PROJECT_LOCKED_PATHS = [
+  "contractProjectId",
+  "contractProjectNumber",
+  "generalInfo.orderName",
+  "generalInfo.nmck",
+  "contractConditions.currency",
+  "contractConditions.currencyCode",
+  "contractConditions.usePriceFormulaPP19",
+  "contractConditions.priceFormulaText",
+  "contractConditions.isForeignCurrencyNmck",
+  "contractConditions.hasAdvance",
+  "contractConditions.advancePercent",
+  "contractConditions.paymentProcedure",
+  "contractConditions.paymentTermDays",
+  "contractConditions.isRelativeTerms",
+  "contractConditions.startOffsetDays",
+  "contractConditions.startDate",
+  "contractConditions.endDate",
+  "contractConditions.durationDays",
+  "contractConditions.allowUnilateralRefusalArt95",
+  "contractConditions.deliveryPlaces",
+  "contractConditions.typicalConditionsNumber",
+  "contractConditions.isLifecycleContract",
+  "participantsRequirements.requiresApplicationSecurity",
+  "participantsRequirements.applicationSecurityPercent",
+  "participantsRequirements.applicationSecurityOrder",
+  "participantsRequirements.requiresContractSecurity",
+  "participantsRequirements.contractSecurityPercent",
+  "participantsRequirements.contractSecurityOrder",
+  "participantsRequirements.requiresQualityWarranty",
+  "participantsRequirements.warrantyMaintenanceInfo",
+  "participantsRequirements.manufacturerWarrantyInfo",
+  "participantsRequirements.warrantyTermAndVolume",
+  "participantsRequirements.requiresWarrantySecurity",
+  "participantsRequirements.warrantySecurityPercent",
+  "participantsRequirements.subcontractingSmpPart5Art30",
+  "participantsRequirements.subcontractingSmpRequiredPercent",
+  "participantsRequirements.subcontractingSmpNoteNumber",
+  "participantsRequirements.additionalInfo",
+] as const;
+
 export const NOTICE_LOCKED_SOURCE_LABELS: Record<string, string> = {
   purchaseNoteId: "СЗ",
   notificationType: "СЗ",
   contactInfo: "СЗ",
   generalInfo: "СЗ / план-график",
+  "generalInfo.nmck": "утверждённое обоснование НМЦК / проект контракта",
+  "generalInfo.orderName": "СЗ / утверждённый проект контракта",
   contractConditions: "СЗ / план-график",
   foundationInfo: "СЗ",
   participantsRequirements: "СЗ",
@@ -143,27 +200,46 @@ export const NOTICE_LOCKED_SOURCE_LABELS: Record<string, string> = {
   objectDescriptionId: "ООЗ",
   attachedDocs: "утверждённые документы СЗ",
   ikz: "СЗ / план-график",
+  contractProjectId: "утверждённый проект контракта",
+  contractProjectNumber: "утверждённый проект контракта",
 };
 
 export interface NoticeApprovedSources {
   note?: PurchaseNote | null;
   description?: ObjectDescription | null;
+  /** СЗ с подписанным (утверждённым) обоснованием НМЦК. */
+  nmckNote?: PurchaseNote | null;
+  /** Сохранённый проект контракта; блокирует поля в статусе не «черновик». */
+  contractProject?: ContractProject | null;
 }
 
 /**
- * Список заблокированных путей. СЗ блокирует свои поля только будучи
- * утверждённой (включая одобрение КС); ООЗ — только в статусе `approved`.
+ * Список заблокированных путей.
+ *
+ * Поля, переданные служебной запиской, фиксируются в извещении независимо от
+ * её статуса: извещение не должно расходиться с СЗ, а менять эти значения
+ * можно только в самой записке. ООЗ блокирует свои поля в статусе `approved`,
+ * обоснование НМЦК — после подписания в ЭП, проект контракта — после
+ * утверждения (любой статус, кроме `draft`).
  */
 export const getNoticeLockedPaths = ({
   note,
   description,
+  nmckNote,
+  contractProject,
 }: NoticeApprovedSources): string[] => {
   const paths: string[] = [];
-  if (isApprovedPurchaseNoteStatus(note?.status)) {
+  if (note) {
     paths.push(...NOTICE_NOTE_LOCKED_PATHS);
   }
   if (description?.status === "approved") {
     paths.push(...NOTICE_OOZ_LOCKED_PATHS);
+  }
+  if (nmckNote?.nmckSignature) {
+    paths.push(...NOTICE_NMCK_LOCKED_PATHS);
+  }
+  if (contractProject && contractProject.status !== "draft") {
+    paths.push(...NOTICE_CONTRACT_PROJECT_LOCKED_PATHS);
   }
   return Array.from(new Set(paths));
 };
@@ -187,10 +263,18 @@ export const describeNoticeLockedSources = (
   if (lockedPaths.length === 0) return "";
   const labels = new Set<string>();
   lockedPaths.forEach((path) => {
-    const root = path.split(/[.[]/)[0];
-    labels.add(NOTICE_LOCKED_SOURCE_LABELS[root] ?? root);
+    labels.add(noticeLockedSourceLabel(path));
   });
   return Array.from(labels).join(", ");
+};
+
+/** Метка источника для конкретного пути: сначала полный путь, затем корень. */
+export const noticeLockedSourceLabel = (path: string): string => {
+  if (NOTICE_LOCKED_SOURCE_LABELS[path]) {
+    return NOTICE_LOCKED_SOURCE_LABELS[path];
+  }
+  const root = path.split(/[.[]/)[0];
+  return NOTICE_LOCKED_SOURCE_LABELS[root] ?? root;
 };
 
 // ─── Работа со значениями ─────────────────────────────────────────────────────
@@ -264,10 +348,13 @@ export const findNoticeLockedChanges = (
   lockedPaths: readonly string[],
 ): NoticeLockedChange[] =>
   lockedPaths
-    .filter((path) => !equalValues(readPath(values as FormValues, path), snapshot[path]))
+    .filter(
+      (path) =>
+        !equalValues(readPath(values as FormValues, path), snapshot[path]),
+    )
     .map((path) => ({
       path,
-      label: NOTICE_LOCKED_SOURCE_LABELS[path.split(/[.[]/)[0]] ?? path,
+      label: noticeLockedSourceLabel(path),
     }));
 
 /** Возвращает форме значения утверждённых полей после attempts правки. */

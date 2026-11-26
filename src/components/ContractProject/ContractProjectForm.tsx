@@ -36,6 +36,12 @@ import {
   contractPrefillSourceLabels,
 } from "../../services/ContractProject/contractProjectPrefill";
 import {
+  CONTRACT_PROJECT_LOCKED_SOURCE_LABEL,
+  getContractProjectLockedPaths,
+  isContractProjectPathLocked,
+  restoreContractProjectLockedFields,
+} from "../../services/ContractProject/contractProjectApprovedFields";
+import {
   buildContractProjectXmlPreview,
   validateContractProjectEis17,
 } from "../../services/Eis/eis17Types";
@@ -76,6 +82,9 @@ import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
 interface ContractLocationState {
   // Ссылка на закупку: проект не должен держаться только на ИКЗ
   procurementId?: string | number;
+  // СЗ, из которой открыли проект: нужна, чтобы сразу применить блокировку
+  // утверждённых полей, не дожидаясь обновления кэша после создания закупки
+  purchaseNoteId?: string | number;
   ikz?: string;
   name?: string;
   procurementType?: string;
@@ -164,6 +173,19 @@ export default function ContractProjectForm() {
 
   // Служебная записка по позиции ПГ
   const matchedNote = useMemo(() => {
+    // Переход из реестра СЗ передаёт идентификатор напрямую: записка может
+    // ещё не иметь procurementId, если закупка только что создана
+    if (
+      stateData?.purchaseNoteId !== undefined &&
+      stateData.purchaseNoteId !== null &&
+      stateData.purchaseNoteId !== ""
+    ) {
+      const byState = visiblePurchaseNotes.find(
+        (note) => String(note.id) === String(stateData.purchaseNoteId),
+      );
+      if (byState) return byState;
+    }
+
     const noteId = matchedNotice?.purchaseNoteId;
     if (noteId !== undefined && noteId !== null && noteId !== "") {
       const byId = visiblePurchaseNotes.find(
@@ -186,6 +208,16 @@ export default function ContractProjectForm() {
     }
     return undefined;
   }, [visiblePurchaseNotes, matchedNotice, id, stateData?.ikz]);
+
+  // Поля, зафиксированные утверждённой СЗ, в проекте контракта не правятся:
+  // тот же перечень используется при сохранении, чтобы значения нельзя было
+  // обойти через автозаполнение или программный вызов
+  const noteLockedPaths = useMemo(
+    () => getContractProjectLockedPaths({ note: matchedNote }),
+    [matchedNote],
+  );
+  const isNoteLocked = (path: string) =>
+    isContractProjectPathLocked(path, noteLockedPaths);
 
   // Контракт в реестре по этой закупке: из него берём реквизиты поставщика,
   // если определение поставщика уже состоялось
@@ -567,7 +599,15 @@ export default function ContractProjectForm() {
     }
   };
 
-  const onSubmit = (data: ContractProject) => {
+  const onSubmit = (formData: ContractProject) => {
+    // Утверждённые поля СЗ возвращаем к снимку предзаполнения: даже если
+    // значение удалось изменить в обход блокировки, в документ оно не попадёт
+    const data = restoreContractProjectLockedFields(
+      formData,
+      draft,
+      noteLockedPaths,
+    );
+
     // При неструктурированной форме ЕИС требует файлы проекта контракта
     // (contractProjectFilesInfo): без них документ будет отклонён
     if (!data.eisInfo?.isStructuredForm) {
@@ -648,6 +688,11 @@ export default function ContractProjectForm() {
     const error = getError(field.path);
     const fieldId = `contract-${field.path.replace(/\./g, "-")}`;
     const path = field.path as FieldPath<ContractProject>;
+    // Поле пришло из утверждённой СЗ: значение фиксировано
+    const locked = isNoteLocked(field.path);
+    const lockedHint = locked
+      ? `Значение из ${CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}, изменение недоступно`
+      : undefined;
 
     if (field.kind === "checkbox") {
       return (
@@ -655,11 +700,23 @@ export default function ContractProjectForm() {
           key={field.path}
           className={`${styles.checkbox} ${styles.fieldWide}`}
           htmlFor={fieldId}
+          title={lockedHint}
         >
-          <input id={fieldId} type="checkbox" {...methods.register(path)} />
+          <input
+            id={fieldId}
+            type="checkbox"
+            disabled={locked}
+            {...methods.register(path)}
+          />
           <span>
             {field.label}
             {field.hint && <span className={styles.hint}> {field.hint}</span>}
+            {locked && (
+              <span className={styles.hint}>
+                {" "}
+                — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+              </span>
+            )}
           </span>
         </label>
       );
@@ -673,6 +730,7 @@ export default function ContractProjectForm() {
             ? styles.fieldWide
             : ""
         }`}
+        title={lockedHint}
       >
         <label className={styles.label} htmlFor={fieldId}>
           {field.label}
@@ -680,6 +738,12 @@ export default function ContractProjectForm() {
             <span className={styles.articleRef}> {field.article}</span>
           )}
           {field.hint && <span className={styles.hint}> {field.hint}</span>}
+          {locked && (
+            <span className={styles.hint}>
+              {" "}
+              — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+            </span>
+          )}
         </label>
 
         {field.kind === "textarea" ? (
@@ -688,12 +752,14 @@ export default function ContractProjectForm() {
             rows={field.rows ?? 3}
             className={`${styles.textarea} ${error ? styles.inputError : ""}`}
             placeholder={field.placeholder}
+            disabled={locked}
             {...methods.register(path)}
           />
         ) : field.kind === "select" ? (
           <Select
             id={fieldId}
             className={`${styles.input} ${error ? styles.inputError : ""}`}
+            disabled={locked}
             {...methods.register(path)}
           >
             {(field.options ?? []).map((option) => (
@@ -721,6 +787,7 @@ export default function ContractProjectForm() {
             min={field.kind === "number" ? 0 : undefined}
             className={`${styles.input} ${error ? styles.inputError : ""}`}
             placeholder={field.placeholder}
+            disabled={locked}
             {...methods.register(path, registerOptions(field))}
           />
         )}
@@ -909,22 +976,38 @@ export default function ContractProjectForm() {
               shouldDirty: true,
               shouldValidate: true,
             });
-            methods.setValue("requisites.supplierOgrn", counterparty.ogrn ?? "", {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            methods.setValue("requisites.supplierAddress", counterparty.legalAddress ?? "", {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            methods.setValue("requisites.supplierEmail", counterparty.email ?? "", {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
-            methods.setValue("requisites.supplierPhone", counterparty.phone ?? "", {
-              shouldDirty: true,
-              shouldValidate: true,
-            });
+            methods.setValue(
+              "requisites.supplierOgrn",
+              counterparty.ogrn ?? "",
+              {
+                shouldDirty: true,
+                shouldValidate: true,
+              },
+            );
+            methods.setValue(
+              "requisites.supplierAddress",
+              counterparty.legalAddress ?? "",
+              {
+                shouldDirty: true,
+                shouldValidate: true,
+              },
+            );
+            methods.setValue(
+              "requisites.supplierEmail",
+              counterparty.email ?? "",
+              {
+                shouldDirty: true,
+                shouldValidate: true,
+              },
+            );
+            methods.setValue(
+              "requisites.supplierPhone",
+              counterparty.phone ?? "",
+              {
+                shouldDirty: true,
+                shouldValidate: true,
+              },
+            );
           }}
         />
         <p className={styles.hint}>
@@ -1102,33 +1185,71 @@ export default function ContractProjectForm() {
               {...methods.register("eisInfo.purchaseNumber")}
             />
           </label>
+          {/* Протокол-основание и номер заявки приходят из утверждённой СЗ:
+              в проекте контракта они только отображаются */}
           <label className={styles.field}>
-            <span className={styles.label}>Номер заявки победителя</span>
+            <span className={styles.label}>
+              Номер заявки победителя
+              {isNoteLocked("eisInfo.appNumber") && (
+                <span className={styles.hint}>
+                  {" "}
+                  — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+                </span>
+              )}
+            </span>
             <input
               className={styles.input}
+              disabled={isNoteLocked("eisInfo.appNumber")}
               {...methods.register("eisInfo.appNumber")}
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.label}>Протокол-основание</span>
+            <span className={styles.label}>
+              Протокол-основание
+              {isNoteLocked("eisInfo.protocolName") && (
+                <span className={styles.hint}>
+                  {" "}
+                  — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+                </span>
+              )}
+            </span>
             <input
               className={styles.input}
               placeholder="Наименование протокола"
+              disabled={isNoteLocked("eisInfo.protocolName")}
               {...methods.register("eisInfo.protocolName")}
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.label}>Номер протокола</span>
+            <span className={styles.label}>
+              Номер протокола
+              {isNoteLocked("eisInfo.protocolNumber") && (
+                <span className={styles.hint}>
+                  {" "}
+                  — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+                </span>
+              )}
+            </span>
             <input
               className={styles.input}
+              disabled={isNoteLocked("eisInfo.protocolNumber")}
               {...methods.register("eisInfo.protocolNumber")}
             />
           </label>
           <label className={styles.field}>
-            <span className={styles.label}>Дата протокола</span>
+            <span className={styles.label}>
+              Дата протокола
+              {isNoteLocked("eisInfo.protocolPublishDate") && (
+                <span className={styles.hint}>
+                  {" "}
+                  — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+                </span>
+              )}
+            </span>
             <input
               type="date"
               className={styles.input}
+              disabled={isNoteLocked("eisInfo.protocolPublishDate")}
               {...methods.register("eisInfo.protocolPublishDate")}
             />
           </label>
@@ -1154,11 +1275,18 @@ export default function ContractProjectForm() {
           <label className={`${styles.checkbox} ${styles.fieldWide}`}>
             <input
               type="checkbox"
+              disabled={isNoteLocked("eisInfo.isStructuredForm")}
               {...methods.register("eisInfo.isStructuredForm")}
             />
             <span>
               Структурированная форма проекта (файлы не требуются; при
               выключенном признаке приложите файл проекта)
+              {isNoteLocked("eisInfo.isStructuredForm") && (
+                <span className={styles.hint}>
+                  {" "}
+                  — из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+                </span>
+              )}
             </span>
           </label>
         </div>
@@ -1167,6 +1295,12 @@ export default function ContractProjectForm() {
           <button
             type="button"
             className={styles.btnSecondary}
+            disabled={isNoteLocked("eisInfo.contractProjectFiles")}
+            title={
+              isNoteLocked("eisInfo.contractProjectFiles")
+                ? `Файлы приложены к ${CONTRACT_PROJECT_LOCKED_SOURCE_LABEL} и здесь не меняются`
+                : undefined
+            }
             onClick={() =>
               fileArray.append({
                 id: `file-${Date.now()}`,
@@ -1198,6 +1332,7 @@ export default function ContractProjectForm() {
                 <input
                   className={styles.input}
                   placeholder="Имя файла"
+                  disabled={isNoteLocked("eisInfo.contractProjectFiles")}
                   {...methods.register(
                     `eisInfo.contractProjectFiles.${index}.fileName`,
                   )}
@@ -1205,6 +1340,7 @@ export default function ContractProjectForm() {
                 <input
                   className={styles.input}
                   placeholder="Описание"
+                  disabled={isNoteLocked("eisInfo.contractProjectFiles")}
                   {...methods.register(
                     `eisInfo.contractProjectFiles.${index}.description`,
                   )}
@@ -1212,6 +1348,7 @@ export default function ContractProjectForm() {
                 <button
                   type="button"
                   className={styles.stageRemove}
+                  disabled={isNoteLocked("eisInfo.contractProjectFiles")}
                   onClick={() => fileArray.remove(index)}
                   aria-label="Удалить файл"
                 >
@@ -1382,6 +1519,16 @@ export default function ContractProjectForm() {
             ? prefillSources.join(" + ")
             : "источники ещё не загружены"}
           . Проверьте обязательные условия ст. 34 перед сохранением.
+          {noteLockedPaths.length > 0 && (
+            <p className={styles.bannerNote}>
+              Поля из {CONTRACT_PROJECT_LOCKED_SOURCE_LABEL}
+              {matchedNote?.noteNumber
+                ? ` № ${matchedNote.noteNumber}`
+                : ""}{" "}
+              заблокированы: утверждённые значения СЗ нельзя изменить ни в
+              извещении, ни в проекте контракта.
+            </p>
+          )}
         </div>
         <div className={styles.bannerActions}>
           <button
@@ -1546,8 +1693,8 @@ export default function ContractProjectForm() {
                   : activeSection === CIVIL_SECTION
                     ? renderCivilLaw()
                     : activeSectionDef
-                    ? renderSection(activeSectionDef, activeIndex)
-                    : null}
+                      ? renderSection(activeSectionDef, activeIndex)
+                      : null}
 
               <div className={styles.actions}>
                 <button

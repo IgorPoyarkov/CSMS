@@ -158,11 +158,6 @@ const Header = () => {
   const [isHoverDisabled, setIsHoverDisabled] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Подменю «Реестр контрактов»: конкурентные способы и закупки у ЕП.
-  // Открывается наведением и кликом, закрывается кликом вне и Escape
-  const [isRegistryOpen, setIsRegistryOpen] = useState(false);
-  const registryRef = useRef<HTMLDivElement>(null);
-
   // Меню «Ещё»: остальные разделы, сгруппированные по назначению
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -190,7 +185,6 @@ const Header = () => {
     setClosedOnLocation(currentLocation);
     setIsNavOpen(false);
     setIsMoreOpen(false);
-    setIsRegistryOpen(false);
   }
 
   // Открытая панель на мобильном — это модальное состояние: страница под ней
@@ -260,28 +254,6 @@ const Header = () => {
   }, [isProfileOpen]);
 
   useEffect(() => {
-    if (!isRegistryOpen) return;
-
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      if (!registryRef.current?.contains(event.target as Node)) {
-        setIsRegistryOpen(false);
-      }
-    };
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsRegistryOpen(false);
-    };
-
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isRegistryOpen]);
-
-  useEffect(() => {
     if (!isMoreOpen) return;
 
     const closeOnOutsidePointer = (event: PointerEvent) => {
@@ -310,7 +282,6 @@ const Header = () => {
 
   const closeMenus = () => {
     setIsMoreOpen(false);
-    setIsRegistryOpen(false);
     setIsNavOpen(false);
   };
 
@@ -318,7 +289,6 @@ const Header = () => {
   // раскрыться, и первый же клик по кнопке его закрывал — со стороны это
   // выглядело как «кнопка не работает»
   const toggleMore = () => {
-    setIsRegistryOpen(false);
     setIsMoreOpen((open) => !open);
   };
 
@@ -380,74 +350,16 @@ const Header = () => {
                 </li>
               ))}
 
-              {/* Реестр контрактов с разбивкой по виду способа закупки:
-                  конкурентные процедуры и закупки у единственного поставщика */}
+              {/* Реестр контрактов: единая ссылка без выпадающего списка —
+                  группы по способу закупки остаются внутри страницы */}
               <li className={nav("item")}>
-                <div
-                  ref={registryRef}
-                  className={nav(
-                    "submenu-wrap",
-                    isRegistryOpen ? ["open"] : [],
-                  )}
-                  onMouseEnter={() => canHover() && setIsRegistryOpen(true)}
-                  onMouseLeave={() => canHover() && setIsRegistryOpen(false)}
+                <NavLink
+                  className={nav("link", isRegistryActive ? ["active"] : [])}
+                  to={"/contract-registry"}
+                  onClick={closeMenus}
                 >
-                  <NavLink
-                    className={nav("link", isRegistryActive ? ["active"] : [])}
-                    to={"/contract-registry"}
-                    aria-haspopup="menu"
-                    aria-expanded={isRegistryOpen}
-                    onClick={() => setIsRegistryOpen(false)}
-                  >
-                    Реестр контрактов
-                    <span className={nav("arrow")} aria-hidden="true">
-                      ▾
-                    </span>
-                  </NavLink>
-                  {/* На тач-экранах подменю раскрывает отдельная кнопка: тап по
-                      самому пункту уводит на страницу реестра */}
-                  <button
-                    type="button"
-                    className={nav("submenu-toggle")}
-                    aria-label="Показать виды реестра контрактов"
-                    aria-expanded={isRegistryOpen}
-                    onClick={() => setIsRegistryOpen((open) => !open)}
-                  >
-                    ▾
-                  </button>
-                  {isRegistryOpen && (
-                    <ul className={nav("submenu")} role="menu">
-                      <li>
-                        <NavLink
-                          className={nav("submenu-link")}
-                          to={"/contract-registry"}
-                          end
-                          onClick={closeMenus}
-                        >
-                          Все контракты
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          className={nav("submenu-link")}
-                          to={"/contract-registry?group=competitive"}
-                          onClick={closeMenus}
-                        >
-                          Контракты по конкурентным способам
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          className={nav("submenu-link")}
-                          to={"/contract-registry?group=single"}
-                          onClick={closeMenus}
-                        >
-                          Контракты у ЕП
-                        </NavLink>
-                      </li>
-                    </ul>
-                  )}
-                </div>
+                  Реестр контрактов
+                </NavLink>
               </li>
 
               {/* Остальные разделы: сгруппированное меню вместо второго ряда */}

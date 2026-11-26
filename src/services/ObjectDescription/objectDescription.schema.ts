@@ -190,6 +190,10 @@ export const ObjectCharacteristicSchema = z.object({
   isMandatoryFromKtru: z.boolean().default(false),
   isAdditionalOverKtru: z.boolean().default(false),
   additionalJustification: optionalString(),
+  /** В КТРУ у показателя нет единицы, но пользователь задал свою */
+  unitManuallyChanged: z.boolean().default(false),
+  /** Обоснование единицы, которой нет в позиции КТРУ */
+  unitChangeJustification: optionalString(),
   instructionForParticipant: optionalString(),
   /** Код инструкции из справочника ЕИС nsiCharacteristicsFillingInstructions */
   instructionSourceCode: optionalString(),
@@ -404,6 +408,19 @@ export const validateObjectDescriptionCompliance = (
       level: "error",
       code: "STANDARD_DEVIATION_UNJUSTIFIED",
       message: `Отклонение от показателей ГОСТ/технических регламентов требует обоснования (п. 2 ч. 1 ст. 33 44-ФЗ): ${badStandards.map((s) => s.code).join(", ")}.`,
+    });
+  }
+
+  // Единицу характеристики КТРУ можно задать вручную, только если в позиции
+  // её нет. Такое изменение должно быть обосновано до публикации извещения.
+  const badUnitChanges = desc.characteristics.filter(
+    (c) => c.unitManuallyChanged && !c.unitChangeJustification?.trim(),
+  );
+  if (badUnitChanges.length > 0) {
+    issues.push({
+      level: "error",
+      code: "KTRU_UNIT_CHANGE_UNJUSTIFIED",
+      message: `Изменение единицы характеристики КТРУ без обоснования (п. 1 ч. 1 ст. 33 44-ФЗ, ПП РФ № 145): ${badUnitChanges.map((c) => c.name).join(", ")}. Укажите обоснование либо верните единицу как в КТРУ.`,
     });
   }
 
@@ -683,6 +700,8 @@ export const emptyCharacteristic = (
   isMandatoryFromKtru: false,
   isAdditionalOverKtru: false,
   additionalJustification: "",
+  unitManuallyChanged: false,
+  unitChangeJustification: "",
   instructionForParticipant: "",
   instructionSourceCode: "",
 });

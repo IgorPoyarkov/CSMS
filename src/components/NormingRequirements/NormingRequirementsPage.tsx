@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useMyContractRole from "../../hooks/useMyContractRole";
 import useUtils from "../../hooks/useUtils";
@@ -27,6 +27,13 @@ import {
   type ObjectDescriptionStatus,
 } from "../../services/ObjectDescription/objectDescription.schema";
 import { validateOrder158nCompliance } from "../../services/ObjectDescription/order158nValidator";
+import { contractServiceRoster } from "../../services/ContractService/contractService.config";
+import {
+  useCreateTask,
+  useOrganizationTasks,
+  useUpdateTask,
+} from "../../services/Tasks/tasks.api";
+import { emptyTask } from "../../services/Tasks/tasks.schema";
 import LegalActRefs from "../LegalAct/LegalActRefs";
 import PageSizePicker, { type PageSizeValue } from "../UI/PageSizePicker";
 import NormingTemplatesTab from "./NormingTemplatesTab";
@@ -52,6 +59,9 @@ export default function NormingRequirementsPage() {
       purchasePlanId: read("purchasePlanId"),
       positionId: read("positionId"),
       purchaseNoteId: read("purchaseNoteId"),
+      // Конкретный ООЗ, связанный с СЗ: из СЗ переходим в его карточку,
+      // а не создаём новое пустое описание.
+      oozId: read("oozId"),
       ikz: read("ikz"),
       okpd2Code: read("okpd2Code"),
       okpd2Name: read("okpd2Name"),
@@ -72,6 +82,87 @@ export default function NormingRequirementsPage() {
       .join(" ");
     return fio || user?.email || "";
   }, [employee, user]);
+
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
+  const { data: tasks = [] } = useOrganizationTasks(organization?.id);
+  // Ответственный в КС — руководитель службы (первая строка ростера)
+  const reviewer = contractService
+    ? contractServiceRoster(contractService)[0]
+    : undefined;
+  const reviewerId = reviewer?.employeeId;
+
+  const today = (): string => new Date().toISOString().slice(0, 10);
+  const addDays = (date: string, days: number): string => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next.toISOString().slice(0, 10);
+  };
+
+  // Невозможность определить объём (ч. 24 ст. 22 44-ФЗ) делает объект предметом
+  // нормирования: по ч. 24 ст. 22 при таком способе обоснования НМЦК применяется
+  // ст. 19 44-ФЗ. После направления в КС / утверждения ставим системную задачу
+  // «пронормировать объект».
+  const maybeCreateNormingTask = (value: ObjectDescription) => {
+    if (!organization?.id) return;
+
+    const existingActive = tasks.filter(
+      (task) =>
+        value.id !== undefined &&
+        value.id !== null &&
+        value.id !== "" &&
+        String(task.objectDescriptionId ?? "") === String(value.id) &&
+        task.functionCode === "planning" &&
+        (task.status === "pending" || task.status === "in_progress"),
+    );
+
+    // ООЗ вернули на доработку: закрываем старую задачу — при повторной
+    // отправке появится новая.
+    if (value.status === "draft") {
+      for (const task of existingActive) {
+        if (task.id === undefined) continue;
+        updateTask.mutate({
+          id: task.id,
+          changes: {
+            status: "completed",
+            result: "ООЗ возвращён на доработку.",
+          },
+        });
+      }
+      return;
+    }
+
+    if (!value.isIndeterminateVolume) return;
+    // Пока статус ООЗ не менялся, задача должна быть одна.
+    if (existingActive.length > 0) return;
+    if (reviewerId === undefined || reviewerId === "") return;
+
+    createTask.mutate({
+      ...emptyTask(organization.id),
+      objectDescriptionId: value.id,
+      title: `Пронормировать объект закупки: ${
+        value.title || "объект закупки"
+      }`.slice(0, 150),
+      description: [
+        `В ООЗ указано «Невозможно определить объём» (ч. 24 ст. 22 44-ФЗ).`,
+        `По ч. 24 ст. 22 при таком способе обоснования НМЦК применяется нормирование (ст. 19 44-ФЗ, ПП РФ № 926 / № 1047).`,
+        value.purchaseNoteId !== undefined &&
+        value.purchaseNoteId !== null &&
+        value.purchaseNoteId !== ""
+          ? `Служебная записка: № ${value.purchaseNoteId}.`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
+      origin: "system",
+      functionCode: "planning",
+      assigneeId: reviewerId,
+      assigneeName: reviewer?.employeeFullName ?? "",
+      assignedByEmployeeId: employee?.id ?? "",
+      assignedByName: currentFio,
+      dueDate: addDays(today(), 5),
+    });
+  };
 
   const { data: allItems = [], isLoading } = useOrganizationObjectDescriptions(
     organization?.id,
@@ -192,27 +283,55 @@ export default function NormingRequirementsPage() {
     setEditingItem(fresh);
   };
 
-  // При переходе из СЗ/ПГ сразу открываем редактор с подставленным контекстом.
-  // Ключ контекста сравниваем во время рендера — без эффекта с setState.
+  // При переходе из СЗ/ПГ открываем карточку конкретного ООЗ, если он уже
+  // связан с запиской. Иначе — новый редактор с подставленным контекстом.
   const contextKey = contextParams.returnTo
     ? [
         contextParams.returnTo,
         contextParams.positionId,
         contextParams.purchaseNoteId,
+        contextParams.oozId,
         organization?.id ?? "",
       ].join("|")
     : "";
   const [appliedContextKey, setAppliedContextKey] = useState("");
-  if (contextKey && contextKey !== appliedContextKey) {
+  useEffect(() => {
+    if (!contextKey || contextKey === appliedContextKey) return;
+    // Ждём загрузку справочника: иначе связанный ООЗ ещё не найден и
+    // откроется пустая карточка.
+    if (isLoading) return;
+
     setAppliedContextKey(contextKey);
     setActiveTab("descriptions");
+
+    const linked = contextParams.oozId
+      ? allItems.find(
+          (item) =>
+            item.kind === "object_description" &&
+            String(item.id) === String(contextParams.oozId),
+        )
+      : undefined;
+    if (linked) {
+      setEditingItem(linked);
+      return;
+    }
+
     const fresh = emptyObjectDescription(
       organization?.id ?? null,
       "object_description",
     );
     fresh.authorName = currentFio;
     setEditingItem(applyContextToDescription(fresh));
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    contextKey,
+    appliedContextKey,
+    isLoading,
+    allItems,
+    contextParams.oozId,
+    organization?.id,
+    currentFio,
+  ]);
 
   const openDuplicate = (source: ObjectDescription) => {
     const clone: ObjectDescription = {
@@ -267,6 +386,7 @@ export default function NormingRequirementsPage() {
           onSuccess: (saved) => {
             setEditingItem(null);
             attachObjectDescription(saved);
+            maybeCreateNormingTask(saved);
             if (contextParams.returnTo)
               navigate(`${contextParams.returnTo}&oozId=${saved.id ?? ""}`);
           },
@@ -277,8 +397,34 @@ export default function NormingRequirementsPage() {
         onSuccess: (saved) => {
           setEditingItem(null);
           attachObjectDescription(saved);
+          maybeCreateNormingTask(saved);
         },
       });
+    }
+  };
+
+  /**
+   * Сохранить карточку как черновик без закрытия редактора. Нужно для
+   * «Добавить объект»: объект создаётся только после появления id у ООЗ.
+   */
+  const handlePersistDraft = async (
+    value: ObjectDescription,
+  ): Promise<ObjectDescription | undefined> => {
+    const normalized: ObjectDescription = {
+      ...value,
+      status: "draft",
+      organizationId: value.organizationId ?? organization?.id ?? null,
+    };
+    try {
+      if (normalized.id !== undefined && normalized.id !== "") {
+        return await updateMutation.mutateAsync({
+          ...normalized,
+          id: normalized.id,
+        });
+      }
+      return await createMutation.mutateAsync(normalized);
+    } catch {
+      return undefined;
     }
   };
 
@@ -324,7 +470,8 @@ export default function NormingRequirementsPage() {
             )}
             onClick={() => setActiveTab("descriptions")}
           >
-            Конструктор ООЗ ({allItems.filter((i) => i.kind === "object_description").length})
+            Конструктор ООЗ (
+            {allItems.filter((i) => i.kind === "object_description").length})
           </button>
           <button
             type="button"
@@ -352,6 +499,7 @@ export default function NormingRequirementsPage() {
           isHead={isHead}
           defaultApproverName={currentFio}
           isSaving={isSaving}
+          onPersistDraft={handlePersistDraft}
           onSave={handleSave}
           onCancel={() => setEditingItem(null)}
         />
@@ -428,7 +576,9 @@ export default function NormingRequirementsPage() {
           </div>
 
           {isLoading ? (
-            <p className={block("muted")}>Загрузка описаний объектов закупки…</p>
+            <p className={block("muted")}>
+              Загрузка описаний объектов закупки…
+            </p>
           ) : pagedDescriptions.length === 0 ? (
             <div className={block("empty-box")}>
               <p className={block("empty")}>
@@ -478,7 +628,9 @@ export default function NormingRequirementsPage() {
                             </span>
                           )}
                           {errorsCount > 0 ? (
-                            <span className={block("compliance-badge", ["error"])}>
+                            <span
+                              className={block("compliance-badge", ["error"])}
+                            >
                               Ошибок: {errorsCount}
                             </span>
                           ) : warningsCount > 0 ? (
@@ -493,7 +645,9 @@ export default function NormingRequirementsPage() {
                             </span>
                           )}
                           {order158nReport.failCount > 0 ? (
-                            <span className={block("compliance-badge", ["error"])}>
+                            <span
+                              className={block("compliance-badge", ["error"])}
+                            >
                               158н: нарушений {order158nReport.failCount}
                             </span>
                           ) : order158nReport.warningCount > 0 ? (
@@ -525,6 +679,16 @@ export default function NormingRequirementsPage() {
                       </div>
 
                       <div className={block("item-controls")}>
+                        {item.purchaseNoteId !== undefined &&
+                          item.purchaseNoteId !== null &&
+                          item.purchaseNoteId !== "" && (
+                            <Link
+                              className={block("secondary-btn")}
+                              to={`/purchase-notes/${item.purchaseNoteId}`}
+                            >
+                              Открыть СЗ
+                            </Link>
+                          )}
                         <button
                           type="button"
                           className={block("secondary-btn")}
@@ -641,8 +805,18 @@ export default function NormingRequirementsPage() {
       )}
 
       <footer className={block("footer")}>
-        <Link className={block("back-link")} to="/">
-          ← Назад на главную
+        <Link
+          className={block("back-link")}
+          to={
+            contextParams.returnTo ||
+            (contextParams.purchaseNoteId
+              ? `/purchase-notes/${contextParams.purchaseNoteId}`
+              : "/norming-requirements")
+          }
+        >
+          {contextParams.returnTo || contextParams.purchaseNoteId
+            ? "← Вернуться в СЗ"
+            : "← К списку ООЗ"}
         </Link>
         <Link className={block("back-link")} to="/procurement-processing">
           Перейти к обработке закупок →

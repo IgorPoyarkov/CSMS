@@ -76,6 +76,13 @@
       color: var(--accent);
     }
 
+    // Выбранная основа в переключателях превью (введённые значения / проект)
+    &--active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -125,6 +132,16 @@
       letter-spacing: 0.03em;
       color: var(--text-secondary);
     }
+
+    // Блок утверждён: контент заблокирован (pointer-events + затемнение),
+    // но легенда и панель действий остаются активными. В DOM порядок детей:
+    // legend (1) → section-actions (2) → контент (3+).
+    &--locked {
+      > *:nth-child(n+3) {
+        pointer-events: none;
+        opacity: 0.55;
+      }
+    }
   }
 
   &__grid {
@@ -137,6 +154,16 @@
     &--aligned {
       align-items: end;
     }
+
+    // Две равные колонки: поле с модификатором --half занимает ровно
+    // половину ширины сетки, а не произвольную долю auto-fit
+    &--two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+
+      @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+      }
+    }
   }
 
   &__field {
@@ -147,6 +174,16 @@
 
     &--wide {
       grid-column: 1 / -1;
+    }
+
+    // Поле на половину ширины сетки (НМЦК): в двухколоночной сетке это
+    // ровно одна колонка, на узких экранах — вся ширина
+    &--half {
+      grid-column: span 1;
+
+      @media (max-width: 640px) {
+        grid-column: 1 / -1;
+      }
     }
 
     // Поле, растягивающееся в строке (инициатор закупки)
@@ -215,6 +252,18 @@
 
     &--code {
       width: 110px;
+    }
+
+    // Размер аванса: компактное поле рядом с чекбоксом
+    &--advance {
+      flex: 0 0 auto;
+      width: 150px;
+    }
+
+    // Поле иного порядка оценки (п. 22 Положения): в строке показателя
+    // занимает отдельную строку grid — под селектами и кнопкой «Удалить»
+    &--full {
+      grid-column: 1 / -1;
     }
   }
 
@@ -513,6 +562,26 @@
     color: var(--text-secondary);
   }
 
+  // Строка «поле + единица измерения»: ширина задаётся ячейкой field
+  &__nmck-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+
+    input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
+
+  &__unit {
+    flex: 0 0 auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
   // Значение реквизита, пришедшего из ООЗ: показываем как текст, поля ввода нет
   &__field-value {
     display: block;
@@ -637,6 +706,68 @@
     gap: 8px;
   }
 
+  &__section-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 2px 0 12px;
+  }
+
+  &__section-review-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border: 1px solid var(--state-success);
+    border-radius: 999px;
+    background: var(--state-success-soft);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--state-success);
+
+    &--revision {
+      border-color: var(--state-warning);
+      background: var(--state-warning-soft);
+      color: var(--state-warning);
+    }
+  }
+
+  &__mini-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  &__mini-modal {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    overflow: auto;
+    padding: 20px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface-panel);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  }
+
+  &__mini-modal-title {
+    margin: 0 0 8px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  &__mini-modal-list {
+    margin: 8px 0 16px;
+    padding-left: 20px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--state-danger);
+  }
+
   &__status-row {
     display: flex;
     flex-wrap: wrap;
@@ -711,34 +842,48 @@
     background: var(--surface-raised);
   }
 
+  // Обёртка таблицы КБК без собственной прокрутки: горизонтальный скролл
+  // внутри блока мешал видеть подписи годов и итог одновременно
+  &__kbk-table-wrap {
+    width: 100%;
+    min-width: 0;
+  }
+
   &__kbk-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 12px;
 
     th,
     td {
-      padding: 6px 8px;
+      padding: 6px;
       border-bottom: 1px solid var(--border);
       text-align: left;
+      vertical-align: top;
     }
 
+    // Подписи годов длинные — переносим их, чтобы колонки делили ширину
+    // блока, а не выталкивали таблицу в горизонтальную прокрутку
     th {
       color: var(--text-secondary);
       font-weight: 600;
       background: var(--stripe);
+      white-space: normal;
+      overflow-wrap: anywhere;
+      vertical-align: bottom;
     }
 
     td:not(:first-child),
     th:not(:first-child) {
       text-align: right;
-      white-space: nowrap;
     }
   }
 
   &__mono {
     font-family: "Courier New", monospace;
     font-size: 12px;
+    overflow-wrap: anywhere;
   }
 
   &__kbk-summary {
@@ -755,9 +900,14 @@
     flex-direction: column;
     gap: 4px;
     align-items: stretch;
-    min-width: 130px;
+    min-width: 0;
+    // Подпись лимита переносится: иначе ошибка валидации вытягивает таблицу
+    // в одну строку и ломает вёрстку раздела
+    white-space: normal;
 
     input {
+      width: 100%;
+      min-width: 0;
       text-align: right;
     }
 
@@ -765,6 +915,82 @@
       input {
         border-color: var(--state-danger);
       }
+    }
+  }
+
+  // Подпись лимита ПГ под полем КБК: постоянная высота, чтобы появление
+  // текста не сдвигало инпуты в соседних ячейках
+  &__kbk-hint {
+    display: block;
+    min-height: 15px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--text-secondary);
+
+    &--over {
+      color: var(--state-danger);
+    }
+  }
+
+  // Практика прошлых лет: расчёт фактического привлечения СМП по
+  // сопоставимым контрактам заказчика
+  &__practice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    strong {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+  }
+
+  &__practice-year {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+
+    select {
+      min-width: 90px;
+    }
+  }
+
+  // Рекомендации по ст. 30: справочный блок, не блокирует сохранение
+  &__recommendations {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    strong {
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li + li {
+      margin-top: 4px;
     }
   }
 
@@ -788,6 +1014,27 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+
+  // Аванс: компактный чекбокс и поле процента в одной строке
+  &__advance-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  // Длинные значения (уровень бюджета) — текстом, с переносом строк
+  &__readonly-value {
+    padding: 7px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-primary);
+    background: var(--stripe);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   // Блок критериев оценки заявок рядом со способом закупки
@@ -897,28 +1144,156 @@
     color: var(--text-primary);
   }
 
-  // Подписанная НМЦК: блок отделён от загрузки файла, чтобы подпись не
-  // смешивалась с ручным приложением обоснования
-  &__signature-box {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  // Превью обоснования НМЦК: PDF во встроенной рамке со скроллом.
+  // Нативный <details>: свёрнуто по умолчанию и работает в режиме чтения.
+  &__nmck-preview {
     padding: 12px;
-    border: 1px dashed var(--accent);
+    border: 1px solid var(--border);
     border-radius: 8px;
     background: var(--surface-panel);
+
+    > summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::before {
+        content: "▸";
+        font-size: 11px;
+        color: var(--text-secondary);
+        transition: transform 0.15s ease;
+      }
+    }
+
+    &[open] > summary::before {
+      transform: rotate(90deg);
+    }
+
+    > * + * {
+      margin-top: 8px;
+    }
   }
 
-  &__signature-meta {
+  &__nmck-preview-frame {
+    width: 100%;
+    height: 520px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-field);
+  }
+
+  // Превью проекта контракта: свёрнуто по умолчанию, внутри — текст документа.
+  // Используется нативный <details>, поэтому работает и в режиме чтения.
+  &__contract-preview {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-panel);
+
+    > summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &::before {
+        content: "▸";
+        font-size: 11px;
+        color: var(--text-secondary);
+        transition: transform 0.15s ease;
+      }
+    }
+
+    &[open] > summary::before {
+      transform: rotate(90deg);
+    }
+  }
+
+  &__contract-preview-body {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--text-primary);
+    gap: 10px;
+    padding: 0 12px 12px;
+  }
 
-    strong {
-      color: var(--text-secondary);
-      font-weight: 600;
+  &__contract-preview-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__contract-preview-modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  &__contract-preview-doc {
+    max-height: 520px;
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-field);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+
+  &__contract-preview-source {
+    margin: 0 0 8px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  &__contract-preview-title {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: pre-line;
+  }
+
+  &__contract-preview-text {
+    margin: 0 0 10px;
+    white-space: pre-line;
+  }
+
+  &__contract-preview-section {
+    margin: 0 0 10px;
+
+    h5 {
+      margin: 0 0 4px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__contract-preview-signature {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+
+    p {
+      margin: 0;
     }
   }
 
@@ -1060,6 +1435,17 @@
       background: var(--state-danger-soft);
       color: var(--state-danger);
     }
+  }
+
+  &__nmck-status-badge {
+    display: inline-block;
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 5px;
+    border: 1px solid var(--state-warning);
+    background: var(--state-warning-soft);
+    color: var(--state-warning);
   }
 
   &__nmck-kpis {
@@ -1213,6 +1599,65 @@
     font-weight: 400;
     opacity: 0.8;
   }
+  // Замечания по нормам размеров обеспечений (ч. 1 ст. 44, ст. 96, ч. 7 ст. 34)
+  &__security-norms {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__security-norm {
+    padding: 8px 10px;
+    border: 1px solid var(--state-warning);
+    border-radius: 6px;
+    background: var(--state-warning-soft);
+    color: var(--state-warning);
+    font-size: 12px;
+    line-height: 1.45;
+
+    // Нарушение нормы: заявка и гарантия всегда, исполнение — кроме аванса
+    // свыше 30 % НМЦК (ч. 6 ст. 96). Красный = «Утвердить» заблокировано.
+    &--error {
+      border-color: var(--state-danger);
+      background: var(--state-danger-soft);
+      color: var(--state-danger);
+    }
+  }
+
+  &__security-norm-level {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  &__security-norm-ref {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.8;
+  }
+
+
+
+  // Рекомендация системы при свёрнутом списке позиций приложения
+  &__pp2571-recommendation {
+    margin: 0;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-primary);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface-raised);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
 
   &__pp2571-toolbar {
     display: flex;
@@ -1229,6 +1674,33 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  // Строка позиции приложения: обычная и рекомендованная системой
+  &__pp2571-option {
+    align-items: flex-start;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-raised);
+  }
+
+  &__pp2571-option--recommended {
+    border-color: var(--accent);
+    background: var(--surface-panel);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  &__pp2571-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--on-accent, #fff);
+    white-space: nowrap;
+    background: var(--accent);
+    border-radius: 999px;
   }
 
   &__pp2571-meta {

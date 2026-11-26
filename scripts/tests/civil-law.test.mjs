@@ -11,6 +11,7 @@ import {
   loadCivilSnapshot,
   normalizeDeclaredKind,
   okpd2Signal,
+  resolveOkpd2Kinds,
   validateAgainstSnapshot,
 } from "../lib/civil-law.mjs";
 
@@ -20,7 +21,10 @@ test("снимок ГК и матрица ст. 34 самодостаточны"
   assert.ok(articleText(snapshot, "gk2:702"));
   assert.ok(articleText(snapshot, "fz44:34"));
   const fake = classifyProcurement({ subject: "Ремонт дороги" });
-  assert.deepEqual(validateAgainstSnapshot(fake, snapshot), { ok: true, missing: [] });
+  assert.deepEqual(validateAgainstSnapshot(fake, snapshot), {
+    ok: true,
+    missing: [],
+  });
   for (const institute of Object.values(CIVIL_INSTITUTES)) {
     for (const reference of institute.articles) {
       assert.ok(articleText(snapshot, reference), `нет текста ${reference}`);
@@ -56,8 +60,71 @@ test("ОКПД2 — косвенный сигнал: без предмета о�
     okpd2Codes: ["42.11"],
   });
   assert.equal(result.mismatch.detected, false);
-  assert.ok(result.institutes.some((item) => item.id === "works-contract-state"));
+  assert.ok(
+    result.institutes.some((item) => item.id === "works-contract-state"),
+  );
   assert.ok(result.institutes.some((item) => item.id === "works-construction"));
+});
+
+test("Вид объекта: спорные разделы определяются по первому слову наименования", () => {
+  // Раздел 71: по коду неоднозначен, по наименованию — услуга или работа
+  assert.deepEqual(okpd2Signal("71.11"), {
+    kind: "ambiguous",
+    confidence: 0.3,
+  });
+  assert.deepEqual(okpd2Signal("71.11", "Услуги в области архитектуры"), {
+    kind: "services",
+    confidence: 0.5,
+  });
+  assert.deepEqual(
+    okpd2Signal("71.11.1", "Работы графические для архитектурных целей"),
+    { kind: "works", confidence: 0.5 },
+  );
+
+  // Разделы, которых нет в таблице кодов: 49–56 (транспорт, проживание,
+  // питание), 84 (госуправление), 97–99
+  assert.equal(okpd2Signal("49.10").kind, "unknown");
+  assert.equal(
+    okpd2Signal("49.10", "Услуги железнодорожного транспорта").kind,
+    "services",
+  );
+  assert.equal(
+    okpd2Signal("84.11", "Услуги государственного управления").kind,
+    "services",
+  );
+  assert.equal(okpd2Signal("98.10", "Продукция различная").kind, "goods");
+  assert.equal(okpd2Signal("98.20", "Услуги различные").kind, "services");
+
+  // Однозначный раздел кода сильнее наименования
+  assert.equal(okpd2Signal("26.20.1", "Услуги по ремонту").kind, "goods");
+  assert.equal(okpd2Signal("41.20", "Работы по ремонту").kind, "works");
+});
+
+test("Вид объекта: позиция без родителей наследует вид соседей по группе", () => {
+  const kinds = resolveOkpd2Kinds([
+    {
+      code: "52.23.19",
+      name: "Услуги вспомогательные прочие, связанные с воздушным транспортом",
+    },
+    { code: "52.23.19.110", name: "Работы водолазные по обслуживанию судов" },
+    { code: "52.23.19.111", name: "Работы авиационные" },
+    // Ни раздела кода, ни первого слова недостаточно: решают соседи
+    { code: "52.23.19.112", name: "Съемки воздушные" },
+  ]);
+
+  assert.equal(kinds.get("52.23.19.112").kind, "works");
+  assert.equal(kinds.get("52.23.19.112").confidence, 0.4);
+  // Родительская позиция определена по первому слову, соседей у неё нет
+  assert.equal(kinds.get("52.23.19").kind, "services");
+
+  // Ничья между соседями оставляет позицию неопределённой. Раздел 84 не
+  // описан таблицей кодов, поэтому вид соседей задают их наименования
+  const tie = resolveOkpd2Kinds([
+    { code: "84.11.10.110", name: "Продукция прочая" },
+    { code: "84.11.10.111", name: "Работы прочие" },
+    { code: "84.11.10.112", name: "Съемки воздушные" },
+  ]);
+  assert.equal(tie.get("84.11.10.112").kind, "unknown");
 });
 
 test("Первая отсечка: вид предмета из формы против ОКПД2 не меняет вердикт по ГК", () => {
@@ -121,8 +188,12 @@ test("Поставка материалов в ходе работ не пере
   assert.equal(result.mismatch.detected, false);
   assert.ok(result.exceptions.includes("embeddedSupply"));
   assert.equal(result.effectiveKind, "works");
-  assert.ok(result.institutes.some((item) => item.id === "works-contract-state"));
-  assert.ok(result.institutes.some((item) => item.id === "goods-purchase-sale"));
+  assert.ok(
+    result.institutes.some((item) => item.id === "works-contract-state"),
+  );
+  assert.ok(
+    result.institutes.some((item) => item.id === "goods-purchase-sale"),
+  );
 });
 
 test("«Услуги по ремонту» получает предупреждение о возможном подряде", () => {

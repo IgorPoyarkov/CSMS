@@ -3,13 +3,17 @@ import {
   useNoticeFieldLock,
   useNoticeFormContext,
 } from "../noticeFieldLockHooks";
-import { ExternalLink, FileText } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileText, Lock } from "lucide-react";
 import useMyContractRole from "../../../hooks/useMyContractRole";
 import useUtils from "../../../hooks/useUtils";
 import { useOrganizationObjectDescriptions } from "../../../services/ObjectDescription/objectDescription.api";
 import {
+  characteristicCategoryLabels,
+  formatCharacteristicValue,
   getObjectDescriptionOkpd2Codes,
+  standardTypeLabels,
   toNoticeObjectDescriptionFields,
+  trademarkRuleLabels,
 } from "../../../services/ObjectDescription/objectDescription.schema";
 import type { NoticeInfoFormValues } from "../../../services/Procurements/noticeInfo.schema";
 import {
@@ -103,6 +107,19 @@ const ObjectDescriptionSection = () => {
     (item) => item.kind === "object_description",
   );
 
+  // Полный ООЗ, из которого предзаполнено извещение: нужен для read-only
+  // просмотра характеристик, стандартов и реквизитов утверждения.
+  const objectDescriptionId = watch("objectDescriptionId");
+  const selectedOoz = savedDescriptions.find(
+    (item) =>
+      item.kind === "object_description" &&
+      objectDescriptionId !== undefined &&
+      objectDescriptionId !== null &&
+      objectDescriptionId !== "" &&
+      String(item.id) === String(objectDescriptionId),
+  );
+  const oozApproved = selectedOoz?.status === "approved";
+
   if (!objectDescription) {
     return null;
   }
@@ -165,6 +182,11 @@ const ObjectDescriptionSection = () => {
     <section className={block("section")}>
       <h2 className={block("section-title")}>
         Описание объекта закупки (ст. 33 44-ФЗ, ПП РФ N 145)
+        {oozApproved && (
+          <span className={block("badge", ["approved"])}>
+            <CheckCircle2 size={12} aria-hidden="true" /> Утверждено
+          </span>
+        )}
       </h2>
       <p className={block("hint")}>
         Структурированное описание в соответствии с Постановлением Правительства
@@ -181,7 +203,7 @@ const ObjectDescriptionSection = () => {
         </Link>
       </div>
 
-      {templates.length > 0 && (
+      {templates.length > 0 && !descriptionLocked && (
         <div className={block("field-col", ["full"])}>
           <label className={block("label")} htmlFor="ooz-preset-select">
             Подставить из конструктора ООЗ
@@ -203,6 +225,14 @@ const ObjectDescriptionSection = () => {
             ))}
           </Select>
         </div>
+      )}
+
+      {descriptionLocked && (
+        <p className={block("locked-note")}>
+          <Lock size={12} aria-hidden="true" /> Описание объекта закупки
+          утверждено в конструкторе ООЗ. Поля доступны только для просмотра:
+          изменить их можно на странице «Нормирование и ООЗ».
+        </p>
       )}
 
       <div className={block("grid")}>
@@ -290,10 +320,10 @@ const ObjectDescriptionSection = () => {
             Коды ОКПД2 объекта закупки ({allOkpd2.length})
           </h3>
           <p className={block("preview-text")}>
-            Коды пришли из связанного ООЗ. Формат ЕИС 17.0 допускает только
-            один код ОКПД2 на позицию, поэтому каждый код выведен отдельной
-            позицией в разделе «Объекты закупки». Проверьте количество и
-            стоимость добавленных позиций перед сохранением.
+            Коды пришли из связанного ООЗ. Формат ЕИС 17.0 допускает только один
+            код ОКПД2 на позицию, поэтому каждый код выведен отдельной позицией
+            в разделе «Объекты закупки». Проверьте количество и стоимость
+            добавленных позиций перед сохранением.
           </p>
           <ul className={block("preview-text")}>
             {allOkpd2.map((item) => (
@@ -303,6 +333,129 @@ const ObjectDescriptionSection = () => {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {selectedOoz && (
+        <div className={block("preview")}>
+          <h3 className={block("preview-title")}>
+            <FileText size={14} aria-hidden="true" /> Полное описание из
+            конструктора ООЗ (только просмотр)
+          </h3>
+          <dl className={block("details")}>
+            <div className={block("details-row")}>
+              <dt className={block("details-term")}>Наименование</dt>
+              <dd className={block("details-value")}>{selectedOoz.title}</dd>
+            </div>
+            <div className={block("details-row")}>
+              <dt className={block("details-term")}>ОКПД2</dt>
+              <dd className={block("details-value")}>
+                {getObjectDescriptionOkpd2Codes(selectedOoz)
+                  .map((item) => item.code)
+                  .join(", ")}
+              </dd>
+            </div>
+            {selectedOoz.useKtru && selectedOoz.ktruCode && (
+              <div className={block("details-row")}>
+                <dt className={block("details-term")}>Позиция КТРУ</dt>
+                <dd className={block("details-value")}>
+                  {selectedOoz.ktruCode}
+                </dd>
+              </div>
+            )}
+            <div className={block("details-row")}>
+              <dt className={block("details-term")}>Товарный знак</dt>
+              <dd className={block("details-value")}>
+                {trademarkRuleLabels[selectedOoz.trademarkRule]}
+                {selectedOoz.trademarkName
+                  ? ` — ${selectedOoz.trademarkName}`
+                  : ""}
+              </dd>
+            </div>
+            {(selectedOoz.warrantyTermMonths ||
+              selectedOoz.warrantyRequirements) && (
+              <div className={block("details-row")}>
+                <dt className={block("details-term")}>Гарантия</dt>
+                <dd className={block("details-value")}>
+                  {selectedOoz.warrantyTermMonths
+                    ? `${selectedOoz.warrantyTermMonths} мес.`
+                    : ""}
+                  {selectedOoz.warrantyRequirements
+                    ? `${selectedOoz.warrantyTermMonths ? " — " : ""}${selectedOoz.warrantyRequirements}`
+                    : ""}
+                </dd>
+              </div>
+            )}
+            {oozApproved && (
+              <div className={block("details-row")}>
+                <dt className={block("details-term")}>Утверждено</dt>
+                <dd className={block("details-value")}>
+                  {selectedOoz.approvedByName || "—"}
+                  {selectedOoz.approvedDate
+                    ? ` · ${selectedOoz.approvedDate}`
+                    : ""}
+                </dd>
+              </div>
+            )}
+          </dl>
+
+          {selectedOoz.characteristics.length > 0 && (
+            <div className={block("chars")}>
+              <h4 className={block("chars-title")}>
+                Характеристики объекта ({selectedOoz.characteristics.length})
+              </h4>
+              <ul className={block("chars-list")}>
+                {selectedOoz.characteristics.map((characteristic) => (
+                  <li key={characteristic.id} className={block("chars-item")}>
+                    <span className={block("chars-category")}>
+                      {characteristicCategoryLabels[characteristic.category]}
+                    </span>
+                    <span className={block("chars-name")}>
+                      {characteristic.name}
+                    </span>
+                    <span className={block("chars-value")}>
+                      {formatCharacteristicValue(characteristic)}
+                    </span>
+                    {characteristic.isMandatoryFromKtru && (
+                      <span className={block("chars-tag")}>обяз. КТРУ</span>
+                    )}
+                    {characteristic.isAdditionalOverKtru && (
+                      <span className={block("chars-tag")}>сверх КТРУ</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {selectedOoz.standards.length > 0 && (
+            <div className={block("chars")}>
+              <h4 className={block("chars-title")}>
+                Стандарты и техрегламенты ({selectedOoz.standards.length})
+              </h4>
+              <ul className={block("chars-list")}>
+                {selectedOoz.standards.map((standard) => (
+                  <li key={standard.id} className={block("chars-item")}>
+                    <span className={block("chars-category")}>
+                      {standardTypeLabels[standard.standardType]}
+                    </span>
+                    <span className={block("chars-name")}>{standard.code}</span>
+                    <span className={block("chars-value")}>
+                      {standard.title || ""}
+                      {standard.hasDeviation ? " · отклонение обосновано" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className={eis("inline-group")}>
+            <Link to="/norming-requirements" className={eis("link-btn")}>
+              Открыть ООЗ в конструкторе
+              <ExternalLink size={12} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       )}
 

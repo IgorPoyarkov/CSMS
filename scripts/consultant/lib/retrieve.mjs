@@ -237,13 +237,14 @@ export function retrieve(index, question, cfg, options = {}) {
 
   const exactFragments = exact.map((item) => {
     const type =
-      { include: "разрешён", exclude: "запрещён", conditional: "условие" }[
+      { include: "разрешён", exclude: "запрещён", conditional: "условный" }[
         item.rule.type
       ] ?? item.rule.type;
+    const externalUrl = "http://publication.pravo.gov.ru/document/0001202412250018";
     return {
-      title: `ПП РФ № 1875 — точное правило для ${item.code}`,
-      ref: "национальный режим",
-      url: "http://publication.pravo.gov.ru/document/0001202412250018",
+      title: `ПП РФ № 1875 - точное правило для ${item.code}`,
+      ref: "Позиционный раздел",
+      url: externalUrl,
       text: [
         `Код ОКПД2 ${item.code}: ${type}.`,
         item.rule.condition ? `Условие: ${item.rule.condition}` : "",
@@ -253,6 +254,7 @@ export function retrieve(index, question, cfg, options = {}) {
         .join("\n"),
       score: 1,
       source: "pp1875-exact",
+      meta: { externalUrl },
     };
   });
 

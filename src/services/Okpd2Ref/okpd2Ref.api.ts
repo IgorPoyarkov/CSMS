@@ -12,7 +12,7 @@ import {
   resolveIndexedNpaRule,
   setNpaDirectRules,
 } from "../Npa/npaControl";
-import { okpd2Signal } from "../../../scripts/lib/civil-law-core.mjs";
+import { resolveOkpd2Kinds } from "../../../scripts/lib/civil-law-core.mjs";
 import { Okpd2RefListSchema, type Okpd2Ref } from "./okpd2Ref.schema";
 
 export type { Okpd2Ref };
@@ -30,7 +30,11 @@ export type { Okpd2Ref };
 const SNAPSHOT_DATASET = "nsiOKPD2";
 
 const normalizeCode = (code: string): string =>
-  code.trim().replace(/,/g, ".").replace(/\s/g, "").replace(/^\.+|\.+$/g, "");
+  code
+    .trim()
+    .replace(/,/g, ".")
+    .replace(/\s/g, "")
+    .replace(/^\.+|\.+$/g, "");
 
 const fetchSnapshot = async (signal?: AbortSignal): Promise<Okpd2Ref[]> => {
   const { data } = await npaApi.get<unknown>(
@@ -40,14 +44,18 @@ const fetchSnapshot = async (signal?: AbortSignal): Promise<Okpd2Ref[]> => {
 
   // Не отбрасываем буквенные разделы A–U: это тоже строки официального снимка,
   // и всего их 21 066 — ровно столько, сколько отдаёт API.
-  return readReferenceItems(data)
-    .filter((item) => item.code.trim().length > 0)
-    .map((item) => ({
-      code: item.code,
-      name: item.name,
-      isNormed: false,
-      objectKind: okpd2Signal(item.code).kind,
-    }));
+  const rows = readReferenceItems(data).filter(
+    (item) => item.code.trim().length > 0,
+  );
+  // Вид объекта считается по всему дереву сразу: раздел кода → первое слово
+  // наименования → соседние позиции группы (например, 52.23.19.112)
+  const kinds = resolveOkpd2Kinds(rows);
+  return rows.map((item) => ({
+    code: item.code,
+    name: item.name,
+    isNormed: false,
+    objectKind: kinds.get(item.code.trim())?.kind ?? "unknown",
+  }));
 };
 
 /** Признаки нормирования и нацрежима пока живут только в локальной выборке. */
@@ -71,11 +79,12 @@ export const useOkpd2Dictionary = () =>
         fetchSnapshot(signal),
         fetchLocalFlags(signal),
         Promise.all(
-          Object.values(NPA_DOCUMENT_CODES).map(async (documentCode) =>
-            [
-              documentCode,
-              await fetchNpaDirectRules(documentCode, signal),
-            ] as const,
+          Object.values(NPA_DOCUMENT_CODES).map(
+            async (documentCode) =>
+              [
+                documentCode,
+                await fetchNpaDirectRules(documentCode, signal),
+              ] as const,
           ),
         ).then(
           (entries) => Object.fromEntries(entries),
@@ -112,7 +121,9 @@ export const useOkpd2Dictionary = () =>
 
         // needs_review и conditional не меняют флаг: человек ещё не подтвердил
         // конкретную запись, поэтому остаётся локальное значение (если есть).
-        return flag.isNormed === null ? item : { ...item, isNormed: flag.isNormed };
+        return flag.isNormed === null
+          ? item
+          : { ...item, isNormed: flag.isNormed };
       };
 
       const localByCode = new Map(
@@ -120,13 +131,17 @@ export const useOkpd2Dictionary = () =>
       );
       const merged = official.map<Okpd2Ref>((item) => {
         const overlay = localByCode.get(normalizeCode(item.code));
-        // Вид объекта пересчитываем из официального кода: локальный оверлей
-        // хранит только признаки нормирования и нацрежима.
-        const objectKind = okpd2Signal(item.code).kind;
+        // Вид объекта уже посчитан по всему дереву ОКПД2 в fetchSnapshot:
+        // локальный оверлей хранит только признаки нормирования и нацрежима.
         return withNormingFlag(
           overlay
-            ? { ...overlay, code: item.code, name: item.name, objectKind }
-            : { ...item, objectKind },
+            ? {
+                ...overlay,
+                code: item.code,
+                name: item.name,
+                objectKind: item.objectKind,
+              }
+            : item,
         );
       });
 

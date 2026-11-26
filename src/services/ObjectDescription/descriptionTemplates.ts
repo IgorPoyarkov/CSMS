@@ -34,7 +34,7 @@ export const isGoodsObjectDescription = (
     return description.productType.startsWith("PRODUCT");
   }
 
-  const signal = okpd2Signal(description.okpd2Code).kind;
+  const signal = okpd2Signal(description.okpd2Code, description.title).kind;
   if (signal === "goods" || signal === "unknown" || signal === "ambiguous") {
     return true;
   }
@@ -65,6 +65,9 @@ export const ktruToObjectCharacteristics = (
     isMandatoryFromKtru: characteristic.isMandatory,
     isAdditionalOverKtru: false,
     additionalJustification: "",
+    // Единица из КТРУ не менялась, обоснование не требуется.
+    unitManuallyChanged: false,
+    unitChangeJustification: "",
     // Текст инструкции и код берём из ЕИС: локальную формулировку не изобретаем.
     instructionForParticipant: characteristic.instruction ?? "",
     instructionSourceCode:
@@ -109,8 +112,16 @@ export const mergeKtruCharacteristics = (
         existing.instructionForParticipant,
       instructionSourceCode:
         characteristic.instructionSourceCode || existing.instructionSourceCode,
-      isMandatoryFromKtru: true,
+      isMandatoryFromKtru: characteristic.isMandatoryFromKtru,
       isAdditionalOverKtru: false,
+      // Ручную единицу и её обоснование при повторной подстановке КТРУ
+      // сохраняем: пользователь уже принял решение и его нельзя терять.
+      unitManuallyChanged: characteristic.unit
+        ? false
+        : existing.unitManuallyChanged,
+      unitChangeJustification: characteristic.unit
+        ? ""
+        : existing.unitChangeJustification,
     };
   }
 

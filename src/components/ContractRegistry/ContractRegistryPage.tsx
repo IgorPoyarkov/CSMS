@@ -18,6 +18,7 @@ import {
 import {
   prefetchContract,
   useContractRegistryRows,
+  useContractRegistrySummary,
   useDeleteContract,
 } from "../../services/ContractRegistry/contractRegistry.api";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
@@ -54,6 +55,8 @@ interface ContractFolder {
   title: string;
   contracts: ContractRegistryItem[];
   total: number;
+  /** Точное число контрактов года (из БД), а не размер загруженной порции. */
+  count: number;
 }
 
 /** Корешок «Весь реестр»: прежний общий список остаётся доступен. */
@@ -102,6 +105,13 @@ const contractsLabel = (count: number): string => {
       return `${count} контрактов`;
   }
 };
+
+/**
+ * Сегодняшняя дата в формате поля `type="date"`. Верхняя граница периода
+ * заключения по умолчанию — текущая дата: реестр не показывает будущие
+ * контракты, пока пользователь сам не расширит период.
+ */
+const todayIsoDate = (): string => new Date().toISOString().slice(0, 10);
 
 /**
  * Группа реестра по виду способа закупки. Способ берётся из извещения,
@@ -228,11 +238,14 @@ function SortableTh({ label, sortKey, sort, onSort }: SortableThProps) {
 export default function ContractRegistryPage() {
   const { data: organization } = useCurrentOrganization();
   const orgId = organization?.id;
-  // Поиск по реестровому номеру, номеру контракта, подрядчику и его ИНН: по
-  // этим полям ищут конкретную запись, а не листают папки по годам. Запрос
-  // уходит на сервер, поэтому читаем устоявшееся значение, а не каждый символ
+  // Два поиска с разным назначением: реестровый номер ЕИС (он же номер
+  // извещения/закупки, ИКЗ, подрядчик и предмет) и отдельно номер контракта —
+  // его вводят из карточки, когда реестровый номер неизвестен. Оба запроса
+  // уходят на сервер, поэтому читаем устоявшееся значение, а не каждый символ
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
+  const [contractNumberQuery, setContractNumberQuery] = useState("");
+  const debouncedContractNumber = useDebouncedValue(contractNumberQuery, 250);
   // Даты форматируются внутри строки (`ContractRow`), а не в странице: иначе
   // функция передавалась бы пропсом и ломала мемоизацию строк
 
@@ -248,7 +261,7 @@ export default function ContractRegistryPage() {
     loadMore,
     loadAll,
     loadUntil,
-  } = useContractRegistryRows(orgId, debouncedQuery);
+  } = useContractRegistryRows(orgId, debouncedQuery, debouncedContractNumber);
   const { mutate: deleteContract } = useDeleteContract();
 
   // Исполнение для строк списка: бейдж СМП и полосы оплаты/приёмки видны без
@@ -355,13 +368,38 @@ export default function ContractRegistryPage() {
   const kbkInputRef = useRef<HTMLInputElement | null>(null);
   const kbkDropdownRef = useRef<HTMLDivElement | null>(null);
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  // Верхняя граница периода по умолчанию — сегодня: будущие контракты в
+  // реестре не показываются, пока пользователь не сдвинет дату сам
+  const todayIso = useMemo(() => todayIsoDate(), []);
+  const [dateTo, setDateTo] = useState(todayIsoDate);
   // Поставщик выбирается кликом по его названию в строке контракта
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
   // Наличие аванса: в реестре есть и контракты без аванса, и с частичной
   // предоплатой — фильтр отделяет одни от других
-  const [advanceFilter, setAdvanceFilter] = useState<"all" | "with" | "without">(
-    "all",
+  const [advanceFilter, setAdvanceFilter] = useState<
+    "all" | "with" | "without"
+  >("all");
+
+  // Итоги реестра считает БД: порция в 25 строк не отражает весь реестр.
+  // Серверные фильтры (статус, даты, поставщик, аванс) уходят в агрегат;
+  // КБК и группа по способу закупки остаются клиентскими — тогда итоги
+  // считаются по загруженным строкам, как раньше.
+  const summaryApplies =
+    group === "all" &&
+    selectedKbks.length === 0 &&
+    !debouncedQuery.trim() &&
+    !debouncedContractNumber.trim();
+  const { data: contractsSummary } = useContractRegistrySummary(
+    orgId,
+    {
+      status: statusFilter,
+      dateFrom,
+      dateTo,
+      supplierName: supplierFilter ?? undefined,
+      advance: advanceFilter,
+      years: 11,
+    },
+    summaryApplies,
   );
 
   // Масштаб «Все» — явная просьба показать весь реестр, поэтому догружаем его
@@ -417,18 +455,40 @@ export default function ContractRegistryPage() {
       });
     }
 
-    // ─── Поиск: реестровый номер, номер контракта, подрядчик, ИНН ──────────
-    // «ё» и регистр не различаем: номер вводят и копированием, и руками. Номер
-    // контракта («17АН_26») есть только в карточке ЕИС, поэтому он берётся из
-    // индекса исполнения — без него поиск по номеру находил пустой список
+    // ─── Номер контракта: отдельное поле поиска ────────────────────────────
+    // Сервер уже отбирает по вынесенной колонке `contractNumber`, но часть
+    // номеров («17АН_26») хранится только в карточке ЕИС — поэтому сверяем и
+    // с индексом исполнения, иначе строка выпадала бы из выдачи
+    const numberNeedle = debouncedContractNumber
+      .trim()
+      .toLowerCase()
+      .replace(/ё/g, "е");
+    if (numberNeedle) {
+      result = result.filter((c) => {
+        const cardNumber =
+          executionIndex.byContract.get(String(c.id ?? ""))?.contractNumber ??
+          "";
+        return [c.contractNumber, cardNumber]
+          .join(" ")
+          .toLowerCase()
+          .replace(/ё/g, "е")
+          .includes(numberNeedle);
+      });
+    }
+
+    // ─── Поиск: реестровый номер, ИКЗ, подрядчик, ИНН, предмет ─────────────
+    // «ё» и регистр не различаем: номер вводят и копированием, и руками. ИКЗ
+    // и предмет контракта добавлены, чтобы находить закупку без её номера
     const needle = debouncedQuery.trim().toLowerCase().replace(/ё/g, "е");
     if (needle) {
       result = result.filter((c) => {
         const cardNumber =
-          executionIndex.byContract.get(String(c.id ?? ""))?.contractNumber ?? "";
+          executionIndex.byContract.get(String(c.id ?? ""))?.contractNumber ??
+          "";
         return [
           c.contractNumber,
           c.eisRegistryNumber,
+          c.ikz,
           cardNumber,
           c.supplierName,
           c.supplierInn,
@@ -459,6 +519,7 @@ export default function ContractRegistryPage() {
     dateTo,
     supplierFilter,
     debouncedQuery,
+    debouncedContractNumber,
     advanceFilter,
     // Поставщик может подставляться из карточки, поэтому фильтр зависит и от
     // индекса исполнения: без него клик по поставщику из ЕИС давал пусто
@@ -598,9 +659,45 @@ export default function ContractRegistryPage() {
   }, [filteredContracts, kbkByContract, selectedKbks, tableSort]);
 
   // ─── Папки по годам заключения ────────────────────────────────────────────
-  // Раскладка идёт после фильтров и сортировки: внутри папки сохраняется
-  // выбранный порядок граф, а суммы и счётчики считаются по её контрактам.
+  // Когда активны только серверные фильтры, размеры и суммы папок берём из
+  // агрегата БД: по загруженной порции они были бы занижены. Если выбран КБК
+  // или группа по способу закупки (клиентские фильтры), считаем как раньше —
+  // по загруженным строкам.
   const contractFolders = useMemo<ContractFolder[]>(() => {
+    if (summaryApplies && contractsSummary) {
+      const folders: ContractFolder[] = contractsSummary.years.map((row) => ({
+        year: String(row.year),
+        title: folderTitle(String(row.year)),
+        contracts: [],
+        total: row.amount,
+        count: row.count,
+      }));
+
+      // Записи без даты в серверный агрегат не входят — добавляем их, только
+      // если они есть среди загруженных строк
+      const noDate = visibleContracts.filter(
+        (contract) => contractFolderYear(contract) === FOLDER_NO_YEAR,
+      );
+      if (noDate.length > 0) {
+        folders.push({
+          year: FOLDER_NO_YEAR,
+          title: folderTitle(FOLDER_NO_YEAR),
+          contracts: noDate,
+          total: noDate.reduce(
+            (sum, contract) => sum + (Number(contract.contractPrice) || 0),
+            0,
+          ),
+          count: noDate.length,
+        });
+      }
+
+      return folders.sort((a, b) => {
+        if (a.year === FOLDER_NO_YEAR) return 1;
+        if (b.year === FOLDER_NO_YEAR) return -1;
+        return b.year.localeCompare(a.year);
+      });
+    }
+
     const buckets = new Map<string, ContractRegistryItem[]>();
     visibleContracts.forEach((contract) => {
       const year = contractFolderYear(contract);
@@ -618,6 +715,7 @@ export default function ContractRegistryPage() {
           (sum, contract) => sum + (Number(contract.contractPrice) || 0),
           0,
         ),
+        count: folderContracts.length,
       }))
       .sort((a, b) => {
         // Свежие годы сверху, записи без даты — в конце
@@ -625,16 +723,22 @@ export default function ContractRegistryPage() {
         if (b.year === FOLDER_NO_YEAR) return -1;
         return b.year.localeCompare(a.year);
       });
-  }, [visibleContracts]);
+  }, [visibleContracts, summaryApplies, contractsSummary]);
 
-  // Сумма по всей выборке — для плитки «Все»
+  // Итог по всей выборке — для плитки «Все»
+  const allContractsCount =
+    summaryApplies && contractsSummary
+      ? contractsSummary.total
+      : visibleContracts.length;
   const allContractsTotal = useMemo(
     () =>
-      visibleContracts.reduce(
-        (sum, contract) => sum + (Number(contract.contractPrice) || 0),
-        0,
-      ),
-    [visibleContracts],
+      summaryApplies && contractsSummary
+        ? contractsSummary.totalAmount
+        : visibleContracts.reduce(
+            (sum, contract) => sum + (Number(contract.contractPrice) || 0),
+            0,
+          ),
+    [visibleContracts, summaryApplies, contractsSummary],
   );
 
   // Раскрытая папка живёт в адресе (?folder=2026, ?folder=__all__): ссылку
@@ -646,13 +750,32 @@ export default function ContractRegistryPage() {
       ? (contractFolders.find((folder) => folder.year === folderParam) ?? null)
       : null;
   const folderOpen = showAllFolders || activeFolder !== null;
+  // Контракты папки берём из загруженных строк по году: в серверном агрегате
+  // есть только цифры. Пока год не догружен, список может быть неполным —
+  // точные количество и сумма показаны в шапке папки из агрегата.
   const activeContracts: ContractRegistryItem[] = showAllFolders
     ? visibleContracts
-    : (activeFolder?.contracts ?? []);
+    : activeFolder
+      ? visibleContracts.filter(
+          (contract) => contractFolderYear(contract) === activeFolder.year,
+        )
+      : [];
   const activeContractsTotal = activeContracts.reduce(
     (sum, contract) => sum + (Number(contract.contractPrice) || 0),
     0,
   );
+  // Точные цифры папки: из агрегата, иначе — по загруженным строкам.
+  // Для «Всего реестра» берём общий итог, а не сумму загруженной порции
+  const activeContractsCount = showAllFolders
+    ? allContractsCount
+    : summaryApplies && activeFolder
+      ? activeFolder.count
+      : activeContracts.length;
+  const activeFolderTotal = showAllFolders
+    ? allContractsTotal
+    : summaryApplies && activeFolder
+      ? activeFolder.total
+      : activeContractsTotal;
 
   // Выбор папки пишется в адрес; повторный выбор той же папки её закрывает.
   // Новая папка — своя первая страница.
@@ -779,10 +902,13 @@ export default function ContractRegistryPage() {
     group !== "all" ||
     statusFilter !== "all" ||
     Boolean(dateFrom) ||
-    Boolean(dateTo) ||
+    // Сегодняшняя дата по умолчанию — не фильтр: пейджер должен по-прежнему
+    // опираться на общее число контрактов из БД
+    dateTo !== todayIso ||
     Boolean(supplierFilter) ||
     selectedKbks.length > 0 ||
     Boolean(debouncedQuery.trim()) ||
+    Boolean(debouncedContractNumber.trim()) ||
     advanceFilter !== "all";
   const pagerRows =
     showAllFolders && !hasFilters
@@ -867,33 +993,58 @@ export default function ContractRegistryPage() {
           : "Выберите папку по году заключения — внутри неё весь список контрактов за этот год."}
       </p>
       {/* Реестр читается порциями: пока он прочитан не целиком, предупреждаем
-          об этом рядом с папками — их счётчики и суммы считаются по загруженным */}
+          об этом рядом с папками. Итоги папок при серверных фильтрах берутся
+          из агрегата БД, при клиентских (КБК, группа) — по загруженным строкам */}
       {contractsHasMore && (
         <p className={styles.groupHint}>
           Реестр открывается порциями: загружено {contractsLoaded} из{" "}
-          {contractsTotal} контрактов, счётчики и суммы папок — по загруженным
-          строкам.
+          {contractsTotal} контрактов.
+          {summaryApplies
+            ? " Итоги папок и реестра рассчитаны по всей базе."
+            : " Счётчики и суммы папок — по загруженным строкам."}
         </p>
       )}
 
       {/* ─── Панель фильтров и сортировки ──────────────────────────────────── */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarFilters}>
-          {/* Поиск: реестровый номер, номер контракта, подрядчик, ИНН.
-              Работает и по папкам: совпадение сразу сужает годы до тех, где
-              такие контракты есть */}
+          {/* Поиск: реестровый номер ЕИС, ИКЗ, подрядчик, ИНН и предмет
+              контракта. Работает и по папкам: совпадение сразу сужает годы до
+              тех, где такие контракты есть */}
           <div className={styles.toolbarFiltersGroup}>
             <label className={styles.toolbarLabel} htmlFor="contract-search">
-              Поиск
+              Поиск по реестровому номеру
             </label>
             <input
               id="contract-search"
               className={styles.toolbarInput}
               type="search"
               value={query}
-              placeholder="Номер или подрядчик"
+              placeholder="Реестровый номер ЕИС, ИКЗ или подрядчик"
               onChange={(event) => {
                 setQuery(event.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+
+          {/* Номер контракта — отдельно от реестрового: его знают по карточке
+              ЕИС и вводят, когда реестровый номер под рукой отсутствует */}
+          <div className={styles.toolbarFiltersGroup}>
+            <label
+              className={styles.toolbarLabel}
+              htmlFor="contract-number-search"
+            >
+              Номер контракта
+            </label>
+            <input
+              id="contract-number-search"
+              className={styles.toolbarInput}
+              type="search"
+              value={contractNumberQuery}
+              placeholder="Например, 17АН_26"
+              onChange={(event) => {
+                setContractNumberQuery(event.target.value);
                 setPage(1);
               }}
             />
@@ -1199,7 +1350,7 @@ export default function ContractRegistryPage() {
                 <span className={styles.folderCardLabel}>Сводный реестр</span>
                 <span className={styles.folderCardYear}>Все</span>
                 <span className={styles.folderCardMeta}>
-                  {contractsLabel(visibleContracts.length)} ·{" "}
+                  {contractsLabel(allContractsCount)} ·{" "}
                   {formatMoneyShort(allContractsTotal)}
                 </span>
                 <span className={styles.folderCardArrow} aria-hidden="true">
@@ -1229,7 +1380,7 @@ export default function ContractRegistryPage() {
                     {folder.year === FOLDER_NO_YEAR ? "—" : folder.year}
                   </span>
                   <span className={styles.folderCardMeta}>
-                    {contractsLabel(folder.contracts.length)} ·{" "}
+                    {contractsLabel(folder.count)} ·{" "}
                     {formatMoneyShort(folder.total)}
                   </span>
                   <span className={styles.folderCardArrow} aria-hidden="true">
@@ -1256,8 +1407,8 @@ export default function ContractRegistryPage() {
                       : (activeFolder?.title ?? "Реестр контрактов")}
                   </h3>
                   <p className={styles.folderMeta}>
-                    {contractsLabel(activeContracts.length)} ·{" "}
-                    {formatMoneyShort(activeContractsTotal)}
+                    {contractsLabel(activeContractsCount)} ·{" "}
+                    {formatMoneyShort(activeFolderTotal)}
                   </p>
                 </div>
 
@@ -1366,8 +1517,8 @@ export default function ContractRegistryPage() {
                       Назад
                     </button>
                     <span className={styles.pagerInfo}>
-                      {start + 1}–
-                      {Math.min(start + rowsOnPage, pagerRows)} из {pagerRows}
+                      {start + 1}–{Math.min(start + rowsOnPage, pagerRows)} из{" "}
+                      {pagerRows}
                     </span>
                     <button
                       type="button"
@@ -1584,7 +1735,9 @@ const ContractRow = memo(function ContractRow({
         {/* Срок исполнения: в записи реестра часто только дата окончания,
             начало добираем из карточки. Неполный срок показываем как есть,
             а не пустым прочерком при известной дате */}
-        <td>{executionPeriodLabel(executionStart, executionEnd, formatDate)}</td>
+        <td>
+          {executionPeriodLabel(executionStart, executionEnd, formatDate)}
+        </td>
         <td>
           <span className={styles.statusCell}>
             <span

@@ -43,6 +43,8 @@ export interface NpaRuleInfo {
   note: string | null;
   sourcePage: number | null;
   sourceRow: number | null;
+  /** ban / restriction — приложение акта (ПП № 1875); null для прочих актов. */
+  regime: "ban" | "restriction" | null;
 }
 
 /** Действующее правило для кода: ответ `/effective` (авторитетный расчёт бэка). */

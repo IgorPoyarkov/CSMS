@@ -1016,20 +1016,33 @@ export const indicatorKindsByCriterion: Record<CriterionType, IndicatorKind[]> =
     ],
   };
 
-export const BEST_DIRECTIONS = ["min", "max"] as const;
+/**
+ * Направление оценки: какое значение показателя лучше. Третье значение —
+ * «не применяется»: при оценке по шкале (п. 22 Положения) и по иному порядку
+ * направления «больше/меньше» нет, балл берётся из шкалы или проставляется
+ * комиссией. В XSD ЕИС это кодируется `measurementOrder = O`.
+ */
+export const BEST_DIRECTIONS = ["min", "max", "none"] as const;
 export type BestDirection = (typeof BEST_DIRECTIONS)[number];
 
 export const bestDirectionLabels: Record<BestDirection, string> = {
   min: "Лучше меньшее значение",
   max: "Лучше большее значение",
+  none: "Направление не применяется",
 };
 
-export const SCORING_MODES = ["formula", "scale"] as const;
+/**
+ * Способ оценки показателя: формула п. 20 Положения, шкала оценки или иной
+ * порядок, установленный заказчиком в извещении (п. 22 Положения; в XSD ЕИС
+ * это `measurementOrder = O` вместе с текстом `otherOrder`).
+ */
+export const SCORING_MODES = ["formula", "scale", "other"] as const;
 export type ScoringMode = (typeof SCORING_MODES)[number];
 
 export const scoringModeLabels: Record<ScoringMode, string> = {
   formula: "Формула (п. 20 Положения)",
   scale: "Шкала оценки (п. 22 Положения)",
+  other: "Иной порядок оценки",
 };
 
 /**
@@ -1059,8 +1072,11 @@ export const IndicatorSchema = z.object({
   unit: z.string().optional(),
   // Направление: какое значение лучше
   best: z.enum(BEST_DIRECTIONS).default("max"),
-  // Способ оценки: функциональная зависимость или шкала
+  // Способ оценки: функциональная зависимость, шкала или иной порядок
   scoring: z.enum(SCORING_MODES).default("formula"),
+  // Иной порядок оценки (п. 22 Положения): текст порядка, как `otherOrder`
+  // в XSD ЕИС. Баллы по нему в системе не считаются — их проставляет комиссия
+  otherOrder: z.string().trim().max(2000).optional(),
   // Предельные значения характеристики (п. 18, 21 Положения)
   limitMin: optionalNumber(),
   limitMax: optionalNumber(),
@@ -1372,6 +1388,12 @@ export const scoreCharacteristicValues = (
   const limitMin = options.limitMin;
   const limitMax = options.limitMax;
 
+  // Направление «не применяется» нужно шкале и иному порядку: у формулы п. 20
+  // направление обязательно, такую конфигурацию ловит validateBidEvaluation.
+  if (options.best === "none") {
+    return rawValues.map(() => 0);
+  }
+
   // Пункт 21: значение выше/ниже предела оценивается как предел
   const values = rawValues.map((value) => {
     let result = value;
@@ -1471,6 +1493,15 @@ export const evaluateBids = (
 
     indicators.forEach((indicator) => {
       const indicatorId = String(indicator.id ?? indicator.name);
+
+      // Иной порядок оценки заказчик устанавливает сам (п. 22 Положения):
+      // формулой или шкалой он не выражается, поэтому баллы проставляет
+      // комиссия, а в расчёт автоматической оценки показатель даёт 0.
+      if (indicator.scoring === "other") {
+        indicatorScores.set(indicatorId, config.bids.map(() => 0));
+
+        return;
+      }
 
       if (indicator.scoring === "scale") {
         indicatorScores.set(
@@ -1813,6 +1844,30 @@ export const validateBidEvaluation = (
             error(
               `Показатель «${indicator.name}»: задайте шкалу оценки (п. 22 Положения).`,
             );
+          }
+
+          // Формула п. 20 требует направления: без него балл не посчитать
+          if (
+            indicator.scoring === "formula" &&
+            indicator.best === "none"
+          ) {
+            error(
+              `Показатель «${indicator.name}»: для оценки по формуле (п. 20 Положения) выберите направление — какое значение лучше.`,
+            );
+          }
+
+          // Иной порядок оценки (п. 22 Положения) — текст порядка обязателен,
+          // автоматически такие баллы не считаются
+          if (indicator.scoring === "other") {
+            if (!String(indicator.otherOrder ?? "").trim()) {
+              error(
+                `Показатель «${indicator.name}»: опишите иной порядок оценки (п. 22 Положения).`,
+              );
+            } else {
+              warning(
+                `Показатель «${indicator.name}»: по иному порядку оценки баллы автоматически не рассчитываются — их проставляет комиссия.`,
+              );
+            }
           }
         });
       });

@@ -576,21 +576,9 @@ export default function PurchasePlanCard() {
             disabled={position.id === undefined}
             onClick={() => {
               setOpenActionsPositionId(null);
+              // Потребность — отдельный документ: создаём СЗ по позиции ПГ
               navigate(
-                `/nmck-calculator?planId=${planId}&positionId=${position.id}`,
-              );
-            }}
-          >
-            Рассчитать НМЦК
-          </button>
-          <button
-            className={block("menu-item")}
-            type="button"
-            disabled={position.id === undefined}
-            onClick={() => {
-              setOpenActionsPositionId(null);
-              navigate(
-                `/purchase-plans/${planId}/positions/${position.id}/requirement`,
+                `/purchase-notes/new?planId=${planId}&positionId=${position.id}`,
               );
             }}
           >

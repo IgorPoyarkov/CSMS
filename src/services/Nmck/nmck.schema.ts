@@ -5,13 +5,16 @@ import { z } from "zod";
  * - market_analysis — метод сопоставимых рыночных цен (анализ рынка, ч. 2–5 ст. 22);
  * - normative — нормативный метод (ч. 7 ст. 22, ст. 19 44-ФЗ, ПП РФ № 926 / № 1047);
  * - tariff — тарифный метод (ч. 8 ст. 22 44-ФЗ, разд. V Приказа МЭР № 567);
- * - cost — затратный метод (ч. 10–11 ст. 22 44-ФЗ, разд. VI Приказа МЭР № 567).
+ * - cost — затратный метод (ч. 10–11 ст. 22 44-ФЗ, разд. VI Приказа МЭР № 567);
+ * - project_estimate — проектно-сметный метод (ч. 9 ст. 22 44-ФЗ): обоснование
+ *   формируется сметой контракта в связке с дефектовкой в разделе «Сметы и НМЦК».
  */
 export const NMCK_METHODS = [
   "market_analysis",
   "normative",
   "tariff",
   "cost",
+  "project_estimate",
 ] as const;
 export type NmckMethod = (typeof NMCK_METHODS)[number];
 
@@ -20,6 +23,7 @@ export const NMCK_METHOD_LABELS: Record<NmckMethod, string> = {
   normative: "Нормативный метод (ст. 19, ч. 7 ст. 22 44-ФЗ)",
   tariff: "Тарифный метод (ч. 8 ст. 22 44-ФЗ)",
   cost: "Затратный метод (ч. 10–11 ст. 22 44-ФЗ)",
+  project_estimate: "Проектно-сметный метод (ч. 9 ст. 22 44-ФЗ)",
 };
 
 /**
@@ -156,6 +160,26 @@ export const NmckCalculationRecordSchema = z.object({
 
   nmckTotal: z.number(),
   notes: z.string().optional(),
+  // Заказчик направил запрос коммерческих предложений: статус обоснования
+  // отображается в модуле обоснования НМЦК и в карточке СЗ.
+  commercialRequestSent: z.boolean().optional(),
+  // Реквизиты запроса коммерческих предложений: получатели и условия.
+  commercialRequest: z
+    .object({
+      recipients: z.array(
+        z.object({
+          inn: z.string(),
+          name: z.string(),
+          email: z.string().optional(),
+        }),
+      ),
+      paymentTerms: z.string().optional(),
+      deliveryTerms: z.string().optional(),
+      acceptanceTerms: z.string().optional(),
+      deadline: z.string().optional(),
+      sentAt: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type NmckCalculationRecord = z.infer<typeof NmckCalculationRecordSchema>;

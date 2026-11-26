@@ -9,6 +9,7 @@ import {
   useDeleteContractSmpRecord,
 } from "../../services/ContractSmp/contractSmp.api";
 import {
+  CONTRACT_SMP_DOCUMENT_TYPES,
   ContractSmpRecordSchema,
   emptyContractSmpRecord,
   computeSmpVolume,
@@ -21,6 +22,7 @@ import {
   smpSubContracts,
   smpUnlinkedDocuments,
   smpVolumeSources,
+  type ContractSmpDocumentType,
   type ContractSmpRecord,
 } from "../../services/ContractSmp/contractSmp.schema";
 import {
@@ -102,6 +104,40 @@ const isoDate = (value?: string | null): string => {
   const dotted = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
   return dotted ? `${dotted[3]}-${dotted[2]}-${dotted[1]}` : raw.slice(0, 10);
 };
+
+// Короткие подписи видов документов для чипов фильтра (полные — в title чипа).
+const SMP_DOC_SHORT_LABELS: Record<ContractSmpDocumentType, string> = {
+  subContract: "Договоры",
+  declaration: "Декларации",
+  acceptance: "Акты приёмки",
+  payment: "Платёжки",
+};
+
+/**
+ * Флаг проверки договора/документа: нарушение, замечание или «без нарушений».
+ * В свёрнутой карточке договора это единственный сигнал о состоянии, поэтому
+ * флаг показывает тон проверки одним знаком, а подробности — в подсказке.
+ */
+function SmpFlag({ check }: { check: SmpRecordCheck | undefined }) {
+  const { bem } = useUtils();
+  const block = bem(styles, "smp-section");
+  if (!check) return null;
+  const tone = smpCheckTone(check);
+  const label =
+    tone === "error"
+      ? "Нарушение"
+      : tone === "warning"
+        ? "Замечания"
+        : "Без нарушений";
+  return (
+    <span
+      className={block("flag", [tone])}
+      title={smpCheckIssuesText(check) || label}
+    >
+      {tone === "error" ? "⚠" : tone === "warning" ? "▲" : "✓"} {label}
+    </span>
+  );
+}
 
 interface SmpSectionProps {
   contractId: string | number;
@@ -199,53 +235,106 @@ export default function SmpSection({
     return map;
   }, [records, smpRegistry]);
 
-  // Строки таблицы: договор с субподрядчиком, а под ним — присланные к нему
-  // декларация, акты приёмки и платёжные поручения. Сводка по договору
-  // считается здесь один раз, чтобы не перебирать документы в каждой ячейке.
-  //
-  // Записи, которые ни к одному договору не привязались, показываются в конце
-  // без отступа — иначе акт, заведённый без договора-основания, пропал бы из
-  // таблицы совсем.
-  const rows = useMemo(() => {
-    const ordered: Array<{
-      record: ContractSmpRecord;
-      nested: boolean;
-      paymentAmount?: number;
-      acceptanceAmount?: number;
-      documentCount?: number;
-    }> = [];
-    const seen = new Set<string>();
+  // Карточки договоров с субподрядчиками: каждый договор — сворачиваемая
+  // карточка, а присланные к нему декларации, акты и платёжки лежат внутри.
+  // Сводка по договору (оплачено/принято/документов) считается здесь один раз.
+  const contractCards = useMemo(
+    () =>
+      smpSubContracts(records).map((subContract) => {
+        const documents = smpLinkedDocuments(subContract, records);
+        return {
+          subContract,
+          documents,
+          check: checks.get(String(subContract.id)),
+          paymentAmount: smpDocumentsAmount(documents, "payment"),
+          acceptanceAmount: smpDocumentsAmount(documents, "acceptance"),
+        };
+      }),
+    [records, checks],
+  );
 
-    for (const subContract of smpSubContracts(records)) {
-      const documents = smpLinkedDocuments(subContract, records);
-      ordered.push({
-        record: subContract,
-        nested: false,
-        paymentAmount: smpDocumentsAmount(documents, "payment"),
-        acceptanceAmount: smpDocumentsAmount(documents, "acceptance"),
-        documentCount: documents.length,
-      });
-      seen.add(String(subContract.id));
+  // Записи, которые ни к одному договору не привязались: показываем их
+  // отдельными карточками, иначе акт без договора-основания пропал бы совсем.
+  const unlinkedDocs = useMemo(() => smpUnlinkedDocuments(records), [records]);
 
-      for (const document of documents) {
-        // Документ мог привязаться к двум договорам одного субподрядчика по
-        // ИНН — второй раз строку не повторяем
-        if (seen.has(String(document.id))) continue;
-        seen.add(String(document.id));
-        ordered.push({ record: document, nested: true });
-      }
+  // Счётчики по видам документов — для чипов фильтра.
+  const docCounts = useMemo(() => {
+    const counts: Record<ContractSmpDocumentType, number> = {
+      subContract: 0,
+      declaration: 0,
+      acceptance: 0,
+      payment: 0,
+    };
+    for (const record of records) counts[record.documentType] += 1;
+    return counts;
+  }, [records]);
+
+  // Фильтр по виду документа: нативные чипы вместо колонки «Тип» в таблице.
+  const [typeFilter, setTypeFilter] = useState<"all" | ContractSmpDocumentType>(
+    "all",
+  );
+  // Раскрытые карточки договоров: по умолчанию все свёрнуты.
+  const [expandedContracts, setExpandedContracts] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  // Какие документы показывать внутри карточки при текущем фильтре.
+  const filterDocuments = (
+    documents: ContractSmpRecord[],
+  ): ContractSmpRecord[] => {
+    if (typeFilter === "all") return documents;
+    if (typeFilter === "subContract") return [];
+    return documents.filter((document) => document.documentType === typeFilter);
+  };
+
+  // Карточки, видимые при текущем фильтре: при фильтре на документ остаются
+  // только те договоры, где есть документы этого вида.
+  const visibleContractCards = useMemo(() => {
+    if (typeFilter === "all" || typeFilter === "subContract") {
+      return contractCards;
     }
+    return contractCards.filter((card) =>
+      card.documents.some((document) => document.documentType === typeFilter),
+    );
+  }, [contractCards, typeFilter]);
 
-    for (const record of smpUnlinkedDocuments(records)) {
-      if (seen.has(String(record.id))) continue;
-      ordered.push({ record, nested: false });
+  const visibleUnlinked = useMemo(() => {
+    if (typeFilter === "all") return unlinkedDocs;
+    if (typeFilter === "subContract") return [];
+    return unlinkedDocs.filter(
+      (document) => document.documentType === typeFilter,
+    );
+  }, [unlinkedDocs, typeFilter]);
+
+  const selectType = (type: "all" | ContractSmpDocumentType) => {
+    setTypeFilter(type);
+    // Фильтр на документ раскрывает договоры с такими документами, иначе
+    // найденное пряталось бы под свёрнутой карточкой.
+    if (type !== "all" && type !== "subContract") {
+      setExpandedContracts(
+        new Set(
+          contractCards
+            .filter((card) =>
+              card.documents.some(
+                (document) => document.documentType === type,
+              ),
+            )
+            .map((card) => String(card.subContract.id)),
+        ),
+      );
     }
+  };
 
-    return ordered.map((row) => ({
-      ...row,
-      check: checks.get(String(row.record.id)),
-    }));
-  }, [records, checks]);
+  const toggleContract = (id: string | number | null | undefined) => {
+    if (id === null || id === undefined) return;
+    const key = String(id);
+    setExpandedContracts((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<ContractSmpRecord | null>(null);
@@ -1139,285 +1228,464 @@ export default function SmpSection({
           <h5 className={block("recordsTitle")}>
             Сведения о привлечении ({records.length})
           </h5>
+
+          {/* Нативные фильтры по видам документов: вместо колонки «Тип» в
+              таблице. Чипы переносятся на новые строки, а не прячутся в скролл */}
+          <div
+            className={block("filterBar")}
+            role="tablist"
+            aria-label="Виды документов"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={typeFilter === "all"}
+              className={block(
+                "filterChip",
+                typeFilter === "all" ? ["active"] : [],
+              )}
+              onClick={() => selectType("all")}
+            >
+              Все
+              <span className={block("filterCount")}>{records.length}</span>
+            </button>
+            {CONTRACT_SMP_DOCUMENT_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                role="tab"
+                aria-selected={typeFilter === type}
+                className={block(
+                  "filterChip",
+                  typeFilter === type ? ["active"] : [],
+                )}
+                onClick={() => selectType(type)}
+                title={contractSmpDocumentTypeLabels[type]}
+              >
+                {SMP_DOC_SHORT_LABELS[type]}
+                <span className={block("filterCount")}>{docCounts[type]}</span>
+              </button>
+            ))}
+          </div>
+
           <p className={block("hint")}>
-            Под каждым договором с субподрядчиком — присланные к нему акты
-            приёмки и платёжные поручения. Фактическое привлечение СМП считается
-            по суммам оплат: договор без оплаты объём ещё не закрывает.
+            Каждый договор с субподрядчиком — сворачиваемая карточка: присланные
+            к нему декларации, акты и платёжные поручения лежат внутри. Флаг на
+            карточке показывает, есть ли нарушения по реестру МСП и срокам
+            ПП 1466.
           </p>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Тип</th>
-                <th>Номер / дата</th>
-                <th>Субподрядчик</th>
-                <th>Сумма, ₽</th>
-                <th>СМП</th>
-                <th>Сроки</th>
-                <th>Получено</th>
-                <th>Статус</th>
-                <th>Подтверждения (п. 6 ПП 1466)</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(
-                ({
-                  record,
+
+          <div className={block("cards")}>
+            {visibleContractCards.length === 0 &&
+              visibleUnlinked.length === 0 && (
+                <p className={block("empty")}>
+                  По выбранному виду документов ничего нет.
+                </p>
+              )}
+            {visibleContractCards.map(
+              (
+                {
+                  subContract,
+                  documents,
                   check,
-                  nested,
                   paymentAmount,
                   acceptanceAmount,
-                  documentCount,
-                }) => (
-                  <tr
-                    key={record.id}
-                    className={nested ? block("rowChild") : undefined}
+                },
+              ) => {
+                const cardKey = String(subContract.id);
+                const open = expandedContracts.has(cardKey);
+                const visibleDocs = filterDocuments(documents);
+                return (
+                  <article
+                    key={cardKey}
+                    className={block("card", open ? ["open"] : [])}
                   >
-                    <td>
-                      {nested && (
-                        <span className={block("childMark")} aria-hidden="true">
-                          └{" "}
+                    <button
+                      type="button"
+                      className={block("cardHead")}
+                      aria-expanded={open}
+                      onClick={() => toggleContract(subContract.id)}
+                      title={open ? "Свернуть договор" : "Развернуть договор"}
+                    >
+                      <span className={block("cardChevron")} aria-hidden="true">
+                        {open ? "▾" : "▸"}
+                      </span>
+                      <span className={block("cardMain")}>
+                        <span className={block("cardTitle")}>
+                          Договор № {subContract.documentNumber} от{" "}
+                          {formatDate(subContract.documentDate)}
                         </span>
-                      )}
-                      {contractSmpDocumentTypeLabels[record.documentType]}
-                    </td>
-                    <td>
-                      № {record.documentNumber} от {record.documentDate}
-                    </td>
-                    <td>
-                      {record.supplierName}
-                      {record.supplierInn && (
-                        <>
-                          <br />
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              color: "var(--text-secondary)",
-                            }}
-                          >
-                            ИНН {record.supplierInn}
-                          </span>
-                        </>
-                      )}
-                    </td>
-                    <td>
-                      {record.amount
-                        ? Number(record.amount).toLocaleString("ru-RU")
-                        : "—"}
-                      {/* Сводка по договору: сколько по нему оплачено и принято по
-                          актам — из оплат и складывается фактическое привлечение */}
-                      {documentCount !== undefined && documentCount > 0 && (
-                        <span className={block("rowSummary")}>
-                          Оплачено:{" "}
-                          {(paymentAmount ?? 0).toLocaleString("ru-RU")} ₽
-                          <br />
-                          По актам:{" "}
-                          {(acceptanceAmount ?? 0).toLocaleString("ru-RU")} ₽
-                          <br />
-                          Документов: {documentCount}
-                        </span>
-                      )}
-                    </td>
-                    <td className={block("smp-cell")}>
-                      {record.isSmpSubject ? "✓" : "—"}
-                      {/* Вердикт реестра: сверка идёт по ИНН, а не по названию */}
-                      {check?.registry.applicable && (
-                        <span
-                          className={block("registry", [
-                            check.registry.status === "in_registry"
-                              ? "ok"
-                              : check.registry.status === "unknown" ||
-                                  check.registry.status === "unchecked"
-                                ? "unknown"
-                                : check.blocking.some(
-                                      (issue) => issue.code === "registry",
-                                    )
-                                  ? "error"
-                                  : "warn",
-                          ])}
-                          title={check.registry.text}
-                        >
-                          {check.registry.status === "in_registry"
-                            ? "в реестре МСП"
-                            : check.registry.status === "unknown"
-                              ? "ИНН не указан"
-                              : check.registry.status === "unchecked"
-                                ? "не проверено"
-                                : check.registry.status === "excluded"
-                                  ? "исключён из МСП"
-                                  : "нет в реестре МСП"}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {/* Сроки ПП 1466 по этой записи: ближайший или нарушенный */}
-                      {check?.deadline ? (
-                        <>
-                          <span
-                            className={
-                              check.deadline.status === "overdue"
-                                ? styles.projectionLate
-                                : check.deadline.status === "met"
-                                  ? styles.projectionOk
-                                  : styles.projectionNote
-                            }
-                            title={check.deadlineText}
-                          >
-                            {smpDeadlineShort(check.deadline)}
-                          </span>
-                          <br />
-                          <span
-                            className={styles.projectionNote}
-                            title={`${check.deadline.title}: ${check.deadline.basis}`}
-                          >
-                            до {formatDate(check.deadline.dueDate)} ·{" "}
-                            {check.deadline.clause}
-                          </span>
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>{record.receivedAt?.slice(0, 10)}</td>
-                    <td>
-                      <Select
-                        className={block("statusSelect")}
-                        value={record.status}
-                        onChange={(event) =>
-                          handleStatusChange(
-                            record.id!,
-                            event.target.value as ContractSmpRecord["status"],
-                          )
-                        }
-                      >
-                        {Object.entries(contractSmpStatusLabels).map(
-                          ([key, label]) => (
-                            <option key={key} value={key}>
-                              {label}
-                            </option>
-                          ),
-                        )}
-                      </Select>
-                      {/* Сводка проверки: причина видна по наведению, строка не
-                          обрастает колонками */}
-                      {check && smpCheckTone(check) !== "ok" && (
-                        <span
-                          className={block("checkBadge", [smpCheckTone(check)])}
-                          title={smpCheckIssuesText(check)}
-                        >
-                          {smpCheckBadge(check)}
-                        </span>
-                      )}
-                    </td>
-                    <td className={block("confirm-cell")}>
-                      <div className={block("confirm-row")}>
-                        {record.supplierConfirmedAt ? (
-                          <span className={block("confirm-done")}>
-                            Подрядчик: {record.supplierConfirmedAt.slice(0, 10)}
-                            {record.supplierConfirmedBy && (
-                              <>
-                                <br />
-                                <span>{record.supplierConfirmedBy}</span>
-                              </>
-                            )}
-                            {record.supplierConfirmedDocument && (
-                              <>
-                                <br />
-                                <span className={block("confirm-doc")}>
-                                  {record.supplierConfirmedDocument}
-                                </span>
-                              </>
-                            )}
-                          </span>
-                        ) : (
-                          <button
-                            className={styles.btnSmall}
-                            onClick={() => handleSupplierConfirm(record)}
-                            disabled={updateRecord.isPending}
-                            title="Действие подрядчика «подтверждаю достоверность» (п. 6 ПП РФ N 1466). В демо его выполняет заказчик — вход подрядчика по ссылке отложен (Tasks 9, п. 2, п/п 3)"
-                          >
-                            Подтвердить достоверность
-                          </button>
-                        )}
-                      </div>
-                      <div className={block("confirm-row")}>
-                        {record.customerConfirmedAt ? (
-                          <span className={block("confirm-done")}>
-                            Заказчик: {record.customerConfirmedAt.slice(0, 10)}
-                            {record.customerConfirmedBy && (
-                              <>
-                                <br />
-                                <span>{record.customerConfirmedBy}</span>
-                              </>
-                            )}
-                            {record.customerConfirmedDocument && (
-                              <>
-                                <br />
-                                <span className={block("confirm-doc")}>
-                                  {record.customerConfirmedDocument}
-                                </span>
-                              </>
-                            )}
-                          </span>
-                        ) : (
-                          <button
-                            className={styles.btnSmall}
-                            onClick={() => handleCustomerConfirm(record)}
-                            disabled={
-                              updateRecord.isPending ||
-                              record.status !== "submitted" ||
-                              Boolean(check?.acceptanceBlocked)
-                            }
-                            title={
-                              check?.acceptanceBlocked
-                                ? `${check.registry.text}. Приёмка заблокирована: договор с таким субподрядчиком не закроет объём привлечения СМП (ч. 6 ст. 30 44-ФЗ)`
-                                : "Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
-                            }
-                          >
-                            Принять и подтвердить
-                          </button>
-                        )}
-                        {check?.acceptanceBlocked &&
-                          !record.customerConfirmedAt && (
-                            <span className={styles.cellDanger}>
-                              Реестр МСП не подтверждает субподрядчика
+                        <span className={block("cardSupplier")}>
+                          {subContract.supplierName}
+                          {subContract.supplierInn && (
+                            <span className={block("cardInn")}>
+                              ИНН {subContract.supplierInn}
                             </span>
                           )}
+                        </span>
+                      </span>
+                      <span className={block("cardFlags")}>
+                        <SmpFlag check={check} />
+                      </span>
+                    </button>
+                    {open && (
+                      <div className={block("cardBody")}>
+                        <dl className={block("cardMeta")}>
+                          <div className={block("metaRow")}>
+                            <dt className={block("metaLabel")}>Сумма договора</dt>
+                            <dd className={block("metaValue")}>
+                              {subContract.amount
+                                ? `${Number(subContract.amount).toLocaleString(
+                                    "ru-RU",
+                                  )} ₽`
+                                : "—"}
+                              {documents.length > 0 && (
+                                <span className={block("rowSummary")}>
+                                  Оплачено:{" "}
+                                  {(paymentAmount ?? 0).toLocaleString("ru-RU")}{" "}
+                                  ₽ · По актам:{" "}
+                                  {(acceptanceAmount ?? 0).toLocaleString(
+                                    "ru-RU",
+                                  )}{" "}
+                                  ₽ · Документов: {documents.length}
+                                </span>
+                              )}
+                            </dd>
+                          </div>
+                          {subContract.isSmpSubject && (
+                            <div className={block("metaRow")}>
+                              <dt className={block("metaLabel")}>Реестр МСП</dt>
+                              <dd className={block("metaValue")}>
+                                {check?.registry.applicable ? (
+                                  <span
+                                    className={block("registry", [
+                                      check.registry.status === "in_registry"
+                                        ? "ok"
+                                        : check.registry.status === "unknown" ||
+                                            check.registry.status === "unchecked"
+                                          ? "unknown"
+                                          : check.blocking.some(
+                                                (issue) =>
+                                                  issue.code === "registry",
+                                              )
+                                            ? "error"
+                                            : "warn",
+                                    ])}
+                                    title={check.registry.text}
+                                  >
+                                    {check.registry.status === "in_registry"
+                                      ? "в реестре МСП"
+                                      : check.registry.status === "unknown"
+                                        ? "ИНН не указан"
+                                        : check.registry.status === "unchecked"
+                                          ? "не проверено"
+                                          : check.registry.status === "excluded"
+                                            ? "исключён из МСП"
+                                            : "нет в реестре МСП"}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
+                              </dd>
+                            </div>
+                          )}
+                          {check?.deadline && (
+                            <div className={block("metaRow")}>
+                              <dt className={block("metaLabel")}>Сроки ПП 1466</dt>
+                              <dd className={block("metaValue")}>
+                                <span
+                                  className={
+                                    check.deadline.status === "overdue"
+                                      ? styles.projectionLate
+                                      : check.deadline.status === "met"
+                                        ? styles.projectionOk
+                                        : styles.projectionNote
+                                  }
+                                  title={check.deadlineText}
+                                >
+                                  {smpDeadlineShort(check.deadline)}
+                                </span>{" "}
+                                <span className={styles.projectionNote}>
+                                  до {formatDate(check.deadline.dueDate)} ·{" "}
+                                  {check.deadline.clause}
+                                </span>
+                              </dd>
+                            </div>
+                          )}
+                          <div className={block("metaRow")}>
+                            <dt className={block("metaLabel")}>Получено</dt>
+                            <dd className={block("metaValue")}>
+                              {formatDate(subContract.receivedAt?.slice(0, 10))}
+                            </dd>
+                          </div>
+                          <div className={block("metaRow")}>
+                            <dt className={block("metaLabel")}>Статус</dt>
+                            <dd className={block("metaValue")}>
+                              <Select
+                                className={block("statusSelect")}
+                                value={subContract.status}
+                                onChange={(event) =>
+                                  handleStatusChange(
+                                    subContract.id!,
+                                    event.target
+                                      .value as ContractSmpRecord["status"],
+                                  )
+                                }
+                              >
+                                {Object.entries(contractSmpStatusLabels).map(
+                                  ([key, label]) => (
+                                    <option key={key} value={key}>
+                                      {label}
+                                    </option>
+                                  ),
+                                )}
+                              </Select>
+                              {check && smpCheckTone(check) !== "ok" && (
+                                <span
+                                  className={block("checkBadge", [
+                                    smpCheckTone(check),
+                                  ])}
+                                  title={smpCheckIssuesText(check)}
+                                >
+                                  {smpCheckBadge(check)}
+                                </span>
+                              )}
+                            </dd>
+                          </div>
+                        </dl>
+                        <div className={block("confirm")}>
+                          <div className={block("confirm-row")}>
+                            {subContract.supplierConfirmedAt ? (
+                              <span className={block("confirm-done")}>
+                                Подрядчик:{" "}
+                                {subContract.supplierConfirmedAt.slice(0, 10)}
+                                {subContract.supplierConfirmedBy && (
+                                  <> · {subContract.supplierConfirmedBy}</>
+                                )}
+                                {subContract.supplierConfirmedDocument && (
+                                  <span className={block("confirm-doc")}>
+                                    {" "}
+                                    · {subContract.supplierConfirmedDocument}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <button
+                                className={styles.btnSmall}
+                                onClick={() => handleSupplierConfirm(subContract)}
+                                disabled={updateRecord.isPending}
+                                title="Действие подрядчика «подтверждаю достоверность» (п. 6 ПП РФ N 1466). В демо его выполняет заказчик — вход подрядчика по ссылке отложен (Tasks 9, п. 2, п/п 3)"
+                              >
+                                Подтвердить достоверность
+                              </button>
+                            )}
+                          </div>
+                          <div className={block("confirm-row")}>
+                            {subContract.customerConfirmedAt ? (
+                              <span className={block("confirm-done")}>
+                                Заказчик:{" "}
+                                {subContract.customerConfirmedAt.slice(0, 10)}
+                                {subContract.customerConfirmedBy && (
+                                  <> · {subContract.customerConfirmedBy}</>
+                                )}
+                                {subContract.customerConfirmedDocument && (
+                                  <span className={block("confirm-doc")}>
+                                    {" "}
+                                    · {subContract.customerConfirmedDocument}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <button
+                                className={styles.btnSmall}
+                                onClick={() => handleCustomerConfirm(subContract)}
+                                disabled={
+                                  updateRecord.isPending ||
+                                  subContract.status !== "submitted" ||
+                                  Boolean(check?.acceptanceBlocked)
+                                }
+                                title={
+                                  check?.acceptanceBlocked
+                                    ? `${check.registry.text}. Приёмка заблокирована: договор с таким субподрядчиком не закроет объём привлечения СМП (ч. 6 ст. 30 44-ФЗ)`
+                                    : "Действие заказчика «подтверждаю достоверность принятых сведений» (п. 6 ПП РФ N 1466). Доступно по присланным подрядчиком сведениям"
+                                }
+                              >
+                                Принять и подтвердить
+                              </button>
+                            )}
+                            {check?.acceptanceBlocked &&
+                              !subContract.customerConfirmedAt && (
+                                <span className={styles.cellDanger}>
+                                  Реестр МСП не подтверждает субподрядчика
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                        <div className={block("cardActions")}>
+                          <button
+                            className={styles.btnSmall}
+                            onClick={() => handleCreateChild(subContract)}
+                            title="Добавить акт приёмки или платёжное поручение по этому договору"
+                          >
+                            + документ
+                          </button>
+                          <button
+                            className={styles.btnSmall}
+                            onClick={() => {
+                              setEisDraft(null);
+                              setChildDraft(null);
+                              setEditing(subContract);
+                            }}
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            className={`${styles.btnSmall} ${styles.btnDanger}`}
+                            onClick={() => handleDelete(subContract.id!)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+
+                        {visibleDocs.length > 0 && (
+                          <div className={block("docs")}>
+                            <div className={block("docsTitle")}>
+                              Исполнение договора ({visibleDocs.length})
+                            </div>
+                            {visibleDocs.map((document) => {
+                              const docCheck = checks.get(String(document.id));
+                              return (
+                                <div
+                                  key={String(document.id)}
+                                  className={block("docRow")}
+                                >
+                                  <span className={block("docType")}>
+                                    {
+                                      contractSmpDocumentTypeLabels[
+                                        document.documentType
+                                      ]
+                                    }
+                                  </span>
+                                  <span className={block("docInfo")}>
+                                    № {document.documentNumber} от{" "}
+                                    {formatDate(document.documentDate)}
+                                    {document.amount
+                                      ? ` · ${Number(document.amount).toLocaleString(
+                                          "ru-RU",
+                                        )} ₽`
+                                      : ""}
+                                  </span>
+                                  <span className={block("docStatus")}>
+                                    <Select
+                                      className={block("statusSelect")}
+                                      value={document.status}
+                                      onChange={(event) =>
+                                        handleStatusChange(
+                                          document.id!,
+                                          event.target
+                                            .value as ContractSmpRecord["status"],
+                                        )
+                                      }
+                                    >
+                                      {Object.entries(contractSmpStatusLabels).map(
+                                        ([key, label]) => (
+                                          <option key={key} value={key}>
+                                            {label}
+                                          </option>
+                                        ),
+                                      )}
+                                    </Select>
+                                    {docCheck && smpCheckTone(docCheck) !== "ok" && (
+                                      <span
+                                        className={block("checkBadge", [
+                                          smpCheckTone(docCheck),
+                                        ])}
+                                        title={smpCheckIssuesText(docCheck)}
+                                      >
+                                        {smpCheckBadge(docCheck)}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className={block("docActions")}>
+                                    <button
+                                      className={styles.btnSmall}
+                                      onClick={() => {
+                                        setEisDraft(null);
+                                        setChildDraft(null);
+                                        setEditing(document);
+                                      }}
+                                    >
+                                      Ред
+                                    </button>
+                                    <button
+                                      className={`${styles.btnSmall} ${styles.btnDanger}`}
+                                      onClick={() => handleDelete(document.id!)}
+                                    >
+                                      Удал
+                                    </button>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    </td>
-                    <td>
-                      {/* Документы к договору заводятся из его строки: иначе акт
-                          и платёжка остаются без договора-основания */}
-                      {record.documentType === "subContract" && (
-                        <button
-                          className={styles.btnSmall}
-                          onClick={() => handleCreateChild(record)}
-                          title="Добавить акт приёмки или платёжное поручение по этому договору"
-                        >
-                          + документ
-                        </button>
-                      )}
+                    )}
+                  </article>
+                );
+              },
+            )}
+            {visibleUnlinked.map((document) => {
+              const docCheck = checks.get(String(document.id));
+              return (
+                <article key={String(document.id)} className={block("card")}>
+                  <div className={block("cardHead", ["static"])}>
+                    <span className={block("cardChevron")} aria-hidden="true">
+                      ·
+                    </span>
+                    <span className={block("cardMain")}>
+                      <span className={block("cardTitle")}>
+                        {contractSmpDocumentTypeLabels[document.documentType]}{" "}
+                        № {document.documentNumber} от{" "}
+                        {formatDate(document.documentDate)}
+                      </span>
+                      <span className={block("cardSupplier")}>
+                        {document.supplierName}
+                        {document.supplierInn && (
+                          <span className={block("cardInn")}>
+                            ИНН {document.supplierInn}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                    <span className={block("cardFlags")}>
+                      <SmpFlag check={docCheck} />
+                    </span>
+                  </div>
+                  <div className={block("cardBody")}>
+                    <div className={block("cardActions")}>
                       <button
                         className={styles.btnSmall}
                         onClick={() => {
                           setEisDraft(null);
                           setChildDraft(null);
-                          setEditing(record);
+                          setEditing(document);
                         }}
                       >
-                        Ред
+                        Редактировать
                       </button>
                       <button
                         className={`${styles.btnSmall} ${styles.btnDanger}`}
-                        onClick={() => handleDelete(record.id!)}
+                        onClick={() => handleDelete(document.id!)}
                       >
-                        Удал
+                        Удалить
                       </button>
-                    </td>
-                  </tr>
-              ))}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       )}
 

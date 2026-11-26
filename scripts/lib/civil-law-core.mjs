@@ -44,7 +44,8 @@ export const CIVIL_INSTITUTES = Object.freeze({
     special: false,
   },
   "works-rnd": {
-    label: "Научно-исследовательские, опытно-конструкторские и технологические работы",
+    label:
+      "Научно-исследовательские, опытно-конструкторские и технологические работы",
     kind: "works",
     articles: ["gk2:769", "gk2:770", "gk2:772"],
     special: false,
@@ -261,10 +262,7 @@ const RAW_PATTERNS = Object.freeze({
 
 const PATTERNS = Object.freeze(
   Object.fromEntries(
-    Object.entries(RAW_PATTERNS).map(([key, list]) => [
-      key,
-      list.map(word),
-    ]),
+    Object.entries(RAW_PATTERNS).map(([key, list]) => [key, list.map(word)]),
   ),
 );
 
@@ -280,9 +278,14 @@ function firstKindByPosition(text) {
   hits.sort((a, b) => a.at - b.at);
   if (!hits.length) return { kind: "unknown", word: null };
   const first = hits[0];
-  const earliest = hits.filter((hit) => hit.at === first.at).map((hit) => hit.kind);
+  const earliest = hits
+    .filter((hit) => hit.at === first.at)
+    .map((hit) => hit.kind);
   // «Работы по поставке телевизора» → declared=works: ведущее слово в начале фразы.
-  return { kind: earliest.includes("works") ? "works" : first.kind, word: first.word };
+  return {
+    kind: earliest.includes("works") ? "works" : first.kind,
+    word: first.word,
+  };
 }
 
 function kindByScore(text) {
@@ -299,20 +302,107 @@ function kindByScore(text) {
   return { kind: top[0][0], count };
 }
 
-/** ОКПД2: 41–43 — строительство (работы), 58–96 в основном услуги, 01–39 — товары. */
-export function okpd2Signal(code) {
+/**
+ * Ведущее слово наименования — второй признак вида объекта. В ОКПД2 названия
+ * начинаются с «Услуги …», «Работы …», «Продукция …», поэтому раздел 71
+ * (проектирование: по коду услуга, по предмету закупки — работа) и разделы,
+ * которых нет в таблице ниже (49–56, 84, 97–99), определяются по первому слову,
+ * а не остаются «не определено».
+ */
+function kindByFirstWord(name) {
+  const first =
+    String(name ?? "")
+      .trim()
+      .toLowerCase()
+      .match(/^[а-яёa-z]+/)?.[0] ?? "";
+  if (first.startsWith("услуг")) return "services";
+  if (first.startsWith("работ")) return "works";
+  if (first.startsWith("продукц") || first.startsWith("товар")) return "goods";
+  return "unknown";
+}
+
+/**
+ * ОКПД2: 41–43 — строительство (работы), 58–96 в основном услуги, 01–39 — товары.
+ * `name` — наименование позиции справочника: применяется только когда раздел
+ * кода не даёт однозначного ответа (unknown/ambiguous).
+ */
+export function okpd2Signal(code, name) {
   const digits = String(code ?? "").replace(/\D/g, "");
-  if (digits.length < 2) return { kind: "unknown", confidence: 0 };
-  const section = Number(digits.slice(0, 2));
-  if (section >= 41 && section <= 43) return { kind: "works", confidence: 0.7 };
-  if (section === 71) return { kind: "ambiguous", confidence: 0.3 };
-  if (section >= 58 && section <= 82) return { kind: "services", confidence: 0.6 };
-  if (section >= 85 && section <= 96) return { kind: "services", confidence: 0.6 };
-  if (section >= 1 && section <= 39) return { kind: "goods", confidence: 0.7 };
-  if (section === 45 || section === 46 || section === 47) {
-    return { kind: "goods", confidence: 0.6 };
+  let signal = { kind: "unknown", confidence: 0 };
+
+  if (digits.length >= 2) {
+    const section = Number(digits.slice(0, 2));
+    if (section >= 41 && section <= 43)
+      signal = { kind: "works", confidence: 0.7 };
+    else if (section === 71) signal = { kind: "ambiguous", confidence: 0.3 };
+    else if (section >= 58 && section <= 82)
+      signal = { kind: "services", confidence: 0.6 };
+    else if (section >= 85 && section <= 96)
+      signal = { kind: "services", confidence: 0.6 };
+    else if (section >= 1 && section <= 39)
+      signal = { kind: "goods", confidence: 0.7 };
+    else if (section === 45 || section === 46 || section === 47) {
+      signal = { kind: "goods", confidence: 0.6 };
+    }
   }
-  return { kind: "unknown", confidence: 0 };
+
+  if (signal.kind === "unknown" || signal.kind === "ambiguous") {
+    const byName = kindByFirstWord(name);
+    if (byName !== "unknown") return { kind: byName, confidence: 0.5 };
+  }
+
+  return signal;
+}
+
+/**
+ * Вид объекта по дереву ОКПД2. Базовый сигнал — раздел кода и первое слово
+ * наименования; если ни то, ни другое не дало ответа, берётся вид соседних
+ * позиций той же группы (код без последнего разряда). Пример: у
+ * 52.23.19.112 «Съемки воздушные» нет прямых родителей в снимке, но соседи
+ * 52.23.19.110/.111 — «Работы …», поэтому позиция считается работой.
+ *
+ * @param {{ code: string, name?: string }[]} items
+ * @returns {Map<string, { kind: string, confidence: number }>}
+ */
+export function resolveOkpd2Kinds(items) {
+  const signals = new Map();
+  const groups = new Map();
+
+  for (const item of items) {
+    const code = String(item.code ?? "").trim();
+    if (!code) continue;
+    signals.set(code, okpd2Signal(code, item.name));
+
+    const parts = code.split(".");
+    if (parts.length > 1) {
+      const group = parts.slice(0, -1).join(".");
+      if (!groups.has(group)) groups.set(group, []);
+      groups.get(group).push(code);
+    }
+  }
+
+  for (const [code, signal] of signals) {
+    if (signal.kind !== "unknown" && signal.kind !== "ambiguous") continue;
+
+    const parts = code.split(".");
+    if (parts.length < 2) continue;
+
+    const votes = { goods: 0, works: 0, services: 0 };
+    for (const sibling of groups.get(parts.slice(0, -1).join(".")) ?? []) {
+      if (sibling === code) continue;
+      const kind = signals.get(sibling)?.kind;
+      if (kind && kind in votes) votes[kind] += 1;
+    }
+
+    const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+    // Ничья или пустая группа: позиция остаётся неопределённой
+    if (!ranked[0][1] || ranked[1][1] === ranked[0][1]) continue;
+
+    // Уверенность ниже, чем у раздела кода: это вывод по соседям, не по коду
+    signals.set(code, { kind: ranked[0][0], confidence: 0.4 });
+  }
+
+  return signals;
 }
 
 const DECLARED_KIND_LABELS = Object.freeze({
@@ -324,10 +414,16 @@ const DECLARED_KIND_LABELS = Object.freeze({
 
 /** Вид предмета из формы закупки/контракта к видам ядра (36.44, 71 и т.п.). */
 export function normalizeDeclaredKind(value) {
-  const raw = String(value ?? "").trim().toLowerCase();
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (["goods", "product", "товар", "товары"].includes(raw)) return "goods";
-  if (["works", "work", "работа", "работы", "design_survey", "пир"].includes(raw)) return "works";
-  if (["services", "service", "услуга", "услуги"].includes(raw)) return "services";
+  if (
+    ["works", "work", "работа", "работы", "design_survey", "пир"].includes(raw)
+  )
+    return "works";
+  if (["services", "service", "услуга", "услуги"].includes(raw))
+    return "services";
   if (raw.startsWith("works_")) return "works";
   if (raw.startsWith("services_")) return "services";
   return "unknown";
@@ -338,7 +434,12 @@ export function normalizeDeclaredKind(value) {
  * Это слабый сигнал для человека, а не вывод о нарушении: 71 и пустой код
  * остаются неопределёнными, а расхождение не меняет квалификацию по ГК.
  */
-function buildOkpd2Consistency(okpdCodes, signal, formDeclared, subjectDeclared) {
+function buildOkpd2Consistency(
+  okpdCodes,
+  signal,
+  formDeclared,
+  subjectDeclared,
+) {
   const declared = formDeclared !== "unknown" ? formDeclared : subjectDeclared;
   const code = okpdCodes.find(Boolean) ?? "";
   let status = "unknown";
@@ -386,23 +487,26 @@ function pairKey(a, b) {
 export function classifyProcurement(input = {}) {
   const subject = normal(input.subject);
   const objectName = normal(input.objectName);
-  const context = normal([objectName, input.characteristics].filter(Boolean).join(" "));
+  const context = normal(
+    [objectName, input.characteristics].filter(Boolean).join(" "),
+  );
   const okpdCodes = Array.isArray(input.okpd2Codes)
     ? input.okpd2Codes
     : [input.okpd2Code].filter(Boolean);
-  const okpdSignals = okpdCodes.map(okpd2Signal).filter((signal) => signal.kind !== "unknown");
+  // Наименование объекта — запасной признак для разделов, где код неоднозначен
+  const okpdSignals = okpdCodes
+    .map((code) => okpd2Signal(code, objectName))
+    .filter((signal) => signal.kind !== "unknown");
 
   const declared = firstKindByPosition(subject);
   const okpd2Consistency = buildOkpd2Consistency(
     okpdCodes,
-    okpdSignals[0] ?? okpd2Signal(okpdCodes[0]),
+    okpdSignals[0] ?? okpd2Signal(okpdCodes[0], objectName),
     normalizeDeclaredKind(input.declaredKind),
     declared.kind,
   );
   const objectByWords = kindByScore(context || subject);
-  const okpdKind = okpdSignals.length
-    ? okpdSignals[0].kind
-    : "unknown";
+  const okpdKind = okpdSignals.length ? okpdSignals[0].kind : "unknown";
   const objectKind =
     okpdKind !== "unknown" && okpdKind !== "ambiguous"
       ? okpdKind
@@ -412,9 +516,11 @@ export function classifyProcurement(input = {}) {
     pattern.lastIndex = 0;
     return pattern.test(text);
   };
-  const any = (key, text) => PATTERNS[key].some((pattern) => matches(pattern, text));
+  const any = (key, text) =>
+    PATTERNS[key].some((pattern) => matches(pattern, text));
   const exceptions = [];
-  if (input.flags?.lifecycle || any("lifecycle", subject)) exceptions.push("lifecycleContract");
+  if (input.flags?.lifecycle || any("lifecycle", subject))
+    exceptions.push("lifecycleContract");
   if (any("embeddedSupply", subject)) exceptions.push("embeddedSupply");
   // «Поставка и монтаж» — смешанный предмет, а не поставка внутри работ.
   if (matches(PATTERNS.goods[0], subject) && any("mount", subject)) {
@@ -423,7 +529,8 @@ export function classifyProcurement(input = {}) {
     exceptions.push("embeddedWorks");
   }
 
-  const mismatch = declared.kind !== "unknown" &&
+  const mismatch =
+    declared.kind !== "unknown" &&
     objectKind !== "unknown" &&
     objectKind !== "ambiguous" &&
     declared.kind !== objectKind &&
@@ -434,14 +541,16 @@ export function classifyProcurement(input = {}) {
 
   // При исключениях ведущим остаётся заявленный предмет: «поставка в ходе
   // работ/услуг» не должна переопределить всю квалификацию в товар.
-  let effectiveKind = objectKind !== "unknown" && objectKind !== "ambiguous"
-    ? objectKind
-    : declared.kind;
+  let effectiveKind =
+    objectKind !== "unknown" && objectKind !== "ambiguous"
+      ? objectKind
+      : declared.kind;
   if (exceptions.length) effectiveKind = declared.kind;
   if (mismatch) effectiveKind = objectKind;
   const institutes = [];
   const addInstitute = (id, source) => {
-    if (!CIVIL_INSTITUTES[id] || institutes.some((item) => item.id === id)) return;
+    if (!CIVIL_INSTITUTES[id] || institutes.some((item) => item.id === id))
+      return;
     const institute = CIVIL_INSTITUTES[id];
     institutes.push({
       id,
@@ -467,19 +576,24 @@ export function classifyProcurement(input = {}) {
     if (any("construction", subject) || any("construction", context)) {
       addInstitute("works-construction", "subject");
     }
-    if (exceptions.includes("embeddedSupply")) addInstitute("goods-purchase-sale", "exception");
+    if (exceptions.includes("embeddedSupply"))
+      addInstitute("goods-purchase-sale", "exception");
   } else if (effectiveKind === "services") {
     // Энерго- и водоснабжение регулируются отдельными параграфами ГК, текст
     // которых ещё не зафиксирован в снимке: вставок отсюда не выдаём.
     if (any("utilities", subject)) addInstitute("utilities-supply", "subject");
     else addInstitute("services-paid", "gk-general");
-    if (exceptions.includes("embeddedSupply")) addInstitute("goods-purchase-sale", "exception");
+    if (exceptions.includes("embeddedSupply"))
+      addInstitute("goods-purchase-sale", "exception");
   }
 
   const notes = [];
   // Первая отсечка не меняет основной вердикт: это повод сверить предмет
   // с объектом вручную, а не обвинение в нарушении.
-  if (okpd2Consistency.status === "mismatch" || okpd2Consistency.status === "ambiguous") {
+  if (
+    okpd2Consistency.status === "mismatch" ||
+    okpd2Consistency.status === "ambiguous"
+  ) {
     notes.push(okpd2Consistency.message);
   }
   // Ключевой вопрос пользователя: не слукавил ли заказчик, назвав «услугой»
@@ -490,7 +604,9 @@ export function classifyProcurement(input = {}) {
     );
   }
   const reasons = [];
-  reasons.push(`Заявленный предмет: ${declared.kind} (${declared.word || "не определён"})`);
+  reasons.push(
+    `Заявленный предмет: ${declared.kind} (${declared.word || "не определён"})`,
+  );
   reasons.push(`Сверка вида предмета с ОКПД2: ${okpd2Consistency.status}`);
   if (okpdSignals.length) reasons.push(`ОКПД2 указывает на: ${okpdKind}`);
   if (context) reasons.push(`Объект/характеристики: ${objectByWords.kind}`);
@@ -504,7 +620,8 @@ export function classifyProcurement(input = {}) {
   const agreement = okpdSignals.length && objectByWords.kind === okpdKind;
   let confidence = 0.45;
   if (agreement) confidence += 0.3;
-  else if (okpdSignals.length || objectByWords.kind !== "unknown") confidence += 0.12;
+  else if (okpdSignals.length || objectByWords.kind !== "unknown")
+    confidence += 0.12;
   if (mismatch) confidence = Math.min(confidence, 0.6);
   if (exceptions.length) confidence = Math.min(confidence, 0.7);
 
@@ -520,7 +637,10 @@ export function classifyProcurement(input = {}) {
           declared: declared.kind,
           object: objectKind,
           basis: PAIR_ARTICLES[pairKey(declared.kind, objectKind)] || [],
-          severity: declared.kind === "works" && objectKind === "goods" ? "high" : "medium",
+          severity:
+            declared.kind === "works" && objectKind === "goods"
+              ? "high"
+              : "medium",
         }
       : { detected: false },
     exceptions,
@@ -595,7 +715,9 @@ export function validateAgainstSnapshot(result, snapshot) {
       if (!articleText(snapshot, reference)) missing.push(reference);
     }
   }
-  return missing.length ? { ok: false, missing: [...new Set(missing)] } : { ok: true, missing: [] };
+  return missing.length
+    ? { ok: false, missing: [...new Set(missing)] }
+    : { ok: true, missing: [] };
 }
 
 /**
@@ -637,10 +759,7 @@ export const CIVIL_CONTRACT_REQUIREMENTS = Object.freeze([
     sectionId: "subject",
     paths: ["subject.deliveryPlace"],
     priority: "gk-special",
-    quotes: [
-      { reference: "gk2:526" },
-      { reference: "gk2:525", paragraph: 1 },
-    ],
+    quotes: [{ reference: "gk2:526" }, { reference: "gk2:525", paragraph: 1 }],
   },
   {
     id: "goods-quality",
@@ -762,7 +881,11 @@ export const CIVIL_CONTRACT_REQUIREMENTS = Object.freeze([
       "Заказчик оплачивает оказанные услуги в сроки и в порядке, указанные в договоре.",
     kinds: ["services"],
     sectionId: "price",
-    paths: ["price.finalPrice", "price.paymentTermDays", "price.paymentProcedure"],
+    paths: [
+      "price.finalPrice",
+      "price.paymentTermDays",
+      "price.paymentProcedure",
+    ],
     priority: "gk-general",
     quotes: [{ reference: "gk2:781", paragraph: 1 }],
   },
@@ -802,7 +925,10 @@ export const CIVIL_CONTRACT_REQUIREMENTS = Object.freeze([
     description:
       "Обязательное условие контракта — ответственность заказчика и поставщика за неисполнение или ненадлежащее исполнение обязательств.",
     sectionId: "responsibility",
-    paths: ["responsibility.penaltyFormula", "responsibility.fixedPenaltyAmount"],
+    paths: [
+      "responsibility.penaltyFormula",
+      "responsibility.fixedPenaltyAmount",
+    ],
     priority: "fz44-imperative",
     quotes: [
       { reference: "fz44:34", paragraph: 4 },
@@ -869,7 +995,9 @@ export function buildContractRequirements(project, snapshot) {
     declaredKind: project?.kind,
     flags: { lifecycle: /жизненного цикла/i.test(subject) },
   });
-  const instituteIds = new Set(classification.institutes.map((item) => item.id));
+  const instituteIds = new Set(
+    classification.institutes.map((item) => item.id),
+  );
   const overriddenSections = new Set(
     (project?.sectionOverrides || [])
       .filter((item) => String(item?.text || "").trim())

@@ -12,6 +12,8 @@ import type {
 import {
   getPurchaseNoteStatusMeta,
   hasSmpSubcontractingRequirement,
+  mergePurchaseNoteFiles,
+  PURCHASE_NOTE_SECTIONS,
   type PurchaseNote,
   type PurchaseNoteObjectItem,
 } from "./purchaseNote.schema";
@@ -62,6 +64,12 @@ interface PurchaseNoteExportModel {
   requirementBullets: string[];
   warrantyAndSecurityRows: KeyValueRow[];
   signatureRows: { role: string; person: string; signHint: string }[];
+  sectionReviewRows: {
+    section: string;
+    status: string;
+    person: string;
+    date: string;
+  }[];
 }
 
 const formatIsoToRu = (iso?: string): string => {
@@ -204,12 +212,14 @@ export const buildPurchaseNoteExportModel = ({
     .filter(Boolean)
     .join("\n");
 
-  const nmckFileParts: string[] = [];
-  if (note.nmckFileName) {
-    nmckFileParts.push(
-      `Файл: ${note.nmckFileName}${note.nmckFileUpdatedAt ? ` (от ${formatIsoToRu(note.nmckFileUpdatedAt)})` : ""}`,
-    );
-  }
+  const nmckFileParts: string[] = mergePurchaseNoteFiles(
+    note.nmckFiles,
+    note.nmckFileName,
+    note.nmckFileUpdatedAt,
+  ).map(
+    (file) =>
+      `Файл: ${file.fileName}${file.fileUpdatedAt ? ` (от ${formatIsoToRu(file.fileUpdatedAt)})` : ""}${file.description ? ` — ${file.description}` : ""}`,
+  );
   if (note.nmckRequestStatus && note.nmckRequestStatus !== "none") {
     const reqLabel =
       note.nmckRequestStatus === "received"
@@ -229,7 +239,7 @@ export const buildPurchaseNoteExportModel = ({
 
   const treasuryText = note.requiresTreasurySupport
     ? note.treasurySupportType === "advance_only"
-      ? "Да — казначейское сопровождение только аванса"
+      ? "Да — казначейское сопровождение аванса"
       : "Да — полное казначейское сопровождение"
     : "Нет";
 
@@ -399,11 +409,11 @@ export const buildPurchaseNoteExportModel = ({
       `Требование о привлечении субподрядчиков/соисполнителей из числа СМП и СОНКО (ч. 5 ст. 30, ПП РФ № 1466): ${note.smpRequiredPercent ?? "не указано"} %.`,
     );
   }
-  if (note.requirementsPart1_1Art31) {
-    requirementBullets.push(
-      "Требования к участникам закупок в соответствии с ч. 1.1 ст. 31 Закона № 44-ФЗ (отсутствие в реестре недобросовестных поставщиков).",
-    );
-  }
+  // Требование ч. 1.1 ст. 31 обязательно: в документ попадает всегда,
+  // независимо от значения флага в старых записях
+  requirementBullets.push(
+    "Требования к участникам закупок в соответствии с ч. 1.1 ст. 31 Закона № 44-ФЗ (отсутствие в реестре недобросовестных поставщиков).",
+  );
   if (note.pp1482ProductionFacilities) {
     requirementBullets.push(
       withDesc(
@@ -590,6 +600,24 @@ export const buildPurchaseNoteExportModel = ({
     },
   ];
 
+  // Согласование по блокам: статус каждого блока из sectionReviews.
+  const reviewBySection = new Map(
+    (note.sectionReviews ?? []).map((review) => [review.sectionId, review]),
+  );
+  const sectionReviewRows = PURCHASE_NOTE_SECTIONS.map((section) => {
+    const review = reviewBySection.get(section.id);
+    return {
+      section: section.title,
+      status: review
+        ? review.status === "approved"
+          ? "Утверждён"
+          : "На доработке"
+        : "—",
+      person: review?.updatedBy ?? "",
+      date: review?.updatedAt ? formatIsoToRu(review.updatedAt) : "",
+    };
+  });
+
   return {
     fileBaseName: `СЗ_№${sanitizeFilePart(noteNum)}_${sanitizeFilePart(note.noteDate || "без_даты")}`,
     organizationTitle: orgTitle,
@@ -604,6 +632,7 @@ export const buildPurchaseNoteExportModel = ({
     requirementBullets,
     warrantyAndSecurityRows,
     signatureRows,
+    sectionReviewRows,
   };
 };
 
@@ -917,6 +946,85 @@ export const exportPurchaseNoteToDocx = async (
           makeKvTable(model.warrantyAndSecurityRows),
           makeSectionTitle("6. Лист согласования и подписания вне системы"),
           signatureTable,
+          ...(model.sectionReviewRows.some((row) => row.status !== "—")
+            ? [
+                new Paragraph({
+                  spacing: { before: 200, after: 40 },
+                  children: [
+                    new TextRun({
+                      text: "Согласование блоков (по секциям)",
+                      bold: true,
+                      size: 20,
+                      font: "Times New Roman",
+                    }),
+                  ],
+                }),
+                new Table({
+                  width: { size: 100, type: WidthType.PERCENTAGE },
+                  borders: tableBorders,
+                  rows: [
+                    new TableRow({
+                      tableHeader: true,
+                      children: ["Блок СЗ", "Статус", "Отметил", "Дата"].map(
+                        (head) =>
+                          new TableCell({
+                            margins: {
+                              top: 80,
+                              bottom: 80,
+                              left: 100,
+                              right: 100,
+                            },
+                            children: [
+                              new Paragraph({
+                                children: [
+                                  new TextRun({
+                                    text: head,
+                                    bold: true,
+                                    size: 19,
+                                    font: "Times New Roman",
+                                  }),
+                                ],
+                              }),
+                            ],
+                          }),
+                      ),
+                    }),
+                    ...model.sectionReviewRows.map(
+                      (row) =>
+                        new TableRow({
+                          children: [
+                            row.section,
+                            row.status,
+                            row.person || "—",
+                            row.date || "—",
+                          ].map(
+                            (val) =>
+                              new TableCell({
+                                margins: {
+                                  top: 100,
+                                  bottom: 100,
+                                  left: 100,
+                                  right: 100,
+                                },
+                                children: [
+                                  new Paragraph({
+                                    children: [
+                                      new TextRun({
+                                        text: val,
+                                        size: 19,
+                                        font: "Times New Roman",
+                                      }),
+                                    ],
+                                  }),
+                                ],
+                              }),
+                          ),
+                        }),
+                    ),
+                  ],
+                }),
+              ]
+            : []),
         ],
       },
     ],
@@ -1129,6 +1237,36 @@ export const exportPurchaseNoteToPdf = async (
           ],
         },
       },
+      ...(model.sectionReviewRows.some((row) => row.status !== "—")
+        ? [
+            {
+              text: "Согласование блоков (по секциям)",
+              bold: true,
+              fontSize: 11,
+              margin: [0, 8, 0, 4] as [number, number, number, number],
+            },
+            {
+              table: {
+                headerRows: 1,
+                widths: ["46%", "18%", "18%", "18%"],
+                body: [
+                  [
+                    { text: "Блок СЗ", bold: true, fontSize: 9 },
+                    { text: "Статус", bold: true, fontSize: 9 },
+                    { text: "Отметил", bold: true, fontSize: 9 },
+                    { text: "Дата", bold: true, fontSize: 9 },
+                  ],
+                  ...model.sectionReviewRows.map((row) => [
+                    { text: row.section, fontSize: 8.5 },
+                    { text: row.status, fontSize: 8.5 },
+                    { text: row.person || "—", fontSize: 8.5 },
+                    { text: row.date || "—", fontSize: 8.5 },
+                  ]),
+                ],
+              },
+            },
+          ]
+        : []),
     ],
   };
 

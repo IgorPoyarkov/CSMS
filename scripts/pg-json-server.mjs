@@ -22,6 +22,7 @@ import {
   lookupInn,
   unavailableAnswer,
 } from "./lib/smp-lookup.mjs";
+import { fetchEisNews, getCachedNews } from "./lib/eis-news.mjs";
 
 const PORT = Number(process.env.PG_ADAPTER_PORT || 3002);
 
@@ -127,6 +128,124 @@ app.get("/__pg/facets/:collection", async (req, res) => {
     );
   } catch (error) {
     console.error(`[pg] facets ${req.originalUrl}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Агрегаты реестра контрактов: количество и сумма по годам заключения.
+ *
+ * Реестр открывается порциями по 25 строк, поэтому считать итоги и размеры
+ * папок на клиенте нельзя — первые 25 записей не отражают весь реестр.
+ * Здесь один GROUP BY по году; окно ограничено последними 11 годами, чтобы
+ * старые контракты не раздували выборку.
+ *
+ * Принимает серверные фильтры реестра (`status`, `dateFrom`, `dateTo`,
+ * `supplierName`, `advance`), чтобы цифры совпадали с текущей выборкой.
+ * КБК и группа по способу закупки остаются клиентскими.
+ *
+ * Ответ: `{ minYear, total, totalAmount, years: [{ year, count, amount }] }`.
+ */
+app.get("/__pg/contracts-summary", async (req, res) => {
+  const organizationId = req.query.organizationId;
+  if (
+    organizationId === undefined ||
+    organizationId === null ||
+    organizationId === ""
+  ) {
+    res.status(400).json({ error: "Нужен organizationId" });
+    return;
+  }
+
+  const years = Math.min(Math.max(Number(req.query.years) || 11, 1), 50);
+  const minYear = new Date().getUTCFullYear() - (years - 1);
+
+  // Сумма хранится строкой: приводим только числовые значения, остальное — 0
+  const amountExpr = `CASE
+      WHEN replace(coalesce(doc->>'contractPrice', ''), ',', '.') ~ '^[0-9]+(\\.[0-9]+)?$'
+      THEN replace(doc->>'contractPrice', ',', '.')::numeric
+      ELSE 0
+    END`;
+  const advanceExpr = `CASE
+      WHEN replace(coalesce(doc->>'advanceAmount', ''), ',', '.') ~ '^[0-9]+(\\.[0-9]+)?$'
+      THEN replace(doc->>'advanceAmount', ',', '.')::numeric
+      ELSE 0
+    END`;
+  const yearExpr = `substring(coalesce(doc->>'contractDate', ''), 1, 4)`;
+
+  const params = [String(organizationId), minYear];
+  const add = (value) => {
+    params.push(value);
+    return `$${params.length}`;
+  };
+  const clauses = [
+    "collection = 'contractRegistry'",
+    "organization_id = $1",
+    `${yearExpr} ~ '^[0-9]{4}$'`,
+    `${yearExpr}::int >= $2`,
+  ];
+
+  const status = String(req.query.status ?? "").trim();
+  if (status && status !== "all") {
+    clauses.push(`doc->>'status' = ${add(status)}`);
+  }
+
+  const dateFrom = String(req.query.dateFrom ?? "").trim();
+  if (dateFrom) {
+    clauses.push(`coalesce(doc->>'contractDate', '') >= ${add(dateFrom)}`);
+  }
+
+  const dateTo = String(req.query.dateTo ?? "").trim();
+  if (dateTo) {
+    clauses.push(`coalesce(doc->>'contractDate', '') <= ${add(dateTo)}`);
+  }
+
+  const supplierName = String(req.query.supplierName ?? "").trim();
+  if (supplierName) {
+    clauses.push(
+      `doc->>'supplierName' ILIKE '%' || ${add(supplierName)} || '%'`,
+    );
+  }
+
+  const advance = String(req.query.advance ?? "").trim();
+  if (advance === "with") clauses.push(`${advanceExpr} > 0`);
+  if (advance === "without") clauses.push(`${advanceExpr} <= 0`);
+
+  const where = clauses.join(" AND ");
+
+  try {
+    const [yearRows, totalRow] = await Promise.all([
+      pool.query(
+        `SELECT ${yearExpr} AS year,
+                count(*)::int AS count,
+                coalesce(sum(${amountExpr}), 0)::text AS amount
+         FROM ${PG_SCHEMA}.documents
+         WHERE ${where}
+         GROUP BY 1
+         ORDER BY 1 DESC`,
+        params,
+      ),
+      pool.query(
+        `SELECT count(*)::int AS total,
+                coalesce(sum(${amountExpr}), 0)::text AS amount
+         FROM ${PG_SCHEMA}.documents
+         WHERE ${where}`,
+        params,
+      ),
+    ]);
+
+    res.json({
+      minYear,
+      total: totalRow.rows[0]?.total ?? 0,
+      totalAmount: totalRow.rows[0]?.amount ?? "0",
+      years: yearRows.rows.map((row) => ({
+        year: Number(row.year),
+        count: row.count,
+        amount: row.amount,
+      })),
+    });
+  } catch (error) {
+    console.error(`[pg] contracts-summary ${req.originalUrl}:`, error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -416,6 +535,111 @@ app.post(SMP_CHECK_PATHS, async (req, res) => {
     res.json({ results });
   } catch (error) {
     console.error(`[pg] POST ${req.originalUrl}:`, error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Новости ЕИС из RSS-ленты zakupki.gov.ru.
+ *
+ * Лента — большой XML-файл (3+ МБ), поэтому сервер скачивает её с ограничением
+ * по таймауту и кэширует на 15 минут, чтобы не дёргать ЕИС на каждый запрос.
+ * Фронтенд получает только заголовок, краткое описание и ссылку на публикацию.
+ */
+const NEWS_ENDPOINTS = ["/__rss/eis-news", "/pg-api/__rss/eis-news"];
+
+app.get(NEWS_ENDPOINTS, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 10, 30);
+    const refresh = req.query.refresh === "1" || req.query.refresh === "true";
+    const result = await fetchEisNews({ limit, refresh });
+    res.json(result);
+  } catch (error) {
+    console.error(`[pg] GET ${req.originalUrl}:`, error.message);
+    const cached = getCachedNews();
+    res.status(502).json({
+      error: error.message,
+      fetchedAt: cached.fetchedAt,
+      items: cached.items,
+    });
+  }
+});
+
+/**
+ * Лёгкая статистика для главной страницы.
+ *
+ * Один SQL-запрос с COUNT-подзапросами — сервер отдаёт готовые числа,
+ * фронт не скачивает документы. Фильтрация по `organizationId` (обязателен).
+ *
+ * Ответ:
+ * {
+ *   purchasePlans: number,
+ *   procurements: number,
+ *   purchaseNotes: number,
+ *   tasks: number,
+ *   activeTasks: number,
+ *   contractRegistryCurrentYear: number,
+ *   currentYear: number
+ * }
+ */
+const STATS_ENDPOINTS = ["/__pg/stats", "/pg-api/__pg/stats"];
+
+app.get(STATS_ENDPOINTS, async (req, res) => {
+  const organizationId = req.query.organizationId;
+  if (
+    organizationId === undefined ||
+    organizationId === null ||
+    organizationId === ""
+  ) {
+    res.status(400).json({ error: "Нужен organizationId" });
+    return;
+  }
+
+  const currentYear = new Date().getUTCFullYear();
+
+  try {
+    const result = await pool.query(
+      `SELECT
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'purchasePlans' AND organization_id = $1)
+        AS "purchasePlans",
+
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'procurements' AND organization_id = $1)
+        AS "procurements",
+
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'purchaseNotes' AND organization_id = $1)
+        AS "purchaseNotes",
+
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'tasks' AND organization_id = $1)
+        AS "tasks",
+
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'tasks' AND organization_id = $1
+           AND doc->>'status' NOT IN ('completed', 'cancelled'))
+        AS "activeTasks",
+
+        (SELECT count(*)::int FROM ${PG_SCHEMA}.documents
+         WHERE collection = 'contractRegistry' AND organization_id = $1
+           AND substring(coalesce(doc->>'contractDate', ''), 1, 4) = $2)
+        AS "contractRegistryCurrentYear"`,
+      [String(organizationId), String(currentYear)],
+    );
+
+    const row = result.rows[0];
+    res.json({
+      purchasePlans: row.purchasePlans ?? 0,
+      procurements: row.procurements ?? 0,
+      purchaseNotes: row.purchaseNotes ?? 0,
+      tasks: row.tasks ?? 0,
+      activeTasks: row.activeTasks ?? 0,
+      contractRegistryCurrentYear: row.contractRegistryCurrentYear ?? 0,
+      currentYear,
+    });
+  } catch (error) {
+    console.error(`[pg] GET ${req.originalUrl}:`, error.message);
     res.status(500).json({ error: error.message });
   }
 });

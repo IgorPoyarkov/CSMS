@@ -8,12 +8,17 @@ public sealed class EisNsiOptions
 {
     public const string SectionName = "EisNsi";
 
-    /// <summary>Код справочника в csms-api (совпадает со справочником ЕИС).</summary>
-    public string Dataset { get; set; } = "nsiKtru";
+    /// <summary>
+    /// Код справочника в csms-api. Важно: фронт и ReferenceDatasetCatalog
+    /// используют именно «nsiKTRU», поэтому публиковать нужно под этим кодом,
+    /// а не под кодом запроса ЕИС «nsiKtru».
+    /// </summary>
+    public string Dataset { get; set; } = "nsiKTRU";
 
     /// <summary>
-    /// Код из перечня nsiAllList. Значение по умолчанию — из документации
-    /// сервиса; перед живым прогоном подтвердить ответом nsiAllList.
+    /// Код из перечня nsiAllList для SOAP getNsiRequest. Это код ЕИС
+    /// («nsiKtru»), он может отличаться от внутреннего кода датасета.
+    /// Перед живым прогоном подтвердить ответом nsiAllList.
     /// </summary>
     public string NsiCode { get; set; } = "nsiKtru";
 

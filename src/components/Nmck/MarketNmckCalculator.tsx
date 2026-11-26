@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   Calculator,
@@ -7,7 +8,6 @@ import {
   FileDown,
   FileText,
   Landmark,
-  Layers,
   Plus,
   Save,
   Scale,
@@ -65,14 +65,14 @@ import {
   findOkpd2ByCode,
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
-import type { Okpd2Ref } from "../../services/Okpd2Ref/okpd2Ref.schema";
 import { checkOkpd2AuctionList } from "../../services/Okpd2Ref/auctionListControl";
 import type { ContractRegistryItem } from "../../services/ContractRegistry/contractRegistry.schema";
-import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
-import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
 import styles from "./MarketNmckCalculator.module.scss";
 import Select from "../UI/Select";
+import CustomSelect from "../UI/CustomSelect";
+import { useCounterparties } from "../../services/Counterparty/counterparty.api";
+import { downloadCommercialRequestXml } from "../../services/Nmck/commercialRequest";
 
 export interface MarketNmckCalculatorProps {
   /** Ранее сохранённый расчёт (при повторном редактировании в СЗ) */
@@ -85,15 +85,24 @@ export interface MarketNmckCalculatorProps {
   defaultIkz?: string;
   defaultCalculatorName?: string;
   organizationName?: string;
+  /** Электронная подпись (составитель — текущий пользователь) для PDF-превью */
+  signer?: {
+    compiledBy?: string;
+    compiledPosition?: string;
+    approver?: string;
+    certificateOwner?: string;
+    certificateSerial?: string;
+    certificateInn?: string;
+    signedAt?: string;
+  };
+  /** Приложения описания объекта закупки (ООЗ), включаемые в обоснование */
+  ooAttachments?: Array<{ fileName: string; updatedAt?: string }>;
   /** Полные реквизиты организации-заказчика для автозаполнения PDF/DOCX по 44-ФЗ */
   organization?: CustomerRequisitesForNmck | null;
   /** Текущий лимит финансового обеспечения по позиции ПГ (₽) */
   planAmountLimit?: number | null;
   /** Контракты организации для подстановки в качестве ценового источника ЕИС */
   contractRegistryItems?: ContractRegistryItem[];
-  /** Показывать ли переключатель обновления объёма финобеспечения в ПГ */
-  canUpdatePlanAmount?: boolean;
-  defaultUpdatePlanAmount?: boolean;
   /** Встроенный режим (внутри формы СЗ) */
   embedded?: boolean;
   isSaving?: boolean;
@@ -106,13 +115,6 @@ export interface MarketNmckCalculatorProps {
   }) => void;
   onClose?: () => void;
 }
-
-const renderMethodIcon = (method: NmckMethod) => {
-  if (method === "normative") return <Scale size={14} aria-hidden="true" />;
-  if (method === "tariff") return <Landmark size={14} aria-hidden="true" />;
-  if (method === "cost") return <Layers size={14} aria-hidden="true" />;
-  return <Calculator size={14} aria-hidden="true" />;
-};
 
 /**
  * Интерактивный калькулятор НМЦК (ст. 22 Закона № 44-ФЗ, Приказ МЭР № 567):
@@ -133,11 +135,11 @@ export default function MarketNmckCalculator({
   defaultIkz = "",
   defaultCalculatorName = "",
   organizationName = "",
+  signer,
+  ooAttachments,
   organization = null,
   planAmountLimit = null,
   contractRegistryItems = [],
-  canUpdatePlanAmount = true,
-  defaultUpdatePlanAmount = false,
   embedded = false,
   isSaving = false,
   disabled = false,
@@ -156,16 +158,16 @@ export default function MarketNmckCalculator({
   const [method, setMethod] = useState<NmckMethod>(
     () => initialRecord?.method ?? "market_analysis",
   );
-  const [subject, setSubject] = useState(
+  const [subject] = useState(
     () => initialRecord?.subject || defaultSubject,
   );
-  const [okpd2Code, setOkpd2Code] = useState(
+  const [okpd2Code] = useState(
     () => initialRecord?.okpd2Code || defaultOkpd2Code,
   );
-  const [okpd2Name, setOkpd2Name] = useState(
+  const [okpd2Name] = useState(
     () => initialRecord?.okpd2Name || defaultOkpd2Name,
   );
-  const [quantity, setQuantity] = useState(() => {
+  const [quantity] = useState(() => {
     const raw = initialRecord?.quantity ?? defaultQuantity ?? "1";
     const parsed = parseNumericInput(raw);
     return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : "1";
@@ -173,15 +175,35 @@ export default function MarketNmckCalculator({
   const [unit, setUnit] = useState(
     () => initialRecord?.unit || defaultUnit || "шт",
   );
-  const [calculationDate, setCalculationDate] = useState(
+  const [calculationDate] = useState(
     () => initialRecord?.calculationDate || todayIso,
   );
-  const [calculatorName, setCalculatorName] = useState(
+  const [calculatorName] = useState(
     () => initialRecord?.calculatorName || defaultCalculatorName,
   );
   const [notes, setNotes] = useState(() => initialRecord?.notes || "");
-  const [updatePlanAmount, setUpdatePlanAmount] = useState(
-    defaultUpdatePlanAmount,
+  const [commercialRequestSent, setCommercialRequestSent] = useState(
+    () => initialRecord?.commercialRequestSent ?? false,
+  );
+  const [commercialRequest, setCommercialRequest] = useState<
+    NmckCalculationRecord["commercialRequest"]
+  >(() => initialRecord?.commercialRequest);
+  const [showRequestPanel, setShowRequestPanel] = useState(false);
+  const [requestRecipients, setRequestRecipients] = useState<
+    { inn: string; name: string; email?: string }[]
+  >(() => initialRecord?.commercialRequest?.recipients ?? []);
+  const [selectedCounterpartyInn, setSelectedCounterpartyInn] = useState("");
+  const [requestPaymentTerms, setRequestPaymentTerms] = useState(
+    () => initialRecord?.commercialRequest?.paymentTerms ?? "",
+  );
+  const [requestDeliveryTerms, setRequestDeliveryTerms] = useState(
+    () => initialRecord?.commercialRequest?.deliveryTerms ?? "",
+  );
+  const [requestAcceptanceTerms, setRequestAcceptanceTerms] = useState(
+    () => initialRecord?.commercialRequest?.acceptanceTerms ?? "",
+  );
+  const [requestDeadline, setRequestDeadline] = useState(
+    () => initialRecord?.commercialRequest?.deadline ?? "",
   );
 
   // 1. Поля метода сопоставимых рыночных цен (анализ рынка)
@@ -418,21 +440,6 @@ export default function MarketNmckCalculator({
     }
   };
 
-  const handleSelectOkpd2 = (selected: Okpd2Ref | null) => {
-    const nextCode = selected?.code ?? "";
-    const nextName = selected?.name ?? "";
-    setOkpd2Code(nextCode);
-    setOkpd2Name(nextName);
-
-    if (selected?.isNormed && selected.normLimit !== undefined) {
-      setNormativeUnitPrice(selected.normLimit.toFixed(2));
-    }
-    const tariffsForCode = findMatchingTariffsByOkpd2(nextCode);
-    if (method === "tariff" && tariffsForCode.length > 0 && !tariffUnitPrice) {
-      applyOfficialTariff(tariffsForCode[0]);
-    }
-  };
-
   const handleSwitchMethod = (nextMethod: NmckMethod) => {
     setMethod(nextMethod);
     if (
@@ -649,10 +656,63 @@ export default function MarketNmckCalculator({
     return { record, basisText };
   };
 
+  const counterparties = useCounterparties();
+
+  const addRecipient = () => {
+    const counterparty = (counterparties.data ?? []).find(
+      (item) => item.inn === selectedCounterpartyInn,
+    );
+    if (!counterparty) return;
+    setRequestRecipients((prev) =>
+      prev.some((r) => r.inn === counterparty.inn)
+        ? prev
+        : [
+            ...prev,
+            {
+              inn: counterparty.inn,
+              name: counterparty.name,
+              email: counterparty.email,
+            },
+          ],
+    );
+    setSelectedCounterpartyInn("");
+  };
+
+  const removeRecipient = (inn: string) =>
+    setRequestRecipients((prev) => prev.filter((r) => r.inn !== inn));
+
+  const sendRequest = () => {
+    if (requestRecipients.length === 0) return;
+    const request = {
+      recipients: requestRecipients,
+      paymentTerms: requestPaymentTerms,
+      deliveryTerms: requestDeliveryTerms,
+      acceptanceTerms: requestAcceptanceTerms,
+      deadline: requestDeadline,
+      sentAt: new Date().toISOString().slice(0, 10),
+    };
+    setCommercialRequest(request);
+    setCommercialRequestSent(true);
+    setShowRequestPanel(false);
+    downloadCommercialRequestXml({
+      organizationName,
+      subject,
+      okpd2Code,
+      quantity,
+      unit,
+      ikz: defaultIkz,
+      ...request,
+    });
+  };
+
   const handleSave = () => {
     if (!onSaveToPosition || currentNmckTotal <= 0) return;
     const { record, basisText } = buildCurrentRecordAndBasis();
-    onSaveToPosition({ record, basisText, updatePlanAmount });
+    onSaveToPosition({
+      record: { ...record, commercialRequestSent, commercialRequest },
+      basisText,
+      updatePlanAmount: false,
+    });
   };
 
   const handleDownloadDocx = async () => {
@@ -681,6 +741,8 @@ export default function MarketNmckCalculator({
         ikz: defaultIkz,
         record,
         marketResult: method === "market_analysis" ? marketResult : undefined,
+        signer,
+        ooAttachments,
       });
     } finally {
       setIsExportingPdf(false);
@@ -695,15 +757,17 @@ export default function MarketNmckCalculator({
       : undefined;
 
   const canSaveOrExport =
-    method === "normative"
-      ? normResult.nmckTotal > 0
-      : method === "tariff"
-        ? tariffResult.nmckTotal > 0
-        : method === "cost"
-          ? costResult.validItemsCount > 0 &&
-            costResult.isValidProfitCoeff &&
-            costResult.nmckTotal > 0
-          : marketResult.activeCount > 0 && marketResult.nmckTotal > 0;
+    method === "project_estimate"
+      ? false
+      : method === "normative"
+        ? normResult.nmckTotal > 0
+        : method === "tariff"
+          ? tariffResult.nmckTotal > 0
+          : method === "cost"
+            ? costResult.validItemsCount > 0 &&
+              costResult.isValidProfitCoeff &&
+              costResult.nmckTotal > 0
+            : marketResult.activeCount > 0 && marketResult.nmckTotal > 0;
 
   return (
     <div className={block("", embedded ? ["embedded"] : [])}>
@@ -723,22 +787,20 @@ export default function MarketNmckCalculator({
         )}
       </div>
 
-      {/* Выбор метода определения НМЦК */}
-      <div className={block("method-tabs")} role="tablist">
-        {NMCK_METHODS.map((m) => (
-          <button
-            key={m}
-            type="button"
-            role="tab"
-            aria-selected={method === m}
-            disabled={disabled}
-            className={block("method-tab", method === m ? ["active"] : [])}
-            onClick={() => handleSwitchMethod(m)}
-          >
-            {renderMethodIcon(m)}
-            {NMCK_METHOD_LABELS[m]}
-          </button>
-        ))}
+      {/* Выбор метода определения НМЦК — кастомный селект */}
+      <div className={block("method-field")}>
+        <span className={block("label")}>Метод определения НМЦК</span>
+        <CustomSelect
+          listData={NMCK_METHODS.map((m) => ({
+            id: m,
+            label: NMCK_METHOD_LABELS[m],
+          }))}
+          selectedValue={method}
+          getKey={(m) => m.id}
+          getLabel={(m) => m.label}
+          renderItem={(m) => m.label}
+          onClick={(id) => handleSwitchMethod(id as NmckMethod)}
+        />
       </div>
 
       <p className={block("subtitle")}>
@@ -748,115 +810,179 @@ export default function MarketNmckCalculator({
             ? "Нормативный метод — ч. 7 ст. 22, ст. 19 Закона № 44-ФЗ, ПП РФ от 02.09.2015 № 926 и ПП РФ от 13.10.2014 № 1047. Автоматически подтягивает предельные цены из справочника нормирования ОКПД2."
             : method === "tariff"
               ? "Тарифный метод — ч. 8 ст. 22 Закона № 44-ФЗ, разд. V Приказа МЭР № 567. Применяется, если цены на закупаемые ТРУ подлежат государственному или муниципальному регулированию (выбор из официальных источников)."
-              : "Затратный метод (метод сложения затрат) — ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР № 567. Суммируются прямые и косвенные статьи затрат и учитывается обычная для отрасли прибыль."}
+              : method === "project_estimate"
+                ? "Проектно-сметный метод — ч. 9 ст. 22 Закона № 44-ФЗ. Обоснование НМЦК определяется сметой контракта в связке с дефектовкой."
+                : "Затратный метод (метод сложения затрат) — ч. 10–11 ст. 22 Закона № 44-ФЗ, разд. VI Приказа МЭР № 567. Суммируются прямые и косвенные статьи затрат и учитывается обычная для отрасли прибыль."}
       </p>
 
-      {/* Параметры объекта закупки и расчёта */}
+      {method === "project_estimate" && (
+        <div className={block("banner", ["info"])} role="status">
+          <span>
+            Проектно-сметный метод: обоснование НМЦК формируется сметой контракта в
+            связке с дефектовкой.
+          </span>
+          <Link className={block("link-btn")} to="/estimates">
+            Перейти в раздел «Сметы и НМЦК»
+          </Link>
+        </div>
+      )}
+
+      {/* Объект закупки, ОКПД2, КТРУ, количество и единица заданы в СЗ (блок
+          «Объект закупки») — здесь остаётся только номер СЗ. Дата расчёта и
+          исполнитель определяются системой. */}
       <div className={block("params")}>
-        <div className={block("field", ["wide"])}>
-          <label className={block("label")} htmlFor="nmck-subject">
-            Объект закупки
-          </label>
-          <input
-            id="nmck-subject"
-            className={block("input")}
-            disabled={disabled}
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            placeholder="Наименование товара, работы, услуги"
-          />
-        </div>
-
-        <div className={block("field", ["wide"])}>
-          <label className={block("label")} htmlFor="nmck-okpd2">
-            Код ОКПД2 (связь с нормированием, тарифами и аукционным перечнем)
-          </label>
-          <Okpd2Select
-            id="nmck-okpd2"
-            code={okpd2Code}
-            name={okpd2Name || matchedOkpd2?.name}
-            disabled={disabled}
-            onSelect={handleSelectOkpd2}
-          />
-        </div>
-
-        <div className={block("field")}>
-          <label className={block("label")} htmlFor="nmck-quantity">
-            Количество (объём) *
-          </label>
-          <input
-            id="nmck-quantity"
-            className={block("input", ["num"])}
-            disabled={disabled}
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="1"
-          />
-        </div>
-
-        <div className={block("field")}>
-          <label className={block("label")} htmlFor="nmck-unit">
-            Единица измерения (ОКЕИ)
-          </label>
-          <OkeiSelect
-            id="nmck-unit"
-            compact
-            disabled={disabled}
-            value={unit}
-            valueMode="symbol"
-            onChange={(val) => setUnit(val)}
-          />
-        </div>
-
-        <div className={block("field")}>
-          <label className={block("label")} htmlFor="nmck-calc-date">
-            Дата расчёта НМЦК
-          </label>
-          <input
-            id="nmck-calc-date"
-            type="date"
-            className={block("input")}
-            disabled={disabled}
-            value={calculationDate}
-            onChange={(e) => setCalculationDate(e.target.value)}
-          />
-        </div>
-
         {method === "market_analysis" && (
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="nmck-basis-mode">
-              Основание итоговой НМЦК
-            </label>
-            <Select
-              id="nmck-basis-mode"
-              className={block("select")}
-              disabled={disabled}
-              value={selectedBasis}
-              onChange={(e) =>
-                setSelectedBasis(e.target.value === "min" ? "min" : "mean")
+          <div className={block("field", ["wide"])}>
+            <span className={block("label")}>Основание итоговой НМЦК</span>
+            <CustomSelect
+              listData={[
+                {
+                  id: "mean",
+                  label: "Средняя приведённая цена (п. 3.21 МЭР № 567)",
+                },
+                { id: "min", label: "Минимальная цена по выборке" },
+              ]}
+              selectedValue={selectedBasis}
+              getKey={(o) => o.id}
+              getLabel={(o) => o.label}
+              renderItem={(o) => o.label}
+              onClick={(id) =>
+                setSelectedBasis(id === "min" ? "min" : "mean")
               }
-            >
-              <option value="mean">
-                Средняя приведённая цена (п. 3.21 МЭР № 567)
-              </option>
-              <option value="min">Минимальная цена по выборке</option>
-            </Select>
+            />
           </div>
         )}
+      </div>
 
-        <div className={block("field")}>
-          <label className={block("label")} htmlFor="nmck-author">
-            Исполнитель расчёта
-          </label>
-          <input
-            id="nmck-author"
-            className={block("input")}
-            disabled={disabled}
-            value={calculatorName}
-            onChange={(e) => setCalculatorName(e.target.value)}
-            placeholder="ФИО специалиста КС / инициатора"
-          />
-        </div>
+      {/* Запрос коммерческих предложений: выбор подрядчиков, условия и срок */}
+      <div className={block("request-box")}>
+        {commercialRequestSent ? (
+          <div className={block("request-sent")} role="status">
+            Запрос ком. предложений направлен
+            {commercialRequest?.deadline
+              ? ` (срок ответа: ${commercialRequest.deadline})`
+              : ""}
+            .
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              className={block("btn", ["compact"])}
+              onClick={() => setShowRequestPanel((v) => !v)}
+            >
+              {showRequestPanel
+                ? "Скрыть запрос"
+                : "Подготовить запрос коммерческих предложений"}
+            </button>
+            {showRequestPanel && (
+              <div className={block("request-form")}>
+                <div className={block("field", ["wide"])}>
+                  <label className={block("label")} htmlFor="cp-recipient">
+                    Подрядчик (получатель запроса)
+                  </label>
+                  <div className={block("request-add-row")}>
+                    <CustomSelect
+                      listData={counterparties.data ?? []}
+                      selectedValue={selectedCounterpartyInn}
+                      placeholder="Выберите из справочника…"
+                      searchable
+                      getKey={(cp) => cp.inn}
+                      getLabel={(cp) => `${cp.name} · ИНН ${cp.inn}`}
+                      renderItem={(cp) => `${cp.name} · ИНН ${cp.inn}`}
+                      onClick={(inn) =>
+                        setSelectedCounterpartyInn(String(inn))
+                      }
+                    />
+                    <button
+                      type="button"
+                      className={block("btn", ["compact"])}
+                      onClick={addRecipient}
+                      disabled={!selectedCounterpartyInn}
+                    >
+                      Добавить
+                    </button>
+                  </div>
+                </div>
+
+                {requestRecipients.length > 0 && (
+                  <div className={block("request-chips")}>
+                    {requestRecipients.map((r) => (
+                      <span key={r.inn} className={block("request-chip")}>
+                        {r.name}
+                        <button
+                          type="button"
+                          aria-label={`Убрать ${r.name}`}
+                          onClick={() => removeRecipient(r.inn)}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className={block("field", ["wide"])}>
+                  <label className={block("label")} htmlFor="cp-payment">
+                    Условия оплаты
+                  </label>
+                  <input
+                    id="cp-payment"
+                    className={block("input")}
+                    value={requestPaymentTerms}
+                    onChange={(e) => setRequestPaymentTerms(e.target.value)}
+                    placeholder="Например: оплата в течение 7 раб. дней после приёмки"
+                  />
+                </div>
+                <div className={block("field", ["wide"])}>
+                  <label className={block("label")} htmlFor="cp-delivery">
+                    Условия поставки
+                  </label>
+                  <input
+                    id="cp-delivery"
+                    className={block("input")}
+                    value={requestDeliveryTerms}
+                    onChange={(e) => setRequestDeliveryTerms(e.target.value)}
+                    placeholder="Срок и место поставки"
+                  />
+                </div>
+                <div className={block("field", ["wide"])}>
+                  <label className={block("label")} htmlFor="cp-acceptance">
+                    Условия приёмки
+                  </label>
+                  <input
+                    id="cp-acceptance"
+                    className={block("input")}
+                    value={requestAcceptanceTerms}
+                    onChange={(e) => setRequestAcceptanceTerms(e.target.value)}
+                    placeholder="Порядок и документы приёмки"
+                  />
+                </div>
+                <div className={block("field")}>
+                  <label className={block("label")} htmlFor="cp-deadline">
+                    Срок ответа
+                  </label>
+                  <input
+                    id="cp-deadline"
+                    type="date"
+                    className={block("input")}
+                    value={requestDeadline}
+                    onChange={(e) => setRequestDeadline(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className={block("btn", ["primary"])}
+                  onClick={sendRequest}
+                  disabled={requestRecipients.length === 0}
+                >
+                  Сформировать XML и направить запрос
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Индикатор увязки ОКПД2 с обязательным нормированием */}
@@ -1721,7 +1847,7 @@ export default function MarketNmckCalculator({
             </div>
           )}
         </>
-      ) : (
+      ) : method === "project_estimate" ? null : (
         <>
           {/* Настройки затратного метода */}
           <div className={block("options-bar")}>
@@ -2112,23 +2238,30 @@ export default function MarketNmckCalculator({
         />
       </div>
 
+      {/* Превью обоснования НМЦК: PDF со всеми требуемыми значениями по НПА
+          (зависит от метода и предметной области) */}
+      <div className={block("preview")}>
+        <div className={block("preview-title")}>
+          Превью обоснования НМЦК
+          {commercialRequestSent && (
+            <span className={block("preview-status")}>
+              Запрос ком. предложений
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          className={block("btn", ["compact"])}
+          disabled={isExportingPdf || !canSaveOrExport}
+          onClick={() => void handleDownloadPdf()}
+        >
+          <FileText size={14} aria-hidden="true" />{" "}
+          {isExportingPdf ? "Формирование PDF…" : "Открыть превью (PDF)"}
+        </button>
+      </div>
+
       {/* Нижняя панель действий */}
       <div className={block("footer")}>
-        {canUpdatePlanAmount && onSaveToPosition && (
-          <label className={block("checkbox")}>
-            <input
-              type="checkbox"
-              disabled={disabled || isSaving}
-              checked={updatePlanAmount}
-              onChange={(e) => setUpdatePlanAmount(e.target.checked)}
-            />
-            <span>
-              Также обновить плановый объём финобеспечения позиции ПГ
-              (обоснование сохраняется только в СЗ)
-            </span>
-          </label>
-        )}
-
         <div className={block("footer-buttons")}>
           <button
             type="button"

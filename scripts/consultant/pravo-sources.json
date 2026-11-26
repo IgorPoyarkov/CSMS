@@ -1,0 +1,1118 @@
+{
+  "_comment": "Официальные тексты НПА для локального RAG. hash — идентификатор карточки actual.pravo.gov.ru, redid — редакция. Скачивание: node scripts/consultant/fetch-pravo.mjs sync",
+  "outputDir": ".tmp/pravo-downloads",
+  "acts": [
+    {
+      "id": "fz-44",
+      "shortName": "44-ФЗ",
+      "hash": "34fb2dd9469485e526248192597d65ebbdcf212404604b86238557881cce4b16",
+      "cardUrl": "http://actual.pravo.gov.ru/list.html#date_period=%2C24.11.2026&number_start=44&kinds=107&bpa=ebpi&sort=type&hash=34fb2dd9469485e526248192597d65ebbdcf212404604b86238557881cce4b16",
+      "relevantFrom": "2022-01-01",
+      "maxChunks": 1600,
+      "documentName": "Федеральный закон от 05.04.2013 № 44-ФЗ",
+      "redactions": [
+        {
+          "redid": 495891,
+          "slug": "2026-10-01",
+          "role": "actual"
+        },
+        {
+          "redid": 495892,
+          "slug": "2027-01-01",
+          "role": "future"
+        },
+        {
+          "redid": 496022,
+          "slug": "2026-08-04",
+          "role": "archive"
+        },
+        {
+          "redid": 466198,
+          "slug": "2026-07-01",
+          "role": "archive"
+        },
+        {
+          "redid": 477622,
+          "slug": "2026-01-01",
+          "role": "archive"
+        },
+        {
+          "redid": 466194,
+          "slug": "2025-01-01",
+          "role": "archive"
+        },
+        {
+          "redid": 444334,
+          "slug": "2024-01-01",
+          "role": "archive"
+        },
+        {
+          "redid": 415801,
+          "slug": "2023-01-01",
+          "role": "archive"
+        },
+        {
+          "redid": 398286,
+          "slug": "2022-07-01",
+          "role": "archive"
+        }
+      ]
+    },
+    {
+      "id": "pp-1875",
+      "shortName": "ПП РФ № 1875",
+      "hash": "04f46ea3a989cb4a95e7fb325353636a045142e504c36c2e8788191849119384",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202412250018",
+      "relevantFrom": null,
+      "maxChunks": 700,
+      "documentName": "Постановление Правительства Российской Федерации от 23.12.2024 № 1875",
+      "redactions": [
+        {
+          "redid": 498227,
+          "slug": "2026-11-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-63-ep",
+      "shortName": "63-ФЗ (ЭП)",
+      "hash": "03adc9bd286c9362e7a5a68dd64bd5d2c79ee44660028678e85e90e2f1f34b84",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 06.04.2011 № 63-ФЗ",
+      "redactions": [
+        {
+          "redid": 477635,
+          "slug": "2026-03-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "tk-197",
+      "shortName": "ТК РФ",
+      "hash": "03bdee8f44a71247d7ba3342484326dbc3fa292d3caae9f88ada4b1ee38c20d9",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 30.12.2001 № 197-ФЗ",
+      "redactions": [
+        {
+          "redid": 492286,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-209",
+      "shortName": "209-ФЗ",
+      "hash": "ab18610270d06d7ce99091306a09fdc415c7f033374ccad5c2e31e39f5af110f",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 24.07.2007 № 209-ФЗ",
+      "redactions": [
+        {
+          "redid": 492276,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-152",
+      "shortName": "152-ФЗ",
+      "hash": "98490812b3409e2a8d78a11ca9010f434ea3d9250a11dbbdb78690cd5551bdd6",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 27.07.2006 № 152-ФЗ",
+      "redactions": [
+        {
+          "redid": 495372,
+          "slug": "2026-07-26",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-223",
+      "shortName": "223-ФЗ",
+      "hash": "35e492536434c0db56b2b63b46c5cc0fd13a05dc1f6604ba1001b2f97ac8ec34",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 18.07.2011 № 223-ФЗ",
+      "redactions": [
+        {
+          "redid": 457537,
+          "slug": "2025-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-259",
+      "shortName": "259-ФЗ",
+      "hash": "26d7d7bf41e4c1fec924c021d47b05f4bf2f91c06b2a2ea828c89d7a8217f249",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202408080089",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 08.08.2024 № 259-ФЗ",
+      "redactions": [
+        {
+          "redid": 483446,
+          "slug": "2026-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-360",
+      "shortName": "360-ФЗ",
+      "hash": "29581ad4935161c851573e7a26a0031634079d705be2f84cffdae5cbb9350664",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202107020093",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 02.07.2021 № 360-ФЗ",
+      "redactions": [
+        {
+          "redid": 466166,
+          "slug": "2024-12-26",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-119",
+      "shortName": "119-ФЗ",
+      "hash": "58a7e2dfc14608e09fef864ad57cdb304e61a3514d1b87c2b1898cfbd4b31376",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 31.07.1995 № 119-ФЗ",
+      "redactions": [
+        {
+          "redid": 11858,
+          "slug": "2004-07-27",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-45",
+      "shortName": "45-ФЗ",
+      "hash": "fce0758f0832af8fc23ed2c6e94561a5e5fc65f77ba0e9334c6edf45019c91e0",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 20.04.1995 № 45-ФЗ",
+      "redactions": [
+        {
+          "redid": 469440,
+          "slug": "2025-07-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-94",
+      "shortName": "94-ФЗ",
+      "hash": "c2cc904b0c0e639d0bff496b8b57a92f5fb12380472946de9b82d27c5f54a7a5",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 28.07.2004 № 94-ФЗ",
+      "redactions": [
+        {
+          "redid": 39142,
+          "slug": "2015-03-08",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-275",
+      "shortName": "275-ФЗ",
+      "hash": "5df7bb482179831914558d092dc817efee704a52f2e8d130ceea00e5b64853b3",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201212300003",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 29.12.2012 № 275-ФЗ",
+      "redactions": [
+        {
+          "redid": 494526,
+          "slug": "2026-08-04",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-307",
+      "shortName": "307-ФЗ",
+      "hash": "47fea62110b001b4525eaa57b8ba5f2bec38b278af547668b912690ccfca7f8a",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 30.12.2008 № 307-ФЗ",
+      "redactions": [
+        {
+          "redid": 496056,
+          "slug": "2026-08-15",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "gk-51",
+      "shortName": "ГК РФ, ч. 1",
+      "hash": "ba747b7c430fdfb9405741d818463a26af1577a680f7a9ab6318cc6f4faa1121",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 30.11.1994 № 51-ФЗ",
+      "redactions": [
+        {
+          "redid": 498756,
+          "slug": "2026-10-23",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "gk-14",
+      "shortName": "ГК РФ, ч. 2",
+      "hash": "c5515b06c932bdfbd67b34f5b856bb8317deaabded3eacae2ebadfd4c6703785",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 26.01.1996 № 14-ФЗ",
+      "redactions": [
+        {
+          "redid": 493400,
+          "slug": "2026-06-10",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "koap-195",
+      "shortName": "КоАП РФ",
+      "hash": "6639c6c6580e8aa0bdf84170d25823669dfb6a4144b03da245ef4889f24765c0",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 30.12.2001 № 195-ФЗ",
+      "redactions": [
+        {
+          "redid": 496101,
+          "slug": "2026-11-03",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "bk-145",
+      "shortName": "БК РФ",
+      "hash": "1e6024ba3941a2db83058b219a73643f87ad32f9f6bb5c9fd9b4bcb5aaa3f979",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 31.07.1998 № 145-ФЗ",
+      "redactions": [
+        {
+          "redid": 498753,
+          "slug": "2026-11-13",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "grk-190",
+      "shortName": "ГрК РФ",
+      "hash": "fc01bd4ee09272d641c80b86f8be9f750ca1137e1402dd267b5b991e64ad45b1",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 29.12.2004 № 190-ФЗ",
+      "redactions": [
+        {
+          "redid": 477703,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "uk-63",
+      "shortName": "УК РФ",
+      "hash": "f29a592d348b400651a6760273edea9dfcbb75f4d56777c1c5b99233244b404c",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 13.06.1996 № 63-ФЗ",
+      "redactions": [
+        {
+          "redid": 496140,
+          "slug": "2026-08-15",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "zhk-188",
+      "shortName": "ЖК РФ",
+      "hash": "8b4a1920bd1b392ecc9684dc74ddebb02da5af465df06bc4a7ff8c2baf3915ce",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 29.12.2004 № 188-ФЗ",
+      "redactions": [
+        {
+          "redid": 498743,
+          "slug": "2026-10-07",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-191",
+      "shortName": "191-ФЗ",
+      "hash": "9e77b12a341166c3be4d81a660cb10491d138f6e2774424e5f6db91199d0eac6",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 29.12.2004 № 191-ФЗ",
+      "redactions": [
+        {
+          "redid": 496079,
+          "slug": "2026-08-04",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-184",
+      "shortName": "184-ФЗ",
+      "hash": "1cba23c4eb681a4bcc709b48cd1b216cbf6ef0b594a75fba6996faf49465f4cc",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 27.12.2002 № 184-ФЗ",
+      "redactions": [
+        {
+          "redid": 491469,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-257",
+      "shortName": "257-ФЗ",
+      "hash": "5b56a1fdc1be5f09cdb4b63074c793e3f533aa60138236f2273b9cc17ff639e6",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 08.11.2007 № 257-ФЗ",
+      "redactions": [
+        {
+          "redid": 476911,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-31",
+      "shortName": "31-ФЗ",
+      "hash": "d0a89dad3cc365f918526e4e37b505b46c3a5026fafe7a060f6ac72a6ab6928a",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 26.02.1997 № 31-ФЗ",
+      "redactions": [
+        {
+          "redid": 450467,
+          "slug": "2024-03-23",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-7",
+      "shortName": "7-ФЗ",
+      "hash": "2dfaf5368f2d181af77269d1009c4532bc62e8c01d443478747808afc3b4fa35",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 10.01.2002 № 7-ФЗ",
+      "redactions": [
+        {
+          "redid": 477737,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-89",
+      "shortName": "89-ФЗ",
+      "hash": "43795f84a86e59644ae31466b64b65bf4f75cca6ccf48aae38b946672735101f",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 24.06.1998 № 89-ФЗ",
+      "redactions": [
+        {
+          "redid": 489496,
+          "slug": "2026-04-03",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-384",
+      "shortName": "384-ФЗ",
+      "hash": "9f21b263069830afd3dbc57e1b23d90298a3504c7ce4e25072b46672fa247e2f",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 30.12.2009 № 384-ФЗ",
+      "redactions": [
+        {
+          "redid": 444555,
+          "slug": "2024-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-443",
+      "shortName": "443-ФЗ",
+      "hash": "bf42396de47352c8f95ad63dd0f0eff4319714932e00f961945e17e2e3f37abf",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201712290093",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 29.12.2017 № 443-ФЗ",
+      "redactions": [
+        {
+          "redid": 455512,
+          "slug": "2025-03-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-28",
+      "shortName": "28-ФЗ",
+      "hash": "6611697c5d3316deb0818a060ceb5589957f72803365b9d93c6af93a57470b1e",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 12.02.1998 № 28-ФЗ",
+      "redactions": [
+        {
+          "redid": 476942,
+          "slug": "2026-01-20",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-16",
+      "shortName": "16-ФЗ",
+      "hash": "5133554bfeaf2ae05c314e6a612d43f71ebaba68cb0ccbfd378457d37b84e690",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 09.02.2007 № 16-ФЗ",
+      "redactions": [
+        {
+          "redid": 487156,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-135",
+      "shortName": "135-ФЗ",
+      "hash": "10f224e8aeb1151b77ee3153d3a0f78e8a8f3e4faa73de03b3c37064de9a140b",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 26.07.2006 № 135-ФЗ",
+      "redactions": [
+        {
+          "redid": 493680,
+          "slug": "2026-09-09",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "vk-73",
+      "shortName": "Водный кодекс",
+      "hash": "87b8d83959b9b1b0d66ee9c86fda63ce0e8f9d707dc8134f5382d80dd8ed3736",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 03.06.2006 № 73-ФЗ",
+      "redactions": [
+        {
+          "redid": 444608,
+          "slug": "2025-03-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "zk-136",
+      "shortName": "Земельный кодекс",
+      "hash": "f7e8a05ab96295ade2be3c550c15fdb66646f0b16f0f65c5aad57b59577acb74",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Кодекс Российской Федерации от 25.10.2001 № 136-ФЗ",
+      "redactions": [
+        {
+          "redid": 498750,
+          "slug": "2026-11-13",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-19",
+      "shortName": "ПП РФ № 19",
+      "hash": "391dc8258662e3bdcecefde68d4e711a3c17bc23631fd17cc974ead4286aa06d",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201501220019",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 17.01.2015 № 19",
+      "redactions": [
+        {
+          "redid": 77245,
+          "slug": "2015-11-11",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-60",
+      "shortName": "ПП РФ № 60",
+      "hash": "c763651947ee751e27926adf5c6bbe4b8b8a00bf954d667cc5828d07a98980e2",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202202030005",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 27.01.2022 № 60",
+      "redactions": [
+        {
+          "redid": 496914,
+          "slug": "2026-10-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-87",
+      "shortName": "ПП РФ № 87",
+      "hash": "787cfb1f57b67998ced9c42e304249424b62dcc6e6dc3d3998118c721be33f37",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 16.02.2008 № 87",
+      "redactions": [
+        {
+          "redid": 481104,
+          "slug": "2025-10-22",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-145",
+      "shortName": "ПП РФ № 145",
+      "hash": "d7020496af1fd171c8e126a9b003729d0e4d33cd40a7aaefe95b3c5640aba08b",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201702100009",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 08.02.2017 № 145",
+      "redactions": [
+        {
+          "redid": 467009,
+          "slug": "2025-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-238",
+      "shortName": "ПП РФ № 238",
+      "hash": "14a6e2853589614bddc5c74d940827a3840a98e96e4c5dfc5c8d7645ac216437",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201503200011",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 17.03.2015 № 238",
+      "redactions": [
+        {
+          "redid": 473454,
+          "slug": "2025-05-22",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-468",
+      "shortName": "ПП РФ № 468",
+      "hash": "e0c0e48b196dbfa7cbdc3eb255f0cd0c516a38242f2acee34acf457bb507166e",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 21.06.2010 № 468",
+      "redactions": [
+        {
+          "redid": 452370,
+          "slug": "2024-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-552",
+      "shortName": "ПП РФ № 552",
+      "hash": "2376483dac5f7493c27169ecbec7cbbfd17b7fd8f222ff3c35a48f86f786118e",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201506090016",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 05.06.2015 № 552",
+      "redactions": [
+        {
+          "redid": 322619,
+          "slug": "2020-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-563",
+      "shortName": "ПП РФ № 563",
+      "hash": "fdcaa336c91e73a6ea815429efac10eea5cb3903964e8c6fd6c64f2f127158b3",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201705160037",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 12.05.2017 № 563",
+      "redactions": [
+        {
+          "redid": 453874,
+          "slug": "2024-05-31",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-570",
+      "shortName": "ПП РФ № 570",
+      "hash": "3857019985d8a5d69e866044d9736e8a46a94a46cd3d825f5eadcd21c62ee2fc",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201705170009",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 15.05.2017 № 570",
+      "redactions": [
+        {
+          "redid": 497684,
+          "slug": "2026-10-02",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-572",
+      "shortName": "ПП РФ № 572",
+      "hash": "06d0023b7d55a217c5e82a1ab1ee9581e5fc5ba280a7856f702124bca85997d3",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202405040011",
+      "relevantFrom": null,
+      "maxChunks": 300,
+      "documentName": "Постановление Правительства Российской Федерации от 03.05.2024 № 572",
+      "redactions": [
+        {
+          "redid": 482132,
+          "slug": "2026-03-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-615",
+      "shortName": "ПП РФ № 615",
+      "hash": "d0a52445f1f10d78e4deca93f68e5d5067abb1e4e18a9a8d2603d97812024129",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202005010007",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 30.04.2020 № 615",
+      "redactions": [
+        {
+          "redid": 499442,
+          "slug": "2026-11-16",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-924",
+      "shortName": "ПП РФ № 924",
+      "hash": "f64dbe608d676e339b5ea79c1698f3cc66477a2477d122167343f140bd116f19",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201609230007",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 14.09.2016 № 924",
+      "redactions": [
+        {
+          "redid": 346492,
+          "slug": "2021-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-926",
+      "shortName": "ПП РФ № 926",
+      "hash": "59578c27a5dd46b4fe77e8c64f632f56811179bf5a67cddfea923da6c6b5fb78",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201509080040",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 02.09.2015 № 926",
+      "redactions": [
+        {
+          "redid": 474818,
+          "slug": "2025-06-12",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-963",
+      "shortName": "ПП РФ № 963",
+      "hash": "78b86f87540d63231c5567769c776eb59746992730b7a3f851927cac8f70d3de",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201409260007",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 20.09.2014 № 963",
+      "redactions": [
+        {
+          "redid": 468226,
+          "slug": "2025-02-04",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-964",
+      "shortName": "ПП РФ № 964",
+      "hash": "b2fd47b1fe58559e1ade622ddcf1365f3419b964948a83384e291cec5ea5d065",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201509150018",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 11.09.2015 № 964",
+      "redactions": [
+        {
+          "redid": 319832,
+          "slug": "2019-07-27",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1005",
+      "shortName": "ПП РФ № 1005",
+      "hash": "0390f07091392b9d18acf9189cb91c1765f32d8a41302dd3bb4fdee834f807d4",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201311130002",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 08.11.2013 № 1005",
+      "redactions": [
+        {
+          "redid": 467029,
+          "slug": "2024-12-26",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1038",
+      "shortName": "ПП РФ № 1038",
+      "hash": "216e8dad733f5e18cc91f9a55404fca2052db9dca715898a1aa98cf142dbb532",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201311200015",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 18.11.2013 № 1038",
+      "redactions": [
+        {
+          "redid": 491267,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1042",
+      "shortName": "ПП РФ № 1042",
+      "hash": "b17f8dc237956ed48633eee7de5fc8d703087d7904b78986ca9e35988a2ba9d3",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201709010020",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 30.08.2017 № 1042",
+      "redactions": [
+        {
+          "redid": 319926,
+          "slug": "2019-08-02",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1047",
+      "shortName": "ПП РФ № 1047",
+      "hash": "11154a512c963870af081d78923368f15f40fb63122492e40c00955a581a0eb7",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202107010101",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 29.06.2021 № 1047",
+      "redactions": [
+        {
+          "redid": 496601,
+          "slug": "2026-10-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1063",
+      "shortName": "ПП РФ № 1063",
+      "hash": "139c17e1e05ee70bf23849c860eec96351dbdb29c478991a20edccc6d5da892c",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201311280015",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 25.11.2013 № 1063",
+      "redactions": [
+        {
+          "redid": 280756,
+          "slug": "2017-08-30",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1085",
+      "shortName": "ПП РФ № 1085",
+      "hash": "103302dc927c08f8c34323aa86bf96dc2ddc5cdc02af5ef1719f753ae09bea63",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201312020017",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 28.11.2013 № 1085",
+      "redactions": [
+        {
+          "redid": 386925,
+          "slug": "2022-01-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1087",
+      "shortName": "ПП РФ № 1087",
+      "hash": "661281b0339586f4a78c70c9597e29db5c0a9f3ea6d1b45f2ffcc9ad9627af94",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202307030028",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 30.06.2023 № 1087",
+      "redactions": [
+        {
+          "redid": 496876,
+          "slug": "2026-09-09",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1148",
+      "shortName": "ПП РФ № 1148",
+      "hash": "ad587077b030162d97fea117aa3f82397e414d1366c5697938cce2b5332e3885",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202206290030",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 28.06.2022 № 1148",
+      "redactions": [
+        {
+          "redid": 491351,
+          "slug": "2026-04-28",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1315",
+      "shortName": "ПП РФ № 1315",
+      "hash": "1d8fe6720ddb9193a4dcd9c858f6dea07328ddd5a5b1e462951c6ccb795f27dd",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202108130017",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 09.08.2021 № 1315",
+      "redactions": [
+        {
+          "redid": 491358,
+          "slug": "2026-04-28",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1466",
+      "shortName": "ПП РФ № 1466",
+      "hash": "c6c6906644571a4d982747dd04e76360960f5f70894b37e30116f13ed05e97dd",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201612270012",
+      "relevantFrom": null,
+      "maxChunks": 300,
+      "documentName": "Постановление Правительства Российской Федерации от 23.12.2016 № 1466",
+      "redactions": [
+        {
+          "redid": 410434,
+          "slug": "2022-10-31",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-1479",
+      "shortName": "ПП РФ № 1479",
+      "hash": "e9a70ba06b3658bde312433ab1a8406e55afe30ddce4a356ef4e22453e5a8195",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202009250010",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 16.09.2020 № 1479",
+      "redactions": [
+        {
+          "redid": 468370,
+          "slug": "2025-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-2024",
+      "shortName": "ПП РФ № 2024",
+      "hash": "e631920ce65a1445cefabbc65fc49f4c96702669404d2bde81397103cb0da591",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202111260048",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 24.11.2021 № 2024",
+      "redactions": [
+        {
+          "redid": 480766,
+          "slug": "2025-10-15",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-2483",
+      "shortName": "ПП РФ № 2483",
+      "hash": "9eb7fd3de5d9d2cac752279e96e6658ae6ea5bc7540304830a753fb35a675d0c",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202112290009",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Постановление Правительства Российской Федерации от 25.12.2021 № 2483",
+      "redactions": [
+        {
+          "redid": 495606,
+          "slug": "2026-09-01",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-2571",
+      "shortName": "ПП РФ № 2571",
+      "hash": "adb12a6dc7792267618ac166cdd5ac0ce4effb932c51cb7d4c9d5f16e17063c0",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202112310118",
+      "relevantFrom": null,
+      "maxChunks": 300,
+      "documentName": "Постановление Правительства Российской Федерации от 29.12.2021 № 2571",
+      "redactions": [
+        {
+          "redid": 491243,
+          "slug": "2026-04-27",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "pp-2604",
+      "shortName": "ПП РФ № 2604",
+      "hash": "8560037fb799565945e606f1fe403e9e89e08f53828ee95d7170fb1c9cad911f",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001202201040005",
+      "relevantFrom": null,
+      "maxChunks": 400,
+      "documentName": "Постановление Правительства Российской Федерации от 31.12.2021 № 2604",
+      "redactions": [
+        {
+          "redid": 497493,
+          "slug": "2026-09-30",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "rp-471",
+      "shortName": "РП РФ № 471-р",
+      "hash": "904a2d3a448dd464bee577b24e24bfe533cbd1faf02b1906b0b78aeee69f834c",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201603230014",
+      "relevantFrom": null,
+      "maxChunks": 400,
+      "documentName": "Распоряжение Правительства Российской Федерации от 21.03.2016 № 471-р",
+      "redactions": [
+        {
+          "redid": 410433,
+          "slug": "2022-10-31",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "rp-2344",
+      "shortName": "РП РФ № 2344-р",
+      "hash": "300ca1f76270548f11b06c1a5f75de25cd62e44af24a0217c2f01c1944703aff",
+      "cardUrl": "http://publication.pravo.gov.ru/Document/View/0001201611090005",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Распоряжение Правительства Российской Федерации от 03.11.2016 № 2344-р",
+      "redactions": [
+        {
+          "redid": 418055,
+          "slug": "2023-01-25",
+          "role": "actual"
+        }
+      ]
+    },
+    {
+      "id": "fz-315",
+      "shortName": "315-ФЗ",
+      "hash": "43fb8a8254d71b8e717afec15017844b277dd2430cee1c9b984c3327c43bbe7e",
+      "cardUrl": "",
+      "relevantFrom": null,
+      "maxChunks": null,
+      "documentName": "Федеральный закон от 01.12.2007 № 315-ФЗ",
+      "redactions": [
+        {
+          "redid": 477659,
+          "slug": "2026-03-01",
+          "role": "actual"
+        }
+      ]
+    }
+  ]
+}

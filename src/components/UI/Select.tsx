@@ -186,6 +186,13 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
     top?: number;
     bottom?: number;
   } | null>(null);
+  // Ширина и отступ выпадающего списка по самой длинной подписи. Триггер в
+  // узкой grid-колонке («Направление оценки», «Способ оценки» в СЗ) обрезает
+  // значение, и список той же ширины показывал варианты в несколько строк.
+  const [menuBox, setMenuBox] = useState<{
+    left: number;
+    width: number;
+  } | null>(null);
 
   // reset() из react-hook-form меняет value настоящего select, минуя наш
   // onChange. Читаем DOM-значение при рендере: родитель после reset
@@ -289,6 +296,51 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [open]);
+
+  // Список не должен наследовать обрезанную ширину триггера: замеряем его в
+  // режиме max-content (по самой длинной подписи варианта) и растягиваем по
+  // содержимому, пока он влезает во вьюпорт. Иначе в узких колонках формы СЗ
+  // и шкалы оценки «Шкала оценки (п. 22 Положения)» ломается на две строки.
+  useLayoutEffect(() => {
+    if (!open || !position) {
+      setMenuBox((current) => (current === null ? current : null));
+      return;
+    }
+
+    const node = dropdownRef.current;
+    const trigger = triggerRef.current;
+
+    if (!node || !trigger) return;
+
+    const viewportPadding = 12;
+    const triggerRect = trigger.getBoundingClientRect();
+    const previousWidth = node.style.width;
+    const previousWhiteSpace = node.style.whiteSpace;
+
+    // white-space: nowrap на время замера — чтобы max-content считался по
+    // целым подписям, а не по переносам внутри варианта.
+    node.style.width = "max-content";
+    node.style.whiteSpace = "nowrap";
+    const contentWidth = Math.ceil(node.getBoundingClientRect().width);
+    node.style.width = previousWidth;
+    node.style.whiteSpace = previousWhiteSpace;
+
+    const width = Math.max(
+      triggerRect.width,
+      Math.min(contentWidth, window.innerWidth - viewportPadding * 2),
+    );
+    // Сдвигаем список влево, если по содержимому он не влезает справа.
+    const left = Math.max(
+      viewportPadding,
+      Math.min(triggerRect.left, window.innerWidth - width - viewportPadding),
+    );
+
+    setMenuBox((current) =>
+      current && current.width === width && current.left === left
+        ? current
+        : { width, left },
+    );
+  }, [open, position]);
 
   useEffect(() => {
     if (!open) return;
@@ -481,6 +533,10 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
         aria-activedescendant={
           open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined
         }
+        // Триггер в узкой колонке обрезает подпись многоточием — полный текст
+        // значения показываем нативным тултипом (явный title вызывающего кода
+        // важнее подписи варианта).
+        title={rest.title ?? selectedOption?.text}
         aria-label={rest["aria-label"]}
         aria-labelledby={rest["aria-labelledby"]}
         aria-describedby={rest["aria-describedby"]}
@@ -512,8 +568,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
             className={select("dropdown")}
             style={{
               position: "fixed",
-              left: position.left,
-              width: position.width,
+              left: menuBox?.left ?? position.left,
+              width: menuBox?.width ?? position.width,
               maxHeight: position.maxHeight,
               ...(position.top !== undefined
                 ? { top: position.top }

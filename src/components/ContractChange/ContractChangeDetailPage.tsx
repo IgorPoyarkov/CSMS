@@ -416,6 +416,20 @@ export default function ContractChangeDetailPage() {
                 : input.basisCode || "не указано"
             }
           />
+          {basis?.eisReason && (
+            <MetaRow block={block}
+              label="Причина по справочнику ЕИС"
+              value={basis.eisReason}
+            />
+          )}
+          {basis && (basis.changeableConditions ?? []).length > 0 && (
+            <MetaRow block={block}
+              label="Изменяемые условия"
+              value={(basis.changeableConditions ?? [])
+                .map((condition) => condition.title)
+                .join("; ")}
+            />
+          )}
           <MetaRow block={block}
             label="Дата документа"
             value={formatDate(input.changeDate) || "—"}
@@ -503,6 +517,43 @@ export default function ContractChangeDetailPage() {
             />
           </dl>
         )}
+
+        {input.kind === "Modification" &&
+          (input.purchaseObjects ?? []).length > 0 && (
+            <div className={block("objects")}>
+              <span className={block("objects-title")}>Объекты закупки</span>
+              <ul className={block("objects-list")}>
+                {(input.purchaseObjects ?? []).map((item, index) => {
+                  const total =
+                    (item.newQuantity ?? 0) * (item.newUnitPrice ?? 0);
+                  const code = [item.okpd2Code, item.ktruCode]
+                    .filter(Boolean)
+                    .join(" / ");
+
+                  return (
+                    <li
+                      key={`${item.name}-${index}`}
+                      className={block("objects-item")}
+                    >
+                      <span>{item.name}</span>
+                      {code && (
+                        <span className={block("muted")}>{code}</span>
+                      )}
+                      <span>
+                        {item.oldQuantity ?? "—"} → {item.newQuantity ?? "—"}
+                        {item.unit ? ` ${item.unit}` : ""}
+                      </span>
+                      <span>
+                        {formatMoney(item.oldUnitPrice)} →{" "}
+                        {formatMoney(item.newUnitPrice)} ₽
+                      </span>
+                      <strong>{formatMoney(total)} ₽</strong>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
       </section>
 
       <section className={block("section")}>

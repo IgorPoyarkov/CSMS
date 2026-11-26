@@ -161,6 +161,9 @@ export const EvaluationIndicatorSchema = z.object({
   limitMin: z.number().optional(),
   limitMax: z.number().optional(),
   scaleText: z.string().optional(),
+  // Иной порядок оценки (п. 22 Положения) — текст порядка, как `otherOrder`
+  // в XSD ЕИС: переносится из служебной записки вместе с показателем
+  otherOrder: z.string().optional(),
 });
 
 export type NoticeEvaluationIndicator = z.infer<
@@ -542,7 +545,10 @@ export const NoticeInfoSchema = z.object({
 
     // Обеспечение заявки
     requiresApplicationSecurity: z.boolean(),
-    applicationSecurityPercent: z.number().min(0).max(5),
+    // Пределы (0,5–1 % до 20 млн, 0,5–5 % свыше) проверяет общий модуль норм:
+    // в схеме остаётся только техническая граница, иначе число вне диапазона
+    // отклонялось бы без ссылки на ч. 1 ст. 44.
+    applicationSecurityPercent: z.number().min(0).max(100),
     applicationSecurityOrder: z.string().optional(),
     applicationSecurityRequisites: BankRequisitesSchema,
     applicationSecurityBudgetRequisites:
@@ -550,7 +556,9 @@ export const NoticeInfoSchema = z.object({
 
     // Обеспечение исполнения контракта
     requiresContractSecurity: z.boolean(),
-    contractSecurityPercent: z.number().min(0).max(30),
+    // 0,5–30 % — общее правило; выше 30 % допустимо при авансе свыше 30 % НМЦК,
+    // поэтому предел проверяет validateSecurityNorms (ч. 6 ст. 96).
+    contractSecurityPercent: z.number().min(0).max(100),
     contractSecurityOrder: z.string().optional(),
     contractSecurityRequisites: BankRequisitesSchema,
     unableProvideContractGuaranteeReason: z.string().optional(),
@@ -562,7 +570,8 @@ export const NoticeInfoSchema = z.object({
     warrantyTermAndVolume: z.string().optional(),
 
     requiresWarrantySecurity: z.boolean(),
-    warrantySecurityPercent: z.number().min(0).max(10),
+    // Норму «не более 10 %» (ч. 7 ст. 34) проверяет общий модуль норм.
+    warrantySecurityPercent: z.number().min(0).max(100),
     warrantySecurityOrder: z.string().optional(),
     warrantySecurityRequisites: BankRequisitesSchema,
 

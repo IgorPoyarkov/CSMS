@@ -32,6 +32,23 @@ export interface ContractChangeIssue {
 }
 
 /**
+ * Позиция объектов закупки в изменении контракта.
+ *
+ * Объекты закупки — связанный блок ПЭК: при изменении цены или количества
+ * пересчитываются позиции, поэтому они приходят вместе с формой.
+ */
+export interface ContractChangePurchaseObject {
+  name: string;
+  okpd2Code: string | null;
+  ktruCode: string | null;
+  unit: string | null;
+  oldQuantity: number | null;
+  newQuantity: number | null;
+  oldUnitPrice: number | null;
+  newUnitPrice: number | null;
+}
+
+/**
  * Снимок контракта и предлагаемые условия изменения/расторжения.
  * Совпадает с `ContractChangeInput` домена.
  */
@@ -71,6 +88,8 @@ export interface ContractChangeInput {
   unitPrice: number | null;
   initialMaxPrice: number | null;
   createdBy: string;
+  /** Объекты закупки: позиции, пересчитываемые при изменении цены/количества. */
+  purchaseObjects?: ContractChangePurchaseObject[] | null;
 }
 
 export interface ContractChangeDocument {
@@ -116,6 +135,18 @@ export interface ContractChangeResponse {
   cancelledReason: string | null;
 }
 
+/**
+ * Условие контракта, которое основание позволяет изменить.
+ *
+ * Соответствует матрице nsiContractStructureChageCauseLink из XSD 17.0:
+ * `code` — блок/поле ПЭК, `xsdPath` — путь в схеме электронного контракта.
+ */
+export interface ContractChangeCondition {
+  code: string;
+  title: string;
+  xsdPath: string;
+}
+
 /** Правовое основание изменения/расторжения: от флагов зависит набор полей. */
 export interface ContractChangeBasis {
   code: string;
@@ -136,6 +167,10 @@ export interface ContractChangeBasis {
   requiresEisRegistration: boolean;
   onlyPriceReduction: boolean;
   maxPriceIncreasePercent: number;
+  /** Наименование причины по справочнику ЕИС nsiContractModificationReason. */
+  eisReason: string | null;
+  /** Блоки ПЭК, которые основание разрешает редактировать (пусто — расторжение). */
+  changeableConditions: ContractChangeCondition[];
 }
 
 export interface ContractChangeStatusOption {

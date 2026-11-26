@@ -1386,6 +1386,23 @@ export async function exportNmckCalculationToPdf(params: {
   record: NmckCalculationRecord;
   marketResult?: MarketNmckResult;
   fileName?: string;
+  /**
+   * Получатель готового PDF. Если не задан, документ скачивается (обычный
+   * экспорт); если задан — блоб отдаётся вызывающему коду для превью в форме.
+   */
+  deliver?: (blob: Blob) => void;
+  /** Электронная подпись: составитель (текущий пользователь) и утверждающий. */
+  signer?: {
+    compiledBy?: string;
+    compiledPosition?: string;
+    approver?: string;
+    certificateOwner?: string;
+    certificateSerial?: string;
+    certificateInn?: string;
+    signedAt?: string;
+  };
+  /** Приложения описания объекта закупки (ООЗ), включаемые в обоснование. */
+  ooAttachments?: Array<{ fileName: string; updatedAt?: string }>;
 }): Promise<string> {
   const [pdfMakeMod, pdfFontsMod] = await Promise.all([
     import("pdfmake/build/pdfmake"),
@@ -1801,6 +1818,18 @@ export async function exportNmckCalculationToPdf(params: {
   const authorName =
     record.calculatorName || org?.responsiblePerson || "____________________";
 
+  const compiledBy = params.signer?.compiledBy || authorName;
+  const compiledPosition =
+    params.signer?.compiledPosition || "Работник контрактной службы";
+  const approver =
+    params.signer?.approver || org?.responsiblePerson || "";
+  const certificateOwner = params.signer?.certificateOwner || "";
+  const certificateSerial = params.signer?.certificateSerial || "";
+  const certificateInn = params.signer?.certificateInn || "";
+  const signDate =
+    params.signer?.signedAt ||
+    formatNmckDateRu(record.calculationDate || record.calculatedAt);
+
   const docDefinition = {
     pageSize: "A4",
     pageMargins: [34, 34, 34, 42] as [number, number, number, number],
@@ -1851,7 +1880,7 @@ export async function exportNmckCalculationToPdf(params: {
                 margin: [0, 2, 0, 0],
               },
               {
-                text: "________________ / ____________________ /",
+                text: approver || "____________________________",
                 fontSize: 8.5,
                 alignment: "right",
                 margin: [0, 10, 0, 0],
@@ -1941,23 +1970,27 @@ export async function exportNmckCalculationToPdf(params: {
       {
         table: {
           headerRows: 1,
-          widths: ["36%", "34%", "30%"],
+          widths: ["28%", "34%", "38%"],
           body: [
             [
-              { text: "Исполнитель / Роль", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+              { text: "Роль", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
               { text: "ФИО", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
-              { text: "Подпись / Дата", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
+              { text: "Электронная подпись / Дата", bold: true, fontSize: 8.5, fillColor: "#F5F7FA" },
             ],
             [
+              { text: `Составил — ${compiledPosition}`, fontSize: 8.5 },
+              { text: compiledBy, fontSize: 8.5 },
               {
-                text: "Работник контрактной службы / контрактный управляющий",
-                fontSize: 8.5,
+                text: certificateOwner
+                  ? `ЭП: ${certificateOwner}${certificateSerial ? ` · серт. № ${certificateSerial}` : ""}${certificateInn ? ` · ИНН ${certificateInn}` : ""} · ${signDate}`
+                  : `_______________ / ${signDate}`,
+                fontSize: 8,
               },
-              { text: authorName, fontSize: 8.5 },
-              {
-                text: `_______________ / ${formatNmckDateRu(record.calculationDate || record.calculatedAt)}`,
-                fontSize: 8.5,
-              },
+            ],
+            [
+              { text: "Утверждаю", fontSize: 8.5 },
+              { text: approver || "____________________________", fontSize: 8.5 },
+              { text: "_______________ / «___» _________ 202__ г.", fontSize: 8 },
             ],
           ],
         },
@@ -1966,6 +1999,22 @@ export async function exportNmckCalculationToPdf(params: {
           vLineColor: () => "#CBD5E1",
         },
       },
+      ...(params.ooAttachments && params.ooAttachments.length > 0
+        ? [
+            {
+              text: "4. Приложения — описание объекта закупки (ООЗ)",
+              bold: true,
+              fontSize: 10.5,
+              margin: [0, 14, 0, 5] as [number, number, number, number],
+            },
+            {
+              ul: params.ooAttachments.map((attachment) => ({
+                text: attachment.fileName,
+                fontSize: 8.5,
+              })),
+            },
+          ]
+        : []),
     ],
   };
 
@@ -1988,8 +2037,12 @@ export async function exportNmckCalculationToPdf(params: {
 
   if (typeof pdfDoc.getBlob === "function") {
     const blob = await pdfDoc.getBlob();
-    triggerDownload(blob);
-  } else {
+    if (params.deliver) {
+      params.deliver(blob);
+    } else {
+      triggerDownload(blob);
+    }
+  } else if (!params.deliver) {
     pdfDoc.download(fileName);
   }
   return fileName;

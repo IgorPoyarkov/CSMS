@@ -12,46 +12,74 @@ import {
   latestPurchaseNoteForPosition,
   type PurchaseNote,
 } from "../../services/PurchaseNote/purchaseNote.schema";
-import {
-  toNumber,
-  type PurchasePlanPosition,
-} from "../../services/PurchasePlan/purchasePlan.schema";
+import type { PurchasePlanPosition } from "../../services/PurchasePlan/purchasePlan.schema";
 import { useAddProcurement } from "../../services/Procurements/procurement.api";
-import type { RawProcurement } from "../../services/Procurements/procurement.schema";
-import { DEFAULT_PROCUREMENT_TYPES } from "../ProcurementProcessing/procurement.config";
 import PurchaseNoteModal from "./PurchaseNoteModal";
+import {
+  buildNoticeLocationState,
+  buildProcurementRaw,
+  hasProcurement,
+  procurementRoute,
+} from "./purchaseNoteNavigation";
 import styles from "./PurchaseNoteModal.module.scss";
 
 /**
- * Полноэкранная страница формирования потребности (служебной записки по
- * позиции плана-графика): `/purchase-plans/:id/positions/:positionId/requirement`.
+ * Полноэкранная страница потребности (служебной записки).
+ *
+ * Канонический адрес — `/purchase-notes/:noteId`; новая СЗ по позиции ПГ —
+ * `/purchase-notes/new?planId=…&positionId=…`. Старый адрес
+ * `/purchase-plans/:id/positions/:positionId/requirement?noteId=…` остаётся
+ * рабочим для сохранённых закладок: СЗ больше не часть плана-графика.
  */
 export default function PurchaseNotePage() {
-  const { id, positionId } = useParams<{ id: string; positionId: string }>();
+  const { id, positionId, noteId } = useParams<{
+    id?: string;
+    positionId?: string;
+    noteId?: string;
+  }>();
   const [searchParams] = useSearchParams();
-  const noteIdParam = searchParams.get("noteId");
   const navigate = useNavigate();
   const { bem } = useUtils();
   const block = bem(styles, "purchase-note-modal");
 
+  // «new» — создание СЗ по позиции ПГ, а не идентификатор документа
+  const isNewNote = noteId === "new";
+  const noteIdParam = isNewNote
+    ? undefined
+    : (noteId ?? searchParams.get("noteId") ?? undefined);
+  const planIdParam = searchParams.get("planId") ?? id;
+  const positionIdParam = searchParams.get("positionId") ?? positionId;
+
   const { data: organization, isLoading: isOrgLoading } =
     useCurrentOrganization();
   const organizationId = organization?.id;
+
+  const { data: purchaseNotes = [], isLoading: isNotesLoading } =
+    usePurchaseNotes(organizationId);
+
+  // В маршруте /purchase-notes/:noteId основание (план и позиция) берётся из
+  // самой СЗ: отдельный документ не обязан открываться через план-график
+  const requestedNote = noteIdParam
+    ? purchaseNotes.find((note) => String(note.id) === noteIdParam)
+    : undefined;
+  const planId = planIdParam ?? requestedNote?.purchasePlanId ?? undefined;
+  const positionIdResolved =
+    positionIdParam ?? requestedNote?.positionId ?? undefined;
 
   const {
     data: plan,
     isLoading: isPlanLoading,
     isError,
     error,
-  } = usePurchasePlan(id, organizationId);
-  const { data: purchaseNotes = [], isLoading: isNotesLoading } =
-    usePurchaseNotes(organizationId);
+  } = usePurchasePlan(planId, organizationId);
 
   const { mutate: createProcurement } = useAddProcurement();
   const { mutate: patchNote } = useUpdatePurchaseNote();
 
-  const position: PurchasePlanPosition | undefined = positionId
-    ? plan?.positions.find((item) => String(item.id) === positionId)
+  const position: PurchasePlanPosition | undefined = positionIdResolved
+    ? plan?.positions.find(
+        (item) => String(item.id) === String(positionIdResolved),
+      )
     : undefined;
 
   if (isOrgLoading) {
@@ -70,9 +98,9 @@ export default function PurchaseNotePage() {
         <button
           type="button"
           className={block("back")}
-          onClick={() => navigate("/purchase-plans")}
+          onClick={() => navigate("/purchase-notes")}
         >
-          ← К списку планов-графиков
+          ← К реестру потребностей
         </button>
       </div>
     );
@@ -84,18 +112,39 @@ export default function PurchaseNotePage() {
     );
   }
 
-  if (isError || !plan) {
+  // Новая СЗ без основания или ссылка на удалённую СЗ: открывать нечего
+  if (!planId) {
     return (
       <div className={block()}>
         <p className={block("status", ["error"])}>
-          План-график недоступен: {String(error)}
+          {noteIdParam
+            ? "Служебная записка не найдена: возможно, она удалена."
+            : "Не указана позиция плана-графика — основание для служебной записки."}
         </p>
         <button
           type="button"
           className={block("back")}
-          onClick={() => navigate("/purchase-plans")}
+          onClick={() => navigate("/purchase-notes")}
         >
-          ← К списку планов-графиков
+          ← К реестру потребностей
+        </button>
+      </div>
+    );
+  }
+
+  if (isError || !plan) {
+    return (
+      <div className={block()}>
+        <p className={block("status", ["error"])}>
+          Не удалось загрузить позицию плана-графика (основание СЗ):{" "}
+          {String(error)}
+        </p>
+        <button
+          type="button"
+          className={block("back")}
+          onClick={() => navigate("/purchase-notes")}
+        >
+          ← К реестру потребностей
         </button>
       </div>
     );
@@ -110,98 +159,47 @@ export default function PurchaseNotePage() {
         <button
           type="button"
           className={block("back")}
-          onClick={() => navigate(`/purchase-plans/${plan.id}`)}
+          onClick={() => navigate("/purchase-notes")}
         >
-          ← К плану-графику
+          ← К реестру потребностей
         </button>
       </div>
     );
   }
 
-  const backToPlan = () => navigate(`/purchase-plans/${plan.id}`);
+  const backToNotes = () => navigate("/purchase-notes");
 
   const handleSaveAndProceedToNotice = (note: PurchaseNote) => {
-    const buildNoticeState = () => ({
-      ikz: note.ikz || position.identificationCode,
-      name: note.subject || position.objectOfPurchase,
-      procurementType:
-        note.procurementType ||
-        DEFAULT_PROCUREMENT_TYPES[DEFAULT_PROCUREMENT_TYPES.length - 1],
-      nmck: note.initialMaxPrice
-        ? Number.parseFloat(note.initialMaxPrice)
-        : (toNumber(position.amountTotal) ?? 0),
-      planPositionNumber: String(
-        position.purchaseNumber ?? position.serialNumber ?? "",
-      ),
-      responsibleFio: note.initiatorName,
-      smpRequiredPercent:
-        (note.requiresSmpSubcontracting ??
-        (note.smpRequiredPercent !== undefined && note.smpRequiredPercent > 0))
-          ? note.smpRequiredPercent
-          : undefined,
-      purchaseNoteId: note.id,
-      purchaseNoteNumber: String(note.noteNumber),
-      objectDescriptionId: note.objectDescriptionId ?? undefined,
-      authorizedBodyName:
-        note.authorizedBodyName || position.authorizedBodyName || undefined,
-      jointOrganizerName:
-        note.jointOrganizerName || position.jointOrganizerName || undefined,
-      kbk: note.kbk || position.kbk || undefined,
-    });
+    // Сведения СЗ — заготовка извещения: состояние передаётся форме, а запись
+    // закупки создаётся только если по СЗ её ещё нет
+    const state = buildNoticeLocationState(note, position);
 
-    if (
-      note.procurementId !== undefined &&
-      note.procurementId !== null &&
-      note.procurementId !== ""
-    ) {
-      navigate(`/procurement-processing/${note.procurementId}/notice-info`, {
-        state: buildNoticeState(),
-      });
+    if (hasProcurement(note)) {
+      navigate(
+        procurementRoute(note.procurementId as string | number, "notice"),
+        { state },
+      );
       return;
     }
 
-    const raw: RawProcurement = {
-      "Идентификационный код закупки":
-        note.ikz || position.identificationCode || "",
-      "Наименование закупки": note.subject || position.objectOfPurchase,
-      "Начальная (максимальная) цена контракта, руб": note.initialMaxPrice
-        ? Number.parseFloat(note.initialMaxPrice) || 0
-        : (toNumber(position.amountTotal) ?? 0),
-      "Тип закупки":
-        note.procurementType ||
-        DEFAULT_PROCUREMENT_TYPES[DEFAULT_PROCUREMENT_TYPES.length - 1],
-      "Уполномоченный орган (учреждение)":
-        note.authorizedBodyName || position.authorizedBodyName || "",
-      "Организатор совместной закупки":
-        note.jointOrganizerName || position.jointOrganizerName || "",
-      КБК: note.kbk || position.kbk || "",
-      // Служебная записка не содержит сроков процедуры — они появятся в
-      // извещении и синхронизируются в запись закупки при его сохранении.
-      // Статус фиксируем сразу: фильтры реестра считаются на сервере
-      "Статус извещения": "preparing",
-    };
-
-    createProcurement(raw, {
+    createProcurement(buildProcurementRaw(note, position), {
       onSuccess: (created) => {
         if (note.id !== undefined) {
           patchNote({ id: note.id, procurementId: created.id });
         }
-        navigate(`/procurement-processing/${created.id}/notice-info`, {
-          state: buildNoticeState(),
-        });
+        navigate(procurementRoute(created.id, "notice"), { state });
       },
     });
   };
 
   const visiblePurchaseNotes = filterVisiblePurchaseNotes(purchaseNotes);
-  const selectedNote =
-    (noteIdParam &&
-    isVisiblePurchaseNote(
-      purchaseNotes.find((n) => String(n.id) === noteIdParam),
-    )
-      ? purchaseNotes.find((n) => String(n.id) === noteIdParam)
-      : undefined) ??
-    latestPurchaseNoteForPosition(visiblePurchaseNotes, position.id);
+  const selectedNote = isNewNote
+    ? undefined
+    : requestedNote && isVisiblePurchaseNote(requestedNote)
+      ? requestedNote
+      : noteIdParam
+        ? undefined
+        : latestPurchaseNoteForPosition(visiblePurchaseNotes, position.id);
 
   return (
     <PurchaseNoteModal
@@ -209,8 +207,8 @@ export default function PurchaseNotePage() {
       plan={plan}
       position={position}
       initialNote={selectedNote}
-      onClose={backToPlan}
-      onSaved={backToPlan}
+      onClose={backToNotes}
+      onSaved={backToNotes}
       onSaveAndProceedToNotice={handleSaveAndProceedToNotice}
     />
   );

@@ -66,13 +66,13 @@
     }
   }
 
-  &__toggle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  // Ширина кастомного селекта задаётся обёрткой: сам UI/Select тянется на
+  // 100% родителя, иначе в строке фильтров он растянул бы весь тулбар
+  &__select-box {
+    display: inline-flex;
+    width: 180px;
+    min-width: 0;
     font-size: 14px;
-    color: var(--text-primary);
-    cursor: pointer;
   }
 
   &__control {
@@ -239,6 +239,11 @@
     &__search {
       flex: 1 1 100%;
       min-width: 0;
+    }
+
+    &__select-box {
+      width: 100%;
+      max-width: 220px;
     }
 
     &__table-wrapper {

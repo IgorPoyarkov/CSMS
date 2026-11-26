@@ -94,6 +94,9 @@ export const TaskSchema = z.object({
   // Функция и полномочия по разделу III, в рамках которой поставлена задача.
   // Необязательна: поручение может быть и вне служебных функций
   functionCode: ContractServiceFunctionSchema.optional(),
+  // Связь с конкретным описанием объекта закупки: системные задачи
+  // (например, «пронормировать объект») дедуплицируются по этому ключу.
+  objectDescriptionId: idSchema(),
   // Конкретная подфункция (пункт) из полного пула Приказа Минфина № 158н
   order158nPoolCode: z.string().optional(),
   order158nClause: z.string().optional(),

@@ -1,27 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCurrentOrganization } from "../../services/Organization/organization.api";
-import { usePurchasePlans } from "../../services/PurchasePlan/purchasePlan.api";
-import {
-  currentPurchasePlanPath,
-  findCurrentPurchasePlan,
-} from "../../services/PurchasePlan/purchasePlanCurrent";
-import { useGetProcurements } from "../../services/Procurements/procurement.api";
-import { useOrganizationContractProjects } from "../../services/ContractProject/contractProject.api";
-import {
-  useAllContractPayments,
-  useAllContractStages,
-  useContractRegistry,
-} from "../../services/ContractRegistry/contractRegistry.api";
 import { useContractService } from "../../services/ContractService/contractService.api";
-import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
-import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
-import { useOrganizationTasks } from "../../services/Tasks/tasks.api";
-import { useNotificationStates } from "../../services/Notifications/notifications.api";
-import {
-  buildProcurementNotifications,
-  summarizeNotifications,
-} from "../../services/Notifications/deadlineNotifications";
+import { useEisNews } from "../../services/EisNews/eisNews.api";
+import { useStats } from "../../services/Stats/stats.api";
+import Loader from "../../components/UI/Loader";
 import useUtils from "../../hooks/useUtils";
 import styles from "./Main.module.scss";
 
@@ -31,29 +14,19 @@ const budgetLevelLabels: Record<string, string> = {
   municipal: "Местный бюджет",
 };
 
-interface StatItem {
-  label: string;
-  hint: string;
-  value: number;
-  to: string;
-  tone?: "ok" | "warning" | "danger";
-}
-
-interface SectionLink {
-  to: string;
-  title: string;
-  hint: string;
-}
-
-interface SectionGroup {
-  title: string;
-  links: SectionLink[];
-}
+/** Форматирование даты из RSS-ленты ЕИС. */
+const formatNewsDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const Main = () => {
   const { bem } = useUtils();
   const main = bem(styles, "main");
-  const [todayIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [todayLabel] = useState(() =>
     new Date().toLocaleDateString("ru-RU", {
       weekday: "long",
@@ -64,201 +37,20 @@ const Main = () => {
   );
 
   const { data: organization } = useCurrentOrganization();
-  const orgId = organization?.id;
-
-  // Полный реестр и сводки этапов/платежей нужны только счётчикам и уведомлениям
-  // главной — они не участвуют в первом кадре, поэтому запускаем их после
-  // отрисовки. Если данные уже в кэше, useQuery вернёт их сразу, без мигания
-  const [countersReady, setCountersReady] = useState(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setCountersReady(true), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  // П. 2.1 приказа Минфина России от 31.07.2020 N 158н: способ создания
-  // контрактной службы указывается при первом входе и обязателен для заказчика
   const { data: contractService, isLoading: isContractServiceLoading } =
-    useContractService(orgId);
+    useContractService(organization?.id);
   const needsContractService =
-    Boolean(orgId) && !isContractServiceLoading && !contractService;
+    Boolean(organization?.id) && !isContractServiceLoading && !contractService;
 
-  const { data: plans } = usePurchasePlans(orgId);
-  const { data: procurements } = useGetProcurements();
-  const { data: contractProjects } = useOrganizationContractProjects(orgId);
-  const { data: registryContracts } = useContractRegistry(orgId, countersReady);
-  const { data: purchaseNotes } = usePurchaseNotes(orgId);
-  const { data: allStages = [] } = useAllContractStages(
-    Boolean(orgId) && countersReady,
-  );
-  const { data: allPayments = [] } = useAllContractPayments(
-    Boolean(orgId) && countersReady,
-  );
-  const { data: orgTasks = [] } = useOrganizationTasks(orgId);
-  const { data: ackStates = [] } = useNotificationStates(orgId);
+  const {
+    data: news,
+    isLoading: isNewsLoading,
+    error: newsError,
+  } = useEisNews(12);
+  const newsItems = news?.items ?? [];
 
-  const visiblePurchaseNotes = useMemo(
-    () => filterVisiblePurchaseNotes(purchaseNotes),
-    [purchaseNotes],
-  );
-
-  // Данные главной идут по цепочке закупки: план-график → позиция плана (ИКЗ)
-  // → закупка (СЗ) → извещение → проект контракта → реестр контрактов.
-  // Закупка относится к организации, если её ИКЗ есть в позициях планов этого
-  // заказчика либо на неё ссылается проект контракта или контракт реестра.
-  const planList = useMemo(() => plans ?? [], [plans]);
-
-  // Кнопка на главной открывает действующий план-график, а не форму создания:
-  // заказчику нужен документ текущего года, новый план создаётся из реестра
-  const currentPlanPath = useMemo(
-    () => currentPurchasePlanPath(findCurrentPurchasePlan(planList)),
-    [planList],
-  );
-  const planPositions = planList.flatMap((plan) => plan.positions ?? []);
-  const planIkz = new Set(
-    planPositions
-      .map((position) => position.identificationCode)
-      .filter(Boolean),
-  );
-  const linkedProcurementIds = new Set(
-    [
-      ...(contractProjects ?? []).map((project) =>
-        String(project.procurementId ?? ""),
-      ),
-      ...(registryContracts ?? []).map((contract) =>
-        String(contract.procurementId ?? ""),
-      ),
-    ].filter(Boolean),
-  );
-  const orgProcurements = useMemo(
-    () =>
-      (procurements ?? []).filter(
-        (procurement) =>
-          planIkz.has(procurement.ikz) ||
-          linkedProcurementIds.has(String(procurement.id)),
-      ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [procurements, planList, contractProjects, registryContracts],
-  );
-  const publishedNotices = orgProcurements.filter((procurement) =>
-    Boolean(procurement.noticeNumber),
-  );
-
-  // Уведомления на главной считаем только по контрактам текущего года
-  // (год заключения contractDate). В реестре лежат и прошлые годы, но их
-  // просрочки уже не требуют действий и только завышают счётчик.
-  // Этапы и платежи отсекаются сами: билдер ищет их родителя в этом же
-  // списке контрактов. Проекты контрактов, закупки и задачи КС остаются —
-  // они привязаны к году закупки/сроку задачи, а не к заключённому контракту.
-  const currentContractYear = todayIso.slice(0, 4);
-  const yearContracts = useMemo(
-    () =>
-      (registryContracts ?? []).filter(
-        (contract) => contract.contractDate?.slice(0, 4) === currentContractYear,
-      ),
-    [registryContracts, currentContractYear],
-  );
-
-  // Уведомления о приближении сроков и рисках санкций 44-ФЗ
-  const activeAlerts = useMemo(() => {
-    if (!orgId) return [];
-    const ackSet = new Set(ackStates.map((s) => s.notificationKey));
-    return buildProcurementNotifications({
-      todayIso,
-      contracts: yearContracts,
-      stages: allStages,
-      payments: allPayments,
-      contractProjects: contractProjects ?? [],
-      procurements: orgProcurements,
-      tasks: orgTasks,
-    }).filter((a) => !ackSet.has(a.id));
-  }, [
-    orgId,
-    ackStates,
-    todayIso,
-    yearContracts,
-    allStages,
-    allPayments,
-    contractProjects,
-    orgProcurements,
-    orgTasks,
-  ]);
-  const alertStats = useMemo(
-    () => summarizeNotifications(activeAlerts),
-    [activeAlerts],
-  );
-
-  const steps = [
-    {
-      title: "Планирование",
-      hint: "Планы-графики заказчика",
-      count: planList.length,
-      to: "/purchase-plans",
-    },
-    {
-      title: "План-график",
-      hint: "Позиции плана (ИКЗ)",
-      count: planPositions.length,
-      to: "/purchase-plans",
-    },
-    {
-      title: "СЗ на закупку",
-      hint: "Реестр потребностей по ПГ",
-      count: visiblePurchaseNotes.length,
-      to: "/purchase-notes",
-    },
-    {
-      title: "Извещение",
-      hint: "Размещённые извещения",
-      count: publishedNotices.length,
-      to: "/procurement-processing",
-    },
-    {
-      title: "Контракт",
-      hint: "Проекты контрактов (ст. 33, 34, 51)",
-      count: (contractProjects ?? []).length,
-      to: "/procurement-processing",
-    },
-    {
-      title: "Реестр контрактов",
-      hint: `Реестр ${currentContractYear} (ст. 82, 103)`,
-      count: yearContracts.length,
-      to: "/contract-registry",
-    },
-  ];
-
-  const stats: StatItem[] = [
-    {
-      label: "Контракты",
-      hint: `в реестре за ${currentContractYear} год`,
-      value: yearContracts.length,
-      to: "/contract-registry",
-    },
-    {
-      label: "Планы-графики",
-      hint: "с позициями ИКЗ",
-      value: planList.length,
-      to: "/purchase-plans",
-    },
-    {
-      label: "Потребности",
-      hint: "служебные записки",
-      value: visiblePurchaseNotes.length,
-      to: "/purchase-notes",
-    },
-    {
-      label: "Уведомления",
-      hint: alertStats.total
-        ? `${alertStats.critical} критических · ${alertStats.warning} срочных`
-        : "сроки в норме",
-      value: alertStats.total,
-      to: "/notifications",
-      tone: alertStats.critical
-        ? "danger"
-        : alertStats.warning
-          ? "warning"
-          : "ok",
-    },
-  ];
+  // Лёгкая статистика — один COUNT-запрос к серверу, без скачивания документов
+  const { data: stats } = useStats(organization?.id);
 
   const requisites = [
     {
@@ -278,136 +70,6 @@ const Main = () => {
         .join(", "),
     },
   ].filter((item) => Boolean(item.value));
-
-  // Разделы сгруппированы по смыслу: так список не превращается в длинную
-  // колонку одинаковых строк и находится по названию этапа
-  const linkGroups: SectionGroup[] = [
-    {
-      title: "Планирование и закупки",
-      links: [
-        {
-          to: "/purchase-plans",
-          title: "План-график закупок",
-          hint: "44-ФЗ, импорт ЕИС и версионность",
-        },
-        {
-          to: "/purchase-notes",
-          title: "Реестр потребностей (СЗ)",
-          hint: "статусы согласования и выгрузка .docx / .pdf",
-        },
-        {
-          to: "/nmck-calculator",
-          title: "Расчёт НМЦК",
-          hint: "ст. 22 44-ФЗ, приказ МЭР № 567",
-        },
-        {
-          to: "/estimates",
-          title: "Сметы и НМЦК",
-          hint: "дефектовка → смета → обоснование",
-        },
-        {
-          to: "/procurement-processing",
-          title: "Извещения и закупки",
-          hint: "обработка информации и риски проектов",
-        },
-        {
-          to: "/procurement-processing/new/notice-info",
-          title: "Сведения для извещения",
-          hint: "формирование извещения в ЕИС",
-        },
-        {
-          to: "/contract-projects",
-          title: "Проекты контрактов",
-          hint: "ст. 33, 34, 51 44-ФЗ",
-        },
-        {
-          to: "/contract-registry",
-          title: "Реестр контрактов",
-          hint: "ст. 82, 103 44-ФЗ",
-        },
-      ],
-    },
-    {
-      title: "Исполнение и контроль",
-      links: [
-        {
-          to: "/analytics",
-          title: "Аналитика закупок",
-          hint: "динамика, бюджет и статусы контрактов",
-        },
-        {
-          to: "/contract-service",
-          title: "Контрактная служба",
-          hint: "приказ № 158н, п. 2.1",
-        },
-        {
-          to: "/notifications",
-          title: "Сроки и риски",
-          hint: "контроль сроков и уведомления 44-ФЗ",
-        },
-        {
-          to: "/documents",
-          title: "Типовые документы",
-          hint: "приказы, протоколы и Document Checker",
-        },
-        {
-          to: "/norming-requirements",
-          title: "Описание объекта закупки",
-          hint: "ст. 33 44-ФЗ, ПП 145, ПП 926",
-        },
-        {
-          to: "/defect-lists",
-          title: "Дефектовки",
-          hint: "объёмы работ → смета → график",
-        },
-        {
-          to: "/bid-evaluations",
-          title: "Оценка заявок",
-          hint: "критерии и баллы по ПП РФ № 2604",
-        },
-      ],
-    },
-    {
-      title: "Отчётность и кадры",
-      links: [
-        {
-          to: "/reports/order-158n",
-          title: "Отчётность по № 158н",
-          hint: "деятельность контрактной службы",
-        },
-        {
-          to: "/reports/smnp",
-          title: "Отчёт СМП / СОНКО",
-          hint: "ч. 1 ст. 30 44-ФЗ, форма № 9",
-        },
-        {
-          to: "/liability-mapping",
-          title: "Ответственность КС",
-          hint: "гипотезы нарушений → нормы КоАП",
-        },
-        {
-          to: "/vacation-schedule",
-          title: "График отпусков",
-          hint: "форма Т-2, ТК РФ, выгрузка .docx / .csv",
-        },
-        {
-          to: "/tasks",
-          title: "Задачи организации",
-          hint: "контроль исполнения",
-        },
-        {
-          to: "/ui-solutions",
-          title: "UI-решения проекта",
-          hint: "каталог компонентов и паттернов",
-        },
-        {
-          to: "/visit-card",
-          title: "Визитка проекта",
-          hint: "одностраничная презентация системы",
-        },
-      ],
-    },
-  ];
 
   return (
     <main className={main()}>
@@ -453,36 +115,7 @@ const Main = () => {
           </div>
         </div>
 
-        <div className={main("hero-actions")}>
-          <Link className={main("action", ["primary"])} to={currentPlanPath}>
-            Текущий план-график
-          </Link>
-          <Link className={main("action")} to="/purchase-notes">
-            Реестр потребностей
-          </Link>
-          <Link className={main("action")} to="/analytics">
-            Аналитика закупок
-          </Link>
-        </div>
-
-        <ul className={main("stats")}>
-          {stats.map((stat) => (
-            <li key={stat.label}>
-              <Link
-                className={main(
-                  "stat",
-                  stat.tone && stat.tone !== "ok" ? [stat.tone] : [],
-                )}
-                to={stat.to}
-              >
-                <span className={main("stat-value")}>{stat.value}</span>
-                <span className={main("stat-label")}>{stat.label}</span>
-                <span className={main("stat-hint")}>{stat.hint}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-
+        {/* === Реквизиты заказчика === */}
         {requisites.length > 0 ? (
           <div className={main("requisites-block")}>
             <p className={main("requisites-title")}>Реквизиты заказчика</p>
@@ -503,113 +136,109 @@ const Main = () => {
         )}
       </section>
 
-      {/* === Срочные уведомления о сроках 44-ФЗ === */}
-      {orgId && activeAlerts.length > 0 && (
-        <section
-          className={main(
-            "alert",
-            alertStats.critical > 0
-              ? ["critical"]
-              : alertStats.warning > 0
-                ? ["warning"]
-                : [],
-          )}
-        >
-          <div className={main("alert-head")}>
-            <h2 className={main("alert-title")}>
-              Контроль сроков 44-ФЗ: {alertStats.total} активных уведомлений (
-              {alertStats.critical} критических · {alertStats.warning} срочных)
-            </h2>
-            <Link className={main("alert-link")} to="/notifications">
-              Открыть центр уведомлений →
+      {/* === Быстрая статистика (счётчики из COUNT-запроса) === */}
+      {stats && (
+        <section className={main("stats")}>
+          <div className={main("stat")}>
+            <Link className={main("stat-link")} to="/purchase-plans">
+              <span className={main("stat-value")}>{stats.purchasePlans}</span>
+              <span className={main("stat-label")}>Планы-графики</span>
             </Link>
           </div>
-          <ul className={main("alert-list")}>
-            {activeAlerts.slice(0, 3).map((alert) => (
-              <li key={alert.id} className={main("alert-item")}>
-                <span className={main("alert-item-text")}>{alert.title}</span>
-                <span className={main("alert-days")}>
-                  {alert.daysRemaining !== null
-                    ? alert.daysRemaining < 0
-                      ? `Просрочка ${Math.abs(alert.daysRemaining)} дн.`
-                      : `Осталось ${alert.daysRemaining} дн.`
-                    : "Требует действия"}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className={main("stat")}>
+            <Link className={main("stat-link")} to="/procurement-processing">
+              <span className={main("stat-value")}>{stats.procurements}</span>
+              <span className={main("stat-label")}>Закупки</span>
+            </Link>
+          </div>
+          <div className={main("stat")}>
+            <Link className={main("stat-link")} to="/purchase-notes">
+              <span className={main("stat-value")}>{stats.purchaseNotes}</span>
+              <span className={main("stat-label")}>Потребности</span>
+            </Link>
+          </div>
+          <div className={main("stat")}>
+            <Link className={main("stat-link")} to="/contract-registry">
+              <span className={main("stat-value")}>
+                {stats.contractRegistryCurrentYear}
+              </span>
+              <span className={main("stat-label")}>
+                Контракты {stats.currentYear}
+              </span>
+            </Link>
+          </div>
+          <div className={main("stat")}>
+            <Link className={main("stat-link")} to="/tasks">
+              <span className={main("stat-value")}>{stats.activeTasks}</span>
+              <span className={main("stat-label")}>Задачи в работе</span>
+            </Link>
+          </div>
         </section>
       )}
 
-      {/* === Поток закупки === */}
-      <section className={main("card")}>
-        <div className={main("section-head")}>
+      {/* === Новости ЕИС === */}
+      <section className={main("news")}>
+        <div className={main("news-head")}>
           <div>
-            <h2 className={main("section-title")}>Поток закупки</h2>
-            <p className={main("muted")}>
-              Планирование → план-график → СЗ на закупку → извещение → контракт
-              → реестр контрактов. Количество документов считается по данным
-              организации; контракты — за {currentContractYear} год.
+            <h2 className={main("news-title")}>Новости ЕИС</h2>
+            <p className={main("news-note")}>
+              RSS-лента zakupki.gov.ru: изменения НПА, релизы и разъяснения ЕИС.
             </p>
           </div>
-          <span className={main("section-note")}>6 этапов</span>
+          <a
+            className={main("news-all")}
+            href="https://zakupki.gov.ru/epz/main/public/news/news-search.html"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Все новости ЕИС →
+          </a>
         </div>
 
-        <ol className={main("flow")}>
-          {steps.map((step, index) => (
-            <li
-              className={main("flow-step", step.count > 0 ? ["done"] : [])}
-              key={`${step.title}-${index}`}
-            >
-              <Link className={main("flow-link")} to={step.to}>
-                <span className={main("flow-top")}>
-                  <span className={main("flow-index")}>{index + 1}</span>
-                  <span className={main("flow-count")}>{step.count}</span>
-                </span>
-                <span className={main("flow-title")}>{step.title}</span>
-                <span className={main("flow-hint")}>{step.hint}</span>
-              </Link>
-            </li>
-          ))}
-        </ol>
-      </section>
+        {isNewsLoading && <Loader modifer="pendulum" size={260} />}
 
-      {/* === Разделы === */}
-      <section className={main("card")}>
-        <div className={main("section-head")}>
-          <div>
-            <h2 className={main("section-title")}>Все разделы</h2>
-            <p className={main("muted")}>
-              Экранные формы и справочники системы, сгруппированные по этапу
-              работы.
-            </p>
-          </div>
-        </div>
-
-        {needsContractService && (
-          <Link className={main("notice")} to="/contract-service">
-            Обязательно: укажите способ создания контрактной службы (п. 2.1
-            приказа № 158н)
-          </Link>
+        {newsError && !newsItems.length && (
+          <p className={main("news-error")}>
+            Не удалось загрузить ленту ЕИС — проверьте доступ в интернет и
+            обновление локального сервиса данных.
+          </p>
         )}
 
-        <div className={main("groups")}>
-          {linkGroups.map((group) => (
-            <div className={main("group")} key={group.title}>
-              <h3 className={main("group-title")}>{group.title}</h3>
-              <ul className={main("links")}>
-                {group.links.map((link) => (
-                  <li key={link.to}>
-                    <Link className={main("link")} to={link.to}>
-                      <span className={main("link-title")}>{link.title}</span>
-                      <span className={main("link-hint")}>{link.hint}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        {newsItems.length > 0 && (
+          <>
+            <ul className={main("news-list")}>
+              {newsItems.map((item) => (
+                <li key={item.id} className={main("news-item")}>
+                  <a
+                    className={main("news-link")}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    <span className={main("news-item-title")}>
+                      {item.title}
+                    </span>
+                    {item.summary && (
+                      <span className={main("news-summary")}>
+                        {item.summary}
+                      </span>
+                    )}
+                  </a>
+                  {item.publishedAt && (
+                    <span className={main("news-date")}>
+                      {formatNewsDate(item.publishedAt)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {news?.fetchedAt && (
+              <p className={main("news-updated")}>
+                Обновлено {formatNewsDate(news.fetchedAt)}
+              </p>
+            )}
+          </>
+        )}
       </section>
     </main>
   );
