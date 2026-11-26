@@ -1,0 +1,229 @@
+@use "variables" as *;
+
+// ─── Библиотека НПА ──────────────────────────────────────────────────────────
+// Каталог актов проекта. Стили держим на переменных темы, как и соседний
+// реестр НПА: страница одинаково читается в светлой и тёмной теме.
+
+.npa-library {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  color: var(--text-primary);
+}
+
+.npa-library__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.npa-library__title {
+  margin: 0 0 6px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.npa-library__subtitle {
+  margin: 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.npa-library__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.npa-library__total {
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  b {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &--ok {
+    border-color: var(--accent);
+  }
+
+  &--warn {
+    border-color: var(--state-warning);
+  }
+}
+
+.npa-library__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.npa-library__search {
+  flex: 1 1 280px;
+  min-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+}
+
+.npa-library__select {
+  min-width: 200px;
+}
+
+.npa-library__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px;
+}
+
+.npa-library__error,
+.npa-library__empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.npa-library__error {
+  border-color: var(--state-warning);
+}
+
+.npa-library__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.npa-library__group-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+
+  span {
+    margin-left: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+  }
+}
+
+.npa-library__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.npa-library__card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-panel);
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  &--unavailable {
+    opacity: 0.75;
+    border-style: dashed;
+  }
+}
+
+.npa-library__card-main {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.npa-library__card-kind {
+  margin: 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.npa-library__card-title {
+  display: inline-block;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--accent);
+  }
+}
+
+.npa-library__card-meta {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.npa-library__card-note {
+  margin: 8px 0 0;
+  color: var(--state-warning);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.npa-library__card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.npa-library__card-link {
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.npa-library__footnote {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
