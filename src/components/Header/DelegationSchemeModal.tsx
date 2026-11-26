@@ -1,6 +1,8 @@
+import { Fragment } from "react";
 import useUtils from "../../hooks/useUtils";
 import CustomModal from "../UI/CustomModal";
 import {
+  DELEGATION_HIERARCHY,
   DELEGATION_NOTES,
   DELEGATION_ROLES,
   DELEGATION_STEPS,
@@ -68,6 +70,70 @@ const DelegationSchemeModal = ({ onClose }: DelegationSchemeModalProps) => {
                       <li key={point}>{point}</li>
                     ))}
                   </ul>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className={modal("section")}>
+            <h3 className={modal("section-title")}>Подчинение</h3>
+            <p className={modal("section-hint")}>
+              Стрелка вниз — назначение приказом или передача функций,
+              стрелка вправо — руководство внутри подразделения.
+            </p>
+            <div className={modal("hierarchy")}>
+              {DELEGATION_HIERARCHY.map((branch) => (
+                <article
+                  className={modal("hierarchy-branch")}
+                  key={branch.id}
+                >
+                  <h4 className={modal("hierarchy-branch-title")}>
+                    {branch.title}
+                  </h4>
+                  <p className={modal("hierarchy-branch-hint")}>
+                    {branch.hint}
+                  </p>
+                  <div className={modal("hierarchy-chain")}>
+                    {branch.levels.map((level, levelIndex) => (
+                      <Fragment key={level.nodes[0]?.name}>
+                        <div className={modal("hierarchy-level")}>
+                          {level.nodes.map((node, nodeIndex) => (
+                            <Fragment key={node.name}>
+                              {nodeIndex > 0 && (
+                                <span
+                                  className={modal("hierarchy-across")}
+                                  title={level.acrossLabel}
+                                  aria-label={level.acrossLabel}
+                                >
+                                  →
+                                </span>
+                              )}
+                              <div
+                                className={modal("hierarchy-node", [
+                                  node.modifier,
+                                ])}
+                              >
+                                <span className={modal("hierarchy-node-name")}>
+                                  {node.name}
+                                </span>
+                                <span
+                                  className={modal("hierarchy-node-caption")}
+                                >
+                                  {node.caption}
+                                </span>
+                              </div>
+                            </Fragment>
+                          ))}
+                        </div>
+                        {levelIndex < branch.levels.length - 1 && (
+                          <div className={modal("hierarchy-down")}>
+                            <span aria-hidden="true">↓</span>
+                            <span>{level.downLabel}</span>
+                          </div>
+                        )}
+                      </Fragment>
+                    ))}
+                  </div>
                 </article>
               ))}
             </div>
