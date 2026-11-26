@@ -208,6 +208,21 @@ export const ObjectStandardRefSchema = z.object({
 
 export type ObjectStandardRef = z.infer<typeof ObjectStandardRefSchema>;
 
+/** Год, с которого ГОСТ считается современным для предупреждения в ООЗ. */
+export const MODERN_GOST_MIN_YEAR = 2010;
+
+/**
+ * Год публикации из обозначения ГОСТ: «ГОСТ Р 2.102-2023» → 2023,
+ * «ГОСТ 10382-85» → 1985. Дополнительные пометки в скобках не разбираем —
+ * для предупреждения достаточно года из кода стандарта.
+ */
+export const gostPublicationYear = (code: string): number | null => {
+  const match = code.match(/-(\d{4}|\d{2})(?!\d)/);
+  if (!match) return null;
+  const year = match[1].length === 2 ? 1900 + Number(match[1]) : Number(match[1]);
+  return year >= 1900 && year <= 2100 ? year : null;
+};
+
 /**
  * Дополнительный код ОКПД2 в одном ООЗ: закупка может включать несколько
  * объектов (например, позиция ПГ с несколькими кодами). Основной код остаётся
@@ -390,6 +405,30 @@ export const validateObjectDescriptionCompliance = (
       code: "STANDARD_DEVIATION_UNJUSTIFIED",
       message: `Отклонение от показателей ГОСТ/технических регламентов требует обоснования (п. 2 ч. 1 ст. 33 44-ФЗ): ${badStandards.map((s) => s.code).join(", ")}.`,
     });
+  }
+
+  // Честное предупреждение вместо попытки собрать весь каталог ГОСТ:
+  // если описание не «гостировалось» современными стандартами, пользователь
+  // должен увидеть это до публикации извещения. Год берём из обозначения,
+  // без обращения к внешним справочникам.
+  if (desc.kind === "object_description") {
+    const gosts = desc.standards.filter((s) => s.standardType === "GOST");
+    const modern = gosts.filter(
+      (s) => (gostPublicationYear(s.code) ?? 0) >= MODERN_GOST_MIN_YEAR,
+    );
+    if (gosts.length === 0) {
+      issues.push({
+        level: "warning",
+        code: "GOST_NOT_MODERN",
+        message: `ОЗ не гостировалось после ${MODERN_GOST_MIN_YEAR} года: не указано ни одного ГОСТ. Проверьте, есть ли действующий ГОСТ, принятый не ранее ${MODERN_GOST_MIN_YEAR} г., и добавьте его в описание.`,
+      });
+    } else if (modern.length === 0) {
+      issues.push({
+        level: "warning",
+        code: "GOST_NOT_MODERN",
+        message: `ОЗ не гостировалось после ${MODERN_GOST_MIN_YEAR} года: указанные ГОСТы приняты раньше (${gosts.map((s) => s.code).join(", ")}). Проверьте актуальные редакции и при необходимости замените обозначения.`,
+      });
+    }
   }
 
   const hasVariableValues = desc.characteristics.some(

@@ -18,8 +18,6 @@ interface KtruSelectProps {
   placeholder?: string;
   /** Класс обёртки селекта (стили формы) */
   className?: string;
-  /** Показывать фильтр по характеристикам (для карточки ООЗ) */
-  showCharacteristicFilter?: boolean;
   /** Код КТРУ из позиции ПГ — открываем список сразу на нём */
   initialQuery?: string;
 }
@@ -30,27 +28,15 @@ interface KtruOption {
   item: KtruRef | null;
 }
 
-type CharacteristicFilter = "all" | "mandatory" | "range";
-
-const characteristicFilterLabels: Record<CharacteristicFilter, string> = {
-  all: "Все позиции",
-  mandatory: "С обязательными характеристиками",
-  range: "С диапазонными характеристиками",
-};
-
-const hasRangeCharacteristics = (item: KtruRef) =>
-  item.characteristics.some((characteristic) =>
-    ["range", "min", "max"].includes(characteristic.valueType),
-  );
-
 /**
  * Выбор позиции КТРУ для позиции объекта закупки.
  *
  * Бэкенд отдаёт КТРУ вместе с привязкой к ОКПД2, поэтому список сокращается
  * до позиций выбранного кода. Используется проектный кастомный селект с
  * поиском: даже внутри одного ОКПД2 кодов может быть несколько десятков.
- * В карточке ООЗ дополнительно доступен фильтр по обязательным и диапазонным
- * характеристикам каталога (ПП РФ № 145).
+ * Поиск по наименованию характеристики помогает найти позицию по показателю;
+ * переключатель «только обязательные» живёт в карточке ООЗ рядом со списком
+ * полей выбранной позиции.
  */
 export default function KtruSelect({
   okpd2Code,
@@ -59,11 +45,11 @@ export default function KtruSelect({
   disabled = false,
   placeholder = "— Без КТРУ —",
   className,
-  showCharacteristicFilter = false,
   initialQuery = "",
 }: KtruSelectProps) {
-  const [characteristicFilter, setCharacteristicFilter] =
-    useState<CharacteristicFilter>("all");
+  // Фильтр по наименованию характеристики: помогает найти позицию КТРУ по
+  // ключевому показателю (мощность, материал, диаметр и т. п.)
+  const [characteristicQuery, setCharacteristicQuery] = useState("");
 
   // Серверная выборка по коду ОКПД2: выпадающему списку в таблице позиций
   // не нужен весь каталог (до 5 000 записей, 10 страниц по 500)
@@ -79,17 +65,31 @@ export default function KtruSelect({
     [server.isError, server.data, local.data, okpd2Code],
   );
 
+  // Уже выбранная позиция: фильтр сужает только выдачу, но не должен
+  // «выкидывать» текущий выбор — иначе поля ОЗ исчезают из карточки.
+  const selectedItem = useMemo(
+    () => items.find((item) => item.ktruCode === ktruCode) ?? null,
+    [items, ktruCode],
+  );
+
   const filteredItems = useMemo(() => {
-    if (characteristicFilter === "mandatory") {
-      return items.filter((item) =>
-        item.characteristics.some((characteristic) => characteristic.isMandatory),
-      );
+    const needle = characteristicQuery.trim().toLowerCase();
+    if (!needle) return items;
+    const matched = items.filter((item) =>
+      item.characteristics.some((characteristic) =>
+        characteristic.name.toLowerCase().includes(needle),
+      ),
+    );
+    // Выбранная позиция остаётся в списке даже если не проходит фильтр:
+    // фильтр только сокращает варианты выбора и не исключает поля ОЗ.
+    if (
+      selectedItem &&
+      !matched.some((item) => item.ktruCode === selectedItem.ktruCode)
+    ) {
+      return [selectedItem, ...matched];
     }
-    if (characteristicFilter === "range") {
-      return items.filter(hasRangeCharacteristics);
-    }
-    return items;
-  }, [items, characteristicFilter]);
+    return matched;
+  }, [items, characteristicQuery, selectedItem]);
 
   // Пустая позиция нужна, чтобы снять уже выбранный КТРУ
   const options = useMemo<KtruOption[]>(
@@ -117,14 +117,6 @@ export default function KtruSelect({
     [filteredItems, placeholder],
   );
 
-  const filterOptions = useMemo(
-    () =>
-      (Object.keys(characteristicFilterLabels) as CharacteristicFilter[]).map(
-        (value) => ({ code: value, label: characteristicFilterLabels[value] }),
-      ),
-    [],
-  );
-
   if (!okpd2Code) {
     return (
       <span
@@ -150,27 +142,32 @@ export default function KtruSelect({
           color: "var(--text-secondary)",
         }}
       >
-        {loading
-          ? "Загрузка позиций КТРУ…"
-          : "Для кода ОКПД2 позиций КТРУ нет"}
+        {loading ? "Загрузка позиций КТРУ…" : "Для кода ОКПД2 позиций КТРУ нет"}
       </span>
     );
   }
 
   return (
     <div className={className}>
-      {showCharacteristicFilter && (
-        <CustomSelect
-          listData={filterOptions}
-          selectedValue={characteristicFilter}
-          placeholder="Фильтр характеристик"
-          getKey={(option) => option.code}
-          getLabel={(option) => option.label}
-          onClick={(_code, option) => setCharacteristicFilter(option.code)}
-          disabled={disabled}
-        />
-      )}
-      {filteredItems.length === 0 ? (
+      {/* В ЕИС фильтр характеристик — переключатель внутри карточки позиции.
+          Здесь в списке позиций остаётся только поиск по показателю. */}
+      <input
+        type="search"
+        value={characteristicQuery}
+        disabled={disabled}
+        placeholder="Поиск по показателю КТРУ (мощность, материал…)"
+        aria-label="Поиск по наименованию характеристики КТРУ"
+        onChange={(event) => setCharacteristicQuery(event.target.value)}
+        style={{
+          padding: "6px 8px",
+          border: "1px solid var(--border-strong)",
+          borderRadius: 6,
+          background: "var(--surface-field)",
+          color: "var(--text-primary)",
+          fontSize: "0.8rem",
+        }}
+      />
+      {filteredItems.length === 0 && (
         <span
           style={{
             display: "block",
@@ -178,25 +175,22 @@ export default function KtruSelect({
             color: "var(--text-secondary)",
           }}
         >
-          {characteristicFilter === "mandatory"
-            ? "Нет позиций с обязательными характеристиками — проверьте маппинг КТРУ"
-            : "Нет позиций с диапазонными характеристиками — проверьте маппинг КТРУ"}
+          Позиций с таким показателем нет — измените запрос.
         </span>
-      ) : (
-        <CustomSelect
-          listData={options}
-          selectedValue={ktruCode ?? ""}
-          placeholder={placeholder}
-          getKey={(option) => option.code}
-          getLabel={(option) => option.label}
-          getSearchText={(option) => `${option.code} ${option.label}`}
-          searchable
-          searchPlaceholder="Поиск по коду или наименованию КТРУ…"
-          initialQuery={initialQuery}
-          disabled={disabled}
-          onClick={(_code, option) => onSelect(option.item)}
-        />
       )}
+      <CustomSelect
+        listData={options}
+        selectedValue={ktruCode ?? ""}
+        placeholder={placeholder}
+        getKey={(option) => option.code}
+        getLabel={(option) => option.label}
+        getSearchText={(option) => `${option.code} ${option.label}`}
+        searchable
+        searchPlaceholder="Поиск по коду или наименованию КТРУ…"
+        initialQuery={initialQuery}
+        disabled={disabled}
+        onClick={(_code, option) => onSelect(option.item)}
+      />
     </div>
   );
 }

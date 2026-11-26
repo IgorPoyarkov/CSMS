@@ -60,8 +60,15 @@ export const KtruRefSchema = z.object({
   okpd2Code: z.string().trim().min(1, "Укажите код ОКПД2"),
   /** Наименование позиции КТРУ */
   name: z.string().trim().min(2, "Укажите наименование позиции КТРУ"),
-  /** Единица измерения по ОКЕИ */
+  /** Единица измерения по ОКЕИ (первая из объявленных в позиции) */
   unit: z.string().optional(),
+  /** Все единицы, допустимые в позиции КТРУ. Если одна — подставляется в ООЗ. */
+  unitOptions: z.array(z.string()).default([]),
+  /** Дата начала/окончания обязательного применения позиции из ЕИС */
+  mandatoryFrom: z.string().optional(),
+  mandatoryTo: z.string().optional(),
+  /** Статус позиции в КТРУ («Включено в КТРУ» и т. п.) */
+  status: z.string().optional(),
   characteristics: z.array(KtruCharacteristicSchema).default([]),
   /** Правовой акт, которым утверждена позиция (ссылка на legalActs) */
   legalActId: z.string().optional(),

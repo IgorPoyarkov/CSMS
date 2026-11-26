@@ -14,6 +14,55 @@ import {
 } from "./ktruRef.schema";
 
 /**
+ * ЕИС отдаёт единицы одной строкой: «Километр;^тысяча метров; Человек; Час».
+ * Сочетание «;^» означает синоним предыдущей единицы (та же единица),
+ * остальные разделители отделяют разные допустимые единицы.
+ */
+export const parseKtruUnitOptions = (raw?: string): string[] => {
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  const parts = raw.split(";^").map((part, index) => {
+    if (index === 0) return part;
+    const tail = part
+      .split(/[;,]/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    return tail.slice(1).join(";");
+  });
+  return parts
+    .flatMap((part) => part.split(/[;,]/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, all) => all.indexOf(value) === index);
+};
+
+const parseKtruDate = (value?: string): Date | null => {
+  const match = value?.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return null;
+  const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/** Что сообщить пользователю о сроках обязательного применения позиции. */
+export const ktruMandatoryNotice = (
+  item: Pick<KtruRef, "mandatoryFrom" | "mandatoryTo">,
+): string | null => {
+  const from = parseKtruDate(item.mandatoryFrom);
+  if (!from) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const to = parseKtruDate(item.mandatoryTo);
+
+  if (to && to < today) {
+    return `Позиция КТРУ перестала применяться с ${item.mandatoryTo} — её нельзя выбирать.`;
+  }
+  if (from > today) {
+    return `Позиция КТРУ станет обязательной к применению с ${item.mandatoryFrom}.`;
+  }
+  const until = to ? ` до ${item.mandatoryTo}` : " (бессрочно)";
+  return `Позиция КТРУ обязательна к применению с ${item.mandatoryFrom}${until}.`;
+};
+
+/**
  * Позиция снимка НСИ → форма справочника КТРУ. Экспортируется, чтобы
  * серверные выборки (`useKtruByOkpd2`, `useKtruSearch`) отдавали тот же
  * тип, что и полный каталог из `useKtruDictionary`.
@@ -80,13 +129,23 @@ export const ktruFromReferenceItem = (
   const rawCharacteristics = Array.isArray(payload.characteristics)
     ? payload.characteristics
     : [];
+  const field = (key: string) =>
+    typeof payload[key] === "string" && (payload[key] as string).trim()
+      ? (payload[key] as string)
+      : undefined;
+  const rawUnit = field("unit");
+  const unitOptions = parseKtruUnitOptions(rawUnit);
 
   return {
     id: code,
     ktruCode: code,
     okpd2Code,
     name: item.name,
-    unit: typeof payload.unit === "string" ? payload.unit : undefined,
+    unit: unitOptions[0] ?? rawUnit,
+    unitOptions,
+    mandatoryFrom: field("mandatoryFrom"),
+    mandatoryTo: field("mandatoryTo"),
+    status: field("status"),
     characteristics: rawCharacteristics.flatMap((raw, index) => {
       const characteristic = ktruCharacteristicFromRaw(raw, code, index);
       return characteristic ? [characteristic] : [];

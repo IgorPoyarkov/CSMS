@@ -17,6 +17,8 @@ import {
   characteristicValueTypeLabels,
   emptyCharacteristic,
   formatCharacteristicValue,
+  gostPublicationYear,
+  MODERN_GOST_MIN_YEAR,
   STANDARD_TYPES,
   standardTypeLabels,
   TRADEMARK_RULES,
@@ -39,13 +41,18 @@ import {
 import {
   findKtruByCode,
   findKtruByOkpd2,
+  ktruMandatoryNotice,
   useCharacteristicsFillingInstructions,
   useKtruDictionary,
 } from "../../services/KtruRef/ktruRef.api";
-import type { KtruRef } from "../../services/KtruRef/ktruRef.schema";
+import type {
+  KtruCharacteristic,
+  KtruRef,
+} from "../../services/KtruRef/ktruRef.schema";
 import type { ContractService } from "../../services/ContractService/contractService.schema";
 import type { EmployeeEducation } from "../../services/ContractService/education.schema";
 import KtruSelect from "../UI/KtruSelect/KtruSelect";
+import CustomCheckbox from "../UI/CustomCheckbox";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
@@ -63,6 +70,13 @@ interface ObjectDescriptionEditorProps {
   isHead: boolean;
   defaultApproverName: string;
   isSaving: boolean;
+  /**
+   * Сохранить карточку как черновик, не закрывая редактор. Нужен, чтобы
+   * «Добавить объект» работал в ещё не сохранённой карточке из СЗ.
+   */
+  onPersistDraft?: (value: ObjectDescription) => Promise<
+    ObjectDescription | undefined
+  >;
   onSave: (value: ObjectDescription) => void;
   onCancel: () => void;
 }
@@ -81,6 +95,7 @@ export default function ObjectDescriptionEditor({
   isHead,
   defaultApproverName,
   isSaving,
+  onPersistDraft,
   onSave,
   onCancel,
 }: ObjectDescriptionEditorProps) {
@@ -89,6 +104,12 @@ export default function ObjectDescriptionEditor({
   const { data: okpd2Dictionary = [] } = useOkpd2Dictionary();
 
   const [draft, setDraft] = useState<ObjectDescription>(initialValue);
+  // id карточки, сохранённой прямо из редактора (например, при добавлении
+  // объекта). Исходный id приходит из списка ООЗ или из перехода по СЗ.
+  const [persistedId, setPersistedId] = useState<string | number | undefined>(
+    initialValue.id,
+  );
+  const descriptionId = persistedId ?? initialValue.id;
   const [categoryFilter, setCategoryFilter] = useState<
     CharacteristicCategory | "all"
   >("all");
@@ -99,6 +120,10 @@ export default function ObjectDescriptionEditor({
   >(null);
   const [copied, setCopied] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Попытка изменить единицу, зафиксированную позицией КТРУ.
+  const [unitChangeBlocked, setUnitChangeBlocked] = useState(false);
+  // Как в ЕИС: показывать в карточке КТРУ только обязательные поля.
+  const [mandatoryOnly, setMandatoryOnly] = useState(false);
 
   const { data: allPurchaseObjects = [] } = usePurchaseObjects(
     organizationId ?? initialValue?.organizationId ?? undefined,
@@ -109,9 +134,9 @@ export default function ObjectDescriptionEditor({
       allPurchaseObjects.filter(
         (item) =>
           item.objectDescriptionId !== undefined &&
-          String(item.objectDescriptionId) === String(initialValue?.id),
+          String(item.objectDescriptionId) === String(descriptionId),
       ),
-    [allPurchaseObjects, initialValue?.id],
+    [allPurchaseObjects, descriptionId],
   );
 
   // Все выбранные коды: код ООЗ плюс коды отдельных объектов закупки.
@@ -165,7 +190,23 @@ export default function ObjectDescriptionEditor({
     [ktruDictionary, draft.ktruCode],
   );
   const ktruUnit = selectedKtru?.unit?.trim() ? selectedKtru.unit : "";
-  const unitFromKtru = draft.useKtru && Boolean(ktruUnit);
+  const ktruUnitOptions =
+    selectedKtru?.unitOptions?.length === 0 && ktruUnit
+      ? [ktruUnit]
+      : (selectedKtru?.unitOptions ?? []);
+  // Единица фиксируется каталогом, только если в позиции она одна.
+  const unitFromKtru =
+    draft.useKtru && ktruUnitOptions.length === 1 && Boolean(ktruUnit);
+  // Карточка может открыться уже с выбранной позицией КТРУ — обработчик
+  // handleSelectKtru тогда не вызывался. Значение берём из справочника сразу
+  // в форме и в сохраняемом документе, без лишней записи в состояние.
+  const unitValue = unitFromKtru ? ktruUnit : draft.unit;
+  // Сверяем даты обязательного применения с сегодняшним днём: пользователь
+  // должен видеть, обязательна позиция уже или станет обязательной позже.
+  const mandatoryNotice = useMemo(
+    () => (selectedKtru ? ktruMandatoryNotice(selectedKtru) : null),
+    [selectedKtru],
+  );
   // Пока КТРУ не выбран, единицу не трогаем: она придёт из каталога
   const unitWaitingForKtru = draft.useKtru && !selectedKtru;
   const showNewGoodsRequirement = isGoodsObjectDescription(draft);
@@ -254,6 +295,32 @@ export default function ObjectDescriptionEditor({
       .filter(({ item }) => item.category === categoryFilter);
   }, [draft.characteristics, categoryFilter]);
 
+  // Обязательные характеристики выбранной позиции КТРУ, которых ещё нет в ООЗ:
+  // система должна предупреждать, а не заставлять пользователя сверять вручную.
+  const missingMandatoryKtru = useMemo(() => {
+    if (!draft.useKtru || !selectedKtru) return [];
+    const present = new Set(
+      draft.characteristics.map((c) => c.name.trim().toLowerCase()),
+    );
+    return selectedKtru.characteristics.filter(
+      (c) => c.isMandatory && !present.has(c.name.trim().toLowerCase()),
+    );
+  }, [draft.useKtru, selectedKtru, draft.characteristics]);
+
+  const hasMandatoryKtru = useMemo(
+    () => selectedKtru?.characteristics.some((c) => c.isMandatory) ?? false,
+    [selectedKtru],
+  );
+  // Переключатель в карточке позиции: обязательные поля видны всегда,
+  // необязательные скрываются только из списка (в ООЗ они не теряются).
+  const visibleKtruCharacteristics = useMemo(
+    () =>
+      mandatoryOnly
+        ? (selectedKtru?.characteristics.filter((c) => c.isMandatory) ?? [])
+        : (selectedKtru?.characteristics ?? []),
+    [mandatoryOnly, selectedKtru],
+  );
+
   const previewText = useMemo(
     () => buildObjectDescriptionSummaryText(draft),
     [draft],
@@ -276,11 +343,22 @@ export default function ObjectDescriptionEditor({
         ktruDictionaryLoading ||
         ktruDictionary.length === 0 ||
         findKtruByOkpd2(ktruDictionary, code).length > 0;
+      // Вид объекта закупки подставляем системно по справочнику ОКПД2.
+      const okpd2Kind = findOkpd2ByCode(okpd2Dictionary, code)?.objectKind;
+      const autoProductType: ObjectDescriptionProductType | undefined =
+        okpd2Kind === "goods"
+          ? "PRODUCT"
+          : okpd2Kind === "works"
+            ? "WORK"
+            : okpd2Kind === "services"
+              ? "SERVICE"
+              : undefined;
       return {
         ...prev,
         okpd2Code: code,
         okpd2Name: name,
         title: prev.title.trim() || !name ? prev.title : name,
+        productType: autoProductType ?? prev.productType,
         useKtru: ktruAvailable ? prev.useKtru : false,
         ktruCode: ktruAvailable ? prev.ktruCode : "",
         ktruName: ktruAvailable ? prev.ktruName : "",
@@ -318,15 +396,28 @@ export default function ObjectDescriptionEditor({
   };
 
   const handleSelectKtru = (item: KtruRef | null) => {
+    setUnitChangeBlocked(false);
+    // Если в позиции несколько единиц, не подставляем первую молча:
+    // пользователь должен выбрать нужную сам.
+    const options =
+      item?.unitOptions?.length === 0 && item?.unit?.trim()
+        ? [item.unit.trim()]
+        : (item?.unitOptions ?? []);
     setDraft((prev) => {
       const next: ObjectDescription = {
         ...prev,
         ktruCode: item?.ktruCode ?? "",
         ktruName: item?.name ?? "",
-        // Единица измерения из КТРУ: пока позиция выбрана, поле не редактируется
-        unit: item?.unit?.trim() ? item.unit : prev.unit,
+        // Выбор позиции КТРУ включает её применение: иначе поля каталога
+        // останутся недоступны, хотя позиция уже выбрана.
+        useKtru: item ? true : prev.useKtru,
+        ktruRefusalReason: item ? "" : prev.ktruRefusalReason,
+        // Единица фиксируется позицией КТРУ, только если она единственная.
+        unit: item ? (options.length === 1 ? options[0] : "") : prev.unit,
       };
       if (item) {
+        // Переносим ВСЕ поля позиции КТРУ — и обязательные, и необязательные.
+        // Селект только фильтрует список позиций и не должен исключать поля.
         next.characteristics = mergeKtruCharacteristics(
           next.characteristics,
           ktruToObjectCharacteristics(item),
@@ -335,6 +426,17 @@ export default function ObjectDescriptionEditor({
       return next;
     });
     setSubmitError("");
+  };
+
+  /** Снять КТРУ, чтобы пользователь мог свободно выбрать единицу измерения. */
+  const removeKtruForUnitChange = () => {
+    setDraft((prev) => ({
+      ...prev,
+      useKtru: false,
+      ktruCode: "",
+      ktruName: "",
+    }));
+    setUnitChangeBlocked(false);
   };
 
   const handleApplyKtruCharacteristics = () => {
@@ -346,6 +448,54 @@ export default function ObjectDescriptionEditor({
         ktruToObjectCharacteristics(selectedKtru),
       ),
     );
+  };
+
+  /** Добавить одно поле выбранной позиции КТРУ (в т. ч. необязательное). */
+  const addKtruCharacteristic = (characteristic: KtruCharacteristic) => {
+    if (!selectedKtru) return;
+    const mapped = ktruToObjectCharacteristics({
+      ...selectedKtru,
+      characteristics: [characteristic],
+    });
+    if (mapped.length === 0) return;
+    patch(
+      "characteristics",
+      mergeKtruCharacteristics(draft.characteristics, mapped),
+    );
+  };
+
+  /**
+   * Гарантировать сохранение карточки перед добавлением объекта. В карточке,
+   * открытой из СЗ, id может отсутствовать — без него объект не привязать.
+   */
+  const ensureDescription = async (): Promise<
+    string | number | undefined
+  > => {
+    if (descriptionId !== undefined && descriptionId !== null && descriptionId !== "") {
+      return descriptionId;
+    }
+    if (!onPersistDraft) return undefined;
+    if (!draft.title.trim()) {
+      setSubmitError("Укажите наименование объекта закупки.");
+      return undefined;
+    }
+    if (!draft.okpd2Code.trim()) {
+      setSubmitError("Выберите код ОКПД2.");
+      return undefined;
+    }
+    try {
+      const saved = await onPersistDraft({ ...draft, status: "draft" });
+      if (saved?.id !== undefined && saved.id !== null && saved.id !== "") {
+        setPersistedId(saved.id);
+        setDraft((prev) => ({ ...prev, id: saved.id }));
+        return saved.id;
+      }
+    } catch {
+      setSubmitError(
+        "Не удалось сохранить карточку ООЗ. Проверьте данные и повторите.",
+      );
+    }
+    return undefined;
   };
 
   const handleApplyNormingTemplate = (code = draft.okpd2Code) => {
@@ -376,7 +526,10 @@ export default function ObjectDescriptionEditor({
   ) => {
     patch("characteristics", [
       ...draft.characteristics,
-      emptyCharacteristic(category),
+      {
+        ...emptyCharacteristic(category),
+        isAdditionalOverKtru: draft.useKtru,
+      },
     ]);
   };
 
@@ -490,6 +643,9 @@ export default function ObjectDescriptionEditor({
     const nextToSave: ObjectDescription = {
       ...draft,
       status,
+      // Единица из КТРУ фиксируется каталогом даже если карточка открыта
+      // повторно и в сохранённом документе поле было пустым.
+      unit: unitValue,
       // Текст инструкции показателя фиксируем из ЕИС на момент сохранения
       characteristics: draft.characteristics.map((item) => ({
         ...item,
@@ -586,7 +742,8 @@ export default function ObjectDescriptionEditor({
       {/* Секция 1: Идентификация объекта, ОКПД2 и КТРУ */}
       <fieldset className={block("fieldset")}>
         <legend className={block("legend")}>
-          1. Идентификация объекта закупки (ОКПД2 / КТРУ / объём)
+          <span className={block("legend-index")}>01</span>
+          Идентификация объекта закупки (ОКПД2 / КТРУ / объём)
         </legend>
 
         <div className={block("grid")}>
@@ -622,17 +779,16 @@ export default function ObjectDescriptionEditor({
                 )
               }
             >
-              {OBJECT_DESCRIPTION_PRODUCT_TYPES.map((type) => (
+              {OBJECT_DESCRIPTION_PRODUCT_TYPES.filter(
+                (type) =>
+                  type !== "PRODUCT_DURING_WORK" &&
+                  type !== "PRODUCT_DURING_SERVICE",
+              ).map((type) => (
                 <option key={type} value={type}>
                   {OBJECT_DESCRIPTION_PRODUCT_TYPE_LABELS[type]}
                 </option>
               ))}
             </Select>
-            <span className={block("hint")}>
-              «Товар при выполнении работ/оказании услуг» — поставка в составе
-              работ или услуг: укажите родительский объект в карточке ниже. В
-              ЕИС 17.0 это PRODUCT со ссылкой на родителя WORK/SERVICE.
-            </span>
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -649,7 +805,9 @@ export default function ObjectDescriptionEditor({
             {/* Каждый объект закупки — отдельный документ со своими
                 характеристиками, связями с ПГ/СЗ и родительским объектом. */}
             <PurchaseObjectsSection
-              description={initialValue}
+              // Живые данные карточки, а не исходный снимок: после
+              // автосохранения объекты должны фильтроваться по новому id.
+              description={{ ...draft, id: descriptionId }}
               organizationId={organizationId}
               activeObjectId={activeObjectId}
               allowedCodes={planOkpd2SelectCodes}
@@ -665,6 +823,7 @@ export default function ObjectDescriptionEditor({
                   ? String(planPosition.serialNumber)
                   : undefined,
               }}
+              onEnsureDescription={ensureDescription}
               onSelect={handleSelectPurchaseObject}
             />
 
@@ -726,25 +885,22 @@ export default function ObjectDescriptionEditor({
 
           {/* Флаг объёма — отдельная строка: иначе его длинная подпись
               сдвигает «Количество» относительно поля «Единица измерения». */}
-          <div className={block("field", ["full"])}>
-            <label className={block("checkbox-label")}>
-              <input
-                type="checkbox"
-                checked={draft.isIndeterminateVolume}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setDraft((prev) => ({
-                    ...prev,
-                    isIndeterminateVolume: checked,
-                    // ЕИС всё равно требует число: при неопределённом объёме
-                    // фиксируем 1 и блокируем редактирование поля
-                    quantity: checked ? "1" : prev.quantity,
-                  }));
-                  setSubmitError("");
-                }}
-              />
-              <span>Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)</span>
-            </label>
+          <div className={block("field", ["full", "check"])}>
+            <CustomCheckbox
+              label="Невозможно определить объём (ч. 24 ст. 22 44-ФЗ)"
+              checked={draft.isIndeterminateVolume}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setDraft((prev) => ({
+                  ...prev,
+                  isIndeterminateVolume: checked,
+                  // ЕИС всё равно требует число: при неопределённом объёме
+                  // фиксируем 1 и блокируем редактирование поля
+                  quantity: checked ? "1" : prev.quantity,
+                }));
+                setSubmitError("");
+              }}
+            />
           </div>
 
           <div className={block("field")}>
@@ -753,23 +909,52 @@ export default function ObjectDescriptionEditor({
             </label>
             <OkeiSelect
               id="ooz-unit"
-              value={draft.unit}
+              value={unitValue}
               valueMode="symbol"
               showCodeHint
-              disabled={unitFromKtru || unitWaitingForKtru}
+              disabled={unitWaitingForKtru}
               placeholder="шт, компл, усл. ед, кг (ОКЕИ)…"
-              onChange={(nextUnit) => patch("unit", nextUnit)}
+              onChange={(nextUnit) => {
+                // Единица из КТРУ фиксирована каталогом: предупреждаем о
+                // попытке замены и предлагаем снять позицию.
+                if (unitFromKtru && nextUnit !== ktruUnit) {
+                  setUnitChangeBlocked(true);
+                  return;
+                }
+                setUnitChangeBlocked(false);
+                patch("unit", nextUnit);
+              }}
             />
             {unitFromKtru ? (
               <span className={block("field-hint")}>
                 Единица подставлена из позиции КТРУ — снимите КТРУ, чтобы
                 выбрать другую.
               </span>
+            ) : unitWaitingForKtru ? (
+              <span className={block("field-hint")}>
+                Сначала выберите позицию КТРУ — единица подставится из каталога.
+              </span>
+            ) : selectedKtru && ktruUnitOptions.length > 1 ? (
+              <span className={block("warning-msg")}>
+                В позиции КТРУ несколько единиц ({ktruUnitOptions.join(", ")}) —
+                выберите нужную вручную.
+              </span>
             ) : (
               <span className={block("field-hint")}>
-                {unitWaitingForKtru
-                  ? "Сначала выберите позицию КТРУ — единица подставится из каталога."
-                  : "Выберите единицу вручную (КТРУ не применяется)."}
+                Выберите единицу вручную (КТРУ не применяется).
+              </span>
+            )}
+            {unitChangeBlocked && (
+              <span className={block("warning-msg")}>
+                Единица измерения определена позицией КТРУ ({ktruUnit}).
+                Изменить её можно только после снятия КТРУ.{" "}
+                <button
+                  type="button"
+                  className={block("inline-btn")}
+                  onClick={removeKtruForUnitChange}
+                >
+                  Снять КТРУ
+                </button>
               </span>
             )}
           </div>
@@ -790,40 +975,30 @@ export default function ObjectDescriptionEditor({
           </div>
 
           {!hideKtruFlag && (
-            <div className={block("field", ["full"])}>
+            <div className={block("field", ["full", "check"])}>
               <label className={block("label")} htmlFor="ooz-ktru">
                 Применение КТРУ (ПП РФ № 145)
               </label>
-              <label className={block("checkbox-label")}>
-                <input
-                  type="checkbox"
-                  checked={draft.useKtru}
-                  onChange={(e) => patch("useKtru", e.target.checked)}
-                />
-                <span>Включать позицию каталога товаров, работ, услуг</span>
-              </label>
+              <CustomCheckbox
+                label="Включать позицию каталога товаров, работ, услуг"
+                checked={draft.useKtru}
+                onChange={(e) => patch("useKtru", e.target.checked)}
+              />
+              {/* Раздел 1 — только выбор подходящей позиции КТРУ.
+                  Фильтры сужают список, но не скрывают выбранную позицию.
+                  Сами поля ОЗ редактируются в разделе 2.2. */}
               {draft.useKtru && (
-                <>
-                  <KtruSelect
-                    className={block("ktru-select")}
-                    okpd2Code={planPosition?.okpd2Code ?? draft.okpd2Code}
-                    ktruCode={draft.ktruCode}
-                    initialQuery={planPosition?.ktruCode ?? ""}
-                    onSelect={handleSelectKtru}
-                    disabled={!draft.okpd2Code}
-                    showCharacteristicFilter
-                  />
-                  {selectedKtru?.characteristics.length ? (
-                    <button
-                      type="button"
-                      className={block("inline-btn")}
-                      onClick={handleApplyKtruCharacteristics}
-                    >
-                      + Подставить характеристики КТРУ (
-                      {selectedKtru.characteristics.length})
-                    </button>
-                  ) : null}
-                </>
+                <KtruSelect
+                  className={block("ktru-select")}
+                  okpd2Code={planPosition?.okpd2Code ?? draft.okpd2Code}
+                  ktruCode={draft.ktruCode}
+                  initialQuery={planPosition?.ktruCode ?? ""}
+                  onSelect={handleSelectKtru}
+                  disabled={!draft.okpd2Code}
+                />
+              )}
+              {draft.useKtru && mandatoryNotice && (
+                <span className={block("warning-msg")}>{mandatoryNotice}</span>
               )}
               {draft.useKtru && !draft.ktruRefusalReason && !draft.ktruCode && (
                 <span className={block("field-hint")}>
@@ -831,16 +1006,144 @@ export default function ObjectDescriptionEditor({
                   оно сохранится в ООЗ.
                 </span>
               )}
+              {draft.useKtru && selectedKtru && (
+                <span className={block("field-hint")}>
+                  Поля выбранной позиции КТРУ (обязательные и необязательные)
+                  доступны в разделе 2.2 «Структурированные характеристики».
+                </span>
+              )}
             </div>
           )}
         </div>
       </fieldset>
 
-      {/* Секция 2: Структурированные характеристики */}
+      {/* Секция 2: Структурированные характеристики.
+          Описание ОЗ по КТРУ перенесено сюда из раздела 1: раздел 1 только
+          выбирает позицию каталога, а все её поля живут в 2.2. */}
       <fieldset className={block("fieldset")}>
         <legend className={block("legend")}>
-          2. Структурированные характеристики (ст. 33 44-ФЗ / ПП 145 / ПП 926)
+          <span className={block("legend-index")}>02</span>
+          Структурированные характеристики (ст. 33 44-ФЗ / ПП 145 / ПП 926)
         </legend>
+
+        {draft.useKtru && (
+          <div className={block("ktru-description")}>
+            <div className={block("ktru-description-head")}>
+              <span className={block("label")}>
+                Описание ОЗ по позиции КТРУ
+              </span>
+              {selectedKtru ? (
+                <span className={block("field-hint")}>
+                  <span className={block("code-badge")}>
+                    {selectedKtru.ktruCode}
+                  </span>{" "}
+                  — {selectedKtru.name}. Полей каталога:{" "}
+                  {selectedKtru.characteristics.length} (обязательных:{" "}
+                  {
+                    selectedKtru.characteristics.filter(
+                      (characteristic) => characteristic.isMandatory,
+                    ).length
+                  }
+                  , необязательных:{" "}
+                  {
+                    selectedKtru.characteristics.filter(
+                      (characteristic) => !characteristic.isMandatory,
+                    ).length
+                  }
+                  ). Все они доступны ниже; переключатель скрывает только
+                  необязательные из списка.
+                </span>
+              ) : (
+                <span className={block("field-hint")}>
+                  Выберите позицию КТРУ в разделе 1 — все её поля, включая
+                  необязательные, появятся здесь.
+                </span>
+              )}
+            </div>
+
+            {selectedKtru && selectedKtru.characteristics.length > 0 && (
+              <>
+                {/* Как в ЕИС: переключатель «Показывать только обязательные».
+                    Необязательные поля скрываются только из списка — в ООЗ
+                    они остаются доступны кнопкой «Подставить все поля». */}
+                <CustomCheckbox
+                  wrapperClassName={block("ktru-filter")}
+                  compact
+                  label="Показывать только обязательные характеристики"
+                  checked={mandatoryOnly}
+                  onChange={(event) => setMandatoryOnly(event.target.checked)}
+                />
+                <div className={block("ktru-field-list")}>
+                  {visibleKtruCharacteristics.map((characteristic) => {
+                    const added = draft.characteristics.some(
+                      (item) =>
+                        item.name.trim().toLowerCase() ===
+                        characteristic.name.trim().toLowerCase(),
+                    );
+                    return (
+                      <div
+                        key={characteristic.id}
+                        className={block("ktru-field")}
+                        data-added={added ? "true" : undefined}
+                      >
+                        <span className={block("ktru-field-name")}>
+                          {characteristic.name}
+                        </span>
+                        <span
+                          className={block("ktru-field-badge", [
+                            characteristic.isMandatory
+                              ? "required"
+                              : "optional",
+                          ])}
+                        >
+                          {characteristic.isMandatory
+                            ? "обязательное"
+                            : "необязательное"}
+                        </span>
+                        <button
+                          type="button"
+                          className={block("inline-btn")}
+                          disabled={added}
+                          onClick={() => addKtruCharacteristic(characteristic)}
+                        >
+                          {added ? "Добавлено" : "+ Добавить поле"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  className={block("inline-btn")}
+                  onClick={handleApplyKtruCharacteristics}
+                >
+                  + Подставить все поля КТРУ (
+                  {selectedKtru.characteristics.length})
+                </button>
+              </>
+            )}
+
+            {selectedKtru && mandatoryNotice && (
+              <span className={block("warning-msg")}>{mandatoryNotice}</span>
+            )}
+            {missingMandatoryKtru.length > 0 && (
+              <span className={block("warning-msg")}>
+                Не добавлены обязательные характеристики КТРУ:{" "}
+                {missingMandatoryKtru.map((c) => c.name).join(", ")}. Нажмите
+                «+ Подставить все поля КТРУ» или добавьте их вручную.
+              </span>
+            )}
+            {selectedKtru &&
+              !hasMandatoryKtru &&
+              draft.characteristics.length === 0 && (
+                <span className={block("warning-msg")}>
+                  В выбранной позиции КТРУ нет обязательных характеристик —
+                  добавьте характеристики объекта закупки вручную (ст. 33
+                  44-ФЗ).
+                </span>
+              )}
+          </div>
+        )}
 
         {draft.characteristics.length === 0 && (
           <p className={block("characteristics-warning")}>
@@ -893,7 +1196,8 @@ export default function ObjectDescriptionEditor({
             В выбранной категории пока нет характеристик.
           </p>
         ) : (
-          <div className={block("char-list")}>
+          <>
+            <div className={block("char-list")}>
             {visibleCharacteristics.map(({ item, idx }) => (
               <div key={item.id} className={block("char-card")}>
                 <div className={block("char-row-main")}>
@@ -1103,42 +1407,29 @@ export default function ObjectDescriptionEditor({
                 </div>
 
                 <div className={block("char-flags")}>
-                  {draft.useKtru && (
-                    <>
-                      <label className={block("checkbox-label")}>
-                        <input
-                          type="checkbox"
-                          checked={item.isMandatoryFromKtru}
-                          onChange={(e) =>
-                            updateCharacteristic(idx, {
-                              isMandatoryFromKtru: e.target.checked,
-                              isAdditionalOverKtru: e.target.checked
-                                ? false
-                                : item.isAdditionalOverKtru,
-                            })
-                          }
-                        />
-                        <span>Обязательная характеристика из КТРУ</span>
-                      </label>
-                      <label className={block("checkbox-label")}>
-                        <input
-                          type="checkbox"
-                          checked={item.isAdditionalOverKtru}
-                          onChange={(e) =>
-                            updateCharacteristic(idx, {
-                              isAdditionalOverKtru: e.target.checked,
-                              isMandatoryFromKtru: e.target.checked
-                                ? false
-                                : item.isMandatoryFromKtru,
-                            })
-                          }
-                        />
-                        <span>
-                          Дополнительная характеристика сверх КТРУ (требует
-                          обоснования по ПП 145)
-                        </span>
-                      </label>
-                    </>
+                  {draft.useKtru && item.isMandatoryFromKtru && (
+                    <span className={block("char-preview-badge")}>
+                      Обязательная характеристика из КТРУ
+                    </span>
+                  )}
+                  {draft.useKtru &&
+                    selectedKtru &&
+                    !item.isMandatoryFromKtru &&
+                    !item.isAdditionalOverKtru &&
+                    selectedKtru.characteristics.some(
+                      (characteristic) =>
+                        characteristic.name.trim().toLowerCase() ===
+                        item.name.trim().toLowerCase(),
+                    ) && (
+                      <span className={block("char-preview-badge")}>
+                        Необязательная характеристика из КТРУ
+                      </span>
+                    )}
+                  {draft.useKtru && item.isAdditionalOverKtru && (
+                    <span className={block("char-preview-badge")}>
+                      Дополнительная характеристика сверх КТРУ (требует
+                      обоснования по ПП 145)
+                    </span>
                   )}
                   <span className={block("char-preview-badge")}>
                     Итого: {formatCharacteristicValue(item)}
@@ -1167,13 +1458,22 @@ export default function ObjectDescriptionEditor({
               </div>
             ))}
           </div>
+          <button
+            type="button"
+            className={block("add-btn")}
+            onClick={() => addCharacteristic()}
+          >
+            + Добавить характеристику
+          </button>
+          </>
         )}
       </fieldset>
 
       {/* Секция 3: Товарный знак, ГОСТ, гарантии и инструкция */}
       <fieldset className={block("fieldset")}>
         <legend className={block("legend")}>
-          3. Стандарты, товарные знаки и гарантии (ст. 33 44-ФЗ)
+          <span className={block("legend-index")}>03</span>
+          Стандарты, товарные знаки и гарантии (ст. 33 44-ФЗ)
         </legend>
 
         <div className={block("grid")}>
@@ -1247,74 +1547,92 @@ export default function ObjectDescriptionEditor({
               + Добавить ГОСТ / регламент
             </button>
           </div>
+          <span className={block("field-hint")}>
+            Год определяется из обозначения ГОСТ. Документы до{" "}
+            {MODERN_GOST_MIN_YEAR} г. помечаются предупреждением — проверьте
+            действующую редакцию в ЕИС.
+          </span>
 
-          {draft.standards.map((std, idx) => (
-            <div key={std.id} className={block("standard-row")}>
-              <Select
-                className={block("select")}
-                value={std.standardType}
-                onChange={(e) =>
-                  updateStandard(idx, {
-                    standardType: e.target
-                      .value as ObjectStandardRef["standardType"],
-                  })
-                }
-              >
-                {STANDARD_TYPES.map((st) => (
-                  <option key={st} value={st}>
-                    {standardTypeLabels[st]}
-                  </option>
-                ))}
-              </Select>
-              <input
-                className={block("input")}
-                type="text"
-                placeholder="Номер (например, ГОСТ Р 50444-2020)"
-                value={std.code}
-                onChange={(e) => updateStandard(idx, { code: e.target.value })}
-              />
-              <input
-                className={block("input")}
-                type="text"
-                placeholder="Наименование стандарта"
-                value={std.title}
-                onChange={(e) => updateStandard(idx, { title: e.target.value })}
-              />
-              <label className={block("checkbox-label")}>
-                <input
-                  type="checkbox"
-                  checked={std.hasDeviation}
+          {draft.standards.map((std, idx) => {
+            const gostYear =
+              std.standardType === "GOST"
+                ? gostPublicationYear(std.code)
+                : null;
+            return (
+              <div key={std.id} className={block("standard-row")}>
+                <Select
+                  className={block("select")}
+                  value={std.standardType}
                   onChange={(e) =>
-                    updateStandard(idx, { hasDeviation: e.target.checked })
+                    updateStandard(idx, {
+                      standardType: e.target
+                        .value as ObjectStandardRef["standardType"],
+                    })
                   }
+                >
+                  {STANDARD_TYPES.map((st) => (
+                    <option key={st} value={st}>
+                      {standardTypeLabels[st]}
+                    </option>
+                  ))}
+                </Select>
+                <input
+                  className={block("input")}
+                  type="text"
+                  placeholder="Номер (например, ГОСТ Р 50444-2020)"
+                  value={std.code}
+                  onChange={(e) => updateStandard(idx, { code: e.target.value })}
                 />
-                <span>Отклонение от показателей стандарта</span>
-              </label>
-              <button
-                type="button"
-                className={block("req-remove")}
-                onClick={() => removeStandard(idx)}
-                title="Удалить стандарт"
-              >
-                ✕
-              </button>
-              {std.hasDeviation && (
-                <div className={block("justification-box", ["full"])}>
-                  <input
-                    className={block("input")}
-                    type="text"
-                    placeholder="Обоснование необходимости использования нестандартных показателей (п. 2 ч. 1 ст. 33) *"
-                    value={std.deviationJustification}
+                <input
+                  className={block("input")}
+                  type="text"
+                  placeholder="Наименование стандарта"
+                  value={std.title}
+                  onChange={(e) => updateStandard(idx, { title: e.target.value })}
+                />
+                <div className={block("standard-flag")}>
+                  <CustomCheckbox
+                    compact
+                    label="Отклонение от показателей стандарта"
+                    checked={std.hasDeviation}
                     onChange={(e) =>
-                      updateStandard(idx, {
-                        deviationJustification: e.target.value,
-                      })
+                      updateStandard(idx, { hasDeviation: e.target.checked })
                     }
                   />
                 </div>
-              )}
-            </div>
-          ))}
+                <button
+                  type="button"
+                  className={block("req-remove", ["standard-remove"])}
+                  onClick={() => removeStandard(idx)}
+                  title="Удалить стандарт"
+                >
+                  ✕
+                </button>
+                {std.hasDeviation && (
+                  <div className={block("justification-box", ["full"])}>
+                    <input
+                      className={block("input")}
+                      type="text"
+                      placeholder="Обоснование необходимости использования нестандартных показателей (п. 2 ч. 1 ст. 33) *"
+                      value={std.deviationJustification}
+                      onChange={(e) =>
+                        updateStandard(idx, {
+                          deviationJustification: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+                {gostYear !== null && gostYear < MODERN_GOST_MIN_YEAR && (
+                  <span className={block("warning-msg", ["standard"])}>
+                    ГОСТ принят в {gostYear} году — ОЗ не гостировалось после{" "}
+                    {MODERN_GOST_MIN_YEAR} г. Проверьте, есть ли действующая
+                    редакция не ранее {MODERN_GOST_MIN_YEAR} года.
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className={block("grid")}>
@@ -1329,19 +1647,6 @@ export default function ObjectDescriptionEditor({
               placeholder="Например: 24"
               value={draft.warrantyTermMonths}
               onChange={(e) => patch("warrantyTermMonths", e.target.value)}
-            />
-          </div>
-
-          <div className={block("field")}>
-            <label className={block("label")} htmlFor="ooz-author">
-              Составитель ООЗ (специалист заказчика)
-            </label>
-            <input
-              id="ooz-author"
-              className={block("input")}
-              type="text"
-              value={draft.authorName}
-              onChange={(e) => patch("authorName", e.target.value)}
             />
           </div>
 
@@ -1390,36 +1695,23 @@ export default function ObjectDescriptionEditor({
             />
           </div>
 
-          <div className={block("field", ["wide"])}>
+          <div className={block("field", ["full", "check"])}>
             {showNewGoodsRequirement && (
-              <label className={block("checkbox-label")}>
-                <input
-                  type="checkbox"
-                  checked={draft.isNewGoodsRequired}
-                  onChange={(e) =>
-                    patch("isNewGoodsRequired", e.target.checked)
-                  }
-                />
-                <span>
-                  Поставляемый товар должен быть новым (не бывшим в
-                  употреблении, п. 7 ч. 1 ст. 33)
-                </span>
-              </label>
-            )}
-            <label className={block("checkbox-label")}>
-              <input
-                type="checkbox"
-                checked={draft.noRestrictionDeclaration}
+              <CustomCheckbox
+                label="Поставляемый товар должен быть новым (не бывшим в употреблении, п. 7 ч. 1 ст. 33)"
+                checked={draft.isNewGoodsRequired}
                 onChange={(e) =>
-                  patch("noRestrictionDeclaration", e.target.checked)
+                  patch("isNewGoodsRequired", e.target.checked)
                 }
               />
-              <span>
-                Подтверждаю, что в ООЗ не включены требования, влекущие
-                ограничение количества участников закупки (п. 1 ч. 1 ст. 33
-                44-ФЗ)
-              </span>
-            </label>
+            )}
+            <CustomCheckbox
+              label="Подтверждаю, что в ООЗ не включены требования, влекущие ограничение количества участников закупки (п. 1 ч. 1 ст. 33 44-ФЗ)"
+              checked={draft.noRestrictionDeclaration}
+              onChange={(e) =>
+                patch("noRestrictionDeclaration", e.target.checked)
+              }
+            />
           </div>
         </div>
       </fieldset>
