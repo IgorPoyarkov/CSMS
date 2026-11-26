@@ -27,7 +27,8 @@ $action = New-ScheduledTaskAction `
     -WorkingDirectory $root
 
 $msk = [TimeZoneInfo]::FindSystemTimeZoneById('Russian Standard Time')
-$utc = [TimeZoneInfo]::ConvertTimeToUtc((Get-Date).Date.AddHours(3), $msk)
+$mskTime = [DateTime]::SpecifyKind((Get-Date).Date.AddHours(3), [DateTimeKind]::Unspecified)
+$utc = [TimeZoneInfo]::ConvertTimeToUtc($mskTime, $msk)
 $local = [TimeZoneInfo]::ConvertTimeFromUtc($utc, [TimeZoneInfo]::Local)
 $trigger = New-ScheduledTaskTrigger -Daily -At $local
 
