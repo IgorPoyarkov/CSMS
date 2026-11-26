@@ -4,9 +4,15 @@ import {
   PP2604_APPENDIX2_SOURCE,
   PP2604_OFFLINE_MAPPING,
   detectObjectCategory,
+  evaluateBids,
   isOkpd2CodeFormatValid,
   resolveOkpd2Category,
   validateBidEvaluation,
+} from "../src/services/BidEvaluation/bidEvaluation.schema";
+import type {
+  Bid,
+  Criterion,
+  Indicator,
 } from "../src/services/BidEvaluation/bidEvaluation.schema";
 import type { Pp2604Mapping } from "../src/services/Pp2604/pp2604.schema";
 
@@ -144,6 +150,126 @@ assert.ok(
   issueLevels({ ...base, okpd2Codes: ["62.01"], objectCategory: "works_services" }).some(
     (issue) => issue.level === "warning" && /Источник: .*поз\. 12/.test(issue.message),
   ),
+);
+
+// Направление и способ оценки: «направление не применяется» допустимо только
+// вне формулы п. 20, а иной порядок (п. 22) требует описания порядка и
+// автоматически не рассчитывается.
+const criterionWithIndicator = (indicator: Partial<Indicator>): Criterion[] => [
+  {
+    id: "crit-price",
+    type: "price",
+    enabled: true,
+    weightPercent: 60,
+    indicators: [],
+    note: "",
+  },
+  {
+    id: "crit-qualification",
+    type: "qualification",
+    enabled: true,
+    weightPercent: 40,
+    indicators: [
+      {
+        id: "ind-experience",
+        name: "Опыт работы по предмету контракта",
+        kind: "experience",
+        weightPercent: 100,
+        best: "none",
+        scoring: "formula",
+        ...indicator,
+      },
+    ],
+    note: "",
+  },
+];
+
+const indicatorIssues = (indicator: Partial<Indicator>) =>
+  validateBidEvaluation(
+    {
+      procedureKind: "tender",
+      objectCategory: "goods",
+      nmck: "1000",
+      okpd2Codes: ["26.11"],
+      status: "draft",
+      bids: [],
+      criteria: criterionWithIndicator(indicator),
+    },
+    { checkBids: false },
+  );
+
+assert.ok(
+  indicatorIssues({}).some(
+    (issue) => issue.level === "error" && /по формуле \(п\. 20/.test(issue.message),
+  ),
+  "формула без направления должна давать ошибку",
+);
+assert.ok(
+  indicatorIssues({ scoring: "other" }).some(
+    (issue) => issue.level === "error" && /опишите иной порядок/.test(issue.message),
+  ),
+  "иной порядок без текста должен давать ошибку",
+);
+assert.ok(
+  indicatorIssues({
+    scoring: "other",
+    otherOrder: "Балл = 100 − отклонение от лучшего предложения, %",
+  }).some(
+    (issue) => issue.level === "warning" && /не рассчитываются/.test(issue.message),
+  ),
+  "иной порядок с текстом — предупреждение о ручном расчёте",
+);
+assert.ok(
+  !indicatorIssues({ scoring: "scale", scaleText: "да = 100" }).some(
+    (issue) => issue.level === "error" && /по формуле \(п\. 20/.test(issue.message),
+  ),
+  "шкале направление не требуется",
+);
+
+// Расчёт с новыми значениями справочников: иной порядок оценки и «направление
+// не применяется» не ломают evaluateBids — показатель даёт 0 автоматических
+// баллов, остальные критерии считаются как обычно.
+const sampleBids: Bid[] = [
+  {
+    id: "bid-1",
+    participantName: "Участник 1",
+    price: "900",
+    values: {},
+    totalScore: 0,
+    rank: 0,
+  },
+  {
+    id: "bid-2",
+    participantName: "Участник 2",
+    price: "800",
+    values: {},
+    totalScore: 0,
+    rank: 0,
+  },
+];
+
+const otherOrderEvaluation = evaluateBids({
+  nmck: "1000",
+  criteria: criterionWithIndicator({
+    scoring: "other",
+    otherOrder: "Балл = 100 − отклонение от лучшего предложения, %",
+  }),
+  bids: sampleBids,
+});
+assert.equal(otherOrderEvaluation.bids.length, 2);
+assert.ok(
+  otherOrderEvaluation.bids.every((bid) => Number.isFinite(bid.totalScore)),
+  "иной порядок оценки не должен ломать расчёт баллов",
+);
+
+const noneDirectionEvaluation = evaluateBids({
+  nmck: "1000",
+  criteria: criterionWithIndicator({ best: "none", scoring: "formula" }),
+  bids: sampleBids,
+});
+assert.ok(
+  noneDirectionEvaluation.bids.every((bid) => bid.totalScore > 0),
+  "цена считается, а показатель без направления даёт 0",
 );
 
 console.log("Проверки ПП РФ N 2604 / ОКПД2 пройдены.");

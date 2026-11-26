@@ -135,6 +135,42 @@ assert.equal(mappedCriteria[1].indicators[0].measurementOrder, "F");
 assert.equal(mappedCriteria[1].indicators[1].measurementOrder, "L");
 assert.equal(mappedCriteria[1].indicators[1].addInfo, "Шкала 1–5");
 
+// 2а. Иной порядок оценки (п. 22 Положения): в XSD ЕИС это
+// measurementOrder = O, а текст порядка уходит в addInfo (otherOrder).
+const otherOrderCriteria = mapNoticeCriteriaToEis17(
+  noticeWithCriteria([
+    criterion({ id: "c-price", type: "price", weightPercent: 60 }),
+    criterion({
+      id: "c-quality-other",
+      type: "qualitative_characteristics",
+      weightPercent: 40,
+      indicators: [
+        {
+          id: "i-other",
+          name: "Опыт работ по иному порядку",
+          weightPercent: 100,
+          best: "none",
+          scoring: "other",
+          otherOrder: "Балл = 100 − отклонение от лучшего предложения, %",
+        },
+      ],
+    }),
+  ]),
+);
+assert.equal(otherOrderCriteria[1].indicators[0].measurementOrder, "O");
+assert.equal(
+  otherOrderCriteria[1].indicators[0].addInfo,
+  "Балл = 100 − отклонение от лучшего предложения, %",
+);
+
+const otherOrderXml = buildEis17CriteriaXml(otherOrderCriteria);
+assert.ok(otherOrderXml.includes("<measurementOrder>O</measurementOrder>"));
+assert.ok(
+  otherOrderXml.includes(
+    "<addInfo>Балл = 100 − отклонение от лучшего предложения, %</addInfo>",
+  ),
+);
+
 // 3. Аукцион: Положение № 2604 не применяется, но XSD требует criteriaInfo —
 // выгружается единственный критерий «цена» со значимостью 100 %.
 const auctionCriteria = mapNoticeCriteriaToEis17(
@@ -155,12 +191,12 @@ assert.ok(criteriaXml.startsWith("<criteriaInfo>"));
 assert.ok(criteriaXml.includes("<isCertainWorks>false</isCertainWorks>"));
 assert.ok(
   criteriaXml.includes(
-    "<costCriterionInfo><code>CP</code><valueInfo>60</valueInfo></costCriterionInfo>",
+    "<costCriterionInfo><code>CP</code><valueInfo><value>60</value></valueInfo></costCriterionInfo>",
   ),
 );
 assert.ok(
   criteriaXml.includes(
-    "<qualitativeCriterionInfo><code>QF</code><valueInfo>40</valueInfo>",
+    "<qualitativeCriterionInfo><code>QF</code><valueInfo><value>40</value></valueInfo>",
   ),
 );
 assert.ok(criteriaXml.includes("<indicatorsInfo>"));
@@ -168,6 +204,40 @@ assert.ok(criteriaXml.includes("<measurementOrder>F</measurementOrder>"));
 assert.ok(criteriaXml.includes("<measurementOrder>L</measurementOrder>"));
 assert.ok(criteriaXml.includes("<addInfo>Шкала 1–5</addInfo>"));
 assert.ok(!criteriaXml.includes("<criterionCode>"));
+
+// 4а. Стоимостной критерий MC: XSD 17.0 (indicatorInfoType) не допускает
+// measurementOrder у показателей — направление оценки есть только
+// у нестоимостных (indicatorDocOKType). Иначе ЕИС отклонит документ.
+const costWithIndicatorsXml = buildEis17CriteriaXml(
+  mapNoticeCriteriaToEis17(
+    noticeWithCriteria([
+      criterion({ id: "c-price", type: "price", weightPercent: 40 }),
+      criterion({
+        id: "c-exploitation",
+        type: "exploitation_expenses",
+        weightPercent: 60,
+        indicators: [
+          {
+            id: "i-repair",
+            name: "Стоимость ремонта",
+            weightPercent: 100,
+            best: "min",
+            scoring: "formula",
+            unit: "руб",
+          },
+        ],
+      }),
+    ]),
+  ),
+);
+assert.ok(
+  costWithIndicatorsXml.includes(
+    "<costCriterionInfo><code>MC</code><indicatorsInfo><indicatorInfo>" +
+      "<externalSId>i-repair</externalSId><name>Стоимость ремонта</name>" +
+      "<value>100</value></indicatorInfo></indicatorsInfo>",
+  ),
+);
+assert.ok(!costWithIndicatorsXml.includes("<measurementOrder>"));
 
 // 5. Десериализация восстанавливает критерии и показатели (round-trip).
 const parsedCriteria = parseEis17Criteria(criteriaXml);

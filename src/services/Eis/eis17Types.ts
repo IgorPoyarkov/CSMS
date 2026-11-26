@@ -1151,12 +1151,12 @@ const mapNoticePreferences = (
       addRequirements: addRequirements.length > 0 ? addRequirements : undefined,
     });
   }
-  if (requirements.requirementsPart1_1Art31) {
-    requirementsInfo.push({
-      code: "TR442",
-      name: "Требования к участникам закупок (ч. 1.1 ст. 31)",
-    });
-  }
+  // Требование ч. 1.1 ст. 31 обязательно для всех закупок: в извещение
+  // выгружается всегда, даже если в старой записи флаг был снят
+  requirementsInfo.push({
+    code: "TR442",
+    name: "Требования к участникам закупок (ч. 1.1 ст. 31)",
+  });
   if (requirements.requirementsPart2_1Art31) {
     requirementsInfo.push({
       code: "ETP44312",
@@ -1249,13 +1249,19 @@ export const mapNoticeCriteriaToEis17 = (
           externalSid: indicator.id,
           name: indicator.name?.trim() || undefined,
           value: indicator.weightPercent ?? 0,
-          addInfo: indicator.scaleText?.trim() || undefined,
+          addInfo:
+            (indicator.scoring === "other"
+              ? indicator.otherOrder
+              : indicator.scaleText
+            )?.trim() || undefined,
           measurementOrder:
-            indicator.best === "min"
-              ? "L"
-              : indicator.best === "max"
-                ? "F"
-                : "O",
+            indicator.scoring === "other"
+              ? "O"
+              : indicator.best === "min"
+                ? "L"
+                : indicator.best === "max"
+                  ? "F"
+                  : "O",
           limitMin: indicator.limitMin,
           limitMax: indicator.limitMax,
         })),
@@ -3077,7 +3083,19 @@ const xmlTagNumber = (body: string, tag: string): number | undefined => {
   return Number.isFinite(value) ? value : undefined;
 };
 
-const criterionIndicatorXml = (indicator: Eis17EvaluationIndicator): string =>
+/**
+ * Показатель критерия.
+ *
+ * В Альбоме 17.0 у стоимостного критерия (MC) показатели описаны типом
+ * `indicatorInfoType` — в нём нет `measurementOrder`: направление оценки
+ * передаётся только у нестоимостных показателей (`indicatorDocOKType`).
+ * Поэтому для cost-критерия порядок оценки не выводим, иначе ЕИС отклонит
+ * документ по XSD.
+ */
+const criterionIndicatorXml = (
+  indicator: Eis17EvaluationIndicator,
+  allowMeasurementOrder = true,
+): string =>
   `<indicatorInfo>` +
   (indicator.externalSid
     ? `<externalSId>${escapeXml(indicator.externalSid)}</externalSId>`
@@ -3085,7 +3103,7 @@ const criterionIndicatorXml = (indicator: Eis17EvaluationIndicator): string =>
   (indicator.name ? `<name>${escapeXml(indicator.name)}</name>` : "") +
   `<value>${indicator.value}</value>` +
   (indicator.addInfo ? `<addInfo>${escapeXml(indicator.addInfo)}</addInfo>` : "") +
-  (indicator.measurementOrder
+  (allowMeasurementOrder && indicator.measurementOrder
     ? `<measurementOrder>${indicator.measurementOrder}</measurementOrder>`
     : "") +
   `</indicatorInfo>`;
@@ -3096,8 +3114,11 @@ const criterionIndicatorXml = (indicator: Eis17EvaluationIndicator): string =>
  * В XSD 17.0 критерий — это choice из costCriterionInfo и
  * qualitativeCriterionInfo; внутри стоимостного показатели допустимы только
  * для MC (расходы), внутри нестоимостного — для QF/QO. Порядок элементов
- * фиксирован: code → valueInfo → addInfo → показатели. Для аукциона
- * (notificationEF2020) в начале блока допускается isCertainWorks.
+ * фиксирован: code → valueInfo → addInfo → показатели. `valueInfo` — не текст,
+ * а тип criterionValueType: значимость лежит во вложенном `value` (варианты
+ * valueLess25MaxPrice/valueMore25MaxPrice — для условий снижения цены, у нас
+ * не применяются). Для аукциона (notificationEF2020) в начале блока
+ * допускается isCertainWorks.
  */
 export const buildEis17CriteriaXml = (
   criteria: Eis17EvaluationCriterion[],
@@ -3108,18 +3129,21 @@ export const buildEis17CriteriaXml = (
   const items = criteria.map((criterion) => {
     const indicators = criterion.indicators.length
       ? `<indicatorsInfo>${criterion.indicators
-          .map(criterionIndicatorXml)
+          .map((indicator) =>
+            criterionIndicatorXml(indicator, criterion.group !== "cost"),
+          )
           .join("")}</indicatorsInfo>`
       : "";
     const addInfo = criterion.addInfo
       ? `<addInfo>${escapeXml(criterion.addInfo)}</addInfo>`
       : "";
+    const valueInfo = `<valueInfo><value>${criterion.valueInfo}</value></valueInfo>`;
 
     if (criterion.group === "cost") {
       return (
         `<criterionInfo><costCriterionInfo>` +
         `<code>${criterion.code}</code>${indicators}` +
-        `<valueInfo>${criterion.valueInfo}</valueInfo>${addInfo}` +
+        `${valueInfo}${addInfo}` +
         `</costCriterionInfo></criterionInfo>`
       );
     }
@@ -3127,7 +3151,7 @@ export const buildEis17CriteriaXml = (
     return (
       `<criterionInfo><qualitativeCriterionInfo>` +
       `<code>${criterion.code}</code>` +
-      `<valueInfo>${criterion.valueInfo}</valueInfo>${addInfo}${indicators}` +
+      `${valueInfo}${addInfo}${indicators}` +
       `</qualitativeCriterionInfo></criterionInfo>`
     );
   });
@@ -3138,6 +3162,27 @@ export const buildEis17CriteriaXml = (
       : "";
 
   return `<criteriaInfo>${certainWorks}${items.join("")}</criteriaInfo>`;
+};
+
+/**
+ * Значимость критерия из `valueInfo`.
+ *
+ * По XSD 17.0 это `<valueInfo><value>60</value></valueInfo>`. Плоский
+ * `<valueInfo>60</valueInfo>` тоже понимаем — как наследие ранних превью,
+ * чтобы уже сохранённые черновики не теряли значимость при разборе.
+ */
+const criterionValueOf = (body: string): number => {
+  const valueInfo = /<valueInfo>([\s\S]*?)<\/valueInfo>/.exec(body)?.[1];
+
+  if (!valueInfo) return 0;
+
+  const nested = xmlTagNumber(valueInfo, "value");
+
+  if (nested !== undefined) return nested;
+
+  const flat = Number(valueInfo.trim().replace(",", "."));
+
+  return Number.isFinite(flat) ? flat : 0;
 };
 
 /**
@@ -3193,7 +3238,7 @@ export const parseEis17Criteria = (xml: string): Eis17EvaluationCriterion[] => {
     criteria.push({
       group,
       code,
-      valueInfo: xmlTagNumber(body, "valueInfo") ?? 0,
+      valueInfo: criterionValueOf(body),
       addInfo: xmlTagValue(body, "addInfo"),
       indicators,
     });

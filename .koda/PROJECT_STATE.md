@@ -9533,3 +9533,37 @@ passed / 10 skipped (postgres), из них 21 новый (`SecurityLedgerRulesT
   `src/`, документации и `.koda/PROJECT_STATE.md` не трогались; в коммит вошли
   только файлы `eis-parser/`.
 
+## 205. XSD-валидация criteriaInfo: два дефекта генератора XML (2026-11-27)
+
+- **Что сделано:** `npm run check:eis17-xsd` (`scripts/check-eis17-xsd.ts`)
+  валидирует реальный XML критериев по файлам `eis-parser/schemas/Schemas44`.
+  `check:eis17-criteria` проверяет значения строками и XSD не применяет — из-за
+  этого дефекты структуры не ловились.
+- **Схема-проба:** `criteriaInfo` в `IntegrationEPTypes.xsd` объявлен локально
+  внутри `notificationInfo` и не имеет имени типа, поэтому напрямую валидировать
+  нечего. Скрипт пишет `.tmp/eis17-xsd/criteriaProbe.xsd` с тем же
+  `targetNamespace`, подключает Альбом через `xs:include` (import в собственный
+  namespace запрещён XSD) и объявляет `criteriaProbe` = `isCertainWorks?` +
+  `criterionInfo+` типа `ep:criterionOKType` — обе ветки Альбома (ЭА/ЭЗК и
+  конкурс). Подменяется только имя внешнего элемента, namespace тот же.
+- **Валидатор:** xmllint → python с lxml → PowerShell + `System.Xml.Schema`
+  (`-EncodedCommand`, чтобы не ломались пути с пробелами). Нет ни одного —
+  предупреждение и exit 0; ошибки печатаются с номерами строк.
+- **Дефект 1 (исправлен):** `valueInfo` — не текст, а тип `criterionValueType`
+  (choice `value` / `valueLess25MaxPrice`+`valueMore25MaxPrice`). Генерировалось
+  `<valueInfo>60</valueInfo>`, ЕИС отклонил бы документ. Теперь
+  `<valueInfo><value>60</value></valueInfo>`; `parseEis17Criteria` читает
+  вложенный `value`, плоский формат понимает как наследие ранних черновиков.
+- **Дефект 2 (исправлен):** у стоимостного критерия (MC) показатели описаны
+  типом `indicatorInfoType`, в котором нет `measurementOrder` (есть только у
+  нестоимостного `indicatorDocOKType`). Генератор выводил порядок оценки всегда
+  — теперь для `group === "cost"` он опускается.
+- **Проверки:** `check:eis17-xsd` — 5/5 кейсов (формула+шкала, иной порядок
+  п. 22, аукцион с `isCertainWorks`, MC с показателями, QO с показателями);
+  `check:eis17-criteria` дополнен регрессией на оба дефекта; `npx tsc -b`,
+  `npx oxlint`, `npx vite build` — чисто. `check:eis17-xsd` включён в `npm test`
+  сразу после `check:eis17-criteria`.
+- **Ловушка:** в `XmlSchemaSet` нельзя передать `$null` первым аргументом
+  `Add` (PowerShell превращает его в пустую строку) — схема читается через
+  `XmlSchema.Read` и добавляется объектом.
+
