@@ -9,6 +9,7 @@ import EisCoverageModal from "../Eis/EisCoverageModal";
 import ReferenceDataBadge from "../Eis/ReferenceDataBadge";
 import NeonMark3D from "../Brand/NeonMark3D";
 import AgentsHelpModal from "./AgentsHelpModal";
+import DelegationSchemeModal from "./DelegationSchemeModal";
 import styles from "./Header.module.scss";
 
 // Кнопка темы переключает их по кругу:
@@ -171,6 +172,9 @@ const Header = () => {
 
   // Справка по агентам: та же логика — не уводим пользователя с его страницы
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // Схема делегирования задач КС: открывается модалкой из меню «Ещё»
+  const [isDelegationOpen, setIsDelegationOpen] = useState(false);
 
   // Мобильная шапка: список пунктов занимал почти весь первый экран, поэтому
   // ниже 1120px он прячется за бургер (Header.module.scss)
@@ -513,6 +517,18 @@ const Header = () => {
                         >
                           Покрытие XSD
                         </button>
+                        {/* Нативная кнопка — как соседние кнопки нижней строки
+                            меню: стили заданы Header.module.scss */}
+                        <button
+                          type="button"
+                          className={nav("foot-btn")}
+                          onClick={() => {
+                            setIsMoreOpen(false);
+                            setIsDelegationOpen(true);
+                          }}
+                        >
+                          Схема делегирования
+                        </button>
                         <button
                           type="button"
                           className={nav("foot-btn")}
@@ -644,6 +660,12 @@ const Header = () => {
       )}
 
       {isHelpOpen && <AgentsHelpModal onClose={() => setIsHelpOpen(false)} />}
+
+      {isDelegationOpen && (
+        <DelegationSchemeModal
+          onClose={() => setIsDelegationOpen(false)}
+        />
+      )}
     </>
   );
 };

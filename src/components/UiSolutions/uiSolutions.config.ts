@@ -532,10 +532,10 @@ export const uiSolutionGroups: UiSolutionGroup[] = [
         id: "header-modals",
         title: "Справки в шапке без ухода со страницы",
         purpose:
-          "«Покрытие XSD» и «Справка» открываются модалками: пользователь не теряет открытый план-график или извещение.",
-        usage: "Шапка → «Покрытие XSD», «Справка».",
+          "«Покрытие XSD», «Схема делегирования» и «Справка» открываются модалками: пользователь не теряет открытый план-график или извещение. Схема показывает маршрут задачи КС от п. 2.4 Типового положения до оценки руководителем.",
+        usage: "Шапка → «Ещё» → «Покрытие XSD», «Схема делегирования», «Справка».",
         implementation:
-          "Header.tsx, src/components/Eis/EisCoverageModal.tsx, src/components/Header/AgentsHelpModal.tsx",
+          "Header.tsx, src/components/Eis/EisCoverageModal.tsx, src/components/Header/DelegationSchemeModal.tsx, src/components/Header/AgentsHelpModal.tsx",
       },
       {
         id: "reference-badge",
