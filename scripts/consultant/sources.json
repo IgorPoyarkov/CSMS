@@ -20,7 +20,9 @@
   "qaFiles": [
     "docs/legal/consultant-qa.json",
     "docs/legal/consultant-qa-vba.json",
-    "docs/legal/consultant-qa-44fz-200.json"
+    "docs/legal/consultant-qa-44fz-200.json",
+    "docs/legal/consultant-qa-gz-100.json",
+    "docs/legal/consultant-qa-2026-07-webinar.json"
   ],
   "minScore": 0.34,
   "topK": 6
