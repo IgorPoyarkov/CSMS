@@ -62,9 +62,10 @@
     "snapshotDir": "docs/snapshots/gost/fulltext",
     "selectionFile": "docs/snapshots/gost/okpd2-selection.json",
     "selectionBuilder": "node scripts/select-gosts-by-okpd2.mjs",
+    "selectionSha256": "a685663e12941e31bfd82ffc6a24cd3f08ecc886c53f70d2477c5d8ca2c39129",
     "itemCount": 2,
     "source": "https://allgosts.ru",
-    "sourceNote": "Полный текст ГОСТа выгружается из браузера (scripts/browser/export-article.js), Node-fetch упирается в капчу. Выгружаются только ГОСТы, отобранные по ОКПД2 позиций плана-графика через standards[] карточек КТРУ. В requirements.json попадают только значения с дословной цитатой из текста.",
+    "sourceNote": "Полный текст ГОСТа выгружается из браузера (scripts/browser/export-article.js), Node-fetch упирается в капчу. Выгружаются только ГОСТы, отобранные по ОКПД2 позиций плана-графика через standards[] карточек КТРУ; прочие документы из тех же карточек (ТР ТС, законы) сохраняются в otherStandards снимка отбора, но полный текст для них не выгружается. В requirements.json попадают только значения с дословной цитатой из текста.",
     "consumers": ["src/services/GostRef/gostRequirements.schema.ts", "src/components/NormingRequirements/ObjectDescriptionEditor.tsx"],
     "builder": "node scripts/build-gost-requirements.mjs",
     "note": "Подстановка гарантийного срока, гарантии, упаковки и монтажа в ООЗ. ГОСТ 1232-2017 даёт 4 требования, ГОСТ 30593-2015 — ни одного (цитат для ООЗ в тексте нет). GOST_NOT_MODERN не зависит от этого снимка."

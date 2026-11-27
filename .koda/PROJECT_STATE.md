@@ -9745,11 +9745,16 @@ does not provide an export named 'default'` из-за залипшего пус�
   По просьбе пользователя остальные 98 текстов массово не выгружаются: сначала отбор
   по ОКПД2 позиций ПГ. `scripts/select-gosts-by-okpd2.mjs` собирает коды ОКПД2
   из всех планов pg-адаптера, находит по ним карточки КТРУ в csms-api и берёт
-  ГОСТы из `payloadJson.standards[]`; результат —
+  документы из `payloadJson.standards[]`; результат —
   `docs/snapshots/gost/okpd2-selection.json` (2 плана, 179 позиций, 29 кодов
-  ОКПД2, 740 КТРУ → 1 ГОСТ 30593-2015 для 49.31.21.110). Текст выгружен
-  через браузер: `gost-30593-2015.html/.txt` (80 595 байт), URL в `sources.json`.
-  Ссылку ищут POST-формой `/search` только в браузере (Node к `/search` не ходит).
+  ОКПД2, 740 КТРУ → `selected`: 1 ГОСТ 30593-2015; `otherStandards`:
+  ТР ТС 018/2011 и Федеральный закон от 13.07.2015 № 220-ФЗ — все для
+  49.31.21.110). Прочие документы раньше отбрасывались regex-фильтром ГОСТов;
+  по вопросу пользователя их сохраняют отдельно, без предзаполнения ООЗ.
+  `selectionSha256` обновлён на `a685663e12941e31bfd82ffc6a24cd3f08ecc886c53f70d2477c5d8ca2c39129`.
+  Текст ГОСТа выгружен через браузер: `gost-30593-2015.html/.txt` (80 595 байт),
+  URL в `sources.json`. Ссылку ищут POST-формой `/search` только в браузере
+  (Node к `/search` не ходит).
 - **Парсер.** `scripts/lib/allgosts.mjs` (чистые функции: `decodeHtml`,
   `warrantyMonths`, `parseSections`, `parseGostText`, `extractGostRequirements`)
   и `scripts/lib/tech-doc.mjs` (`parseTechnicalDocument`, реестр
