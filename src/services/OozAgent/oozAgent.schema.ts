@@ -24,6 +24,9 @@ export const OozAgentSuggestionSchema = z.object({
   quote: z.string(),
   source: z.string(),
   sourceUrl: z.string().nullable(),
+  // Подсказки из полного текста НПА привязаны к документу: ст. 33 показывается
+  // всегда, а цитата 220-ФЗ — только когда этот закон попал в ОКПД2.
+  documentCode: z.string().nullable().optional(),
   kind: z.enum(["GOST", "NPA"]),
   // Анти-галлюцинационный статус: ГОСТ проверен по полному тексту,
   // сопоставление нормы НПА полю ООЗ оставлено на human-проверку.
@@ -39,6 +42,8 @@ export const OozAgentDocumentSchema = z.object({
   okpd2Codes: z.array(z.string()),
   ktruCodes: z.array(z.string()),
   sourceUrl: z.string().nullable(),
+  // Зафиксированный полный текст в public/: открывается в редакторе без сети.
+  fullTextUrl: z.string().nullable().optional(),
   status: z.enum(["has_requirements", "no_quotes", "needs_full_text"]),
 });
 
@@ -69,16 +74,19 @@ export const findAgentDocuments = (
 };
 
 /**
- * Подсказки для документа. НПА из ст. 33 применимы к любому описанию,
- * поэтому они возвращаются даже если ГОСТ не выбран.
+ * Подсказки для документа. Нормы ст. 33 применимы к любому описанию, а цитаты
+ * из полного текста НПА — только к своему документу.
  */
 export const findAgentSuggestions = (
   snapshot: OozAgentSnapshot | null | undefined,
   code: string,
 ): OozAgentSuggestion[] => {
   const key = code ? normalize(code) : "";
-  return (snapshot?.suggestions ?? []).filter(
-    (item) =>
-      item.kind === "NPA" || (Boolean(key) && normalize(item.source) === key),
-  );
+  return (snapshot?.suggestions ?? []).filter((item) => {
+    if (item.documentCode) {
+      return Boolean(key) && normalize(item.documentCode) === key;
+    }
+    if (item.kind === "NPA") return true;
+    return Boolean(key) && normalize(item.source) === key;
+  });
 };

@@ -4,7 +4,7 @@
  *
  * Запуск: node scripts/run-ts-check.mjs scripts/check-ooz-agent.ts
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -35,9 +35,31 @@ const assert = (condition: boolean, message: string) => {
   checks += 1;
   if (!condition) {
     failures += 1;
-    console.error(`  ✗ ${message}`);
+    console.error(`✗ ${message}`);
   }
 };
+
+const publicFile = (url: string) =>
+  path.resolve("public", url.replace(/^\//, ""));
+
+for (const doc of agent.documents.filter((item) => item.fullTextUrl)) {
+  assert(
+    existsSync(publicFile(doc.fullTextUrl as string)),
+    `файл полного текста на месте: ${doc.code}`,
+  );
+}
+for (const suggestion of agent.suggestions.filter((item) => item.kind === "NPA")) {
+  const doc = agent.documents.find(
+    (item) => item.code === suggestion.documentCode,
+  );
+  const sourceText = doc?.fullTextUrl
+    ? readFileSync(publicFile(doc.fullTextUrl), "utf8")
+    : article33;
+  assert(
+    sourceText.includes(suggestion.quote),
+    `цитата НПА дословная: ${suggestion.source} / ${suggestion.field}`,
+  );
+}
 
 assert(/^ooz-agent-\d{8}-[0-9a-f]{12}$/.test(agent.version), "версия снимка");
 assert(agent.documents.length > 0, "агент нашёл документы");
@@ -59,27 +81,53 @@ assert(
   ),
   "анти-галлюцинационные статусы подсказок заполнены",
 );
+for (const doc of agent.documents) {
+  assert(doc.okpd2Codes.length > 0, `документ ${doc.code} привязан к ОКПД2`);
+}
+
+const docs = findAgentDocuments(agent, "49.31.21.110");
+assert(docs.length === 3, "для ОКПД2 49.31.21.110 найдены 3 документа");
+assert(
+  docs.some(
+    (doc) => doc.code === "ГОСТ 30593-2015" && doc.kind === "GOST",
+  ),
+  "ГОСТ из плана-графика попал к ОКПД2 49.31.21.110",
+);
+assert(
+  docs.some(
+    (doc) =>
+      doc.code.includes("220-ФЗ") &&
+      doc.status === "has_requirements" &&
+      Boolean(doc.fullTextUrl),
+  ),
+  "220-ФЗ получил зафиксированный полный текст и цитаты",
+);
+assert(
+  docs.some(
+    (doc) => doc.code === "ГОСТ 30593-2015" && Boolean(doc.fullTextUrl),
+  ),
+  "полный текст ГОСТа доступен для просмотра",
+);
+assert(
+  docs.some(
+    (doc) => doc.code === "ТР ТС 018/2011" && doc.status === "needs_full_text",
+  ),
+  "ТР ТС без зафиксированного текста остаётся needs_full_text",
+);
+assert(
+  findAgentDocuments(agent, "26.51.66.190").length === 0,
+  "для чужого ОКПД2 документы не выдаются",
+);
+
 assert(
   agent.suggestions
     .filter((item) => item.kind === "GOST")
     .every((item) => item.status === "confirmed" && item.confidence === 1),
   "требования ГОСТа помечены проверенными",
 );
-assert(
-  agent.suggestions
-    .filter((item) => item.kind === "NPA")
-    .every((item) => item.status === "needs_review" && item.confidence < 1),
-  "подсказки НПА не выдаются за доказанные",
-);
-
-for (const doc of agent.documents) {
-  assert(
-    doc.okpd2Codes.length > 0,
-    `документ ${doc.code} привязан к ОКПД2`,
-  );
-}
-
-for (const suggestion of agent.suggestions.filter((item) => item.kind === "GOST")) {
+for (const suggestion of agent.suggestions.filter(
+  (item) => item.kind === "GOST",
+)) {
   const known = findGostRequirements(requirements, suggestion.source);
   assert(
     known.some(
@@ -91,37 +139,42 @@ for (const suggestion of agent.suggestions.filter((item) => item.kind === "GOST"
     `цитата ГОСТа дословная: ${suggestion.source} / ${suggestion.field}`,
   );
 }
-for (const suggestion of agent.suggestions.filter((item) => item.kind === "NPA")) {
-  assert(
-    article33.includes(suggestion.quote),
-    `цитата НПА дословная: ${suggestion.field}`,
-  );
-}
 
-const docs = findAgentDocuments(agent, "49.31.21.110");
-assert(
-  docs.some((doc) => doc.code === "ГОСТ 30593-2015" && doc.kind === "GOST"),
-  "ГОСТ из плана-графика попал к ОКПД2 49.31.21.110",
-);
-assert(
-  docs.some((doc) => doc.code === "ТР ТС 018/2011" && doc.status === "needs_full_text"),
-  "ТР ТС попал в агент как документ без полного текста",
-);
-assert(
-  docs.some((doc) => doc.code.includes("220-ФЗ")),
-  "ФЗ из карточки КТРУ попал в агент",
-);
+const gostSuggestions = findAgentSuggestions(agent, "ГОСТ 30593-2015");
 assert(
   findAgentSuggestions(agent, "ГОСТ 30593 - 2015").some(
     (item) => item.kind === "NPA",
   ),
   "подсказки ст. 33 доступны при выбранном ГОСТе",
 );
+
 const npaOnly = findAgentSuggestions(agent, "");
 assert(
   npaOnly.length > 0 && npaOnly.every((item) => item.kind === "NPA"),
   "нормы ст. 33 доступны и без выбранного ГОСТа",
 );
+assert(
+  npaOnly.every((item) => !item.documentCode),
+  "общие нормы ст. 33 не привязаны к документу",
+);
+assert(
+  !findAgentSuggestions(agent, "ГОСТ 30593-2015").some((item) =>
+    item.documentCode?.includes("220-ФЗ"),
+  ),
+  "цитаты 220-ФЗ не показываются для другого документа",
+);
+assert(
+  findAgentSuggestions(agent, "Федеральный закон от 13.07.2015 № 220-ФЗ").some(
+    (item) => item.documentCode?.includes("220-ФЗ"),
+  ),
+  "цитаты 220-ФЗ доступны для своего документа",
+);
+assert(
+  agent.suggestions
+    .filter((item) => item.kind === "NPA")
+    .every((item) => item.status === "needs_review" && item.confidence === 0.55),
+  "все НПА-подсказки требуют проверки",
+);
 
 console.log(`Агент ООЗ: ${checks - failures}/${checks} — ок`);
-if (failures) process.exitCode = 1;
+if (failures > 0) process.exitCode = 1;

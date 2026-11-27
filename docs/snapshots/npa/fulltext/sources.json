@@ -1,0 +1,18 @@
+{
+  "Федеральный закон от 13.07.2015 № 220-ФЗ": {
+    "file": "fz-220-2015-07-13.txt",
+    "url": "http://publication.pravo.gov.ru/Document/View/0001201507140008",
+    "capturedAt": "2026-11-27T00:00:00.000Z",
+    "redaction": "редакция с 01.03.2026 (redid 477608), актуальная на дату снимка",
+    "sha256": "FC9D79FF45E5B8B7F9B6757ED9F0ADFBA9BC25E29ED2433539734B06D53B0040",
+    "note": "Текст получен через публичный API actual.pravo.gov.ru (redtext), заголовок содержит дату и номер редакции."
+  },
+  "ТР ТС 018/2011": {
+    "file": null,
+    "url": "https://eec.eaeunion.org/comission/department/deptexreg/tr/bezopKolesnTrS.php",
+    "capturedAt": "2026-11-27T00:00:00.000Z",
+    "redaction": "карточка ЕЭК, решение Комиссии ТС от 09.12.2011 № 877 с последующими изменениями",
+    "sha256": null,
+    "note": "Официальный полный текст выложен только скан-PDF на 537 МБ. Без OCR не фиксируем: документ остаётся needs_full_text, в поля ООЗ подстановок нет."
+  }
+}

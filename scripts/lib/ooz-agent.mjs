@@ -4,10 +4,12 @@
  * Принцип snapshot-first: никаких запросов к ЕИС, protect.gost.ru или pravo.gov.ru.
  * Агент работает только по зафиксированным снимкам и не придумывает значения —
  * каждое предложение обязательно содержит дословную цитату из снимка.
- * Там, где полного текста нет (ТР ТС, законы), документ помечается как требующий
- * проверки, но поле не заполняется.
+ * Там, где полного текста нет (ТР ТС), документ помечается как требующий
+ * проверки, но поле не заполняется. Полный текст НПА (220-ФЗ) читается из
+ * отдельного снимка; цитаты из него тоже остаются needs_review.
  */
 import { createHash } from "node:crypto";
+import { extractNpaFullTextSuggestions } from "./npa-fulltext.mjs";
 
 const COMPONENT_NEEDLES = [
   ["specifications", "спецификации"],
@@ -81,8 +83,15 @@ export function buildOozAgentSnapshot({
   requirements,
   catalog,
   npaSnapshot,
+  // Зафиксированные полные тексты НПА и ГОСТов уже прочитаны сборщиком:
+  // сам агент по-прежнему не делает сетевых вызовов.
+  npaFullTexts = [],
+  gostFullTextUrls = {},
   generatedAt = new Date().toISOString(),
 }) {
+  const npaFullTextSuggestions = npaFullTexts.flatMap((full) =>
+    extractNpaFullTextSuggestions(full),
+  );
   const gostDocs = (selection.selected ?? []).map((item) => {
     const requirementCount =
       requirements.items?.find((entry) => entry.designation === item.designation)
@@ -95,20 +104,33 @@ export function buildOozAgentSnapshot({
       okpd2Codes: item.okpd2Codes,
       ktruCodes: item.ktruCodes,
       sourceUrl: item.sourceUrl ?? null,
+      fullTextUrl: gostFullTextUrls[item.designation] ?? null,
       status: requirementCount > 0 ? "has_requirements" : "no_quotes",
     };
   });
-  const npaDocs = (selection.otherStandards ?? []).map((item) => ({
-    code: item.name,
-    name: item.name,
-    kind: "NPA",
-    standardType: npaStandardType(item.name),
-    okpd2Codes: item.okpd2Codes,
-    ktruCodes: item.ktruCodes,
-    sourceUrl: item.sourceUrl ?? null,
-    // Полного текста ТР ТС и законов в локальных снимках нет: только название.
-    status: "needs_full_text",
-  }));
+  const npaDocs = (selection.otherStandards ?? []).map((item) => {
+    const full = npaFullTexts.find((entry) => entry.code === item.name);
+    const quoteCount = npaFullTextSuggestions.filter(
+      (suggestion) => suggestion.documentCode === item.name,
+    ).length;
+    return {
+      code: item.name,
+      name: item.name,
+      kind: "NPA",
+      standardType: npaStandardType(item.name),
+      okpd2Codes: item.okpd2Codes,
+      ktruCodes: item.ktruCodes,
+      sourceUrl: item.sourceUrl ?? full?.sourceUrl ?? null,
+      fullTextUrl: full?.fullTextUrl ?? null,
+      // Нет зафиксированного текста — нет и цитат; у ТР ТС остаётся пометка
+      // needs_full_text, пока не появится текст без OCR.
+      status: !full?.fullTextUrl
+        ? "needs_full_text"
+        : quoteCount > 0
+          ? "has_requirements"
+          : "no_quotes",
+    };
+  });
   const documents = [...gostDocs, ...npaDocs];
 
   const gostSuggestions = (requirements.items ?? []).flatMap((item) =>
@@ -127,7 +149,11 @@ export function buildOozAgentSnapshot({
     })),
   );
   const npaSuggestions = npaSuggestionsFromArticle33(npaSnapshot);
-  const suggestions = [...gostSuggestions, ...npaSuggestions];
+  const suggestions = [
+    ...gostSuggestions,
+    ...npaSuggestions,
+    ...npaFullTextSuggestions,
+  ];
 
   const byOkpd2 = {};
   for (const code of selection.okpd2Codes ?? []) {
@@ -151,16 +177,22 @@ export function buildOozAgentSnapshot({
   };
 }
 
-/** Подсказки для конкретного документа (ГОСТ) и общие нормы НПА. */
+/** Подсказки для конкретного документа и общие нормы ст. 33. */
 export function findAgentSuggestions(snapshot, code) {
-  // Нормы ст. 33 применимы к любому описанию — они возвращаются и без ГОСТа.
   const normalize = (value) => String(value).replace(/\s+/g, "").toUpperCase();
   const normalized = code ? normalize(code) : "";
-  return (snapshot?.suggestions ?? []).filter((suggestion) =>
-    suggestion.kind === "NPA"
-      ? true
-      : Boolean(normalized) && normalize(suggestion.source) === normalized,
-  );
+  return (snapshot?.suggestions ?? []).filter((suggestion) => {
+    // Цитаты из полного текста НПА привязаны к своему документу: закон о
+    // маршрутах не должен заполнять описание другой позиции.
+    if (suggestion.documentCode) {
+      return (
+        Boolean(normalized) && normalize(suggestion.documentCode) === normalized
+      );
+    }
+    // Нормы ст. 33 применимы к любому описанию — и без выбранного документа.
+    if (suggestion.kind === "NPA") return true;
+    return Boolean(normalized) && normalize(suggestion.source) === normalized;
+  });
 }
 
 /** Документы, которые агент нашёл для кода ОКПД2. */

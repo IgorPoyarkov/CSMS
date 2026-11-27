@@ -1,0 +1,68 @@
+@use "../../scss/global/variables" as *;
+
+.agent-full-text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(920px, 92vw);
+  max-height: 86vh;
+  padding: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface-panel);
+  box-shadow: 0 24px 60px -32px var(--shadow);
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  &__heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__meta,
+  &__source {
+    font-size: 13px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+  }
+
+  &__source {
+    color: var(--accent);
+  }
+
+  &__error {
+    margin: 0;
+    color: var(--state-danger);
+  }
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-field);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

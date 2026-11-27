@@ -77,6 +77,7 @@ import {
 import {
   findAgentDocuments,
   findAgentSuggestions,
+  type OozAgentDocument,
 } from "../../services/OozAgent/oozAgent.schema";
 import { useOozAgent } from "../../services/OozAgent/oozAgent.api";
 import type { ContractService } from "../../services/ContractService/contractService.schema";
@@ -87,6 +88,7 @@ import CustomButton from "../UI/CustomButton";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
+import AgentFullTextModal from "./AgentFullTextModal";
 import CustomModal from "../UI/CustomModal";
 import styles from "./NormingRequirementsPage.module.scss";
 import Select from "../UI/Select";
@@ -158,6 +160,7 @@ export default function ObjectDescriptionEditor({
   const { data: gostRequirements } = useGostRequirements();
   // Агент ООЗ: ГОСТ и НПА из локальных снимков, без сети и LLM.
   const { data: oozAgent } = useOozAgent();
+  const [fullTextDoc, setFullTextDoc] = useState<OozAgentDocument | null>(null);
 
   const [draft, setDraft] = useState<ObjectDescription>(initialValue);
   // Агент показывает только документы текущего ОКПД2. НПА ст. 33 применимы
@@ -171,9 +174,16 @@ export default function ObjectDescriptionEditor({
       .filter((doc) => doc.kind === "GOST")
       .flatMap((doc) => findAgentSuggestions(oozAgent, doc.code))
       .filter((suggestion) => suggestion.kind === "GOST");
+    // Цитаты из полного текста НПА привязаны к документу текущего ОКПД2.
+    const npaDocSuggestions = agentDocuments.flatMap((doc) =>
+      findAgentSuggestions(oozAgent, doc.code).filter(
+        (item) => item.kind === "NPA" && Boolean(item.documentCode),
+      ),
+    );
     // Нормы ст. 33 не зависят от выбранного ГОСТа и не дублируются.
     const suggestions = [
       ...gostSuggestions,
+      ...npaDocSuggestions,
       ...findAgentSuggestions(oozAgent, ""),
     ];
     return suggestions.filter((suggestion) => {
@@ -2152,7 +2162,7 @@ export default function ObjectDescriptionEditor({
                 Для этого кода ОКПД2 документы в снимке агента не найдены.
               </span>
             ) : (
-              agentDocuments.map((agentDoc) => (
+              agentDocuments.map((agentDoc, agentDocIdx) => (
                 <div
                   key={`agent-doc-${agentDoc.kind}-${agentDoc.code}`}
                   className={block("gost-hint")}
@@ -2170,6 +2180,21 @@ export default function ObjectDescriptionEditor({
                   <span className={block("gost-hint-meta")}>
                     {AGENT_STATUS_LABELS[agentDoc.status] ?? agentDoc.status}
                   </span>
+                  {agentDoc.fullTextUrl && (
+                    <div className={block("gost-hint-action")}>
+                      <CustomButton
+                        configuration={{
+                          button: {
+                            name: `agent-full-text-${agentDocIdx}`,
+                            value: "Открыть полный текст",
+                            type: "button",
+                          },
+                        }}
+                        ariaLabel={`Открыть полный текст: ${agentDoc.name}`}
+                        onClick={() => setFullTextDoc(agentDoc)}
+                      />
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -2875,6 +2900,14 @@ export default function ObjectDescriptionEditor({
         educations={educations}
         okpd2Dictionary={okpd2Dictionary}
       />
+
+      {/* Полный текст документа агента — зафиксированный снимок из public/. */}
+      {fullTextDoc && (
+        <AgentFullTextModal
+          document={fullTextDoc}
+          onClose={() => setFullTextDoc(null)}
+        />
+      )}
 
       {/* Текст для ТЗ/извещения открывается отдельным окном: кнопка в шапке
           сама по себе не объясняла, зачем нужна «Макет ТЗ». */}

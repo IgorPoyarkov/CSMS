@@ -72,16 +72,17 @@
   },
   "oozAgent": {
     "code": "oozAgentGostNpa",
-    "version": "ooz-agent-20261127-ff9bb8684f50",
-    "capturedAt": "2026-11-27T07:53:41.759Z",
+    "version": "ooz-agent-20261127-26e401893921",
+    "capturedAt": "2026-11-27T15:40:42.023Z",
     "file": "public/gost/ooz-agent.json",
-    "fileSha256": "98C21CDDE1B95306B4B4BFE0944C28BB43FDEA24C83E6763A00CF36113AA8EAB",
+    "fileSha256": "126A92B32A1AB3529242688A6181EBEAE7DE13D8E9069B2555AD71CEE4F880BB",
     "itemCount": 3,
-    "sourceNote": "Офлайн-агент собирает документы по ОКПД2 из okpd2-selection.json, требования ГОСТов из requirements.json и цитаты ст. 33 44-ФЗ из civil-code-snapshot.json. Сеть и LLM при открытии редактора не вызываются.",
-    "consumers": ["src/services/OozAgent/oozAgent.schema.ts", "src/components/NormingRequirements/ObjectDescriptionEditor.tsx"],
+    "sourceNote": "Офлайн-агент собирает документы по ОКПД2 из okpd2-selection.json, требования ГОСТов из requirements.json, полный текст 220-ФЗ из docs/snapshots/npa/fulltext и цитаты ст. 33 44-ФЗ из civil-code-snapshot.json. Сеть и LLM при открытии редактора не вызываются.",
+    "fullTextDirs": ["public/gost/fulltext", "public/npa/fulltext"],
+    "consumers": ["src/services/OozAgent/oozAgent.schema.ts", "src/components/NormingRequirements/ObjectDescriptionEditor.tsx", "src/components/NormingRequirements/AgentFullTextModal.tsx"],
     "builder": "npm run build:ooz-agent",
     "check": "npm run check:gost",
-    "note": "3 документа (ГОСТ 30593-2015, ТР ТС 018/2011, 220-ФЗ) и 17 подсказок с дословными цитатами. Подсказки ГОСТов имеют статус confirmed (проверено по полному тексту), нормы ст. 33 — needs_review с confidence 0.55: сопоставление нормы и поля ООЗ требует human-проверки. У ТР ТС и ФЗ полного текста нет — они показываются как требующие проверки и не подставляются в поля. GOST_NOT_MODERN не зависит от агента."
+    "note": "3 документа (ГОСТ 30593-2015, ТР ТС 018/2011, 220-ФЗ) и 20 подсказок с дословными цитатами. Подсказки ГОСТов подтверждены (confidence 1), нормы ст. 33 и определения 220-ФЗ — needs_review с confidence 0.55: сопоставление нормы и поля ООЗ требует human-проверки. Полный текст 220-ФЗ (редакция с 01.03.2026, redid 477608) выгружен через публичный API pravo.gov.ru и публикуется в public/npa/fulltext для просмотра в редакторе. ТР ТС 018/2011 остаётся needs_full_text: официальный текст ЕЭК — только скан-PDF 537 МБ, без OCR не фиксируем. GOST_NOT_MODERN не зависит от агента."
   },
   "npaRules": [
     {
