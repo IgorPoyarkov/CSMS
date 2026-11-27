@@ -45,7 +45,9 @@
 | `scripts/build-standard-terms-snapshot.mjs` | поиск актов на actual.pravo.gov.ru и сборка снимка |
 | `src/Csms.Infrastructure/Seeds/standard-contract-terms.json` | 4 акта с полным текстом актуальной редакции и SHA-256 |
 | `GET /api/standard-contract-terms/catalog` | выдача каталога (PARAM `governmentOnly=true` — только ПП РФ) |
-| `GET /api/standard-contract-terms/{code}`, `POST /api/standard-contract-terms/refresh` | один акт и явное обновление из сети |
+| `GET /api/standard-contract-terms/{code}` | один акт |
+| `GET /api/standard-contract-terms/{code}/pdf` | скомпонованный PDF карточки ЕИС |
+| `POST /api/standard-contract-terms/refresh` | явное обновление: pravo.gov.ru, при недоступности — ЕИС |
 | `src/services/Npa/standardContractTerms.api.ts` | zod-контракт и React Query на фронте |
 
 Состав на 27.11.2026 — 4 действующих акта, все приняты Правительством РФ:
@@ -62,6 +64,15 @@ Word-HTML очищается от стилей и комментариев по�
 смыслу. При старте сервис сверяет SHA-256 каждого текста, источник и связку
 «всегда применяется → принято Правительством РФ». Обновление из сети делается
 только `POST /refresh` — старт библиотеки остаётся офлайн-режимом.
+
+Если pravo.gov.ru недоступен, обновление берёт карточки типовых контрактов с
+`zakupki.gov.ru` и компонует их PDF-вложения (`Docnet.Core`) для скачивания.
+Приложения ЕИС — сканы без текстового слоя, поэтому дословный текст остаётся из
+снимка pravo.gov.ru: OCR без отдельного одобрения не применяется. В ответе это
+отражено полями `textSource` (`pravo.gov.ru (снимок)`) и `pdfSha256`; карточка
+показывает настоящий источник текста и ссылку на PDF ЕИС, а не выдаёт скан за
+текст портала. Для актов без карточки ЕИС (например, ПП РФ № 1466) реквизиты и
+ссылки остаются из снимка. Если не отвечают оба источника, каталог не меняется.
 
 ## Пересборка
 

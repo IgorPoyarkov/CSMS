@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { StandardContractTermsCatalogSchema } from "../src/services/Npa/standardContractTerms.api";
+import {
+  StandardContractTermSchema,
+  StandardContractTermsCatalogSchema,
+} from "../src/services/Npa/standardContractTerms.api";
 
 /**
  * Контракт каталога типовых условий контрактов между csms-api и /legal/library.
@@ -27,6 +30,8 @@ const item = {
   alwaysApplies: true,
   text: "Типовые условия контрактов...",
   textSha256: "D7BA1DA812EC",
+  textSource: "pravo.gov.ru",
+  pdfSha256: null,
 };
 
 const catalog = {
@@ -40,6 +45,19 @@ const catalog = {
 const parsed = StandardContractTermsCatalogSchema.parse(catalog);
 assert.equal(parsed.items[0].redId, 410434);
 assert.equal(parsed.items[0].alwaysApplies, true);
+assert.equal(parsed.items[0].textSource, "pravo.gov.ru");
+assert.equal(parsed.items[0].pdfSha256, null);
+
+// Карточка из фолбэка ЕИС: источник текста и хеш PDF обязаны разбираться,
+// иначе карточка исчезнет с экрана после обновления каталога.
+const eisItem = StandardContractTermSchema.parse({
+  ...item,
+  sourceUrl: "https://zakupki.gov.ru/epz/btk/btkCard/document-info.html?reestrNumber=1400700000525001",
+  textSource: "pravo.gov.ru (снимок)",
+  pdfSha256: "A".repeat(64),
+});
+assert.equal(eisItem.textSource, "pravo.gov.ru (снимок)");
+assert.equal(eisItem.pdfSha256, "A".repeat(64));
 
 // Старое имя redid (как в seed-файле бэка) в API не приходит: если оно вернётся,
 // разбор должен упасть здесь, а не сообщением об ошибке на странице.

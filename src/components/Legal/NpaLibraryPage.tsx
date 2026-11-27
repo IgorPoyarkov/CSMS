@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
+import { CSMS_API_BASE_URL } from "../../services/apiBaseUrl";
 import {
   useStandardContractTerms,
   type StandardContractTerm,
@@ -114,25 +115,43 @@ export default function NpaLibraryPage() {
   // У ПП РФ № 1466 уже есть локальный текст — помечаем существующую карточку,
   // а не дублируем её. Остальные три акта получают карточку без просмотра,
   // как и документы каталога без загруженного текста.
-  const toTermCard = useCallback((item: StandardContractTerm): LibraryCard => ({
-    id: `standard-${item.code}`,
-    kind: TERMS_KIND,
-    kindLabel: /Постановление Правительства/i.test(item.passing)
-      ? `ПП РФ № ${item.number}`
-      : item.passing,
-    number: item.number,
-    date: formatRedDate(item.redDate),
-    title: item.title,
-    status: "available",
-    viewerUrl: "",
-    meta: `${item.state} · текст из актуальной редакции pravo.gov.ru`,
-    note: "",
-    links: [
-      { label: "Текст на pravo.gov.ru ↗", href: item.sourceUrl, external: true },
-      { label: "Карточка ↗", href: item.cardUrl, external: true },
-    ],
-    term: item,
-  }), []);
+  const toTermCard = useCallback((item: StandardContractTerm): LibraryCard => {
+    // При фолбэке карточка и PDF приходят из ЕИС, а дословный текст — из
+    // снимка pravo.gov.ru. Подписи ссылок должны это отражать, а не выдавать
+    // скан ЕИС за текст портала.
+    const fromEis =
+      item.sourceUrl.includes("zakupki.gov.ru") ||
+      item.cardUrl.includes("zakupki.gov.ru");
+    return {
+      id: `standard-${item.code}`,
+      kind: TERMS_KIND,
+      kindLabel: /Постановление Правительства/i.test(item.passing)
+        ? `ПП РФ № ${item.number}`
+        : item.passing,
+      number: item.number,
+      date: formatRedDate(item.redDate),
+      title: item.title,
+      status: "available",
+      viewerUrl: "",
+      meta: `${item.state} · текст: ${item.textSource}`,
+      note: "",
+      links: [
+        {
+          label: fromEis ? "Документ в ЕИС ↗" : "Текст на pravo.gov.ru ↗",
+          href: item.sourceUrl,
+          external: true,
+        },
+        { label: "Карточка ↗", href: item.cardUrl, external: true },
+        item.pdfSha256
+          ? {
+              label: "Скачать PDF ЕИС",
+              href: `${CSMS_API_BASE_URL}/api/standard-contract-terms/${encodeURIComponent(item.code)}/pdf`,
+            }
+          : null,
+      ].filter((link): link is CardLink => link !== null),
+      term: item,
+    };
+  }, []);
 
   const cards = useMemo(() => {
     const result = (library?.items ?? []).map(toCard);

@@ -6,9 +6,11 @@ import { CSMS_API_BASE_URL } from "../apiBaseUrl";
 /**
  * Действующие типовые условия контрактов (ч. 11 ст. 34 44-ФЗ) из csms-api.
  * Бэк отдаёт снимок актуальных редакций pravo.gov.ru, поэтому старт страницы
- * библиотеки НПА не зависит от доступности портала.
+ * библиотеки НПА не зависит от доступности портала. При недоступности pravo
+ * карточки и PDF берутся из ЕИС, но текст остаётся снимка — поле textSource
+ * показывает это честно, без попыток распознать сканы.
  */
-const StandardContractTermSchema = z.object({
+export const StandardContractTermSchema = z.object({
   code: z.string(),
   number: z.string(),
   passing: z.string(),
@@ -24,6 +26,8 @@ const StandardContractTermSchema = z.object({
   alwaysApplies: z.boolean(),
   text: z.string(),
   textSha256: z.string(),
+  textSource: z.string().default("pravo.gov.ru"),
+  pdfSha256: z.string().nullable().default(null),
 });
 
 export const StandardContractTermsCatalogSchema = z.object({
