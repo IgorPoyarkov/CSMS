@@ -79,8 +79,10 @@ offline-by-default` — старт без ЕИС, помощь в докумен
 > `Csms.Infrastructure/Seeds/standard-contract-terms.json` с SHA-256 проверкой
 > при старте. Эндпоинт `GET /api/standard-contract-terms/catalog` (есть
 > `governmentOnly`, `/{code}`, `POST /refresh` для явного обновления из сети).
-> На `/legal/library` добавлен отдельный URL-фильтр `terms=all|standard|government`
-> и карточки с текстом; клиент — `src/services/Npa/standardContractTerms.api.ts`.
+> На `/legal/library` добавлен URL-фильтр `terms=all|standard|government`;
+> типовые условия подаются в тех же карточках/группах, что и остальные акты,
+> с бейджами ПП РФ (№ 1466 не дублируется — помечается существующая карточка).
+> Клиент — `src/services/Npa/standardContractTerms.api.ts`.
 > В JSON бэка поле называется `redId` (camelCase из `RedId`), а не `redid` как
 > в seed-файле; контракт проверяется `npm run check:standard-terms`.
 > Поиск pravo.gov.ru по названию (AttrId 7) с горизонтом 19000101: акты с

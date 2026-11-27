@@ -143,14 +143,6 @@
   }
 }
 
-.npa-library__group-hint {
-  margin: -4px 0 2px;
-  max-width: 860px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
 .npa-library__list {
   display: flex;
   flex-direction: column;
@@ -177,10 +169,6 @@
     border-style: dashed;
   }
 
-  // Типовые условия ПП РФ выделяем цветом: это обязательные условия заказчика.
-  &--official {
-    border-left: 3px solid var(--accent);
-  }
 }
 
 .npa-library__card-main {

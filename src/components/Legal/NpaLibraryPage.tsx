@@ -1,7 +1,10 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
-import { useStandardContractTerms } from "../../services/Npa/standardContractTerms.api";
+import {
+  useStandardContractTerms,
+  type StandardContractTerm,
+} from "../../services/Npa/standardContractTerms.api";
 import {
   useNpaLibrary,
   type NpaLibraryItem,
@@ -37,6 +40,28 @@ const formatRedDate = (value: string) =>
     ? `${value.slice(6, 8)}.${value.slice(4, 6)}.${value.slice(0, 4)}`
     : value;
 
+/** Та же группа, что у остальных постановлений статического каталога. */
+const TERMS_KIND = "Постановление Правительства";
+
+type CardLink = { label: string; href: string; external?: boolean };
+
+/** Единая модель карточки: акты из каталога и типовые условия из csms-api. */
+type LibraryCard = {
+  id: string;
+  kind: string;
+  kindLabel: string;
+  number: string;
+  date: string;
+  title: string;
+  status: NpaLibraryItem["status"];
+  viewerUrl: string;
+  meta: string;
+  note: string;
+  links: CardLink[];
+  /** Признаки ПП РФ и полный текст, если акт — типовое условие контракта. */
+  term?: StandardContractTerm;
+};
+
 export default function NpaLibraryPage() {
   const { bem, formatDate } = useUtils();
   const block = bem(styles, "npa-library");
@@ -64,45 +89,166 @@ export default function NpaLibraryPage() {
     setSearchParams(next, { replace: true });
   };
 
-  // Статический каталог и типовые условия — разные источники. При выборе
-  // отдельного фильтра остаются только акты csms-api с признаком ПП РФ.
-  const visible = useMemo(() => {
-    if (termsFilter !== "all") return [];
-    const normalized = query.trim().toLowerCase();
-    const items = library?.items ?? [];
-    return items.filter((item) => {
-      if (kind !== "all" && item.kind !== kind) return false;
-      if (status !== "all" && item.status !== status) return false;
-      if (!normalized) return true;
-      return [item.title, item.shortName, item.number, item.id, item.actId]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized);
-    });
-  }, [library, query, kind, status, termsFilter]);
+  const toCard = useCallback((item: NpaLibraryItem): LibraryCard => ({
+    id: item.id,
+    kind: item.kind,
+    kindLabel: item.shortName,
+    number: item.number,
+    date: formatDate(item.date),
+    title: item.title,
+    status: item.status,
+    viewerUrl: item.viewerUrl,
+    meta:
+      `${STATUS_LABELS[item.status]}` +
+      (item.chunks ? ` · ${item.chunks} фрагментов в индексе` : " · в поиск не попадает"),
+    note: item.note,
+    links: [
+      item.wordUrl ? { label: "Скачать Word", href: item.wordUrl } : null,
+      item.cardUrl
+        ? { label: "Карточка ↗", href: item.cardUrl, external: true }
+        : null,
+    ].filter((link): link is CardLink => link !== null),
+  }), [formatDate]);
 
-  const visibleTerms = useMemo(() => {
+  // Акт из csms-api подаётся в карточке каталога: те же поля, та же группировка.
+  // У ПП РФ № 1466 уже есть локальный текст — помечаем существующую карточку,
+  // а не дублируем её. Остальные три акта получают карточку без просмотра,
+  // как и документы каталога без загруженного текста.
+  const toTermCard = useCallback((item: StandardContractTerm): LibraryCard => ({
+    id: `standard-${item.code}`,
+    kind: TERMS_KIND,
+    kindLabel: /Постановление Правительства/i.test(item.passing)
+      ? `ПП РФ № ${item.number}`
+      : item.passing,
+    number: item.number,
+    date: formatRedDate(item.redDate),
+    title: item.title,
+    status: "available",
+    viewerUrl: "",
+    meta: `${item.state} · текст из актуальной редакции pravo.gov.ru`,
+    note: "",
+    links: [
+      { label: "Текст на pravo.gov.ru ↗", href: item.sourceUrl, external: true },
+      { label: "Карточка ↗", href: item.cardUrl, external: true },
+    ],
+    term: item,
+  }), []);
+
+  const cards = useMemo(() => {
+    const result = (library?.items ?? []).map(toCard);
+    const byNumber = new Map(result.map((card) => [card.number, card]));
+    for (const term of termsCatalog?.items ?? []) {
+      const existing = byNumber.get(term.number);
+      if (existing) existing.term = term;
+      else result.push(toTermCard(term));
+    }
+    return result;
+  }, [library, termsCatalog, toCard, toTermCard]);
+
+  const visibleCards = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const items = termsCatalog?.items ?? [];
-    return items.filter((item) => {
-      if (termsFilter === "government" && !item.isGovernment) return false;
+    return cards.filter((card) => {
+      if (termsFilter === "standard" && !card.term) return false;
+      if (termsFilter === "government" && !card.term?.isGovernment) return false;
+      if (kind !== "all" && card.kind !== kind) return false;
+      if (status !== "all" && card.status !== status) return false;
       if (!normalized) return true;
-      return [item.title, item.number, item.code, item.passing, item.text]
+      return [
+        card.title,
+        card.kindLabel,
+        card.number,
+        card.id,
+        card.term?.passing,
+        card.term?.text,
+      ]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(normalized);
     });
-  }, [termsCatalog, termsFilter, query]);
+  }, [cards, termsFilter, kind, status, query]);
 
   const groups = useMemo(() => {
-    const map = new Map<string, NpaLibraryItem[]>();
-    for (const item of visible) {
-      const list = map.get(item.kind) ?? [];
-      list.push(item);
-      map.set(item.kind, list);
+    const map = new Map<string, LibraryCard[]>();
+    for (const card of visibleCards) {
+      const list = map.get(card.kind) ?? [];
+      list.push(card);
+      map.set(card.kind, list);
     }
     return [...map.entries()];
-  }, [visible]);
+  }, [visibleCards]);
+
+  // Одна разметка карточки для каталога и для csms-api: отличаются только
+  // бейджи ПП РФ и раскрываемый текст у актов без локального просмотра.
+  const renderCard = (card: LibraryCard) => (
+    <article
+      className={block("card", card.status === "available" ? [] : ["unavailable"])}
+      key={card.id}
+    >
+      <div className={block("card-main")}>
+        <p className={block("card-kind")}>
+          {card.kindLabel}
+          {card.number ? ` · № ${card.number}` : ""}
+          {card.date ? ` · редакция от ${card.date}` : ""}
+        </p>
+        {card.viewerUrl ? (
+          <Link className={block("card-title")} to={card.viewerUrl}>
+            {card.title}
+          </Link>
+        ) : (
+          <p className={block("card-title")}>{card.title}</p>
+        )}
+        {card.term && (
+          <div className={block("badges")}>
+            {card.term.isGovernment && (
+              <span className={block("badge", ["government"])}>
+                Принято Правительством РФ
+              </span>
+            )}
+            {card.term.alwaysApplies && (
+              <span className={block("badge", ["always"])}>
+                Применяется всегда
+              </span>
+            )}
+          </div>
+        )}
+        <p className={block("card-meta")}>{card.meta}</p>
+        {card.note && <p className={block("card-note")}>{card.note}</p>}
+        {card.term && !card.viewerUrl && (
+          <details className={block("terms-text")}>
+            <summary>Текст актуальной редакции</summary>
+            <div className={block("terms-text-body")}>{card.term.text}</div>
+          </details>
+        )}
+      </div>
+      <div className={block("card-actions")}>
+        {card.viewerUrl && (
+          <CustomButton
+            configuration={{
+              button: {
+                name: "open",
+                value: "Открыть",
+                type: "button",
+              },
+            }}
+            ariaLabel={`Открыть ${card.kindLabel}`}
+            onClick={() => navigate(card.viewerUrl)}
+          />
+        )}
+        {card.links.map((link) => (
+          <a
+            className={block("card-link")}
+            href={link.href}
+            target={link.external ? "_blank" : undefined}
+            rel={link.external ? "noreferrer" : undefined}
+            key={`${card.id}-${link.label}`}
+          >
+            {link.label}
+          </a>
+        ))}
+      </div>
+    </article>
+  );
 
   return (
     <section className={block()}>
@@ -112,8 +258,8 @@ export default function NpaLibraryPage() {
           <p className={block("subtitle")}>
             Все нормативные акты, которые использует проект. Документы открываются
             в том же просмотре, что и цитаты консультанта: с оглавлением по главам
-            и переходом к статье. Типовые условия контрактов приходят из csms-api
-            и показываются в актуальной редакции pravo.gov.ru.
+            и переходом к статье. Типовые условия контрактов из csms-api подаются
+            в таких же карточках и помечаются бейджем Правительства РФ.
           </p>
         </div>
         {library && (
@@ -211,135 +357,16 @@ export default function NpaLibraryPage() {
         !isTermsLoading &&
         !isError &&
         !isTermsError &&
-        visible.length === 0 &&
-        visibleTerms.length === 0 && (
+        visibleCards.length === 0 && (
           <p className={block("empty")}>По выбранным фильтрам актов не найдено.</p>
         )}
-
-      {visibleTerms.length > 0 && (
-        <section className={block("group")}>
-          <h2 className={block("group-title")}>
-            Типовые условия контрактов <span>{visibleTerms.length}</span>
-          </h2>
-          <p className={block("group-hint")}>
-            Установлены Правительством РФ по ч. 11 ст. 34 44-ФЗ и подлежат
-            применению заказчиками — работают всегда. Текст — дословно из
-            актуальной редакции pravo.gov.ru.
-          </p>
-          <div className={block("list")}>
-            {visibleTerms.map((item) => (
-              <article className={block("card", ["official"])} key={item.code}>
-                <div className={block("card-main")}>
-                  <p className={block("card-kind")}>
-                    {item.passing}
-                    {` · редакция от ${formatRedDate(item.redDate)}`}
-                  </p>
-                  <p className={block("card-title")}>{item.title}</p>
-                  <div className={block("badges")}>
-                    {item.isGovernment && (
-                      <span className={block("badge", ["government"])}>
-                        Принято Правительством РФ
-                      </span>
-                    )}
-                    {item.alwaysApplies && (
-                      <span className={block("badge", ["always"])}>
-                        Применяется всегда
-                      </span>
-                    )}
-                  </div>
-                  <p className={block("card-meta")}>{item.state}</p>
-                  <details className={block("terms-text")}>
-                    <summary>Текст актуальной редакции</summary>
-                    <div className={block("terms-text-body")}>{item.text}</div>
-                  </details>
-                </div>
-                <div className={block("card-actions")}>
-                  <a
-                    className={block("card-link")}
-                    href={item.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Текст на pravo.gov.ru ↗
-                  </a>
-                  <a
-                    className={block("card-link")}
-                    href={item.cardUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Карточка ↗
-                  </a>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
 
       {groups.map(([groupKind, items]) => (
         <section className={block("group")} key={groupKind}>
           <h2 className={block("group-title")}>
             {groupKind} <span>{items.length}</span>
           </h2>
-          <div className={block("list")}>
-            {items.map((item) => (
-              <article
-                className={block("card", item.status === "available" ? [] : ["unavailable"])}
-                key={item.id}
-              >
-                <div className={block("card-main")}>
-                  <p className={block("card-kind")}>
-                    {item.shortName}
-                    {item.number ? ` · № ${item.number}` : ""}
-                    {item.date ? ` · редакция от ${formatDate(item.date)}` : ""}
-                  </p>
-                  {item.viewerUrl ? (
-                    <Link className={block("card-title")} to={item.viewerUrl}>
-                      {item.title}
-                    </Link>
-                  ) : (
-                    <p className={block("card-title")}>{item.title}</p>
-                  )}
-                  <p className={block("card-meta")}>
-                    {STATUS_LABELS[item.status]}
-                    {item.chunks ? ` · ${item.chunks} фрагментов в индексе` : " · в поиск не попадает"}
-                  </p>
-                  {item.note && <p className={block("card-note")}>{item.note}</p>}
-                </div>
-                <div className={block("card-actions")}>
-                  {item.viewerUrl && (
-                    <CustomButton
-                      configuration={{
-                        button: {
-                          name: "open",
-                          value: "Открыть",
-                          type: "button",
-                        },
-                      }}
-                      ariaLabel={`Открыть ${item.shortName}`}
-                      onClick={() => navigate(item.viewerUrl)}
-                    />
-                  )}
-                  {item.wordUrl && (
-                    <a className={block("card-link")} href={item.wordUrl}>
-                      Скачать Word
-                    </a>
-                  )}
-                  {item.cardUrl && (
-                    <a
-                      className={block("card-link")}
-                      href={item.cardUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Карточка ↗
-                    </a>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+          <div className={block("list")}>{items.map(renderCard)}</div>
         </section>
       ))}
 
