@@ -9508,6 +9508,10 @@ passed / 10 skipped (postgres), из них 21 новый (`SecurityLedgerRulesT
   Локальная регрессия добавлена в `scripts/check-ooz-gost.ts` (запуск
   `node scripts/run-ts-check.mjs scripts/check-ooz-gost.ts`, 7/7 — ок); в
   `package.json` команду не добавляли, чтобы не трогать чужую WIP.
+  **Уточнение от 2026-11-27:** отказ от allgosts остаётся, но пользователь
+  поставил новую задачу — мониторить только новые ГОСТы с protect.gost.ru и
+  хранить тексты карточек локально. Реализовано в §208; `GOST_NOT_MODERN`
+  сохранён без изменений.
 - **Внешний вид ООЗ (2026-11-27):** редактор переведён на единую сетку:
   карточки-секции с пронумерованными заголовками 01/02/03, выровненные поля
   (38px, radius 8, focus-ring), отдельные плитки для чекбоксов, табличная
@@ -9672,4 +9676,55 @@ does not provide an export named 'default'` из-за залипшего пус�
   `check:contract-deadlines`, `check:smp`, `check:counterparties`,
   `check:estimates`, `check:security-norms`, `npx tsc -b`, `npx oxlint`,
   `npx vite build` — зелёные.
+
+## 208. Монитор новых ГОСТов protect.gost.ru и подсказки в редакторе ООЗ (2026-11-27)
+
+- **Запрос пользователя:** отслеживать только новые ГОСТы с protect.gost.ru,
+  тексты хранить локально, подсказки показывать в редакторе ООЗ,
+  предупреждение `GOST_NOT_MODERN` сохранить.
+- **Источник.** `allgosts.ru` по-прежнему не используется (капча + `robots.txt`
+  запрещает `/*.pdf`, `/*.doc`, `/*.docx`, `/*search`). protect.gost.ru отдаёт
+  список без капчи при браузерном User-Agent; новые — статус «Принят», карточка
+  `/gost/details/<uuid>`, пагинация `?year=…&month=…&page=N`. Полный текст
+  стандарта — только картинки `/api/docview/.../pages`, поэтому локально
+  сохраняются текстовые поля карточки: обозначение, заглавие, приказ, даты,
+  ОКС, область применения, ключевые слова, заменяемый ГОСТ; поле `text` —
+  склейка области применения, ключевых слов и заглавия.
+- **Монитор `scripts/gost-monitor.mjs`:** `--months` (по умолчанию 2),
+  `--max-pages`, `--dry-run`, `--refresh`, `--include-all-statuses`,
+  `--out`, `--state`. Состояние виденных id — `docs/snapshots/gost/state.json`;
+  повтор без `--refresh` не скачивает уже известные карточки. Снимок —
+  `public/gost/catalog.json`, версия `gost-YYYYMMDD-<12 hex>` (детерминированный
+  SHA-12 по отсортированным items). Записано 98 карточек за ноябрь+октябрь 2026,
+  версия `gost-20261127-7ef7e97cfa6b`, SHA-256 файла
+  `568CB1B80A0E8F1B699B803C0EE09C741F017012C4171F0CD9D4DBF35CD4C3A7`.
+  Версия зарегистрирована в `docs/snapshots/manifest.json`, секция `gostCatalog`.
+- **Ловушка парсера.** Сайт смешивает кириллицу и латиницу в латинских словах
+  (`Brбssica nбpus`, `aeruginоsa`) — `repairMojibake` в
+  `scripts/lib/gost-standards.mjs` меняет только букву между латинскими; после
+  `--refresh` текст в снимке исправлен. Ещё одна ловушка: `--out` с относительным
+  путём считается от корня репозитория через `fileURLToPath(import.meta.url)` —
+  версия с `new URL(...).pathname` на Windows создавала `D:\D:\...`.
+- **Фронт.** `src/services/GostRef/gostRef.schema.ts` (zod-снимок,
+  `normalizeGostDesignation`, `findGostInCatalog`, `gostHintSummary`) и
+  `gostRef.api.ts` (`useGostCatalog`, query key `["gostCatalog"]`) читают
+  статический `/gost/catalog.json` — подсказки работают без csms-api. В
+  `ObjectDescriptionEditor` у совпавшего обозначения показывается бейдж
+  «обозначение — название / статус · дата введения · приказ · область
+  применения» и кнопка `CustomButton` «Подставить название»; над списком
+  выводится версия и дата снимка. Стили — БЭМ в
+  `NormingRequirementsPage.module.scss`, классы через `useUtils().bem`.
+- **Предупреждение сохранено.** `GOST_NOT_MODERN` в
+  `objectDescription.schema.ts` не тронут: `level=warning`, порог 2010, год
+  только из строки обозначения (`gostPublicationYear`). Снимок не влияет на
+  автоконтроль и не блокирует сохранение черновика. Старая регрессия — 7/7.
+- **Проверки.** `npm run check:gost` (новая команда в `package.json`,
+  добавлена в `npm test`): `check-ooz-gost.ts` 7/7,
+  `check-ooz-gost-catalog.ts` 13/13, `scripts/tests/gost-standards.test.mjs`
+  7/7. Плюс `npx tsc -b`, `npx oxlint src` (только старые warning в чужих
+  файлах), `npx vite build` — зелёные. Документация: `docs/tasks/gost-monitor.md`.
+- **Незавершённое.** Планировщик Windows для ГОСТов не зарегистрирован — снимок
+  обновляется вручную; КТРУ-планировщик используется только как образец.
+  PDF-текст стандартов (страницы-картинки) не распознаётся: в снимке только
+  текстовые поля самой карточки. Чужую WIP в соседнем `csms-api` не трогал.
 

@@ -39,6 +39,20 @@
       "api": "/api/order158n/pool"
     }
   ],
+  "gostCatalog": {
+    "code": "newGosts",
+    "version": "gost-20261127-7ef7e97cfa6b",
+    "capturedAt": "2026-11-27T00:59:58.154Z",
+    "file": "public/gost/catalog.json",
+    "fileSha256": "568CB1B80A0E8F1B699B803C0EE09C741F017012C4171F0CD9D4DBF35CD4C3A7",
+    "stateFile": "docs/snapshots/gost/state.json",
+    "itemCount": 98,
+    "source": "https://protect.gost.ru/gost/",
+    "sourceNote": "Только статус «Принят» за последние 2 месяца; у карточек сохранён текстовый контент (область применения и ключевые слова), PDF на сайте — только картинки.",
+    "consumers": ["src/services/GostRef/gostRef.api.ts", "src/components/NormingRequirements/ObjectDescriptionEditor.tsx"],
+    "monitor": "node scripts/gost-monitor.mjs --months 2",
+    "note": "Подсказки в редакторе ООЗ. Предупреждение GOST_NOT_MODERN по-прежнему считается из обозначения и от снимка не зависит."
+  },
   "npaRules": [
     {
       "code": "rp-471",

@@ -49,10 +49,16 @@ import type {
   KtruCharacteristic,
   KtruRef,
 } from "../../services/KtruRef/ktruRef.schema";
+import {
+  findGostInCatalog,
+  gostHintSummary,
+} from "../../services/GostRef/gostRef.schema";
+import { useGostCatalog } from "../../services/GostRef/gostRef.api";
 import type { ContractService } from "../../services/ContractService/contractService.schema";
 import type { EmployeeEducation } from "../../services/ContractService/education.schema";
 import KtruSelect from "../UI/KtruSelect/KtruSelect";
 import CustomCheckbox from "../UI/CustomCheckbox";
+import CustomButton from "../UI/CustomButton";
 import Okpd2Select from "../UI/Okpd2Select/Okpd2Select";
 import OkeiSelect from "../UI/OkeiSelect/OkeiSelect";
 import Order158nValidatorPanel from "./Order158nValidatorPanel";
@@ -102,6 +108,8 @@ export default function ObjectDescriptionEditor({
   const { bem } = useUtils();
   const block = bem(styles, "norming-requirements");
   const { data: okpd2Dictionary = [] } = useOkpd2Dictionary();
+  // Снимок новых ГОСТов: подсказки по введённому обозначению без запросов к ЕИС.
+  const { data: gostCatalog } = useGostCatalog();
 
   const [draft, setDraft] = useState<ObjectDescription>(initialValue);
   // id карточки, сохранённой прямо из редактора (например, при добавлении
@@ -1688,13 +1696,22 @@ export default function ObjectDescriptionEditor({
           <span className={block("field-hint")}>
             Год определяется из обозначения ГОСТ. Документы до{" "}
             {MODERN_GOST_MIN_YEAR} г. помечаются предупреждением — проверьте
-            действующую редакцию в ЕИС.
+            действующую редакцию в ЕИС. Подсказки — по локальному снимку новых
+            ГОСТов
+            {gostCatalog
+              ? ` ${gostCatalog.version} от ${gostCatalog.generatedAt.slice(0, 10)}`
+              : ""}
+            .
           </span>
 
           {draft.standards.map((std, idx) => {
             const gostYear =
               std.standardType === "GOST"
                 ? gostPublicationYear(std.code)
+                : null;
+            const gostHint =
+              std.standardType === "GOST"
+                ? findGostInCatalog(gostCatalog, std.code)
                 : null;
             return (
               <div key={std.id} className={block("standard-row")}>
@@ -1728,6 +1745,38 @@ export default function ObjectDescriptionEditor({
                   value={std.title}
                   onChange={(e) => updateStandard(idx, { title: e.target.value })}
                 />
+                {gostHint && (
+                  <div
+                    className={block("gost-hint", ["full"])}
+                    title={gostHint.sourceUrl || undefined}
+                  >
+                    <div className={block("gost-hint-head")}>
+                      <span className={block("gost-hint-title")}>
+                        {gostHint.designation} — {gostHint.title}
+                      </span>
+                      {std.title.trim() !== gostHint.title && (
+                        <div className={block("gost-hint-action")}>
+                          <CustomButton
+                            configuration={{
+                              button: {
+                                name: `gost-title-${idx}`,
+                                value: "Подставить название",
+                                type: "button",
+                              },
+                            }}
+                            ariaLabel={`Подставить название ${gostHint.designation}`}
+                            onClick={() =>
+                              updateStandard(idx, { title: gostHint.title })
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <span className={block("gost-hint-meta")}>
+                      {gostHintSummary(gostHint)}
+                    </span>
+                  </div>
+                )}
                 <div className={block("standard-flag")}>
                   <CustomCheckbox
                     compact
