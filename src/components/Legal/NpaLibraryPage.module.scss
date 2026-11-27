@@ -95,6 +95,10 @@
 
 .npa-library__select {
   min-width: 200px;
+
+  &--terms {
+    min-width: 280px;
+  }
 }
 
 .npa-library__loading {
@@ -139,6 +143,14 @@
   }
 }
 
+.npa-library__group-hint {
+  margin: -4px 0 2px;
+  max-width: 860px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .npa-library__list {
   display: flex;
   flex-direction: column;
@@ -163,6 +175,11 @@
   &--unavailable {
     opacity: 0.75;
     border-style: dashed;
+  }
+
+  // Типовые условия ПП РФ выделяем цветом: это обязательные условия заказчика.
+  &--official {
+    border-left: 3px solid var(--accent);
   }
 }
 
@@ -202,6 +219,57 @@
   color: var(--state-warning);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.npa-library__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.npa-library__badge {
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+
+  &--government {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &--always {
+    border-color: var(--state-success, var(--accent));
+    color: var(--state-success, var(--accent));
+  }
+}
+
+.npa-library__terms-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+
+  summary {
+    cursor: pointer;
+    color: var(--accent);
+  }
+}
+
+.npa-library__terms-text-body {
+  max-height: 420px;
+  margin-top: 8px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 .npa-library__card-actions {
