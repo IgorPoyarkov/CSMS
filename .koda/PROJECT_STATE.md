@@ -9787,3 +9787,54 @@ does not provide an export named 'default'` из-за залипшего пус�
   ст. 33 в `ObjectDescriptionEditor.tsx` и `objectDescription.schema.ts`
   сохранена, поверх неё добавлены только кнопки.
 
+## 210. Офлайн-агент ООЗ по ГОСТ и НПА (2026-11-27)
+
+- **Запрос пользователя:** «делай агента для ООЗ по ГОСТ и НПА» — автономно,
+  без генерации формулировок полей. Выбран детерминированный контур
+  `snapshot-first / offline-by-default`: при открытии редактора нет запросов
+  к ЕИС, protect.gost.ru, pravo.gov.ru или локальной LLM. Готового агента в
+  репозитории не было; переиспользованы снимки §208–209, `scripts/consultant`
+  (RAG с цитатами) и анти-галлюцинационный паттерн csms-api
+  (`needs_review` + `/verify`).
+- **Сборка.** `scripts/lib/ooz-agent.mjs` (чистые функции) и
+  `scripts/build-ooz-agent.mjs` (команда `npm run build:ooz-agent`) берут
+  `docs/snapshots/gost/okpd2-selection.json`, `public/gost/requirements.json`,
+  `public/gost/catalog.json` и ст. 33 из `docs/snapshots/civil-code-snapshot.json`.
+  Результат — `public/gost/ooz-agent.json`, версия
+  `ooz-agent-20261127-ff9bb8684f50`, 3 документа (ГОСТ 30593-2015,
+  ТР ТС 018/2011, 220-ФЗ), 17 подсказок, привязка через `byOkpd2` только для
+  `49.31.21.110`. SHA-256
+  `98C21CDDE1B95306B4B4BFE0944C28BB43FDEA24C83E6763A00CF36113AA8EAB`,
+  версия и хеш — в `docs/snapshots/manifest.json` (секция `oozAgent`).
+- **Анти-галлюцинации.** Каждая подсказка несёт дословную цитату, источник,
+  статус и уверенность. Требования ГОСТа приходят из уже проверенного
+  `requirements.json` со статусом `confirmed`/`confidence: 1`; цитаты ст. 33
+  (`COMPONENT_NEEDLES`) дают `needs_review`/`confidence: 0.55`, потому что
+  сопоставление нормы с полем ООЗ остаётся за человеком. Документы без полного текста
+  (ТР ТС, законы) помечаются `needs_full_text` и не генерируют значений.
+  Отдельного `POST .../verify` у локального агента нет — он есть только в
+  csms-api; в UI такие подсказки подписаны «требует проверки».
+- **Фронт.** `src/services/OozAgent/oozAgent.schema.ts` (zod-контракт,
+  `findAgentDocuments`, `findAgentSuggestions`) и `.api.ts` (`useOozAgent`,
+  query key `["oozAgent"]`) читают статический `/gost/ooz-agent.json`.
+  В `ObjectDescriptionEditor` добавлен блок «Агент ООЗ: ГОСТ и НПА по коду
+  ОКПД2»: список документов со статусами и кнопки «Подставить: …» с цитатой.
+  Общая функция `applySuggestedRequirement` заменила частную
+  `applyGostRequirement`; она же обслуживает старые кнопки ГОСТа и поддерживает
+  любые `descriptionComponents.*`, а не только `packaging`. Нормы ст. 33
+  показываются и без выбранного ГОСТа, требования ГОСТа — только для
+  документов текущего ОКПД2. `GOST_NOT_MODERN` не тронут.
+- **Проверки.** `npm run check:gost` расширен: `check-ooz-agent.ts` 33/33,
+  плюс `scripts/tests/ooz-agent.test.mjs` (3/3), старые 7/7 + 19/19 + 7/7 + 7/7.
+  `npm test`, `npx tsc -b`, `npx oxlint src` (только старые warning в чужих
+  файлах), `npx vite build` — зелёные. Смоук в браузере на
+  `okpd2Code=49.31.21.110`: блок агента, 3 документа, подсказки ст. 33 с
+  цитатами, кнопка «Упаковка» убирает свою подсказку и отмечает чекбокс.
+  Документация — `docs/tasks/ooz-agent.md`, задачи — `CurrentTasks.md` Tasks 28.
+- **Незавершённое.** Полного текста ТР ТС 018/2011 и 220-ФЗ в локальных
+  снимках нет (allgosts.ru хранит только ГОСТы): для них нужен отдельный
+  источник, например снимок официальной страницы. Остальные 98 текстов новых
+  ГОСТов не выгружались. Агент не анализирует произвольный текст ООЗ и не
+  отвечает на вопросы; LLM-контур можно построить поверх `scripts/consultant`.
+  Чужая WIP п. 3–8 ст. 33 сохранена без доработки.
+

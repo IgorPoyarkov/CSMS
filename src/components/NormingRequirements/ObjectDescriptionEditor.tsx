@@ -74,6 +74,11 @@ import {
   useGostCatalog,
   useGostRequirements,
 } from "../../services/GostRef/gostRef.api";
+import {
+  findAgentDocuments,
+  findAgentSuggestions,
+} from "../../services/OozAgent/oozAgent.schema";
+import { useOozAgent } from "../../services/OozAgent/oozAgent.api";
 import type { ContractService } from "../../services/ContractService/contractService.schema";
 import type { EmployeeEducation } from "../../services/ContractService/education.schema";
 import KtruSelect from "../UI/KtruSelect/KtruSelect";
@@ -91,6 +96,18 @@ const appendUnique = (current: string, value: string): string => {
   const existing = current.trim();
   if (!existing) return value;
   return existing.includes(value) ? existing : `${existing}\n${value}`;
+};
+
+const AGENT_STATUS_LABELS: Record<string, string> = {
+  has_requirements: "есть требования с цитатами",
+  no_quotes: "в тексте нет подходящих цитат",
+  needs_full_text: "нужен полный текст — поле не заполняется",
+};
+
+const SUGGESTION_STATUS_LABELS: Record<string, string> = {
+  confirmed: "проверено по тексту",
+  needs_review: "требует проверки",
+  unconfirmed: "не подтверждено",
 };
 
 interface ObjectDescriptionEditorProps {
@@ -139,8 +156,34 @@ export default function ObjectDescriptionEditor({
   const { data: gostCatalog } = useGostCatalog();
   // Требования из полного текста ГОСТов — подстановка в поля ООЗ.
   const { data: gostRequirements } = useGostRequirements();
+  // Агент ООЗ: ГОСТ и НПА из локальных снимков, без сети и LLM.
+  const { data: oozAgent } = useOozAgent();
 
   const [draft, setDraft] = useState<ObjectDescription>(initialValue);
+  // Агент показывает только документы текущего ОКПД2. НПА ст. 33 применимы
+  // ко всем описаниям, поэтому они приходят вместе с требованиями ГОСТа.
+  const agentDocuments = useMemo(
+    () => findAgentDocuments(oozAgent, draft.okpd2Code),
+    [oozAgent, draft.okpd2Code],
+  );
+  const agentSuggestions = useMemo(() => {
+    const gostSuggestions = agentDocuments
+      .filter((doc) => doc.kind === "GOST")
+      .flatMap((doc) => findAgentSuggestions(oozAgent, doc.code))
+      .filter((suggestion) => suggestion.kind === "GOST");
+    // Нормы ст. 33 не зависят от выбранного ГОСТа и не дублируются.
+    const suggestions = [
+      ...gostSuggestions,
+      ...findAgentSuggestions(oozAgent, ""),
+    ];
+    return suggestions.filter((suggestion) => {
+      if (!suggestion.field.startsWith("descriptionComponents.")) return true;
+      const component = suggestion.field.slice(
+        "descriptionComponents.".length,
+      );
+      return !draft.descriptionComponents.some((item) => item === component);
+    });
+  }, [oozAgent, agentDocuments, draft.descriptionComponents]);
   // id карточки, сохранённой прямо из редактора (например, при добавлении
   // объекта). Исходный id приходит из списка ООЗ или из перехода по СЗ.
   const [persistedId, setPersistedId] = useState<string | number | undefined>(
@@ -464,46 +507,56 @@ export default function ObjectDescriptionEditor({
   };
 
   /**
-   * Подстановка требования из ГОСТа: пользователь видит цитату в подсказке
+   * Подстановка требования с дословной цитатой: пользователь видит источник
    * и решает, нужно ли оно в описании. Повторные нажатия не дублируют текст.
+   * Одна функция обслуживает требования ГОСТа и подсказки агента по НПА.
    */
-  const applyGostRequirement = (requirement: GostRequirement) => {
+  const applySuggestedRequirement = ({
+    field,
+    value,
+  }: {
+    field: string;
+    value: string;
+  }) => {
     setDraft((prev) => {
-      switch (requirement.field) {
+      switch (field) {
         case "warrantyTermMonths":
-          return { ...prev, warrantyTermMonths: requirement.value };
+          return { ...prev, warrantyTermMonths: value };
         case "warrantyRequirements":
           return {
             ...prev,
             warrantyRequirements: appendUnique(
               prev.warrantyRequirements,
-              requirement.value,
+              value,
             ),
           };
         case "otherRequirements":
           return {
             ...prev,
-            otherRequirements: appendUnique(
-              prev.otherRequirements,
-              requirement.value,
-            ),
+            otherRequirements: appendUnique(prev.otherRequirements, value),
           };
-        case "descriptionComponents.packaging":
-          return prev.descriptionComponents.includes("packaging")
-            ? prev
-            : {
-                ...prev,
-                descriptionComponents: [
-                  ...prev.descriptionComponents,
-                  "packaging",
-                ],
-              };
         default:
-          return prev;
+          break;
       }
+      if (field.startsWith("descriptionComponents.")) {
+        const component = field.slice(
+          "descriptionComponents.".length,
+        ) as DescriptionComponent;
+        if (!DESCRIPTION_COMPONENTS.includes(component)) return prev;
+        return prev.descriptionComponents.includes(component)
+          ? prev
+          : {
+              ...prev,
+              descriptionComponents: [...prev.descriptionComponents, component],
+            };
+      }
+      return prev;
     });
     setSubmitError("");
   };
+
+  const applyGostRequirement = (requirement: GostRequirement) =>
+    applySuggestedRequirement(requirement);
 
   /** Смена основного кода ОКПД2: обнуляет неактуальную привязку к КТРУ. */
   const applyOkpd2 = (code: string, name: string) => {
@@ -2077,6 +2130,84 @@ export default function ObjectDescriptionEditor({
             );
           })}
         </div>
+
+        {/* Агент ООЗ по ГОСТ и НПА: только локальные снимки и дословные цитаты. */}
+        {oozAgent && (
+          <div className={block("standards-block")}>
+            <div className={block("standards-head")}>
+              <span className={block("label")}>
+                Агент ООЗ: ГОСТ и НПА по коду ОКПД2
+              </span>
+              <span className={block("gost-hint-meta")}>
+                {oozAgent.version}
+              </span>
+            </div>
+            <span className={block("field-hint")}>
+              Документы подобраны из отбора по плану-графику; каждая подсказка
+              показывает цитату из снимка. Там, где полного текста нет, поле не
+              заполняется.
+            </span>
+            {agentDocuments.length === 0 ? (
+              <span className={block("field-hint")}>
+                Для этого кода ОКПД2 документы в снимке агента не найдены.
+              </span>
+            ) : (
+              agentDocuments.map((agentDoc) => (
+                <div
+                  key={`agent-doc-${agentDoc.kind}-${agentDoc.code}`}
+                  className={block("gost-hint")}
+                  title={agentDoc.sourceUrl || undefined}
+                >
+                  <div className={block("gost-hint-head")}>
+                    <span className={block("gost-hint-title")}>
+                      {agentDoc.kind === "NPA"
+                        ? standardTypeLabels[agentDoc.standardType]
+                        : agentDoc.code}
+                      {" — "}
+                      {agentDoc.name}
+                    </span>
+                  </div>
+                  <span className={block("gost-hint-meta")}>
+                    {AGENT_STATUS_LABELS[agentDoc.status] ?? agentDoc.status}
+                  </span>
+                </div>
+              ))
+            )}
+            {agentSuggestions.length > 0 && (
+              <div className={block("gost-hint-suggestions")}>
+                {agentSuggestions.map((suggestion, suggestionIdx) => (
+                  <div
+                    key={`agent-suggestion-${suggestion.source}-${suggestion.field}-${suggestionIdx}`}
+                    className={block("gost-hint-suggestion")}
+                  >
+                    <div className={block("gost-hint-action")}>
+                      <CustomButton
+                        configuration={{
+                          button: {
+                            name: `ooz-agent-${suggestionIdx}`,
+                            value: `Подставить: ${suggestion.label}`,
+                            type: "button",
+                          },
+                        }}
+                        ariaLabel={`Подставить ${suggestion.label} из ${suggestion.source}`}
+                        onClick={() => applySuggestedRequirement(suggestion)}
+                      />
+                    </div>
+                    <span
+                      className={block("gost-hint-quote")}
+                      title={`${suggestion.source}: ${suggestion.quote}`}
+                    >
+                      {suggestion.source}: {suggestion.quote}
+                      {" · "}
+                      {SUGGESTION_STATUS_LABELS[suggestion.status] ??
+                        suggestion.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* П. 3 ч. 1 ст. 33: состав описания и материалы к нему. Упаковка и
             маркировка уже описаны в этом блоке, поэтому состав описания живёт
