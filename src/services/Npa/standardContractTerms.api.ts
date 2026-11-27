@@ -18,7 +18,7 @@ const StandardContractTermSchema = z.object({
   publicationNumber: z.string(),
   cardUrl: z.string(),
   sourceUrl: z.string(),
-  redid: z.number(),
+  redId: z.number(),
   redDate: z.string(),
   isGovernment: z.boolean(),
   alwaysApplies: z.boolean(),
@@ -26,7 +26,7 @@ const StandardContractTermSchema = z.object({
   textSha256: z.string(),
 });
 
-const StandardContractTermsCatalogSchema = z.object({
+export const StandardContractTermsCatalogSchema = z.object({
   version: z.string(),
   generatedAt: z.string(),
   source: z.string(),
