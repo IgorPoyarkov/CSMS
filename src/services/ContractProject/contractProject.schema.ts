@@ -592,6 +592,7 @@ export const ContractStandardTermSchema = z.object({
   passing: z.string(),
   title: z.string(),
   redDate: z.string(),
+  adoptionDate: z.string().nullable().optional(),
   sourceUrl: z.string(),
   cardUrl: z.string(),
   textSource: z.string(),

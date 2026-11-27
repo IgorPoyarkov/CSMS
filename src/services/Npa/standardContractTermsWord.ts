@@ -1,4 +1,20 @@
-import type { StandardContractTerm } from "./standardContractTerms.api";
+/**
+ * Минимальный набор полей снимка, который нужен и Word-выгрузке, и встроенному
+ * просмотру. Ему соответствуют и каталог csms-api, и снимок, сохранённый в проекте
+ * контракта — оба используют одну и ту же дословную редакцию.
+ */
+export interface StandardTermWordSource {
+  number: string;
+  passing: string;
+  title: string;
+  cardUrl: string;
+  sourceUrl: string;
+  redDate: string;
+  adoptionDate?: string | null;
+  textSource: string;
+  textSha256: string;
+  text: string;
+}
 
 /**
  * Парсер дословного текста типовых условий контрактов в структурированный
@@ -54,16 +70,56 @@ export const parseStandardContractTermsText = (
       return { kind: upper ? ("title" as const) : ("paragraph" as const), text: line };
     });
 
+/** Якорь абзаца общий для Word-выгрузки и встроенного просмотра. */
+export const standardTermBlockId = (index: number): string =>
+  `standard-term-block-${index}`;
+
+export interface StandardTermNavItem {
+  id: string;
+  /** Дословная строка, для узкого меню она только визуально обрезается. */
+  label: string;
+  level: 0 | 1 | 2 | 3;
+}
+
+/**
+ * Оглавление просмотра: шапка, разделы, пункты и подпункты снимка. Обычные
+ * абзацы остаются в документе, но не дублируются в меню — переходы ведут
+ * ко всем уровням, которые реально размечены в тексте.
+ */
+export const buildStandardTermNavigation = (
+  blocks: StandardTermBlock[],
+): StandardTermNavItem[] =>
+  blocks.flatMap((block, index) => {
+    const levels: Partial<Record<StandardTermBlockKind, 0 | 1 | 2 | 3>> = {
+      agency: 0,
+      decree: 0,
+      title: 0,
+      section: 1,
+      clause: 2,
+      subclause: 3,
+    };
+    const level = levels[block.kind];
+    if (level === undefined) return [];
+    return [
+      {
+        id: standardTermBlockId(index),
+        label:
+          block.text.length > 100 ? `${block.text.slice(0, 97)}…` : block.text,
+        level,
+      },
+    ];
+  });
+
 /** Имя файла без символов, которые ломают сохранение в Windows и ЕИС. */
-const fileBaseName = (term: StandardContractTerm): string =>
-  `Типовые_условия_ПП_РФ_№${term.number}_от_${term.adoptionDate}`.replace(
+const fileBaseName = (term: StandardTermWordSource): string =>
+  `Типовые_условия_ПП_РФ_№${term.number}_от_${term.adoptionDate ?? term.redDate}`.replace(
     /[\\/:*?"<>|\s]+/gu,
     "_",
   );
 
 /** Сборка .docx из блоков снимка. Содержимое блоков не изменяется. */
 export const buildStandardContractTermsDocx = async (
-  term: StandardContractTerm,
+  term: StandardTermWordSource,
 ): Promise<Blob> => {
   const {
     AlignmentType,
@@ -156,7 +212,7 @@ export const buildStandardContractTermsDocx = async (
 
 /** Скачивание документа с тем же именем, что и у других выгрузок проекта. */
 export const downloadStandardContractTermsDocx = async (
-  term: StandardContractTerm,
+  term: StandardTermWordSource,
 ): Promise<void> => {
   const blob = await buildStandardContractTermsDocx(term);
   const url = URL.createObjectURL(blob);

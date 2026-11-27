@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import useUtils from "../../hooks/useUtils";
 import {
   useStandardContractTerms,
@@ -6,6 +6,7 @@ import {
 } from "../../services/Npa/standardContractTerms.api";
 import { downloadStandardContractTermsDocx } from "../../services/Npa/standardContractTermsWord";
 import type { ContractStandardTerm } from "../../services/ContractProject/contractProject.schema";
+import StandardTermsWordViewer from "../Npa/StandardTermsWordViewer";
 import CustomButton from "../UI/CustomButton";
 import Loader from "../UI/Loader";
 import styles from "./StandardContractTermsPanel.module.scss";
@@ -33,6 +34,9 @@ export default function StandardContractTermsPanel({
   const { bem } = useUtils();
   const block = bem(styles, "standard-terms-panel");
   const { data: catalog, isLoading, isError } = useStandardContractTerms();
+  const [previewTerm, setPreviewTerm] = useState<StandardContractTerm | null>(
+    null,
+  );
 
   const addTerm = useCallback(
     (term: StandardContractTerm) => {
@@ -42,6 +46,7 @@ export default function StandardContractTermsPanel({
         passing: term.passing,
         title: term.title,
         redDate: term.redDate,
+        adoptionDate: term.adoptionDate,
         sourceUrl: term.sourceUrl,
         cardUrl: term.cardUrl,
         textSource: term.textSource,
@@ -143,6 +148,17 @@ export default function StandardContractTermsPanel({
                   <CustomButton
                     configuration={{
                       button: {
+                        name: `standard-term-preview-${term.code}`,
+                        value: "Просмотр Word",
+                        type: "button",
+                      },
+                    }}
+                    ariaLabel={`Открыть просмотр Word типовых условий ПП РФ № ${term.number}`}
+                    onClick={() => setPreviewTerm(term)}
+                  />
+                  <CustomButton
+                    configuration={{
+                      button: {
                         name: `standard-term-word-${term.code}`,
                         value: "Скачать Word",
                         type: "button",
@@ -157,6 +173,11 @@ export default function StandardContractTermsPanel({
           })}
         </div>
       )}
+
+      <StandardTermsWordViewer
+        term={previewTerm}
+        onClose={() => setPreviewTerm(null)}
+      />
     </section>
   );
 }

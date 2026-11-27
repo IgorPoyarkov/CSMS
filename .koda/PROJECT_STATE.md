@@ -10056,10 +10056,18 @@ does not provide an export named 'default'` из-за залипшего пус�
   акта. `contractProjectExport.ts` собирает `.docx` проекта через
   `buildContractDocumentDocx(buildContractDocument(project), project.standardTerm)`;
   кнопка «Скачать Word (.docx)» стоит рядом с «Скопировать текст» в предпросмотре.
-- **Проверки.** `scripts/run-ts-check.mjs` получил `--no-codeSplitting`:проверки
-  проверки теперь собирают модули с динамическим `import("docx")` в один файл.
-  `npm run check:standard-terms` сверяет разметку с текстом, собирает оба
-  `.docx` и проверяет попадание акта в текст проекта. `npm test`, `npx tsc -b`,
+- **Просмотр Word в приложении.** По уточнению пользователя, одного скачивания
+  мало: у каждого типового условия в `/legal/library?terms=standard` и в панели
+  конструктора появилась кнопка «Просмотр Word». `StandardTermsWordViewer.tsx`
+  открывает `CustomModal` со страницей в стиле Word (Times New Roman, выровненные
+  абзацы, подписи) и оглавлением из `buildStandardTermNavigation`: шапка, разделы,
+  пункты и подпункты, активный пункт подсвечивается при прокрутке. Просмотр и
+  файл строятся из одного разбора снимка; `StandardTermWordSource` объединил
+  каталог csms-api и снимок проекта контракта.
+- **Проверки.** `scripts/run-ts-check.mjs` получил `--no-codeSplitting`: проверки
+  теперь собирают модули с динамическим `import("docx")` в один файл.
+  `npm run check:standard-terms` сверяет разметку с текстом, якори оглавления,
+  собирает оба `.docx` и проверяет попадание акта в текст проекта. `npm test`, `npx tsc -b`,
   `npx oxlint src`, `npx vite build` — зелёные (в oxlint только прежние warning).
   Обновлены `docs/legal/npa-library.md` и этот файл.
 - **Незавершённое.** Хранилища для байтов DOCX нет: вложение извещения по-прежнему

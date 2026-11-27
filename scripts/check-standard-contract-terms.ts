@@ -5,7 +5,9 @@ import {
 } from "../src/services/Npa/standardContractTerms.api";
 import {
   buildStandardContractTermsDocx,
+  buildStandardTermNavigation,
   parseStandardContractTermsText,
+  standardTermBlockId,
 } from "../src/services/Npa/standardContractTermsWord";
 import { emptyContractProject } from "../src/services/ContractProject/contractProject.schema";
 import { buildContractDocument } from "../src/services/ContractProject/contractDocument";
@@ -95,6 +97,18 @@ assert.equal(
   blocks.map((block) => block.text).join("\n"),
   sampleText,
   "парсер не должен менять текст и нумерацию",
+);
+
+const navigation = buildStandardTermNavigation(blocks);
+assert.deepEqual(
+  navigation.map((item) => item.level),
+  [0, 0, 0, 1, 2, 3, 3],
+  "в оглавлении должны быть шапка, раздел, пункт и подпункты",
+);
+assert.deepEqual(
+  navigation.map((item) => item.id),
+  [0, 1, 2, 3, 4, 5, 6].map(standardTermBlockId),
+  "якорь оглавления должен вести к тому же абзацу снимка",
 );
 
 // Пустые строки снимка — только интервалы между абзацами, в Word они не

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import useUtils from "../../hooks/useUtils";
 import { CSMS_API_BASE_URL } from "../../services/apiBaseUrl";
@@ -11,6 +11,7 @@ import {
   useNpaLibrary,
   type NpaLibraryItem,
 } from "../../services/Consultant/npaLibrary.api";
+import StandardTermsWordViewer from "../Npa/StandardTermsWordViewer";
 import CustomButton from "../UI/CustomButton";
 import Loader from "../UI/Loader";
 import Select from "../UI/Select";
@@ -69,6 +70,9 @@ export default function NpaLibraryPage() {
   const block = bem(styles, "npa-library");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [previewTerm, setPreviewTerm] = useState<StandardContractTerm | null>(
+    null,
+  );
   const { data: library, isLoading, isError, error } = useNpaLibrary();
   const {
     data: termsCatalog,
@@ -270,6 +274,19 @@ export default function NpaLibraryPage() {
           <CustomButton
             configuration={{
               button: {
+                name: `preview-${card.id}`,
+                value: "Просмотр Word",
+                type: "button",
+              },
+            }}
+            ariaLabel={`Открыть просмотр Word типовых условий ПП РФ № ${card.term.number}`}
+            onClick={() => setPreviewTerm(card.term ?? null)}
+          />
+        )}
+        {card.term && (
+          <CustomButton
+            configuration={{
+              button: {
                 name: `word-${card.id}`,
                 value: "Скачать Word",
                 type: "button",
@@ -414,6 +431,11 @@ export default function NpaLibraryPage() {
             ` Типовые условия обновлены в csms-api ${formatDate(termsCatalog.generatedAt)}.`}
         </p>
       )}
+
+      <StandardTermsWordViewer
+        term={previewTerm}
+        onClose={() => setPreviewTerm(null)}
+      />
     </section>
   );
 }
