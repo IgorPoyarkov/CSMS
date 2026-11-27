@@ -131,9 +131,17 @@ const hasEspeciallyDangerous = (text: string) =>
 const hasNonCapital = (text: string) =>
   /некапитальн[а-яё]*\s+строени|благоустройств/.test(text);
 
-/** Строительство/реконструкция ОКС, кроме линейного (позиция 7). */
+/**
+ * Строительство/реконструкция ОКС, кроме линейного (позиция 7).
+ *
+ * Подготовка проектной документации и инженерные изыскания — это позиции 6
+ * и 6(1): в их наименованиях тоже встречается «строительство» («документация
+ * для строительства школы»), поэтому без исключения `hasDesign` проектные
+ * работы уходили в строительный подряд с более высоким приоритетом.
+ */
 const hasConstructionOks = (text: string) =>
   /строительств|реконструкц/.test(text) &&
+  !hasDesign(text) &&
   !hasRoad(text) &&
   !hasLinearObject(text) &&
   !hasNonCapital(text) &&
@@ -143,18 +151,21 @@ const hasConstructionOks = (text: string) =>
 /** Строительство/реконструкция линейного объекта (позиция 8). */
 const hasLinearConstruction = (text: string) =>
   /строительств|реконструкц/.test(text) &&
+  !hasDesign(text) &&
   hasLinearObject(text) &&
   !hasRoad(text);
 
 /** Капитальный ремонт ОКС, кроме линейного (позиция 10). */
 const hasMajorRepair = (text: string) =>
   /капитальн[а-яё]*\s+ремонт/.test(text) &&
+  !hasDesign(text) &&
   !hasRoad(text) &&
   !hasLinearObject(text);
 
 /** Капитальный ремонт линейного объекта (позиция 11). */
 const hasLinearMajorRepair = (text: string) =>
   /капитальн[а-яё]*\s+ремонт/.test(text) &&
+  !hasDesign(text) &&
   hasLinearObject(text) &&
   !hasRoad(text);
 
@@ -371,7 +382,9 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
       "акт приёмки выполненных работ, подтверждающий цену выполненных работ",
     ],
     okpd2Prefixes: ["71.12", "71.11"],
-    matchesObjectName: hasDesign,
+    // Особо опасные, технически сложные и уникальные объекты — подпозиция
+    // 6(1); без исключения позиция 6 перекрывала её более высоким приоритетом.
+    matchesObjectName: (text) => hasDesign(text) && !hasEspeciallyDangerous(text),
     priority: 38,
     legalRef: "п. 3 «а» постановления, позиция 6 приложения",
   },
@@ -548,7 +561,9 @@ export const PP2571_POSITIONS: Pp2571Position[] = [
     ],
     okpd2Prefixes: ["41", "42", "43"],
     matchesObjectName: (text) =>
-      /строительств|реконструкц/.test(text) && hasEspeciallyDangerous(text),
+      /строительств|реконструкц/.test(text) &&
+      !hasDesign(text) &&
+      hasEspeciallyDangerous(text),
     priority: 44,
     legalRef: "п. 3 «а» постановления, позиция 13 приложения",
   },
@@ -1268,14 +1283,20 @@ export const normalizeOkpd2Code = (code?: string): string =>
   (code ?? "").trim().replace(/,/g, ".").replace(/\s+/g, "");
 
 /**
- * Старые метки, которые после перенумерации приложения (редакция от
- * 27.04.2026) указывают на другую позицию: «строительство ОКС» было позицией
- * 6, стало позицией 7. Сопоставляем по полной метке, чтобы сохранённые СЗ не
- * теряли требование.
+ * Старые значения позиции 6 (до перенумерации приложения редакцией от
+ * 27.04.2026) означали строительный подряд, а не проектные работы: и полная
+ * метка «Позиция 6 разд. II ПП РФ № 2571 (работы по строительству,
+ * реконструкции объекта кап. строительства)», и сокращения вроде «6
+ * строительство» должны вести на позицию 7. Иначе сохранённые СЗ молча
+ * получат требование о проектной документации вместо опыта строительства.
  */
-const PP2571_LEGACY_LABEL_ALIASES: Record<string, string> = {
-  "позиция 6 разд. ii пп рф № 2571 (работы по строительству, реконструкции объекта капитального строительства)":
-    "pp2571-7",
+const legacyConstructionPosition = (
+  raw: string,
+): Pp2571Position | undefined => {
+  if (!/позиц[а-яё]*\s*6(?!\s*\(\s*\d)/i.test(raw)) return undefined;
+  if (!/строительств|реконструкц/i.test(raw)) return undefined;
+  if (/проектн|изыскан/i.test(raw)) return undefined;
+  return PP2571_POSITIONS.find((position) => position.id === "pp2571-7");
 };
 
 /**
@@ -1298,11 +1319,8 @@ export const resolvePp2571Position = (
   );
   if (direct) return direct;
 
-  const legacyId = PP2571_LEGACY_LABEL_ALIASES[raw.toLowerCase()];
-  if (legacyId) {
-    const legacy = PP2571_POSITIONS.find((position) => position.id === legacyId);
-    if (legacy) return legacy;
-  }
+  const legacy = legacyConstructionPosition(raw);
+  if (legacy) return legacy;
 
   const numberMatch =
     raw.match(/позиц[а-яё]*\s*(\d{1,2})(?:\((\d{1,2})\))?/i) ??

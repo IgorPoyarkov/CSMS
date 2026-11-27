@@ -26,43 +26,94 @@ import {
  * Smoke-проверка правил ПП РФ от 29.12.2021 № 2571.
  * Запуск: npm run check:pp2571 (rolldown собирает TS, затем выполняет Node).
  *
- * Проверяются: каталог позиций и пороги по п. 3 «а», сопоставление объектов
- * закупки, применимость, генератор текста требования, правила валидатора
- * (пп. 1 «а», 1 «б», 3 «а», 3 «б», 4) и встраивание в схему СЗ.
+ * Проверяются: полный каталог приложения (позиции 1–41 и подпозиции 6(1),
+ * 36(1)) и пороги по п. 3 «а», перенумерация редакции от 27.04.2026 (позиция 6
+ * — проектная документация, 7 — строительный подряд, старые метки читаются),
+ * сопоставление объектов закупки, применимость, генератор текста требования,
+ * правила валидатора (пп. 1 «а», 1 «б», 3 «а», 3 «б», 4) и встраивание в
+ * схему СЗ.
  */
 
 const codes = (issues: Pp2571Issue[]) => issues.map((issue) => issue.code);
 const byCode = (issues: Pp2571Issue[], code: string) =>
   issues.find((issue) => issue.code === code);
 
-// 1. Каталог: позиции приложения, применяемые в проекте, и пороги п. 3 «а».
-assert.equal(PP2571_POSITIONS.length, 6);
-assert.equal(new Set(PP2571_POSITIONS.map((item) => item.id)).size, 6);
+// 1. Каталог: полный перечень приложения (1–41 и подпозиции 6(1), 36(1))
+// и пороги п. 3 «а».
+assert.equal(PP2571_POSITIONS.length, 43);
+assert.equal(
+  new Set(PP2571_POSITIONS.map((item) => item.id)).size,
+  PP2571_POSITIONS.length,
+);
+assert.equal(
+  new Set(PP2571_POSITIONS.map((item) => String(item.number))).size,
+  PP2571_POSITIONS.length,
+);
+assert.deepEqual(
+  PP2571_POSITIONS.map((item) => String(item.number)).sort(
+    (a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10),
+  ),
+  [
+    "1", "2", "3", "4", "5", "6", "6(1)", "7", "8", "9", "10",
+    "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+    "21", "22", "23", "24", "25", "26", "27", "28", "29", "30",
+    "31", "32", "33", "34", "35", "36", "36(1)", "37", "38", "39",
+    "40", "41",
+  ],
+);
 assert.ok(PP2571_SOURCE.act.includes("29.12.2021 № 2571"));
 assert.ok(PP2571_SOURCE.references.length > 0);
 
-const position = (number: number) => {
+const position = (number: number | string) => {
   const found = PP2571_POSITIONS.find((item) => item.number === number);
   assert.ok(found, `позиция ${number} должна быть в каталоге`);
   return found;
 };
 
 assert.equal(position(1).threshold.regional, 500_000);
+// Позиция 6 — проектная документация и изыскания, позиция 7 — строительный
+// подряд: после перенумерации приложения пороги у обеих 10/5 млн.
 assert.equal(position(6).threshold.regional, 5_000_000);
 assert.equal(position(6).threshold.federal, 10_000_000);
+assert.equal(position("6(1)").threshold.regional, 5_000_000);
+assert.equal(position(7).threshold.regional, 5_000_000);
+assert.equal(position(7).threshold.federal, 10_000_000);
 assert.equal(position(10).threshold.regional, 5_000_000);
 assert.equal(position(17).threshold.regional, 5_000_000);
 assert.equal(position(18).threshold.regional, 5_000_000);
+assert.equal(position(24).threshold.canBeSkippedBelow, 500_000);
+assert.equal(position(32).threshold.regional, 10_000_000);
 assert.equal(position(34).threshold.regional, 500_000);
 assert.equal(position(34).threshold.canBeSkippedBelow, 500_000);
-assert.ok(position(6).documents.some((doc) => /разрешение на ввод/.test(doc)));
+assert.equal(position(19).threshold.regional, 0);
+assert.ok(position(7).documents.some((doc) => /разрешение на ввод/.test(doc)));
+assert.ok(
+  position(17).documents.some((doc) => /технической готовности/.test(doc)),
+);
 assert.ok(position(1).licenses?.some((license) => /лицензия/.test(license)));
+assert.ok(
+  position(34).licenses?.some((license) => /охранной деятельности/.test(license)),
+);
 
 // 2. Разбор сохранённых значений: идентификатор, метка, номер, мусор.
 assert.equal(resolvePp2571Position("pp2571-6")?.number, 6);
+assert.equal(resolvePp2571Position("pp2571-7")?.number, 7);
+// Подпозиции приложения хранятся строкой — метка и номер должны читаться.
+assert.equal(resolvePp2571Position("6(1)")?.id, "pp2571-6-1");
+assert.equal(resolvePp2571Position("позиция 6(1) разд. II")?.id, "pp2571-6-1");
+assert.equal(resolvePp2571Position("36(1)")?.id, "pp2571-36-1");
+assert.equal(resolvePp2571Position("позиция 36(1) разд. VI")?.id, "pp2571-36-1");
 assert.equal(
   resolvePp2571Position(
     "Позиция 6 разд. II ПП РФ № 2571 (Работы по строительству, реконструкции объекта кап. строительства)",
+  )?.id,
+  // Редакция от 27.04.2026 перенумеровала приложение: строительный подряд
+  // переехал с позиции 6 на 7, старая метка должна вести на 7.
+  "pp2571-7",
+);
+assert.equal(
+  resolvePp2571Position(
+    "Позиция 6 разд. II ПП РФ № 2571 (работы по подготовке проектной документации и инженерным изысканиям)",
   )?.id,
   "pp2571-6",
 );
@@ -72,6 +123,10 @@ assert.equal(resolvePp2571Position("неизвестно"), undefined);
 assert.deepEqual(
   normalizePp2571Positions(["pp2571-6", "6", "pp2571-17", "мусор"]),
   ["pp2571-6", "pp2571-17"],
+);
+assert.deepEqual(
+  normalizePp2571Positions(["6(1)", "pp2571-6-1", "36(1)"]),
+  ["pp2571-6-1", "pp2571-36-1"],
 );
 
 // 3. Сопоставление объектов закупки с позициями приложения.
@@ -104,7 +159,29 @@ assert.equal(
     name: "Строительство школы на 500 мест",
     okpd2Code: "41.20.40",
   }),
+  // Строительный подряд — позиция 7 (до редакции от 27.04.2026 была 6).
+  7,
+);
+assert.equal(
+  matchNumber({
+    name: "Работы по подготовке проектной документации для строительства школы",
+    okpd2Code: "71.12",
+  }),
   6,
+);
+assert.equal(
+  matchNumber({
+    name: "Работы по подготовке проектной документации для строительства особо опасного объекта",
+    okpd2Code: "71.12",
+  }),
+  "6(1)",
+);
+assert.equal(
+  matchNumber({
+    name: "Работы по капитальному ремонту автомобильной дороги",
+    okpd2Code: "42.11.20",
+  }),
+  17,
 );
 assert.equal(
   matchNumber({
@@ -136,7 +213,7 @@ const applicable = (nmck: number, placingWayCode: string) =>
     items: [
       { name: "Строительство школы", okpd2Code: "41.20.40" },
     ],
-  }).find((item) => item.position.number === 6)!;
+  }).find((item) => item.position.number === 7)!;
 
 assert.equal(applicable(6_000_000, "EA20").applicable, true);
 assert.equal(applicable(4_000_000, "EA20").applicable, false);
@@ -144,9 +221,12 @@ assert.equal(applicable(6_000_000, "EP93").applicable, false);
 assert.equal(applicable(11_000_000, "EA20").threshold, 5_000_000);
 
 // 5. Доля опыта и текст требования по графе приложения.
-assert.equal(pp2571ExperienceShare(position(6), 50_000_000), 50);
-assert.equal(pp2571ExperienceShare(position(6), 150_000_000), 40);
-assert.equal(pp2571ExperienceShare(position(6), 600_000_000), 30);
+assert.equal(pp2571ExperienceShare(position(7), 50_000_000), 50);
+assert.equal(pp2571ExperienceShare(position(7), 150_000_000), 40);
+assert.equal(pp2571ExperienceShare(position(7), 600_000_000), 30);
+assert.equal(pp2571ExperienceShare(position(17), 50_000_000), 50);
+// У позиции 6 (проектная документация) ступенчатой шкалы нет.
+assert.equal(pp2571ExperienceShare(position(6), 20_000_000), undefined);
 assert.equal(pp2571ExperienceShare(position(34), 5_000_000), undefined);
 
 const requirementText = buildPp2571RequirementText(["pp2571-17"], 6_000_000);
@@ -156,12 +236,20 @@ assert.match(requirementText, /Подтверждающие документы/)
 assert.match(requirementText, /разрешение на ввод/);
 assert.equal(buildPp2571RequirementText([], 6_000_000), "");
 
+const designRequirementText = buildPp2571RequirementText(
+  ["pp2571-6"],
+  20_000_000,
+);
+assert.match(designRequirementText, /Позиция 6 приложения/);
+assert.match(designRequirementText, /проектной документации/);
+assert.equal(designRequirementText.includes("не менее"), false);
+
 // 6. Валидатор: нормальные данные не дают замечаний.
 const constructionInput = {
   nmck: 6_000_000,
   placingWayCode: "EA20",
   items: [{ name: "Строительство школы", okpd2Code: "41.20.40" }],
-  selectedPositions: ["pp2571-6"],
+  selectedPositions: ["pp2571-7"],
   additionalRequirementsPart2Art31: true,
   additionalRequirementsPart2Art31Text:
     "Документы по графе приложения ПП РФ № 2571",
@@ -199,7 +287,7 @@ assert.ok(
   ),
 );
 
-// П. 3 «а»: порог НМЦК для позиции 6 — 5 млн для региональных нужд.
+// П. 3 «а»: порог НМЦК для позиции 7 — 5 млн для региональных нужд.
 const belowThreshold = validatePp2571Requirements({
   ...constructionInput,
   nmck: 3_000_000,
@@ -319,7 +407,7 @@ const validNote = {
   additionalRequirementsPart2Art31: true,
   additionalRequirementsPart2Art31Text:
     "Документы по графе приложения ПП РФ № 2571",
-  pp2571Positions: ["pp2571-6"],
+  pp2571Positions: ["pp2571-7"],
   status: "approved" as const,
 };
 
@@ -398,6 +486,7 @@ assert.equal(
 // объектов закупки. Метка позиции в shortName не помещается, поэтому код
 // хранится отдельно от подписи.
 assert.equal(pp2571EisCode("pp2571-6"), "PP2571-6");
+assert.equal(pp2571EisCode("pp2571-6-1"), "PP2571-6-1");
 assert.equal(pp2571EisCode("Позиция 17 разд. III"), "PP2571-17");
 assert.equal(pp2571EisCode("неизвестно"), "");
 
@@ -431,15 +520,16 @@ assert.deepEqual(pp2571ObjectsForPosition("pp2571-17", eisItems), [
 ]);
 
 const eisRequirements = buildPp2571EisRequirements(
-  ["pp2571-6", "pp2571-17"],
+  ["pp2571-7", "pp2571-17"],
   eisItems,
   20_000_000,
 );
 assert.equal(eisRequirements.length, 2);
 
 const [schoolRequirement, roadRequirement] = eisRequirements;
-assert.equal(schoolRequirement.shortName, "PP2571-6");
-assert.equal(schoolRequirement.name, position(6).label);
+assert.equal(schoolRequirement.shortName, "PP2571-7");
+assert.equal(schoolRequirement.name, position(7).label);
+assert.ok(schoolRequirement.name.includes("Позиция 7 разд. II"));
 assert.ok(schoolRequirement.content.includes("ОКПД2 41.20.40"));
 assert.ok(!schoolRequirement.content.includes("42.11.20"));
 assert.ok(!schoolRequirement.content.includes("17.12.14"));
@@ -466,9 +556,9 @@ const requirementsXml = buildEis17RequirementsXml([
     addRequirements: eisRequirements,
   },
 ]);
-assert.ok(requirementsXml.includes("<shortName>PP2571-6</shortName>"));
+assert.ok(requirementsXml.includes("<shortName>PP2571-7</shortName>"));
 assert.ok(requirementsXml.includes("<shortName>PP2571-17</shortName>"));
-assert.ok(requirementsXml.includes("<name>Позиция 6 разд. II"));
+assert.ok(requirementsXml.includes("<name>Позиция 7 разд. II"));
 assert.ok(requirementsXml.includes("ОКПД2 41.20.40"));
 assert.equal(requirementsXml.includes("<addRequirement></addRequirement>"), false);
 
@@ -477,7 +567,7 @@ const eisCodeIssues = validatePp2571Requirements({
   nmck: 20_000_000,
   placingWayCode: "EA20",
   items: eisItems,
-  selectedPositions: ["pp2571-6"],
+  selectedPositions: ["pp2571-7"],
   additionalRequirementsPart2Art31: true,
   additionalRequirementsPart2Art31Text: "Документы по графе приложения",
 });
