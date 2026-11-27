@@ -1,3 +1,4 @@
+import { parseStandardContractTermsText } from "../Npa/standardContractTermsWord";
 import {
   CONTRACT_CONCLUSION_RULES,
   type ContractProject,
@@ -467,6 +468,25 @@ export const buildContractDocument = (
     ),
   }));
 
+  // Типовые условия ПП РФ идут отдельным разделом: их пункты уже имеют
+  // официальную нумерацию, поэтому внутренний префикс "1.2." к ним не
+  // применяется — текст остаётся дословным.
+  const term = project.standardTerm;
+  const sectionsWithTerms = term
+    ? [
+        ...numbered,
+        {
+          id: "standard-terms",
+          number: numbered.length + 1,
+          title: `Типовые условия контракта (ПП РФ № ${term.number})`,
+          article: "ч. 11 ст. 34 44-ФЗ",
+          paragraphs: parseStandardContractTermsText(term.text).map(
+            (block) => block.text,
+          ),
+        },
+      ]
+    : numbered;
+
   const appendices = (project.appendices ?? [])
     .filter((item) => item.included)
     .sort((a, b) => a.number - b.number)
@@ -486,7 +506,7 @@ export const buildContractDocument = (
   return {
     title: `ПРОЕКТ КОНТРАКТА${text(project.contractNumber) ? ` № ${text(project.contractNumber)}` : ""}\n${text(project.contractName) || `Контракт на ${terms.subjectAccusative}`}`,
     preamble: buildPreamble(project),
-    sections: numbered,
+    sections: sectionsWithTerms,
     appendices,
     signature,
   };

@@ -3,6 +3,13 @@ import {
   StandardContractTermSchema,
   StandardContractTermsCatalogSchema,
 } from "../src/services/Npa/standardContractTerms.api";
+import {
+  buildStandardContractTermsDocx,
+  parseStandardContractTermsText,
+} from "../src/services/Npa/standardContractTermsWord";
+import { emptyContractProject } from "../src/services/ContractProject/contractProject.schema";
+import { buildContractDocument } from "../src/services/ContractProject/contractDocument";
+import { buildContractDocumentDocx } from "../src/services/ContractProject/contractProjectExport";
 
 /**
  * Контракт каталога типовых условий контрактов между csms-api и /legal/library.
@@ -68,4 +75,71 @@ assert.throws(() =>
   }),
 );
 
-console.log("check:standard-terms - контракт API типовых условий корректен");
+// Парсер для Word: размечает структуру, но сохраняет дословный текст снимка.
+const sampleText = [
+  "ПРАВИТЕЛЬСТВО РОССИЙСКОЙ ФЕДЕРАЦИИ",
+  "ПОСТАНОВЛЕНИЕ",
+  "от 14 ноября 2024 г. № 1550",
+  "I. Условия об обязанностях исполнителя",
+  "1. Выполнять работы:",
+  "а) в установленный срок;",
+  "– либо в иной срок.",
+  "Обычный абзац с редакцией 4.1.",
+].join("\n");
+const blocks = parseStandardContractTermsText(sampleText);
+assert.deepEqual(
+  blocks.map((block) => block.kind),
+  ["agency", "agency", "decree", "section", "clause", "subclause", "subclause", "paragraph"],
+);
+assert.equal(
+  blocks.map((block) => block.text).join("\n"),
+  sampleText,
+  "парсер не должен менять текст и нумерацию",
+);
+
+// Пустые строки снимка — только интервалы между абзацами, в Word они не
+// переносятся, но все строки с текстом обязаны остаться в том же порядке.
+const withBlankLines = "Шапка\n\n1. Пункт\n";
+assert.equal(
+  parseStandardContractTermsText(withBlankLines)
+    .map((block) => block.text)
+    .join("\n"),
+  "Шапка\n1. Пункт",
+);
+
+const term = parsed.items[0];
+const termDocx = await buildStandardContractTermsDocx(term);
+assert.ok(termDocx.size > 1000, "Word типовых условий должен собираться");
+
+// Выбранный акт попадает в текст проекта контракта.
+const project = {
+  ...emptyContractProject("1", "goods"),
+  contractName: "Контракт на поставку",
+  standardTerm: {
+    code: term.code,
+    number: term.number,
+    passing: term.passing,
+    title: term.title,
+    redDate: term.redDate,
+    sourceUrl: term.sourceUrl,
+    cardUrl: term.cardUrl,
+    textSource: term.textSource,
+    textSha256: term.textSha256,
+    text: sampleText,
+  },
+};
+const contractDocument = buildContractDocument(project);
+const termSection = contractDocument.sections.find(
+  (section) => section.id === "standard-terms",
+);
+assert.ok(termSection, "типовые условия должны попадать в текст контракта");
+assert.deepEqual(termSection.paragraphs, blocks.map((block) => block.text));
+const projectDocx = await buildContractDocumentDocx(
+  contractDocument,
+  project.standardTerm,
+);
+assert.ok(projectDocx.size > 1000, "Word проекта контракта должен собираться");
+
+console.log(
+  "check:standard-terms - контракт API, Word типовых условий и проект контракта корректны",
+);

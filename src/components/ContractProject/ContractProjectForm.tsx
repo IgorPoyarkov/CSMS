@@ -19,6 +19,7 @@ import {
   type ContractAppendixKind,
   type ContractKind,
   type ContractProject,
+  type ContractStandardTerm,
 } from "../../services/ContractProject/contractProject.schema";
 import {
   buildDefaultAppendices,
@@ -66,6 +67,7 @@ import {
   useNotices,
 } from "../../services/Procurements/noticeInfo.api";
 import { buildContractProjectAttachment } from "../../services/ContractProject/contractProjectAttachment";
+import { downloadContractProjectDocx } from "../../services/ContractProject/contractProjectExport";
 import { usePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.api";
 import { filterVisiblePurchaseNotes } from "../../services/PurchaseNote/purchaseNote.schema";
 import { useOrganizationObjectDescriptions } from "../../services/ObjectDescription/objectDescription.api";
@@ -74,10 +76,12 @@ import ContractRiskAssessmentPanel from "./ContractRiskAssessmentPanel";
 import CivilLawRequirementsPanel from "./CivilLawRequirementsPanel";
 import { analyzeContractCivilBasis } from "../../services/ContractProject/civilLawRequirements";
 import ClauseSuggestionsPanel from "./ClauseSuggestionsPanel";
+import StandardContractTermsPanel from "./StandardContractTermsPanel";
 import type { ClauseTemplate } from "../../services/ContractProject/clauseTemplates.api";
 import styles from "./ContractProject.module.scss";
 import Select from "../UI/Select";
 import CounterpartySelect from "../UI/CounterpartySelect/CounterpartySelect";
+import CustomButton from "../UI/CustomButton";
 
 interface ContractLocationState {
   // Ссылка на закупку: проект не должен держаться только на ИКЗ
@@ -96,6 +100,7 @@ interface ContractLocationState {
 const PREVIEW_SECTION = "preview";
 const CHECKS_SECTION = "checks";
 const CIVIL_SECTION = "civil-law";
+const TERMS_SECTION = "standard-terms";
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object"
@@ -499,8 +504,10 @@ export default function ContractProjectForm() {
       ...next,
       id: existing?.id,
       contractNumber: project.contractNumber,
+      // Типовые условия выбираются оператором, цепочка извещений их не даёт
       status: existing?.status ?? "draft",
       createdAt: existing?.createdAt || next.createdAt,
+      standardTerm: project.standardTerm,
     });
   };
 
@@ -597,6 +604,15 @@ export default function ContractProjectForm() {
     } catch {
       setCopied(false);
     }
+  };
+
+  // Выбранный акт хранится в проекте как снимок: предпросмотр и обе выгрузки
+  // Word должны использовать одну и ту же дословную редакцию с тем же хешем.
+  const selectStandardTerm = (term: ContractStandardTerm | null) => {
+    methods.setValue("standardTerm", term ?? undefined, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const onSubmit = (formData: ContractProject) => {
@@ -1117,13 +1133,26 @@ export default function ContractProjectForm() {
             редакция — за контрактной службой заказчика.
           </p>
         </div>
-        <button
-          type="button"
-          className={styles.btnSecondary}
-          onClick={copyDocument}
-        >
-          {copied ? "Текст скопирован" : "Скопировать текст"}
-        </button>
+        <div className={styles.previewActions}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={copyDocument}
+          >
+            {copied ? "Текст скопирован" : "Скопировать текст"}
+          </button>
+          <CustomButton
+            configuration={{
+              button: {
+                name: "download-contract-project-docx",
+                value: "Скачать Word (.docx)",
+                type: "button",
+              },
+            }}
+            ariaLabel="Скачать проект контракта в формате Word"
+            onClick={() => void downloadContractProjectDocx(project)}
+          />
+        </div>
       </div>
 
       <article className={styles.preview}>
@@ -1392,6 +1421,15 @@ export default function ContractProjectForm() {
     </section>
   );
 
+  const renderStandardTerms = () => (
+    <section className={styles.section}>
+      <StandardContractTermsPanel
+        selected={project.standardTerm}
+        onSelect={selectStandardTerm}
+      />
+    </section>
+  );
+
   const renderChecks = () => (
     <section className={styles.section}>
       <h3 className={styles.sectionTitle}>Проверки проекта контракта</h3>
@@ -1640,6 +1678,19 @@ export default function ContractProjectForm() {
             <button
               type="button"
               className={`${styles.navBtn} ${
+                activeSection === TERMS_SECTION ? styles.navBtnActive : ""
+              }`}
+              onClick={() => setActiveSection(TERMS_SECTION)}
+            >
+              <span className={styles.navIndex}>ПП</span>
+              <span className={styles.navText}>Типовые условия</span>
+              {project.standardTerm && (
+                <span className={styles.navDotComplete} />
+              )}
+            </button>
+            <button
+              type="button"
+              className={`${styles.navBtn} ${
                 activeSection === CIVIL_SECTION ? styles.navBtnActive : ""
               }`}
               onClick={() => setActiveSection(CIVIL_SECTION)}
@@ -1692,7 +1743,9 @@ export default function ContractProjectForm() {
                   ? renderChecks()
                   : activeSection === CIVIL_SECTION
                     ? renderCivilLaw()
-                    : activeSectionDef
+                    : activeSection === TERMS_SECTION
+                      ? renderStandardTerms()
+                      : activeSectionDef
                       ? renderSection(activeSectionDef, activeIndex)
                       : null}
 

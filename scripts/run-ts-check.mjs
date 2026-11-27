@@ -41,6 +41,9 @@ execFileSync(
     "esm",
     "--platform",
     "node",
+    // Сервисы Word грузят docx динамическим import'ом: без слияния чанков
+    // rolldown не может записать проверку в один файл и падает до её запуска.
+    "--no-codeSplitting",
     "--file",
     out,
     "--logLevel",

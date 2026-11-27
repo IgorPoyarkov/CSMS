@@ -6,6 +6,7 @@ import {
   useStandardContractTerms,
   type StandardContractTerm,
 } from "../../services/Npa/standardContractTerms.api";
+import { downloadStandardContractTermsDocx } from "../../services/Npa/standardContractTermsWord";
 import {
   useNpaLibrary,
   type NpaLibraryItem,
@@ -265,6 +266,21 @@ export default function NpaLibraryPage() {
             {link.label}
           </a>
         ))}
+        {card.term && (
+          <CustomButton
+            configuration={{
+              button: {
+                name: `word-${card.id}`,
+                value: "Скачать Word",
+                type: "button",
+              },
+            }}
+            ariaLabel={`Скачать типовые условия ПП РФ № ${card.term.number} в Word`}
+            onClick={() => {
+              if (card.term) void downloadStandardContractTermsDocx(card.term);
+            }}
+          />
+        )}
       </div>
     </article>
   );

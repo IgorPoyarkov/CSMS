@@ -578,6 +578,29 @@ export type ContractSectionOverride = z.infer<
   typeof ContractSectionOverrideSchema
 >;
 
+// ─── Типовые условия контракта (ч. 11 ст. 34 44-ФЗ) ────────────────────────
+
+/**
+ * Снимок выбранного акта хранится в проекте контракта вместе с хешем и
+ * реквизитами источника: предпросмотр, вложение и выгрузка Word должны
+ * использовать ту же дословную редакцию, что была выбрана оператором.
+ * Сеть для этого не нужна — как и остальные снимки НПА в проекте.
+ */
+export const ContractStandardTermSchema = z.object({
+  code: z.string(),
+  number: z.string(),
+  passing: z.string(),
+  title: z.string(),
+  redDate: z.string(),
+  sourceUrl: z.string(),
+  cardUrl: z.string(),
+  textSource: z.string(),
+  textSha256: z.string(),
+  text: z.string(),
+});
+
+export type ContractStandardTerm = z.infer<typeof ContractStandardTermSchema>;
+
 // ─── Итоговая схема проекта контракта ──────────────────────────────────────
 
 export const ContractProjectSchema = z.object({
@@ -748,6 +771,8 @@ export const ContractProjectSchema = z.object({
   // Приложения и ручные переопределения разделов
   appendices: z.array(ContractAppendixSchema).default(() => []),
   sectionOverrides: z.array(ContractSectionOverrideSchema).default(() => []),
+  // Типовые условия, подлежащие применению (могут не выбираться вовсе)
+  standardTerm: ContractStandardTermSchema.optional(),
 
   // Статус проекта
   status: z
