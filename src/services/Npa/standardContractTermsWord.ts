@@ -160,9 +160,12 @@ export const downloadStandardContractTermsDocx = async (
 ): Promise<void> => {
   const blob = await buildStandardContractTermsDocx(term);
   const url = URL.createObjectURL(blob);
-  const link = globalThis.document.createElement("a");
+  const link = document.createElement("a");
   link.href = url;
   link.download = `${fileBaseName(term)}.docx`;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(link);
+  // Браузер успевает начать скачивание до освобождения object URL.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
