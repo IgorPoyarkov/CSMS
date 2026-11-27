@@ -100,6 +100,9 @@ test("снимок агента связывает документы с ОКП�
     requirements,
     catalog: { version: "test-catalog" },
     npaSnapshot,
+    gostFullTextUrls: {
+      "ГОСТ 30593-2015": "/gost/fulltext/gost-30593-2015.txt",
+    },
     generatedAt: "2026-11-27T00:00:00.000Z",
   });
   assert.match(snapshot.version, /^ooz-agent-20261127-/);
@@ -116,6 +119,19 @@ test("снимок агента связывает документы с ОКП�
     ],
   );
   assert.deepEqual(findAgentDocuments(snapshot, "26.51.66.190"), []);
+
+  // ГОСТ без зафиксированного текста не выдаёт подстановок.
+  const noText = buildOozAgentSnapshot({
+    selection,
+    requirements,
+    catalog: { version: "test-catalog" },
+    npaSnapshot,
+    generatedAt: "2026-11-27T00:00:00.000Z",
+  });
+  assert.equal(
+    findAgentDocuments(noText, "49.31.21.110")[0].status,
+    "needs_full_text",
+  );
 
   const withNpa = findAgentSuggestions(snapshot, "ГОСТ 30593 - 2015");
   const gost = withNpa.filter((item) => item.kind === "GOST");

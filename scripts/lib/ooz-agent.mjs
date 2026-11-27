@@ -105,7 +105,13 @@ export function buildOozAgentSnapshot({
       ktruCodes: item.ktruCodes,
       sourceUrl: item.sourceUrl ?? null,
       fullTextUrl: gostFullTextUrls[item.designation] ?? null,
-      status: requirementCount > 0 ? "has_requirements" : "no_quotes",
+      // Без зафиксированного текста ГОСТ не даёт подстановок — честно
+      // помечаем его так же, как документы без текста в otherStandards.
+      status: !gostFullTextUrls[item.designation]
+        ? "needs_full_text"
+        : requirementCount > 0
+          ? "has_requirements"
+          : "no_quotes",
     };
   });
   const npaDocs = (selection.otherStandards ?? []).map((item) => {

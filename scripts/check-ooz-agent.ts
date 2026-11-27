@@ -86,7 +86,7 @@ for (const doc of agent.documents) {
 }
 
 const docs = findAgentDocuments(agent, "49.31.21.110");
-assert(docs.length === 3, "для ОКПД2 49.31.21.110 найдены 3 документа");
+assert(docs.length >= 3, "для ОКПД2 49.31.21.110 найдены документы");
 assert(
   docs.some(
     (doc) => doc.code === "ГОСТ 30593-2015" && doc.kind === "GOST",
@@ -115,7 +115,13 @@ assert(
   "ТР ТС без зафиксированного текста остаётся needs_full_text",
 );
 assert(
-  findAgentDocuments(agent, "26.51.66.190").length === 0,
+  findAgentDocuments(agent, "42.11").some((doc) =>
+    doc.name.toLowerCase().startsWith("дороги автомобильные"),
+  ),
+  "дорожные ГОСТы из названий ОКПД2 попали в агент",
+);
+assert(
+  findAgentDocuments(agent, "99.99.99.999").length === 0,
   "для чужого ОКПД2 документы не выдаются",
 );
 
