@@ -325,6 +325,47 @@ export const emptyDescriptionAttachment = (
   url: "",
 });
 
+/**
+ * Переключение материала описания (п. 3 ч. 1 ст. 33) вместе с его приложениями.
+ *
+ * Материалы-документы (спецификации, планы, чертежи, эскизы, фотографии,
+ * результаты испытаний, подтверждение соответствия) существуют только как
+ * приложение: при включении сразу создаём строку файла, чтобы её было куда
+ * положить, при выключении — убираем приложения, иначе в карточке остаются
+ * материалы, которых нет в составе описания.
+ */
+export const applyDescriptionComponentToggle = (
+  description: Pick<
+    ObjectDescription,
+    "descriptionComponents" | "descriptionAttachments"
+  >,
+  component: DescriptionComponent,
+  checked: boolean,
+): Pick<ObjectDescription, "descriptionComponents" | "descriptionAttachments"> => {
+  const attachmentsOfComponent = description.descriptionAttachments.filter(
+    (item) => item.component === component,
+  );
+  const needsDocument = DESCRIPTION_COMPONENT_DOCUMENTS.includes(component);
+
+  return {
+    descriptionComponents: checked
+      ? description.descriptionComponents.includes(component)
+        ? description.descriptionComponents
+        : [...description.descriptionComponents, component]
+      : description.descriptionComponents.filter((item) => item !== component),
+    descriptionAttachments: !checked
+      ? description.descriptionAttachments.filter(
+          (item) => item.component !== component,
+        )
+      : needsDocument && attachmentsOfComponent.length === 0
+        ? [
+            ...description.descriptionAttachments,
+            emptyDescriptionAttachment(component),
+          ]
+        : description.descriptionAttachments,
+  };
+};
+
 /** Год, с которого ГОСТ считается современным для предупреждения в ООЗ. */
 export const MODERN_GOST_MIN_YEAR = 2010;
 

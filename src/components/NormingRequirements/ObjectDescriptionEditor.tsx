@@ -10,6 +10,7 @@ import {
   useOkpd2Dictionary,
 } from "../../services/Okpd2Ref/okpd2Ref.api";
 import {
+  applyDescriptionComponentToggle,
   buildObjectDescriptionSummaryText,
   CHARACTERISTIC_CATEGORIES,
   CHARACTERISTIC_VALUE_TYPES,
@@ -422,6 +423,57 @@ export default function ObjectDescriptionEditor({
     ],
   );
   const blockingErrors = complianceIssues.filter((i) => i.level === "error");
+
+  // Сводка для шапки и навигации по разделам: только реальные значения карточки,
+  // без «прогресс-баров», которые нельзя проверить.
+  const errorCount = blockingErrors.length;
+  const warningCount = complianceIssues.length - errorCount;
+  const filledAttachmentCount = draft.descriptionAttachments.filter(
+    (attachment) => attachment.fileName.trim() || attachment.url.trim(),
+  ).length;
+  const sectionNavItems: Array<{
+    id: string;
+    index: string;
+    label: string;
+    note: string;
+    level?: "error" | "warning" | "ok";
+  }> = [
+    {
+      id: "ooz-section-1",
+      index: "01",
+      label: "Предмет и ОКПД2",
+      note: draft.okpd2Code || "код не выбран",
+    },
+    {
+      id: "ooz-section-2",
+      index: "02",
+      label: "Характеристики",
+      note: `${draft.characteristics.length} шт.`,
+    },
+    {
+      id: "ooz-section-3",
+      index: "03",
+      label: "Требования и материалы",
+      note: `${draft.standards.length} док. · ${filledAttachmentCount} файл.`,
+    },
+    {
+      id: "ooz-section-4",
+      index: "04",
+      label: "Специальные правила",
+      note: showNewGoodsRequirement ? "товар" : "работы/услуги",
+    },
+    {
+      id: "ooz-section-5",
+      index: "05",
+      label: "Контроль",
+      note:
+        complianceIssues.length === 0
+          ? "без замечаний"
+          : `${errorCount} ошиб. · ${warningCount} предупр.`,
+      level:
+        errorCount > 0 ? "error" : complianceIssues.length > 0 ? "warning" : "ok",
+    },
+  ];
 
   const visibleCharacteristics = useMemo(() => {
     if (categoryFilter === "all") {
@@ -869,35 +921,15 @@ export default function ObjectDescriptionEditor({
   // Снятие компонента убирает его приложения: материалы, которых нет в составе
   // описания, не должны оставаться в карточке. При включении компонента-
   // материала сразу показываем строку приложения — иначе файл некуда положить.
+  // Само правило — чистая функция в схеме, чтобы его можно было проверить тестом.
   const toggleDescriptionComponent = (
     component: DescriptionComponent,
     checked: boolean,
   ) => {
-    setDraft((prev) => {
-      const keptAttachments = prev.descriptionAttachments.filter(
-        (item) => item.component !== component,
-      );
-      const hasAttachment = prev.descriptionAttachments.some(
-        (item) => item.component === component,
-      );
-      const needsDocument = DESCRIPTION_COMPONENT_DOCUMENTS.includes(component);
-
-      return {
-        ...prev,
-        descriptionComponents: checked
-          ? [...prev.descriptionComponents, component]
-          : prev.descriptionComponents.filter((item) => item !== component),
-        descriptionAttachments:
-          !checked
-            ? keptAttachments
-            : needsDocument && !hasAttachment
-              ? [
-                  ...prev.descriptionAttachments,
-                  emptyDescriptionAttachment(component),
-                ]
-              : prev.descriptionAttachments,
-      };
-    });
+    setDraft((prev) => ({
+      ...prev,
+      ...applyDescriptionComponentToggle(prev, component, checked),
+    }));
     setSubmitError("");
   };
 
@@ -1082,14 +1114,45 @@ export default function ObjectDescriptionEditor({
         </div>
       </div>
 
+      {/* Оглавление формы: пять разделов и несколько экранов прокрутки.
+          Показывает состав раздела и живые показатели карточки. */}
+      <nav className={block("section-nav")} aria-label="Разделы описания">
+        {sectionNavItems.map((item) => (
+          <a
+            key={item.id}
+            className={block("section-nav-link")}
+            href={`#${item.id}`}
+          >
+            <span className={block("section-nav-index")}>{item.index}</span>
+            <span className={block("section-nav-text")}>
+              <span className={block("section-nav-label")}>{item.label}</span>
+              <span className={block("section-nav-note", [item.level ?? "plain"])}>
+                {item.note}
+              </span>
+            </span>
+          </a>
+        ))}
+      </nav>
+
       {/* Секция 1: Идентификация объекта, ОКПД2 и КТРУ */}
-      <fieldset className={block("fieldset")}>
+      <fieldset id="ooz-section-1" className={block("fieldset")}>
         <legend className={block("legend")}>
           <span className={block("legend-index")}>01</span>
           Идентификация объекта закупки (ОКПД2 / КТРУ / объём)
         </legend>
+        <p className={block("section-intro")}>
+          Что закупаем и по какому коду. Код ОКПД2 сверяется с позицией
+          плана-графика: расхождение блокирует сохранение карточки.
+        </p>
 
         <div className={block("grid")}>
+          <div className={block("group-head")}>
+            <span className={block("group-head-text")}>Предмет закупки</span>
+            <span className={block("group-head-note")}>
+              наименование и вид объекта — попадают в СЗ и извещение
+            </span>
+          </div>
+
           <div className={block("field", ["full"])}>
             <label className={block("label")} htmlFor="ooz-title">
               Наименование объекта закупки *
@@ -1132,6 +1195,15 @@ export default function ObjectDescriptionEditor({
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div className={block("group-head")}>
+            <span className={block("group-head-text")}>
+              Классификация и сверка с планом-графиком
+            </span>
+            <span className={block("group-head-note")}>
+              ОКПД2, объекты закупки и характеристики позиции
+            </span>
           </div>
 
           <div className={block("field", ["wide"])}>
@@ -1226,6 +1298,13 @@ export default function ObjectDescriptionEditor({
             )}
           </div>
 
+          <div className={block("group-head")}>
+            <span className={block("group-head-text")}>Объём закупки</span>
+            <span className={block("group-head-note")}>
+              количество и единица измерения по ОКЕИ
+            </span>
+          </div>
+
           {/* Флаг объёма — отдельная строка: иначе его длинная подпись
               сдвигает «Количество» относительно поля «Единица измерения». */}
           <div className={block("field", ["full", "check"])}>
@@ -1317,6 +1396,15 @@ export default function ObjectDescriptionEditor({
             />
           </div>
 
+          <div className={block("group-head")}>
+            <span className={block("group-head-text")}>
+              Каталог КТРУ (ПП РФ № 145)
+            </span>
+            <span className={block("group-head-note")}>
+              позиция каталога заполняет объём и характеристики
+            </span>
+          </div>
+
           {!hideKtruFlag && (
             <div className={block("field", ["full", "check"])}>
               <label className={block("label")} htmlFor="ooz-ktru">
@@ -1363,11 +1451,16 @@ export default function ObjectDescriptionEditor({
       {/* Секция 2: Структурированные характеристики.
           Описание ОЗ по КТРУ перенесено сюда из раздела 1: раздел 1 только
           выбирает позицию каталога, а все её поля живут в 2.2. */}
-      <fieldset className={block("fieldset")}>
+      <fieldset id="ooz-section-2" className={block("fieldset")}>
         <legend className={block("legend")}>
           <span className={block("legend-index")}>02</span>
           Структурированные характеристики (ст. 33 44-ФЗ / ПП 145 / ПП 926)
         </legend>
+        <p className={block("section-intro")}>
+          Показатели, по которым участник заполняет заявку. Обязательные поля
+          выбранной позиции КТРУ подставляются из каталога, остальные можно
+          добавить вручную.
+        </p>
 
         {draft.useKtru && (
           <div className={block("ktru-description")}>
@@ -1898,12 +1991,24 @@ export default function ObjectDescriptionEditor({
       </fieldset>
 
       {/* Секция 3: Товарный знак, ГОСТ, гарантии и инструкция */}
-      <fieldset className={block("fieldset")}>
+      <fieldset id="ooz-section-3" className={block("fieldset")}>
         <legend className={block("legend")}>
           <span className={block("legend-index")}>03</span>
           Стандарты, товарные знаки, состав описания и гарантии (ст. 33
           44-ФЗ)
         </legend>
+        <p className={block("section-intro")}>
+          Что именно требуется от товара: товарный знак, документы по
+          стандартизации, материалы описания, упаковка, маркировка, гарантия и
+          инструкция участнику.
+        </p>
+
+        <div className={block("group-head", ["section"])}>
+          <span className={block("group-head-text")}>
+            Товарный знак и эквивалентность
+          </span>
+          <span className={block("group-head-note")}>п. 1 ч. 1 ст. 33</span>
+        </div>
 
         <div className={block("grid")}>
           <div className={block("field", ["wide"])}>
@@ -1963,10 +2068,17 @@ export default function ObjectDescriptionEditor({
         </div>
 
         <div className={block("standards-block")}>
+          <div className={block("group-head", ["section"])}>
+            <span className={block("group-head-text")}>
+              Документы по стандартизации (п. 2 ч. 1 ст. 33)
+            </span>
+            <span className={block("group-head-note")}>
+              ГОСТ, ГОСТ Р и технические регламенты
+            </span>
+          </div>
           <div className={block("standards-head")}>
             <span className={block("label")}>
-              Нормативные документы, ГОСТ и технические регламенты (п. 2 ч. 1
-              ст. 33)
+              Перечень документов, соответствие которым требуется
             </span>
             <button
               type="button"
@@ -2237,11 +2349,15 @@ export default function ObjectDescriptionEditor({
         {/* П. 3 ч. 1 ст. 33: состав описания и материалы к нему. Упаковка и
             маркировка уже описаны в этом блоке, поэтому состав описания живёт
             здесь же, а не отдельной секцией. */}
-        <div className={block("standards-block")}>
-          <div className={block("standards-head")}>
-            <span className={block("label")}>
-              Состав описания: спецификации, планы, чертежи, эскизы,
-              фотографии (п. 3 ч. 1 ст. 33)
+        <div className={block("standards-block", ["composition"])}>
+          <div className={block("group-head", ["section"])}>
+            <span className={block("group-head-text")}>
+              Состав описания (п. 3 ч. 1 ст. 33)
+            </span>
+            <span className={block("group-head-note")}>
+              отмечено {draft.descriptionComponents.length} из{" "}
+              {DESCRIPTION_COMPONENTS.length} · материалов:{" "}
+              {filledAttachmentCount}
             </span>
           </div>
           <span className={block("field-hint")}>
@@ -2251,101 +2367,145 @@ export default function ObjectDescriptionEditor({
             приложение — для них нужен файл или реквизиты приложения.
           </span>
 
-          {DESCRIPTION_COMPONENTS.map((component) => {
-            const checked = draft.descriptionComponents.includes(component);
-            const needsDocument =
-              DESCRIPTION_COMPONENT_DOCUMENTS.includes(component);
+          {/* Отметки — компактной сеткой: 13 материалов не должны занимать
+              два экрана прокрутки отдельными карточками. */}
+          <div className={block("composition-grid")}>
+            {DESCRIPTION_COMPONENTS.map((component) => {
+              const checked = draft.descriptionComponents.includes(component);
+              const needsDocument =
+                DESCRIPTION_COMPONENT_DOCUMENTS.includes(component);
+              const filledCount = draft.descriptionAttachments.filter(
+                (item) =>
+                  item.component === component &&
+                  Boolean(item.fileName.trim() || item.url.trim()),
+              ).length;
+
+              return (
+                <div
+                  key={component}
+                  className={block("composition-chip")}
+                  data-checked={checked ? "true" : undefined}
+                >
+                  <CustomCheckbox
+                    compact
+                    label={descriptionComponentLabels[component]}
+                    checked={checked}
+                    onChange={(e) =>
+                      toggleDescriptionComponent(component, e.target.checked)
+                    }
+                  />
+                  {needsDocument && (
+                    <span
+                      className={block("composition-chip-meta")}
+                      data-missing={
+                        checked && filledCount === 0 ? "true" : undefined
+                      }
+                    >
+                      {filledCount > 0
+                        ? `файлов: ${filledCount}`
+                        : checked
+                          ? "файл не приложен"
+                          : "нужен файл"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Приложения — только для отмеченных материалов-документов:
+              пустые группы не занимают место в форме. */}
+          {DESCRIPTION_COMPONENTS.filter(
+            (component) =>
+              draft.descriptionComponents.includes(component) &&
+              DESCRIPTION_COMPONENT_DOCUMENTS.includes(component),
+          ).map((component) => {
             const attachments = draft.descriptionAttachments.filter(
               (item) => item.component === component,
             );
 
             return (
-              <div key={component} className={block("composition-item")}>
-                <CustomCheckbox
-                  compact
-                  label={descriptionComponentLabels[component]}
-                  checked={checked}
-                  onChange={(e) =>
-                    toggleDescriptionComponent(component, e.target.checked)
-                  }
-                />
-                {checked && needsDocument && (
-                  <div className={block("req-list")}>
-                    {attachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className={block("attachment-row")}
-                      >
-                        <div className={block("file-field")}>
-                          <label
-                            className={block("label")}
-                            htmlFor={`ooz-att-file-${attachment.id}`}
-                          >
-                            Файл
-                          </label>
-                          <input
-                            id={`ooz-att-file-${attachment.id}`}
-                            className={block("file-input")}
-                            type="file"
-                            onChange={(e) =>
-                              pickDescriptionAttachmentFile(
-                                attachment.id,
-                                e.target.files,
-                              )
-                            }
-                          />
-                          {attachment.fileName && (
-                            <span className={block("attachment-meta")}>
-                              {attachment.fileName}
-                              {attachment.fileSize
-                                ? ` · ${formatFileSize(attachment.fileSize)}`
-                                : ""}
-                            </span>
-                          )}
-                        </div>
-                        <div className={block("file-field")}>
-                          <label
-                            className={block("label")}
-                            htmlFor={`ooz-att-url-${attachment.id}`}
-                          >
-                            Ссылка или реквизиты приложения
-                          </label>
-                          <input
-                            id={`ooz-att-url-${attachment.id}`}
-                            className={block("input")}
-                            type="text"
-                            placeholder="Например: приложение № 1 к ООЗ"
-                            value={attachment.url}
-                            onChange={(e) =>
-                              updateDescriptionAttachment(attachment.id, {
-                                url: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className={block("req-remove")}
-                          onClick={() =>
-                            removeDescriptionAttachment(attachment.id)
-                          }
-                          title="Удалить приложение"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                    <div>
-                      <button
-                        type="button"
-                        className={block("add-btn")}
-                        onClick={() => addDescriptionAttachment(component)}
-                      >
-                        + Добавить файл
-                      </button>
-                    </div>
-                  </div>
+              <div key={component} className={block("attachment-group")}>
+                <div className={block("attachment-group-head")}>
+                  <span className={block("attachment-group-title")}>
+                    {descriptionComponentLabels[component]}
+                  </span>
+                  <button
+                    type="button"
+                    className={block("inline-btn")}
+                    onClick={() => addDescriptionAttachment(component)}
+                  >
+                    + Добавить файл
+                  </button>
+                </div>
+                {attachments.length === 0 && (
+                  <span className={block("field-hint")}>
+                    Файл не приложен — материал не будет считаться переданным
+                    в описании.
+                  </span>
                 )}
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className={block("attachment-row")}
+                  >
+                    <div className={block("file-field")}>
+                      <label
+                        className={block("label")}
+                        htmlFor={`ooz-att-file-${attachment.id}`}
+                      >
+                        Файл
+                      </label>
+                      <input
+                        id={`ooz-att-file-${attachment.id}`}
+                        className={block("file-input")}
+                        type="file"
+                        onChange={(e) =>
+                          pickDescriptionAttachmentFile(
+                            attachment.id,
+                            e.target.files,
+                          )
+                        }
+                      />
+                      {attachment.fileName && (
+                        <span className={block("attachment-meta")}>
+                          {attachment.fileName}
+                          {attachment.fileSize
+                            ? ` · ${formatFileSize(attachment.fileSize)}`
+                            : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div className={block("file-field")}>
+                      <label
+                        className={block("label")}
+                        htmlFor={`ooz-att-url-${attachment.id}`}
+                      >
+                        Ссылка или реквизиты приложения
+                      </label>
+                      <input
+                        id={`ooz-att-url-${attachment.id}`}
+                        className={block("input")}
+                        type="text"
+                        placeholder="Например: приложение № 1 к ООЗ"
+                        value={attachment.url}
+                        onChange={(e) =>
+                          updateDescriptionAttachment(attachment.id, {
+                            url: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className={block("req-remove")}
+                      onClick={() => removeDescriptionAttachment(attachment.id)}
+                      title="Удалить приложение"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
             );
           })}
@@ -2354,6 +2514,15 @@ export default function ObjectDescriptionEditor({
             Файл обрабатывается в браузере и не загружается в систему:
             сохраняются имя, размер и реквизиты приложения. Сам файл
             прикладывается к извещению в ЕИС.
+          </span>
+        </div>
+
+        <div className={block("group-head", ["section"])}>
+          <span className={block("group-head-text")}>
+            Требования к поставке, упаковке и гарантии
+          </span>
+          <span className={block("group-head-note")}>
+            ч. 4 и п. 3 ч. 1 ст. 33 · упаковка и маркировка — часть описания
           </span>
         </div>
 
@@ -2474,16 +2643,29 @@ export default function ObjectDescriptionEditor({
           маркировкой. Товарные правила показываем только для товара, п. 8 —
           только для работ: редактор не должен предлагать неприменимые
           требования. */}
-      <fieldset className={block("fieldset")}>
+      <fieldset id="ooz-section-4" className={block("fieldset")}>
         <legend className={block("legend")}>
           <span className={block("legend-index")}>04</span>
           Специальные правила описания (п. 4–8 ч. 1, ч. 1.1 ст. 33)
         </legend>
+        <p className={block("section-intro")}>
+          Правила включаются только для своего вида объекта: товарные — для
+          товара, строительные — для работ. Для работ и услуг товарные правила
+          в форме не показываются.
+        </p>
 
         {/* П. 4 ч. 1 ст. 33: изображение товара обязательно, если описание
             ссылается на соответствие товара изображению. */}
         {showNewGoodsRequirement && (
           <div className={block("grid")}>
+            <div className={block("group-head")}>
+              <span className={block("group-head-text")}>
+                Изображение товара (п. 4 ч. 1 ст. 33)
+              </span>
+              <span className={block("group-head-note")}>
+                обязательно, если описание ссылается на изображение
+              </span>
+            </div>
             <div className={block("field", ["full", "check"])}>
               <CustomCheckbox
                 label="В описании есть требование о соответствии товара изображению (п. 4 ч. 1 ст. 33)"
@@ -2550,6 +2732,14 @@ export default function ObjectDescriptionEditor({
             осмотре образца или макета товара. */}
         {showNewGoodsRequirement && (
           <div className={block("grid")}>
+            <div className={block("group-head")}>
+              <span className={block("group-head-text")}>
+                Осмотр образца или макета (п. 5 ч. 1 ст. 33)
+              </span>
+              <span className={block("group-head-note")}>
+                порядок, место и сроки осмотра
+              </span>
+            </div>
             <div className={block("field", ["full", "check"])}>
               <CustomCheckbox
                 label="Установлено требование об осмотре образца или макета товара (п. 5 ч. 1 ст. 33)"
@@ -2653,6 +2843,14 @@ export default function ObjectDescriptionEditor({
             наличии — торговое наименование с обоснованием. */}
         {showNewGoodsRequirement && (
           <div className={block("grid")}>
+            <div className={block("group-head")}>
+              <span className={block("group-head-text")}>
+                Лекарственные средства (п. 6 ч. 1 ст. 33)
+              </span>
+              <span className={block("group-head-note")}>
+                МНН и основание указания торгового наименования
+              </span>
+            </div>
             <div className={block("field", ["full", "check"])}>
               <CustomCheckbox
                 label="Объект закупки — лекарственное средство (п. 6 ч. 1 ст. 33)"
@@ -2709,6 +2907,14 @@ export default function ObjectDescriptionEditor({
             формируется по проектной или сметной документации. */}
         {draft.productType === "WORK" && (
           <div className={block("grid")}>
+            <div className={block("group-head")}>
+              <span className={block("group-head-text")}>
+                Работы по строительству (п. 8 ч. 1 ст. 33)
+              </span>
+              <span className={block("group-head-note")}>
+                проектная или сметная документация
+              </span>
+            </div>
             <div className={block("field", ["full", "check"])}>
               <CustomCheckbox
                 label="Работы по строительству, реконструкции, капитальному ремонту, сносу объекта капитального строительства (п. 8 ч. 1 ст. 33)"
@@ -2776,6 +2982,14 @@ export default function ObjectDescriptionEditor({
             установленные Правительством РФ. */}
         {showNewGoodsRequirement && (
           <div className={block("grid")}>
+            <div className={block("group-head")}>
+              <span className={block("group-head-text")}>
+                Национальный режим (ч. 1.1 ст. 33)
+              </span>
+              <span className={block("group-head-note")}>
+                ПП РФ № 1875 · код ОКПД2 подсказывает режим
+              </span>
+            </div>
             <div className={block("field", ["full", "check"])}>
               <CustomCheckbox
                 label="Закупка товара российского происхождения (ч. 1.1 ст. 33)"
@@ -2864,42 +3078,59 @@ export default function ObjectDescriptionEditor({
         )}
       </fieldset>
 
-      {/* Секция 5: Автоконтроль соответствия 44-ФЗ / ПП 145 */}
-      <div className={block("compliance-panel")}>
-        <h3 className={block("compliance-title")}>
-          Проверка соответствия ст. 33 44-ФЗ и ПП РФ № 145
-        </h3>
-        {complianceIssues.length === 0 ? (
-          <p className={block("compliance-ok")}>
-            Нарушений и замечаний не выявлено — описание готово к включению в СЗ
-            и извещение.
-          </p>
-        ) : (
-          <ul className={block("compliance-list")}>
-            {complianceIssues.map((issue) => (
-              <li
-                key={issue.code}
-                className={block("compliance-item", [issue.level])}
-              >
-                <strong>
-                  {issue.level === "error" ? "Ошибка:" : "Предупреждение:"}
-                </strong>{" "}
-                {issue.message}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <fieldset id="ooz-section-5" className={block("fieldset", ["check"])}>
+        <legend className={block("legend")}>
+          <span className={block("legend-index")}>05</span>
+          Контроль описания
+        </legend>
+        <p className={block("section-intro")}>
+          Проверки идут по мере заполнения: ошибки блокируют согласование,
+          предупреждения нужно осознанно принять до сохранения.
+        </p>
 
-      {/* Секция 5: Живая проверка по Приказу Минфина № 158н */}
-      <Order158nValidatorPanel
-        compact
-        descriptions={[draft]}
-        selectedId={draft.id ?? "draft"}
-        contractService={contractService}
-        educations={educations}
-        okpd2Dictionary={okpd2Dictionary}
-      />
+        <div className={block("compliance-panel")}>
+          <div className={block("group-head", ["section"])}>
+            <span className={block("group-head-text")}>
+              Соответствие ст. 33 44-ФЗ и ПП РФ № 145
+            </span>
+            <span className={block("group-head-note")}>
+              {complianceIssues.length === 0
+                ? "замечаний нет"
+                : `${errorCount} ошиб. · ${warningCount} предупр.`}
+            </span>
+          </div>
+          {complianceIssues.length === 0 ? (
+            <p className={block("compliance-ok")}>
+              Нарушений и замечаний не выявлено — описание готово к включению в СЗ
+              и извещение.
+            </p>
+          ) : (
+            <ul className={block("compliance-list")}>
+              {complianceIssues.map((issue) => (
+                <li
+                  key={issue.code}
+                  className={block("compliance-item", [issue.level])}
+                >
+                  <strong>
+                    {issue.level === "error" ? "Ошибка:" : "Предупреждение:"}
+                  </strong>{" "}
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Живая проверка по Приказу Минфина № 158н */}
+        <Order158nValidatorPanel
+          compact
+          descriptions={[draft]}
+          selectedId={draft.id ?? "draft"}
+          contractService={contractService}
+          educations={educations}
+          okpd2Dictionary={okpd2Dictionary}
+        />
+      </fieldset>
 
       {/* Полный текст документа агента — зафиксированный снимок из public/. */}
       {fullTextDoc && (
