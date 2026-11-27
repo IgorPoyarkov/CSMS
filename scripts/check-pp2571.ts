@@ -50,9 +50,12 @@ assert.equal(
   PP2571_POSITIONS.length,
 );
 assert.deepEqual(
-  PP2571_POSITIONS.map((item) => String(item.number)).sort(
-    (a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10),
-  ),
+  PP2571_POSITIONS.map((item) => String(item.number)).sort((a, b) => {
+    const byNumber = Number.parseInt(a, 10) - Number.parseInt(b, 10);
+    if (byNumber !== 0) return byNumber;
+    // «6» идёт перед «6(1)», «36» — перед «36(1)»: короткая запись раньше.
+    return a.length - b.length || a.localeCompare(b);
+  }),
   [
     "1", "2", "3", "4", "5", "6", "6(1)", "7", "8", "9", "10",
     "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
