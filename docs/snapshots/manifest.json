@@ -53,6 +53,22 @@
     "monitor": "node scripts/gost-monitor.mjs --months 2",
     "note": "Подсказки в редакторе ООЗ. Предупреждение GOST_NOT_MODERN по-прежнему считается из обозначения и от снимка не зависит."
   },
+  "gostRequirements": {
+    "code": "gostFullTextRequirements",
+    "version": "gost-req-20261127-2289306a4f87",
+    "capturedAt": "2026-11-27T02:19:49.313Z",
+    "file": "public/gost/requirements.json",
+    "fileSha256": "CD78C461ECD181CB2E0F16244997140C81B97D276DFF048F093B7CD1EAE48CF2",
+    "snapshotDir": "docs/snapshots/gost/fulltext",
+    "selectionFile": "docs/snapshots/gost/okpd2-selection.json",
+    "selectionBuilder": "node scripts/select-gosts-by-okpd2.mjs",
+    "itemCount": 2,
+    "source": "https://allgosts.ru",
+    "sourceNote": "Полный текст ГОСТа выгружается из браузера (scripts/browser/export-article.js), Node-fetch упирается в капчу. Выгружаются только ГОСТы, отобранные по ОКПД2 позиций плана-графика через standards[] карточек КТРУ. В requirements.json попадают только значения с дословной цитатой из текста.",
+    "consumers": ["src/services/GostRef/gostRequirements.schema.ts", "src/components/NormingRequirements/ObjectDescriptionEditor.tsx"],
+    "builder": "node scripts/build-gost-requirements.mjs",
+    "note": "Подстановка гарантийного срока, гарантии, упаковки и монтажа в ООЗ. ГОСТ 1232-2017 даёт 4 требования, ГОСТ 30593-2015 — ни одного (цитат для ООЗ в тексте нет). GOST_NOT_MODERN не зависит от этого снимка."
+  },
   "npaRules": [
     {
       "code": "rp-471",

@@ -163,6 +163,7 @@ export const TRADEMARK_RULES = [
   "with_equivalent",
   "compatibility",
   "spare_parts",
+  "medical_purpose",
 ] as const;
 
 export type TrademarkRule = (typeof TRADEMARK_RULES)[number];
@@ -174,6 +175,87 @@ export const trademarkRuleLabels: Record<TrademarkRule, string> = {
     "Необходимость обеспечения взаимодействия с имеющимися товарами (без эквивалента)",
   spare_parts:
     "Запасные части и расходные материалы по технической документации",
+  medical_purpose:
+    "Медицинские изделия и лечебное питание по медицинским показаниям (п. 1 «г» ч. 1 ст. 33)",
+};
+
+/**
+ * Состав описания объекта закупки по п. 3 ч. 1 ст. 33: перечень не является
+ * обязательным, заказчик включает только те материалы, которые нужны для
+ * идентификации объекта и подготовки заявки.
+ */
+export const DESCRIPTION_COMPONENTS = [
+  "specifications",
+  "plans",
+  "drawings",
+  "sketches",
+  "photos",
+  "testResults",
+  "testRequirements",
+  "packaging",
+  "marking",
+  "labels",
+  "conformityConfirmation",
+  "productionMethods",
+  "symbolsAndTerminology",
+] as const;
+
+export type DescriptionComponent = (typeof DESCRIPTION_COMPONENTS)[number];
+
+export const descriptionComponentLabels: Record<DescriptionComponent, string> = {
+  specifications: "Спецификации",
+  plans: "Планы",
+  drawings: "Чертежи",
+  sketches: "Эскизы",
+  photos: "Фотографии",
+  testResults: "Результаты работы, тестирования",
+  testRequirements: "Требования к испытаниям и методам испытаний",
+  packaging: "Упаковка (ст. 481 ГК РФ)",
+  marking: "Маркировка",
+  labels: "Этикетки",
+  conformityConfirmation: "Подтверждение соответствия",
+  productionMethods: "Процессы и методы производства",
+  symbolsAndTerminology: "Условные обозначения и терминология",
+};
+
+/**
+ * Компоненты состава описания, которые существуют только как приложенный
+ * материал: спецификации, планы, чертежи, эскизы, фотографии, результаты
+ * испытаний и подтверждение соответствия. Отметить такой пункт без файла или
+ * реквизитов приложения бессмысленно — заявку по нему не проверить.
+ * Остальные компоненты — текстовые требования, им достаточно формулировки.
+ */
+export const DESCRIPTION_COMPONENT_DOCUMENTS: DescriptionComponent[] = [
+  "specifications",
+  "plans",
+  "drawings",
+  "sketches",
+  "photos",
+  "testResults",
+  "conformityConfirmation",
+];
+
+/**
+ * Документация, которая должна входить в описание по п. 8 ч. 1 ст. 33 при
+ * закупке работ по строительству, реконструкции, капремонту или сносу ОКС.
+ */
+export const CONSTRUCTION_DOC_TYPES = [
+  "none",
+  "project",
+  "standard_project",
+  "major_repair_estimate",
+  "not_required",
+] as const;
+
+export type ConstructionDocType = (typeof CONSTRUCTION_DOC_TYPES)[number];
+
+export const constructionDocTypeLabels: Record<ConstructionDocType, string> = {
+  none: "Документация не приложена (нарушение п. 8 ч. 1 ст. 33)",
+  project: "Проектная документация, утверждённая в установленном порядке",
+  standard_project: "Типовая проектная документация",
+  major_repair_estimate: "Смета на капитальный ремонт объекта капстроительства",
+  not_required:
+    "Подготовка документации не требуется / закупка по ч. 16, 16.1 ст. 34",
 };
 
 const optionalString = () => z.string().optional().default("");
@@ -211,6 +293,37 @@ export const ObjectStandardRefSchema = z.object({
 });
 
 export type ObjectStandardRef = z.infer<typeof ObjectStandardRefSchema>;
+
+/**
+ * Приложение к описанию объекта закупки (п. 3 ч. 1 ст. 33).
+ *
+ * Файл обрабатывается в браузере и не загружается в систему — сохраняются имя,
+ * размер и ссылка/реквизиты приложения, как в остальных документах закупки
+ * (извещение, СЗ). Сам файл прикладывается к извещению в ЕИС, а описание
+ * остаётся проверяемым: видно, какой материал заявлен и где он лежит.
+ */
+export const ObjectDescriptionAttachmentSchema = z.object({
+  id: z.string(),
+  component: z.enum(DESCRIPTION_COMPONENTS).default("specifications"),
+  fileName: optionalString(),
+  fileSize: z.coerce.number().nonnegative().default(0),
+  /** Ссылка на файл либо реквизиты приложения: «приложение № 1 к ООЗ» */
+  url: optionalString(),
+});
+
+export type ObjectDescriptionAttachment = z.infer<
+  typeof ObjectDescriptionAttachmentSchema
+>;
+
+export const emptyDescriptionAttachment = (
+  component: DescriptionComponent = "specifications",
+): ObjectDescriptionAttachment => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  component,
+  fileName: "",
+  fileSize: 0,
+  url: "",
+});
 
 /** Год, с которого ГОСТ считается современным для предупреждения в ООЗ. */
 export const MODERN_GOST_MIN_YEAR = 2010;
@@ -286,6 +399,55 @@ export const ObjectDescriptionSchema = z.object({
 
   // Технические регламенты и стандарты (п. 2 ч. 1 ст. 33)
   standards: z.array(ObjectStandardRefSchema).default([]),
+  // Если показатели берутся не из техрегламентов и документов по
+  // стандартизации, п. 2 ч. 1 ст. 33 требует обосновать такой выбор.
+  nonStandardIndicatorsJustification: optionalString(),
+
+  // Состав описания (п. 3 ч. 1 ст. 33): спецификации, чертежи, фотографии,
+  // требования к испытаниям, упаковке, маркировке, этикеткам и т. п.
+  descriptionComponents: z.array(z.enum(DESCRIPTION_COMPONENTS)).default([]),
+  // Материалы, приложенные к описанию: планы, чертежи, эскизы, фотографии,
+  // спецификации. Хранятся реквизиты приложений, файл передаётся в ЕИС.
+  descriptionAttachments: z
+    .array(ObjectDescriptionAttachmentSchema)
+    .default([]),
+
+  // Изображение поставляемого товара (п. 4 ч. 1 ст. 33). Поле нужно, только
+  // если в описании есть требование о соответствии товара изображению.
+  goodsImageRequired: z.boolean().default(false),
+  goodsImageReference: optionalString(),
+  goodsImageFileName: optionalString(),
+  goodsImageFileSize: z.coerce.number().nonnegative().default(0),
+  goodsImageUrl: optionalString(),
+
+  // Осмотр образца или макета товара (п. 5 ч. 1 ст. 33): место, даты начала
+  // и окончания, порядок и график осмотра обязательны, если заявлено осмотр.
+  sampleInspectionRequired: z.boolean().default(false),
+  sampleInspectionPlace: optionalString(),
+  sampleInspectionStartDate: optionalString(),
+  sampleInspectionEndDate: optionalString(),
+  sampleInspectionProcedure: optionalString(),
+  sampleInspectionSchedule: optionalString(),
+
+  // Лекарственные средства (п. 6 ч. 1 ст. 33): МНН обязательны, торговые
+  // наименования допустимы только по установленным основаниям.
+  isMedicinalProduct: z.boolean().default(false),
+  innIndication: optionalString(),
+  tradeNameUseBasis: optionalString(),
+
+  // Работы по строительству, реконструкции, капремонту, сносу ОКС
+  // (п. 8 ч. 1 ст. 33): в описание включается проектная документация,
+  // типовая проектная документация или смета на капремонт.
+  capitalConstructionWork: z.boolean().default(false),
+  constructionDocType: z.enum(CONSTRUCTION_DOC_TYPES).default("none"),
+  constructionDocDetails: optionalString(),
+
+  // Национальный режим (ч. 1.1 ст. 33): если в отношении товара установлены
+  // запрет, ограничение или преимущество по п. 1 ч. 2 ст. 14, в описании
+  // указываются характеристики товара российского происхождения.
+  nationalRegimeRestriction: z.boolean().default(false),
+  russianGoodsCharacteristics: optionalString(),
+  nationalRegimeException: optionalString(),
 
   // Новизна товара, гарантия и инструкция участнику (п. 7 ч. 1, ч. 4 ст. 33)
   isNewGoodsRequired: z.boolean().default(true),
@@ -343,11 +505,23 @@ export interface ComplianceIssue {
  */
 export const validateObjectDescriptionCompliance = (
   desc: ObjectDescription,
-  options: { hasKtruForOkpd2?: boolean } = {},
+  options: {
+    hasKtruForOkpd2?: boolean;
+    /**
+     * Режим по ПП РФ № 1875, который агент определил по коду ОКПД2. Передаёт
+     * вызывающая сторона: схема остаётся свободной от справочников, а проверка
+     * ч. 1.1 ст. 33 видит тот же режим, что и карточка.
+     */
+    expectedNationalRegime?: "ban" | "restriction" | null;
+  } = {},
 ): ComplianceIssue[] => {
   const issues: ComplianceIssue[] = [];
   // Флаг «Применение КТРУ» не имеет смысла, когда по коду ОКПД2 позиций нет.
   const useKtru = options.hasKtruForOkpd2 === false ? false : desc.useKtru;
+  // Явно выбранные работы или услуги: товарные правила п. 4–7 ч. 1 и ч. 1.1
+  // ст. 33 к ним не применяются, зато п. 8 адресован именно работам.
+  const explicitNonGoods =
+    desc.productType === "WORK" || desc.productType === "SERVICE";
 
   if (desc.kind === "object_description" && desc.characteristics.length === 0) {
     issues.push({
@@ -408,6 +582,238 @@ export const validateObjectDescriptionCompliance = (
       level: "error",
       code: "STANDARD_DEVIATION_UNJUSTIFIED",
       message: `Отклонение от показателей ГОСТ/технических регламентов требует обоснования (п. 2 ч. 1 ст. 33 44-ФЗ): ${badStandards.map((s) => s.code).join(", ")}.`,
+    });
+  }
+
+  // П. 1 «г» ч. 1 ст. 33: медицинские изделия и специализированные продукты
+  // лечебного питания — это товар, для работ и услуг основание неприменимо.
+  if (desc.trademarkRule === "medical_purpose" && explicitNonGoods) {
+    issues.push({
+      level: "warning",
+      code: "MEDICAL_TRADEMARK_NOT_GOODS",
+      message:
+        "Основание п. 1 «г» ч. 1 ст. 33 относится к медицинским изделиям и специализированным продуктам лечебного питания, то есть к товару. Для работы или услуги выберите другое основание указания товарного знака.",
+    });
+  }
+
+  // П. 4 ч. 1 ст. 33: если описание ссылается на изображение товара, само
+  // изображение должно быть в описании — иначе участник не сможет
+  // идентифицировать товар и подготовить заявку.
+  if (desc.goodsImageRequired) {
+    if (
+      !desc.goodsImageReference?.trim() &&
+      !desc.goodsImageFileName?.trim() &&
+      !desc.goodsImageUrl?.trim()
+    ) {
+      issues.push({
+        level: "error",
+        code: "GOODS_IMAGE_MISSING",
+        message:
+          "Заявлено требование о соответствии товара изображению, но изображение не описано и не приложено (п. 4 ч. 1 ст. 33 44-ФЗ). Приложите файл либо укажите ссылку или реквизиты изображения.",
+      });
+    }
+    if (explicitNonGoods) {
+      issues.push({
+        level: "warning",
+        code: "GOODS_IMAGE_NOT_GOODS",
+        message:
+          "Изображение поставляемого товара предусмотрено п. 4 ч. 1 ст. 33 только для закупки товара. Для работ и услуг это требование не применяется.",
+      });
+    }
+  }
+
+  // П. 5 ч. 1 ст. 33: осмотр образца или макета требует места, дат начала и
+  // окончания, порядка и графика — без них условие осмотра неисполнимо.
+  if (desc.sampleInspectionRequired) {
+    const missing = [
+      !desc.sampleInspectionPlace?.trim() ? "место осмотра" : "",
+      !desc.sampleInspectionStartDate?.trim() ? "дата начала осмотра" : "",
+      !desc.sampleInspectionEndDate?.trim() ? "дата окончания осмотра" : "",
+      !desc.sampleInspectionProcedure?.trim() &&
+      !desc.sampleInspectionSchedule?.trim()
+        ? "порядок и график осмотра"
+        : "",
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      issues.push({
+        level: "error",
+        code: "SAMPLE_INSPECTION_INCOMPLETE",
+        message: `Осмотр образца или макета товара (п. 5 ч. 1 ст. 33 44-ФЗ) требует указания: ${missing.join(", ")}.`,
+      });
+    }
+  }
+
+  // П. 6 ч. 1 ст. 33: для лекарственных средств обязательны МНН (либо
+  // химические, группировочные наименования), торговые наименования — только
+  // по установленным основаниям.
+  if (desc.isMedicinalProduct) {
+    if (explicitNonGoods) {
+      issues.push({
+        level: "warning",
+        code: "MEDICINAL_PRODUCT_NOT_GOODS",
+        message:
+          "Признак лекарственного средства относится к товару. Для работы или услуги правило п. 6 ч. 1 ст. 33 не применяется.",
+      });
+    }
+    if (!desc.innIndication?.trim()) {
+      issues.push({
+        level: "error",
+        code: "MEDICINAL_PRODUCT_INN_MISSING",
+        message:
+          "Объектом закупки указано лекарственное средство, но не приведены международные непатентованные наименования (при их отсутствии — химические, группировочные) — п. 6 ч. 1 ст. 33 44-ФЗ.",
+      });
+    }
+    if (desc.trademarkRule !== "none" && !desc.tradeNameUseBasis?.trim()) {
+      issues.push({
+        level: "warning",
+        code: "MEDICINAL_TRADE_NAME_BASIS_MISSING",
+        message:
+          "Для лекарственного средства указано торговое наименование без основания: перечень лекарственных средств, закупаемых по торговым наименованиям, или решение врачебной комиссии (п. 6 ч. 1 ст. 33 44-ФЗ).",
+      });
+    }
+  }
+
+  // П. 8 ч. 1 ст. 33: описание работ по строительству, реконструкции,
+  // капремонту и сносу ОКС должно содержать проектную документацию, типовую
+  // проектную документацию или смету на капремонт.
+  if (desc.capitalConstructionWork) {
+    if (desc.productType !== "WORK") {
+      issues.push({
+        level: "warning",
+        code: "CONSTRUCTION_WORK_TYPE_MISMATCH",
+        message:
+          "Отмечены работы по строительству, реконструкции, капремонту или сносу ОКС, но вид объекта закупки — не «Работа». П. 8 ч. 1 ст. 33 применяется к закупке работ.",
+      });
+    }
+    if (desc.constructionDocType === "none") {
+      issues.push({
+        level: "error",
+        code: "CONSTRUCTION_DOC_MISSING",
+        message:
+          "В описание работ по строительству, реконструкции, капремонту или сносу ОКС не включена проектная документация, типовая проектная документация либо смета на капитальный ремонт (п. 8 ч. 1 ст. 33 44-ФЗ).",
+      });
+    } else if (
+      desc.constructionDocType !== "not_required" &&
+      !desc.constructionDocDetails?.trim()
+    ) {
+      issues.push({
+        level: "error",
+        code: "CONSTRUCTION_DOC_DETAILS_MISSING",
+        message:
+          "Укажите реквизиты приложенной документации (проектной, типовой проектной или сметы) — без них включение её в описание не подтверждено (п. 8 ч. 1 ст. 33 44-ФЗ).",
+      });
+    }
+  }
+
+  // Ч. 1.1 ст. 33: при запрете, ограничении или преимуществе по п. 1 ч. 2
+  // ст. 14 в описании товара указываются характеристики российского товара.
+  if (desc.nationalRegimeRestriction) {
+    if (explicitNonGoods) {
+      issues.push({
+        level: "warning",
+        code: "NATIONAL_REGIME_NOT_GOODS",
+        message:
+          "Запрет, ограничение или преимущество по п. 1 ч. 2 ст. 14 устанавливаются в отношении товара. Для работы или услуги правило ч. 1.1 ст. 33 не применяется.",
+      });
+    }
+    if (!desc.russianGoodsCharacteristics?.trim()) {
+      issues.push({
+        level: "error",
+        code: "RUSSIAN_GOODS_CHARACTERISTICS_MISSING",
+        message:
+          "Установлен запрет, ограничение или преимущество по п. 1 ч. 2 ст. 14 44-ФЗ, но не указаны характеристики товара российского происхождения (ч. 1.1 ст. 33).",
+      });
+    }
+  }
+
+  // Ч. 1.1 ст. 33 + ПП РФ № 1875: если код ОКПД2 входит в перечень запрета или
+  // ограничения, описание товара должно содержать характеристики российского
+  // товара. Агент по нацрежиму режим уже определил — не даём молча пропустить
+  // обязательный раздел.
+  if (
+    options.expectedNationalRegime &&
+    !explicitNonGoods &&
+    !desc.nationalRegimeRestriction
+  ) {
+    const regimeLabel =
+      options.expectedNationalRegime === "ban"
+        ? "приложение № 1 (запрет)"
+        : "приложение № 2 (ограничение)";
+    issues.push({
+      level: "warning",
+      code: "NATIONAL_REGIME_DESCRIPTION_SKIPPED",
+      message: `Код ОКПД2 входит в ${regimeLabel} к ПП РФ № 1875, но в описании не указаны характеристики товара российского происхождения (ч. 1.1 ст. 33 44-ФЗ). Включите раздел и заполните характеристики либо обоснуйте неприменение.`,
+    });
+  }
+
+  // П. 3 ч. 1 ст. 33: спецификации, планы, чертежи, эскизы, фотографии и
+  // результаты испытаний существуют только как приложение — отметка без файла
+  // или реквизитов приложения ничего не подтверждает.
+  const declaredDocuments = desc.descriptionComponents.filter((component) =>
+    DESCRIPTION_COMPONENT_DOCUMENTS.includes(component),
+  );
+  const filledAttachments = desc.descriptionAttachments.filter(
+    (attachment) => attachment.fileName?.trim() || attachment.url?.trim(),
+  );
+  const documentsWithoutAttachment = declaredDocuments.filter(
+    (component) =>
+      !filledAttachments.some(
+        (attachment) => attachment.component === component,
+      ),
+  );
+  if (documentsWithoutAttachment.length > 0) {
+    issues.push({
+      level: "warning",
+      code: "DESCRIPTION_ATTACHMENT_MISSING",
+      message: `В составе описания заявлены материалы без файла и реквизитов приложения: ${documentsWithoutAttachment
+        .map((component) => descriptionComponentLabels[component])
+        .join(", ")}. Приложите файл или укажите реквизиты приложения (п. 3 ч. 1 ст. 33 44-ФЗ).`,
+    });
+  }
+
+  const emptyAttachments = desc.descriptionAttachments.filter(
+    (attachment) => !attachment.fileName?.trim() && !attachment.url?.trim(),
+  );
+  if (emptyAttachments.length > 0) {
+    issues.push({
+      level: "warning",
+      code: "DESCRIPTION_ATTACHMENT_EMPTY",
+      message: `В составе описания ${emptyAttachments.length} незаполненных приложений: выберите файл или укажите реквизиты приложения, иначе материал считается не приложенным (п. 3 ч. 1 ст. 33 44-ФЗ).`,
+    });
+  }
+
+  const unlinkedAttachments = desc.descriptionAttachments.filter(
+    (attachment) => !desc.descriptionComponents.includes(attachment.component),
+  );
+  if (unlinkedAttachments.length > 0) {
+    const unlinkedLabels = [
+      ...new Set(
+        unlinkedAttachments.map(
+          (attachment) => descriptionComponentLabels[attachment.component],
+        ),
+      ),
+    ].join(", ");
+    issues.push({
+      level: "warning",
+      code: "DESCRIPTION_ATTACHMENT_UNLINKED",
+      message: `Приложены материалы, не заявленные в составе описания: ${unlinkedLabels}. Отметьте компонент в составе описания или удалите приложение.`,
+    });
+  }
+
+  // П. 2 ч. 1 ст. 33: отказ от показателей техрегламентов и документов по
+  // стандартизации требует обоснования. Предупреждение, а не ошибка: ГОСТ
+  // может отсутствовать объективно.
+  if (
+    desc.kind === "object_description" &&
+    desc.characteristics.length > 0 &&
+    desc.standards.length === 0 &&
+    !desc.nonStandardIndicatorsJustification?.trim()
+  ) {
+    issues.push({
+      level: "warning",
+      code: "NON_STANDARD_INDICATORS_UNJUSTIFIED",
+      message:
+        "Показатели описания не опираются на технические регламенты и документы по стандартизации, а обоснование использования других показателей не приведено (п. 2 ч. 1 ст. 33 44-ФЗ).",
     });
   }
 
@@ -540,6 +946,49 @@ export const takeMissingOkpd2Codes = (
 };
 
 /**
+ * ISO-дата (2026-12-01) → 01.12.2026: в тексте ООЗ даты читает человек, и
+ * формат ДД.ММ.ГГГГ соответствует обычаю документа. Нераспознанное значение
+ * возвращаем как есть, чтобы не потерять данные.
+ */
+const formatRuDate = (value: string): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  return match ? `${match[3]}.${match[2]}.${match[1]}` : value.trim();
+};
+
+/**
+ * Приложения к описанию в текстовом виде: «Планы — файл plans.pdf; прил. № 1».
+ * Пустые строки приложений в текст не попадают.
+ */
+const attachmentTexts = (
+  attachments: ObjectDescription["descriptionAttachments"],
+): string[] =>
+  attachments
+    .filter((attachment) => attachment.fileName?.trim() || attachment.url?.trim())
+    .map((attachment) =>
+      [
+        descriptionComponentLabels[attachment.component],
+        attachment.fileName?.trim() ? `файл ${attachment.fileName.trim()}` : "",
+        attachment.url?.trim() ?? "",
+      ]
+        .filter(Boolean)
+        .join(" — "),
+    );
+
+/**
+ * Реквизиты изображения товара (п. 4 ч. 1 ст. 33): описание, файл, ссылка.
+ */
+const goodsImageText = (desc: ObjectDescription): string =>
+  [
+    desc.goodsImageReference?.trim() ?? "",
+    desc.goodsImageFileName?.trim()
+      ? `файл ${desc.goodsImageFileName.trim()}`
+      : "",
+    desc.goodsImageUrl?.trim() ?? "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+/**
  * Сборник текстовых полей для подстановки в секцию ObjectDescriptionSection извещения.
  */
 export const toNoticeObjectDescriptionFields = (
@@ -559,6 +1008,59 @@ export const toNoticeObjectDescriptionFields = (
   if (desc.standards.length > 0) {
     extras.push(
       `Стандарты: ${desc.standards.map((s) => `${standardTypeLabels[s.standardType]} ${s.code}`).join(", ")}`,
+    );
+  }
+  if (desc.nonStandardIndicatorsJustification) {
+    extras.push(
+      `Обоснование иных показателей (п. 2 ч. 1 ст. 33): ${desc.nonStandardIndicatorsJustification}`,
+    );
+  }
+  // Частичные объекты ООЗ (извещение, скрипты проверки) могут не содержать
+  // новых массивов — читаем их безопасно, чтобы текст собирался всегда.
+  const components = desc.descriptionComponents ?? [];
+  if (components.length > 0) {
+    extras.push(
+      `Состав описания (п. 3 ч. 1 ст. 33): ${components
+        .map((component) => descriptionComponentLabels[component])
+        .join(", ")}`,
+    );
+  }
+  const attachmentLines = attachmentTexts(desc.descriptionAttachments ?? []);
+  if (attachmentLines.length > 0) {
+    extras.push(
+      `Материалы описания (п. 3 ч. 1 ст. 33): ${attachmentLines.join("; ")}`,
+    );
+  }
+  if (desc.goodsImageRequired) {
+    extras.push(
+      `Изображение товара (п. 4 ч. 1 ст. 33): ${goodsImageText(desc) || "требуется"}`,
+    );
+  }
+  if (desc.sampleInspectionRequired) {
+    extras.push(
+      `Осмотр образца или макета (п. 5 ч. 1 ст. 33): ${[
+        desc.sampleInspectionPlace,
+        [desc.sampleInspectionStartDate, desc.sampleInspectionEndDate]
+          .filter(Boolean)
+          .map(formatRuDate)
+          .join(" — "),
+        desc.sampleInspectionProcedure || desc.sampleInspectionSchedule,
+      ]
+        .filter(Boolean)
+        .join("; ")}`,
+    );
+  }
+  if (desc.isMedicinalProduct && desc.innIndication) {
+    extras.push(`МНН (п. 6 ч. 1 ст. 33): ${desc.innIndication}`);
+  }
+  if (desc.capitalConstructionWork) {
+    extras.push(
+      `Документация по п. 8 ч. 1 ст. 33: ${constructionDocTypeLabels[desc.constructionDocType]}${desc.constructionDocDetails ? ` — ${desc.constructionDocDetails}` : ""}`,
+    );
+  }
+  if (desc.nationalRegimeRestriction) {
+    extras.push(
+      `Характеристики товара российского происхождения (ч. 1.1 ст. 33): ${desc.russianGoodsCharacteristics || "не указаны"}`,
     );
   }
   if (desc.warrantyTermMonths || desc.warrantyRequirements) {
@@ -663,11 +1165,88 @@ export const buildObjectDescriptionSummaryText = (
     });
   }
 
+  if (desc.nonStandardIndicatorsJustification) {
+    lines.push(
+      `Обоснование иных показателей (п. 2 ч. 1 ст. 33): ${desc.nonStandardIndicatorsJustification}`,
+    );
+  }
+
+  const components = desc.descriptionComponents ?? [];
+  if (components.length > 0) {
+    lines.push(
+      "",
+      `Состав описания (п. 3 ч. 1 ст. 33): ${components
+        .map((component) => descriptionComponentLabels[component])
+        .join(", ")}`,
+    );
+  }
+  const attachmentLines = attachmentTexts(desc.descriptionAttachments ?? []);
+  if (attachmentLines.length > 0) {
+    lines.push("Материалы описания (приложения):");
+    attachmentLines.forEach((line) => lines.push(`- ${line}`));
+  }
+
+  if (desc.goodsImageRequired) {
+    lines.push(
+      `Изображение товара (п. 4 ч. 1 ст. 33): ${goodsImageText(desc) || "требуется, реквизиты не указаны"}`,
+    );
+  }
+
+  if (desc.sampleInspectionRequired) {
+    lines.push(
+      `Осмотр образца или макета (п. 5 ч. 1 ст. 33): место — ${desc.sampleInspectionPlace || "не указано"}; даты — ${
+        [desc.sampleInspectionStartDate, desc.sampleInspectionEndDate]
+          .filter(Boolean)
+          .map(formatRuDate)
+          .join(" — ") || "не указаны"
+      }`,
+    );
+    if (desc.sampleInspectionProcedure) {
+      lines.push(`   Порядок осмотра: ${desc.sampleInspectionProcedure}`);
+    }
+    if (desc.sampleInspectionSchedule) {
+      lines.push(`   График осмотра: ${desc.sampleInspectionSchedule}`);
+    }
+  }
+
+  if (desc.isMedicinalProduct) {
+    lines.push(
+      "",
+      `Лекарственное средство (п. 6 ч. 1 ст. 33): МНН — ${desc.innIndication || "не указаны"}`,
+    );
+    if (desc.tradeNameUseBasis) {
+      lines.push(
+        `   Основание указания торгового наименования: ${desc.tradeNameUseBasis}`,
+      );
+    }
+  }
+
   if (isGoodsObjectDescription(desc)) {
     lines.push(
       "",
       `Требование к новизне (п. 7 ч. 1 ст. 33): ${desc.isNewGoodsRequired ? "товар должен быть новым" : "допускается не новый товар"}`,
     );
+  }
+  if (desc.capitalConstructionWork) {
+    lines.push(
+      "",
+      `Документация по п. 8 ч. 1 ст. 33: ${constructionDocTypeLabels[desc.constructionDocType]}`,
+    );
+    if (desc.constructionDocDetails) {
+      lines.push(`   Реквизиты документации: ${desc.constructionDocDetails}`);
+    }
+  }
+
+  if (desc.nationalRegimeRestriction) {
+    lines.push(
+      "",
+      `Товар российского происхождения (ч. 1.1 ст. 33): ${desc.russianGoodsCharacteristics || "характеристики не указаны"}`,
+    );
+    if (desc.nationalRegimeException) {
+      lines.push(
+        `   Исключение, установленное Правительством РФ: ${desc.nationalRegimeException}`,
+      );
+    }
   }
   if (desc.warrantyTermMonths || desc.warrantyRequirements) {
     lines.push(
@@ -731,6 +1310,29 @@ export const emptyObjectDescription = (
   trademarkName: "",
   trademarkJustification: "",
   standards: [],
+  nonStandardIndicatorsJustification: "",
+  descriptionComponents: [],
+  descriptionAttachments: [],
+  goodsImageRequired: false,
+  goodsImageReference: "",
+  goodsImageFileName: "",
+  goodsImageFileSize: 0,
+  goodsImageUrl: "",
+  sampleInspectionRequired: false,
+  sampleInspectionPlace: "",
+  sampleInspectionStartDate: "",
+  sampleInspectionEndDate: "",
+  sampleInspectionProcedure: "",
+  sampleInspectionSchedule: "",
+  isMedicinalProduct: false,
+  innIndication: "",
+  tradeNameUseBasis: "",
+  capitalConstructionWork: false,
+  constructionDocType: "none",
+  constructionDocDetails: "",
+  nationalRegimeRestriction: false,
+  russianGoodsCharacteristics: "",
+  nationalRegimeException: "",
   isNewGoodsRequired: true,
   warrantyTermMonths: "",
   warrantyRequirements: "",

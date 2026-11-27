@@ -20,6 +20,10 @@ import {
   GostCatalogSchema,
   gostHintSummary,
 } from "../src/services/GostRef/gostRef.schema";
+import {
+  findGostRequirements,
+  GostRequirementsCatalogSchema,
+} from "../src/services/GostRef/gostRequirements.schema";
 
 const file = path.resolve("public/gost/catalog.json");
 let checks = 0;
@@ -62,6 +66,43 @@ assert(
   gostHintSummary(first).includes(first.status) &&
     gostHintSummary(first).includes(first.scope.slice(0, 20)),
   "сводка подсказки содержит статус и область применения",
+);
+
+// Требования из полного текста: каждая подстановка обязана иметь цитату,
+// дословно присутствующую в сохранённом тексте документа.
+const requirementsFile = path.resolve("public/gost/requirements.json");
+const requirements = GostRequirementsCatalogSchema.parse(
+  JSON.parse(readFileSync(requirementsFile, "utf8")),
+);
+assert(
+  requirements.itemCount === requirements.items.length && requirements.itemCount > 0,
+  "снимок требований не пустой и itemCount верен",
+);
+assert(/^gost-req-\d{8}-[0-9a-f]{12}$/.test(requirements.version), "версия снимка требований");
+const firstRequirementItem = requirements.items[0];
+assert(
+  firstRequirementItem.requirements.every((item) => item.quote.trim().length >= 10),
+  "у каждого требования есть цитата",
+);
+const snapshotText = readFileSync(
+  path.resolve("docs/snapshots/gost/fulltext", firstRequirementItem.snapshotFile),
+  "utf8",
+).replace(/\s+/g, " ");
+assert(
+  firstRequirementItem.requirements.every((item) =>
+    snapshotText.includes(item.quote.replace(/\s+/g, " ")),
+  ),
+  "цитаты дословно совпадают с текстом документа",
+);
+assert(
+  findGostRequirements(requirements, "ГОСТ 1232-2017").some(
+    (item) => item.field === "warrantyTermMonths" && item.value === "60",
+  ),
+  "гарантийный срок из ГОСТа находится по обозначению",
+);
+assert(
+  findGostRequirements(requirements, "ГОСТ 00000-9999").length === 0,
+  "неизвестному ГОСТу требования не подставляются",
 );
 
 // Старое поведение сохранено: GOST_NOT_MODERN остаётся warning, а не ошибкой.

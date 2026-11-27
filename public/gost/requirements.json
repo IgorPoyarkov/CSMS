@@ -1,0 +1,56 @@
+{
+  "version": "gost-req-20261127-2289306a4f87",
+  "generatedAt": "2026-11-27T02:19:49.313Z",
+  "source": "https://allgosts.ru",
+  "itemCount": 2,
+  "items": [
+    {
+      "designation": "ГОСТ 1232-2017",
+      "sourceUrl": "https://allgosts.ru/29/080/gost_1232-2017",
+      "source": "allgosts",
+      "snapshotFile": "gost-1232-2017.txt",
+      "textChars": 83421,
+      "textSha256": "ffc8a1bb2272c309fdd3bbf4a0edc9248e75adc83aa0f0c1ab08312081708378",
+      "requirements": [
+        {
+          "field": "warrantyTermMonths",
+          "label": "Гарантийный срок",
+          "value": "60",
+          "months": 60,
+          "quote": "9.2 Гарантийный срок эксплуатации изоляторов - пять лет со дня ввода в эксплуатацию.",
+          "section": "Гарантии изготовителя"
+        },
+        {
+          "field": "warrantyRequirements",
+          "label": "Гарантия на оборудование",
+          "value": "9.1 Изготовитель гарантирует соответствие изоляторов требованиям настоящего стандарта при соблюдении условий хранения, транспортирования, монтажа и эксплуатации.",
+          "quote": "9.1 Изготовитель гарантирует соответствие изоляторов требованиям настоящего стандарта при соблюдении условий хранения, транспортирования, монтажа и эксплуатации.",
+          "section": "Гарантии изготовителя"
+        },
+        {
+          "field": "otherRequirements",
+          "label": "Тара и упаковка",
+          "value": "5.25.3 Упаковка - в соответствии с нормативными документами.",
+          "quote": "5.25.3 Упаковка - в соответствии с нормативными документами.",
+          "section": "Упаковка и маркировка"
+        },
+        {
+          "field": "descriptionComponents.packaging",
+          "label": "Включить «Упаковка» в состав описания",
+          "value": "packaging",
+          "quote": "5.25.3 Упаковка - в соответствии с нормативными документами.",
+          "section": "Упаковка и маркировка"
+        }
+      ]
+    },
+    {
+      "designation": "ГОСТ 30593-2015",
+      "sourceUrl": "https://allgosts.ru/43/060/gost_30593-2015",
+      "source": "allgosts",
+      "snapshotFile": "gost-30593-2015.html",
+      "textChars": 44190,
+      "textSha256": "ebd6f5ffdd453cf90ce38f5f06728f866abd88dfa61a4e5a15c6051dc6065ccd",
+      "requirements": []
+    }
+  ]
+}

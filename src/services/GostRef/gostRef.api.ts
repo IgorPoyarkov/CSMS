@@ -4,6 +4,10 @@ import {
   GostCatalogSchema,
   type GostCatalog,
 } from "./gostRef.schema";
+import {
+  GostRequirementsCatalogSchema,
+  type GostRequirementsCatalog,
+} from "./gostRequirements.schema";
 
 /**
  * Снимок новых ГОСТов лежит рядом со статикой (`public/gost/catalog.json`),
@@ -23,5 +27,24 @@ export const useGostCatalog = () =>
         timeout: 10_000,
       });
       return GostCatalogSchema.parse(data);
+    },
+  });
+
+/**
+ * Требования из полного текста ГОСТов. Снимок собирается из страниц,
+ * сохранённых через браузер, и лежит рядом с каталогом карточек.
+ */
+export const gostRequirementsQueryKey = ["gostRequirements"];
+
+export const useGostRequirements = () =>
+  useQuery<GostRequirementsCatalog>({
+    queryKey: gostRequirementsQueryKey,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    queryFn: async () => {
+      const { data } = await axios.get<unknown>("/gost/requirements.json", {
+        timeout: 10_000,
+      });
+      return GostRequirementsCatalogSchema.parse(data);
     },
   });

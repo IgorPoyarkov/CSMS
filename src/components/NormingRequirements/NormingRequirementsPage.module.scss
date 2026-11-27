@@ -950,6 +950,91 @@
     grid-row: 1;
   }
 
+  // Состав описания (п. 3 ч. 1 ст. 33): отметка компонента и его приложения.
+  &__composition-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-raised);
+  }
+
+  &__attachment-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+    align-items: end;
+    gap: 10px 12px;
+    padding: 12px;
+    border: 1px dashed var(--field-border);
+    border-radius: 8px;
+    background: var(--surface-field);
+
+    @media (max-width: 900px) {
+      grid-template-columns: minmax(0, 1fr) 34px;
+
+      > [class*="__file-field"] {
+        grid-column: 1;
+      }
+
+      > [class*="__req-remove"] {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: start;
+      }
+    }
+  }
+
+  &__file-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__file-input {
+    width: 100%;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px dashed var(--field-border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-secondary, var(--text-primary));
+    background: var(--surface-field);
+    cursor: pointer;
+  }
+
+  &__attachment-meta {
+    font-size: 12px;
+    color: var(--text-secondary, var(--text-primary));
+  }
+
+  // Подсказка агента ПП РФ № 1875 в разделе ч. 1.1 ст. 33.
+  &__regime-hint {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent, var(--border));
+    border-radius: 8px;
+    background: var(--surface-raised);
+  }
+
+  &__regime-hint-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__regime-hint-text {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary, var(--text-primary));
+  }
+
   &__gost-hint {
     display: flex;
     flex-direction: column;
@@ -993,6 +1078,29 @@
       font-size: 12px;
       line-height: 1.3;
     }
+  }
+
+  &__gost-hint-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+
+  &__gost-hint-suggestion {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  &__gost-hint-quote {
+    flex: 1 1 260px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
   }
 
   &__req-row {
